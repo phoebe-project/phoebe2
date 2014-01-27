@@ -599,7 +599,8 @@ class Bundle(object):
     def list(self,summary=None,*args):
         """
         List with indices all the ParameterSets that are available.
-        Simply a shortcut to bundle.get_system().list(...)
+        
+        Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.Body.list>`.
         """
         return self.get_system().list(summary,*args)
         
@@ -707,7 +708,6 @@ class Bundle(object):
                 
                 # Look down the tree structure
                 for level in path:
-                    print type(level), type(val)
                     # but only if we still have structure information
                     if index < len(structure_info):
                         
@@ -732,7 +732,6 @@ class Bundle(object):
                             context = level.get_context()
                             ref = level['ref'] if 'ref' in level else None
                             label = level['label'] if 'label' in level else None
-                            print '---',context,ref,label
                             
                         # The walk iterator could also give us 'lcsyn' or something
                         # the like, it apparently doesn't walk over these PSsets
@@ -891,7 +890,9 @@ class Bundle(object):
                 if index < len(structure_info):
                     continue
             
-            # Now did we find it?
+            # Now did we find it? We also need to check if the found parameter
+            # hasn't already been found (e.g. when two identical  parameterSets
+            # are added).
             if isinstance(val, parameters.Parameter):
                 if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
                     found.append(val)            
@@ -915,7 +916,6 @@ class Bundle(object):
                                            return_type='list')
             found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
             
-        print found
         if len(found) == 0:    
             raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
@@ -1449,11 +1449,57 @@ class Bundle(object):
         
         return dss
 
-    def enable_obs(self, dataref=None):
-        pass
+    def enable_obs(self, dataref=None, objref=None):
+        """
+        Enable observations from being included in the fitting procedure.
+        
+        If you set :envvar:`dataref=None`, then all datasets will be disabled.
+        """
+        system = self.get_system()
+        
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['obs']:
+                    if dataref is None:
+                        for idataref in body.params['obs'][obstype]:
+                            body.params['obs'][obstype][idataref].set_enabled(True)
+                            logger.info("Enabled {} '{}'".format(obstype, idataref))
+                    elif dataref in body.params['obs'][obstype]:
+                        body.params['obs'][obstype][dataref].set_enabled(True)
+                        logger.info("Enabled {} '{}'".format(obstype, dataref))
 
-    def disable_obs(self, dataref=None):
-        pass
+
+    def disable_obs(self, dataref=None, objref=None):
+        """
+        Disable observations from being included in the fitting procedure.
+        
+        If you set :envvar:`dataref=None`, then all datasets will be disabled.
+        """
+        system = self.get_system()
+        
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['obs']:
+                    if dataref is None:
+                        for idataref in body.params['obs'][obstype]:
+                            body.params['obs'][obstype][idataref].set_enabled(False)
+                            logger.info("Disabled {} '{}'".format(obstype, idataref))
+                    elif dataref in body.params['obs'][obstype]:
+                        body.params['obs'][obstype][dataref].set_enabled(False)
+                        logger.info("Disabled {} '{}'".format(obstype, dataref))
+
 
     def adjust_obs(self, dataref=None, l3=None, pblum=None):
         pass

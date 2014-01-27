@@ -32,13 +32,12 @@ def binary_teffratio(self, time, teff_ratio=0.5, fix=0):
     self[1-fix].params['component']['teff'] = teff_ratio * self[fix].params['component']['teff']**( (-1)**fix)
 
 
-#{ Modus operandi
 
 def binary_morphology(self, time):
     """
     Take care of constrained morphology in binary systems.
     
-    The :ref:`morphology <morphology-component-phoebe>` type is set by
+    The :ref:`morphology <label-morphology-component-phoebe>` type is set by
     equally-named parameter in the :ref:`component <parlabel-phoebe-component>`
     parameterSet. It can handle any of the following values:
         
@@ -85,8 +84,8 @@ def binary_morphology(self, time):
             potpar.set_limits(llim=0, ulim=critpot)
             logger.info('{} upper limit on potential set to critical (overcontact): pot<={}'.format('Primary' if comp==1 else 'Secondary',critpot))
   
-#}
-
+  
+  
 def sed_scale_to_distance(self, time, group):
     """
     Transform the SED scaling factor to a distance.

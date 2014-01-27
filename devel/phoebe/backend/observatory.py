@@ -949,7 +949,7 @@ def bandwidth_smearing(fctn):
         
         # That's it -- we just need to make sure to have the same return
         # signature as "ifm". Please change it in the future.
-        return freq, None, None, vis2, phase, None, None
+        return freq, base, pos_angle, vis2, phase, ang_scale, ang_prof
     
     return do_bandwidth_smearing    
     
@@ -1032,8 +1032,10 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     for nr, (bl, pa, wl) in enumerate(zip(baseline, posangle, eff_wave)):        
         
         if keepfig:
-            xlims,ylims,p = image(the_system,ref=ref,savefig='{}_{:05d}.fits'.format(keepfig,nr))
-            xlims,ylims,p = image(the_system,ref=ref)
+            xlims,ylims,p = image(the_system,ref=ref,context='ifdep',savefig='{}_{:05d}.fits'.format(keepfig,nr))
+            figdec,artdec,p = image(the_system,ref=ref,context='ifdep')
+            xlims = figdec['xlim']
+            ylims = figdec['ylim']
             pl.gca().set_autoscale_on(False)
             #-- add the baseline on the figure
             x_toplot = np.linspace(xlims[0]-0.5*abs(xlims[1]-xlims[0]),xlims[1]+0.5*abs(xlims[1]-xlims[0]),100)

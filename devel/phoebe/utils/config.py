@@ -3,6 +3,9 @@ Configuration module.
 
 This module defines all information on datasets and lcdeps, that is useful in
 various places in the code.
+
+It also contains information on the different atmosphere files, and the parameters
+in which can be interpolated (atmospheric parameters, not RV or reddening).
 """
 
 # The list of all data types for which time is the independent variable.
@@ -49,3 +52,9 @@ file_extension = {'lc':'lc',
                   'vis2':'if',
                   'am':'am',
                   'etv':'etv'}
+
+# Atmosphere properties
+atm_props = {'blackbody': ('teff',),
+             'kurucz': ('teff', 'logg', 'abun'),
+             'phoenix': ('teff', 'logg', 'abun'),
+             'olivia': ('teff', 'abun', 'eddy', 'uvflux')}

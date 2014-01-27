@@ -10,6 +10,7 @@ Section 1. Subpackages
     observatory
     fitting
     plotting
+    processing
     
 
 Section 2. Quick reference
