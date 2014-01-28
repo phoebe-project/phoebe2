@@ -57,18 +57,18 @@ c0 = time.time()
 # Extra parameters that we set here concern the shape of the surface (``shape``),
 # the distance to the Sun from the Earth (``distance``), the type of atmosphere
 # to use for the emergent fluxes (``atm``) and limb darkening coefficients.
-sun = phoebe.ParameterSet(context='star',add_constraints=True)
+sun = phoebe.ParameterSet(context='star')
 sun['shape'] = 'sphere'
 sun['atm'] = 'kurucz'
 sun['ld_coeffs'] = 'kurucz'
 sun['ld_func'] = 'claret'
 
-globals = phoebe.ParameterSet(context='globals')
-globals['distance'] = 1.,'au'
+globs = phoebe.ParameterSet(context='globals')
+globs['distance'] = 1.0, 'au'
 
 # Aside from physical parameters, we also need numerical ones. We wish to use
 # the marching method to generate the grid, with a reasonably fine marching step.
-sun_mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
+sun_mesh = phoebe.ParameterSet(context='mesh:marching')
 sun_mesh['delta'] = 0.05
 
 # We don't only need parameters for the Star body itself, but also information
@@ -79,7 +79,7 @@ sun_mesh['delta'] = 0.05
 # program to look up values for the limb darkening coefficients instead of
 # setting them manually (``ld_coeffs``). We don't want to use a filter, so we set the
 # ``passband`` to ``OPEN.BOL`` (bolometric).
-lcdep1 = phoebe.ParameterSet(frame='phoebe',context='lcdep')
+lcdep1 = phoebe.ParameterSet(frame='phoebe', context='lcdep')
 lcdep1['ld_func'] = 'claret'
 lcdep1['ld_coeffs'] = 'kurucz'
 lcdep1['atm'] = 'kurucz'
@@ -104,7 +104,7 @@ lcdep2['ref'] = 'Bolometric (analytical)'
 # ``the_sun.params['pbdep']['lcdep'].values()[0]``, and the numerical light
 # curve on its turn via ``the_sun.params['pbdep']['lcdep'].values()[1]``.
 
-the_sun = phoebe.Star(sun,sun_mesh,pbdep=[lcdep1,lcdep2], globals=globals)
+the_sun = phoebe.Star(sun, mesh=sun_mesh, pbdep=[lcdep1, lcdep2], globals=globs)
 
 # Computation of observables
 # --------------------------
@@ -131,7 +131,6 @@ And finally make some check images using :py:class:`plot2D() <phoebe.backend.uni
 the_sun.plot2D(savefig='sun_sun.png',ref=0)
 the_sun.plot2D(savefig='sun_sun_true_color.png',select='teff',cmap='blackbody_proj')
 the_sun.plot2D(savefig='sun_rv.png',select='rv')
-
 
 """
 
