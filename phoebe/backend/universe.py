@@ -2714,9 +2714,9 @@ class Body(object):
                 |            rvdep: rv2
                 |            rvobs: rv2
         
-             - :envvar:`summary='physical'`: lists only the physical parameters,
+            - :envvar:`summary='physical'`: lists only the physical parameters,
                but not the datasets
-             - :envvar:`summary='full'`: lists all parameters and datasets
+            - :envvar:`summary='full'`: lists all parameters and datasets
         
         @param emphasize: bring structure in the text via boldfacing
         @type emphasize: bool
@@ -6896,6 +6896,8 @@ class BinaryRocheStar(PhysicalBody):
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
         """
         lcdep,ref = self.get_parset(ref)
+        if lcdep is None:
+            return None
         
         #-- get limb angles
         mus = self.mesh['mu']

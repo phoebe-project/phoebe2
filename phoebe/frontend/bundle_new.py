@@ -919,7 +919,7 @@ class Bundle(object):
         if len(found) == 0:    
             raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
         elif return_type == 'single' and len(found)>1:
-            raise ValueError("more than one parameter was returned from the search: either constrain search or set return_type='all'")
+            raise ValueError("more than one parameter named '{}' was returned from the search: either constrain search or set return_type='all'".format(qualifier))
         elif return_type in ['single']:
             return found[0]
         else:
@@ -1828,21 +1828,20 @@ class Bundle(object):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True).values()
-        
+        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True)
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
         elif not len(dss):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
         # Get the obs DataSet and retrieve its context
-        ds = dss[0]
+        ds = dss.values()[0]
+        obj = self.get_object(dss.keys()[0])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
         kwargs['ref'] = dataref
-        getattr(plotting, 'plot_{}'.format(context))(self.get_system(),
-                                                     *args, **kwargs)
+        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
         
 
         
@@ -1855,20 +1854,20 @@ class Bundle(object):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True).values()
+        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True)
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
         elif not len(dss):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
         # Get the obs DataSet and retrieve its context
-        ds = dss[0]
+        ds = dss.values()[0]
+        obj = self.get_object(dss.keys()[0])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
         kwargs['ref'] = dataref
-        getattr(plotting, 'plot_{}'.format(context))(self.get_system(),
-                                                     *args, **kwargs)
+        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
 
             
     def plot_residuals(self,dataref,objref=None,**kwargs):
@@ -1894,6 +1893,17 @@ class Bundle(object):
         kwargs['ref'] = dataref
         getattr(plotting, 'plot_{}res'.format(typ))(self.get_system(),
                                                      *args, **kwargs)
+    
+    def write_syn(self, dataref, output_file, objref=None):
+        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True)
+        if len(dss) > 1:
+            logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
+        
+        # Get the obs DataSet and write to a file
+        ds = dss.values()[0]
+        ds.save(output_file)
     
     def get_axes(self,ident=None):
         """
