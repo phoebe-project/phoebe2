@@ -38,7 +38,7 @@ c0 = time.time()
 # Create a :ref:`star ParameterSet <parlabel-phoebe-star>` with parameters
 # matching the Sun, but make a fine-enough mesh. Also, the rotation period is
 # set to almost 90% of the Sun's critical rotation period.
-star = phoebe.ParameterSet(context='star',add_constraints=True)
+star = phoebe.ParameterSet(context='star')
 star['atm'] = 'blackbody'
 star['ld_func'] = 'linear'
 star['ld_coeffs'] = [0.6]
@@ -47,7 +47,7 @@ star['shape'] = 'sphere'
 star['teff'] = 10000.
 star['radius'] = 1.0,'Rsol'
 
-mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
+mesh = phoebe.ParameterSet(context='mesh:marching')
 mesh['delta'] = 0.05
 
 # These are the parameters for the calculation of the :ref:`spectrum <parlabel-phoebe-spdep>`. We assume the
@@ -68,27 +68,27 @@ spdep2['ref'] = 'Via convolution'
 # Fake some observations, so that we know onto which wavelengths we need to
 # compute the spectrum
 wavelengths = np.linspace(399.7, 400.3, 1000)
-spobs1 = phoebe.ParameterSet(context='spobs', ref=spdep1['ref'], wavelength=wavelengths)
-spobs2 = phoebe.ParameterSet(context='spobs', ref=spdep2['ref'], wavelength=wavelengths)
+spobs1 = phoebe.SPDataSet(ref=spdep1['ref'], wavelength=wavelengths, time=[0])
+spobs2 = phoebe.SPDataSet(ref=spdep2['ref'], wavelength=wavelengths, time=[0])
 
 # Body setup
 # ----------
 # Build the :py:class:`Star <phoebe.backend.universe.Star>` body.
-mesh1 = phoebe.Star(star, mesh, pbdep=[spdep1, spdep2])
-print mesh1
+body = phoebe.Star(star, mesh, pbdep=[spdep1, spdep2], obs=[spobs1, spobs2])
 
 # Computation of observables
 # --------------------------
-# Prepare to store the results and set the time in the universe.
-mesh1.set_time(0)
 
-# Compute the spectrum, and make an image of the star. Also, make a plot of
-# the radial velocity of the surface elements.
-mesh1.sp(obs=spobs1)
-mesh1.sp(obs=spobs2)
+# Since observations are added, the system is smart enough to know what to compute:
 
-mesh1.plot2D(savefig='fast_rotator_image.png')
-mesh1.plot2D(select='rv',savefig='fast_rotator_rv.png')
+body.compute()
+
+# But if you now want to make an image, you need to specify that you want it
+# to be with intensities computed for the spectra; since no light curves were
+# added.
+
+body.plot2D(ref='Numerical', context='spdep', savefig='fast_rotator_image.png')
+body.plot2D(select='rv',savefig='fast_rotator_rv.png')
 """
 
 +----------------------------------------------+-------------------------------------------+
@@ -104,16 +104,10 @@ mesh1.plot2D(select='rv',savefig='fast_rotator_rv.png')
 # Analysis of the results
 # -----------------------
 
-result1 = mesh1.get_synthetic(category='sp',ref=0)
-result2 = mesh1.get_synthetic(category='sp',ref=1)
+phoebe.plotting.plot_spsyn_as_profile(body, 'k-', ref='Numerical')
+phoebe.plotting.plot_spsyn_as_profile(body, 'r--', ref='Via convolution')
 
-plt.figure()
-plt.plot(result1['wavelength'][0],
-        np.array(result1['flux'][0])/np.array(result1['continuum'][0]),
-        'k-',label=result1['ref'])
-plt.plot(result2['wavelength'][0],
-        np.array(result2['flux'][0])/np.array(result2['continuum'][0]),'r--',lw=2,label=result2['ref'])
-plt.xlabel('Wavelength [A]')
+plt.xlabel('Wavelength [nm]')
 plt.ylabel('Normalized flux')
 plt.legend(loc='best')
 plt.savefig('fast_rotator_spectrum')

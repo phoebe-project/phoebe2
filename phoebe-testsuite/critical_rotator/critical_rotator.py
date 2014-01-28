@@ -37,7 +37,7 @@ logger = phoebe.get_basic_logger()
 # Kurucz atmosphere and set the rotation period to about 93% of the critical
 # rotation period of Vega.
 star = phoebe.ParameterSet(context='star')
-star['rotperiod'] = 11.6,'h'#11.5,'h'
+star['rotperiod'] = 11.6,'h'
 star['teff'] = 8900.,'K'
 star['mass'] = 2.3,'Msol'
 star['gravb'] = 1.0
@@ -48,7 +48,7 @@ star['ld_coeffs'] = 'kurucz'
 
 
 # For the mesh, we take a low-density grid, sampled using the marching method.
-star_mesh = phoebe.ParameterSet(frame='phoebe', context='mesh:marching', alg='c')
+star_mesh = phoebe.ParameterSet(context='mesh:marching')
 star_mesh['delta'] = 0.06
 
 # In the first spectrum that we calculate, we set the parameters for the
@@ -56,7 +56,7 @@ star_mesh['delta'] = 0.06
 # Claret limbdarkening and Kurucz atmospheres). However, for the calculation of
 # the spectrum, we require not knowledge of the the true line profile, but use
 # a generic Gaussian line.
-spdep1 = phoebe.ParameterSet(frame='phoebe', context='spdep')
+spdep1 = phoebe.ParameterSet(context='spdep')
 spdep1['ld_func'] = 'claret'
 spdep1['atm']= 'kurucz'
 spdep1['ld_coeffs'] = 'kurucz'
@@ -81,40 +81,34 @@ spdep3['ref'] = 'Synthesized profile'
 
 # Define specifics for the computation of the spectra
 wavelengths = np.linspace(-0.6, 0.6, 1000) + 450.83
-spobs1 = phoebe.ParameterSet(context='spobs', ref=spdep1['ref'], 
-                             wavelength=wavelengths)
-spobs2 = phoebe.ParameterSet(context='spobs', ref=spdep2['ref'],
-                             wavelength=wavelengths)
-spobs3 = phoebe.ParameterSet(context='spobs', ref=spdep3['ref'], 
-                             wavelength=wavelengths)
+spobs1 = phoebe.SPDataSet(ref=spdep1['ref'], wavelength=wavelengths, time=[0])
+spobs2 = phoebe.SPDataSet(ref=spdep2['ref'], wavelength=wavelengths, time=[0])
+spobs3 = phoebe.SPDataSet(ref=spdep3['ref'], wavelength=wavelengths, time=[0])
 
 # Body setup
 # ----------
 # Build the Star body.
-mesh1 = phoebe.Star(star, star_mesh, pbdep=[spdep1,spdep2,spdep3])
-print mesh1
+body = phoebe.Star(star, star_mesh, pbdep=[spdep1,spdep2,spdep3], obs=[spobs1, spobs2, spobs3])
 
 # Computation of observables
 # --------------------------
-mesh1.set_time(0,ref='all')
 
-# Compute the spectrum
-mesh1.sp(obs=spobs1)
-mesh1.sp(obs=spobs2)
-mesh1.sp(obs=spobs3)
+body.compute()
 
 # and make an image of the star and a map of it's effective temperature.
-phoebe.image(mesh1,savefig='critical_rotator_image.png')
-phoebe.image(mesh1,select='teff',savefig='critical_rotator_teff.png')
+phoebe.image(body, ref=spdep1['ref'], context='spdep', savefig='critical_rotator_image.png')
+phoebe.image(body, select='teff', savefig='critical_rotator_teff.png')
 
 # For fun, set the inclination to 60 degrees and again make an image and a map
 # of the star's effective temperature. We need to recalculate the mesh, so
 # we need to call the mesh's ``reset`` method.
-mesh1.reset()
-mesh1.params['star']['incl'] = 60.,'deg'
-mesh1.set_time(0,ref='all')
-phoebe.image(mesh1,savefig='critical_rotator_image2.png')
-phoebe.image(mesh1,select='teff',savefig='critical_rotator_teff2.png')
+body.reset()
+body.params['star']['incl'] = 60.,'deg'
+
+body.compute()
+
+phoebe.image(body,ref=spdep1['ref'], context='spdep', savefig='critical_rotator_image2.png')
+phoebe.image(body, select='teff', savefig='critical_rotator_teff2.png')
 
 """
 
@@ -135,32 +129,33 @@ phoebe.image(mesh1,select='teff',savefig='critical_rotator_teff2.png')
 # but we want to use them to label the plot. We want the first, second and third
 # spectrum calculated.
 
-result1 = mesh1.get_synthetic('sp',ref=0)
-result2 = mesh1.get_synthetic('sp',ref=1)
-result3 = mesh1.get_synthetic('sp',ref=2)
-
-# A plot is then easily made:
-wave1 = np.array(result1['wavelength'])
-spec1 = np.array(result1['flux'])
-cont1 = np.array(result1['continuum'])
-wave2 = np.array(result2['wavelength'])
-spec2 = np.array(result2['flux'])
-cont2 = np.array(result2['continuum'])
-wave3 = np.array(result3['wavelength'])
-spec3 = np.array(result3['flux'])
-cont3 = np.array(result3['continuum'])
-
-
 plt.figure()
-plt.plot(wave1[0],spec1[0]/cont1[0],'k-',lw=2,label=result1['ref'])
-plt.plot(wave2[0],spec2[0]/cont2[0],'r-',lw=2,label=result2['ref'])
-plt.plot(wave3[0],spec3[0]/cont3[0],'g-',lw=2,label=result3['ref'])
-plt.xlabel('Wavelength [A]')
+
+phoebe.plotting.plot_spsyn_as_profile(body, 'k-', lw=2, ref=spdep1['ref'], index=0)
+phoebe.plotting.plot_spsyn_as_profile(body, 'r-', lw=2, ref=spdep2['ref'], index=0)
+phoebe.plotting.plot_spsyn_as_profile(body, 'g-', lw=2, ref=spdep3['ref'], index=0)
+
+plt.xlabel('Wavelength [nm]')
 plt.ylabel("Normalised flux")
 plt.grid()
 leg = plt.legend()
 leg.get_frame().set_alpha(0.5)
 plt.savefig('critical_rotator_spectrum.png')
+
+
+
+plt.figure()
+
+phoebe.plotting.plot_spsyn_as_profile(body, 'k-', lw=2, ref=spdep1['ref'], index=1)
+phoebe.plotting.plot_spsyn_as_profile(body, 'r-', lw=2, ref=spdep2['ref'], index=1)
+phoebe.plotting.plot_spsyn_as_profile(body, 'g-', lw=2, ref=spdep3['ref'], index=1)
+
+plt.xlabel('Wavelength [nm]')
+plt.ylabel("Normalised flux")
+plt.grid()
+leg = plt.legend()
+leg.get_frame().set_alpha(0.5)
+plt.savefig('critical_rotator_spectrum2.png')
 
 """
 .. figure:: images_tut/critical_rotator_spectrum.png
