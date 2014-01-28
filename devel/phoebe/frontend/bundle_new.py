@@ -1596,7 +1596,12 @@ class Bundle(object):
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
-            options = self.get_compute(label)
+            options = self.get_compute(label).copy()
+         
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in options.keys():
+                options.set_value(k,v)
         
         # get server options
         if server is not None:
@@ -1669,7 +1674,7 @@ class Bundle(object):
         self._remove_from_section('fitting',label)
         
     @run_on_server
-    def run_fitting(self,computelabel,fittinglabel,add_feedback=None,server=None,**kwargs):
+    def run_fitting(self,computelabel=None,fittinglabel=None,add_feedback=None,accept_feedback=False,server=None,**kwargs):
         """
         Run fitting for a given fitting ParameterSet
         and store the feedback
@@ -1678,6 +1683,10 @@ class Bundle(object):
         @param computelabel: str
         @param fittinglabel: name of fitting ParameterSet
         @type fittinglabel: str
+        @param add_feedback: label to store the feedback under (retrieve with get_feedback)
+        @type add_feedback: str or None
+        @param accept_feedback: whether to automatically accept the feedback into the system
+        @type accept_feedback: bool
         @param server: name of server to run on, or False to force locally (will override usersettings)
         @type server: string
         """
@@ -1690,16 +1699,38 @@ class Bundle(object):
         else:
             mpi = None
         
-        if isinstance(fittinglabel,str):
-            fitparams = self.get_fitting(fittinglabel)
+        # get fitting params
+        if fittinglabel is None:
+            fittingoptions = parameters.ParameterSet(context='fitting')
         else:
-            # assume fitting ps
-            fitparams = fittinglabel
+            fittingoptions = self.get_fitting(fittinglabel).copy()
+         
+        # get compute params
+        if computelabel is None:
+            computeoptions = parameters.ParameterSet(context='compute')
+        else:
+            computeoptions = self.get_compute(label).copy()
+
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in options.keys():
+                options.set_value(k,v)
             
-        feedback = fitting.run(self.get_system(), params=self.get_compute(computelabel), fitparams=fitparams, mpi=mpi)
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in fittingoptions.keys():
+                fittingoptions.set_value(k,v)
+            elif k in computeoptions.keys():
+                computeoptions.set_value(k,v)
+
+        feedback = fitting.run(self.get_system(), params=computeoptions, fitparams=fittingoptions, mpi=mpi)
         
         if add_feedback:
             self.add_feedback(feedback)
+            
+        if accept_feedback:
+            fitting.accept_fit(self.get_system(),feedback)
+            
         return feedback
     
     def add_feedback(self,ps,alias=None):
