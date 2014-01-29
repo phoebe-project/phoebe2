@@ -2681,16 +2681,20 @@ class VegaMag(NonLinearConverter):
     """
     def __call__(self,meas,passband=None,inv=False,**kwargs):
         #-- this part should include something where the zero-flux is retrieved
-        if passband is None:
-            zp = 0.0
-            F0 = 1.0
-            mag0 = 0.0
-        else:
+        zp = 0.0
+        F0 = 1.0
+        mag0 = 0.0
+        
+        if passband is not None:
             zp = passbands.get_info()
             match = zp['passband']==passband.upper()
-            if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
-            F0 = convert(zp['Flam0_units'][match][0],'W/m3',zp['Flam0'][match][0])
-            mag0 = float(zp['vegamag'][match][0])
+            if sum(match)==0:
+                raise ValueError("No calibrations for %s"%(passband))
+            
+            if not np.isnan(zp['Flam0'][match][0]) and not np.isnan(float(zp['vegamag'][match][0])):
+                F0 = convert(zp['Flam0_units'][match][0],'W/m3',zp['Flam0'][match][0])    
+                mag0 = float(zp['vegamag'][match][0])
+                
         if not inv: return 10**(-(meas-mag0)/2.5)*F0
         else:       return -2.5*log10(meas/F0)+mag0
 
@@ -2850,15 +2854,16 @@ class Epoch(NonLinearConverter):
     """
     Convert an Epoch to Julian Day and back.
     
-    Julian Epoch:
+    Julian Epoch::
     
-    J = 2000.0 + (Julian date − 2451545.0)/365.25
-    JD = (J - 2000.0) * 365.25 + 2451545.0
+        J = 2000.0 + (Julian date - 2451545.0)/365.25
+        JD = (J - 2000.0) * 365.25 + 2451545.0
     
-    Besselian Epoch:
+    Besselian Epoch::
     
-    B = 1900.0 + (Julian date − 2415020.31352) / 365.242198781
-    JD = (B - 1900.0) *365.242198781 + 2415020.31352
+        B = 1900.0 + (Julian date - 2415020.31352) / 365.242198781
+        JD = (B - 1900.0) *365.242198781 + 2415020.31352
+        
     """
     def __call__(self,meas,inv=False):
         if not inv:

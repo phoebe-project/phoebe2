@@ -1564,7 +1564,8 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
                                             components, dtypes, units, **kwargs)
             
     # Add sigma if not available:
-    myds = output.values()[0][0][-1]
+    myds = output.values()[0][0][0]
+    mypb = output.values()[0][1][0]
     if not 'sigma' in myds['columns']:
         myds.estimate_noise(from_col='flux', to_col='sigma')
         myds['columns'] = myds['columns'] + ['sigma']
@@ -1575,7 +1576,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
         if col == 'flux':
             f, e_f = conversions.convert(units[col],
                                          myds.get_parameter(col).get_unit(), 
-                                         myds['flux'], myds['sigma'], passband=pb['passband'])
+                                         myds['flux'], myds['sigma'], passband=mypb['passband'])
             myds['flux'] = f
             myds['sigma'] = e_f
     
@@ -1811,6 +1812,11 @@ def parse_phot(filenames, columns=None, full_output=False, group=None,
     consists of only one component, which is probably a bit confusing for the
     user (at least me). So if there are no labels given and C{full_output=False},
     the two lists are immediately returned.
+    
+    **Grouping**
+    
+    You can :py:func:`group <phoebe.parameters.tools.group>` observations, e.g.
+    such to :py:func:`adjust the distance to scale the SED <phoebe.backend.processing.sed_scale_to_distance>`.
     
     **Example usage**
     

@@ -751,7 +751,7 @@ def get_hierarchical_orbits(times,system,barycentric=False):
 
 
 
-def rotate_into_orbit(obj,euler,loc=(0,0,0)):
+def rotate_into_orbit(obj, euler, loc=(0,0,0)):
     r"""
     Rotate something to a position in an orbit.
     
