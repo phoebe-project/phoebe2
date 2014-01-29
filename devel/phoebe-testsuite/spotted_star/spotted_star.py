@@ -24,7 +24,7 @@ c0 = time.time()
 # Parameter preparation
 # ---------------------
 # Create a ParameterSet with parameters closely matching the Sun:
-sun = phoebe.ParameterSet(context='star',add_constraints=True)
+sun = phoebe.ParameterSet(context='star')
 sun['atm'] = 'kurucz'
 sun['incl'] = 90.,'deg'
 
@@ -33,7 +33,7 @@ mesh = phoebe.ParameterSet(context='mesh:marching')
 # Definition of the spot:
 spot = phoebe.ParameterSet(context='circ_spot')
 spot['teffratio'] = 0.1
-spot['long'] = 180.,'deg'
+spot['long'] = 90.,'deg'
 spot['colat'] = 45.,'deg'
 spot['angrad'] = 10.
 
@@ -44,17 +44,18 @@ lcdep1['ld_coeffs'] = 'kurucz'
 lcdep1['atm'] = 'kurucz'
 lcdep1['ref'] = 'spot'
 
+lcobs = phoebe.LCDataSet(time = np.linspace(0,sun['rotperiod'],50))
+
 # Body setup
 # ----------
 # Build the Star body:
-star = phoebe.Star(sun,mesh=mesh,pbdep=[lcdep1],circ_spot=spot)
+star = phoebe.Star(sun, mesh=mesh, pbdep=[lcdep1], circ_spot=spot, obs=[lcobs])
 print(star)
 
 # Computation of observables
 # --------------------------
-times = np.linspace(0,sun['rotperiod'],50)
-phoebe.observe(star,times,lc=True, extra_func=[phoebe.observatory.ef_image],
-                                   extra_func_kwargs=[dict(ref='spot')])
+
+star.compute(extra_func=[phoebe.observatory.ef_image], extra_func_kwargs=[dict(ref='spot')])
 
 """
 +----------------------------------------------------------------+--------------------------------------------------------------+---------------------------------------------------------------------+
@@ -71,17 +72,14 @@ phoebe.observe(star,times,lc=True, extra_func=[phoebe.observatory.ef_image],
 
 # Analysis of results
 # -------------------
-results = star.get_synthetic(category='lc',ref=0)
-date = np.array(results['time'])
-flux = np.array(results['flux'])
 
 plt.figure()
-plt.plot(date,flux/flux.mean(),'ko-')
+phoebe.plotting.plot_lcsyn(star, 'ko-')
 plt.xlabel('Time [d]')
 plt.ylabel('Relative flux')
 plt.savefig('spotted_star_lc')
 
-plotlib.make_movie('spotted_star_????*.png',output='spotted_star.gif')
+plotlib.make_movie('ef_image_????*.png',output='spotted_star.gif')
 """
 .. figure:: images_tut/spotted_star_lc.png
    :scale: 75 %

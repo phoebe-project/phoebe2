@@ -31,7 +31,7 @@ logger = phoebe.get_basic_logger()
 # Create a ParameterSet with parameters closely matching Vega. We use a
 # Kurucz atmosphere and set the rotation period to about 50% of the
 # critical rotation period of Vega.
-star = phoebe.ParameterSet(frame='phoebe',context='star',add_constraints=True)
+star = phoebe.ParameterSet(context='star')
 star['rotperiod'] = 22.8,'h'
 star['teff'] = 8900.,'K'
 star['mass'] = 2.3,'Msol'
@@ -47,52 +47,67 @@ star['ld_func'] = 'claret'
 # we want to do the reverse and fix the equatorial rotation period and change
 # the polar one. For our convenience, we add an extra parameter to the
 # parameterSet and add a constraint.
-star.add(dict(qualifier='eqrotperiod',value=22.8,unit='h',\
+star.add(dict(qualifier='eqrotperiod', value=22.8, unit='h',\
               description='Equatorial rotation period'))
-star.add_constraint('{diffrot}={eqrotperiod}-{rotperiod}')
+star.add_constraint('{diffrot} = {eqrotperiod} - {rotperiod}')
 
 # For the mesh, we take a low-density grid, sampled using the marching method.
-star_mesh = phoebe.ParameterSet(frame='phoebe',context='mesh:marching',alg='c')
-star_mesh['delta'] = 0.1
+star_mesh = phoebe.ParameterSet(context='mesh:marching')
+star_mesh['delta'] = 0.05
 
 # In the spectrum that we calculate, we set the parameters for the atmosphere
 # and limb-darkening coefficients as realistic as possible (i.e., Claret
 # limbdarkening and Kurucz atmospheres). However, for the calculation of the
 # spectrum, we require no knowledge of the the true line profile, but use a
 # generic Gaussian line.
-spdep = phoebe.ParameterSet(frame='phoebe',context='spdep')
+spdep = phoebe.ParameterSet(context='spdep')
 spdep['ld_func'] = 'claret'
 spdep['atm']= 'kurucz'
 spdep['ld_coeffs'] = 'kurucz'
-spdep['clambda'] = 4508.3
 spdep['passband'] = 'JOHNSON.V'
 spdep['method'] = 'numerical'
 spdep['ref'] = 'Gaussian profile (numerical)'
 
+spobs = phoebe.SPDataSet(wavelength=np.linspace(-3,3,1000)+4508.3, time=[0])
+
 # Body setup
 # ----------
 # Build the Star body.
-mesh1 = phoebe.Star(star,star_mesh,pbdep=[spdep])
+mesh1 = phoebe.Star(star, star_mesh, pbdep=[spdep], obs=[spobs])
 print mesh1
 
-# Computation of observables
-# --------------------------
+# Computation of observables and analysis of results
+# -----------------------------------------------------
+
+# Cycle over different polar periods, compute the spectra, make a few images
+# and plot the spectra
+
 polar_periods = [11.5,15.,22.8,45.,80.]
 for i,polar_period in enumerate(polar_periods):
-    star['rotperiod'] = polar_period,'h'
-    mesh1.reset()
-    mesh1.set_time(0,ref='all')
     
-    # Compute the spectrum
-    mesh1.sp()
+    # compute the spectra
+    star['rotperiod'] = polar_period,'h'
+    mesh1.reset_and_clear()
+    mesh1.compute()
 
-    # and make an image of the star and a map of it's effective temperature.
-    phoebe.image(mesh1)
-    plt.xlim(-2.8,2.8)
-    plt.ylim(-2.8,2.8)
-    plt.savefig('diff_rotator_image_{}.png'.format(i))
-    phoebe.image(mesh1,select='teff',savefig='diff_rotator_teff_{}.png'.format(i),vmin=8800,vmax=9400)
-    phoebe.image(mesh1,select='rv',savefig='diff_rotator_rv_{}.png'.format(i),vmin=-100/8.05,vmax=100/8.05)
+    # and make an image of the star and a map of its effective temperature and
+    # radial velocity
+    phoebe.image(mesh1, context='spdep', ref=spdep['ref'], savefig='diff_rotator_image_{}.png'.format(i))
+    phoebe.image(mesh1, select='teff',savefig='diff_rotator_teff_{}.png'.format(i),vmin=8800,vmax=9400)
+    phoebe.image(mesh1, select='rv',savefig='diff_rotator_rv_{}.png'.format(i),vmin=-100,vmax=100)
+    
+    # and plot the spectra
+    plt.figure(100)
+    phoebe.plotting.plot_spsyn_as_profile(mesh1, '-', lw=2, label='P$_{{pl}}$={:.1f} h'.format(polar_periods[i]))
+
+plt.xlabel('Wavelength [A]')
+plt.ylabel("Normalised flux")
+plt.grid()
+leg = plt.legend()
+leg.get_frame().set_alpha(0.5)
+plt.savefig('diff_rotator_spectrum.png')
+plt.gcf().frameon = False
+plt.savefig('diff_rotator_spectrum.pdf')
 
 """
 
@@ -130,35 +145,7 @@ for i,polar_period in enumerate(polar_periods):
 |    :align: center                                 |                                                  |                                                  |
 +---------------------------------------------------+--------------------------------------------------+--------------------------------------------------+
 
-"""
 
-# Analysis of the results
-# -----------------------
-
-# Retrieve all the spectra. We're too lazy to repeat the labels we gave above,
-# but we want to use them to label the plot. We want the first, second and third
-# spectrum calculated.
-
-spectrum = mesh1.get_synthetic('sp',ref=0)
-
-# A plot is then easily made:
-waves = np.array(spectrum['wavelength'])
-specs = np.array(spectrum['flux'])
-conts = np.array(spectrum['continuum'])
-
-plt.figure()
-for i,(wave,spec,cont) in enumerate(zip(waves,specs,conts)):
-    plt.plot(wave,spec/cont,'-',lw=2,label='P$_{{pl}}$={:.1f} h'.format(polar_periods[i]))
-plt.xlabel('Wavelength [A]')
-plt.ylabel("Normalised flux")
-plt.grid()
-leg = plt.legend()
-leg.get_frame().set_alpha(0.5)
-plt.savefig('diff_rotator_spectrum.png')
-plt.gcf().frameon = False
-plt.savefig('diff_rotator_spectrum.pdf')
-
-"""
 .. figure:: images_tut/diff_rotator_spectrum.png
    :scale: 75 %
    :align: center
