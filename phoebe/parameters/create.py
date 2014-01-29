@@ -717,8 +717,16 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     
     Extra information given is the separation (C{sma}) between the two objects
     or the orbital period. You should give one of them (and only one) as a
-    tuple (value,unit). The other one will be derived using
+    tuple (value,unit). The other one will be derived using the masses of the
+    individual stars and
     :py:func:`Kepler's third law <phoebe.dynamics.keplerorbit.third_law>`.
+    
+    Usually, you'd want to give period rather than semi-major axis, since
+    the period is usually much better constrained.
+    
+    The inclination angle and synchronicity parameters will by default be
+    derived from the inclination angles from the stars, and their rotation period
+    with respect to the orbital period.
     
     Extra ``kwargs1`` override defaults in the creation of the primary
     :ref:`component <parlabel-phoebe-component>`, extra
@@ -764,7 +772,6 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
                         "stars and 'long_an' is not given in orbitkwargs, "
                         "taking default value."))
         
-    
     comp1 = parameters.ParameterSet(context='component',**kwargs1)
     comp2 = parameters.ParameterSet(context='component',**kwargs2)
     orbit = parameters.ParameterSet(context='orbit',**orbitkwargs)
@@ -776,12 +783,20 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     M = star1.get_value('mass','Msol')+star2.get_value('mass','Msol')
     #-- get information on semi-major axis
     if sma is not None:
-        sma = conversions.convert(sma[1],'au',sma[0])
+        try:
+            sma = conversions.convert(sma[1],'au',sma[0])
+        except TypeError:
+            raise ValueError("'sma' needs to be a tuple (value,'unit')")
+        
         period = keplerorbit.third_law(totalmass=M,sma=sma)
         orbit['sma'] = sma,'au'
         orbit['period'] = period,'d'
     elif period is not None:
-        period = conversions.convert(period[1],'d',period[0])
+        try:
+            period = conversions.convert(period[1],'d',period[0])
+        except TypeError:
+            raise ValueError("'period' needs to be a tuple (value,'unit')")
+        
         sma = keplerorbit.third_law(totalmass=M,period=period)
         orbit['sma'] = sma,'au'
         orbit['period'] = period,'d'

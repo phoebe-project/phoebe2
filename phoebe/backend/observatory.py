@@ -2575,7 +2575,7 @@ def binary_eclipse_algorithm(all_systems, algorithm):
         R1 = np.max(d1)
         R2 = np.max(d2)
         predict_eclipse = np.sqrt( (X1[0]-X2[0])**2 + (X1[1]-X2[1])**2)<=(R1+R2)
-        logger.info("{}: predict eclipse (binary convex E/H)".format(all_systems[0].time))
+        logger.info("{}: predict eclipse (binary Graham E/H)".format(all_systems[0].time))
     else:
         predict_eclipse = None
     
