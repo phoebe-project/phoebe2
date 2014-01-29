@@ -850,7 +850,7 @@ class Bundle(object):
                 index = start_index
                 
                 # Look down the tree structure
-                for level in path:
+                for jlevel, level in enumerate(path):
                     
                     # but only if we still have structure information
                     if index < len(structure_info):
@@ -895,8 +895,16 @@ class Bundle(object):
             # are added).
             if isinstance(val, parameters.Parameter):
                 if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
+                    
+                    # Special handling of orbits: you can't request orbital
+                    # information of a component, only of the BodyBag.
+                    if 'orbit' in val.get_context() and structure_info:
+                        if not 'orbit' in structure_info[-1] and not (structure_info[-1] == path[-2]['label']):
+                            continue
+                        
                     found.append(val)            
                     found_labels.append(val.get_unique_label())
+                    
         
         if len(found) == 0:
             # we should look into subsections here
