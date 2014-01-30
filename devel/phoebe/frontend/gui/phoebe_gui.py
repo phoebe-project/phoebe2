@@ -311,6 +311,79 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # any additional setup should be done there
         self.PyInterp_run('bundle = Bundle()',kind='sys',thread=False)
         
+    def bundle_get_system_structure(self,bundle,return_type='label',flat=False,**kwargs):
+        """
+        Get the structure of the system below any bodybag in a variety of formats
+        
+        @param return_type: list of types to return including label,obj,ps,nchild,mask
+        @type return_type: str or list of strings
+        @param flat: whether to flatten to a 1d list
+        @type flat: bool
+        @return: the system structure
+        @rtype: list or list of lists        
+        """
+        all_types = ['obj','ps','nchild','mask','label']
+        
+        # create empty list for all types, later we'll decide which to return
+        struc = {}
+        for typ in all_types:
+            struc[typ]=[]
+        
+        if 'old_mask' in kwargs.keys() and 'mask' in return_type:
+            # old_mask should be passed as a tuple of two flattened lists
+            # the first list should be parametersets
+            # the second list should be the old mask (booleans)
+            # if 'mask' is in return_types, and this info is given
+            # then any matching ps from the original ps will retain its old bool
+            # any new items will have True in the mask
+            
+            # to find any new items added to the system structure
+            # pass the old flattened ps output and a list of False of the same length
+            
+            old_mask = kwargs['old_mask']
+            old_struclabel = old_mask[0]
+            old_strucmask = old_mask[1]
+            
+        else:
+            old_struclabel = [] # new mask will always be True
+                
+        if 'top_level' in kwargs.keys():
+            item = kwargs.pop('top_level') # we don't want it in kwargs for the recursive call
+        else:
+            item = bundle.get_system()
+            
+        struc['obj'].append(item)
+        itemlabel = self.bundle_get_label(item)
+        struc['label'].append(itemlabel)
+        struc['ps'].append(bundle.get_ps(item))
+        
+        # label,ps,nchild are different whether item is body or bodybag
+        if hasattr(item, 'bodies'):
+            struc['nchild'].append('2') # should not be so strict
+        else:
+            struc['nchild'].append('0')
+            
+        if itemlabel in old_struclabel: #then apply previous bool from mask
+            struc['mask'].append(old_strucmask[old_struclabel.index(itemlabel)])
+        else:
+            struc['mask'].append(True)
+
+        # recursively loop to get hierarchical structure
+        children = bundle.get_children(item)
+        if len(children) > 1:
+            for typ in all_types:
+                struc[typ].append([])
+        for child in children:
+            new = self.bundle_get_system_structure(bundle, return_type=all_types,flat=flat,top_level=child,**kwargs)
+            for i,typ in enumerate(all_types):
+                struc[typ][-1]+=new[i]
+
+        if isinstance(return_type, list):
+            return [list(utils.traverse(struc[rtype])) if flat else struc[rtype] for rtype in return_type]
+        else: #then just one passed, so return a single list
+            rtype = return_type
+            return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
+        
     def str_includes(self,string,lst):
         for item in lst:
             if item in string:
@@ -388,7 +461,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ self.PythonEdit.write('\n')
             
             # clear any partial synthetic datasets to avoid plotting issues and inconsistencies
-            self.bundle.system.clear_synthetic()
+            self.bundle.get_system().clear_synthetic()
            
             # and force redraw plots to clear all models
             self.on_plots_changed()
@@ -443,7 +516,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         self.pop_i = None
 
-        if self.bundle.system is None: #then we have no bundle and should be on the splash
+        if self.bundle.get_system() is None: #then we have no bundle and should be on the splash
             self.filename = None
             self.tb_file_saveAction.setEnabled(False)
             self.tb_file_saveasAction.setEnabled(False)
@@ -460,7 +533,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.bundle.attach_signal(self.bundle,'add_fitting',self.update_fittingOptions)
             self.bundle.attach_signal(self.bundle,'remove_fitting',self.update_fittingOptions)
             #~ print "*** attaching set_time signal"
-            #~ self.bundle.attach_signal(self.bundle.system,'set_time',self.on_set_time)
+            #~ self.bundle.attach_signal(self.bundle.get_system(),'set_time',self.on_set_time)
 
         self.update_system()
         self.on_plots_changed()
@@ -559,6 +632,102 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         """
         #this will obviously be reworked to be more general
         self.PyInterp_run('bundle = Bundle(system=create.KOI126())', write=True)
+        
+    def bundle_get_label(self,obj):
+        """
+        Get the label/name for any object (Body or BodyBag)
+        
+        @param obj: the object
+        @type obj: Body or BodyBag
+        @return: the label/name
+        @rtype: str        
+        """
+        if isinstance(obj,str): #then probably already name, and return
+            return obj
+        
+        objectname = None
+        if hasattr(obj,'bodies'): #then bodybag
+            #search for orbit in the children bodies
+            for item in obj.bodies: # should be the same for all of them, but we'll search all anyways
+                #NOTE: this may fail if you have different orbits for each component
+                if 'orbit' in item.params.keys():
+                    objectname = item.params['orbit']['label']
+            return objectname
+        else: #then hopefully body
+            return obj.get_label()
+        
+    def bundle_get_system_structure(self,bundle,return_type='label',flat=False,**kwargs):
+        """
+        Get the structure of the system below any bodybag in a variety of formats
+        
+        @param return_type: list of types to return including label,obj,ps,nchild,mask
+        @type return_type: str or list of strings
+        @param flat: whether to flatten to a 1d list
+        @type flat: bool
+        @return: the system structure
+        @rtype: list or list of lists        
+        """
+        all_types = ['obj','ps','nchild','mask','label']
+        
+        # create empty list for all types, later we'll decide which to return
+        struc = {}
+        for typ in all_types:
+            struc[typ]=[]
+        
+        if 'old_mask' in kwargs.keys() and 'mask' in return_type:
+            # old_mask should be passed as a tuple of two flattened lists
+            # the first list should be parametersets
+            # the second list should be the old mask (booleans)
+            # if 'mask' is in return_types, and this info is given
+            # then any matching ps from the original ps will retain its old bool
+            # any new items will have True in the mask
+            
+            # to find any new items added to the system structure
+            # pass the old flattened ps output and a list of False of the same length
+            
+            old_mask = kwargs['old_mask']
+            old_struclabel = old_mask[0]
+            old_strucmask = old_mask[1]
+            
+        else:
+            old_struclabel = [] # new mask will always be True
+                
+        if 'top_level' in kwargs.keys():
+            item = kwargs.pop('top_level') # we don't want it in kwargs for the recursive call
+        else:
+            item = bundle.get_system()
+            
+        struc['obj'].append(item)
+        itemlabel = self.bundle_get_label(item)
+        struc['label'].append(itemlabel)
+        struc['ps'].append(bundle.get_ps(itemlabel))
+        
+        # label,ps,nchild are different whether item is body or bodybag
+        if hasattr(item, 'bodies'):
+            struc['nchild'].append('2') # should not be so strict
+        else:
+            struc['nchild'].append('0')
+            
+        if itemlabel in old_struclabel: #then apply previous bool from mask
+            struc['mask'].append(old_strucmask[old_struclabel.index(itemlabel)])
+        else:
+            struc['mask'].append(True)
+
+        # recursively loop to get hierarchical structure
+        children = bundle.get_children(itemlabel)
+        if len(children) > 1:
+            for typ in all_types:
+                struc[typ].append([])
+        for child in children:
+            new = self.bundle_get_system_structure(bundle, return_type=all_types,flat=flat,top_level=child,**kwargs)
+            for i,typ in enumerate(all_types):
+                struc[typ][-1]+=new[i]
+
+        if isinstance(return_type, list):
+            return [list(utils.traverse(struc[rtype])) if flat else struc[rtype] for rtype in return_type]
+        else: #then just one passed, so return a single list
+            rtype = return_type
+            return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
 
     def get_system_structure(self, struclabel=None, strucsel=None):
         """
@@ -568,8 +737,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         curr_struclabel = list(utils.traverse(struclabel)) #flattened lists of the incoming values before updating
         curr_strucsel = list(utils.traverse(strucsel))
         
-        if self.bundle.system is not None:
-            strucnames, strucnchild, strucsel, strucps = self.bundle.get_system_structure(return_type=['label','nchild','mask','ps'],old_mask=(curr_struclabel, curr_strucsel))
+        if self.bundle.get_system() is not None:
+            strucnames, strucnchild, strucsel, strucps = self.bundle_get_system_structure(self.bundle, return_type=['label','nchild','mask','ps'],old_mask=(curr_struclabel, curr_strucsel))
         else:
             strucnames, strucnchild, strucsel, strucps = [[]],[[]],[[]],[[]]
             
@@ -609,7 +778,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         this should be called whenever there is a change to the system, datasets, axes, or plotoptions
         currently this is called after any command is sent through the python console
         """
-        if self.bundle.system is None:
+        if self.bundle.get_system() is None:
             return
         # get obs and syn
         ds_obs_all = self.bundle.get_obs(force_dict=True).values()
@@ -662,8 +831,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # now split into orbits and components
         sel_orbits = [s for s in ps_sel if s.context=='orbit']
-        sel_comps = [s for s in ps_sel if s.context in ['component','star']]
-        sel_meshes = [self.bundle.get_mesh(s.get_value('label')) for s in sel_comps] # this is kind of ugly
+        sel_comps = [s for s in ps_sel if s.context != 'orbit']
+        #~ sel_meshes = [self.bundle.get_mesh(s.get_value('label')) for s in sel_comps] # this is kind of ugly
+        sel_meshes = [self.bundle.get_object(s['label']).params['mesh'] for s in sel_comps] # still ugly
 
         # Collapse unused tree views
         if len(sel_comps) == 0:
@@ -700,9 +870,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.lp_meshTreeView.headerItem().setText(i+1, item['label'])
             self.lp_meshTreeView.resizeColumnToContents(i+1)
             
-        if self.bundle.system is not None:
-            #~ print "*** updating fitting treeviews", len(self.bundle.system.get_adjustable_parameters())
-            self.rp_fitinTreeView.set_data(self.bundle.system.get_adjustable_parameters(),self.system_ps,self.system_names)
+        if self.bundle.get_system() is not None:
+            #~ print "*** updating fitting treeviews", len(self.bundle.get_system().get_adjustable_parameters())
+            self.rp_fitinTreeView.set_data(self.bundle.get_system().get_adjustable_parameters(),self.system_ps,self.system_names)
             self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1),self.system_ps,self.system_names)
         else:
             self.rp_fitinTreeView.set_data([],self.system_ps,self.system_names)
@@ -753,7 +923,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         canvas.info['xaxisCombo'].setEnabled(False)
         canvas.info['xaxisCombo'].clear()
         items = ['time']
-        for name in self.bundle.get_system_structure(flat=True):
+        for name in self.bundle_get_system_structure(self.bundle,flat=True):
             ps = self.bundle.get_ps(name)
             if ps.context=='orbit':
                 items.append('phase:%s' % name)
@@ -767,7 +937,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
     def plot_redraw(self, param=None, i=0, canvas=None):
         #~ print "*** redraw plot", i
-        if param is not None and len(self.plot_canvases) != len(self.bundle.get_axes()):
+        if param is not None and len(self.plot_canvases) != len(self.bundle.get_axes(return_type='list')):
             #then this is being called from a signal, but the number of canvases isn't right
             #so redraw all to make sure we're in sync
             self.on_plots_changed()
@@ -806,7 +976,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     plottype='rvobs'
                 if self.sender()==self.mp_addSPPlotPushButton:
                     plottype='spobs'
-            title = 'Plot %d' % len(self.bundle.get_axes())+1
+            title = 'Plot %d' % len(self.bundle.get_axes(return_type='list'))+1
             add_command = "bundle.add_axes(category='%s', title='Plot %d')" % (plottype[:-3],title)
             remove_command = "bundle.remove_axes('%s')" % (title)
             command = phoebe_widgets.CommandRun(self.PythonEdit,add_command,remove_command,kind='plots',thread=False,description='add new plot')
@@ -1108,7 +1278,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_observeoptions(self):
         currenttext = self.lp_methodComboBox.currentText()
         self.lp_methodComboBox.clear()
-        for k,v in self.bundle.get_compute().iteritems():
+        for k,v in self.bundle.get_compute(return_type='dict').iteritems():
             self.lp_methodComboBox.addItem(k)
 
         # return to original selection
@@ -1175,7 +1345,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ 
         #~ self.bundle.plot_mesh(mplfig)
         self.meshmpl_canvas.plot_mesh(self.bundle)
-        self.mesh_widget.setMesh(self.bundle.system.get_mesh()) # 3D view
+        self.mesh_widget.setMesh(self.bundle.get_system().get_mesh()) # 3D view
         
     def on_mesh_update_auto_toggled(self,state):
         if self.versions_oncompute.isEnabled(): #so we can change its state while disabled
@@ -1234,25 +1404,28 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # add prior if necessary    
         if is_adjust and newvalue == True and not param.has_prior(): #then we need to create an initial prior
             lims = param.get_limits()
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).get_parameter(\'%s\').set_prior(distribution=\'uniform\',lower=%s,upper=%s)' % (kind,labelstr,parname,lims[0],lims[1]),'bundle.get_%s(%s).get_parameter(\'%s\').remove_prior()' % (kind,labelstr,parname),thread=False,description='add default prior for %s:%s' % (label,parname))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_prior('%s@%s', distribution='uniform', lower=%s, upper=%s)" % (label,parname,lims[0],lims[1]),"bundle.remove_prior('%s@%s')" % (label,parname),thread=False,description='add default prior for %s@%s' % (label,parname))
+            #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).get_parameter(\'%s\').set_prior(distribution=\'uniform\',lower=%s,upper=%s)' % (kind,labelstr,parname,lims[0],lims[1]),'bundle.get_%s(%s).get_parameter(\'%s\').remove_prior()' % (kind,labelstr,parname),thread=False,description='add default prior for %s:%s' % (label,parname))
             self.undoStack.push(command)
         
         # change adjust/value if necessary
         if is_adjust:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,newvalue), 'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,oldvalue),thread=False,description='change adjust of %s to %s' % (kind,newvalue))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_adjust('%s@%s', %s)" % (parname,label,newvalue), "bundle.set_adjust('%s@%s', %s)" % (parname,labelstr,oldvalue),thread=False,description='change adjust of %s@%s to %s' % (parname,label,newvalue))
+            #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,newvalue), 'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,oldvalue),thread=False,description='change adjust of %s to %s' % (kind,newvalue))
         else:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % newvalue if isinstance(newvalue,str) and 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % oldvalue if isinstance(oldvalue,str) and 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_value('%s@%s', %s)" % (parname,label,"%s" % newvalue if isinstance(newvalue,str) and "np." in newvalue else "'%s'" % newvalue),"bundle.set_value('%s@%s', %s)" % (parname,label,"%s" % oldvalue if isinstance(oldvalue,str) and "np." in oldvalue else "'%s'" % oldvalue),thread=False,description='change value of %s@%s' % (parname,label))
+            #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % newvalue if isinstance(newvalue,str) and 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % oldvalue if isinstance(oldvalue,str) and 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
         
         # change/add constraint
         if is_constraint:
             if newvalue.strip() == '':
-                do_command = 'bundle.get_%s(%s).remove_constraint(\'%s\')' % (kind,labelstr,parname)
+                do_command = "bundle.get_ps(%s).remove_constraint('%s')" % (labelstr,parname)
             else:
-                do_command = 'bundle.get_%s(%s).add_constraint(\'{%s} = %s\')' % (kind,labelstr,parname,newvalue)
+                do_command = "bundle.get_ps(%s).add_constraint('{%s} = %s')" % (labelstr,parname,newvalue)
             if oldvalue.strip() == '':
-                undo_command = 'bundle.get_%s(%s).remove_constraint(\'%s\')' % (kind,labelstr,parname)
+                undo_command = "bundle.get_ps(%s).remove_constraint('%s')" % (labelstr,parname)
             else:
-                undo_command = 'bundle.get_%s(%s).add_constraint(\'{%s} = %s\')' % (kind,labelstr,parname,oldvalue)
+                undo_command = "bundle.get_ps(%s).add_constraint('{%s} = %s')" % (labelstr,parname,oldvalue)
         
             command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description="change constraint on %s:%s" % (label,parname))
             
@@ -1260,7 +1433,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # change units
         if oldunit is not None and newunit is not None:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,newunit),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,oldunit),thread=False,description='change value of %s:%s' % (kind,parname))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.get_parameter('%s@%s').set_unit('%s')" % (parname,label,newunit),"bundle.get_parameter('%s@%s').set_unit('%s')" % (parname,label,oldunit),thread=False,description='change units of %s@%s' % (parname,label))
+            #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,newunit),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_unit(\'%s\')' % (kind,label,parname,oldunit),thread=False,description='change value of %s:%s' % (kind,parname))
             self.undoStack.push(command)
             
     def on_param_command(self,do_command,undo_command,description='',thread=False,kind=None):
@@ -1335,7 +1509,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         except KeyError:
             return
             
-        if self.bundle is not None and self.bundle.system is not None:
+        if self.bundle is not None and self.bundle.get_system() is not None:
             self.update_system()  # TRY TO OPTIMIZE OR USE SIGNALS (costs ~0.15 s)
             self.on_fittingOption_changed()
             self.update_observeoptions()
@@ -1367,12 +1541,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.sys_meshAutoUpdate.setEnabled(True)
             
             # update version - should probably move this
-            self.versions_treeView.set_data(self.bundle.versions)
-            self.rp_savedFeedbackTreeView.set_data(self.bundle.feedbacks)
+            self.versions_treeView.set_data(self.bundle.get_version(return_type='list'))
+            self.rp_savedFeedbackTreeView.set_data(self.bundle.get_feedback(return_type='list'))
             
             # update plot mesh options - should probably move this
-            self.sys_meshOptionsTreeView.set_data([self.bundle.plot_meshviewoptions],style=['nofit'])
-            self.sys_orbitOptionsTreeView.set_data([self.bundle.plot_orbitviewoptions],style=['nofit'])
+            self.sys_meshOptionsTreeView.set_data(self.bundle.get_meshview(return_type='list'),style=['nofit'])
+            self.sys_orbitOptionsTreeView.set_data(self.bundle.get_orbitview(return_type='list'),style=['nofit'])
 
             # bundle lock
             if self.bundle.lock['locked']:
@@ -1419,10 +1593,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.on_new_bundle()
             
         if 'run_compute' in command or 'server_get_results' in command or 'server_loop' in command:
-            #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
+            #~ self.meshmpl_canvas.plot_mesh(self.bundle.get_system())
         
             #should we only draw this if its visible?
-            #~ self.mesh_widget.setMesh(self.bundle.system.get_mesh())
+            #~ self.mesh_widget.setMesh(self.bundle.get_system().get_mesh())
             self.on_plots_changed()
             
         if 'run_fitting' in command:
@@ -1442,7 +1616,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_axes_add(self,category,objref,dataref):
         # signal received from dataset treeview with info to create new plot
-        title = 'Plot %d' % (len(self.bundle.get_axes())+1)
+        title = 'Plot %d' % (len(self.bundle.get_axes(return_type='list'))+1)
         
         do_command = "bundle.add_axes(category='%s', title='%s')" % (category,title)
         undo_command = "bundle.remove_axes('%s')" % (title)
@@ -1460,7 +1634,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     
     def on_axes_goto(self,plotname=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
-        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes().keys().index(plotname)+1)        
+        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes(return_type='dict').keys().index(plotname)+1)        
         # expand plot? or leave as is?
 
     def on_plots_add(self,*args):
@@ -1481,7 +1655,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currentText = self.datasetswidget_main.ds_plotComboBox.currentText()
         self.datasetswidget_main.ds_plotComboBox.setEnabled(False) # so we can ignore the signal
         self.datasetswidget_main.ds_plotComboBox.clear()
-        items = ['all plots']+self.bundle.get_axes().keys()
+        items = ['all plots']+self.bundle.get_axes(return_type='dict').keys()
         self.datasetswidget_main.ds_plotComboBox.addItems(items)
         if currentText in items:
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(items.index(currentText))
@@ -1489,7 +1663,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         
     def on_plots_changed(self,*args):
-        #~ print "*** on_plots_changed", len(self.bundle.get_axes())
+        #~ print "*** on_plots_changed", len(self.bundle.get_axes(return_type='list'))
 
         #bundle.axes changed - have to handle adding/deleting/reordering
         #for now we'll just completely recreate all thumbnail widgets and redraw
@@ -1500,7 +1674,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.on_plots_rename() # to update selection combo
         
         #redraw all plots
-        for i,axes in enumerate(self.bundle.get_axes().values()):
+        for i,axes in enumerate(self.bundle.get_axes(return_type='dict').values()):
                 
             new_plot_widget, canvas = self.create_plot_widget(thumb=True)
             canvas.info['axes_i'] = i
@@ -1517,7 +1691,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # create hooks
             self.attach_plot_signals(axes, i, canvas)
         
-        for i in range(len(self.bundle.get_axes())):    
+        for i in range(len(self.bundle.get_axes(return_type='list'))):    
             self.plot_redraw(None,i)
             
     def on_select_time_changed(self,param=None,i=None,canvas=None):
@@ -1555,16 +1729,16 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
         #~ if True:
             #~ self.on_plots_changed()
-            #~ self.meshmpl_canvas.plot_mesh(self.bundle.system)
+            #~ self.meshmpl_canvas.plot_mesh(self.bundle.get_system())
         
             #should we only draw this if its visible?
-            #~ self.mesh_widget.setMesh(self.bundle.system.get_mesh())
+            #~ self.mesh_widget.setMesh(self.bundle.get_system().get_mesh())
             
 
     def update_fittingOptions(self, *args):
         currenttext = self.rp_methodComboBox.currentText()
         self.rp_methodComboBox.clear()
-        for k,v in self.bundle.get_fitting().iteritems():
+        for k,v in self.bundle.get_fitting(return_type='dict').iteritems():
             self.rp_methodComboBox.addItem(k)
 
         # return to original selection
@@ -1623,7 +1797,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         for key in old_dist[1].keys():
             old_prior +=',%s=%f' % (key,old_dist[1][key])
         
-        command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(%s)' % (kind,label,paramname,new_prior),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(%s)' % (kind,label,paramname,old_prior),thread=False,description='change prior of %s:%s' % (label,paramname))
+        command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_prior('%s') % ('%s@%s',%s)" % (paramname,label,new_prior),"bundle.set_prior('%s') % ('%s@%s',%s)" % (paramname,label,old_prior),thread=False,description='change prior of %s@%s' % (paramname,label))
+        #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(%s)' % (kind,label,paramname,new_prior),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(%s)' % (kind,label,paramname,old_prior),thread=False,description='change prior of %s:%s' % (label,paramname))
         self.undoStack.push(command)
         
     def on_fit_clicked(self):
@@ -1803,7 +1978,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                         QMessageBox.information(None, "Warning", "Cannot load data: no component for column %d" % (i+1))  
                         return
 
-            do_command = "bundle.load_data(category='%s',filename='%s',passband='%s',columns=%s,components=%s,ref='%s')" % (pop.category, filename, passband, columns, components, name)
+            do_command = "bundle.load_data(category='%s', filename='%s', passband='%s', columns=%s, objref=%s, ref='%s')" % (pop.category, filename, passband, columns, components, name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "load %s dataset" % name
             
@@ -1827,7 +2002,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             components = [comp for comp,check in pop.syn_components_checks.items() if check.isChecked()]
             if len(components) == 0: components = 'None'
             
-            do_command = "bundle.create_syn(category='%s', times=%s, components=%s, passband='%s', ref='%s')" % (pop.category,timestr,components,passband,name)
+            do_command = "bundle.create_syn(category='%s', times=%s, objref=%s, passband='%s', ref='%s')" % (pop.category,timestr,components,passband,name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "create %s synthetic dataset" % name
             

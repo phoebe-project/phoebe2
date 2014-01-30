@@ -1,5 +1,21 @@
 """
 Top level class of Phoebe.
+
+Basic class:
+
+.. autosummary::
+
+    Bundle
+    
+Helper functions and classes:
+
+.. autosummary::
+
+    Version
+    Feedback
+    run_on_server
+    load
+    guess_filetype
 """
 import pickle
 import logging
@@ -28,43 +44,53 @@ from phoebe.frontend.figures import Axes
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
-#~ def check_lock(fctn):
-    #~ @functools.wraps(fctn)
-    #~ def check(bundle,*args,**kwargs):
-        #~ if bundle.lock['locked']:
-            #~ # then raise warning and don't call function
-            #~ logger.warning('there is a job running on {}: any changes made before receiving results may be lost'.format(bundle.lock['server']))
-        #~ 
-        #~ # call requested function
-        #~ return fctn(bundle, *args, **kwargs)
-    #~ return check
-
 def run_on_server(fctn):
     """
     Parse usersettings to determine whether to run a function locally
     or submit it to a server
-        
     """
     @functools.wraps(fctn)
     def parse(bundle,*args,**kwargs):
         """
         """
+        # first we need to reconstruct the arguments passed to the original function
         callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
         dump = callargs.pop('self')
-        callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key] if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
+        callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key]\
+            if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
 
+        # determine if the function is supposed to be run on a server
         servername = kwargs['server'] if 'server' in kwargs.keys() else None
 
+        # is_server is a kwarg that will be True in the script running on a server
+        # itself - this just simply avoids the server resending to itself, without
+        # having to remove server from the kwargs
         is_server = kwargs.pop('is_server',False)
 
+        # now, if this function is supposed to run on a server, let's prepare
+        # the script and files and submit the job.  Otherwise we'll just return
+        # with the original function as called.
         if servername is not False and servername is not None and not is_server:
+            # first we need to retrieve the requested server using get_server
             server =  bundle.get_server(servername)
+            
+            # servers can be local (only have mpi settings) - in these cases we
+            # don't need to submit a script, and the original function can handle
+            # retrieving and applying the mpi settings
             if server.is_external():
+                
+                # now we know that we are being asked to run on an external server,
+                # so let's do a quick check to see if the server seems to be online
+                # and responding.  If it isn't we'll provide an error message and abort
                 if server.check_status():
-                    # prepare job
+                    
+                    # The external server seems to be responding, so now we need to
+                    # prepare all files and the script to run on the server
                     mount_dir = server.server_ps.get_value('mount_dir')
                     server_dir = server.server_ps.get_value('server_dir')
                     
+                    # Copy the bundle to the mounted directory, without removing
+                    # usersettings (so that the server can have access to everything)
                     logger.info('copying bundle to {}'.format(mount_dir))
                     timestr = str(datetime.now()).replace(' ','_')
                     in_f = '%s.bundle.in.phoebe' % timestr
@@ -72,6 +98,12 @@ def run_on_server(fctn):
                     script_f = '%s.py' % timestr
                     bundle.save(os.path.join(mount_dir,in_f),save_usersettings=True) # might have a problem here if threaded!!
                     
+                    # Now we write a script file to the mounted directory which will
+                    # load the saved bundle file, call the original function with the
+                    # same arguments, and save the bundle to a new file
+                    #
+                    # we'll also provide some status updates so that we can see when
+                    # the script has started/failed/completed
                     logger.info('creating script to run on {}'.format(servername))
                     f = open(os.path.join(mount_dir,script_f),'w')
                     f.write("#!/usr/bin/python\n")
@@ -109,20 +141,81 @@ class Bundle(object):
     """
     Class representing a collection of systems and stuff related to it.
     
-    What is the Bundle?
+    You can initiate a bundle in different ways:
     
-    What main properties does it have? (rough sketch of structure)
-        - a Body (can also be BodyBag), called :envvar:`system` in this context.
+        1. Via a Body or BodyBag::
+        
+            mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
+            mybundle = Bundle(mysystem)
+        
+        2. Via the library::
+        
+            mybundle = Bundle('V380_Cyg')
+            
+        3. Via a pickled system::
+        
+            mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
+            mysystem.save('mysystem.pck')
+            mybundle = Bundle('mysystem.pck')
+        
+        4. Via a pickled Bundle::
+        
+            mybundle = Bundle('V380_Cyg')
+            mybundle.save('V380_Cyg.bpck')
+            mybundle = Bundle('V380_Cyg.bpck')
+        
+        5. Via a Phoebe Legacy ASCII parameter file::
+        
+            mybundle = Bundle('legacy.phoebe')
+    
+    For more details, see :py:func:`set_system`.
+    
+    **Phoebe 1.0 Legacy interface**
+    
+    .. autosummary::
+    
+        getpar
+        setpar
+        getlim
+        setlim
+        cfval
+        check
+        updateLD
+        set_beaming
+        set_ltt
+        set_heating
+        set_reflection
+    
+    **What is the Bundle?**
+    
+    The Bundle aims at providing a user-friendly interface to a Body or BodyBag,
+    such that parameters can easily be queried or changed, data added, results
+    plotted and observations computed. It does not contain any implementation of
+    physics; that is all done at the Body level.
+    
+    **Structure of the Bundle**
+    
+    
+    A Bundle contains:
+    
+        - a Body (or BodyBag), called :envvar:`system` in this context.
         - ...
         - ...
         
-    How do you initialize it? Examples and/or refer to :py:func:`set_system`.
-        
-    What methods does it have?
+    Outline of methods
+    =====================
     
     **Input/output**
     
+    .. autosummary::
+        
+        to_string
+        
+    
     **Setting and getting system parameters**
+    
+        get_ps
+        get_parameter
     
     **Setting and getting computational parameters**
     
@@ -137,57 +230,218 @@ class Bundle(object):
     def __init__(self,system=None):
         """
         Initialize a Bundle.
-        
-        You don't have to give anything, but you can. Afterwards, you can
-        always add more.
-        
+
         For all the different possibilities to set a system, see :py:func:`Bundle.set_system`.
         """
-        #-- prepare 
-        self.versions = [] #list of dictionaries
-        self.versions_curr_i = None
-        self.compute_options = []
-        self.fitting_options = []
-        self.feedbacks = [] #list of dictionaries
-        self.axes = []
         
+        # self.sections is an ordered dictionary containing lists of 
+        # ParameterSets (or ParameterSet-like objects)
+        # Each of these lists is searchable via self._get_from_section
+        # and can contain defaults in usersettings which will be used
+        # if there are no overrides in the bundle
+        self.sections = OrderedDict()
+        
+        self.sections['system'] = [None] # only 1
+        self.sections['compute'] = []
+        self.sections['fitting'] = []
+        self.sections['feedback'] = []
+        self.sections['version'] = []
+        self.sections['axes'] = []
+        self.sections['meshview'] = [parameters.ParameterSet(context='plotting:mesh')] # only 1
+        self.sections['orbitview'] = [parameters.ParameterSet(context='plotting:orbit')] # only 1
+        
+        # self.select_time controls at which time to draw the meshview and
+        # the 'selector' on axes (if enabled)
         self.select_time = None
-        self.plot_meshviewoptions = parameters.ParameterSet(context='plotting:mesh')
-        self.plot_orbitviewoptions = parameters.ParameterSet(context='plotting:orbit')
         
-        self.pool = OrderedDict()
+        # we need to keep track of all attached signals so that they can 
+        # be purged before pickling the bundle, and can be restored
         self.signals = {}
         self.attached_signals = []
         self.attached_signals_system = [] #these will be purged when making copies of the system and can be restored through set_system
         
+        # Now we load a copy of the usersettings into self.usersettings
+        # Note that by default these will be removed from the bundle before
+        # saving, and reimported when the bundle is loaded
         self.set_usersettings()
         
+        # self.lock simply keeps track of whether the bundle is waiting
+        # on a job to complete on a server.  If a lock is in place, it can
+        # manually be removed by self.server_cancel()
         self.lock = {'locked': False, 'server': '', 'script': '', 'command': '', 'files': [], 'rfile': None}
 
+        # Let's keep track of the filename whenever saving the bundle -
+        # if self.save() is called without a filename but we have one in
+        # memory, we'll try to save to that location.
         self.filename = None
         
+        # self.settings are bundle-level settings that control defaults
+        # for bundle functions.  These do not belong in either individual
+        # ParameterSets or the usersettings
         self.settings = {}
         self.settings['add_version_on_compute'] = False
         self.settings['add_feedback_on_fitting'] = False
         self.settings['update_mesh_on_select_time'] = False
         
-        self.set_system(system) # will handle all signals, etc
+        # Lastly we'll set the system, which will parse the string sent
+        # to init and will handle attaching all necessary signals
+        self.set_system(system)
         
+    ## string representation
     def __str__(self):
         return self.to_string()
         
     def to_string(self):
+        # TODO: expand this to be generic across all sections (with ignore_usersettings?)
         txt = ""
-        txt += "{} compute options\n".format(len(self.compute_options))
-        txt += "{} fitting options\n".format(len(self.fitting_options))
-        txt += "{} axes\n".format(len(self.axes))
+        txt += "{} compute options\n".format(len(self.get_compute(return_type='list')))
+        txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
+        #txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
         txt += "============ System ============\n"
-        txt += self.list()
+        txt += self.list(summary='full')
         
         return txt
         
+    ## act like a dictionary
+    def keys(self):
+        return self.sections.keys()
+        
+    def values(self):
+        return self.sections.values()
+        
+    def items(self):
+        return self.sections.items()
+        
+    ## generic functions to get non-system parametersets
+    def _return_from_dict(self,dictionary,return_type):
+        """
+        this functin takes a dictionary of results from a searching function
+        ie. _get_from_section and returns in the desired format ('list',
+        'dict', or 'single')
+        
+        @param dictionary: the dictionary of results
+        @type dictionary: dict or OrderedDict
+        @param return_type: 'list', 'dict', or 'single'
+        @type return_type: str
+        """
+        if return_type=='dict':
+            return dictionary
+        elif return_type=='list':
+            return dictionary.values()
+        elif return_type=='single':
+            if len(dictionary) > 1:
+                raise ValueError("search resulted in more than one result: modify search or change return_type to 'list' or 'dict'")
+            elif len(dictionary)==1: #then only one match
+                return dictionary.values()[0]
+            else: #then no results
+                return None
+                
+    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
+        """
+        retrieve a parameterset (or similar object) by section and label (optional)
+        if the section is also in the defaults set by usersettings, 
+        then those results will be included but overridden by those
+        in the bundle
+        
+        this function should be called by any get_* function that gets an item 
+        from one of the lists in self.sections
+        
+        @param section: name of the section (key of self.sections)
+        @type section: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
+        @param return_type: 'single', 'list', 'dict'
+        @type return_type: str
+        @param ignore_usersettings: whether to ignore defaults in usersettings (default: False)
+        @type ignore_usersettings: bool
+        """
+        # We'll start with an empty dictionary, fill it, and then convert
+        # to the requested format
+        items = OrderedDict()
+        
+        # First we'll get the items from the bundle
+        # If a duplicate is found in usersettings, the bundle version will trump it
+        if section in self.sections.keys():
+            for ps in self.sections[section]:
+                if search is None or ps.get_value(search_by)==search:
+                    # if search_by is None then we want to return everything
+                    # NOTE: in this case usersettings will be ignored
+                    if search_by is not None:
+                        try:
+                            key = ps.get_value(search_by)
+                        except AttributeError:
+                            continue
+                    else:
+                        key = len(items)
+                    items[key] = ps
+
+        if not ignore_usersettings and search_by is not None:
+            # Now let's check the defaults in usersettings
+            usersettings = self.get_usersettings().settings
+            if section in usersettings.keys():
+                for ps in usersettings[section]:
+                    if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
+                        # Then these defaults exist in the usersettings but 
+                        # are not (yet) overridden by the bundle.
+                        #
+                        # In this case, we need to make a deepcopy and save it
+                        # to the bundle (since it could be edited here).
+                        # This is the version that will be returned in this 
+                        # and any future retrieval attempts.
+                        #
+                        # In order to return to the usersettings default,
+                        # the user needs to remove the bundle version, or 
+                        # access directly from usersettings (bundle.get_usersettings().get_...).
+                        #
+                        # NOTE: in the case of things that have defaults in
+                        # usersettings but not in bundle by default (ie logger, servers, etc)
+                        # this will still create a new copy (for consistency)
+
+                        psc = copy.deepcopy(ps)
+                        items[psc.get_value(search_by)] = psc
+                        #~ self._add_to_section(section,psc)
+                    
+        # and now return in the requested format
+        return self._return_from_dict(items,return_type)
+
+    def _remove_from_section(self,section,search,search_by='label'):
+        """
+        remove a parameterset from by section and label
+        
+        this will not affect any defaults set in usersettings - so this
+        function can be called to 'reset to user defaults'
+        
+        this function should be called by any remove_* function that gets an item 
+        from one of the lists in self.sections
+        
+        @param section: name of the section (key of self.sections)
+        @type section: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
+        """
+        if label is None:    return None
+        #~ return self.sections[section].pop(self.sections[section].index(self._get_from_section(section,search,search_by))) 
+        return self.sections[section].remove(self._get_from_section(section,search,search_by))
+        
+    def _add_to_section(self,section,ps):
+        """
+        add a new parameterset to section - the label of the parameterset
+        will be used as the key to retrieve it using _get_from_section
+        
+        @param section: name of the section (key of self.sections)
+        @type section: str
+        @param ps: the new parameterset with label set
+        @type ps: ParameterSet
+        """
+        if section not in self.sections.keys():
+            self.sections[section] = []
+        self.sections[section].append(ps)
+        
     #{ Settings
-    
     def set_setting(self,key,value):
         """
         Set a bundle-level setting
@@ -201,7 +455,7 @@ class Bundle(object):
         
     def get_setting(self,key):
         """
-        Get the value for a setting by name
+        Get the value for a bundle-level setting by name
         
         @param key: the name of the setting
         @type key: string
@@ -236,25 +490,21 @@ class Bundle(object):
         if key is None:
             return self.usersettings
         else:
-            return self.usersettings.get_value(key)
+            return self.get_usersettings().get_value(key)
             
-    def get_server(self,servername):
+    def get_server(self,label=None,return_type='list'):
         """
         Return a server by name
-        
-        Note that this is merely a shortcut to bundle.get_usersettings().get_server()
-        The server settings are stored in the usersettings and are not kept with the bundle
         
         @param servername: name of the server
         @type servername: string
         """
-        return self.get_usersettings().get_server(servername)
+        return self._get_from_section('servers',label,return_type=return_type)
         
     #}    
-    
     #{ System
     
-    def set_system(self,system=None):
+    def set_system(self, system=None):
         """
         Change or set the system.
         
@@ -279,13 +529,15 @@ class Bundle(object):
         """
         # Possibly we initialized an empty Bundle
         if system is None:
-            self.system = None
+            self.sections['system'] = [None]
             return None
+        
         # Or a real system
         elif isinstance(system, universe.Body):
-            self.system = system
+            self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
-            self.system = create.system(system)
+            self.sections['system'] = [create.system(system)]
+        
         # Or we could've given a filename
         else:
             
@@ -303,55 +555,27 @@ class Bundle(object):
             else:
                 system = create.body_from_string(system)
             
-            self.system = system
-            
-        if self.system is None:
-            return
+            self.sections['system'] = [system]
+         
+        # got me an error 
+        if self.get_system() is None:
+           return
         
         # initialize uptodate
-        self.system.uptodate = False
+        system.uptodate = False
         
         # connect signals
-        self.attach_system_signals()
+        #self.attach_system_signals()
         
         # check to see if in versions, and if so set versions_curr_i
-        versions = [v['system'] for v in self.versions]
-        if system in versions:
-            i = [v['system'] for v in self.versions].index(system)
-        else:
-            i = None
-        self.versions_curr_i = i
+        #versions_sys = [v.get_system() for v in self.get_version(return_type='list')]
         
-    def attach_system_signals(self):
-        #~ print "* attach_system_signals"
-
-        self.purge_signals(self.attached_signals_system) # this will also clear the list
-        #~ self.attached_signals_system = []
-        for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.compute_options:
-            self._attach_set_value_signals(ps)
+        #if system in versions_sys:
+        #    i = versions_sys.index(system)
+        #else:
+        #    i = None
+        #self.versions_curr_i = i
         
-        # these might already be attached?
-        self.attach_signal(self,'load_data',self._on_param_changed)
-        self.attach_signal(self,'enable_obs',self._on_param_changed)
-        self.attach_signal(self,'disable_obs',self._on_param_changed)
-        self.attach_signal(self,'adjust_obs',self._on_param_changed)
-        self.attach_signal(self,'restore_version',self._on_param_changed)
-        
-    def _attach_set_value_signals(self,ps):
-        #~ print "* attaching", ps.context
-        for key in ps.keys():
-            #~ print "*** attaching signal %s:%s" % (label,key)
-            param = ps.get_parameter(key)
-            self.attach_signal(param,'set_value',self._on_param_changed,ps)
-            self.attached_signals_system.append(param)
-
-    def _on_param_changed(self,param,ps=None):
-        if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
-            if self.system.uptodate is not False and self.get_compute(self.system.uptodate) == ps:
-                self.system.uptodate=False
-        else:
-            self.system.uptodate = False
-    
     def get_system(self):
         """
         Return the system.
@@ -359,134 +583,70 @@ class Bundle(object):
         @return: the attached system
         @rtype: Body or BodyBag
         """
-        return self.system      
-                
-    def get_system_structure(self,return_type='label',flat=False,**kwargs):
-        """
-        Get the structure of the system below any bodybag in a variety of formats
-        
-        @param return_type: list of types to return including label,obj,ps,nchild,mask
-        @type return_type: str or list of strings
-        @param flat: whether to flatten to a 1d list
-        @type flat: bool
-        @return: the system structure
-        @rtype: list or list of lists        
-        """
-        all_types = ['obj','ps','nchild','mask','label']
-        
-        # create empty list for all types, later we'll decide which to return
-        struc = {}
-        for typ in all_types:
-            struc[typ]=[]
-        
-        if 'old_mask' in kwargs.keys() and 'mask' in return_type:
-            # old_mask should be passed as a tuple of two flattened lists
-            # the first list should be parametersets
-            # the second list should be the old mask (booleans)
-            # if 'mask' is in return_types, and this info is given
-            # then any matching ps from the original ps will retain its old bool
-            # any new items will have True in the mask
-            
-            # to find any new items added to the system structure
-            # pass the old flattened ps output and a list of False of the same length
-            
-            old_mask = kwargs['old_mask']
-            old_struclabel = old_mask[0]
-            old_strucmask = old_mask[1]
-            
-        else:
-            old_struclabel = [] # new mask will always be True
-                
-        if 'top_level' in kwargs.keys():
-            item = kwargs.pop('top_level') # we don't want it in kwargs for the recursive call
-        else:
-            item = self.system
-            
-        struc['obj'].append(item)
-        itemlabel = self.get_label(item)
-        struc['label'].append(itemlabel)
-        struc['ps'].append(self.get_ps(item))
-        
-        # label,ps,nchild are different whether item is body or bodybag
-        if hasattr(item, 'bodies'):
-            struc['nchild'].append('2') # should not be so strict
-        else:
-            struc['nchild'].append('0')
-            
-        if itemlabel in old_struclabel: #then apply previous bool from mask
-            struc['mask'].append(old_strucmask[old_struclabel.index(itemlabel)])
-        else:
-            struc['mask'].append(True)
-
-        # recursively loop to get hierarchical structure
-        children = self.get_children(item)
-        if len(children) > 1:
-            for typ in all_types:
-                struc[typ].append([])
-        for child in children:
-            new = self.get_system_structure(return_type=all_types,flat=flat,top_level=child,**kwargs)
-            for i,typ in enumerate(all_types):
-                struc[typ][-1]+=new[i]
-
-        if isinstance(return_type, list):
-            return [list(utils.traverse(struc[rtype])) if flat else struc[rtype] for rtype in return_type]
-        else: #then just one passed, so return a single list
-            rtype = return_type
-            return list(utils.traverse(struc[rtype])) if flat else struc[rtype]
-    
-    def get_object(self,objectname=None,force_dict=False):
-        """
-        search for an object inside the system structure and return it if found
-        this will return the Body or BodyBag
-        to get the ParameterSet see get_ps, get_component, and get_orbit
-        
-        @param objectname: label of the desired object
-        @type objectname: str, Body, or BodyBag
-        @param bodybag: the bodybag to search under (will default to system)
-        @type bodybag: BodyBag
-        @return: the object or dictionary of objects
-        @rtype: ParameterSet or OrderedDict
-        """
-        #this should return a Body or BodyBag
-        if objectname is not None and not isinstance(objectname,str): #then return whatever is sent (probably the body or bodybag)
-            if force_dict:
-                return OrderedDict([(self.get_label(objectname),objectname)])
-            return objectname
-            
-        names, objects = self.get_system_structure(return_type=['label','obj'],flat=True)
-        
-        if objectname is not None:
-            if force_dict:
-                return OrderedDict([(objectname,objects[names.index(objectname)])])
-            return objects[names.index(objectname)]
-        else:
-            return OrderedDict([(n,o) for n,o in zip(names,objects)])
-        
+        # for consistency sake, we'll use _get_from_section and confirm
+        # that only one entry is returned 
+        # NOTE: since we're passing search_by=None, usersettings will be ignored
+        # so you cannot set a default system in usersettings
+        system = self._get_from_section('system',search_by=None,return_type='list')
+        if len(system) == 0:
+            raise ValueError("ERROR: no system attached")
+            return None
+        if len(system) > 1:
+            raise ValueError("ERROR: returned more than 1 server")
+        return system[0]
+                       
     def list(self,summary=None,*args):
         """
         List with indices all the ParameterSets that are available.
-        Simply a shortcut to bundle.get_system().list(...)
+        
+        Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.Body.list>`.
         """
-        return self.system.list(summary,*args)
+        return self.get_system().list(summary,*args)
         
     def clear_synthetic(self):
         """
         Clear all synthetic datasets
         Simply a shortcut to bundle.get_system().clear_synthetic()
         """
-        return self.system.clear_synthetic()
+        return self.get_system().clear_synthetic()
         
-    def set_time(self,time):
+    def set_time(self, time, label=None, server=None):
         """
-        Shortcut to bundle.get_system().set_time() which insures fix_mesh
-        is called first if any data was recently attached
-        
+        Set the time of a system, taking compute options into account.
+                
         @param time: time
         @type time: float
         """
+        system = self.get_system()
         
-        self.system.fix_mesh()
-        self.system.set_time(time)
+        # clear all previous models and create new model
+        system.clear_synthetic()
+
+        # <pieterdegroote> Necessary?
+        system.set_time(0)
+        
+        # get compute options
+        if label is None:
+            options = parameters.ParameterSet(context='compute')
+        else:
+            options = self.get_compute(label)
+        
+        # get server options
+        if server is not None:
+            server = self.get_server(server)
+            mpi = server.mpi_ps
+        else:
+            mpi = kwargs.pop('mpi', None)
+        
+        options['time'] = [time]
+        options['types'] = ['lc']
+        options['refs'] = ['all']
+        options['samprate'] = [0]
+        system.compute(mpi=mpi, **options)
+                
+        system.uptodate = label
+        
+        self.attach_system_signals()
         
     def get_uptodate(self):
         """
@@ -499,360 +659,457 @@ class Bundle(object):
         @return: uptodate
         @rtype: bool or str
         """
-        if isinstance(self.system.uptodate,str) or isinstance(self.system.uptodate,bool):
-            return self.system.uptodate
-        else:
-            return False
-        
-    def get_label(self,obj):
-        """
-        Get the label/name for any object (Body or BodyBag)
-        
-        @param obj: the object
-        @type obj: Body or BodyBag
-        @return: the label/name
-        @rtype: str        
-        """
-        if isinstance(obj,str): #then probably already name, and return
-            return obj
-        
-        objectname = None
-        if hasattr(obj,'bodies'): #then bodybag
-            #search for orbit in the children bodies
-            for item in obj.bodies: # should be the same for all of them, but we'll search all anyways
-                #NOTE: this may fail if you have different orbits for each component
-                if 'orbit' in item.params.keys():
-                    objectname = item.params['orbit']['label']
-            return objectname
-        else: #then hopefully body
-            return obj.get_label()
+        return self.get_system().uptodate
+            
+    #}
+    #{ Parameters/ParameterSets
     
-    def change_label(self,oldlabel,newlabel):
+    def get_ps(self, qualifier, return_type='single'):
         """
-        not implemented yet
-        """
-        raise NotImplementedError
+        Retrieve a ParameterSet(s) from the system
         
-        # need to handle changing label and references from children objects, etc
-        
-        return
-    
-    def get_ps(self,objectname=None):
+        Undocumented
         """
-        retrieve the ParameterSet for a component or orbit
-        this is the same as calling get_orbit or get_component, except that this tries to predict the type first
+        # Put the hierarchical structure in a list, that's easier to reference
+        structure_info = []
         
-        @param objectname: label of the desired object
-        @type objectname: str, Body, or BodyBag
-        @return: the ParameterSet of the component
-        @rtype: ParameterSet
-        """
-        if isinstance(objectname,str):
-            obj = self.get_object(objectname)
+        # Extract the info on the name and structure info. The name is always
+        # first
+        qualifier = qualifier.split('@')
+        if len(qualifier)>1:
+            structure_info = qualifier[1:]
+        qualifier = qualifier[0]
+                 
+        # Reverse the structure info, that's easier to handle
+        structure_info = structure_info[::-1]
+        
+        # First we'll loop through matching parametersets and gather all
+        # parameters that match the qualifier
+        found = []
+        
+        # You can always give top level system information if you desire
+        if structure_info and structure_info[0] == self.get_system().get_label():
+            start_index = 1
         else:
-            obj = objectname
-        if hasattr(obj,'bodies'):
-            return self.get_orbit(obj)
-        else:
-            return self.get_component(obj)
+            start_index = 0
         
-    def get_component(self,objectname=None,force_dict=False):
-        """
-        retrieve the ParameterSet for a component by name
-        
-        @param objectname: label of the desired object
-        @type objectname: str or Body
-        @return: the ParameterSet of the component
-        @rtype: ParameterSet
-        """
-        # get_object already allows passing object, so we don't have to check to see if str
-        objects = self.get_object(objectname=objectname,force_dict=True)
-        
-        components = OrderedDict()
-        
-        for name,obj in objects.items():
-            params = obj.params
-            if 'component' in params.keys():
-                components[name] = params['component']
-            elif 'star' in params.keys():
-                components[name] = params['star']
+        # Now walk recursively over all parameters in the system, keeping track
+        # of the history
+        for path, val in self.get_system().walk_all(path_as_string=False):
+            
+            # Only if structure info is given, we need to do some work
+            if structure_info:
                 
-        if objectname is None:
-            return components
+                # We should look for the first structure information before
+                # advancing to deeper levels; as long as we don't encounter
+                # that reference/label/context, we can't look for the next one
+                index = start_index
+                
+                # Look down the tree structure
+                for level in path:
+                    # but only if we still have structure information
+                    if index < len(structure_info):
+                        
+                        # We don't now the name of this level yet, but we'll
+                        # figure it out
+                        name_of_this_level = None
+                        
+                        # If this level is a Body, we check it's label
+                        if isinstance(level, universe.Body):
+                            name_of_this_level = level.get_label()
+                            
+                        # If it is a ParameterSet, we'll try to match the label,
+                        # reference or context
+                        elif isinstance(level, parameters.ParameterSet):
+                            if 'ref' in level:
+                                name_of_this_level = level['ref']
+                            elif 'label' in level:
+                                name_of_this_level = level['label']
+                            if name_of_this_level != structure_info[index]:
+                                name_of_this_level = level.get_context()
+                            
+                            context = level.get_context()
+                            ref = level['ref'] if 'ref' in level else None
+                            label = level['label'] if 'label' in level else None
+                            
+                        # The walk iterator could also give us 'lcsyn' or something
+                        # the like, it apparently doesn't walk over these PSsets
+                        # themselves -- but no problem, this works
+                        elif isinstance(level, str):
+                            name_of_this_level = level
+                            
+                        # We're on the right track and can advance to find the
+                        # next label in the structure!
+                        if name_of_this_level == structure_info[index]:
+                            index += 1
+                
+                # Keep looking if we didn't exhaust all specifications yet.
+                # If we're at the end already, this will avoid finding a
+                # variable at all (which is what we want)
+                if index < len(structure_info):
+                    continue
+            
+            # Now did we find it?
+            if isinstance(val, parameters.ParameterSet):
+                context = val.get_context()
+                ref = val['ref'] if 'ref' in val else None
+                label = val['label'] if 'label' in val else None
+                if qualifier in [context, ref, label] and not val in found:
+                    found.append(val)
+                
+                    
+        if len(found) == 0:
+            raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+        elif return_type == 'single' and len(found)>1:
+            raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
+        elif return_type in ['single']:
+            return found[0]
         else:
-            if force_dict:
-                name = self.get_label(objectname)
-                return OrderedDict([(name,components[name])])
-            return components[self.get_label(objectname)]
-    
-    def get_orbit(self,objectname=None):
+            return found
+            
+            
+    def get_parameter(self, qualifier, return_type='single'):
         """
-        retrieve the ParameterSet for a orbit by name
-        
-        @param objectname: label of the desired object
-        @type objectname: str or BodyBag
-        @return: the ParameterSet of the orbit or dictionary
-        @rtype: ParameterSet or OrderedDict
-        """
-        if objectname is not None and not isinstance(objectname,str):
-            objectname = self.get_label(objectname)
-        
-        orbits = OrderedDict()
-        
-        # for orbits we have to be more clever
-        for path,item in self.system.walk_all():
-            if path[-1] == 'orbit':
-                if objectname is not None and objectname == item['label']:
-                    return item
-                orbits[item['label']] = item
-        
-        if objectname is None:
-            return orbits
-        else:
-            # would already have returned if there was a match
-            return None
+        Smart retrieval of a Parameter(s) from the system.
 
-    def get_mesh(self,objectname=None):
-        """
-        retrieve the ParameterSet for a mesh by name
+        If :envvar:`qualifier` is the sole occurrence of a parameter in this
+        Bundle, there is no confusion and that parameter will be returned.
+        If there is another occurrence, then the behaviour depends on the value
+        of :envvar:`return_type`:
         
-        @param objectname: label of the desired object
-        @type objectname: str or Body
-        @return: the ParameterSet of the mesh
-        @rtype: ParameterSet
-        """
-        objects = self.get_object(objectname,force_dict=True)
-
-        meshes = OrderedDict([(name,obj.params['mesh']) for name,obj in objects.items() if 'mesh' in obj.params.keys()])
-
-        if objectname is None:
-            return meshes
-        else:
-            return meshes[objectname]
-    
-    def get_parent(self,objectname,return_type='obj'):
-        """
-        retrieve the parent of an item in a hierarchical structure
+            - :envvar:`return_type='single'`: a ValueError is raised if multiple occurrences exit
+            - :envvar:`return_type='all'`: a list of all occurrences will be returned
+            - :envvar:`return_type='dict'`: a dictionary with the structure.
+       
+        You can specify which qualifier you want with the :envvar:`@` operator.
+        This operator allows you to hierarchically specify which parameter you
+        mean. The general syntax is::
         
-        @param objectname: label of the child object
-        @type objectname: str
-        @param return_type: what to return ('obj','str','ps','mesh')
+            <qualifier>@<label/ref/context>@<label/ref/context>
+        
+        You can repeat as many :envvar:`@` operators as you want, as long as
+        it they are hierarchically ordered, with the top level label of the
+        system **last**.
+        
+        Examples::
+        
+            bundle.get_parameter('teff')
+            bundle.get_parameter('teff@star') # star context
+            bundle.get_parameter('teff@Vega') # name of the Star
+            
+            bundle.get_parameter('teff@primary') # if there is Body named primary
+            bundle.get_parameter('teff@primary@V380_Cyg')
+            
+            bundle.get_parameter('time@lcsyn') # no confusion if there is only one lc
+            bundle.get_parameter('flux@my_hipparcos_lightcurve')
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param return_type: 'single', 'all'
         @type return_type: str
-        @return: the parent
-        @rtype: defaults to object or whatever specified by return_type        
+        @return: Parameter or list
+        @rtype: Parameter or list
         """
-        return self._object_to_type(self.get_object(objectname).get_parent(),return_type)
-        # TODO I'm concerned about what the parent of a BodyBag is returning
-    
-    def get_children(self,objectname,return_type='obj'):
-        """
-        retrieve the children of an item in a hierarchical structure
+        # Put the hierarchical structure in a list, that's easier to reference
+        structure_info = []
         
-        @param objectname: label of the parent object
-        @type objecname: str
-        @param return_type: what to return ('obj','str','ps','mesh')
-        @type return_type: str
-        @return: list of children objects
-        @rtype: defaults to object or whatever specified by return_type
+        # Extract the info on the qualifier and structure info. The qualifier
+        # is always first
+        qualifier = qualifier.split('@')
+        if len(qualifier)>1:
+            structure_info = qualifier[1:]
+        qualifier = qualifier[0]
+                 
+        # Reverse the structure info, that's easier to handle
+        structure_info = structure_info[::-1]
+        
+        # First we'll loop through matching parametersets and gather all
+        # parameters that match the qualifier
+        found = []
+        found_labels = []
+        
+        system = self.get_system()
+        
+        # You can always give top level system information if you desire
+        if structure_info and structure_info[0] == system.get_label():
+            start_index = 1
+        else:
+            start_index = 0
+        
+        # Now walk recursively over all parameters in the system, keeping track
+        # of the history
+        for path, val in system.walk_all(path_as_string=False):
+            
+            # Only if structure info is given, we need to do some work
+            if structure_info:
+                
+                # We should look for the first structure information before
+                # advancing to deeper levels; as long as we don't encounter
+                # that reference/label/context, we can't look for the next one
+                index = start_index
+                
+                # Look down the tree structure
+                for jlevel, level in enumerate(path):
+                    
+                    # but only if we still have structure information
+                    if index < len(structure_info):
+                        
+                        # We don't now the name of this level yet, but we'll
+                        # figure it out
+                        name_of_this_level = None
+                        
+                        # If this level is a Body, we check it's label
+                        if isinstance(level, universe.Body):
+                            name_of_this_level = level.get_label()
+                            
+                        # If it is a ParameterSet, we'll try to match the label,
+                        # reference or context
+                        elif isinstance(level, parameters.ParameterSet):
+                            if 'ref' in level:
+                                name_of_this_level = level['ref']
+                            elif 'label' in level:
+                                name_of_this_level = level['label']
+                            if name_of_this_level != structure_info[index]:
+                                name_of_this_level = level.get_context()
+                        
+                        # The walk iterator could also give us 'lcsyn' or something
+                        # the like, it apparently doesn't walk over these PSsets
+                        # themselves -- but no problem, this works
+                        elif isinstance(level, str):
+                            name_of_this_level = level
+                            
+                        # We're on the right track and can advance to find the
+                        # next label in the structure!
+                        if name_of_this_level == structure_info[index]:
+                            index += 1
+                        
+                # Keep looking if we didn't exhaust all specifications yet.
+                # If we're at the end already, this will avoid finding a
+                # variable at all (which is what we want)
+                if index < len(structure_info):
+                    continue
+            
+            # Now did we find it? We also need to check if the found parameter
+            # hasn't already been found (e.g. when two identical  parameterSets
+            # are added).
+            if isinstance(val, parameters.Parameter):
+                if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
+                    
+                    # Special handling of orbits: you can't request orbital
+                    # information of a component, only of the BodyBag.
+                    if 'orbit' in val.get_context() and structure_info:
+                        if not 'orbit' in structure_info[-1] and not (structure_info[-1] == path[-2]['label']):
+                            continue
+                        
+                    found.append(val)            
+                    found_labels.append(val.get_unique_label())
+                    
+        
+        if len(found) == 0:
+            # we should look into subsections here
+            index = 0
+            if len(structure_info) == 2:
+                mylist = self._get_from_section(structure_info[0],
+                                                search=structure_info[1],
+                                                return_type='list')
+            elif len(structure_info) == 1:
+                mylist = self._get_from_section(structure_info[0],
+                                                return_type='list')
+            else:
+                sections = self.sections.keys()[1:]
+                mylist = []
+                for section in sections:
+                    mylist += self._get_from_section(section,
+                                           return_type='list')
+            found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
+            
+        if len(found) == 0:    
+            raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+        elif return_type == 'single' and len(found)>1:
+            raise ValueError("more than one parameter named '{}' was returned from the search: either constrain search or set return_type='all'".format(qualifier))
+        elif return_type in ['single']:
+            return found[0]
+        else:
+            return found
+                
+                
+    def get_value(self, qualifier, return_type='single'):
         """
-        obj = self.get_object(objectname)
+        Get the value from a Parameter(s) in the system
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param name: label or ref of ps, or None to search all
+        @type name: str or list orNone
+        @param context: context of ps, or None to search all
+        @type context: str or list or None
+        @param return_type: 'single', 'all'
+        @type return_type: str
+        @return: value of the parameter
+        @rtype: depends on parameter type
+        """
+        par = self.get_parameter(qualifier, return_type=return_type)
+        if return_type in ['single']:
+            return par.get_value()
+        elif return_type in ['all']:
+            return [p.get_value() for p in par]
+        else:
+            raise ValueError("Cannot interpret argument return_type='{}'".format(return_type))        
+            
+    
+        
+    def set_value(self, qualifier, value, *args, **kwargs):
+        """
+        Set the value of a Parameter(s) in the system
+        
+        @param qualifier: qualifier of the parameter
+        @type qualifier: str
+        @param value: new value of the parameter
+        @type value: depends on parameter type
+        @param apply_to: 'single', 'all'
+        @type apply_to: str        
+        """
+        apply_to = kwargs.pop('apply_to', 'single')
+        if kwargs:
+            raise SyntaxError("set_value does not take extra keyword arguments")
+        
+        params = self.get_parameter(qualifier, return_type=apply_to)
+        
+        if apply_to in ['single']:
+            params.set_value(value, *args)
+        elif apply_to in ['all']:
+            for param in params:
+                param.set_value(value, *args)
+        else:
+            raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
+            
+    def get_adjust(self, qualifier, return_type='single'):
+        """
+        Get whether a Parameter(s) in the system is set for adjustment/fitting
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param return_type: 'single', 'dict', 'list'
+        @type return_type: str
+        @return: adjust
+        @rtype: bool
+        """
+        par = self.get_parameter(qualifier, return_type=return_type)
+        return par.get_adjust()
+            
+    def set_adjust(self, qualifier, value, *args, **kwargs):
+        """
+        Set whether a Parameter(s) in the system is set for adjustment/fitting
+        
+        @param qualifier: qualifier of the parameter
+        @type qualifier: str
+        @param value: new value for adjust
+        @type value: bool
+        @param apply_to: 'single', 'all'
+        @type apply_to: str   
+        """
+        apply_to = kwargs.pop('apply_to', 'single')
+        if kwargs:
+            raise SyntaxError("set_adjust does not take extra keyword arguments")
+        
+        params = self.get_parameter(qualifier, return_type=apply_to)
+        
+        if apply_to in ['single']:
+            params.set_adjust(value, *args)
+        elif apply_to in ['all']:
+            for param in params:
+                param.set_adjust(value, *args)
+        else:
+            raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
+    
+    
+    def get_prior(self, qualifier, return_type='single'):
+        """
+        Get a prior.
+        """
+        pars = self.get_parameter(qualifier, return_type=return_type)
+        return pars[0].get_prior().get_limits()
+    
+    
+    def set_prior(self, qualifier, apply_to='single', **dist_kwargs):
+        """
+        Set properties of a prior.
+        
+        Examples initiating, overriding or resetting priors completely:
+        
+        >>> mybundle.set_prior('teff@primary', distribution='uniform', lower=10000, upper=20000)
+        >>> mybundle.set_prior('sma', distribution='normal', mu=10., sigma=1.0)
+        
+        Examples updating existing properties:
+        
+        >>> mybundle.set_prior('teff@primary', lower=15000)
+        
+        See :py:func:`phoebe.parameters.parameters.Parameter.set_prior` and
+        :py:class:`phoebe.parameters.distributions.Distribution`.
+        """
+        pars = self.get_parameter(qualifier, return_type='all')
+        
+        if apply_to == 'single' and len(pars) != 1:
+            raise ValueError('more than one found')
+        
+        for par in pars:
+            par.set_prior(**dist_kwargs)
+            
+    def get_logp(self, dataset=None):
+        
+        # First disable/enabled correct datasets
+        old_state = []
+        location = 0
+        for obs in self.get_system().walk_type(type='obs'):
+            old_state.append(obs.get_enabled())
+            this_state = False    
+            if dataset == obs['ref'] or dataset == obs.get_context():
+                if index is None or index == location:
+                    this_state = True
+                location += 1
+            obs.set_enabled(this_state)
+        
+        # Then compute statistics
+        logf, chi2, n_data = self.get_system().get_logp()
+        
+        # Then reset the enable property
+        for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
+            obs.set_enabled(state)
+        
+        return chi2
+    
+    #}
+    #{ Objects
+    def get_object(self, objref=None):
+        # return the Body/BodyBag from the system hierarchy
+        system = self.get_system()
+        if objref is None or system.get_label() == objref:
+            this_child = system
+        else:
+            for child in system.walk_bodies():
+                if child.get_label() == objref:
+                    this_child = child
+                    break
+            else:
+                raise ValueError("Object {} not found".format(objref))
+        return this_child
+            
+        
+    def get_children(self, objref=None):
+        # return list of children for self.get_object(objref)
+        obj = self.get_object(objref)
         if hasattr(obj,'bodies'):
-            return self._object_to_type([b.bodies[0] if hasattr(b,'bodies') else b for b in self.get_object(objectname).bodies])
-            #~ return self._object_to_type(obj.get_children()) # still throws an error 
+            #return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
+            return obj.bodies
         else:
             return []
-
-    def remove_item(self,objectname):
-        """
-        remove an item and all its children from the system
         
-        @param objectname: label of the item to be removed
-        @type objectname: str
-        """
-        obj = self.get_object(objectname)
-        oldparent = self.get_parent(objectname)
-
-        # remove reference? delete object?
-        raise NotImplementedError
-        return obj
-    
-    def insert_parent(self,objectname,parent):
-        """
-        add a parent to an existing item in the hierarchical system structure
-        
-        @param objectname: label of the child item
-        @type objectname: str
-        @param parent: the new parent
-        @type parent: BodyBag        
-        """
-        raise NotImplementedError
-        return
-        
-        obj = self.get_object(objectname)
-        oldparent = self.get_parent(objectname)
-        
-        # parent should have oldparent as its parent and obj as a child
-        
-        # this isn't going to work because we can't initialize a BodyBag with no arguments/children
-        parent.append(obj)
-        oldparent.append(parent)
-        
-    def insert_child(self,objectname,child):
-        """
-        add a child to an existing item in the hierarchical system structure
-        
-        @param objectname: label of the parent item
-        @type objectname: str
-        @param child: the new child
-        @type parent: Body
-        """
-        self.get_object(objectname).append(child)
-        
-    def _object_to_type(self,obj,return_type='obj'):
-        """
-        
-        
-        """
-        
-        # handle sending a single object or list
-        if not isinstance(obj, list):
-            return_lst = False
-            obj = [obj]
-        else:
-            return_lst = True
-            
-        # get the correct type (in a list)
-        if return_type == 'label':
-            return_ = [self.get_label(o) for o in obj]
-        elif return_type in ['ps','orbit','component']:
-            return_ = [self.get_ps(o) for o in obj]
-        elif return_type == 'mesh':
-            return_ = [self.get_mesh(o) for o in obj]
-            
-        else:
-            return_ = obj
-        
-        # return list or single item (same as input)
-        if return_lst:
-            return return_
-        else:
-            return return_[0]
-            
-    def get_parameter(self, qualifier, objref=None):
-        """
-        Retrieve a parameter from the system.
-        
-        If :envvar:`objref` is not provided and there is more than one object in 
-        the system containing a parameter with the same name, this will return
-        a :envvar:`ValueError` and ask you to provide a valid :envvar:`objref`.
-        
-        If there is more than one parameter with the same name in the same
-        object, a :envvar:`ValueError` will be raised.
-        
-        If the parameter is not found a :envvar:`ValueError` is raised.
-        
-        See also: :py:func:`Bundle.set_value`, :py:func:`Bundle.set_adjust`
-        
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param objref: label of the object
-        @type objref: str
-        @return: Parameter corresponding to the qualifier
-        @rtype: Parameter
-        """
-    
-        objrefs = self.get_system_structure(flat=True) if objref is None else [objref]
-        
-        return_params = []
-        return_objrefs = []
-        
-        for objref in objrefs:
-            ps = self.get_ps(objref)
-            if qualifier in ps.keys():
-                return_params.append(ps.get_parameter(qualifier))
-                return_objrefs.append(objref)
-                
-        if len(return_params) > 1:
-            raise ValueError(("parameter '{}' is ambiguous, please provide one "
-                              "of the following for "
-                              "objref:\n{}").format(qualifier,'\n'.join(["\t'%s'" % ref for ref in return_objrefs])))
-
-        elif len(return_params) == 0:
-            raise ValueError(("parameter '{}' was not found in any of the "
-                              "objects in the system").format(qualifier))
-            
-        return return_params[0]
-      
-      
-    def get_value(self,qualifier,objref=None):
-        """
-        Retrieve the value from a parameter from the system
-        This is identical to bundle.get_parameter(qualifier,objref).get_value()
-        
-        If objref is not provided and there are more than one object in 
-        they system containing a parameter with the same name, this will
-        return an error and ask you to provide a valid objref
-        
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param objref: label of the object
-        @type objref: str
-        @return: value of the Parameter corresponding to the qualifier
-        @rtype: (depends on the parameter)
-        """
-        
-        param = self.get_parameter(qualifier,objref)
-        return param.get_value()
-        
-    def set_value(self,qualifier,value,objref=None):
-        """
-        Set the value of a parameter from the system
-        This is identical to bundle.get_parameter(qualifier,objref).set_value(value)
-        
-        If objref is not provided and there are more than one object in 
-        they system containing a parameter with the same name, this will
-        return an error and ask you to provide a valid objref
-        
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param value: the new value for the parameter
-        @type value: (depends on parameter)
-        @param objref: label of the object
-        @type objref: str
-        """
-        
-        param = self.get_parameter(qualifier,objref)
-        param.set_value(value)
-        
-    def set_adjust(self, qualifier, adjust=True, objref=None):
-        """
-        Set adjust for a parameter from the system.
-        
-        The following two calls are equivalent::
-            
-            bundle.set_adjust(qualifier, adjust, objref)
-            bundle.get_parameter(qualifier, objref).set_adjust(adjust)
-        
-        If :envvar:`objref` is not provided and there is more than one object
-        in the system containing a parameter with the same name, this will
-        return an error (<Q>: What error?) and ask you to provide a valid
-        :envvar:`objref`.
-        
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param value: the new value for the parameter
-        @type value: (depends on parameter)
-        @param objref: label of the object
-        @type objref: str
-        """
-        
-        param = self.get_parameter(qualifier, objref)
-        param.set_adjust(adjust)
+    def get_parent(self, objref):
+        # return the parent of self.get_object(objref)
+        return self.get_object(objref).get_parent()
         
     #}  
-    
     #{ Versions
-    
     def add_version(self,name=None):
         """
         Add the current snapshot of the system as a new version entry
@@ -865,164 +1122,92 @@ class Bundle(object):
         self.purge_signals()
         
         # create copy of self.system and save to version
-        system = self.system.copy()
-        version = {}
-        version['system'] = system
-        version['date_created'] = datetime.now()
-        version['name'] = name if name is not None else str(version['date_created'])
+        system = self.get_system().copy()
+        version = Version(system)
+        date_created = datetime.now()
+        version.set_value('date_created', date_created)
+        version.set_value('name', name if name is not None else str(date_created))
         
-        self.versions.append(version)
-        
+        self._add_to_section('version',version)
+
         # reattach signals to the system
         self.attach_system_signals()
         
-    def get_version(self,version=None,by='name',return_type='system'):
+    def get_version(self,search=None,search_by='name',return_type='single'):
         """
-        Retrieve a stored system version by one of its keys
-        
-        version can either be one of the keys (date_create, name) or
-        the amount to increment from the current version
+        Retrieve a stored version by one of its keys
         
         example:
         bundle.get_version('teff 4500')
         bundle.get_version(-2) # will go back 2 from the current version
         
-        @param version: the key of the version, or index increment
-        @type version: str or int
-        @param by: what key to search by (defaults to name)
-        @type by: str
-        @return: system
-        @rtype: Body or BodyBag
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
+        @return: version (get system from version.get_system())
+        @rtype: Version
         """
-        if isinstance(version,int): #then easy to return from list
-            return self.versions[self.versions_curr_i+version]['system']
-        
-        # create a dictionary with key defined by by and values which are the systems
-        versions = {v[by]: i if return_type=='i' else v[return_type] for i,v in enumerate(self.versions)}
-        
-        if version is None:
-            return versions
-        else:
-            return versions[version]
+        if isinstance(search,int): #then easy to return from list
+            return self._get_from_section('version',return_type='list')[self.versions_curr_i+version]
+            
+        return self._get_from_section('version',search,search_by,return_type=return_type)
            
-    def restore_version(self,version,by='name'):
+    def restore_version(self,search,search_by='name'):
         """
         Restore a system version to be the current working system
         This should be used instead of bundle.set_system(bundle.get_version(...))
         
         See bundle.get_version() for syntax examples
         
-        @param version: the key of the version, or index increment
-        @type version: str or int
-        @param by: what key to search by (defaults to name)
-        @type by: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
         """
         
         # retrieve the desired system
-        system = self.get_version(version,by=by)
+        version = self.get_version(search,search_by)
+        system = copy.deepcopy(version.get_system())
         
         # set the current system
         # set_system attempts to find the version and reset versions_curr_i
         self.set_system(system)
         
-    def remove_version(self,version,by='name'):
+    def remove_version(self,search,search_by='name'):
         """
         Permanently delete a stored version.
         This will not affect the current system.
         
         See bundle.get_version() for syntax examples
         
-        @param version: the key of the version, or index increment
-        @type version: str or int
-        @param by: what key to search by (defaults to name)
-        @type by: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
         """
 
-        i = self.get_version(version,by=by,return_type='i')
-        return self.versions.pop(i)
+        # TODO: this won't work for search=int
+        self._remove_from_section('version',search,search_by)
         
         
-    def rename_version(self,version,newname):
+    def rename_version(self,search,newname,search_by='name'):
         """
         Rename a currently existing version
         
-        @param version: the system or name of the version that you want to edit
-        @type version: version or str
-        @param newname: the new name
-        @type newname: str        
+        @param search: value to search by (depending on search_by)
+        @type search: str
+        @param newname: new name for the version
+        @type newname: str
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str      
         """
-        key = 'name' if isinstance(version,str) else 'system'
-        # get index where this system is in self.versions
-        i = [v[key] for v in self.versions].index(version)
-        # change the name value
-        self.versions[i]['name']=newname
-
+        
+        version = self.get_version(search,search_by)
+        version['name'] = newname
+        
     #}
     #{ Datasets
-    def _get_data_ps(self, kind, objref, dataref, force_dict):
-        """
-        Retrieve a parameterSet of type dep, obs or syn.
-        
-        Used by :py:func:`Bundle.get_obs`, :py:func:`Bundle.get_syn`, and
-        :py:func:`Bundle.get_dep`
-        
-        <Q>: why are objref, dataref and force_dict not None by default?
-        
-        @param kind: 'obs', 'syn', or 'dep'
-        @type kind: str
-        @param objref: name of the object the dataset is attached to
-        @type objref: str
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @return: dep ParameterSet
-        @rtype: ParameterSet
-        """
-        
-        if objref is None:
-            # then search the whole system
-            return_ = {}
-            for objref in self.get_system_structure(return_type='label',flat=True):
-                parsets = self._get_data_ps(kind,objref,dataref=dataref,force_dict=True)
-                for parset in parsets.values():
-                    if parset not in return_:
-                        return_['%s:%s' % (objref, parset.get_value('ref'))] = parset
-                        
-            if len(return_) == 1 and not force_dict:
-                return return_.values()[0]
-            else:
-                return return_
-            
-        # now we assume we're dealing with a single object
-        obj = self.get_object(objref)
-        
-        if dataref is not None:
-            # then search for the dataref by name/index
-            if kind == 'syn':
-                parset = obj.get_synthetic(ref=dataref, cumulative=True)
-            else:
-                parset = obj.get_parset(type=kind, ref=dataref)[0]
-            
-            if parset != None and parset != []:
-                if force_dict:
-                    return OrderedDict([('%s:%s' % (objref, parset.get_value('ref')), parset)])
-                else:
-                    return parset
-            return OrderedDict()
-        
-        else:
-            # then loop through indices until there are none left
-            return_ = []
-            if kind in obj.params.keys():
-                for typ in obj.params[kind]:
-                    for ref in obj.params[kind][typ]:
-                        return_.append(obj.params[kind][typ][ref])
-            
-            if len(return_)==1 and not force_dict:
-                return return_[0]
-            else:
-                return {'%s:%s' % (objref, r.get_value('ref')): r for r in return_}
-            
-            
     def _attach_datasets(self, output):
         """
         attach datasets and pbdeps from parsing file or creating synthetic datasets
@@ -1054,11 +1239,14 @@ class Bundle(object):
                     comp.add_pbdeps(ps)
 
             # obs get attached to the requested object
-            for ds in dss:    
+            for ds in dss:
+
                 #~ ds.load()
                 comp.add_obs(ds)
     
-    def load_data(self,category,filename,passband=None,columns=None,components=None,ref=None):
+    
+    def load_data(self, category, filename, passband=None, columns=None,
+                  objref=None, ref=None, scale=False, offset=False):
         """
         import data from a file, create multiple DataSets, load data,
         and add to corresponding bodies
@@ -1071,20 +1259,38 @@ class Bundle(object):
         @type passband: str
         @param columns: list of columns in file
         @type columns: list of strings
-        @param components: component for each column in file
-        @type components: list of bodies
+        @param objref: component for each column in file
+        @type objref: list of strings (labels of the bodies)
         @param ref: name for ref for all returned datasets
         @type ref: str    
         """
         
-        if category=='rv':
-            output = datasets.parse_rv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif category=='lc':
-            output = datasets.parse_lc(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif category=='etv':
-            output = datasets.parse_etv(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
-        elif category=='sp':
-            output = datasets.parse_sp(filename,columns=columns,components=components,full_output=True,**{'passband':passband, 'ref': ref})
+        if category == 'rv':
+            output = datasets.parse_rv(filename, columns=columns,
+                                       components=objref, full_output=True,
+                                       **{'passband':passband, 'ref': ref})
+        elif category == 'lc':
+            output = datasets.parse_lc(filename, columns=columns,
+                                       components=objref, full_output=True,
+                                       **{'passband':passband, 'ref': ref})
+        elif category == 'etv':
+            output = datasets.parse_etv(filename, columns=columns,
+                                        components=objref, full_output=True,
+                                        **{'passband':passband, 'ref': ref})
+        
+        elif category == 'sp':
+            output = datasets.parse_sp(filename, columns=columns,
+                                       components=objref, full_output=True,
+                                       **{'passband':passband, 'ref': ref})
+        
+        elif category == 'sed':
+            output = datasets.parse_phot(filename, columns=columns,
+                  group=filename, group_kwargs=dict(scale=scale, offset=offset),
+                  full_output=True)
+        #elif category == 'pl':
+        #    output = datasets.parse_plprof(filename, columns=columns,
+        #                               components=objref, full_output=True,
+        #                               **{'passband':passband, 'ref': ref})
         else:
             output = None
             print("only lc, rv, etv, and sp currently implemented")
@@ -1092,7 +1298,7 @@ class Bundle(object):
         if output is not None:
             self._attach_datasets(output)
                        
-    def create_syn(self, category='lc', times=None, components=None,
+    def create_syn(self, category='lc', times=None, objref=None,
                    ref=None, **pbkwargs):
         """
         create and attach 'empty' datasets with no actual data but rather
@@ -1107,8 +1313,8 @@ class Bundle(object):
         @type times: list
         @param columns: list of columns in file
         @type columns: list of strings
-        @param components: component for each column in file
-        @type components: list of bodies
+        @param objref: component for each column in file
+        @type objref: None, str, list of str or list of bodies
         @param ref: name for ref for all returned datasets
         @type ref: str    
         """
@@ -1124,18 +1330,38 @@ class Bundle(object):
         else:
             dataset_class = getattr(datasets, config.dataset_class[category])
 
-        if components is None:
+        if objref is None:
             # then attempt to make smart prediction
             if category == 'lc':
                 # then top-level
-                components = [self.get_system_structure(flat=True)[0]]
-                logger.warning('components not provided - assuming {}'.format(components))
+                components = [self.get_system()]
+                logger.warning('components not provided - assuming {}'.format(component))
             else:
                 logger.error('create_syn failed: components need to be provided')
                 return
-
+        # is component just one string?
+        elif isinstance(objref, str):
+            components = [self.get_object(objref)]
+        # is component a list of strings?
+        elif isinstance(objref[0], str):
+            components = [self.get_object(iobjref) for iobjref in objref]
+        # perhaps component is a list of bodies, that's just fine then
+        else:
+            components = objref
+        
         output = {}
         for component in components:
+            
+            if ref is None:
+                # If the reference is None, suggest one. We'll add it as "lc01"
+                # if no "lc01" exist, otherwise "lc02" etc (unless "lc02" already exists)
+                existing_refs = self.get_system().get_refs(category=category)
+                id_number = len(existing_refs)+1
+                ref = category + '{:02d}'.format(id_number)
+                while ref in existing_refs:
+                    id_number += 1
+                    ref = category + '{:02d}'.format(len(existing_refs)+1)
+            
             ds = dataset_class(context=category+'obs', time=times, ref=ref)
             
             # For the "dep" parameterSet, we'll use defaults derived from the
@@ -1145,7 +1371,7 @@ class Bundle(object):
             # stuff that is in the defaults. So, if a parameter is in the
             # main body parameterSet, then we'll take that as a default value,
             # but it can be overriden by pbkwargs
-            main_parset = self.get_ps(component)
+            main_parset = component.params.values()[0]
             pb = parameters.ParameterSet(context=category+'dep', ref=ref)
             for key in pb:
                 # derive default
@@ -1157,67 +1383,134 @@ class Bundle(object):
                     if key in pbkwargs.keys():
                         pb[key] = pbkwargs.get(key)
                         
-            output[component] = [[ds],[pb]]
-
+            output[component.get_label()] = [[ds],[pb]]
+        
         self._attach_datasets(output)
+        
+    def get_syn(self, category=None, objref=None, dataref=0, force_dict=False):
+        """
+        Get synthetic
+        
+        returns a dictionairy -- should be changed to match behaviour of
+        force_dict (don't know what behaviour is required)
+        """
+        dss = OrderedDict()
+        system = self.get_system()
+        
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            
+            if objref is None or this_objref == objref:
+                
+                # If category is not given, run over all of them
+                if category is None:
+                    obstypes = body.params['syn'].keys()
+                else:
+                    obstypes = [category+'syn']
+                
+                for obstype in obstypes:
+                    
+                    # dataref can be integer
+                    if isinstance(dataref, int):
+                        dss[this_objref] = body.params['syn'][obstype].values()[dataref]
+                    # but dataref can be string
+                    elif dataref in body.params['syn'][obstype]:
+                        dss[this_objref] = body.params['syn'][obstype][dataref]
+                    # else nothing happens and we keep searching
+        
+        if not force_dict and len(dss) == 1:
+            return dss.values()[0]
+        else:
+            return dss
+
+    def get_dep(self, objref=None, dataref=None, force_dict=False):
+        pass
         
     def get_obs(self, objref=None, dataref=None, force_dict=False):
         """
-        get an observables dataset by the object its attached to and its label
-        if objectname and ref are given, this will return a single dataset
-        if either or both are not give, this will return a list of all datasets matching the search
+        Get observations
         
-        @param objref: name of the object the dataset is attached to
-        @type objref: str
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @return: dataset
-        @rtype: ParameterSet
+        returns a dictionairy -- should be changed to match behaviour of
+        force_dict (don't know what behaviour is required)
         """
+        dss = OrderedDict()
+        system = self.get_system()
         
-        return self._get_data_ps('obs',objref,dataref,force_dict)
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
         
-    def enable_obs(self,dataref=None):
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['obs']:
+                    if dataref in body.params['obs'][obstype]:
+                        dss[this_objref] = body.params['obs'][obstype][dataref]
+        
+        return dss
+
+    def enable_obs(self, dataref=None, objref=None):
         """
-        Include observations in the fitting process by enabling them.
+        Enable observations from being included in the fitting procedure.
         
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
+        If you set :envvar:`dataref=None`, then all datasets will be disabled.
         """
-        for obs in self.get_obs(dataref=dataref, force_dict=True).values():
-            obs.set_enabled(True)
-            
-               
-    def disable_obs(self,dataref=None):
+        system = self.get_system()
+        
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['obs']:
+                    if dataref is None:
+                        for idataref in body.params['obs'][obstype]:
+                            body.params['obs'][obstype][idataref].set_enabled(True)
+                            logger.info("Enabled {} '{}'".format(obstype, idataref))
+                    elif dataref in body.params['obs'][obstype]:
+                        body.params['obs'][obstype][dataref].set_enabled(True)
+                        logger.info("Enabled {} '{}'".format(obstype, dataref))
+
+
+    def disable_obs(self, dataref=None, objref=None):
         """
-        Exclude observations from the fitting process by disabling them.
+        Disable observations from being included in the fitting procedure.
         
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
+        If you set :envvar:`dataref=None`, then all datasets will be disabled.
         """
-        for obs in self.get_obs(dataref=dataref, force_dict=True).values():
-            obs.set_enabled(False)
+        system = self.get_system()
         
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
         
-    def adjust_obs(self,dataref=None,l3=None,pblum=None):
-        """
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @param l3: whether l3 should be marked for adjustment
-        @type l3: bool or None
-        @param pblum: whether pblum should be marked for adjustment
-        @type pblum: bool or None
-        """
-        
-        for obs in self.get_obs(dataref=dataref,force_dict=True).values():
-            if l3 is not None:
-                obs.set_adjust('l3',l3)
-            if pblum is not None:
-                obs.set_adjust('pblum',pblum)
-        return
-        
-        
-    def remove_data(self,dataref):
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            if objref is None or this_objref == objref:
+                for obstype in body.params['obs']:
+                    if dataref is None:
+                        for idataref in body.params['obs'][obstype]:
+                            body.params['obs'][obstype][idataref].set_enabled(False)
+                            logger.info("Disabled {} '{}'".format(obstype, idataref))
+                    elif dataref in body.params['obs'][obstype]:
+                        body.params['obs'][obstype][dataref].set_enabled(False)
+                        logger.info("Disabled {} '{}'".format(obstype, dataref))
+
+
+    def adjust_obs(self, dataref=None, l3=None, pblum=None):
+        pass
+
+    def remove_data(self, dataref):
         """
         @param ref: ref (name) of the dataset
         @type ref: str
@@ -1236,60 +1529,29 @@ class Bundle(object):
                 obj.remove_pbdeps(refs=[dataref]) 
 
         return
-            
-            
-    def get_syn(self,objref=None,dataref=None,force_dict=False):
-        """
-        get a synthetic dataset by the object its attached to and its label
-        if objref and dataref are given, this will return a single dataset
-        if either or both are not give, this will return a list of all datasets matching the search
-        
-        @param objref: name of the object the dataset is attached to
-        @type objref: str
-        @param dataref: dataref (name) of the dataset
-        @type dataref: str
-        @return: dataset
-        @rtype: ParameterSet
-        """
-        
-        return self._get_data_ps('syn',objref,dataref,force_dict)
-                
-    def get_dep(self,objref=None,dataref=None,force_dict=False):
-        """
-        get a dep by the object its attached to and its label
-        if objectname and ref are given, this will return a single dataset
-        if either or both are not give, this will return a list of all datasets matching the search
-        
-        @param objref: name of the object the dataset is attached to
-        @type objref: str
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @return: dep ParameterSet
-        @rtype: ParameterSet
-        """
-        
-        return self._get_data_ps('pbdep',objref,dataref,force_dict)
         
     #}
     
     #{ Compute
-    def add_compute(self,compute=None,**kwargs):
+    def add_compute(self,ps=None,**kwargs):
         """
         Add a new compute ParameterSet
         
-        @param compute: compute ParameterSet
-        @type compute:  None or ParameterSet
+        @param ps: compute ParameterSet
+        @type ps:  None or ParameterSet
+        @param label: label of the compute options (will override label in ps)
+        @type label: str
         """
-        if compute is None:
-            compute = parameters.ParameterSet(context='compute')
+        if ps is None:
+            ps = parameters.ParameterSet(context='compute')
         for k,v in kwargs.items():
-            compute.set_value(k,v)
+            ps.set_value(k,v)
             
-        self.compute_options.append(compute)
+        self._add_to_section('compute',ps)
 
-        self._attach_set_value_signals(compute)
+        self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None):
+    def get_compute(self,label=None,return_type='single'):
         """
         Get a compute ParameterSet by name
         
@@ -1298,30 +1560,7 @@ class Bundle(object):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        # create a dictionary with key as the label
-        compute_options = self.usersettings.get_compute()
-        # bundle compute options override those in usersettings
-        for co in self.compute_options:
-            compute_options[co.get_value('label')] = co
-        
-        if label is None:
-            return compute_options
-        elif label in compute_options.keys():
-            co = compute_options[label]
-            if co not in self.compute_options:
-                # then this came from usersettings - so we need to copy to bundle
-                # and return the new version.  From this point on, this version will
-                # be returned and used even if usersettings is changed.
-                # To return to the default options, remove from the bundle
-                # by calling bundle.remove_compute(label)
-                co_return = copy.deepcopy(co)
-                self.add_compute(co_return)
-                return co_return
-            else:
-                # then we're return from bundle already
-                return co
-        else:
-            return None
+        return self._get_from_section('compute',label,return_type=return_type)
         
     def remove_compute(self,label):
         """
@@ -1330,8 +1569,7 @@ class Bundle(object):
         @param label: name of compute ParameterSet
         @type label: str
         """
-        if label is None:    return None
-        return self.compute_options.pop(self.compute_options.index(self.get_compute(label)))       
+        return self._remove_from_section('compute',label)
     
     @run_on_server
     def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
@@ -1347,38 +1585,43 @@ class Bundle(object):
         @param server: name of server to run on, or False to run locally (will override usersettings)
         @type server: string
         """
+        system = self.get_system()
+        
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
             
         self.purge_signals(self.attached_signals_system)
         
         # clear all previous models and create new model
-        self.system.clear_synthetic()
+        system.clear_synthetic()
 
-        try:
-            self.system.set_time(0)
-        except:
-            self.system.fix_mesh()
+        # <pieterdegroote> Necessary?
+        system.set_time(0)
         
+        # get compute options
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
-            if label not in self.get_compute():
-                return KeyError
-            options = self.get_compute(label)
+            options = self.get_compute(label).copy()
+         
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in options.keys():
+                options.set_value(k,v)
         
+        # get server options
         if server is not None:
             server = self.get_server(server)
             mpi = server.mpi_ps
         else:
-            mpi = None
+            mpi = kwargs.pop('mpi', None)
         
         if options['time']=='auto' and anim==False:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            self.system.compute(mpi=mpi,**options)
+            system.compute(mpi=mpi,**options)
         else:
             im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
-            observatory.observe(self.system,options['time'],lc=True,rv=True,sp=True,pl=True,
+            observatory.observe(system,options['time'],lc=True,rv=True,sp=True,pl=True,
                 extra_func=[observatory.ef_binary_image] if anim!=False else [],
                 extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
                 mpi=mpi,**options
@@ -1388,69 +1631,24 @@ class Bundle(object):
             for ext in ['.gif','.avi']:
                 plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
-            # we now have images for each computed time step
-            # and we want to create an animation for each syn that was used during compute
-            
-            # first lets get the datasets that were used during this compute
-            #~ enabled_obs = [o for o in self.get_obs(force_dict=True).values() if o.enabled]
-            
-            # now for each of these we need to know which images belong to which timepoints
-            #~ options_copy = options.copy()
-            #~ observatory.extract_times_and_refs(self.get_system(),options_copy)
-            
-            #~ times = options_copy.get_value('time')
-            #~ refs = options_copy.get_value('refs')
-            
-            # and then we need to overplot on those images (noting there may be duplicates)
-            #~ for obs in enabled_obs:
-                #~ obsref = obs.get_value('ref')
-                #~ 
-                #~ for i,ref in enumerate(refs):
-                   #~ if obsref in ref:
-                        #~ self.overlay_on_image('ef_binary_image_{:04d}.png'.format(i),obsref,None,out_file='gif_tmp_{:04d}'.format(i))
-                
-                
-                # and then we need to create a gif for each obs
-                #~ for ext in ['.gif','.avi']:
-                    #~ plotlib.make_movie('gif_tmp*.png',output='{}_{}{}'.format(anim,obsref,ext),cleanup=ext=='.avi')
-               
-                
-        self.system.uptodate = label
+        system.uptodate = label
         
         if add_version is not False:
             self.add_version(name=None if add_version==True else add_version)
 
         self.attach_system_signals()
-        
-        
-    def overlay_on_image(self,image_file,dataref,objref,out_file=None):
-        data = Image.open(image_file)
-        shape = data.size
-        
-        plt.figure(figsize=(8,8*shape[1]/float(shape[0])))
-        ax = plt.axes([0,0,1,1],axisbg='k',aspect='equal')
-        plt.imshow(data,origin='image')
-        plt.twinx(plt.gca())
-        plt.twiny(plt.gca())
-        self.plot_syn(dataref=dataref,objref=objref)
-        #~ flux = bundle.get_syn(dataref='syn_lc',objref=top_level_name).asarray()['flux']
-        #~ ylims = flux.min(),flux.max()
-        #~ ylims = ylims[0]-(ylims[1]-ylims[0])*0.1,ylims[1]+(ylims[1]-ylims[0])*0.1
-        #~ plt.ylim(ylims)
-        #~ plt.xlim(times[0],times[-1])
-        
-        plt.savefig(out_file if out_file is not None else image_file)
-        plt.close()
 
     #}
             
     #{ Fitting
-    def add_fitting(self,fitting=None,**kwargs):
+    def add_fitting(self,ps=None,**kwargs):
         """
         Add a new fitting ParameterSet
         
-        @param fitting: fitting ParameterSet
-        @type fitting:  None, or ParameterSet
+        @param ps: fitting ParameterSet
+        @type ps:  None, or ParameterSet
+        @param label: name of the fitting options (will override label in ps)
+        @type label: str
         """
         context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
         if fitting is None:
@@ -1458,11 +1656,10 @@ class Bundle(object):
         for k,v in kwargs.items():
             fitting.set_value(k,v)
             
-        self.fitting_options.append(fitting)
-
+        self._add_to_section('fitting',fitting)
         self._attach_set_value_signals(fitting)
             
-    def get_fitting(self,label=None):
+    def get_fitting(self,label=None,return_type='single'):
         """
         Get a fitting ParameterSet by name
         
@@ -1471,31 +1668,8 @@ class Bundle(object):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        # create a dictionary with key as the label
-        fitting_options = self.usersettings.get_fitting()
-        # bundle fitting options override those in usersettings
-        for co in self.fitting_options:
-            fitting_options[co.get_value('label')] = co
-        
-        if label is None:
-            return fitting_options
-        elif label in fitting_options.keys():
-            fo = fitting_options[label]
-            if fo not in self.fitting_options:
-                # then this came from usersettings - so we need to copy to bundle
-                # and return the new version.  From this point on, this version will
-                # be returned and used even if usersettings is changed.
-                # To return to the default options, remove from the bundle
-                # by calling bundle.remove_fitting(label)
-                fo_return = copy.deepcopy(fo)
-                self.add_fitting(fo_return)
-                return fo_return
-            else:
-                # then we're return from bundle already
-                return fo
-        else:
-            return None
-        
+        return self._get_from_section('fitting',label,return_type=return_type)
+
     def remove_fitting(self,label):
         """
         Remove a given fitting ParameterSet
@@ -1503,11 +1677,10 @@ class Bundle(object):
         @param label: name of fitting ParameterSet
         @type label: str
         """
-        if label is None:    return None
-        return self.fitting_options.pop(self.fitting_options.index(self.get_fitting(label)))     
+        self._remove_from_section('fitting',label)
         
     @run_on_server
-    def run_fitting(self,computelabel,fittinglabel,add_feedback=None,server=None,**kwargs):
+    def run_fitting(self,computelabel=None,fittinglabel=None,add_feedback=None,accept_feedback=False,server=None,**kwargs):
         """
         Run fitting for a given fitting ParameterSet
         and store the feedback
@@ -1516,6 +1689,10 @@ class Bundle(object):
         @param computelabel: str
         @param fittinglabel: name of fitting ParameterSet
         @type fittinglabel: str
+        @param add_feedback: label to store the feedback under (retrieve with get_feedback)
+        @type add_feedback: str or None
+        @param accept_feedback: whether to automatically accept the feedback into the system
+        @type accept_feedback: bool
         @param server: name of server to run on, or False to force locally (will override usersettings)
         @type server: string
         """
@@ -1528,177 +1705,207 @@ class Bundle(object):
         else:
             mpi = None
         
-        feedback = fitting.run(self.system, params=self.get_compute(computelabel), fitparams=self.get_fitting(fittinglabel), mpi=mpi)
+        # get fitting params
+        if fittinglabel is None:
+            fittingoptions = parameters.ParameterSet(context='fitting')
+        else:
+            fittingoptions = self.get_fitting(fittinglabel).copy()
+         
+        # get compute params
+        if computelabel is None:
+            computeoptions = parameters.ParameterSet(context='compute')
+        else:
+            computeoptions = self.get_compute(label).copy()
+
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in options.keys():
+                options.set_value(k,v)
+            
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in fittingoptions.keys():
+                fittingoptions.set_value(k,v)
+            elif k in computeoptions.keys():
+                computeoptions.set_value(k,v)
+
+        feedback = fitting.run(self.get_system(), params=computeoptions, fitparams=fittingoptions, mpi=mpi)
         
         if add_feedback:
             self.add_feedback(feedback)
+            
+        if accept_feedback:
+            fitting.accept_fit(self.get_system(),feedback)
+            
         return feedback
     
-    def add_feedback(self,feedback,name=None):
+    def add_feedback(self,ps,alias=None):
         """
         Add fitting results to the bundle.
         
-        @param feedback: results from the fitting
-        @type feedback: ParameterSet
+        @param ps: results from the fitting
+        @type ps: ParameterSet
+        @param alias: alias name for this feedback (optional, defaults to datecreated string)
+        @type alias: str
         """
-        #-- if we've nothing to add, then just quit
-        if feedback is None: return None
-        #-- feedbacks should be a list, not one result:
-        if not isinstance(feedback,list):
-            feedback = [feedback]
-        #-- then add the results to the bundle.
-        for f in feedback:
-            fd = {}
-            fd['feedback'] = f
-            fd['date_created'] = datetime.now()
-            fd['name'] = name if name is not None else str(fd['date_created'])
-            fd['label'] = f['label'] #original label of the feedback
-            
-            self.feedbacks.append(fd)
-    
-          
-    def get_feedback(self,feedback=None,by='name',return_type='feedback'):
+       
+        date_created = datetime.now()
+
+        feedback = Feedback(ps)
+        feedback.set_value('date_created', date_created)
+        feedback.set_value('alias', alias if alias is not None else str(date_created))
+        
+        self._add_to_section('feedback',feedback)
+        
+    def get_feedback(self,search=None,search_by='label',return_type='single'):
         """
         Retrieve a stored feedback by one of its keys
         
-        @param feedback: the key of the feedback, or index increment
-        @type feedback: str or int
-        @param by: what key to search by (defaults to name)
-        @type by: str
-        @return: feedback
-        @rtype: ParameterSet
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
         """
-        if len(self.feedbacks)==0:
-            return None
-            
-        if isinstance(feedback,int): #then easy to return from list
-            return self.feedbacks[feedback]['feedback']
+        return self._get_from_section('feedback',search,search_by,return_type=return_type)
         
-        # create a dictionary with key defined by by and values which are the systems
-        feedbacks = {v[by]: i if return_type=='i' else v[return_type] for i,v in enumerate(self.feedbacks)}
-        
-        if feedback is None:
-            return feedbacks
-        else:
-            return feedbacks[feedback]
-            
-    def remove_feedback(self,feedback,by='name'):
+    def remove_feedback(self,search,search_by='label'):
         """
         Permanently delete a stored feedback.
         This will not affect the current system.
         
         See bundle.get_feedback() for syntax examples
         
-        @param feedback: the key of the feedback, or index increment
-        @type feedback: str or int
-        @param by: what key to search by (defaults to name)
-        @type by: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
         """
+        self._remove_from_section('feedback',search,search_by)
 
-        i = self.get_feedback(feedback,by=by,return_type='i')
-        return self.feedbacks.pop(i)
-        
-        
-    def rename_feedback(self,feedback,newname):
+    def rename_feedback(self,old_alias,new_alias):
         """
-        Rename a currently existing feedback
+        Rename (the alias of) a currently existing feedback
         
-        @param feedback: the feedback or name of the feedback that you want to edit
-        @type feedback: feedback or str
-        @param newname: the new name
-        @type newname: str        
+        @param old_alias: the current alias of the feedback
+        @type old_alias: str
+        @param new_alias: the new alias of the feedback
+        @type new_alias: str
         """
-        key = 'name' if isinstance(feedback,str) else 'system'
-        # get index where this system is in self.feedbacks
-        i = [v[key] for v in self.feedbacks].index(feedback)
-        # change the name value
-        self.feedbacks[i]['name']=newname
-               
-    def accept_feedback(self,feedback,by='name'):
+        raise NotImplementedError
+        ps = self.get_feedback(old_alias,'alias')
+        ps.set_value('alias',new_alias)
+        
+    def accept_feedback(self,search,search_by='label'):
         """
         Accept fitting results and apply to system
         
-        @param feedback: name of the feedback ParameterSet to accept
-        @type label: str
-        @param by: key to search for feedback (see get_feedback)
-        @type by: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
         """
-        fitting.accept_fit(self.system,self.get_feedback(feedback,by))
+        fitting.accept_fit(self.get_system(),self.get_feedback(search,search_by).get_ps())
         
-    def continue_mcmc(self,feedback=None,by='name',extra_iter=10):
+    def continue_mcmc(self,search,search_by='label',add_feedback=None,server=None,extra_iter=10):
         """
         Continue an MCMC chain.
         
         If you don't provide a label, the last MCMC run will be continued.
         
-        @param feedback: name of the MCMC ParameterSet to continue
-        @type label: str
-        @param by: key to search for feedback (see get_feedback)
-        @type by: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
         @param extra_iter: extra number of iterations
         @type extra_iter: int
         """
-        if label is not None:
-            allfitparams = [self.get_feedback(feedback,by)]
-        else:
-            allfitparams = self.feedbacks.values()[::-1]
-        #-- take the last fitting ParameterSet that represents an mcmc
-        for fitparams in allfitparams:
-            if fitparams.context.split(':')[-1] in ['pymc','emcee']:
-                fitparams['iter'] += extra_iter
-                feedback = fitting.run_emcee(self.system,params=self.compute,
-                                    fitparams=fitparams,mpi=self.mpi)
-                break
+        raise NotImplementedError
+        
+        fitparams = self.get_feedback(search,search_by).get_ps()
+        if fitparams.context.split(':')[-1] in ['pymc','emcee']:
+            fitparams['iter'] += extra_iter
+            
+            self.run_fitting(computelabel,fitparams,add_feedback,server)
+            
+            feedback = fitting.run_emcee(self.get_system(),params=self.compute,
+                                fitparams=fitparams,mpi=self.mpi)
+
+        
+        #~ if label is not None:
+            #~ allfitparams = [self.get_feedback(feedback,by)]
+        #~ else:
+            #~ allfitparams = self.feedbacks.values()[::-1]
+        #~ #-- take the last fitting ParameterSet that represents an mcmc
+        #~ for fitparams in allfitparams:
+            #~ if fitparams.context.split(':')[-1] in ['pymc','emcee']:
+                #~ fitparams['iter'] += extra_iter
+                #~ feedback = fitting.run_emcee(self.get_system(),params=self.compute,
+                                    #~ fitparams=fitparams,mpi=self.mpi)
+                #~ break
     #}
 
     #{ Figures
-    def plot_obs(self,dataref,objref=None,**kwargs):
+    def plot_obs(self, dataref, *args, **kwargs):
         """
+        Make a plot of the attached observations.
+        
+        The arguments are passed to the appropriate functions in :py:mod:`plotting`.
+        
+        Example usage::
+            
+            bundle.plot_obs('mylc')
+            bundle.plot_obs('mylc', objref='secondary')
+            bundle.plot_obs('mylc', fmt='ko-', objref='secondary')
+            bundle.plot_obs('mylc', fmt='ko-', label='my legend label', objref='secondary')
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
         @type objref: str
         """
-        dss = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()
+        objref = kwargs.pop('objref', None)
+        
+        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True)
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
-        ds = dss[0]
-        typ = ds.context[:-3]
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
-        if typ=='lc':
-            plotting.plot_lcobs(self.system,ref=dataref,**kwargs)
-        elif typ=='rv':
-            plotting.plot_rvobs(self.system,ref=dataref,**kwargs)
-        elif typ=='sp':
-            plotting.plot_spobs(self.system,ref=dataref,**kwargs)
-        elif typ=='if':
-            plotting.plot_ifobs(self.system,ref=dataref,**kwargs)
-        elif typ=='etv':
-            plotting.plot_etvobs(self.system,ref=dataref,**kwargs)
+        # Get the obs DataSet and retrieve its context
+        ds = dss.values()[0]
+        obj = self.get_object(dss.keys()[0])
+        context = ds.get_context()
         
-    def plot_syn(self,dataref,objref=None,**kwargs):
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = dataref
+        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        
+
+        
+    def plot_syn(self, dataref, *args, **kwargs):
         """
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
         @type objref: str
         """
-        dss = self.get_syn(dataref=dataref,objref=objref,force_dict=True).values()
+        objref = kwargs.pop('objref', None)
+        
+        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True)
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
-        ds = dss[0]
-        typ = ds.context[:-3]
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
-        if typ=='lc':
-            plotting.plot_lcsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='rv':
-            plotting.plot_rvsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='sp':
-            plotting.plot_spsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='if':
-            plotting.plot_ifsyn(self.system,ref=dataref,**kwargs)
-        elif typ=='etv':
-            plotting.plot_etvsyn(self.system,ref=dataref,**kwargs)        
+        # Get the obs DataSet and retrieve its context
+        ds = dss.values()[0]
+        obj = self.get_object(dss.keys()[0])
+        context = ds.get_context()
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = dataref
+        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+
             
     def plot_residuals(self,dataref,objref=None,**kwargs):
         """
@@ -1707,24 +1914,35 @@ class Bundle(object):
         @param objref: label of the object
         @type objref: str
         """
-        dss = self.get_obs(dataref=dataref,objref=objref,force_dict=True).values()
+        objref = kwargs.pop('objref', None)
+        
+        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True).values()
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
-        ds = dss[0]
-        typ = ds.context[:-3]
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
-        if typ=='lc':
-            plotting.plot_lcres(self.system,ref=dataref,**kwargs)
-        elif typ=='rv':
-            plotting.plot_rvres(self.system,ref=dataref,**kwargs)
-        elif typ=='sp':
-            plotting.plot_spres(self.system,ref=dataref,**kwargs)
-        elif typ=='if':
-            plotting.plot_ifres(self.system,ref=dataref,**kwargs)
-        elif typ=='etv':
-            plotting.plot_etvres(self.system,ref=dataref,**kwargs)    
+        # Get the obs DataSet and retrieve its context
+        ds = dss[0]
+        typ = ds.get_context()[:-3]
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = dataref
+        getattr(plotting, 'plot_{}res'.format(typ))(self.get_system(),
+                                                     *args, **kwargs)
     
-    def get_axes(self,ident=None):
+    def write_syn(self, dataref, output_file, objref=None):
+        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True)
+        if len(dss) > 1:
+            logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
+        elif not len(dss):
+            raise ValueError("dataref '{}' not found for plotting".format(dataref))
+        
+        # Get the obs DataSet and write to a file
+        ds = dss.values()[0]
+        ds.save(output_file)
+    
+    def get_axes(self,ident=None,return_type='single'):
         """
         Return an axes or list of axes that matches index OR title
         
@@ -1733,14 +1951,12 @@ class Bundle(object):
         @return: axes
         @rtype: plotting.Axes
         """
-        axes = OrderedDict([(ax.get_value('title'), ax) for ax in self.axes])
+        if isinstance(ident,int): 
+            #then we need to return all in list and take index
+            # TODO: this currently ignores return_type
+            return self._get_from_section('axes',return_type='list')[ident]
         
-        if ident is None:
-            return axes
-        elif isinstance(ident,str):
-            return axes[ident]
-        else:
-            return axes.values()[ident]
+        return self._get_from_section('axes',ident,'title',return_type=return_type)
         
     def add_axes(self,axes=None,**kwargs):
         """
@@ -1750,7 +1966,7 @@ class Bundle(object):
         it is suggested to at least intialize with kwargs for category and title
         
         @param axes: a axes to be plotted on a single axis
-        @type axes:
+        @type axes: frontend.figures.Axes()
         @param title: (kwarg) name for the current plot - used to reference axes and as physical title
         @type title: str
         @param category: (kwarg) type of plot (lc,rv,etc)
@@ -1760,7 +1976,8 @@ class Bundle(object):
             axes = Axes()
         for key in kwargs.keys():
             axes.set_value(key, kwargs[key])
-        self.axes.append(axes)
+            
+        self._add_to_section('axes',axes)
         
     def remove_axes(self,ident):
         """
@@ -1769,7 +1986,14 @@ class Bundle(object):
         @param ident: index or title of the axes to be removed
         @type ident: int or str
         """
-        return self.axes.pop(self.axes.index(self.get_axes(ident)))
+        if isinstance(ident,int): 
+            #then we need to return all in list and take index
+            raise NotImplementedError
+            return
+            # TODO - this won't work - we need to make _remove_from_section take an index
+            #~ return self._get_from_section('axes',return_type='list')[ident]
+        
+        return self._remove_from_section('axes',ident,'title')
                                 
     def plot_axes(self,ident,mplfig=None,mplaxes=None,location=None):
         """
@@ -1882,11 +2106,15 @@ class Bundle(object):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self):
+    def get_meshview(self,return_type='single'):
         """
         
         """
-        return self.plot_meshviewoptions
+        # TODO: fix this so we can set defaults in sersettings
+        # (currently can't with search_by = None)
+        #~ return self._get_from_section('meshview',search_by=None)
+        return self._get_from_section('meshview',search=None,search_by=None,return_type=return_type)
+      
         
     def _get_meshview_limits(self,times):
         # get size of system during these times for scaling image
@@ -1932,9 +2160,9 @@ class Bundle(object):
         @type meshviewoptions: ParameterSet
         """
         if self.select_time is not None:
-            self.system.set_time(self.select_time)
+            self.set_time(self.select_time)
         
-        po = self.plot_meshviewoptions if meshviewoptions is None else meshviewoptions
+        po = self.get_meshview() if meshviewoptions is None else meshviewoptions
 
         if mplaxes is not None:
             axes = mplaxes
@@ -1951,7 +2179,7 @@ class Bundle(object):
         axes.get_yaxis().set_visible(False)
 
         #~ cmap = po['cmap'] if po['cmap'] is not 'None' else None
-        slims, vrange, p = observatory.image(self.system, ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
+        slims, vrange, p = observatory.image(self.get_system(), ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
         
         #~ if po['contours']:
             #~ observatory.contour(self.system, select='longitude', colors='k', linewidths=2, linestyles='-')
@@ -1964,11 +2192,13 @@ class Bundle(object):
             axes.set_xlim(lims[0],lims[1])
             axes.set_ylim(lims[2],lims[3])
         
-    def get_orbitview(self):
+    def get_orbitview(self,return_type='single'):
         """
         
         """
-        return self.plot_orbitviewoptions
+        # TODO: fix this so we can set defaults in usersettings
+        # (currently can't with search_by = None)
+        return self._get_from_section('orbitview',search=None,search_by=None,return_type=return_type)
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
@@ -1983,11 +2213,11 @@ class Bundle(object):
         else:
             axes = mplfig.add_subplot(111)
             
-        po = self.plot_orbitviewoptions if orbitviewoptions is None else orbitviewoptions
+        po = self.get_orbitview() if orbitviewoptions is None else orbitviewoptions
             
         if po['data_times']:
             computeparams = parameters.ParameterSet(context='compute') #assume default (auto)
-            observatory.extract_times_and_refs(self.system,computeparams)
+            observatory.extract_times_and_refs(self.get_system(),computeparams)
             times_data = computeparams['time']
         else:
             times_data = []
@@ -1999,7 +2229,7 @@ class Bundle(object):
         else:
             times_full = po['times']
             
-        for obj in self.system.get_bodies():
+        for obj in self.get_system().get_bodies():
             orbits, components = obj.get_orbits()
             
             for times,marker in zip([times_full,times_data],['-','x']):
@@ -2105,7 +2335,7 @@ class Bundle(object):
 
         # alternatively we could just set the system, but 
         # then we lose flexibility in adjusting things outside
-        # of bundle.system
+        # of bundle.get_system()
         #~ bundle.set_system(bundle_new.get_system()) # note: anything changed outside system will be lost
 
         # cleanup files
@@ -2135,13 +2365,14 @@ class Bundle(object):
         @param callbackfunc: the callback function
         @type callbackfunc: callable function
         """
+        system = self.get_system()
         
         # for some reason system.signals is becoming an 'instance' and 
         # is giving the error that it is not iterable
         # for now this will get around that, until we can find the source of the problem
-        if self.system is not None and not isinstance(self.system.signals, dict):
+        if system is not None and not isinstance(system.signals, dict):
             #~ print "*system.signals not dict"
-            self.system.signals = {}
+            system.signals = {}
         callbacks.attach_signal(param,funcname,callbackfunc,*args)
         self.attached_signals.append(param)
         
@@ -2165,6 +2396,48 @@ class Bundle(object):
         #~ elif signals == self.attached_signals + self.attached_signals_system:
             #~ self.attached_signals = []
             #~ self.attached_signals_system = []
+            
+    def attach_system_signals(self):
+        """
+        this function attaches signals to:
+            - set_value (for all parameters)
+            - load_data/remove_data
+            - enable_obs/disable_obs/adjust_obs
+            
+        when any of these signals are emitted, _on_param_changed will be called
+        """
+
+        self.purge_signals(self.attached_signals_system) # this will also clear the list
+        # get_system_structure is not implemented yet
+        #for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.sections['compute']:
+        #    self._attach_set_value_signals(ps)
+        
+        # these might already be attached?
+        self.attach_signal(self,'load_data',self._on_param_changed)
+        self.attach_signal(self,'remove_data',self._on_param_changed)
+        self.attach_signal(self,'enable_obs',self._on_param_changed)
+        self.attach_signal(self,'disable_obs',self._on_param_changed)
+        self.attach_signal(self,'adjust_obs',self._on_param_changed)
+        #~ self.attach_signal(self,'restore_version',self._on_param_changed)
+        
+    def _attach_set_value_signals(self,ps):
+        for key in ps.keys():
+            param = ps.get_parameter(key)
+            self.attach_signal(param,'set_value',self._on_param_changed,ps)
+            self.attached_signals_system.append(param)
+
+    def _on_param_changed(self,param,ps=None):
+        """
+        this function is called whenever a signal is emitted that was attached
+        in attach_system_signals
+        """
+        system = self.get_system()
+        
+        if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
+            if system.uptodate is not False and self.get_compute(system.uptodate) == ps:
+                system.uptodate=False
+        else:
+            system.uptodate = False
             
     #}
     
@@ -2212,9 +2485,247 @@ class Bundle(object):
             self.usersettings = settings
         
         # call set_system so that purged (internal) signals are reconnected
-        self.set_system(self.system)
+        self.set_system(self.get_system())
     
     #}
+    #{ Legacy interface
+    def getpar(self, qualifier, index=0):
+        """
+        Retrieve a parameter value.
+        
+        If there are more parameters with the same qualifier, you can use
+        :envvar:`index` to specify which one you want.
+        
+        **Example usage:**
+        
+        Let's have a look a the following system::
+        
+        >>> mybundle = Bundle('detached_1.phoebe')
+        >>> print(mybundle)
+        2 compute options
+        7 fitting options
+        Detached_1 (BodyBag)
+        lcobs: lightcurve_0
+        |
+        +----------> primary (BinaryRocheStar)
+        |            lcdep: lightcurve_0
+        |            rvdep: primaryrv_0
+        |
+        +----------> secondary (BinaryRocheStar)
+        |            lcdep: lightcurve_0
+        |            rvdep: secondaryrv_0
+        
+        If a parameter is unique, there is no ambiguity, but you still have the
+        option to specify to which parameterSet it belongs to::
+        
+            >>> print(mybundle.getpar('delta'))
+            0.0527721121858
+            >>> print(mybundle.getpar('delta@mesh:marching'))
+            0.0527721121858
+        
+        If you try to access a parameter that does not exist, you get a :envvar:`ValueError`::
+            
+            >>> print(mybundle.getpar('delta@component'))
+            ValueError: parameter delta with constraints "component" nowhere found in system
+            >>> print(mybundle.getpar('stock_price'))
+            ValueError: parameter stock_price with constraints "" nowhere found in system
+        
+        You can access *any* parameter, not just the physical ones::
+        
+            >>> print(mybundle.getpar('eclipse_alg'))
+            graham
+        
+        If a parameter is not unique, you get by default the first occurrence,
+        but you can specify the index to get the second one (or more)::
+        
+            >>> print(mybundle.getpar('teff'))
+            8350.0
+            >>> print(mybundle.getpar('teff', 1))
+            7780.0
+        
+        Alternatively, you can specify which component/parameterSet/dataset you
+        wish to access, and you can concatenate those specifications as long
+        as they go from lowest hierarchy (parameter name) to top level (body name).
+        In the latter concatenation, you can include/exclude as many levels as
+        you like::
+        
+            >>> print(mybundle.getpar('teff@secondary'))
+            7780.0
+            >>> print(mybundle.getpar('passband@secondaryrv_0'))
+            JOHNSON.V
+            >>> print(mybundle.getpar('passband@lightcurve_0@primary'))
+            JOHNSON.V
+            
+        .. note::
+        
+            You can always check your changes with::
+            
+                >>> print(mybundle.list(summary='physical'))
+            
+        @param qualifier: name of the parameter.
+        @type qualifier: str
+        @param index: takes the index-th occurrence of the parameter if multiple
+                      are found. If less then (index+1) occurrence are found,
+                      raises IndexError
+        @param index: int
+        @return: parameter value
+        """
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].get_value()
+    
+    def setpar(self, qualifier, value, index=0):
+        """
+        Retrieve a parameter value.
+        
+        If there are more parameters with the same qualifier, you can use
+        :envvar:``index`` to specify which one you want.
+        
+        See :py:func:`Bundle.getpar` for examples on usage.
+        
+        @param qualifier: name of the parameter.
+        @type qualifier: str
+        @param value: parameter value
+        @type value: undefined
+        @param index: takes the index-th occurrence of the parameter if multiple
+                      are found. If less then (index+1) occurrence are found,
+                      raises IndexError
+        @param index: int
+        @return: parameter value
+        """
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].set_value(value)
+    
+    
+    def getlim(self, qualifier, index=0):
+        """
+        Retrieve the limits of the prior on a parameter.
+        
+        @param qualifier: name of the parameter.
+        @type qualifier: str
+        @param index: takes the index-th occurrence of the parameter if multiple
+                      are found. If less then (index+1) occurrence are found,
+                      raises IndexError
+        @param index: int
+        @return: parameter limits
+        @rtype: tuple (low, high)
+        """
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].get_prior().get_limits()
+    
+    def setlim(self, qualifier, lower, upper, index=0):
+        """
+        Set the limits of the prior on a parameter (only uniform priors).
+        """
+        pars = self.get_parameter(qualifier, return_type='all')
+        return pars[index].set_prior(distribution='uniform',
+                                     lower=lower, upper=upper)
+    
+    def cfval(self, dataset, index=None):
+        """
+        Retrieve the loglikelihood of one or more datasets.
+        
+        If index is None, all enabled datasets will be included.
+        """
+        # First disable/enabled correct datasets
+        old_state = []
+        location = 0
+        for obs in self.get_system().walk_type(type='obs'):
+            old_state.append(obs.get_enabled())
+            this_state = False    
+            if dataset == obs['ref'] or dataset == obs.get_context():
+                if index is None or index == location:
+                    this_state = True
+                location += 1
+            obs.set_enabled(this_state)
+        
+        # Then compute statistics
+        logf, chi2, n_data = self.get_system().get_logp()
+        
+        # Then reset the enable property
+        for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
+            obs.set_enabled(state)
+        
+        return logf
+    
+    def check(self, qualifier, index=0):
+        """
+        Check if a parameter has a finite log likelihood.
+        """
+        par = self.get_parameter(qualifier, return_type='all')[index]
+        return -np.isinf(par.get_logp())
+        
+    def updateLD(self):
+        """
+        Update limbdarkening coefficients according to local quantities.
+        """
+        atm_types = self.get_parameter('atm', return_type='all')
+        ld_coeffs = self.get_parameter('ld_coeffs', return_type='all')
+        for atm_type, ld_coeff in zip(atm_types, ld_coeffs):
+            ld_coeff.set_value(atm_type)
+    
+    def set_beaming(self, on=True):
+        """
+        Include/exclude the boosting effect.
+        """
+        self.set_value('beaming', on, apply_to='all')
+        
+    def set_ltt(self, on=True):
+        """
+        Include/exclude light-time travel effects.
+        """
+        self.set_value('ltt', on, apply_to='all')
+    
+    def set_heating(self, on=True):
+        """
+        Include/exclude heating effects.
+        """
+        self.set_value('heating', on, apply_to='all')
+        
+    def set_reflection(self, on=True):
+        """
+        Include/exclude reflection effects.
+        """
+        self.set_value('refl', on, apply_to='all')
+    
+    
+    
+class Version(object):
+    """ 
+    this class is essentially a glorified dictionary set to act like
+    a parameterset that can hold a system and multiple keywords that can
+    be used to search for it
+    """
+    def __init__(self,system):
+        self.sections = {}
+        self.sections['system'] = system
+        
+    def get_system(self):
+        return self.sections['system']
+        
+    def get_value(self,key):
+        return self.sections[key]
+        
+    def set_value(self,key,value):
+        self.sections[key] = value
+    
+class Feedback(object):
+    """ 
+    this class is essentially a glorified dictionary set to act like
+    a parameterset that can hold a feedback PS and multiple keywords that can
+    be used to search for it
+    """
+    def __init__(self,ps):
+        self.sections = {}
+        self.sections['ps'] = ps
+        
+    def get_ps(self):
+        return self.sections['ps']
+        
+    def get_value(self,key):
+        return self.sections[key]
+        
+    def set_value(self,key,value):
+        self.sections[key] = value
     
 def load(filename, load_usersettings=True):
     """
@@ -2248,7 +2759,7 @@ def load(filename, load_usersettings=True):
         elif isinstance(contents, Bundle):
             bundle = contents
             # for set_system to update all signals, etc
-            bundle.set_system(bundle.system)
+            bundle.set_system(bundle.get_system())
         
         # Else, we could load it, but we don't know what to do with it
         else:
@@ -2291,6 +2802,8 @@ def guess_filetype(filename):
             with open(filename, 'r') as open_file:
                 contents = pickle.load(open_file)
             file_type = 'pickle'
+        except AttributeError:
+            logger.info("Probably old pickle file")
         except:
             pass
         

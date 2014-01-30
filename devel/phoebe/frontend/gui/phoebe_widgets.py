@@ -784,7 +784,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             return
         
         ### filter which rows we want to show
-        axes_incl = bundle.get_axes().values() #default
+        axes_incl = bundle.get_axes(return_type='dict').values() #default
         self.style = 'data' #default
         if plots!='all plots' or types!='all types':
             if plots!='all plots':
@@ -2252,7 +2252,7 @@ class PyInterpThread(QThread):
             
         #~ if 'bundle' in self.parent.comm.keys():
             #~ bundle = self.parent.comm['bundle']
-            #~ bundle.attach_signal(bundle.system, 'set_time', self.on_set_time)
+            #~ bundle.attach_signal(bundle.get_system(), 'set_time', self.on_set_time)
             
     def run(self):
         # attach signal each time a command is run, and purge afterwards
@@ -2261,7 +2261,7 @@ class PyInterpThread(QThread):
             bundle = self.parent.comm['bundle']
             if '.add_version' not in self.command:
                 # don't attach signal if we know we need to pickle or deepcopy during this command
-                bundle.attach_signal(bundle.system, 'set_time', self.on_set_time)
+                bundle.attach_signal(bundle.get_system(), 'set_time', self.on_set_time)
                 
 
         try:
@@ -2286,17 +2286,17 @@ class PyInterpThread(QThread):
         if 'bundle' in self.parent.comm.keys():
             bundle = self.parent.comm['bundle']
             if len(bundle.attached_signals) > 0:
-                #~ print "*** before", bundle.attached_signals, bundle.system.signals
-                bundle.purge_signals([bundle.system]) 
+                #~ print "*** before", bundle.attached_signals, bundle.get_system().signals
+                bundle.purge_signals([bundle.get_system()]) 
                 # just remove the set_time signal
                 # note: this will still result in duplicates in bundle.attached_signals
                 # but should be cleared soon enough through an entire purge
                 
-                #~ bundle.system.signals = {}
-                #~ print "*** after", bundle.attached_signals, bundle.system.signals
+                #~ bundle.get_system().signals = {}
+                #~ print "*** after", bundle.attached_signals, bundle.get_system().signals
  
-            #~ callbacks.purge_signals(bundle.system)
-            #~ bundle.system.signals={}
+            #~ callbacks.purge_signals(bundle.get_system())
+            #~ bundle.get_system().signals={}
             
     def on_set_time(self,*args):
         self.emit(SIGNAL('set_time'))
@@ -2379,7 +2379,7 @@ class PyInterp(QTextEdit):
         if thread and self.thread_enabled:
             self.thread = PyInterpThread(self,command,self.debug)
             self.emit(SIGNAL("GUILock"),command,self.thread)
-            #~ self.thread.bundle.attach_signal(self.thread.bundle.system, "set_time", self.on_set_time)
+            #~ self.thread.bundle.attach_signal(self.thread.bundle.get_system(), "set_time", self.on_set_time)
             #~ print hasattr(self, 'bundle'), 'bundle' in globals().keys()
             QObject.connect(self.thread, SIGNAL("set_time"), self.on_set_time)
             QObject.connect(self.thread, SIGNAL("threadComplete"), self.update_from_thread)

@@ -587,14 +587,13 @@ class Bundle(object):
         # that only one entry is returned 
         # NOTE: since we're passing search_by=None, usersettings will be ignored
         # so you cannot set a default system in usersettings
-        servers = self._get_from_section('system',search_by=None,return_type='list')
-        if len(servers) == 0:
+        system = self._get_from_section('system',search_by=None,return_type='list')
+        if len(system) == 0:
             raise ValueError("ERROR: no system attached")
             return None
-        if len(servers) > 1:
+        if len(system) > 1:
             raise ValueError("ERROR: returned more than 1 server")
-        return servers[0]
-        #~ return self.sections['system'][0]
+        return system[0]
                        
     def list(self,summary=None,*args):
         """
@@ -1055,8 +1054,7 @@ class Bundle(object):
         
         for par in pars:
             par.set_prior(**dist_kwargs)
-    
-    
+            
     def get_logp(self, dataset=None):
         
         # First disable/enabled correct datasets
@@ -1093,7 +1091,7 @@ class Bundle(object):
                     this_child = child
                     break
             else:
-                raise ValueError("Object not {} found".format(objref))
+                raise ValueError("Object {} not found".format(objref))
         return this_child
             
         
@@ -1944,7 +1942,7 @@ class Bundle(object):
         ds = dss.values()[0]
         ds.save(output_file)
     
-    def get_axes(self,ident=None):
+    def get_axes(self,ident=None,return_type='single'):
         """
         Return an axes or list of axes that matches index OR title
         
@@ -1955,9 +1953,10 @@ class Bundle(object):
         """
         if isinstance(ident,int): 
             #then we need to return all in list and take index
+            # TODO: this currently ignores return_type
             return self._get_from_section('axes',return_type='list')[ident]
         
-        return self._get_from_section('axes',ident,'title')
+        return self._get_from_section('axes',ident,'title',return_type=return_type)
         
     def add_axes(self,axes=None,**kwargs):
         """
@@ -2107,13 +2106,15 @@ class Bundle(object):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self):
+    def get_meshview(self,return_type='single'):
         """
         
         """
         # TODO: fix this so we can set defaults in sersettings
         # (currently can't with search_by = None)
-        return self._get_from_section('meshview',search_by=None)
+        #~ return self._get_from_section('meshview',search_by=None)
+        return self._get_from_section('meshview',search=None,search_by=None,return_type=return_type)
+      
         
     def _get_meshview_limits(self,times):
         # get size of system during these times for scaling image
@@ -2191,13 +2192,13 @@ class Bundle(object):
             axes.set_xlim(lims[0],lims[1])
             axes.set_ylim(lims[2],lims[3])
         
-    def get_orbitview(self):
+    def get_orbitview(self,return_type='single'):
         """
         
         """
         # TODO: fix this so we can set defaults in usersettings
         # (currently can't with search_by = None)
-        return self._get_from_section('orbitview',search_by=None)
+        return self._get_from_section('orbitview',search=None,search_by=None,return_type=return_type)
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
@@ -2334,7 +2335,7 @@ class Bundle(object):
 
         # alternatively we could just set the system, but 
         # then we lose flexibility in adjusting things outside
-        # of bundle.system
+        # of bundle.get_system()
         #~ bundle.set_system(bundle_new.get_system()) # note: anything changed outside system will be lost
 
         # cleanup files
@@ -2758,7 +2759,7 @@ def load(filename, load_usersettings=True):
         elif isinstance(contents, Bundle):
             bundle = contents
             # for set_system to update all signals, etc
-            bundle.set_system(bundle.system)
+            bundle.set_system(bundle.get_system())
         
         # Else, we could load it, but we don't know what to do with it
         else:
