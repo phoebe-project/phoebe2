@@ -2236,7 +2236,7 @@ class ParameterSet(object):
         else:
             return default
     
-    def get_constraint(self,qualifier,unit=None):
+    def get_constraint(self, qualifier, unit=None):
         """
         Get the value from a constraint.
         
@@ -2245,14 +2245,15 @@ class ParameterSet(object):
         
         Return value of qualifier in SI units unless given otherwise.
         """
-        #-- don't bother if it's not necessary!
-        if not qualifier in self.constraints: raise ValueError('{0} not constrained'.format(qualifier))
-        #-- to calculate with the values, we need to convert everything that has
-        #   a unit to SI
-        #_self = self.copy()
-        #_self.set_convention('SI')
+        # Don't bother if it's not necessary!
+        if not qualifier in self.constraints:
+            raise ValueError('{0} not constrained'.format(qualifier))
+        
+        # To calculate with the values, we need to convert everything that has
+        # a unit to SI
         names = [i.split('}')[0] for i in self.constraints[qualifier].split('{') if '}' in i]
         values = {}
+        
         for name in names:
             par = self.get_parameter(name)
             if par is None and name in self:
@@ -2261,6 +2262,7 @@ class ParameterSet(object):
                 values[name] = par.get_value('SI')
             elif par is not None:
                 values[name] = par.get_value()
+        
         #-- now evaluate all the constraints, but convert the final values back
         #   to the original unit. We cannot use the "ps['qualifier'] = bla"
         #   method because we call L{run_constraints} in L{_setitem_}, causing
@@ -2268,13 +2270,14 @@ class ParameterSet(object):
         #-- also, the qualifier from the left hand side of the constraint doesn't
         #   need to be defined in the ParameterSet, so if it doesn't exist,
         #   just skip it
-        #value = eval(_self.constraints[qualifier].format(**_self))
-        if '.' in qualifier: return None
-        #self.set_default_units('SI')
+        if '.' in qualifier:
+            return None
+        
         value = eval(self.constraints[qualifier].format(**values))
+        
         if unit:
             value = conversions.convert('SI',unit,value)
-        #self.set_default_units(None)
+        
         return value
         
     

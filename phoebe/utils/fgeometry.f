@@ -50,4 +50,25 @@ Cf2py intent(out) out
           out(i,3) =  a(i,1)*b(2) - a(i,2)*b(1)
 13      end do
         return
-        end        
+        end
+        
+        
+        subroutine compute_sizes(t, N, sizes)
+Cf2py intent(in) t
+Cf2py intent(in) N
+Cf2py intent(out) sizes
+        implicit real*8 (a-h,o-z)
+        dimension t(N,9), sizes(N)
+        double precision a, b, c, k
+        
+        do 14 i=1,N
+        a=sqrt((t(i,1)-t(i,4))**2+(t(i,2)-t(i,5))**2+(t(i,3)-t(i,6))**2)
+        b=sqrt((t(i,1)-t(i,7))**2+(t(i,2)-t(i,8))**2+(t(i,3)-t(i,9))**2)
+        c=sqrt((t(i,4)-t(i,7))**2+(t(i,5)-t(i,8))**2+(t(i,6)-t(i,9))**2)
+        k = 0.5 * (a+b+c)
+        sizes(i) = sqrt(k*(k-a)*(k-b)*(k-c))
+          
+14      end do
+        return
+        end
+        

@@ -169,6 +169,7 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import utils
+from phoebe.utils import fgeometry
 from phoebe.utils.decorators import memoized, clear_memoization
 try:
     from phoebe.utils import cgeometry
@@ -202,6 +203,12 @@ np.seterr(all='ignore')
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())
 
+# some easy conversions
+rsol_2_au = constants.Rsol/constants.au
+m_2_au = 1.0/constants.au
+deg_2_rad = pi / 180.
+day_2_sec = 86400.0
+
 #{ Functions of general interest    
 
 def get_binary_orbit(self, time):
@@ -220,28 +227,31 @@ def get_binary_orbit(self, time):
     @rtype: [x1, y1, z1, vx1, vy1, vz1], [x2, y2, z2, vx2, vy2, vz2], d
     """
     # Get some information on the orbit
-    P = self.params['orbit'].get_value('period', 'd')
-    e = self.params['orbit'].get_value('ecc')
-    a = self.params['orbit'].get_value('sma', 'm')
-    q = self.params['orbit'].get_value('q')
+    P = self.params['orbit']['period']
+    e = self.params['orbit']['ecc']
+    a = self.params['orbit']['sma'] * constants.Rsol
+    q = self.params['orbit']['q']
     a1 = a / (1 + 1.0/q)
     a2 = a - a1
-    inclin = self.params['orbit'].get_value('incl','rad')
-    argper = self.params['orbit'].get_value('per0','rad')
-    long_an = self.params['orbit'].get_value('long_an','rad')
-    T0 = self.params['orbit'].get_value('t0')
-    t0type = self.params['orbit'].get_value('t0type')
+    inclin = self.params['orbit']['incl'] * deg_2_rad
+    argper = self.params['orbit']['per0'] * deg_2_rad
+    long_an = self.params['orbit']['long_an'] * deg_2_rad
+    T0 = self.params['orbit']['t0']
+    t0type = self.params['orbit']['t0type']
     
     if t0type == 'superior conjunction':
         time = time - self.params['orbit']['phshift'] * P
     
     # Where in the orbit are we?
-    loc1, velo1, euler1 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a1,
-                                      T0*24*3600, per0=argper, long_an=long_an,
-                                      incl=inclin, component='primary', t0type=t0type)
-    loc2, velo2, euler2 = keplerorbit.get_orbit(time*24*3600, P*24*3600, e, a2,
-                                      T0*24*3600, per0=argper, long_an=long_an,
-                                      incl=inclin, component='secondary', t0type=t0type)
+    time *= day_2_sec
+    P *= day_2_sec
+    T0 *= day_2_sec
+    loc1, velo1, euler1 = keplerorbit.get_orbit(time, P, e, a1, T0, per0=argper,
+                                      long_an=long_an, incl=inclin,
+                                      component='primary', t0type=t0type)
+    loc2, velo2, euler2 = keplerorbit.get_orbit(time, P, e, a2, T0, per0=argper,
+                                      long_an=long_an, incl=inclin,
+                                      component='secondary', t0type=t0type)
     
     # We need everything in cartesian Rsol units
     loc1 = np.array(loc1) / a
@@ -2319,21 +2329,22 @@ class Body(object):
         
         """
         # Length of edges
-        side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
-                self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
-        side2 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
-                self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
-        side3 = self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim] -\
-                self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
+        #side1 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
+                #self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim]
+        #side2 = self.mesh[prefix+'triangle'][:,0*self.dim:1*self.dim] -\
+                #self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
+        #side3 = self.mesh[prefix+'triangle'][:,1*self.dim:2*self.dim] -\
+                #self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
         
-        # Some coefficients
-        a = sqrt(np.sum(side1**2, axis=1))
-        b = sqrt(np.sum(side2**2, axis=1))
-        c = sqrt(np.sum(side3**2, axis=1))
-        k = 0.5 * (a+b+c)
+        ## Some coefficients
+        #a = sqrt(np.sum(side1**2, axis=1))
+        #b = sqrt(np.sum(side2**2, axis=1))
+        #c = sqrt(np.sum(side3**2, axis=1))
+        #k = 0.5 * (a+b+c)
         
-        # And finally the size
-        self.mesh[prefix+'size'] = sqrt( k*(k-a)*(k-b)*(k-c))
+        ## And finally the size
+        #self.mesh[prefix+'size'] = sqrt( k*(k-a)*(k-b)*(k-c))
+        self.mesh[prefix+'size'] = fgeometry.compute_sizes(self.mesh[prefix+'triangle'])
     
     
     def compute_normals(self,prefixes=('','_o_')):
@@ -6558,24 +6569,23 @@ class BinaryRocheStar(PhysicalBody):
         @type tol: float
         """
         #-- necessary values
-        R = self.params['component'].request_value('r_pole','Rsol')
-        sma = self.params['orbit'].request_value('sma','Rsol')
-        e = self.params['orbit'].get_value('ecc')
-        P = self.params['orbit'].get_value('period','s')
-        q = self.params['orbit'].request_value('q')
-        F = self.params['component'].request_value('syncpar')
-        oldpot = self.params['component'].request_value('pot')
-        M1 = self.params['orbit'].get_constraint('mass1','kg') # primary mass in solar mass
+        R = self.params['component'].get_constraint('r_pole') * constants.Rsol
+        sma = self.params['orbit']['sma']
+        e = self.params['orbit']['ecc']
+        P = self.params['orbit']['period'] * 86400.0  # day to second
+        q = self.params['orbit']['q']
+        F = self.params['component']['syncpar']
+        oldpot = self.params['component']['pot']
+        M1 = 4*pi**2 * (sma*constants.Rsol)**3 / P**2 / constants.GG / (1.0 + q)
         M2 = q*M1
-        #M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
         component = self.get_component()+1
         
         #-- possibly we need to conserve the volume of the secondary component
-        if component==2:
-            q,oldpot = roche.change_component(q,oldpot)  
-            M1,M2 = M2,M1
+        if component == 2:
+            q, oldpot = roche.change_component(q, oldpot)  
+            M1, M2 = M2, M1
         
-        pos1,pos2,d = get_binary_orbit(self,time)
+        pos1,pos2,d = get_binary_orbit(self, time)
         d_ = d*sma
         omega_rot = F * 2*pi/P # rotation frequency
         omega_orb = 2*pi/P
@@ -6586,13 +6596,13 @@ class BinaryRocheStar(PhysicalBody):
         volumes = []
         
         #-- critical potential cannot be subceeded
-        if F==1.:
-            critpot = roche.calculate_critical_potentials(q,F,d)[0]
+        if F == 1.:
+            critpot = roche.calculate_critical_potentials(q, F, d)[0]
         else:
             critpot = 0.
         
-        if max_iter>1:
-            V1 = self.params['component'].request_value('volume')
+        if max_iter > 1:
+            V1 = self.params['component'].get_constraint('volume')
         else:
             V1 = 1.
         
@@ -6645,7 +6655,9 @@ class BinaryRocheStar(PhysicalBody):
             if not 'pot_instant' in self.params['component']:
                 self.params['component'].add(dict(qualifier='pot_instant',value=oldpot, cast_type=float, description='Instantaneous potential'))
             else:
-                self.params['component']['pot_instant'] = oldpot
+                # Avoid having to run the constraints:
+                self.params['component'].container['pot_instant'].set_value(oldpot)
+                #self.params['component']['pot_instant'] = oldpot
         else:
             logger.info("no volume conservation, reprojected onto instantaneous potential")
         
@@ -6674,27 +6686,34 @@ class BinaryRocheStar(PhysicalBody):
         """
         Calculate local surface gravity
         """
-        #-- compute gradients and local gravity
-        component = self.get_component()+1
-        q  = self.params['orbit'].get_constraint('q%d'%(component))
-        a  = self.params['orbit'].get_value('sma','au')
-        asol = self.params['orbit'].get_value('sma','Rsol')
-        d  = self.params['orbit'].get_constraint('d','au')/a
-        rp = self.params['component'].get_constraint('r_pole','au')/a
-        gp = self.params['component'].get_constraint('g_pole')
-        F  = self.params['component'].get_value('syncpar')
-        dOmega_ = roche.binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
-                                                  self.mesh['_o_center'][:,1]/asol,
-                                                  self.mesh['_o_center'][:,2]/asol,
-                                                  q,d,F,normalize=False) # component is not necessary as q is already from component
-        Gamma_pole = roche.binary_potential_gradient(0,0,rp,q,d,F,normalize=True)
-        zeta = gp / Gamma_pole
-        grav_local_ = dOmega_*zeta
-        grav_local = coordinates.norm(grav_local_)
         
-        #self.mesh['logg'] = conversions.convert('m/s2','[cm/s2]',grav_local)
-        self.mesh['logg'] = np.log10(grav_local)+2.0
+        # Get some info
+        component = self.get_component()+1
+        q = self.params['orbit']['q']
+        if component == 2:
+            q = 1.0/q
+        a  = self.params['orbit']['sma'] * rsol_2_au # semi-major axis in AU
+        asol = self.params['orbit']['sma']
+        d  = self.params['orbit'].get_constraint('d') * m_2_au / a
+        rp = self.params['component'].get_constraint('r_pole') * m_2_au / a
+        gp = self.params['component'].get_constraint('g_pole')
+        F  = self.params['component']['syncpar']
+        
+        # Compute gradients and local gravity
+        dOmega_x, dOmega_y, dOmega_z = roche.binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
+                       self.mesh['_o_center'][:,1]/asol,
+                       self.mesh['_o_center'][:,2]/asol,
+                       q, d, F, normalize=False,
+                       output_type='list') # component is not necessary as q is already from component
+        
+        Gamma_pole = roche.binary_potential_gradient(0, 0, rp, q, d, F,
+                                                               normalize=True)
+        zeta = gp / Gamma_pole
+        grav_local2 = (dOmega_x*zeta)**2 + (dOmega_y*zeta)**2 + (dOmega_z*zeta)**2
+        self.mesh['logg'] = 0.5*np.log10(grav_local2) + 2.0
+        
         logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(self.mesh['logg'].min(),self.mesh['logg'].max(),gp,rp*asol))
+
 
     def temperature(self,time=None):
         """
@@ -7366,18 +7385,18 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         """
         self.__time = time
         #-- necessary values
-        R = self.params['component'].request_value('r_pole','Rsol')
-        sma = self.params['orbit'].request_value('sma','Rsol')
-        e = self.params['orbit'].get_value('ecc')
-        P = self.params['orbit'].get_value('period','s')
-        q = self.params['orbit'].request_value('q')
-        F = self.params['component'].request_value('syncpar')
-        oldpot = self.params['component'].request_value('pot')
-        M1 = self.params['orbit'].get_constraint('mass1','kg') # primary mass in solar mass
-        M2 = self.params['orbit'].get_constraint('mass2','kg') # secondary mass in solar mass
+        R = self.params['component'].get_constraint('r_pole') * constants.Rsol
+        sma = self.params['orbit']['sma']
+        e = self.params['orbit']['ecc']
+        P = self.params['orbit']['period'] * 86400.0  # day to second
+        q = self.params['orbit']['q']
+        F = self.params['component']['syncpar']
+        oldpot = self.params['component']['pot']
+        M1 = self.params['orbit'].get_constraint('mass1')
+        M2 = q*M1
         component = self.get_component()+1
         theta = self.params['orbit'].get_value('theta','rad')
-        T0 = self.params['orbit'].get_value('t0')
+        T0 = self.params['orbit']['t0']
         phi = self.get_phase(time)
         
         #-- possibly we need to conserve the volume of the secondary component

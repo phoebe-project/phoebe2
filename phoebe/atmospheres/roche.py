@@ -851,13 +851,16 @@ def binary_potential(r,theta,phi,Phi,q,d,F,component=1):
     
     return (Phi - (term1 + term2 + term3))
 
-def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):
+def binary_potential_gradient(x, y, z, q, d, F, component=1, normalize=False,
+                              output_type='array'):
     """
     Gradient of eccenctric asynchronous Roche potential in cartesian coordinates.
     
     See Phoebe scientific reference, http://phoebe.fiz.uni-lj.si/docs/phoebe_science.ps.gz
     
     x,y,z,d in real units! (otherwise you have to scale it yourself)
+    
+    by specifying output_type as list, you can avoid  unnecessary array conversions.
     
     @param x: x-axis
     @type x: float'
@@ -878,21 +881,24 @@ def binary_potential_gradient(x,y,z,q,d,F,component=1,normalize=False):
     @return: Roche potential gradient
     @rtype: ndarray or float
     """
-    #-- transform into system of component (defaults to primary)
-    if component==2:
+    # Transform into system of component (defaults to primary)
+    if component == 2:
         q = 1.0/q
     y2 = y**2
     z2 = z**2
-    r3 = np.sqrt(x**2 + y2 + z2)**3
-    r3_= np.sqrt((d-x)**2 + y2 + z2)**3
+    y2pz2 = y2 + z2
+    r3 = np.sqrt(x**2 + y2pz2)**3
+    r3_= np.sqrt((d-x)**2 + y2pz2)**3
     dOmega_dx = - x / r3 + q * (d-x) / r3_ + F**2 * (1+q)*x - q/d**2
     dOmega_dy = - y / r3 - q * y     / r3_ + F**2 * (1+q)*y
     dOmega_dz = - z / r3 - q * z     / r3_
     
     if normalize:
         return np.sqrt(dOmega_dx**2 + dOmega_dy**2 + dOmega_dz**2)
+    elif output_type=='array':
+        return np.array([dOmega_dx, dOmega_dy, dOmega_dz])
     else:
-        return np.array([dOmega_dx,dOmega_dy,dOmega_dz])
+        return dOmega_dx, dOmega_dy, dOmega_dz
 
 def misaligned_binary_potential_gradient(x,y,z,q,d,F,theta,phi,component=1,normalize=False):
     """
