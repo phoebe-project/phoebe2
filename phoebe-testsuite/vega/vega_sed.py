@@ -99,7 +99,7 @@ fitparams = phoebe.PS(context='fitting:lmfit',method='leastsq',label='mynonlin',
 # The last thing we need before building the star are the actual observations.
 # The phot files also contain the required information for the lcdeps, so
 # we don't need to define any extra parameters. You can view the contents of
-# the phot file :download:`here <../phoebe-testsuite/vega/Vega.phot>`.
+# the phot file :download:`here <../../devel/phoebe-testsuite/vega/Vega.phot>`.
 lcdats,lcdeps = phoebe.parse_phot('Vega.phot')
 ifobs, ifdep = phoebe.parse_vis2('Vega.vis2')
 ifobs.set_enabled(False)

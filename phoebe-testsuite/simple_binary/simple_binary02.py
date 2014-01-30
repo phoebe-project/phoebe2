@@ -69,7 +69,7 @@ input_lc['ref'] = 'my kepler lc'
 First, we observe that the normalisation of the observations is not the same
 as for the model computations. The observations are normalised with the mean
 flux, whereas the model is in absolute fluxes. We can easily scale the
-observations to the model via :py:func:`a linear fit <phoebe.universe.backend.compute_pblum_or_l3>`_. The slope is then interpreted as
+observations to the model via :py:func:`a linear fit <phoebe.universe.backend.compute_pblum_or_l3>`. The slope is then interpreted as
 the passband luminosity, the offset as third light. In this example, we'll fit
 them both but note that third light should be zero if everything goes well.
 """

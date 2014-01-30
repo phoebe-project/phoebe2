@@ -161,7 +161,7 @@ def image(the_system, ref='__bol', context='lcdep',
     colors mapped from the temperature of each triangle, but will darken it
     according to the projected flux. The latter does something similar, but will
     saturate the colors to white at about half of the maximum intensity. This
-    should make the object appear to `glow' (I find that it works better for
+    should make the object appear to glow (I find that it works better for
     hot objects).
     
     >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='blackbody')
@@ -1869,8 +1869,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     @type system: Body
     @param params: ParameterSet to fill in
     @type params: ParameterSet
-    @param tol: tolerance limit for accepting two different time points as
-    equal
+    @param tol: tolerance limit for accepting two different time points as equal
     @type tol: float
     """
     # Do we really need to set anything?
@@ -2278,16 +2277,19 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             for body in system.get_bodies():
                 body.etv(ref=[labl],times=ivo_time_per_labl[i],ltt=params['ltt'])
 
-    # compute eclipse times in range from min(etv_time_per_time) to max(etv_time_per_time) with some resolution 
-    # use special effects (apsidal, LTTE, etc) that are enabled in compute options? or etvdep?
-    # how do we decide which eclipses to look for without looping through all instances?
-    # perhaps we should have been tracking this above since it will be nice to compute whole list once and then pull required times
+    # compute eclipse times in range from min(etv_time_per_time) to
+    # max(etv_time_per_time) with some resolution use special effects (apsidal,
+    # LTTE, etc) that are enabled in compute options? or etvdep? how do we
+    # decide which eclipses to look for without looping through all instances?
+    # perhaps we should have been tracking this above since it will be nice to
+    # compute whole list once and then pull required times
 
-    # for each time in etv_time_per_time: find correct eclipse time and fill synthetic with etv_time_per_time[i]-computed_time
-    # how do we then handle input of cycle?
-    # how do we handle changing a period - does that change the calculated eclipse time?
-    # do we require input to be cycle after bjd0? and then either plot this as default or derive expected from ephemeris
-    # if cycle, how is that defined for secondary eclipses?
+    # for each time in etv_time_per_time: find correct eclipse time and fill
+    # synthetic with etv_time_per_time[i]-computed_time how do we then handle
+    # input of cycle? how do we handle changing a period - does that change the
+    # calculated eclipse time? do we require input to be cycle after bjd0? and
+    # then either plot this as default or derive expected from ephemeris if
+    # cycle, how is that defined for secondary eclipses?
 
     # for all of this - keep in mind how this might work for Nbody case
     # especially enabling/disabling effects which may not be applicable for Nbody
@@ -2339,7 +2341,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if heating or reflect:
         for loc, thing in system.walk_all():
             if isinstance(thing, parameters.Parameter) and thing.get_qualifier() == 'irradiator':
+                
+                # Now we know 'thing' is the Parameter "irradiator"
                 if thing.get_value():
+                    
                     # If there's at least one irradiator, we need to leave it on
                     found_irradiator = True
                     logger.info("Including heating and/or reflection effects")

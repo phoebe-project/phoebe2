@@ -164,7 +164,8 @@ def horizon_via_normal_old(body_list):
     @param body_list: list of bodies
     @type body_list: list
     """
-    if not isinstance(body_list,list): body_list = [body_list]
+    if not isinstance(body_list,list):
+        body_list = [body_list]
     mesh_list = [body.mesh for body in body_list]
     #-- identify components before merging
     Ns = [len(mesh) for mesh in mesh_list]
@@ -208,16 +209,19 @@ def horizon_via_normal(body_list):
     @type body_list: list
     """
     # Possible a BodyBag is given, in that case take the separate Bodies
-    if hasattr(body_list, 'bodies'):
-        body_list = body_list.bodies
+    #if hasattr(body_list, 'bodies'):
+    #    body_list = body_list.bodies
     
     # Possible a Body is given, make sure to make it into a list
-    elif not isinstance(body_list, list):
+    if hasattr(body_list, 'params'):
         body_list = [body_list]
     
     # Cycle over all Bodies
     for body in body_list:
-        # If the Body is a BodyBag, recursively compute its horizon
+        # If the Body is a BodyBag, recursively compute its horizon. If we'd
+        # want to do this for the whole body immediately, we risk having to
+        # copy the mesh (because merged meshes of BodyBags are not directly
+        # accessible)
         if hasattr(body, 'bodies'):
             horizon_via_normal(body.bodies)
             continue

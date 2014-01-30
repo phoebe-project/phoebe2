@@ -63,6 +63,5 @@ or BodyBag.
 
     plotting.plot_lcdeps_as_sed
     plotting.plot_spdep_as_profile
-    plotting.plot_ifdep
 
 """

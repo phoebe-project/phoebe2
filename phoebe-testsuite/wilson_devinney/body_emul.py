@@ -9,7 +9,7 @@ Fitting with Wilson-Devinney code
 This tutorial explains how to use the Phoebe 2.0 fitting interface, while using
 the Wilson-Devinney code to do the actual computations.
 
-This script uses :download:`this active file <../phoebe-testsuite/wilson_devinney/test01lcin.active>`.
+This script uses :download:`this active file <../../devel/phoebe-testsuite/wilson_devinney/test01lcin.active>`.
 
 (this script typically takes a minute or two to run)
 
