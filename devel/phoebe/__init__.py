@@ -15,6 +15,7 @@ Section 1. Package structure
 **Utility packages**: library of functions that Phoebe relies on, but that often can be used independently too.
    
 .. autosummary::
+
    phoebe.algorithms
    phoebe.atmospheres
    phoebe.dynamics

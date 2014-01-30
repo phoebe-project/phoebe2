@@ -144,7 +144,7 @@ def blackbody(wl,T,vrad=0):
         I = I_ - 5.*vrad/constants.cc*1000*I_
     return I*1e-7
 
-def synthetic_flux(wave,flux,passbands,units=None):
+def synthetic_flux(wave, flux, passbands, units=None):
     r"""
     Extract flux measurements from a synthetic SED (Fnu or Flambda).
     
@@ -186,7 +186,7 @@ def synthetic_flux(wave,flux,passbands,units=None):
        F_\nu = \frac{\int P_\nu f_\nu d\nu}{\int P_\nu d\nu}
     
     Small note of caution: :math:`P_\nu` is not equal to :math:`P_\lambda` according to
-    Maiz-Apellaniz, he states that :math:`P_\lambda = \frac{P_\nu}{\lambda}. But in the definition
+    Maiz-Apellaniz, he states that :math:`P_\lambda = \frac{P_\nu}{\lambda}`. But in the definition
     we use above here, it *is* the same!
     
     The model fluxes should B{always} be given in Flambda (erg/s/cm2/AA). The

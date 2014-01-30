@@ -84,13 +84,14 @@ plt.grid()
 plt.savefig('KPD1946_beaming.png')
 plt.gcf().frameon = False
 plt.savefig('KPD1946_beaming.pdf')
-#plt.show()
 
 """
+
 .. figure:: images_tut/KPD1946_beaming.png
    :scale: 75 %
    :align: center
    :alt: map to buried treasure
 
    Light curve of KPD1946+4340 with and without doppler beaming.
+   
 """

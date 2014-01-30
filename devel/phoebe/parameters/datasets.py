@@ -1206,7 +1206,8 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
         logger.warning('You have given phased data')
         __ = missing_columns.remove('time')
     if 'flux' in missing_columns and 'mag' in columns_in_file:
-        logger.warning("You have given flux in magnitude")
+        logger.warning(("You have given flux in magnitude, this will be "
+            "converted to flux automatically"))
         index = columns_in_file.index('mag')
         columns_in_file[index] = 'flux'
         units['flux'] = 'mag'
@@ -1569,16 +1570,21 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     if not 'sigma' in myds['columns']:
         myds.estimate_noise(from_col='flux', to_col='sigma')
         myds['columns'] = myds['columns'] + ['sigma']
-        logger.info("No uncertainties available in data --> estimated")
+        logger.info("Obs {}: sigma estimated (not available)".format(myds['ref']))
     
     # Convert to right units
     for col in units:
         if col == 'flux':
-            f, e_f = conversions.convert(units[col],
-                                         myds.get_parameter(col).get_unit(), 
-                                         myds['flux'], myds['sigma'], passband=mypb['passband'])
-            myds['flux'] = f
-            myds['sigma'] = e_f
+            unit_from = units[col]
+            unit_to = myds.get_parameter(col).get_unit()
+            
+            if unit_from != unit_to:
+                passband = mypb['passband']
+                logger.info("Obs {}: flux and sigma converted from {} to {} ({})".format(myds['ref'], unit_from, unit_to, passband))
+                f, e_f = conversions.convert(unit_from, unit_to,
+                                         myds['flux'], myds['sigma'], passband=passband)
+                myds['flux'] = f
+                myds['sigma'] = e_f
     
     # If the user didn't provide any labels (either as an argument or in the
     # file), we don't bother the user with it:

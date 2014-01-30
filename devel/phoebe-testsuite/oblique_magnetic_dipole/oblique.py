@@ -134,9 +134,13 @@ phoebe.compute(betacep,extra_func=[make_figure],params=params)
 +---------------------------------------------------+----------------------------------------------------+
 | .. image:: images_tut/oblique_dipole_0_000.png    | .. image:: images_tut/oblique_dipole_1_503.png     |
 |    :scale: 50%                                    |    :scale: 50%                                     |
+|    :width: 266px                                  |    :width: 266px                                   |
+|    :height: 266px                                 |    :height: 266px                                  |
 +---------------------------------------------------+----------------------------------------------------+
 | .. image:: images_tut/oblique_dipole_3_006.png    | .. image:: images_tut/oblique_dipole_6_001.png     |
 |    :scale: 50%                                    |    :scale: 50%                                     |
+|    :width: 266px                                  |    :width: 266px                                   |
+|    :height: 266px                                 |    :height: 266px                                  |
 +---------------------------------------------------+----------------------------------------------------+
 
 """

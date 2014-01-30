@@ -456,8 +456,8 @@ def init_mesh(self):
             iobs = self.params['pbdep'][pbdeptype][iobs]
             lds.append(('ld_{0}'.format(iobs['ref']), 'f8', (5,)))
             lds.append(('proj_{0}'.format(iobs['ref']), 'f8'))
-            lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
-            lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
+            #lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
+            #lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
     
     # Basic fields
     lds = lds + [('logg','f8'), ('teff','f8'), ('abun','f8')]
@@ -3753,8 +3753,8 @@ class PhysicalBody(Body):
             for ref in parsed_refs:
                 dtypes = [('ld_{0}'.format(ref),'f8',(5,))]
                 dtypes.append(('proj_{0}'.format(ref),'f8'))
-                dtypes.append(('velo_{0}_'.format(ref),'f8',(3,)))
-                dtypes.append(('_o_velo_{0}_'.format(ref),'f8',(3,)))
+                #dtypes.append(('velo_{0}_'.format(ref),'f8',(3,)))
+                #dtypes.append(('_o_velo_{0}_'.format(ref),'f8',(3,)))
                 dtypes = np.dtype(dtypes)
                 new_cols = np.zeros(len(self.mesh),dtype=dtypes)
                 for i,field in enumerate(new_cols.dtype.names):
@@ -3952,24 +3952,20 @@ class PhysicalBody(Body):
     
     def reset_mesh(self):
         """
-        Reset the mesh to its original position
+        Reset the mesh to its original position.
         """
         columns = self.mesh.dtype.names
-        #source = [col for col in columns if col[:3] == '_o_']
-        #destin = [col[3:] for col in source]
-        #mymesh = self.mesh
-        #mymesh[destin] = mymesh[source]
-        #mymesh['partial'] = False
-        #mymesh['visible'] = False
-        #mymesh['hidden'] = True
-        #self.mesh = mymesh
+        
+        # All column names starting with _o_ are mapped to the ones without
+        # _o_.
         for column in columns:
             if column[:3] == '_o_' and column[3:] in columns:
                 self.mesh[column[3:]] = self.mesh[column]
+        
+        # And we know nothing about the visibility
         self.mesh['partial'] = False
         self.mesh['visible'] = False
         self.mesh['hidden'] = True
-        logger.debug('reset mesh to original position')
     
     
     def update_mesh(self,subset=None):
@@ -5633,9 +5629,12 @@ class Star(PhysicalBody):
                 to_add = [circ_spot]
             else:
                 to_add = circ_spot
-            for ito_add in to_add:
-                check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
-            self.params['circ_spot'] = to_add
+            
+            # Perhaps the user gave an empty list, then that's a bit silly
+            if len(puls) > 0:
+                for ito_add in to_add:
+                    check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
+                self.params['circ_spot'] = to_add
             
         # Add pulsation parameters when applicable
         if puls is not None:
@@ -5643,9 +5642,12 @@ class Star(PhysicalBody):
                 to_add = [puls]
             else:
                 to_add = puls
-            for ito_add in to_add:
-                check_input_ps(self, ito_add, ['puls'], 'puls', is_list=True)
-            self.params['puls'] = to_add
+            
+            # Perhaps the user gave an empty list, then that's a bit silly
+            if len(puls) > 0:
+                for ito_add in to_add:
+                    check_input_ps(self, ito_add, ['puls'], 'puls', is_list=True)
+                self.params['puls'] = to_add
             
         # Add magnetic field parameters when applicable
         if magnetic_field is not None:
