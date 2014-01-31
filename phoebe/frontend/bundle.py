@@ -1022,13 +1022,13 @@ class Bundle(object):
         
         if apply_to in ['single']:
             # check if need to add prior
-            if not params.has_prior():
+            if not params.has_prior() and params.get_qualifier() not in ['l3','pblum']:
                 lims = params.get_limits()
                 params.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
             params.set_adjust(value, *args)
         elif apply_to in ['all']:
             for param in params:
-                if not param.has_prior():
+                if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
                     lims = param.get_limits()
                     param.set_prior(qualifier, distribution='uniform', lower=lims[0], upper=lims[1])
                 param.set_adjust(value, *args)
