@@ -1015,9 +1015,16 @@ class Bundle(object):
         params = self.get_parameter(qualifier, return_type=apply_to)
         
         if apply_to in ['single']:
+            # check if need to add prior
+            if not params.has_prior():
+                lims = params.get_limits()
+                params.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
             params.set_adjust(value, *args)
         elif apply_to in ['all']:
             for param in params:
+                if not param.has_prior():
+                    lims = param.get_limits()
+                    param.set_prior(qualifier, distribution='uniform', lower=lims[0], upper=lims[1])
                 param.set_adjust(value, *args)
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
@@ -2106,14 +2113,11 @@ class Bundle(object):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self,return_type='single'):
+    def get_meshview(self,label='default',return_type='single'):
         """
         
         """
-        # TODO: fix this so we can set defaults in sersettings
-        # (currently can't with search_by = None)
-        #~ return self._get_from_section('meshview',search_by=None)
-        return self._get_from_section('meshview',search=None,search_by=None,return_type=return_type)
+        return self._get_from_section('meshview',search=label,return_type=return_type)
       
         
     def _get_meshview_limits(self,times):
@@ -2192,13 +2196,13 @@ class Bundle(object):
             axes.set_xlim(lims[0],lims[1])
             axes.set_ylim(lims[2],lims[3])
         
-    def get_orbitview(self,return_type='single'):
+    def get_orbitview(self,label='default',return_type='single'):
         """
         
         """
         # TODO: fix this so we can set defaults in usersettings
         # (currently can't with search_by = None)
-        return self._get_from_section('orbitview',search=None,search_by=None,return_type=return_type)
+        return self._get_from_section('orbitview',search=label,return_type=return_type)
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """

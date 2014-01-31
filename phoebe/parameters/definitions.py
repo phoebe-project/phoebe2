@@ -609,7 +609,8 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
          dict(qualifier='zorder',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
         ]
         
-defs += [dict(qualifier='ref', description='ref of the dataset to get intensities, or __bol for bolometric',repr='%s',cast_type=str,value='__bol',frame=["phoebe"],context='plotting:mesh'),
+defs += [dict(qualifier='label', description='label of thie parameterset',repr='%s',cast_type=str,value='default',frame=["phoebe"],context='plotting:mesh'),
+         dict(qualifier='ref', description='ref of the dataset to get intensities, or __bol for bolometric',repr='%s',cast_type=str,value='__bol',frame=["phoebe"],context='plotting:mesh'),
          dict(qualifier='context', description='context of the dataset to get intensities',repr='%s',cast_type=str,value='lcdep',frame=["phoebe"],context='plotting:mesh'),
          dict(qualifier='select', description='what quantity is mapped to color',repr='%s',cast_type='choose',choices=['proj','teff','logg','rv','mu','B','Bx','By','Bz'],value='proj',frame=["phoebe"],context='plotting:mesh'),
          dict(qualifier='cmap',description='what color mapping to use',repr='%s',cast_type='choose',choices=['None', 'blackbody', 'blackbody_proj', 'eye'],value='None',frame=["phoebe"],context='plotting:mesh'),
@@ -617,7 +618,8 @@ defs += [dict(qualifier='ref', description='ref of the dataset to get intensitie
          #~ dict(qualifier='contours',description='whether to draw contours',repr='',cast_type='make_bool',value=0,frame=["phoebe"],context='plotting:mesh'),
          ]
          
-defs += [dict(qualifier='data_times', description='whether to show the times of the enabled datasets',repr='',cast_type='make_bool',value=1,frame=["phoebe"],context='plotting:orbit'),
+defs += [dict(qualifier='label', description='label of thie parameterset',repr='%s',cast_type=str,value='default',frame=["phoebe"],context='plotting:orbit'),
+         dict(qualifier='data_times', description='whether to show the times of the enabled datasets',repr='',cast_type='make_bool',value=1,frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='times', description='time step to sample the orbit, or auto',repr='%s',cast_type='return_string_or_list',value='auto',frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='xaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='x',frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='yaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='z',frame=["phoebe"],context='plotting:orbit'),
