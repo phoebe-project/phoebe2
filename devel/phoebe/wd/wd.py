@@ -5,7 +5,7 @@ Interface to the Wilson-Devinney code
 B{Example 1}: Generate a light curve with the WD code starting from an ``*.active``
 WD parameter file.
 
-Convert a *.active parameter file to ParameterSet instances.
+Convert a .active parameter file to ParameterSet instances.
         
 >>> pset,lcset,rvset = lcin_to_ps('../../../sandbox/pyphoebe/test_suite/wd_vs_pyphoebe/test01lcin.active',version='wd2003')
 >>> lcset['phinc'] = 0.01

@@ -2393,7 +2393,7 @@ class Body(object):
                     self.mesh[prefix+'triangle'][:,2*self.dim:3*self.dim]
             
             # Compute the corss product
-            self.mesh[prefix+'normal_'] = np.cross(side1, side2)
+            self.mesh[prefix+'normal_'] = -np.cross(side1, side2)
 
 
     def area(self):
@@ -4960,6 +4960,9 @@ class BodyBag(Body):
         
     
     def set_label(self,label):
+        """
+        Set label of the BodyBag.
+        """
         try:
             comp = self.get_component()
             if comp==0:
@@ -4967,7 +4970,8 @@ class BodyBag(Body):
             elif comp==1:
                 self.params['orbit']['c2label'] = label
         except Exception as msg:
-            logger.error(str(msg))
+            logger.warning(str(msg))
+        
         self.label = label
             
     
@@ -5154,7 +5158,7 @@ class BinaryBag(BodyBag):
     
     Note: some stuff needs to be set automatically, like the mass ratio q.
     """
-    def __new__(self,objs,orbit,solve_problems=True,**kwargs):
+    def __new__(self, objs, orbit, solve_problems=True, **kwargs):
         """
         Parameter objs needs to a list, perhaps [None, object]  or [object, None]
         if you only want to create a BinaryBag of one object.
@@ -5166,6 +5170,12 @@ class BinaryBag(BodyBag):
             raise ValueError("Binaries consist of a maximum of two objects ({} given)".format(len(objs)))
         
         system = []
+        
+        # Usually, we'll pick the label from the orbit to give to the BodyBag
+        # The user can override this when 'label' is given in the kwargs
+        kwargs.setdefault('label', orbit['label'])
+        # But then we also need to update the orbital label
+        orbit['label'] = kwargs.get('label')
         
         for i,iobject in enumerate(objs):
             if iobject is not None:
@@ -5214,7 +5224,7 @@ class BinaryBag(BodyBag):
         
         #-- pack in one system, but only if really necessary
         if len(system)>1:
-            return BodyBag(system,solve_problems=solve_problems,**kwargs)
+            return BodyBag(system,solve_problems=solve_problems, **kwargs)
         else:
             return system[0]
         

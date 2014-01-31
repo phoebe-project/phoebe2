@@ -1792,7 +1792,7 @@ def get_binary_orbit(time, orbit, component, barycentric=False, return_time=Fals
     
         - distance is in Rsol
         - time is in days
-        - velocity is in Rsol/day
+        - velocity is in Rsol/day (conversion factor to km/s is 8.0498611111111)
         
     The output is in Phoebe coordinates, i.e.:
     

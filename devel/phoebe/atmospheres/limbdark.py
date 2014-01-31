@@ -2157,7 +2157,9 @@ def local_intensity2(system, parset_pbdep, parset_isr={}):
     # gravitational redshift
     #vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
     Rsol_d_to_kms = constants.Rsol/(24*3600.)/1000.
-    vrad = Rsol_d_to_kms * system.mesh['velo___bol_'][:,2]
+    vgamma = Rsol_d_to_kms * system.mesh['velo___bol_'][:,2]
+    if not include_vgamma or ref=='__bol':
+        vgamma = None
     
 
     # In the following we need to take care of a lot of possible inputs by the
@@ -2205,18 +2207,10 @@ def local_intensity2(system, parset_pbdep, parset_isr={}):
     if atm_file == ldc_file and atm_file in config.atm_props:
         
         # Find the possible interpolation parameters
-        vars_available = config.atm_props[atm_file]
+        amt_kwargs = {key:system.mesh[key] for key in config.atm_props[atm_file]}
         
-        # Determine the necessary interpolation parameters
-        vars_necessary = []
-        for key in vars_atm:
-            # these are defined as those parameters which are varying over the
-            # surface
-            col = system.mesh[key]
-            if not np.allclose(col, col[0], rtol=1e-10, atol=1e-12):
-                vars_necessary.append(key)
-    
-    
+        coeffs = interp_ld_coeffs(ld_coeffs, passband, atm_kwargs=atm_kwargs,
+                                           red_kwargs=red_kwargs, vgamma=vgamma)
     
 
 

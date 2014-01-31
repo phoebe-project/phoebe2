@@ -1747,13 +1747,13 @@ def distance2velocity(arg,**kwargs):
         raise ValueError('reference wavelength (wave) not given')
     return velocity
 
-def velocity2distance(arg,**kwargs):
+def velocity2distance(arg, **kwargs):
     """
     Switch from velocity to distance via a reference wavelength.
     
     @param arg: velocity (SI, m/s)
     @type arg: float
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
     @return: distance (SI, m)
     @rtype: float
@@ -1764,6 +1764,7 @@ def velocity2distance(arg,**kwargs):
     else:
         raise ValueError('reference wavelength (wave) not given')
     return distance
+
 
 def fnu2flambda(arg,**kwargs):
     """
@@ -1990,11 +1991,11 @@ def spatialfreq2distance(arg,**kwargs):
     
     @param arg: spatial frequency (SI, cy/as)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: distance (SI, m)
     @rtype: float

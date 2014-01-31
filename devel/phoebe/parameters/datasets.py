@@ -1593,6 +1593,8 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     else:
         return output
 
+
+
 def parse_rv(filename, columns=None, components=None,
              full_output=False, dtypes=None, units=None, **kwargs):
     """
@@ -1651,6 +1653,10 @@ def parse_rv(filename, columns=None, components=None,
             # Then throw the rows with nans out
             for col in columns:
                 ds[col] = ds[col][keep]
+    
+            # Sort according to time
+            ds = ds[np.argsort(ds['time'])]
+    
     
     # Remember user-supplied arguments and keyword arguments for this parse
     # function

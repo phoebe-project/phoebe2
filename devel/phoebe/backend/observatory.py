@@ -2014,6 +2014,12 @@ def extract_times_and_refs(system, params, tol=1e-8):
     params['samprate'] = samp_per_time
     
 
+
+
+    
+
+
+
 def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflect,
                           circular, heating, beaming, params, ltt, 
                           extra_func, extra_func_kwargs):
@@ -2401,7 +2407,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             
             # Store the results in an "orbsyn" parameterSet
             orbsyn = datasets.DataSet('orbsyn', bary_time=time_per_time,
-                                             prop_time=prop_times)
+                                             prop_time=prop_times, ref='ltt')
             
             # We need to keep the same hierarchy as with lcsyns and such
             body.params['syn']['orbsyn'] = OrderedDict()
