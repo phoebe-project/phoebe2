@@ -251,7 +251,7 @@ class AdjustableTreeWidget(GeneralParameterTreeWidget):
             check.setVisible(False)
             HBox.addWidget(check)
             
-            label = QLabel(' %s: %s        ' % (parentLabel, param.get_qualifier()))
+            label = QLabel(' %s@%s        ' % (param.get_qualifier(), parentLabel))
             HBox.addWidget(label)
             
             self.setItemWidget(item,0,frame)
@@ -593,7 +593,7 @@ class FittingTreeWidget(GeneralParameterTreeWidget):
             HBox.setMargin(2)
             frame.setLayout(HBox) 
             
-            label = QLabel(QString('%s: %s  ' % (parentLabel, param.get_qualifier())))
+            label = QLabel(QString('%s@%s  ' % (param.get_qualifier(),parentLabel)))
             font = QFont()
             #~ font.setBold(dataset.get_enabled() is True)
             label.setFont(font)
@@ -620,7 +620,7 @@ class FittingTreeWidget(GeneralParameterTreeWidget):
             examine_button.setEnabled(False) # until signal connected
             HBox.addWidget(examine_button)
             
-            label = QLabel(QString('%s: %s  ' % (parentLabel, param.get_qualifier())))
+            label = QLabel(QString('%s@%s  ' % (param.get_qualifier(), parentLabel)))
             #~ font = QFont()
             #~ font.setBold(dataset.get_enabled() is True)
             #~ label.setFont(font)

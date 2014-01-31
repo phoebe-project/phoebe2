@@ -366,7 +366,8 @@ class Bundle(object):
         # If a duplicate is found in usersettings, the bundle version will trump it
         if section in self.sections.keys():
             for ps in self.sections[section]:
-                if search is None or ps.get_value(search_by)==search:
+                #~ if search is None or ps.get_value(search_by)==search:
+                if search is None or fnmatch(ps.get_value(search_by), search):
                     # if search_by is None then we want to return everything
                     # NOTE: in this case usersettings will be ignored
                     if search_by is not None:
@@ -383,7 +384,8 @@ class Bundle(object):
             usersettings = self.get_usersettings().settings
             if section in usersettings.keys():
                 for ps in usersettings[section]:
-                    if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
+                    #~ if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
+                    if (search is None or fnmatch(ps.get_value(search_by), search)) and ps.get_value(search_by) not in items.keys():
                         # Then these defaults exist in the usersettings but 
                         # are not (yet) overridden by the bundle.
                         #
@@ -760,6 +762,28 @@ class Bundle(object):
                 #~ if qualifier in [context, ref, label] and not val in found:
                 if True in [isinstance(thing, str) and fnmatch(thing, qualifier) for thing in [context, ref, label]] and not val in found:
                     found.append(val)
+                    
+        if len(found) == 0:
+            # we should look into subsections here
+            index = 0
+            sections = self.sections.keys()[1:]
+            # now we want the qualifier included as well
+            structure_info = structure_info + [qualifier]
+            if len(structure_info) == 2:
+                mylist = self._get_from_section(structure_info[0],
+                                                search=structure_info[1],
+                                                return_type='list')
+            elif len(structure_info) == 1:
+                # structure_info[0] may be the section
+                mylist = self._get_from_section(structure_info[0],
+                                                return_type='list')
+                
+                # or structure_info[0] may be the label
+                for section in sections:
+                    mylist += self._get_from_section(section,
+                                                     search=structure_info[0],
+                                                     return_type='list')
+            found = found + mylist
                 
                     
         if len(found) == 0:
@@ -914,15 +938,22 @@ class Bundle(object):
         if len(found) == 0:
             # we should look into subsections here
             index = 0
+            sections = self.sections.keys()[1:]
             if len(structure_info) == 2:
                 mylist = self._get_from_section(structure_info[0],
                                                 search=structure_info[1],
                                                 return_type='list')
             elif len(structure_info) == 1:
+                # structure_info[0] may be the section
                 mylist = self._get_from_section(structure_info[0],
                                                 return_type='list')
+                
+                # or structure_info[0] may be the label
+                for section in sections:
+                    mylist += self._get_from_section(section,
+                                                     search=structure_info[0],
+                                                     return_type='list')
             else:
-                sections = self.sections.keys()[1:]
                 mylist = []
                 for section in sections:
                     mylist += self._get_from_section(section,
