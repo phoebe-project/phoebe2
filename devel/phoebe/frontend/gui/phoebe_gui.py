@@ -1408,12 +1408,16 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).get_parameter(\'%s\').set_prior(distribution=\'uniform\',lower=%s,upper=%s)' % (kind,labelstr,parname,lims[0],lims[1]),'bundle.get_%s(%s).get_parameter(\'%s\').remove_prior()' % (kind,labelstr,parname),thread=False,description='add default prior for %s:%s' % (label,parname))
             #~ self.undoStack.push(command)
         
+        qualifier = '%s@%s' % (parname,label)
+        if kind in ['compute','fitting','orbitview','meshview']:
+            qualifier += '@%s' % kind
+        
         # change adjust/value if necessary
         if is_adjust:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_adjust('%s@%s', %s)" % (parname,label,newvalue), "bundle.set_adjust('%s@%s', %s)" % (parname,labelstr,oldvalue),thread=False,description='change adjust of %s@%s to %s' % (parname,label,newvalue))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_adjust('%s', %s)" % (qualifier,newvalue), "bundle.set_adjust('%s', %s)" % (qualifier,oldvalue),thread=False,description='change adjust of %s to %s' % (qualifier,newvalue))
             #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,newvalue), 'bundle.get_%s(%s).set_adjust(\'%s\', %s)' % (kind,labelstr,parname,oldvalue),thread=False,description='change adjust of %s to %s' % (kind,newvalue))
         else:
-            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_value('%s@%s', %s)" % (parname,label,"%s" % newvalue if isinstance(newvalue,str) and "np." in newvalue else "'%s'" % newvalue),"bundle.set_value('%s@%s', %s)" % (parname,label,"%s" % oldvalue if isinstance(oldvalue,str) and "np." in oldvalue else "'%s'" % oldvalue),thread=False,description='change value of %s@%s' % (parname,label))
+            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_value('%s', %s)" % (qualifier,"%s" % newvalue if isinstance(newvalue,str) and "np." in newvalue else "'%s'" % newvalue),"bundle.set_value('%s', %s)" % (qualifier,"%s" % oldvalue if isinstance(oldvalue,str) and "np." in oldvalue else "'%s'" % oldvalue),thread=False,description='change value of %s' % (qualifier))
             #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % newvalue if isinstance(newvalue,str) and 'np.' in newvalue else '\'%s\'' % newvalue),'bundle.get_%s(%s).set_value(\'%s\',%s)' % (kind,labelstr,parname,'%s' % oldvalue if isinstance(oldvalue,str) and 'np.' in oldvalue else '\'%s\'' % oldvalue),thread=False,description='change value of %s:%s' % (kind,parname))
         
         # change/add constraint

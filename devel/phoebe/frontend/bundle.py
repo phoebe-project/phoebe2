@@ -25,6 +25,7 @@ import numpy as np
 from collections import OrderedDict
 from datetime import datetime
 from time import sleep
+from fnmatch import fnmatch
 import matplotlib.pyplot as plt
 import copy
 import os
@@ -401,7 +402,8 @@ class Bundle(object):
 
                         psc = copy.deepcopy(ps)
                         items[psc.get_value(search_by)] = psc
-                        #~ self._add_to_section(section,psc)
+                        # now we add the copy to the bundle
+                        self._add_to_section(section,psc)
                     
         # and now return in the requested format
         return self._return_from_dict(items,return_type)
@@ -740,7 +742,8 @@ class Bundle(object):
                             
                         # We're on the right track and can advance to find the
                         # next label in the structure!
-                        if name_of_this_level == structure_info[index]:
+                        #~ if name_of_this_level == structure_info[index]:
+                        if isinstance(name_of_this_level,str) and fnmatch(name_of_this_level, structure_info[index]):
                             index += 1
                 
                 # Keep looking if we didn't exhaust all specifications yet.
@@ -754,7 +757,8 @@ class Bundle(object):
                 context = val.get_context()
                 ref = val['ref'] if 'ref' in val else None
                 label = val['label'] if 'label' in val else None
-                if qualifier in [context, ref, label] and not val in found:
+                #~ if qualifier in [context, ref, label] and not val in found:
+                if True in [isinstance(thing, str) and fnmatch(thing, qualifier) for thing in [context, ref, label]] and not val in found:
                     found.append(val)
                 
                     
@@ -880,7 +884,8 @@ class Bundle(object):
                             
                         # We're on the right track and can advance to find the
                         # next label in the structure!
-                        if name_of_this_level == structure_info[index]:
+                        #~ if name_of_this_level == structure_info[index]:
+                        if isinstance(name_of_this_level,str) and fnmatch(name_of_this_level, structure_info[index]):
                             index += 1
                         
                 # Keep looking if we didn't exhaust all specifications yet.
@@ -893,7 +898,8 @@ class Bundle(object):
             # hasn't already been found (e.g. when two identical  parameterSets
             # are added).
             if isinstance(val, parameters.Parameter):
-                if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
+                #~ if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
+                if fnmatch(val.get_qualifier(), qualifier) and not val.get_unique_label() in found_labels:
                     
                     # Special handling of orbits: you can't request orbital
                     # information of a component, only of the BodyBag.
@@ -951,7 +957,7 @@ class Bundle(object):
         par = self.get_parameter(qualifier, return_type=return_type)
         if return_type in ['single']:
             return par.get_value()
-        elif return_type in ['all']:
+        elif return_type in ['list','all']:
             return [p.get_value() for p in par]
         else:
             raise ValueError("Cannot interpret argument return_type='{}'".format(return_type))        
@@ -1114,6 +1120,20 @@ class Bundle(object):
     def get_parent(self, objref):
         # return the parent of self.get_object(objref)
         return self.get_object(objref).get_parent()
+        
+    def get_mesh(self, objref=None, return_type='single'):
+        """
+        retrieve the mesh that belongs to a given object
+        
+        @param objref: name of the object the mesh is attached to
+        @type objref: str or None
+        @param return_type: 'single','all'
+        @type return_type: str
+        """
+        qualifier = 'mesh*'
+        if objref is not None:
+            qualifier += '@{}'.format(objref)
+        return self.get_ps(qualifier, return_type=return_type)
         
     #}  
     #{ Versions
