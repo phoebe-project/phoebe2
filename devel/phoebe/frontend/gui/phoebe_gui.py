@@ -1401,12 +1401,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         labelstr = '\'%s\'' % label if label not in ['orbitview','meshview'] else ''
         
-        # add prior if necessary    
-        if is_adjust and newvalue == True and not param.has_prior(): #then we need to create an initial prior
-            lims = param.get_limits()
-            command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_prior('%s@%s', distribution='uniform', lower=%s, upper=%s)" % (label,parname,lims[0],lims[1]),"bundle.remove_prior('%s@%s')" % (label,parname),thread=False,description='add default prior for %s@%s' % (label,parname))
+        # add prior if necessary   - no handled by bundle  
+        #~ if is_adjust and newvalue == True and not param.has_prior(): #then we need to create an initial prior
+            #~ lims = param.get_limits()
+            #~ command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_prior('%s@%s', distribution='uniform', lower=%s, upper=%s)" % (parname,label,lims[0],lims[1]),"bundle.remove_prior('%s@%s')" % (parname,label),thread=False,description='add default prior for %s@%s' % (label,parname))
             #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(%s).get_parameter(\'%s\').set_prior(distribution=\'uniform\',lower=%s,upper=%s)' % (kind,labelstr,parname,lims[0],lims[1]),'bundle.get_%s(%s).get_parameter(\'%s\').remove_prior()' % (kind,labelstr,parname),thread=False,description='add default prior for %s:%s' % (label,parname))
-            self.undoStack.push(command)
+            #~ self.undoStack.push(command)
         
         # change adjust/value if necessary
         if is_adjust:
@@ -1793,11 +1793,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         old_prior = 'distribution=\'%s\'' % old_dist[0]
     
         for key in new_dist[1].keys():
-            new_prior +=',%s=%f' % (key,new_dist[1][key])
+            new_prior +=', %s=%f' % (key,new_dist[1][key])
         for key in old_dist[1].keys():
-            old_prior +=',%s=%f' % (key,old_dist[1][key])
+            old_prior +=', %s=%f' % (key,old_dist[1][key])
         
-        command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_prior('%s') % ('%s@%s',%s)" % (paramname,label,new_prior),"bundle.set_prior('%s') % ('%s@%s',%s)" % (paramname,label,old_prior),thread=False,description='change prior of %s@%s' % (paramname,label))
+        command = phoebe_widgets.CommandRun(self.PythonEdit,"bundle.set_prior('%s@%s', %s)" % (paramname,label,new_prior),"bundle.set_prior('%s@%s', %s)" % (paramname,label,old_prior),thread=False,description='change prior of %s@%s' % (paramname,label))
         #~ command = phoebe_widgets.CommandRun(self.PythonEdit,'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(%s)' % (kind,label,paramname,new_prior),'bundle.get_%s(\'%s\').get_parameter(\'%s\').set_prior(%s)' % (kind,label,paramname,old_prior),thread=False,description='change prior of %s:%s' % (label,paramname))
         self.undoStack.push(command)
         
