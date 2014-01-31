@@ -76,9 +76,30 @@ just linear combinations of the nonrotating case).
       ``beta`` and ``phi0`` in the magnetic context.
     - Ephemeris are always computed in Julian Days, with the reference time
       equal to :math:`t_0=0`. If you want to have another reference time for 
-      a certain dataset, you need to set :math:`t_0` to some appropriate value
-      in that particular dataset.
-    
+      a certain pulsation, you need to set :math:`t_0` to some appropriate value
+      in that particular pulsation parameterset.
+    - The flux perturbation is caused by three sources: the change in apparent
+      radius, the change in local effective temperature and the change in local
+      surface gravity [Townsend2003]_:
+      
+      .. math::
+      
+         \frac{\Delta F}{F} = \mathrm{Re}\left[\left\{\Delta_R \mathcal{R} + \Delta_T\mathcal{T} + \Delta_g\mathcal{G}\right\}\exp{2\pi i f t}\right]
+      
+      The three perturbation coefficients :math:`\Delta_R`, :math:`\Delta_T` and
+      :math:`\Delta_g` are complex perturbation coefficients. In Phoebe, they are
+      each given by two parameters:
+      
+      .. math::
+        
+        \Delta_R = \mathtt{ampl} \exp(2\pi i\mathtt{phase})
+        
+        \Delta_T = \mathtt{amplteff} \exp(2\pi i (\mathtt{phaseteff} + \mathtt{phase}))
+        
+        \Delta_g = \mathtt{amplgrav} \exp(2\pi i (\mathtt{phasegrav} + \mathtt{phase}))
+      
+      Thus, the phases for the temperature and gravity are relative to the phase
+      of the radius perturbation. The amplitudes are all fractional.
 
 +---------------------------------------------+---------------------------------------------+---------------------------------------------+---------------------------------------------+
 | :math:`\ell=3, m=2` (nonrotating)           | :math:`\ell=2, m=2` (nonrotating)           | :math:`\ell=2, m=-2` (nonrotating)          | :math:`\ell=1, m=0` (nonrotating)           |
@@ -761,6 +782,11 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     incls = []
     phaseincls = []
     
+    # if the surface is displaced we need to recompute the sizes of the mesh
+    # triangles. If no surface displacements are done (ampl=0, but amplteff>0)
+    # then this step of recomputation is not necessary
+    recompute_sizes = False
+    
     #-- extract pulsation parameters, depending on their scheme
     for i,pls in enumerate(self.params['puls']):
         #-- extract information on the mode
@@ -770,10 +796,21 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         k_ = pls.get_value('k')
         freq = pls.get_value('freq','cy/d')
         freq_Hz = freq / (24.*3600.)
+        
         ampl = pls.get_value('ampl')
-        deltaT = pls.get_value('amplteff')*np.exp(1j*2*pi*pls.get_value('phaseteff'))
-        deltag = pls.get_value('amplgrav')*np.exp(1j*2*pi*pls.get_value('phasegrav'))
-        phase = pls.get_value('phase')
+        amplT = pls['amplteff']
+        amplG = pls['amplgrav']
+        
+        phase = pls['phase']
+        phaseT = pls['phaseteff'] + phase
+        phaseG = pls['phasegrav'] + phase
+        
+        if ampl > 0:
+            recompute_sizes = True
+        
+        deltaT = amplT*np.exp(1j*2*pi*phaseT)
+        deltag = amplG*np.exp(1j*2*pi*phaseG)
+        
         omega = 2*pi*freq_Hz
         incl = pls.get_value('incl','rad')
         phaseincl = pls.get_value('phaseincl','rad')
@@ -812,8 +849,10 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
                 spinpars.append(0.) # not applicable, this is for coriolis (?)
                 incls.append(incl)
                 phaseincls.append(phaseincl)
-        elif scheme=='nonrotating' or scheme=='coriolis':
-            if scheme=='coriolis' and l>0:
+                
+        elif scheme == 'nonrotating' or scheme == 'coriolis':
+            
+            if scheme == 'coriolis' and l > 0:
                 spinpar = rotfreq/freq
                 Cnl = pls.get_value('ledoux_coeff')
                 k = k0 + 2*m*spinpar*((1.+k0)/(l**2+l)-Cnl)
@@ -873,6 +912,18 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     self.mesh['logg'] = logg
     logger.info("puls: computed pulsational displacement, velocity and teff/logg field")
     logger.info("puls: after {}<teff<{}".format(self.mesh['teff'].min(), self.mesh['teff'].max()))
-
+    
+    
+    #from mayavi import mlab
+    #mlab.figure()
+    #self.plot3D(normals=True,scale_factor=0.1)
+    #mlab.figure()
+    #self.plot3D(select='teff',scale_factor=0.1)
+    if recompute_sizes:
+        self.compute_sizes(prefix='')
+        #self.compute_normals(prefixes=('',))
+        #mlab.figure()
+        #self.plot3D(normals=True,scale_factor=0.1)
+    #mlab.show()
 
 #}

@@ -8,7 +8,9 @@ import tempfile
 import subprocess
 import os
 import sys
+from collections import OrderedDict
 from phoebe.parameters import parameters
+from phoebe.parameters import datasets
 from phoebe.utils import utils
 
 def parse_ref(fctn):
@@ -127,11 +129,11 @@ def merge_synthetic(list_of_bodies):
     @rtype: Body
     """
     iterators = [body.walk_type(type='syn') for body in list_of_bodies]
+
     for iteration in zip(*iterators):
         for parset in iteration[1:]:
             if parset.context[-3:] == 'syn':
                 for key in parset:
-                    
                     if 'columns' in parset and not key in parset['columns']:
                         continue
                     value = parset[key]
@@ -142,7 +144,23 @@ def merge_synthetic(list_of_bodies):
     return list_of_bodies[0]
 
 
-
+def prepare_ltt(system):
+    # First get a flat list of the bodies
+    if hasattr(system, 'get_bodies'):
+        bodies = system.get_bodies()
+    else:
+        bodies = [system]
+    
+    # Then cycle through all the bodies, and retrieve their full
+    # hierarchical orbit
+    for body in bodies:
+        
+        # Store the results in an "orbsyn" parameterSet
+        orbsyn = datasets.DataSet('orbsyn', ref='ltt')
+        
+        # We need to keep the same hierarchy as with lcsyns and such
+        body.params['syn']['orbsyn'] = OrderedDict()
+        body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
 
 
 
@@ -234,6 +252,10 @@ def mpirun(fctn):
                     system.fix_mesh()
                 else:
                     system.init_mesh()
+                
+                # If we don't add empty orbsyns, we can't merge them in the end
+                if kwargs.get('ltt', False):
+                    prepare_ltt(system)
                 
                 # Pickle args and kwargs in NamedTemporaryFiles, which we will
                 # delete afterwards
