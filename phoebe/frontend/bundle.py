@@ -763,6 +763,8 @@ class Bundle(object):
                 if True in [isinstance(thing, str) and fnmatch(thing, qualifier) for thing in [context, ref, label]] and not val in found:
                     found.append(val)
                     
+        # for now, we'll only search the bundle sections if no other match 
+        # has been found within the system
         if len(found) == 0:
             # we should look into subsections here
             index = 0
@@ -934,7 +936,8 @@ class Bundle(object):
                     found.append(val)            
                     found_labels.append(val.get_unique_label())
                     
-        
+        # for now, we'll only search the bundle sections if no other match 
+        # has been found within the system
         if len(found) == 0:
             # we should look into subsections here
             index = 0
@@ -1508,8 +1511,9 @@ class Bundle(object):
             this_objref = body.get_label()
             if objref is None or this_objref == objref:
                 for obstype in body.params['obs']:
-                    if dataref in body.params['obs'][obstype]:
-                        dss[this_objref] = body.params['obs'][obstype][dataref]
+                    for this_dataref in body.params['obs'][obstype]:
+                        if dataref is None or dataref==this_dataref:
+                            dss[this_objref] = body.params['obs'][obstype][this_dataref]
         
         return dss
 
