@@ -325,17 +325,32 @@ class Bundle(object):
         @param return_type: 'list', 'dict', or 'single'
         @type return_type: str
         """
-        if return_type=='dict':
-            return dictionary
-        elif return_type=='list':
-            return dictionary.values()
-        elif return_type=='single':
-            if len(dictionary) > 1:
-                raise ValueError("search resulted in more than one result: modify search or change return_type to 'list' or 'dict'")
-            elif len(dictionary)==1: #then only one match
-                return dictionary.values()[0]
-            else: #then no results
-                return None
+        #~ if return_type=='dict':
+            #~ return dictionary
+        #~ elif return_type=='list':
+            #~ return dictionary.values()
+        #~ elif return_type=='single':
+            #~ if len(dictionary) > 1:
+                #~ raise ValueError("search resulted in more than one result: modify search or change return_type to 'list' or 'dict'")
+            #~ elif len(dictionary)==1: #then only one match
+                #~ return dictionary.values()[0]
+            #~ else: #then no results
+                #~ return None
+                
+        #~ if return_type=='single' and len(dictionary) == 0:    
+            #~ raise ValueError("no results found: set return_type='single_or_none' to bypass error")
+        if return_type=='single' and len(dictionary)==0:
+            return None
+        elif return_type in ['single'] and len(dictionary)>1:
+            raise ValueError("more than one dataset was returned from the search: either constrain search or set return_type='all'")
+        elif return_type in ['single']:
+            return dictionary.values()[0]
+        elif return_type in ['all','list']:
+            return [f for f in dictionary.values()]
+        else:
+            return dictionary   
+                
+
                 
     def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
         """
@@ -427,7 +442,7 @@ class Bundle(object):
         @param search_by: key to search by (defaults to label)
         @type search_by: str
         """
-        if label is None:    return None
+        if search is None:    return None
         #~ return self.sections[section].pop(self.sections[section].index(self._get_from_section(section,search,search_by))) 
         return self.sections[section].remove(self._get_from_section(section,search,search_by))
         
@@ -1155,9 +1170,23 @@ class Bundle(object):
         # return the parent of self.get_object(objref)
         return self.get_object(objref).get_parent()
         
-    def get_mesh(self, objref=None, return_type='single'):
+    def get_orbitps(self, objref=None, return_type='single'):
         """
-        retrieve the mesh that belongs to a given object
+        retrieve the orbit ParameterSet that belongs to a given object
+        
+        @param objref: name of the object the mesh is attached to
+        @type objref: str or None
+        @param return_type: 'single','all'
+        @type return_type: str
+        """
+        qualifier = 'orbit'
+        if objref is not None:
+            qualifier += '@{}'.format(objref)
+        return self.get_ps(qualifier, return_type=return_type)
+        
+    def get_meshps(self, objref=None, return_type='single'):
+        """
+        retrieve the mesh ParameterSet that belongs to a given object
         
         @param objref: name of the object the mesh is attached to
         @type objref: str or None
@@ -1448,12 +1477,12 @@ class Bundle(object):
         
         self._attach_datasets(output)
         
-    def get_syn(self, category=None, objref=None, dataref=0, force_dict=False):
+    def get_syn(self, category=None, objref=None, dataref=0, return_type='single'):
         """
         Get synthetic
         
-        returns a dictionairy -- should be changed to match behaviour of
-        force_dict (don't know what behaviour is required)
+        @param return_type: 'single','all','dict'
+        @type return_type: str
         """
         dss = OrderedDict()
         system = self.get_system()
@@ -1478,26 +1507,25 @@ class Bundle(object):
                     
                     # dataref can be integer
                     if isinstance(dataref, int):
-                        dss[this_objref] = body.params['syn'][obstype].values()[dataref]
+                        if len(body.params['syn'][obstype].values())>dataref:
+                            dss[this_objref] = body.params['syn'][obstype].values()[dataref]
                     # but dataref can be string
                     elif dataref in body.params['syn'][obstype]:
                         dss[this_objref] = body.params['syn'][obstype][dataref]
                     # else nothing happens and we keep searching
-        
-        if not force_dict and len(dss) == 1:
-            return dss.values()[0]
-        else:
-            return dss
+                    
+        return self._return_from_dict(dss,return_type)
+                    
 
-    def get_dep(self, objref=None, dataref=None, force_dict=False):
+    def get_dep(self, objref=None, dataref=None, return_type='single'):
         pass
         
-    def get_obs(self, objref=None, dataref=None, force_dict=False):
+    def get_obs(self, objref=None, dataref=None, return_type='single'):
         """
         Get observations
         
-        returns a dictionairy -- should be changed to match behaviour of
-        force_dict (don't know what behaviour is required)
+        @param return_type: 'single','all','dict'
+        @type return_type: str
         """
         dss = OrderedDict()
         system = self.get_system()
@@ -1514,9 +1542,9 @@ class Bundle(object):
                     for this_dataref in body.params['obs'][obstype]:
                         if dataref is None or dataref==this_dataref:
                             dss[this_objref] = body.params['obs'][obstype][this_dataref]
+                            
+        return self._return_from_dict(dss,return_type)
         
-        return dss
-
     def enable_obs(self, dataref=None, objref=None):
         """
         Enable observations from being included in the fitting procedure.
@@ -1579,13 +1607,13 @@ class Bundle(object):
         """
 
         # disable any plotoptions that use this dataset
-        for axes in self.axes:
-            for pl in axes.get_plot():
+        for axes in self.get_axes(return_type='list'):
+            for pl in axes.get_plot().values():
                 if pl.get_value('dataref')==dataref:
                     pl.set_value('active',False)
         
         # remove all obs attached to any object in the system
-        for obj in self.get_system_structure(return_type='obj',flat=True):
+        for obj in self.get_system().walk_bodies():
             obj.remove_obs(refs=[dataref])
             if hasattr(obj, 'remove_pbdeps'): #TODO otherwise: warning 'BinaryRocheStar' has no attribute 'remove_pbdeps'
                 obj.remove_pbdeps(refs=[dataref]) 
@@ -2016,7 +2044,7 @@ class Bundle(object):
         if isinstance(ident,int): 
             #then we need to return all in list and take index
             # TODO: this currently ignores return_type
-            return self._get_from_section('axes',return_type='list')[ident]
+            return self._get_from_section('axes',search_by='title',return_type='list')[ident]
         
         return self._get_from_section('axes',ident,'title',return_type=return_type)
         

@@ -316,11 +316,11 @@ class Axes(object):
                     po.pop(key)
            
             if phased and len(xaxis.split(':')) > 1:
-                orbit = bundle.get_orbit(xaxis.split(':')[1])
+                orbit = bundle.get_orbitps(xaxis.split(':')[1])
             elif hasattr(obj,'params') and 'orbit' in obj.params.keys():
                 orbit = obj.params['orbit']
             else:
-                orbit = bundle.get_orbit(plotoptions['objref'])
+                orbit = bundle.get_orbitps(plotoptions['objref'])
             period = orbit.get_value('period')
             self.period = period
             self.phased = phased

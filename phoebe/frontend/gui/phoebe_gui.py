@@ -781,8 +781,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.get_system() is None:
             return
         # get obs and syn
-        ds_obs_all = self.bundle.get_obs(force_dict=True).values()
-        ds_syn_all = self.bundle.get_syn(force_dict=True).values()
+        ds_obs_all = self.bundle.get_obs(return_type='all')
+        ds_syn_all = self.bundle.get_syn(return_type='all')
         
         
         # remove duplicates
@@ -798,6 +798,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
         # will eventually want to loop over all treeviews (main and in plot pops)
         trees = [self.datasetswidget_main.datasetTreeView]
+        
+        #~ print "*** update_datasets", len(trees), len(ds_obs), len(ds_syn)
         
         for tree in self.plotEntry_widgets:
             # filter which items to show
@@ -1628,7 +1630,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.undoStack.push(command)
         
         for context_kind in ['obs','syn']:
-            if (context_kind=='obs' and len(self.bundle.get_obs(objref=objref,dataref=dataref,force_dict=True)) > 0) or (context_kind=='syn' and len(self.bundle.get_syn(objref=objref,dataref=dataref,force_dict=True)) > 0):
+            if (context_kind=='obs' and len(self.bundle.get_obs(objref=objref,dataref=dataref,return_type='dict')) > 0) or (context_kind=='syn' and len(self.bundle.get_syn(objref=objref,dataref=dataref,return_type='dict')) > 0):
                 do_command = "bundle.get_axes('%s').add_plot(type='%s%s',objref='%s',dataref='%s')" % (title,category,context_kind,objref,dataref)
                 undo_command = "bundle.get_axes('%s').remove_plot(0)" % (title)
                 command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new plot')
@@ -1994,7 +1996,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # determine times
             if pop.times_match.isChecked():
                 dataref = str(pop.datasetComboBox.currentText())
-                timestr = "bundle.get_syn(dataref='%s').values()[0].asarray()['time']" % dataref
+                timestr = "bundle.get_syn(dataref='%s').asarray()['time']" % dataref
             elif pop.times_arange.isChecked():
                 timestr = "np.arange(%f,%f,%f)" % (pop.arange_min.value(),pop.arange_max.value(),pop.arange_step.value())
             elif pop.times_linspace.isChecked():

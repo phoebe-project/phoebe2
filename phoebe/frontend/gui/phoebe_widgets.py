@@ -911,16 +911,16 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 stackedwidget = QStackedWidget()
                 
                 # these two bools are used in the data view                
-                has_obs = len(bundle.get_obs(name, dataset['ref'], force_dict=True)) > 0
-                has_syn = len(bundle.get_syn(name, dataset['ref'], force_dict=True)) > 0
+                has_obs = len(bundle.get_obs(name, dataset['ref'], return_type='dict')) > 0
+                has_syn = len(bundle.get_syn(name, dataset['ref'], return_type='dict')) > 0
                 
                 # get the dataset for this row AND column
                 if has_obs:
-                    col_obs = bundle.get_obs(name, dataset['ref'], force_dict=True).values()[0]
+                    col_obs = bundle.get_obs(name, dataset['ref'], return_type='all')[0]
                 else:
                     col_obs = None
                 if has_syn:
-                    col_syn = bundle.get_syn(name, dataset['ref'], force_dict=True).values()[0]
+                    col_syn = bundle.get_syn(name, dataset['ref'], return_type='all')[0]
                 else:
                     col_syn = None
                 
