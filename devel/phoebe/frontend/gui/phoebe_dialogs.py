@@ -16,7 +16,7 @@ def get_datarefs(bundle):
     note this does not include duplicates if multiple objrefs have the same dataref
     """
     
-    ds_syn_all = bundle.get_syn(force_dict=True).values()
+    ds_syn_all = bundle.get_syn(return_type='all')
     ds_syn_names = []
     for dss in ds_syn_all:
         if dss['ref'] not in ds_syn_names:
