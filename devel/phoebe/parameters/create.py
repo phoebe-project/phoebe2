@@ -343,7 +343,7 @@ def make_body_from_parametersets(ps):
             body1.prepare_reflection()
             body2.prepare_reflection()
         #-- put the two Bodies in a BodyBag and return it to the user.
-        body = universe.BodyBag([body1,body2])
+        body = universe.BodyBag([body1,body2],label=orbit['label'])
     #-- OK, if it's no binary, we assume we can deal with it as is
     else:
         body = GenericBody(*ps)
