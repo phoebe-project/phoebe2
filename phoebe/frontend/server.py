@@ -31,6 +31,12 @@ class Server(object):
     def __str__(self):
         return self.to_string()
         
+    def keys(self):
+        keys = self.settings['server'].keys()
+        if self.settings['mpi'] is not None:
+            keys += self.settings['mpi'].keys()
+        return keys
+        
     def to_string(self):
         txt = ""
         for section,ps in self.settings.items():

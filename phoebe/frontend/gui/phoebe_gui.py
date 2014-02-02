@@ -15,7 +15,7 @@ from PyQt4.QtGui import *
 from PyQt4.QtWebKit import *
 
 #phoebe modules
-from phoebe.frontend import usersettings
+from phoebe.frontend.usersettings import Settings
 from phoebe.frontend.gui import phoebe_plotting, phoebe_widgets, phoebe_dialogs
 
 from phoebe.parameters import parameters, datasets
@@ -295,11 +295,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.latest_dir = None
         
         # send startup commands to interpreter
-        startup_default = 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend import usersettings\nsettings = usersettings.load()'
+        startup_default = 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend.usersettings import Settings\nsettings = Settings()'
         # this string is hardcoded - also needs to be in phoebe_dialogs.CreatePopPres.set_gui_from_prefs
         for line in startup_default.split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
-        for line in self.prefs.get_value('pyinterp_startup_custom').split('\n'):
+        for line in self.prefs.get_gui().get_value('pyinterp_startup_custom').split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
             
         # disable items for alpha version
@@ -1895,9 +1895,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         try:
             self.prefs = self.PyInterp_get('settings')
         except KeyError:
-            self.prefs = usersettings.load()
+            self.prefs = Settings()
         
-        p = self.prefs.get_ps('gui')
+        p = self.prefs.get_gui()
         
         if startup:
             # only apply default panels at startup (not immediately after changing preference)

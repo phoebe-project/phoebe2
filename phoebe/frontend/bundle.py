@@ -39,7 +39,7 @@ from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
 from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
-from phoebe.frontend import usersettings
+from phoebe.frontend.usersettings import Settings
 from phoebe.frontend.figures import Axes
 
 logger = logging.getLogger("BUNDLE")
@@ -396,7 +396,7 @@ class Bundle(object):
 
         if not ignore_usersettings and search_by is not None:
             # Now let's check the defaults in usersettings
-            usersettings = self.get_usersettings().settings
+            usersettings = self.get_usersettings().sections
             if section in usersettings.keys():
                 for ps in usersettings[section]:
                     #~ if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
@@ -481,35 +481,32 @@ class Bundle(object):
         """
         return self.settings[key]
         
-    def set_usersettings(self,settings=None):
+    def set_usersettings(self,basedir=None):
         """
         Load user settings into the bundle
         
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or this function is called.
         
-        @param settings: the settings (or none to load from default file)
-        @type settings: string
+        @param basedir: location of cfg files (or none to load from default location)
+        @type basedir: string
         """
-        if settings is None or isinstance(settings,str):
-            settings = usersettings.load(settings)
+        if basedir is None or isinstance(basedir,str):
+            settings = Settings()
+        else: # if settings are passed instead of basedir - this should be fixed
+            settings = basedir
+            
         # else we assume settings is already the correct type
         self.usersettings = settings
         
-    def get_usersettings(self,key=None):
+    def get_usersettings(self):
         """
         Return the user settings class
         
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or set_usersettings is called.
-        
-        @param key: name of the setting, or none to return the class
-        @type key: string or None
         """
-        if key is None:
-            return self.usersettings
-        else:
-            return self.get_usersettings().get_value(key)
+        return self.usersettings
             
     def get_server(self,label=None,return_type='list'):
         """
