@@ -310,6 +310,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.mp_splash_triplePushButton.setEnabled(False)
             self.tb_view_rpAction.setEnabled(False)
             self.tb_view_versionsAction.setEnabled(False)
+            self.tb_view_systemAction.setEnabled(False) # maybe enable for release if ready?
 
         # Set system to None - this will then result in a call to on_new_bundle
         # any additional setup should be done there
