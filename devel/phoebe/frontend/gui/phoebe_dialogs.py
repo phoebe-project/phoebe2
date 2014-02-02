@@ -130,6 +130,14 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             # then disable certain items
             self.p_panel_fitting.setEnabled(False)
             self.p_panel_versions.setEnabled(False)
+            self.p_panel_system.setEnabled(False) # maybe enable for release if ready?
+            
+            # fitting options
+            self.label_13.setVisible(False)
+            self.fo_edit_combo.setVisible(False)
+            self.fo_delete.setVisible(False)
+            self.fo_add.setVisible(False)
+            self.fo_psedit.setVisible(False)
         
     def set_gui_from_prefs(self,prefs=None,init=False):
         if prefs is None:
@@ -347,7 +355,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
             typ = 'compute'
         elif w == self.fo_add:
             typ = 'fitting'
-        elif w == self.sx_serveredit_add:
+        elif w == self.sx_serveredit_add or w == self.serverlist_add:
             typ = 'server'
         
         label = 'new %s' % typ

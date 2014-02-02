@@ -626,7 +626,7 @@ class Bundle(object):
         """
         return self.get_system().clear_synthetic()
         
-    def set_time(self, time, label=None, server=None):
+    def set_time(self, time, label=None, server=None, **kwargs):
         """
         Set the time of a system, taking compute options into account.
                 

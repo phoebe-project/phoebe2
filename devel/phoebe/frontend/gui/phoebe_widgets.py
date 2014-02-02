@@ -1861,7 +1861,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
             QObject.connect(pop.constraintHelp, SIGNAL("clicked()"), self.on_help_clicked)
             QObject.connect(pop.presetHelp, SIGNAL("clicked()"), self.on_help_clicked)
         
-            if hasattr(par, 'adjust'):
+            if hasattr(par, 'adjust') and 'nofit' not in self.style:
                 pop.check.setCheckState(check.checkState())
             else:
                 pop.check.setVisible(False)
