@@ -90,7 +90,7 @@ class CreatePopLock(QDialog, gui.Ui_popLock_Dialog):
         #~ self.hide()
         
 class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
-    def __init__(self, parent=None, prefs=None):
+    def __init__(self, parent=None, prefs=None, devel_version=False):
         super(CreatePopPrefs, self).__init__(parent)
         self.setupUi(self)
         self.prefs = prefs
@@ -125,6 +125,11 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         self.connect(self.lo_psedit, SIGNAL("parameterChanged"), self.on_loparam_changed)
         
         self.set_gui_from_prefs(prefs,init=True)
+        
+        if not devel_version:
+            # then disable certain items
+            self.p_panel_fitting.setEnabled(False)
+            self.p_panel_versions.setEnabled(False)
         
     def set_gui_from_prefs(self,prefs=None,init=False):
         if prefs is None:
@@ -412,7 +417,8 @@ class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
         this function gets the first syn that matches, not caring about objref
         as we are assuming they should all have the same times
         """
-        return self.bundle.get_syn(dataref=dataref).values()[0].asarray()['time']
+        # used to be get_syn - but that won't work until compute has been run
+        return self.bundle.get_obs(dataref=dataref,return_type='all')[0].asarray()['time']
         
     def get_time(self):
         """
@@ -441,6 +447,7 @@ class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
                 times = np.append(times, self.get_times(dr))
         else:
             times = self.get_times(dataref)
+            print "***", dataref, len(times)
         
         if compute == 'min':
             time = times.min()

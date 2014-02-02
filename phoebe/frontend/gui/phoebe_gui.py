@@ -39,8 +39,10 @@ if 'kde' in os.environ.get('DESKTOP_SESSION',''):
     _fileDialog_kwargs['options'] = QFileDialog.DontUseNativeDialog
 
 
-global _alpha_test
-_alpha_test = True
+global _devel_version
+# _devel_version = True for non-released features
+# general public version should be _devel_version = False
+_devel_version = False
 
 
 ### functools
@@ -225,7 +227,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # middle panel signals
         QObject.connect(self.mp_sysSelWebView, SIGNAL("ctrl_pressed"), self.on_sysSel_ctrl)
         QObject.connect(self.mp_sysSelWebView, SIGNAL("ctrl_released"), self.on_sysSel_ctrlReleased)
-        if not _alpha_test:
+        if _devel_version:
             QObject.connect(self.jsmessenger, SIGNAL("editClicked"), self.on_systemEdit_clicked)
         QObject.connect(self.jsmessenger, SIGNAL("selectionUpdate"), self.on_sysSel_selectionChanged)
         QObject.connect(self.mpsys_gridPushButton, SIGNAL("clicked()"), self.on_plot_expand_toggle)
@@ -303,9 +305,11 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.PyInterp_run(line, write=True, thread=False)
             
         # disable items for alpha version
-        if _alpha_test:
+        if not _devel_version:
             #~ self.rp_fitPushButton.setEnabled(False)
             self.mp_splash_triplePushButton.setEnabled(False)
+            self.tb_view_rpAction.setEnabled(False)
+            self.tb_view_versionsAction.setEnabled(False)
 
         # Set system to None - this will then result in a call to on_new_bundle
         # any additional setup should be done there
@@ -848,7 +852,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.lp_compPushButton.setChecked(True)
 
             #update component tree view
-            self.lp_compTreeView.set_data(sel_comps)
+            self.lp_compTreeView.set_data(sel_comps,style=[] if _devel_version else ['nofit'])
             self.lp_meshTreeView.set_data(sel_meshes,style=['nofit'])
 
         if len(sel_orbits) == 0:
@@ -860,7 +864,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 self.lp_orbitPushButton.setChecked(True)
 
             #update orbit tree view
-            self.lp_orbitTreeView.set_data(sel_orbits)
+            self.lp_orbitTreeView.set_data(sel_orbits,style=[] if _devel_version else ['nofit'])
 
         for i,item in enumerate(sel_orbits):
             self.lp_orbitTreeView.headerItem().setText(i+1, item['label'])
@@ -1873,7 +1877,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_prefsShow(self):
         self.prefs = self.PyInterp_get('settings')
         if self.prefs_pop is None:
-            self.prefs_pop = phoebe_dialogs.CreatePopPrefs(self,self.prefs)
+            self.prefs_pop = phoebe_dialogs.CreatePopPrefs(self,self.prefs,devel_version=_devel_version)
             QObject.connect(self.prefs_pop, SIGNAL("parameterCommand"), self.on_param_command)
             QObject.connect(self.prefs_pop.buttonBox, SIGNAL("accepted()"), self.on_prefsSave)
             QObject.connect(self.prefs_pop.buttonBox, SIGNAL("rejected()"), self.on_prefsUpdate)
