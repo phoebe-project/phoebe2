@@ -653,7 +653,7 @@ defs += [dict(qualifier='style',    description='logger style',repr='%s',cast_ty
 # GUI context
 defs += [dict(qualifier='panel_system', description='show system panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_params', description='show parameters panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_fitting', description='show fitting panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_fitting', description='show fitting panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_versions', description='show versions panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_datasets', description='show datasets/plotting panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_python', description='show python console panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),

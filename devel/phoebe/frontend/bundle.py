@@ -1422,7 +1422,7 @@ class Bundle(object):
             if category == 'lc':
                 # then top-level
                 components = [self.get_system()]
-                logger.warning('components not provided - assuming {}'.format(component))
+                logger.warning('components not provided - assuming {}'.format(components))
             else:
                 logger.error('create_syn failed: components need to be provided')
                 return
