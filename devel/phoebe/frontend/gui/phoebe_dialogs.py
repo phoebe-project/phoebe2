@@ -132,7 +132,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         else:
             self.prefs = prefs
         
-        p = self.prefs.get_ps('gui')
+        p = self.prefs.get_gui()
         
         bools = self.findChildren(QCheckBox)
         bools += self.findChildren(QRadioButton)
@@ -232,7 +232,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         self.serverlist_treeWidget.set_data(self.prefs.get_server())
             
         # logger stuff
-        self.lo_psedit.set_data([self.prefs.get_ps('logger')],style=['nofit'])
+        self.lo_psedit.set_data([self.prefs.get_logger()],style=['nofit'])
         
     def get_button_for_textbox(self,textedit):
         button_name = 'save_' + '_'.join(str(textedit.objectName()).split('_')[1:])
@@ -268,8 +268,8 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         
         old_value = w.current_value
         
-        do_command = "settings.set_value('%s',%s)" % (prefname,"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.set_value('%s',%s)" % (prefname,"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        do_command = "settings.get_gui().set_value('%s',%s)" % (prefname,"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.get_gui().set_value('%s',%s)" % (prefname,"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
         description = "change setting: %s" % prefname
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         
@@ -330,8 +330,8 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         
         label = 'logger'
 
-        do_command = "settings.get_ps('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.get_ps('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        do_command = "settings.get_%s().set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.get_%s().set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
         description = "change logger %s" % (param.get_qualifier())
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         

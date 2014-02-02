@@ -5,47 +5,53 @@ from collections import OrderedDict
 from server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
-from phoebe.utils.utils import get_basic_logger
 
 class Settings(object):
-    def __init__(self):
-        
-        # settings consists of different sections - each of which is
-        # either a parameterset or a list of parametersets
+    def __init__(self, basedir='~/.phoebe'):
+        self.basedir = os.path.expanduser(basedir)
         
         # here we'll initialize all the sections and their defaults
-        self.settings = OrderedDict()
+        self.sections = OrderedDict()
         
-        self.settings['servers'] = []
+        # for each of the sections we will try to load from the cfg file
+        # if this fails or the file does not exist, then we will apply
+        # basic defaults for that section
+        # This means that any new-user defaults need to be set in this
+        # function.
+        # If you want to roll back any of your preferences to defaults,
+        # simply delete the .cfg file and reload usersettings
         
-        # Default compute parameterSets: retrieve them from the configfile
-        self.settings['compute'] = []
+        self.sections['servers'] = []
+        if not self.load_cfg('servers', basedir):
+            pass
         
-        compute_sections = get_configfile_sections('compute',
-                                                basedir='~/.phoebe/preferences')
-        for section in compute_sections:
-            self.add_compute(label=section)
+        self.sections['compute'] = []
+        if not self.load_cfg('compute', basedir):
+            self.add_compute(label='Preview')
+            self.add_compute(label='Compute')
+            
+        self.sections['fitting'] = []
+        if not self.load_cfg('fitting', basedir):
+            self.add_fitting(context='fitting:grid',label='grid')
+            self.add_fitting(context='fitting:minuit',label='minuit')
+            self.add_fitting(context='fitting:lmfit',label='lmfit')
+            self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
+            self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
+            self.add_fitting(context='fitting:emcee',label='emcee')
+            self.add_fitting(context='fitting:pymc',label='pymc')
         
-        self.settings['fitting'] = []
-        self.add_fitting(context='fitting:grid',label='grid')
-        self.add_fitting(context='fitting:minuit',label='minuit')
-        self.add_fitting(context='fitting:lmfit',label='lmfit')
-        self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
-        self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
-        self.add_fitting(context='fitting:emcee',label='emcee')
-        self.add_fitting(context='fitting:pymc',label='pymc')
-        
-        self.settings['gui'] = parameters.ParameterSet(context='gui')
-        
-        self.settings['logger'] = parameters.ParameterSet(context='logger')
-        
-        # Next, we should override the defaults with those from the config files
-        # in ~/.phoebe/preferences/....*.cfg
-        # servers.cfg
-        # compute.cfg
-        # fitting.cfg
-        # gui.cfg
-        # logger.cfg
+        self.sections['gui'] = [] # currently assumes only 1 entry
+        if not self.load_cfg('gui', basedir):
+            self._add_to_section('gui', parameters.ParameterSet(context='gui'))
+            
+        self.sections['logger'] = [] # currently assumes only 1 entry
+        if not self.load_cfg('logger', basedir):
+            self._add_to_section('logger', parameters.ParameterSet(context='logger'))
+            
+        # now apply the logger settings
+        # if logger settings are changed, either reload the usersettings
+        # or call apply_logger()
+        self.apply_logger()
         
         
     def __str__(self):
@@ -58,25 +64,25 @@ class Settings(object):
         """
         """
         txt = ""
-        for section in self.settings.keys():
-            if isinstance(self.settings[section],list):
-                for label,ps in self._get_from_list(section).items():
+        for section in self.sections.keys():
+            if isinstance(self.sections[section],list):
+                for label,ps in self._get_from_section(section).items():
                     if ps is not None:
                         txt += "\n============ {}:{} ============\n".format(section,label)
                         txt += ps.to_string()
             else:
-                ps = self.settings[section]
+                ps = self.sections[section]
                 if ps is not None:
                     txt += "\n============ {} ============\n".format(section)
-                    txt += self.settings[section].to_string()
+                    txt += self.sections[section].to_string()
                 
         return txt
         
-    def _get_from_list(self,listname,label=None):
+    def _get_from_section(self,section,label=None):
         """
         retrieve a parameterset from a list by label
         """
-        items = OrderedDict([(ps.get_value('label'), ps) for ps in self.settings[listname]])
+        items = OrderedDict([(ps.get_value('label') if 'label' in ps.keys() else section, ps) for ps in self.sections[section]])
         
         if label is None:
             return items
@@ -85,97 +91,114 @@ class Settings(object):
         else:
             return None
             
-    def _remove_from_list(self,listname,label):
+    def _add_to_section(self,section,ps):
+        self.sections[section].append(ps)
+            
+    def _remove_from_section(self,section,label):
         """
         remove a parameterset from a list by label
         """
         if label is None:    return None
-        return self.settings[listname].pop(self.settings[listname].index(self._get_from_list(listname,label))) 
+        return self.sections[section].pop(self.sections[section].index(self._get_from_section(section,label))) 
         
     #{ General Parameters
+    
+    def get_logger(self):
+        return self._get_from_section('logger').values()[0]
         
-    def get_ps(self,section=None):
-        """
-        get a parameterset by section
+    def apply_logger(self):
+        lps = self.get_logger()
+        logger = utils.get_basic_logger(style=lps.get_value('style'),
+                                clevel=lps.get_value('clevel'),
+                                flevel=lps.get_value('flevel'),
+                                filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
+                                filemode=lps.get_value('filemode'))
         
-        @param section: setting section (gui, logger, etc)
-        @type section: str
-        @return: parameterset
-        @rtype: ParameterSet
-        """
-        if section is None:
-            return self.settings
-        return self.settings[section]
+    def get_gui(self):
+        return self._get_from_section('gui').values()[0]
         
-    def get_parameter(self,qualifier,section=None):
-        """
-        Retrieve a parameter from the settings
-        If section is not provided and there are more than one object in 
-        settings containing a parameter with the same name, this will
-        return an error and ask you to provide a valid section
+    #~ def get_ps(self,section=None):
+        #~ """
+        #~ get a parameterset by section
+        #~ 
+        #~ @param section: setting section (gui, logger, etc)
+        #~ @type section: str
+        #~ @return: parameterset
+        #~ @rtype: ParameterSet
+        #~ """
+        #~ if section is None:
+            #~ return self.sections
+        #~ return self.sections[section]
         
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param section: setting section (gui, logger, etc)
-        @type objref: str
-        @return: Parameter corresponding to the qualifier
-        @rtype: Parameter
-        """
-        if section is None:
-            categories = [c for c in self.settings.keys() if not isinstance(self.settings[c],list)]
-        else:
-            categories = [section]
+    #~ def get_parameter(self,qualifier,section=None):
+        #~ """
+        #~ Retrieve a parameter from the settings
+        #~ If section is not provided and there are more than one object in 
+        #~ settings containing a parameter with the same name, this will
+        #~ return an error and ask you to provide a valid section
+        #~ 
+        #~ @param qualifier: name or alias of the variable
+        #~ @type qualifier: str
+        #~ @param section: setting section (gui, logger, etc)
+        #~ @type objref: str
+        #~ @return: Parameter corresponding to the qualifier
+        #~ @rtype: Parameter
+        #~ """
+        #~ if section is None:
+            #~ categories = [c for c in self.sections.keys() if not isinstance(self.sections[c],list)]
+        #~ else:
+            #~ categories = [section]
+        #~ 
+        #~ return_params = []
+        #~ return_categories = []
+        #~ 
+        #~ for section in categories:
+            #~ ps = self.get_ps(section)
+            #~ if qualifier in ps.keys():
+                #~ return_params.append(ps.get_parameter(qualifier))
+                #~ return_categories.append(section)
+                #~ 
+        #~ if len(return_params) > 1:
+            #~ raise ValueError("parameter '{}' is ambiguous, please provide one of the following for section:\n{}".format(qualifier,'\n'.join(["\t'%s'" % c for c in return_categories])))
+#~ 
+        #~ elif len(return_params)==0:
+            #~ raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
+            #~ 
+        #~ return return_params[0]
         
-        return_params = []
-        return_categories = []
-        
-        for section in categories:
-            ps = self.get_ps(section)
-            if qualifier in ps.keys():
-                return_params.append(ps.get_parameter(qualifier))
-                return_categories.append(section)
-                
-        if len(return_params) > 1:
-            raise ValueError("parameter '{}' is ambiguous, please provide one of the following for section:\n{}".format(qualifier,'\n'.join(["\t'%s'" % c for c in return_categories])))
-
-        elif len(return_params)==0:
-            raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
-            
-        return return_params[0]
-        
-    def get_value(self,qualifier,section=None):
-        """
-        Retrieve the value of a parameter from the settings
-        If section is not provided and there are more than one object in 
-        settings containing a parameter with the same name, this will
-        return an error and ask you to provide a valid section
-        
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param section: setting section (gui, logger, etc)
-        @type objref: str
-        @return: value of the Parameter corresponding to the qualifier
-        @rtype: (depends on the parameter)
-        """
-        param = self.get_parameter(qualifier,section)
-        return param.get_value()
+    #~ def get_value(self,qualifier,section=None):
+        #~ """
+        #~ Retrieve the value of a parameter from the settings
+        #~ If section is not provided and there are more than one object in 
+        #~ settings containing a parameter with the same name, this will
+        #~ return an error and ask you to provide a valid section
+        #~ 
+        #~ @param qualifier: name or alias of the variable
+        #~ @type qualifier: str
+        #~ @param section: setting section (gui, logger, etc)
+        #~ @type objref: str
+        #~ @return: value of the Parameter corresponding to the qualifier
+        #~ @rtype: (depends on the parameter)
+        #~ """
+        #~ param = self.get_parameter(qualifier,section)
+        #~ return param.get_value()
                     
-    def set_value(self,qualifier,value,section=None):
-        """
-        Retrieve the value of a parameter from the settings
-        If section is not provided and there are more than one object in 
-        settings containing a parameter with the same name, this will
-        return an error and ask you to provide a valid section
-        
-        @param qualifier: name or alias of the variable
-        @type qualifier: str
-        @param value: the new value for the parameter
-        @type value: (depends on parameter)
-        @param section: setting section (gui, logger, etc)
-        @type objref: str
-        """
-        param = self.get_parameter(qualifier,section)
-        param.set_value(value)
+    #~ def set_value(self,qualifier,value,section=None):
+        #~ """
+        #~ Retrieve the value of a parameter from the settings
+        #~ If section is not provided and there are more than one object in 
+        #~ settings containing a parameter with the same name, this will
+        #~ return an error and ask you to provide a valid section
+        #~ 
+        #~ @param qualifier: name or alias of the variable
+        #~ @type qualifier: str
+        #~ @param value: the new value for the parameter
+        #~ @type value: (depends on parameter)
+        #~ @param section: setting section (gui, logger, etc)
+        #~ @type objref: str
+        #~ """
+        #~ param = self.get_parameter(qualifier,section)
+        #~ param.set_value(value)
         
     #}
         
@@ -190,7 +213,7 @@ class Settings(object):
         @param mpi: the mpi options to use for this server
         @type mpi: ParameterSet with context 'mpi'
         """
-        self.settings['servers'].append(Server(label,mpi,**kwargs))
+        self.sections['servers'].append(Server(label,mpi,**kwargs))
         
     def get_server(self,label=None):
         """
@@ -201,7 +224,7 @@ class Settings(object):
         @return: server
         @rtype: Server
         """
-        return self._get_from_list('servers',label)
+        return self._get_from_section('servers',label)
         
     def remove_server(self,label):
         """
@@ -210,7 +233,7 @@ class Settings(object):
         @param label: name of the server
         @type label: str
         """
-        return self._remove_from_list('servers',label)
+        return self._remove_from_section('servers',label)
         
     #}
     #{ Compute
@@ -226,23 +249,10 @@ class Settings(object):
             # Take defaults from backend
             compute = parameters.ParameterSet(context='compute')
             
-            label = kwargs.get('label', None)
-            
-            success = False
-            if label is not None: 
-                parser = load_configfile('compute', basedir='~/.phoebe/preferences')
-                if label in parser.sections():
-                    # Override to defaults from preferences
-                    success = load_configfile('compute', label,
-                                      parameter_sets=[compute],
-                                      basedir='~/.phoebe/preferences')
-                if not success:
-                    logger.info('No usersettings found for compute "{}"'.format(label))
-            
         for k,v in kwargs.items():
             compute.set_value(k,v)
             
-        self.settings['compute'].append(compute)
+        self.sections['compute'].append(compute)
 
     def get_compute(self,label=None):
         """
@@ -253,7 +263,7 @@ class Settings(object):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_list('compute',label)
+        return self._get_from_section('compute',label)
 
     def remove_compute(self,label):
         """
@@ -262,7 +272,7 @@ class Settings(object):
         @param label: name of compute ParameterSet
         @type label: str
         """
-        return self._remove_from_list('compute',label)
+        return self._remove_from_section('compute',label)
 
         
     #}
@@ -286,7 +296,7 @@ class Settings(object):
         for k,v in kwargs.items():
             fitting.set_value(k,v)
             
-        self.settings['fitting'].append(fitting)
+        self.sections['fitting'].append(fitting)
 
     def get_fitting(self,label=None):
         """
@@ -297,7 +307,7 @@ class Settings(object):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_list('fitting',label)
+        return self._get_from_section('fitting',label)
         
     def remove_fitting(self,label):
         """
@@ -306,148 +316,133 @@ class Settings(object):
         @param label: name of fitting ParameterSet
         @type label: str
         """
-        return self._remove_from_list('fitting',label)
+        return self._remove_from_section('fitting',label)
         
     #}
 
-    def save(self,filename=None):
-        """
-        save usersettings to a file
+    #~ def save_pickle(self,filename=None):
+        #~ """
+        #~ save usersettings to a file
+        #~ 
+        #~ @param filename: save to a given filename, or None for default (~/.phoebe/preferences)
+        #~ @type filename: str
+        #~ """
+        #~ 
+        #~ if filename is None:
+            #~ filename = os.path.expanduser('~/.phoebe/preferences')
+#~ 
+        #~ ff = open(filename,'w')
+        #~ pickle.dump(self,ff)
+        #~ ff.close()
         
-        @param filename: save to a given filename, or None for default (~/.phoebe/preferences)
-        @type filename: str
-        """
+    def save(self, basedir=None):
+        for section in self.sections.keys():
+            self.dump_cfg(section, basedir)
         
-        if filename is None:
-            filename = os.path.expanduser('~/.phoebe/preferences')
-
-        ff = open(filename,'w')
-        pickle.dump(self,ff)
-        ff.close()
+    def dump_cfg(self, section, basedir=None):
+        if basedir is None:
+            basedir = self.basedir
+        else:
+            basedir = os.path.expanduser(basedir)
+            
+        config = ConfigParser.ConfigParser()
         
-def load(filename=None):
-    """
-    load usersettings from a file
+        for label,ps in self._get_from_section(section).items():
+            # here label is the ConfigParser 'section'
+            if section == 'servers':
+                for subsection in ['server','mpi']:
+                    if ps.settings[subsection] is not None: #mpi might be None
+                        self._add_to_config(config,section,'{}@{}'.format(subsection,ps.settings['server'].get_value('label')),ps.settings[subsection])
+            else:
+                self._add_to_config(config,section,label,ps)
+                
+        with open(os.path.join(basedir,'{}.cfg'.format(section)), 'wb') as configfile:
+            config.write(configfile)
+            
+    def _add_to_config(self, config, section, label, ps):
+        # here label is the ConfigParser 'section'
+        config.add_section(label)
+        config.set(label,'context',ps.context)
+        for key,value in ps.items():
+            if not (section=='fitting' and key=='feedback'):
+                # don't want to store feedback info in usersettings
+                # and we can't anyways since its a dictionary and will fail to parse
+                config.set(label,key,value)        
     
-    @param filename: load from a given filename, or None for default (~/.phoebe/preferences)
-    @type filename: str
-    """
-    if filename is None:
-        filename = os.path.expanduser('~/.phoebe/preferences')
+    def load_cfg(self, section, basedir=None):
+        if basedir is None:
+            basedir = self.basedir
+        else:
+            basedir = os.path.expanduser(basedir)
 
-    if not os.path.isfile(filename):
-        return Settings()
-
-    ff = open(filename,'r')
-    settings = pickle.load(ff)
-    ff.close()
+        # Build the filename and check if it exists. 
+        # If not, exit nicely and return False
+        config_filename = os.path.join(basedir,'{}.cfg'.format(section))
+        if not os.path.isfile(config_filename):
+            return False
+            
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str # make sure the options are case sensitive
+            
+        with open(config_filename) as config_file:
+            config.readfp(config_file)
+        
+        for label in config.sections():
+            # ConfigParser 'section' is our label
+            items = config.items(label)
+            items_dict = {key:value for key,value in items}
+            
+            if section=='servers':
+                # context already covered by context, so its a bit ambiguous
+                label = label.split('@')[1]
+                #~ items_dict['label'] = label
+                context = items_dict['context']
+            
+            # now let's initialize the PS based on context and label
+            ps = parameters.ParameterSet(context=items_dict.pop('context'))
+            for key,value in items_dict.items():
+                # set remaining values in PS
+                ps.set_value(key, value)
+            
+            # and now add the ps to the section in usersettings
+            if section=='servers':
+                # then we need to retrieve and add to a server class or 
+                # create a new one
+                server = self.get_server(label)
+                if server is None:
+                    server = Server()
+                    server.settings[context] = ps
+                    self._add_to_section(section, server)
+                else:
+                    server.settings[context] = ps
+                
+            else:
+                self._add_to_section(section, ps)
+            
+        return True
+        
+#~ def load_pickle(filename=None):
+    #~ """
+    #~ load usersettings from a file
+    #~ 
+    #~ @param filename: load from a given filename, or None for default (~/.phoebe/preferences)
+    #~ @type filename: str
+    #~ """
+    #~ if filename is None:
+        #~ filename = os.path.expanduser('~/.phoebe/preferences')
+#~ 
+    #~ if not os.path.isfile(filename):
+        #~ return Settings()
+#~ 
+    #~ ff = open(filename,'r')
+    #~ settings = pickle.load(ff)
+    #~ ff.close()
+    #~ 
+    #~ # and apply necessary things (ie. logger)
+    #~ lps = settings.get_ps('logger')
+    #~ logger = get_basic_logger(style=lps.get_value('style'),clevel=lps.get_value('clevel'),
+        #~ flevel=lps.get_value('flevel'),filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
+        #~ filemode=lps.get_value('filemode'))
+    #~ 
+    #~ return settings
     
-    # and apply necessary things (ie. logger)
-    lps = settings.get_ps('logger')
-    logger = get_basic_logger(style=lps.get_value('style'),clevel=lps.get_value('clevel'),
-        flevel=lps.get_value('flevel'),filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
-        filemode=lps.get_value('filemode'))
-    
-    return settings
-
-
-def load_configfile(name, section=None, parameter_sets=None, basedir=None):
-    """
-    Load settings from a configuration file.
-    
-    ``name`` is the name of the configuration file (e.g. `servers` for
-    `servers.cfg`).
-    
-    If you don't give a section, you will get the configparser object back.
-    
-    If you give a section name, it will return a dictionary with the contents
-    of that section. Both the key and value will be strings.
-    
-    If you give a section and a list of parameterSets, then the contents will 
-    be smart-parsed to the parameterSets. If a key is not in any of the
-    parametersets, it will be ignored. If a key is in both, in will be stored
-    in both. If it is in only one of them, then of course it will be put in 
-    that one. In this case, nothing will be returned, but the parameterSets
-    will have changed!
-    
-    We will add something that does a smart parsing if you give parameter_sets:
-    we want 'true' and 'True' and '1' all to be evaluated to True. ConfigParser
-    can do that, it should only see if the parameterSet needs a boolean or float
-    or whatever.
-    """
-    if basedir is None:
-        basedir = os.path.abspath(os.path.dirname(__file__))
-    else:
-        basedir = os.path.expanduser(basedir)
-    
-    # Build the filename and check if it exists. If not, exit nicely and return
-    # False
-    config_filename = os.path.join(basedir,'{}.cfg'.format(name))
-    if not os.path.isfile(config_filename):
-        return False
-    
-    settings = ConfigParser.ConfigParser()
-    settings.optionxform = str # make sure the options are case sensitive
-    
-    with open(config_filename) as config_file:
-        settings.readfp(config_file)
-    
-    # If nothing else is given, we just return the parser object
-    if section is None:
-        return settings
-    
-    # If no parameterSets are given, a dictionary of the section is returned
-    if parameter_sets is None:
-        items = settings.items(section)
-        items_dict = {key:value for key,value in items}
-        return items_dict
-    
-    # Else, we have parameterSets!
-    for key, value in settings.items(section):
-        for ps in parameter_sets:
-            if key in ps:
-                ps[key] = value
-    
-    # In the case the preference file existed, we return True
-    return True
-
-
-def get_configfile_sections(name, basedir=None):
-    """
-    Return a list of all sections in a configuration file.
-    """
-    if basedir is None:
-        basedir = os.path.abspath(os.path.dirname(__file__))
-    else:
-        basedir = os.path.expanduser(basedir)
-    
-    # Build the filename and check if it exists. If not, exit nicely and return
-    # False
-    config_filename = os.path.join(basedir,'{}.cfg'.format(name))
-    if not os.path.isfile(config_filename):
-        return False
-    
-    settings = ConfigParser.ConfigParser()
-    settings.optionxform = str # make sure the options are case sensitive
-    
-    with open(config_filename) as config_file:
-        settings.readfp(config_file)
-    
-    return settings.sections()
-    
-    
-
-def get_user_logger(name='default_logger'):
-    """
-    Set up a logger with properties loaded from the user preferences.
-    """
-    settings = load_configfile('logging', section=name, basedir='~/.phoebe/preferences')
-    filename = settings['filename']
-    if filename.lower() == 'none':
-        filename = None
-    logger = utils.get_basic_logger(style=settings['style'],
-                                    clevel=settings['console_level'],
-                                    flevel=settings['file_level'],
-                                    filemode=settings['filemode'],
-                                    filename=filename)
-    return logger
