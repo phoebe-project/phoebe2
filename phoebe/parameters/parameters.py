@@ -26,7 +26,7 @@ loaded (the following two lines are equivalent and show the default behaviour):
 >>> ps = ParameterSet(frame='phoebe',context='star')
 
 The context of parameters is set by the keyword C{context}, which defaults to
-C{phoebe}. The different contexts represent different types of L{ParameterSet}s:
+C{phoebe}. The different contexts represent different types of L{ParameterSet}:
 parameters describing binary systems as a whole (C{orbt}, i.e., the period,
 eccentricity...) are different than the ones describing the a light curve
 (C{lcdep}, i.e. passband, limb darkening coefficients, atmosphere tables...).
@@ -64,7 +64,7 @@ To remove a parameter,simply do:
 
 >>> out = ps.pop('my_lc_curve')
 
-The L{ParameterSet}s can then be passed on to different codes. Different codes
+The L{ParameterSet} can then be passed on to different codes. Different codes
 usually mean different frames.
 
 Section 2.1.2 Constraints
@@ -72,7 +72,7 @@ Section 2.1.2 Constraints
 
 It is possible to put a constraints on L{Parameter}s, but only in the context of
 a L{ParameterSet}, since constraints are in general given with respect to the
-other L{Parameter}s. As an example, we construct an orbit L{ParameterSet} and
+other L{Parameter}. As an example, we construct an orbit L{ParameterSet} and
 add a new L{Parameter} called C{asini},
 
 >>> ps_constr = ParameterSet(context='orbit')
@@ -526,7 +526,7 @@ class Parameter(object):
         
         1. A function existing in the current name space
         2. A function's name (str) available in the global name space of the
-        C{meb} module.
+           C{meb} module.
         
     The function's call signature should be (value,*args), thus containing
     optional positional arguments which a user can add when calling the

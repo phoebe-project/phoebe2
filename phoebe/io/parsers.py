@@ -45,11 +45,11 @@ def legacy_to_phoebe(inputfile, create_body=False,
     @param inputfile: legacy phoebe parameter file
     @type inputfile: str
     @param mesh: if set to 'marching' and C{create_body=True}, a marching mesh
-    will be added to the Body. Else, a WD mesh will be added.
+     will be added to the Body. Else, a WD mesh will be added.
     @type mesh: str (one of C{wd} or C{marching})
     @param root: use this root directory to link to data files
     @type root: str or None. If root is ``__relative__``, the root directory
-    will be the directory of the inputfile
+     will be the directory of the inputfile
     """
     if root == '__relative__':
         root = os.path.dirname(os.path.abspath(inputfile))

@@ -53,8 +53,9 @@ def plot_lcsyn(system, *args, **kwargs):
         - ``period=None``: period of repetition. If not given, the last time point
           will be used
         - ``phased=False``: decide whether to phase the data according to
-         ``period`` or not.
-          
+          ``period`` or not.
+    
+    
     **Example usage:**
     
     >>> artists, syn, pblum, l3 = plot_lcsyn(system,'r-',lw=2)
@@ -326,18 +327,19 @@ def plot_rvsyn(system,*args,**kwargs):
     
         - ``ref=0``: the reference of the lc to plot
         - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
-        the observations
+          the observations
         - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-        want to repeat the phase curve a couple of times.
+          want to repeat the phase curve a couple of times.
         - ``period=None``: period of repetition. If not given, the last time point
-        will be used
+          will be used
+    
     
     **Example usage:**
     
     >>> artists, syn, pblum, l3 = plot_rvsyn(system,'r-',lw=2)
         
     Returns the matplotlib objects, the plotted data and the ``pblum`` and
-    ``l3`` values
+    ``l3`` values.
     """
     ref = kwargs.pop('ref',0)
     scale = kwargs.pop('scale','obs')
@@ -550,16 +552,17 @@ def plot_etvsyn(system,*args,**kwargs):
     
         - ``ref=0``: the reference of the lc to plot
         - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-        want to repeat the phase curve a couple of times.
+          want to repeat the phase curve a couple of times.
         - ``period=None``: period of repetition. If not given, the last time point
-        will be used
+          will be used
+    
     
     **Example usage:**
     
     >>> artists, syn = plot_etvsyn(system,'r-',lw=2)
         
     Returns the matplotlib objects, the plotted data and the ``pblum`` and
-    ``l3`` values
+    ``l3`` values.
     """
     ref = kwargs.pop('ref',0)
     scale = kwargs.pop('scale','obs')

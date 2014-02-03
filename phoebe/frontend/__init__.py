@@ -6,7 +6,7 @@ Section 1. Subpackages
 
 .. autosummary::
 
-    bundle_new
+    bundle
     gui
     usersettings
     figures

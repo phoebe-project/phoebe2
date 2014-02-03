@@ -635,7 +635,7 @@ def get_hierarchical_orbit(times,orbits,comps):
      context
     @type orbits: list of ParameterSets of length N
     @param comps: list of integers denoting which component (0 for primary,
-    1 for secondary) the object is for each orbit
+     1 for secondary) the object is for each orbit
     @type comps: list of integers
     @return: position vectors, velocity vectors
     @rtype: 3-tuple, 3-tuple
@@ -1955,7 +1955,7 @@ def get_hierarchical_orbit_phoebe(times, orbits, comps):
      context
     @type orbits: list of ParameterSets of length N
     @param comps: list of integers denoting which component (0 for primary,
-    1 for secondary) the object is for each orbit
+     1 for secondary) the object is for each orbit
     @type comps: list of integers
     @return: position vectors, velocity vectors
     @rtype: 3-tuple, 3-tuple
