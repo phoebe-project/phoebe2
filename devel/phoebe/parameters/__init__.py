@@ -99,7 +99,6 @@ Creating Parameters and ParameterSets:
 
     parameters.Parameter
     parameters.ParameterSet
-    parameters.Distribution
     datasets.LCDataSet
     datasets.RVDataSet
     datasets.SPDataSet

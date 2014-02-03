@@ -203,8 +203,7 @@ class Bundle(object):
         - ...
         - ...
         
-    Outline of methods
-    =====================
+    **Outline of methods**
     
     **Input/output**
     
@@ -611,11 +610,11 @@ class Bundle(object):
             raise ValueError("ERROR: returned more than 1 server")
         return system[0]
                        
-    def list(self,summary=None,*args):
+    def list(self, summary=None, *args):
         """
         List with indices all the ParameterSets that are available.
         
-        Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.Body.list>`.
+        Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.universe.Body.list>`.
         """
         return self.get_system().list(summary,*args)
         
@@ -1411,12 +1410,15 @@ class Bundle(object):
         
         # Modified functionality from datasets.parse_header
         
-        # What DataSet subclass do we need? We can derive it from the category    
+        # What DataSet subclass do we need? We can derive it from the category.
+        # This can be LCDataSet, RVDataSet etc.. If the category is not
+        # recognised, we'll add the generic "DataSet".
         if not category in config.dataset_class:
             dataset_class = DataSet
         else:
             dataset_class = getattr(datasets, config.dataset_class[category])
-
+    
+        # Suppose the user did not specifiy the object to attach anything to
         if objref is None:
             # then attempt to make smart prediction
             if category == 'lc':
@@ -2584,21 +2586,21 @@ class Bundle(object):
         
         Let's have a look a the following system::
         
-        >>> mybundle = Bundle('detached_1.phoebe')
-        >>> print(mybundle)
-        2 compute options
-        7 fitting options
-        Detached_1 (BodyBag)
-        lcobs: lightcurve_0
-        |
-        +----------> primary (BinaryRocheStar)
-        |            lcdep: lightcurve_0
-        |            rvdep: primaryrv_0
-        |
-        +----------> secondary (BinaryRocheStar)
-        |            lcdep: lightcurve_0
-        |            rvdep: secondaryrv_0
-        
+            >>> mybundle = Bundle('detached_1.phoebe')
+            >>> print(mybundle)
+            2 compute options
+            7 fitting options
+            Detached_1 (BodyBag)
+            lcobs: lightcurve_0
+            |
+            +----------> primary (BinaryRocheStar)
+            |            lcdep: lightcurve_0
+            |            rvdep: primaryrv_0
+            |
+            +----------> secondary (BinaryRocheStar)
+            |            lcdep: lightcurve_0
+            |            rvdep: secondaryrv_0
+            
         If a parameter is unique, there is no ambiguity, but you still have the
         option to specify to which parameterSet it belongs to::
         

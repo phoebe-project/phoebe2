@@ -22,22 +22,22 @@ def write_array(data, filename, **kwargs):
     If you give a record array, you can simply set C{header} to C{True} to write
     the header, instead of specifying a list of strings.
     
-    @keyword header: optional header for column names
+    @param header: optional header for column names
     @type header: list of str (or boolean for record arrays)
-    @keyword comments: comment lines
+    @param comments: comment lines
     @type comments: list of str
-    @keyword commentchar: comment character
+    @param commentchar: comment character
     @type commentchar: str
-    @keyword sep: separator for the columns and header names
+    @param sep: separator for the columns and header names
     @type sep: str
-    @keyword axis0: string denoting the orientation of the matrix. If you gave
-    a list of columns, set C{axis0='cols'}, otherwise C{axis='rows'} (default).
+    @param axis0: string denoting the orientation of the matrix. If you gave
+     a list of columns, set C{axis0='cols'}, otherwise C{axis='rows'} (default).
     @type axis0: str, one of C{cols}, C{rows}.
-    @keyword mode: file mode (a for appending, w for (over)writing...)
+    @param mode: file mode (a for appending, w for (over)writing...)
     @type mode: char (one of 'a','w'...)
-    @keyword auto_width: automatically determine the width of the columns
+    @param auto_width: automatically determine the width of the columns
     @type auto_width: bool
-    @keyword formats: formats to use to write each column
+    @param formats: formats to use to write each column
     @type formats: list of string formatters
     """
     header = kwargs.get('header',None)
@@ -122,13 +122,13 @@ def read2list(filename,**kwargs):
     
     @param filename: name of file with the data
     @type filename: string
-    @keyword comments: character(s) denoting comment rules
+    @param comments: character(s) denoting comment rules
     @type comments: list of str
-    @keyword delimiter: character seperating entries in a row (default: whitespace)
+    @param delimiter: character seperating entries in a row (default: whitespace)
     @type delimiter: str or None
-    @keyword skipempty: skip empty lines
+    @param skipempty: skip empty lines
     @type skipempty: bool
-    @keyword skiprows: skip nr of lines (including comment and empty lines)
+    @param skiprows: skip nr of lines (including comment and empty lines)
     @type skiprows: integer
     @return: list of lists (data rows)
              list of lists (comments lines without commentchar),
@@ -194,9 +194,9 @@ def read2recarray(filename,**kwargs):
     
     @param filename: name of file with the data
     @type filename: string
-    @keyword dtype: dtypes of record array 
+    @param dtype: dtypes of record array 
     @type dtype: list of tuples
-    @keyword return_comments: flag to return comments (default: False)
+    @param return_comments: flag to return comments (default: False)
     @type return_comments: bool
     @return: data array (, list of comments)
     @rtype: ndarray (, list)

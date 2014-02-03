@@ -396,14 +396,14 @@ def merge_results(list_of_bodies):
     
     It is of vital importance that each system in the list has the exact
     same hierarchy of results, as they will be iterated over simultaneously.
-    It is not important how many or what the `data' and `pbdep' values are.
+    It is not important how many or what the ``data`` and ``pbdep`` values are.
     
     The body that is returned is actually the first body in the list.
     
     Could be useful for MPI stuff.
     
     @param list_of_bodies: a list of bodies for which the results need to be
-    merged
+     merged
     @type list_of_bodies: list of Bodies
     @return: the first body but with the results of all the others added
     @rtype: Body
@@ -2206,7 +2206,7 @@ class Body(object):
         C{eclipse_detection=False}.
         
         @param eclipse_detection: name of the algorithm to use to detect
-        the horizon or eclipses
+         the horizon or eclipses
         @type eclipse_detection: str
         """
         if eclipse_detection is None:
@@ -2726,7 +2726,41 @@ class Body(object):
                 |            rvobs: rv2
         
             - :envvar:`summary='physical'`: lists only the physical parameters,
-               but not the datasets
+               but not the datasets::
+                V380Cyg (BodyBag)
+                |
+                +----------> B1V_primary (BinaryRocheStar)
+                |            component: atm=blackbody, gravblaw=zeipel, alb=1.000000,
+                |                   redist=0.000000, redisth=0.000000, syncpar=1.541860,
+                |                   gravb=1.000000, pot=4.700000, teff=21700 K,
+                |                   morphology=unconstrained, irradiator=True, abun=0.000000,
+                |                   label=B1V_primary, ld_func=linear, ld_coeffs=[0.5]
+                |            orbit: dpdt=0.000000 s/yr, dperdt=0.000000 deg/yr, ecc=0.226100,
+                |                   t0=2454000.000000 JD, t0type=periastron passage,
+                |                   incl=78.783591 deg, label=V380Cyg, period=12.425719 d,
+                |                   per0=141.480000 deg, phshift=0.000000, q=0.609661,
+                |                   sma=60.252837 Rsol, long_an=0.000000 deg,
+                |                   c1label=B1V_primary, c2label=B1V_secondary
+                |            mesh: delta=0.100000, maxpoints=20000, alg=c
+                |            reddening: law=fitzpatrick2004, extinction=0.000000,
+                |                   passband=JOHNSON.V, Rv=3.100000
+                |
+                +----------> B1V_secondary (BinaryRocheStar)
+                |            component: atm=blackbody, gravblaw=zeipel, alb=1.000000,
+                |                   redist=0.000000, redisth=0.000000, syncpar=2.501978,
+                |                   gravb=1.000000, pot=10.602351, teff=22400 K,
+                |                   morphology=unconstrained, irradiator=True, abun=0.000000,
+                |                   label=B1V_secondary, ld_func=linear, ld_coeffs=[0.5]
+                |            orbit: dpdt=0.000000 s/yr, dperdt=0.000000 deg/yr, ecc=0.226100,
+                |                   t0=2454000.000000 JD, t0type=periastron passage,
+                |                   incl=78.783591 deg, label=V380Cyg, period=12.425719 d,
+                |                   per0=141.480000 deg, phshift=0.000000, q=0.609661,
+                |                   sma=60.252837 Rsol, long_an=0.000000 deg,
+                |                   c1label=B1V_primary, c2label=B1V_secondary
+                |            mesh: delta=0.100000, maxpoints=20000, alg=c
+                |            reddening: law=fitzpatrick2004, extinction=0.000000,
+                |                   passband=JOHNSON.V, Rv=3.100000                  
+               
             - :envvar:`summary='full'`: lists all parameters and datasets
         
         @param emphasize: bring structure in the text via boldfacing
@@ -3194,11 +3228,14 @@ class Body(object):
         
         Ein bisschen mehr information about the defaults:
             - for rv: colormap is reversed RedBlue (Red moving away, Blue coming
-            towards). The default lower and upper limits are (-200/+200 km/s).
-            The units are km/s, i.e. the values from the mesh are converted from
-            Rsol/d to km/s.
+              towards). The default lower and upper limits are (-200/+200 km/s).
+              The units are km/s, i.e. the values from the mesh are converted from
+              Rsol/d to km/s.
+             
+        A particularly interesting extra keyword argument is :envvar:`representation='wireframe'`,
+        which allows you to see through the Body.
             
-        
+        For more information on kwargs, see the mayavi documentation.
         """        
         if not enable_mayavi:
             print("I told you before: Mayavi is not installed. Call to plot3D is ignored.")
@@ -6726,7 +6763,7 @@ class BinaryRocheStar(PhysicalBody):
 
 
     def temperature(self,time=None):
-        """
+        r"""
         Calculate local temperature.
         
         If the law of [Espinosa2012]_ is used, some approximations are made:
@@ -6741,6 +6778,7 @@ class BinaryRocheStar(PhysicalBody):
               configurations, we approximate the Lagrangian point as 3/2 of the
               polar radius (inspired by break up radius in fast rotating stars).
               This is subject to improvement!
+              
         """
         gravblaw = self.params['component'].get('gravblaw', 'zeipel')
         
@@ -7005,7 +7043,7 @@ class BinaryRocheStar(PhysicalBody):
         @param time: time to be set (d)
         @type time: float
         @param ref: pbdeps to consider for computation of intensities. If
-        set to ``all``, all pbdeps are considered.
+         set to ``all``, all pbdeps are considered.
         @type ref: string (ref) or list of strings
         """
         logger.info('===== SET TIME TO %.3f ====='%(time))
@@ -7505,7 +7543,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         @param time: time to be set (d)
         @type time: float
         @param ref: pbdeps to consider for computation of intensities. If
-        set to ``all``, all pbdeps are considered.
+         set to ``all``, all pbdeps are considered.
         @type ref: string (ref) or list of strings
         """
         logger.info('===== SET TIME TO %.3f ====='%(time))

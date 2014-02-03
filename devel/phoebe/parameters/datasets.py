@@ -499,7 +499,7 @@ class SPDataSet(DataSet):
     
     There is not a one-to-one correspondence to load and unload, since we
     assume the wavelengths to be the same for each spectrum. What to do with
-    this? If we allow them to be different, it becomes a pain in the *** to
+    this? If we allow them to be different, it becomes a pain in the to
     save them to a file (unless we start using HDF5). We can also load the
     same wavelength array for each saved spectrum (I think we'd want to allow
     the user to define different wavelength ranges for each computation,

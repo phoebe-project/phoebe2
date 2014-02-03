@@ -195,10 +195,11 @@ class GenericBody(object):
     information if no body can be created:
     
         - the list of arguments could be not unique. Then, the list of ambiguous
-        bodies will be returned, and you are required to create them explicitly
+          bodies will be returned, and you are required to create them explicitly
         - the list of arguments is not enough to create any Body: the closest
-        match will be returned, stating which arguments were given, which are
-        missing and which are given but are not allowed.
+          match will be returned, stating which arguments were given, which are
+          missing and which are given but are not allowed.
+    
     """
     def __new__(self, *args, **kwargs):
         #-- check which contexts are given
