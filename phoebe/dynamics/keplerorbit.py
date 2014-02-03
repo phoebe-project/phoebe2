@@ -632,7 +632,7 @@ def get_hierarchical_orbit(times,orbits,comps):
     @param times: time array
     @type times: array
     @param orbits: list of ParameterSets in the C{phoebe} frame and C{orbit}
-    context
+     context
     @type orbits: list of ParameterSets of length N
     @param comps: list of integers denoting which component (0 for primary,
     1 for secondary) the object is for each orbit
@@ -734,7 +734,7 @@ def get_hierarchical_orbits(times,system,barycentric=False):
     not a string, but a ParameterSet itself (see L{walk_hierarchical}).
     
     @return: list of position and velocity vectors for each object in the
-    system. If B{barycentric=True}, also the proper times are returned
+     system. If B{barycentric=True}, also the proper times are returned
     @rtype: list of tuples
     """    
     output = []
@@ -1021,7 +1021,7 @@ def true_anomaly(M,ecc,itermax=8):
     @type M: float
     @parameter ecc: eccentricity
     @type ecc: float
-    @keyword itermax: maximum number of iterations
+    @parameter itermax: maximum number of iterations
     @type itermax: integer
     @return: eccentric anomaly (E), true anomaly (theta)
     @rtype: float,float
@@ -1629,7 +1629,7 @@ def parse_ps(func,ps,*args,**kwargs):
     values are taken from the parameterSet. If those do not exist, the default
     value from C{func} is used.
     
-    Extra keyword arguments (**kwargs in C{func}) can be passed explicitly.
+    Extra keyword arguments (kwargs in C{func}) can be passed explicitly.
     Their values are never overriden since their names cannot easily be
     derived.
     
@@ -1952,7 +1952,7 @@ def get_hierarchical_orbit_phoebe(times, orbits, comps):
     @param times: time array
     @type times: array
     @param orbits: list of ParameterSets in the C{phoebe} frame and C{orbit}
-    context
+     context
     @type orbits: list of ParameterSets of length N
     @param comps: list of integers denoting which component (0 for primary,
     1 for secondary) the object is for each orbit

@@ -71,7 +71,7 @@ if __name__=="__main__":
     TAG_DATA = 42
     TAG_RES = 43
     
-    max_bytesize = 500000
+    max_bytesize = 800000
 
     myrank = comm.Get_rank()
     nprocs = comm.Get_size()

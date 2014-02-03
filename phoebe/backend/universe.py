@@ -7286,7 +7286,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         #-- compute polar radius by projection on the potenial: we need to
         #   make sure we are projecting in the direction of the pole!
         coord = np.array([np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)])*1e-5
-        r_pole__ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
+        r_pole__ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r        
         r_pole_= np.linalg.norm(r_pole__)
         r_pole = r_pole_*a
         g_pole = roche.misaligned_binary_surface_gravity(r_pole__[0]*a,r_pole__[1]*a,r_pole__[2]*a,

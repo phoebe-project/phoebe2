@@ -210,7 +210,7 @@ class DeprecatedDistribution(object):
             elif self.distribution=='sample' or self.distribution=='histogram':
                 return self.distr_pars['bins'],self.distr_pars['prob']
             
-    def convert(self,from_,to_,*args):
+    def convert(self,from_unit,to_unit,*args):
         """
         Convert a distribution to different units.
         
@@ -222,7 +222,7 @@ class DeprecatedDistribution(object):
         ``if==distr_pars['discrete']``) thingy. But I don't feel like it
         today.
         """
-        logger.info('Converting {} distr. in {} to histogram distr. in {}'.format(self.distribution,from_,to_))
+        logger.info('Converting {} distr. in {} to histogram distr. in {}'.format(self.distribution,from_unit,to_unit))
         old_x,old_y = self.pdf()
         old_dx = np.diff(old_x)
         x_shifted = np.hstack([old_x[:-1] - np.diff(old_x)/2.,old_x[-2:] + np.diff(old_x)[-1]/2.])
@@ -239,8 +239,8 @@ class DeprecatedDistribution(object):
             new_x = transform_to_unbounded(old_x,*args)
             new_x_shifted = transform_to_unbounded(x_shifted,*args)
         else:
-            new_x = conversions.convert(from_,to_,old_x)
-            new_x_shifted = conversions.convert(from_,to_,x_shifted)
+            new_x = conversions.convert(from_unit,to_unit,old_x)
+            new_x_shifted = conversions.convert(from_unit,to_unit,x_shifted)
         new_dx = np.diff(new_x_shifted)
         new_y = old_dx/new_dx*old_y
         norm = np.trapz(new_y,x=new_x)
@@ -502,7 +502,7 @@ class Normal(DeprecatedDistribution):
     
     def get_grid(self, sampling=5):
         """
-        Draw a (set of_) likely value(s) from the normal distribution.
+        Draw a (set of) likely value(s) from the normal distribution.
         
         We grid uniformly in 
         """
@@ -634,7 +634,7 @@ class Uniform(DeprecatedDistribution):
     
     def get_grid(self, sampling=5):
         """
-        Draw a (set of_) likely value(s) from the normal distribution.
+        Draw a (set of) likely value(s) from the normal distribution.
         
         We grid uniformly in 
         """

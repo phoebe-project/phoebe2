@@ -897,7 +897,7 @@ class Parameter(object):
         Only pyMC implemented for the moment.
         
         @param fitter: retrieve the prior in a form suitable to
-        pass to a certain fitter
+         pass to a certain fitter
         @type fitter: str, one of ('pymc') or None
         @return: prior information
         @rtype: prior
@@ -1146,7 +1146,10 @@ class Parameter(object):
     
     def set_adjust(self,adjust):
         """
-        Lock (C{adjust}=False) or release (C{adjust}=True) a parameter value.
+        Lock or release a parameter value.
+        
+        Locking a parameters means setting ``adjust=False``, releasing it means
+        setting ``adjust=True``.
         
         @parameter adjust: flag to set/release/change adjust
         @type adjust: boolean
@@ -2389,7 +2392,7 @@ class ParameterSet(object):
         Set all units to comply to a certain convention (i.e. SI or CGS...)
         
         @parameter convention: name of the convention, interpretatble by
-        L{conversions.convert}
+         L{conversions.convert}
         @type convention: str
         """
         for qual in self:
@@ -2907,7 +2910,7 @@ def load_ascii(filename):
     Load and assign saved ParameterSets in ascii format.
     
     @param filename: name of the file containing one or more ParameterSets in
-    ASCII format
+     ASCII format
     @type filename: str
     @return: list of ParameterSets
     @rtype: list of ParameterSets

@@ -1305,11 +1305,42 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     passband. For reference, there is also an extension ``_REF_PASSBAND`` for
     each passband with the used response curves.
     
+    Each extension contains a  data table with some information on the fit
+    and the fit statistics, as well as the limb darkening coefficients and the
+    local normal emergent intensities (i.e. the intensities at the center of the
+    disk which scale the fluxes in an absolute way).
+    
     There is a lot of flexibility in creating grids with limb darkening grids,
     to make sure that the values you are interested in can be interpolated if
     necessary, or otherwise be fixed. Therefore, creating these kind of grids
     can be quite complicated. Hopefully, the following examples help in
     clarifying the methods.
+    
+    If you have no specific intensity files available, the only thing you can
+    do is use the :py:func:`black body <phoebe.atmospheres.sed.blackbody>`
+    approximation. Then you have no choice in interpolation parameters (i.e.
+    the only free parameter is effective temperature), nor limb darkening law
+    (uniform), but you can add reddening or beaming:
+    
+    **Black body examples**
+    
+    Case 0: plain black body
+    
+        >>> compute_grid_ld_coeffs('blackbody')
+        
+    Case 1: black body with beaming
+    
+        >>> vgamma = np.linspace(-500, 500, 21) # km/s
+        >>> compute_grid_ld_coeffs('blackbody', vgamma=vgamma)
+    
+    Case 2: black body with reddening
+    
+        >>> ebv = np.linspace(0, 0.5, 5))
+        >>> compute_grid_ld_coeffs('blackbody',
+        ...       red_pars_iter=dict(ebv=ebv),
+        ...       red_pars_fixed=dict(law='fitzpatrick2004', Rv=3.1))
+    
+    When using real atmosphere files, you have a few more options:
     
     Prerequisite: you have a list of atmosphere files with at least one
     element. These tables contain specific intensities spanning a certain grid

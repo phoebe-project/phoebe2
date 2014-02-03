@@ -57,7 +57,7 @@ def test_famias():
     # Define pulsational parameters
     puls = phoebe.PS('puls', freq=freq+1./star.request_value('rotperiod','d'),
                     l=3, m=-1, ampl=0.0045, phase=0.45, k=0.0015,
-                    amplteff=0.0, phaseteff=0.45, amplgrav=0, scheme='coriolis')
+                    amplteff=0.0, phaseteff=0., amplgrav=0, scheme='coriolis')
 
     # Create the Star body
     mystar = phoebe.Star(star, mesh=mesh, puls=[puls], pbdep=[spdep], obs=[spobs])
@@ -73,5 +73,17 @@ def test_famias():
     y1 = obs['flux'] / obs['continuum']
     e_y1 = obs['sigma'] / obs['continuum']
     y2 = syn['flux'] / syn['continuum']
+    
+    if __name__!="__main__":
+        assert((np.abs(y1-y2)/e_y1).max()<=0.9)
+    else:
+        for i in range(len(y1)):
+            plt.plot(x, y1[i]+i/20., 'k-')
+            plt.plot(x, y2[i]+i/20., 'r-')
+        print (np.abs(y1-y2)/e_y1).max()<=0.9
+        print (np.abs(y1-y2)/e_y1).max()
 
-    assert((np.abs(y1-y2)/e_y1).max()<=0.75)
+
+if __name__=="__main__":
+    test_famias()
+    plt.show()
