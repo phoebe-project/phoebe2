@@ -7,52 +7,56 @@ from phoebe.utils import utils
 from phoebe.parameters import parameters
 
 class Settings(object):
+    """
+    Class representing settings for phoebe on a particular machine.
+    
+    These settings are loaded each time a bundle is loaded or initialized.
+    Anything stored here is machine/user dependent so that you can load
+    a bundle sent to you by someone else and still have access to your
+    preferences on your machine.
+    
+    Included in these settings are:
+    
+        1. servers::
+            parameters that define options for running computations, either
+            locally or on a remote server, and with or without mpi
+            
+        2. compute::
+            default options for different compute options.  These compute
+            options will be available from any bundle you load and can be
+            overridden at the bundle level.
+            
+        3. fitting::
+            default options for different fitting options.  These fitting
+            options will be available from any bundle you load and can be
+            overridden at the bundle level.
+            
+        4. logger::
+            options for the error logger.  This logger will be automatically
+            setup whenever the settings are loaded.  You can override this
+            by initializing your own logger afterwards, or by changing the
+            settings and calling settings.apply_logger().
+            
+        4. gui::
+            options for the default layout of the gui.
+            
+    Each of these 'sections' of the usersettings will be stored in its
+    own .cfg ascii file, which can either be edited manually or through
+    the interface in this class.  To write all the settings in the class
+    to these files, call settings.save()
+    """
     def __init__(self, basedir='~/.phoebe'):
+        """
+        Initialize settings and attempt to load from config files
+        
+        @param basedir: base directory where config files are located
+        @type basedir: str
+        """
         self.basedir = os.path.expanduser(basedir)
         
-        # here we'll initialize all the sections and their defaults
-        self.sections = OrderedDict()
-        
-        # for each of the sections we will try to load from the cfg file
-        # if this fails or the file does not exist, then we will apply
-        # basic defaults for that section
-        # This means that any new-user defaults need to be set in this
-        # function.
-        # If you want to roll back any of your preferences to defaults,
-        # simply delete the .cfg file and reload usersettings
-        
-        self.sections['servers'] = []
-        if not self.load_cfg('servers', basedir):
-            pass
-        
-        self.sections['compute'] = []
-        if not self.load_cfg('compute', basedir):
-            self.add_compute(label='Preview')
-            self.add_compute(label='Compute')
-            
-        self.sections['fitting'] = []
-        if not self.load_cfg('fitting', basedir):
-            self.add_fitting(context='fitting:grid',label='grid')
-            self.add_fitting(context='fitting:minuit',label='minuit')
-            self.add_fitting(context='fitting:lmfit',label='lmfit')
-            self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
-            self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
-            self.add_fitting(context='fitting:emcee',label='emcee')
-            self.add_fitting(context='fitting:pymc',label='pymc')
-        
-        self.sections['gui'] = [] # currently assumes only 1 entry
-        if not self.load_cfg('gui', basedir):
-            self._add_to_section('gui', parameters.ParameterSet(context='gui'))
-            
-        self.sections['logger'] = [] # currently assumes only 1 entry
-        if not self.load_cfg('logger', basedir):
-            self._add_to_section('logger', parameters.ParameterSet(context='logger'))
-            
-        # now apply the logger settings
-        # if logger settings are changed, either reload the usersettings
-        # or call apply_logger()
-        self.apply_logger()
-        
+        # now let's load the settings from the .cfg files
+        self.load()
+
         
     def __str__(self):
         """
@@ -81,6 +85,13 @@ class Settings(object):
     def _get_from_section(self,section,label=None):
         """
         retrieve a parameterset from a list by label
+        
+        @param section: name of the section ('servers','compute',etc)
+        @type section: str
+        @param label: label of the parameterset in that section
+        @type label: str or None
+        @return: ps or list of parametersets (if label==None)
+        @rtype: ParameterSet or list
         """
         items = OrderedDict([(ps.get_value('label') if 'label' in ps.keys() else section, ps) for ps in self.sections[section]])
         
@@ -92,11 +103,24 @@ class Settings(object):
             return None
             
     def _add_to_section(self,section,ps):
+        """
+        add a new parameterset to a section
+        
+        @param section: name of the section ('servers','compute',etc)
+        @type section: str
+        @param ps: the ParameterSet
+        @type ps: ParameterSet
+        """
         self.sections[section].append(ps)
             
     def _remove_from_section(self,section,label):
         """
         remove a parameterset from a list by label
+        
+        @param section: name of the section ('servers','compute',etc)
+        @type section: str
+        @param label: label of the parameterset in that section
+        @type label: str or None
         """
         if label is None:    return None
         return self.sections[section].pop(self.sections[section].index(self._get_from_section(section,label))) 
@@ -104,9 +128,21 @@ class Settings(object):
     #{ General Parameters
     
     def get_logger(self):
+        """
+        retrieve the logger options ParameterSet
+        
+        @return: logger ParameterSet
+        @rtype: ParameterSet
+        """
         return self._get_from_section('logger').values()[0]
         
     def apply_logger(self):
+        """
+        initialize the logger defined by the logger settings.
+        
+        If logger settings were changed since the usersettings were loaded,
+        this must be called to apply them.
+        """
         lps = self.get_logger()
         logger = utils.get_basic_logger(style=lps.get_value('style'),
                                 clevel=lps.get_value('clevel'),
@@ -115,6 +151,12 @@ class Settings(object):
                                 filemode=lps.get_value('filemode'))
         
     def get_gui(self):
+        """
+        retrive the gui options ParameterSet
+        
+        @return: gui ParameterSet
+        @rtype: ParameterSet
+        """
         return self._get_from_section('gui').values()[0]
         
     #~ def get_ps(self,section=None):
@@ -319,27 +361,30 @@ class Settings(object):
         return self._remove_from_section('fitting',label)
         
     #}
+    #{ Loading and saving
 
-    #~ def save_pickle(self,filename=None):
-        #~ """
-        #~ save usersettings to a file
-        #~ 
-        #~ @param filename: save to a given filename, or None for default (~/.phoebe/preferences)
-        #~ @type filename: str
-        #~ """
-        #~ 
-        #~ if filename is None:
-            #~ filename = os.path.expanduser('~/.phoebe/preferences')
-#~ 
-        #~ ff = open(filename,'w')
-        #~ pickle.dump(self,ff)
-        #~ ff.close()
         
     def save(self, basedir=None):
+        """
+        save all settings in the class to .cfg files in basedir
+        
+        @param basedir: base directory, or None to save to initialized basedir
+        @type basedir: str or None
+        """
         for section in self.sections.keys():
             self.dump_cfg(section, basedir)
         
     def dump_cfg(self, section, basedir=None):
+        """
+        save the settings of a single section to its .cfg files in basedir
+        
+        to save all sections, use save()
+        
+        @param section: name of the section ('servers','compute',etc)
+        @type section: str
+        @param basedir: base directory, or None to save to initialized basedir
+        @type basedir: str or None
+        """
         if basedir is None:
             basedir = self.basedir
         else:
@@ -360,6 +405,9 @@ class Settings(object):
             config.write(configfile)
             
     def _add_to_config(self, config, section, label, ps):
+        """
+        add a new 'section' (label) to the ConfigParser class
+        """
         # here label is the ConfigParser 'section'
         config.add_section(label)
         config.set(label,'context',ps.context)
@@ -367,9 +415,79 @@ class Settings(object):
             if not (section=='fitting' and key=='feedback'):
                 # don't want to store feedback info in usersettings
                 # and we can't anyways since its a dictionary and will fail to parse
-                config.set(label,key,value)        
+                config.set(label,key,value)
+                
+    def load(self, basedir=None):
+        """
+        load all settings in the class from .cfg files in basedir.
+        
+        Initializing the settings class automatically calls this, there 
+        is no need to manually call load() unless manual changes have been
+        made to the .cfg files.
+        
+        @param basedir: base directory, or None to save to initialized basedir
+        @type basedir: str or None
+        """
+        if basedir is None:
+            basedir = self.basedir
+        else:
+            basedir = os.path.expanduser(basedir)
+            
+        # here we'll initialize all the sections and their defaults
+        self.sections = OrderedDict()
+
+        # for each of the sections we will try to load from the cfg file
+        # if this fails or the file does not exist, then we will apply
+        # basic defaults for that section
+        # This means that any new-user defaults need to be set in this
+        # function.
+        # If you want to roll back any of your preferences to defaults,
+        # simply delete the .cfg file and reload usersettings
+        
+        self.sections['servers'] = []
+        if not self.load_cfg('servers', basedir):
+            pass
+        
+        self.sections['compute'] = []
+        if not self.load_cfg('compute', basedir):
+            self.add_compute(label='Preview',refl=False,heating=False,subdiv_num=1)
+            self.add_compute(label='Compute',ltt=True)
+            
+        self.sections['fitting'] = []
+        if not self.load_cfg('fitting', basedir):
+            self.add_fitting(context='fitting:grid',label='grid')
+            self.add_fitting(context='fitting:minuit',label='minuit')
+            self.add_fitting(context='fitting:lmfit',label='lmfit')
+            self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
+            self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
+            self.add_fitting(context='fitting:emcee',label='emcee')
+            self.add_fitting(context='fitting:pymc',label='pymc')
+        
+        self.sections['gui'] = [] # currently assumes only 1 entry
+        if not self.load_cfg('gui', basedir):
+            self._add_to_section('gui', parameters.ParameterSet(context='gui'))
+            
+        self.sections['logger'] = [] # currently assumes only 1 entry
+        if not self.load_cfg('logger', basedir):
+            self._add_to_section('logger', parameters.ParameterSet(context='logger'))
+            
+        # now apply the logger settings
+        # if logger settings are changed, either reload the usersettings
+        # or call apply_logger()
+        self.apply_logger()
     
     def load_cfg(self, section, basedir=None):
+        """
+        load the settings of a single section to its .cfg files in basedir
+        
+        to load the settings of all sections, simply initialize a new settings class
+        or call load()
+        
+        @param section: name of the section ('servers','compute',etc)
+        @type section: str
+        @param basedir: base directory, or None to save to initialized basedir
+        @type basedir: str or None
+        """
         if basedir is None:
             basedir = self.basedir
         else:
@@ -421,28 +539,4 @@ class Settings(object):
             
         return True
         
-#~ def load_pickle(filename=None):
-    #~ """
-    #~ load usersettings from a file
-    #~ 
-    #~ @param filename: load from a given filename, or None for default (~/.phoebe/preferences)
-    #~ @type filename: str
-    #~ """
-    #~ if filename is None:
-        #~ filename = os.path.expanduser('~/.phoebe/preferences')
-#~ 
-    #~ if not os.path.isfile(filename):
-        #~ return Settings()
-#~ 
-    #~ ff = open(filename,'r')
-    #~ settings = pickle.load(ff)
-    #~ ff.close()
-    #~ 
-    #~ # and apply necessary things (ie. logger)
-    #~ lps = settings.get_ps('logger')
-    #~ logger = get_basic_logger(style=lps.get_value('style'),clevel=lps.get_value('clevel'),
-        #~ flevel=lps.get_value('flevel'),filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
-        #~ filemode=lps.get_value('filemode'))
-    #~ 
-    #~ return settings
-    
+    #}
