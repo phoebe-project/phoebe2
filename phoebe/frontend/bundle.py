@@ -1507,11 +1507,15 @@ class Bundle(object):
                     # dataref can be integer
                     if isinstance(dataref, int):
                         if len(body.params['syn'][obstype].values())>dataref:
-                            dss[this_objref] = body.params['syn'][obstype].values()[dataref]
+                            ds = body.params['syn'][obstype].values()[dataref]
+                        else:
+                            ds = None
                     # but dataref can be string
                     elif dataref in body.params['syn'][obstype]:
-                        dss[this_objref] = body.params['syn'][obstype][dataref]
+                        ds = body.params['syn'][obstype][dataref]
                     # else nothing happens and we keep searching
+                    if ds is not None:
+                        dss['{}@{}@{}'.format(ds['ref'],obstype,this_objref)] = ds
                     
         return self._return_from_dict(dss,return_type)
                     
@@ -1540,7 +1544,8 @@ class Bundle(object):
                 for obstype in body.params['obs']:
                     for this_dataref in body.params['obs'][obstype]:
                         if dataref is None or dataref==this_dataref:
-                            dss[this_objref] = body.params['obs'][obstype][this_dataref]
+                            ds = body.params['obs'][obstype][this_dataref]
+                            dss['{}@{}@{}'.format(this_dataref,obstype,this_objref)] = ds
                             
         return self._return_from_dict(dss,return_type)
         
