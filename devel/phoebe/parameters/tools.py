@@ -814,14 +814,14 @@ def add_esinw_ecosw(orbit, esinw=None, ecosw=None):
     
 
 
-def add_conserve(orbit,conserve='volume',**kwargs):
+def add_conserve(orbit, conserve='volume', **kwargs):
     """
     Add a parameter to conserve volume or equipotential value along an eccentric orbit.
     
     @param orbit: orbital parameterSet
     @type orbit: parameterSet of context orbit
     @param conserve: what to conserve, volume or equipotential
-    @type conserve: str, one of `periastron' or `equipot'
+    @type conserve: str, one of ``periastron`` or ``equipot``
     """
     if kwargs and 'conserve' in orbit:   
         raise ValueError("You cannot give extra kwargs to add_conserve if it already exist")
@@ -842,19 +842,20 @@ def add_conserve(orbit,conserve='volume',**kwargs):
     logger.info("orbit '{}': added and set 'conserve' to '{}'".format(orbit['label'],conserve))
 
 def make_misaligned(orbit,theta=0.,phi0=0.,precperiod=np.inf):
-    """
+    r"""
     Extend the parameters of an orbit to make it misaligned.
     
     The definition of the parameters is as follows:
+    
     - ``theta``: misalignment inclination. If  the orbital plane is edge-on,
-    then ``theta=90`` means the star is viewed pole-on. ``theta=180`` means
-    no misalignment, ``theta=0`` means no misalignment but retrograde spinning.
+      then :math:`\theta=90` means the star is viewed pole-on. :math:`\theta=180` means
+      no misalignment, :math:`\theta=0` means no misalignment but retrograde spinning.
     - ``phi0``: phase angle, orients the misalignment at some reference time.
-    the reference time is given by ``t0`` in the ``orbit`` parameterSet. ``phi0``
-    is such that if ``phi0=90``, the star is viewed edge on at ``t0``.
+      the reference time is given by ``t0`` in the ``orbit`` parameterSet. ``phi0``
+      is such that if :math:`\phi_0=90`, the star is viewed edge on at ``t0``.
     - ``precperiod``: period of precession. If ``precperiod=np.inf``, then
-    there is no precession and the body will have the same orientation in
-    space at all times.
+      there is no precession and the body will have the same orientation in
+      space at all times.
     
     """
     orbit.add(parameters.Parameter(qualifier='theta',value=theta,unit='deg',cast_type=float,description='Misalignment inclination',adjust=False))
@@ -1610,7 +1611,7 @@ def list_available_units(qualifier, context=None):
     """
     List the available units of a parameter.
     
-    If you don't give a context (e.g. `lcdep'), a report from all context where
+    If you don't give a context (e.g. ``lcdep``), a report from all context where
     the parameters is found will be given. Otherwise only that particular
     context will be used. Alternatively you can give a full parameterSet to
     the context parameter. In the latter case, the context will be derived from

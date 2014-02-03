@@ -545,8 +545,7 @@ def convert(_from,_to,*args,**kwargs):
     """
     Convert one unit to another.
         
-    Basic explanation
-    =================
+    **Basic explanation**
     
     The unit strings C{_from} and C{_to} should by default be given in the form
     
@@ -577,8 +576,7 @@ def convert(_from,_to,*args,**kwargs):
     >>> convert('AA','km/s',4553,0.1,wave=(4552.,0.1,'AA'))
     (65.85950307557613, 9.314963362464114)
     
-    Extra
-    =====
+    **Extra**
     
     The unit strings C{_from} and C{_to} should by default be given in the form
     
@@ -790,9 +788,9 @@ def convert(_from,_to,*args,**kwargs):
     @type _from: str
     @param _to: units to convert to
     @type _to: str
-    @keyword unpack: set to True if you don't want 'uncertainty objects'. If True
-    and uncertainties are given, they will be returned as a tuple (value, error)
-    instead of uncertainty object. Set to False probably only for internal uses
+    @param unpack: set to True if you don't want 'uncertainty objects'. If True
+     and uncertainties are given, they will be returned as a tuple (value, error)
+     instead of uncertainty object. Set to False probably only for internal uses
     @type unpack: boolean, defaults to True
     @return: converted value
     @rtype: float
@@ -1464,9 +1462,9 @@ def compress(unit,ignore_factor=False):
         
     @param unit: combination of units to compress
     @type unit: str
-    @param ignore_factor: if True, then a `sloppy compress' will be performed,
-    that is, it is not guaranteed that the multiplication factor equals 1 (see
-    examples)
+    @param ignore_factor: if True, then a sloppy compress will be performed,
+     that is, it is not guaranteed that the multiplication factor equals 1 (see
+     examples)
     @type ignore_factor: bool
     @rtype: str
     @return: shorter version of original units
@@ -1735,7 +1733,7 @@ def distance2velocity(arg,**kwargs):
     
     @param arg: distance (SI, m)
     @type arg: float
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
     @return: velocity (SI, m/s)
     @rtype: float
@@ -1775,11 +1773,11 @@ def fnu2flambda(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
@@ -1807,11 +1805,11 @@ def flambda2fnu(arg,**kwargs):
     
     @param arg: spectral irradiance (SI, W/m2/m)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spectral irradiance (SI,W/m2/Hz)
     @rtype: float
@@ -1839,11 +1837,11 @@ def fnu2nufnu(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
@@ -1871,11 +1869,11 @@ def nufnu2fnu(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
@@ -1903,11 +1901,11 @@ def flam2lamflam(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
@@ -1935,11 +1933,11 @@ def lamflam2flam(arg,**kwargs):
     
     @param arg: spectral irradiance (SI,W/m2/Hz)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spectral irradiance (SI, W/m2/m)
     @rtype: float
@@ -1964,11 +1962,11 @@ def distance2spatialfreq(arg,**kwargs):
     
     @param arg: distance (SI, m)
     @type arg: float
-    @keyword passband: photometric passband
+    @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER')
-    @keyword wave: reference wavelength (SI, m)
+    @param wave: reference wavelength (SI, m)
     @type wave: float
-    @keyword freq: reference frequency (SI, Hz)
+    @param freq: reference frequency (SI, Hz)
     @type freq: float
     @return: spatial frequency (SI, cy/as)
     @rtype: float
@@ -3070,7 +3068,6 @@ class Unit(object):
     
     B{Example 3}: The speed of light in vacuum:
     
-    - Tidally induced pulsations
     >>> eps0 = Unit('eps0')
     >>> mu0 = Unit('mu0')
     >>> cc = Unit('cc')
