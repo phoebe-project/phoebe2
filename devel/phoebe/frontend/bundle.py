@@ -1495,27 +1495,32 @@ class Bundle(object):
             this_objref = body.get_label()
             
             if objref is None or this_objref == objref:
+                ds = body.get_synthetic(ref=dataref, cumulative=True)
                 
-                # If category is not given, run over all of them
-                if category is None:
-                    obstypes = body.params['syn'].keys()
-                else:
-                    obstypes = [category+'syn']
+                if ds is not None and ds != [] and (category is None or ds.context[:-3]==category):
+                    dss['{}@{}'.format(ds['ref'],this_objref)] = ds
                 
-                for obstype in obstypes:
-                    
-                    # dataref can be integer
-                    if isinstance(dataref, int):
-                        if len(body.params['syn'][obstype].values())>dataref:
-                            ds = body.params['syn'][obstype].values()[dataref]
-                        else:
-                            ds = None
-                    # but dataref can be string
-                    elif dataref in body.params['syn'][obstype]:
-                        ds = body.params['syn'][obstype][dataref]
-                    # else nothing happens and we keep searching
-                    if ds is not None:
-                        dss['{}@{}@{}'.format(ds['ref'],obstype,this_objref)] = ds
+                
+                #~ # If category is not given, run over all of them
+                #~ if category is None:
+                    #~ obstypes = body.params['syn'].keys()
+                #~ else:
+                    #~ obstypes = [category+'syn']
+                #~ 
+                #~ for obstype in obstypes:
+                    #~ 
+                    #~ # dataref can be integer
+                    #~ if isinstance(dataref, int):
+                        #~ if len(body.params['syn'][obstype].values())>dataref:
+                            #~ ds = body.params['syn'][obstype].values()[dataref]
+                        #~ else:
+                            #~ ds = None
+                    #~ # but dataref can be string
+                    #~ elif dataref in body.params['syn'][obstype]:
+                        #~ ds = body.params['syn'][obstype][dataref]
+                    #~ # else nothing happens and we keep searching
+                    #~ if ds is not None:
+                        #~ dss['{}@{}@{}'.format(ds['ref'],obstype,this_objref)] = ds
                     
         return self._return_from_dict(dss,return_type)
                     
@@ -1602,7 +1607,11 @@ class Bundle(object):
 
 
     def adjust_obs(self, dataref=None, l3=None, pblum=None):
-        pass
+        for obs in self.get_obs(dataref=dataref,return_type='list'):
+            if l3 is not None:
+                obs.set_adjust('l3',l3)
+            if pblum is not None:
+                obs.set_adjust('pblum',pblum)
 
     def remove_data(self, dataref):
         """
