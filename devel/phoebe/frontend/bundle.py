@@ -2142,14 +2142,14 @@ class Bundle(object):
                                                      *args, **kwargs)
     
     def write_syn(self, dataref, output_file, objref=None):
-        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True)
+        dss = self.get_syn(dataref=dataref, objref=objref, return_type='all')
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
         elif not len(dss):
-            raise ValueError("dataref '{}' not found for plotting".format(dataref))
+            raise ValueError("dataref '{}' not found for writing".format(dataref))
         
         # Get the obs DataSet and write to a file
-        ds = dss.values()[0]
+        ds = dss[0]
         ds.save(output_file)
     
     def get_axes(self,ident=None,return_type='single'):

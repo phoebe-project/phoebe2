@@ -455,7 +455,7 @@ class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
                 times = np.append(times, self.get_times(dr))
         else:
             times = self.get_times(dataref)
-            print "***", dataref, len(times)
+            #~ print "***", dataref, len(times)
         
         if compute == 'min':
             time = times.min()
@@ -701,3 +701,4 @@ class CreateDatasetWidget(QWidget, gui.Ui_datasetWidget):
     def __init__(self, parent=None):
         super(CreateDatasetWidget, self).__init__(parent)
         self.setupUi(self)
+        self.myparent=parent

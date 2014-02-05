@@ -140,7 +140,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #################################
 
         # add master dataset tree view to bottom panel 
-        self.datasetswidget_main = phoebe_dialogs.CreateDatasetWidget()
+        self.datasetswidget_main = phoebe_dialogs.CreateDatasetWidget(parent=self)
         self.bp_datasetsDockWidget.setWidget(self.datasetswidget_main)
         
         # Add the OpenGL mesh_widget to gui
@@ -1234,7 +1234,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(pop.zoom_out, SIGNAL("clicked()"), self.on_plot_zoom_out_clicked)
         QObject.connect(pop.save, SIGNAL("clicked()"), self.on_plot_save_clicked)
         
-        plotEntryWidget = phoebe_dialogs.CreateDatasetWidget()
+        plotEntryWidget = phoebe_dialogs.CreateDatasetWidget(parent=self)
         plotEntryWidget.datasetTreeView.plotindex = i
         plotEntryWidget.selectorWidget.setVisible(False)
         plotEntryWidget.addDataWidget.setVisible(False)
