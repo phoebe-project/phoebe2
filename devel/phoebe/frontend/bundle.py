@@ -1403,19 +1403,71 @@ class Bundle(object):
         dependable (pbdep) description of the dataset (optional, e.g. passband,
         atm, ld_func, ld_coeffs, etc).
         
-        **light curves**
+        Unique references are added automatically if none are provided by the
+        user. Instead of the backend-popular UUID system, the bundle implements
+        a more readable system of unique references: the first light curve that
+        is added is named 'lc01', and similarly for other categories. If the
+        dataset with the reference already exists, 'lc02' is tried and so on.
         
-        For a list of available parameters, see :ref:`lcdep <parlabel-phoebe-lcdep>
-        and :ref:`lcobs <parlabel-phoebe-lcobs>.
+        **Light curves**
         
-        >>> bundle.create_syn()
+        Light curves are typically added to the entire system, as the combined
+        light from all components is observed.
+        
+        For a list of available parameters, see :ref:`lcdep <parlabel-phoebe-lcdep>`
+        and :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        
+        >>> time = np.linspace(0, 10.33, 101)
+        >>> bundle.create_syn(time=time, passband='GENEVA.V')
+        
+        or in phase space:
+        
+        >>> phase = np.linspace(-0.5, 0.5, 101)
+        >>> bundle.create_syn(phase=phase, passband='GENEVA.V')
+        
+        **Radial velocity curves**
+        
+        Radial velocities are typically added to the separate components, since
+        they are determined from disentangled spectra.
+        
+        For a list of available parameters, see :ref:`rvdep <parlabel-phoebe-rvdep>`
+        and :ref:`rvobs <parlabel-phoebe-rvobs>`.
+        
+        >>> time = np.linspace(0, 10.33, 101)
+        >>> bundle.create_syn(objref='primary', time=time)
+        >>> bundle.create_syn(objref='secondary', time=time)
+        
+        **Spectra**
+        
+        Spectra are typically added to the separate components, allthough they
+        could as well be added to the entire system.
+        
+        For a list of available parameters, see :ref:`spdep <parlabel-phoebe-spdep>`
+        and :ref:`spobs <parlabel-phoebe-spobs>`.
+        
+        >>> phase = np.linspace(-0.5, 0.5, 11)
+        >>> wavelength = np.linspace(454.8, 455.2, 500)
+        >>> bundle.create_syn(objref='primary', phase=phase, wavelength=wavelength)
+        
+        or to add to the entire system:
+        
+        >>> bundle.create_syn(phase=phase, wavelength=wavelength)
+        
+        **Interferometry**
+        
+        Interferometry is typically added to the entire system.
+        
+        For a list of available parameters, see :ref:`ifdep <parlabel-phoebe-ifdep>`
+        and :ref:`ifobs <parlabel-phoebe-ifobs>`.
+        
+        >>> phase = 0.1 * np.ones(101)
+        >>> ucoord = np.linspace(0, 200, 101)
+        >>> vcoord = np.zeros(101)
+        >>> bundle.create_syn(phase=phase, ucoord=ucoord, vcoord=vcoord)
+        
         
         @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
         @type category: str
-        @param times: list of times
-        @type times: list
-        @param columns: list of columns in file
-        @type columns: list of strings
         @param objref: component for each column in file
         @type objref: None, str, list of str or list of bodies
         @param ref: name for ref for all returned datasets
@@ -1438,7 +1490,7 @@ class Bundle(object):
         # Suppose the user did not specifiy the object to attach anything to
         if objref is None:
             # then attempt to make smart prediction
-            if category == 'lc':
+            if category in ['lc','if','sp']:
                 # then top-level
                 components = [self.get_system()]
                 logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
@@ -1521,7 +1573,7 @@ class Bundle(object):
                         pb[key] = pbkwargs.get(key)
                         
             output[component.get_label()] = [[ds],[pb]]
-        
+            
         self._attach_datasets(output)
     
     
