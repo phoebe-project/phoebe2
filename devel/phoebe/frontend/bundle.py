@@ -227,7 +227,7 @@ class Bundle(object):
     
     
     """
-    def __init__(self,system=None):
+    def __init__(self, system=None, remove_dataref=False):
         """
         Initialize a Bundle.
 
@@ -285,7 +285,7 @@ class Bundle(object):
         
         # Lastly we'll set the system, which will parse the string sent
         # to init and will handle attaching all necessary signals
-        self.set_system(system)
+        self.set_system(system, remove_dataref=remove_dataref)
         
     ## string representation
     def __str__(self):
@@ -519,7 +519,7 @@ class Bundle(object):
     #}    
     #{ System
     
-    def set_system(self, system=None):
+    def set_system(self, system=None, remove_dataref=False):
         """
         Change or set the system.
         
@@ -573,8 +573,17 @@ class Bundle(object):
             self.sections['system'] = [system]
          
         # got me an error 
-        if self.get_system() is None:
+        system = self.get_system()
+        if system is None:
            return
+       
+        # Clear references if necessary:
+        if remove_dataref is not False:
+            if remove_dataref is True:
+                remove_dataref = None
+            system.remove_ref(remove_dataref)
+            
+               
         
         # initialize uptodate
         system.uptodate = False
@@ -1384,14 +1393,21 @@ class Bundle(object):
         if output is not None:
             self._attach_datasets(output)
                        
-    def create_syn(self, category='lc', times=None, objref=None,
-                   ref=None, **pbkwargs):
+    def create_syn(self, category='lc', objref=None, dataref=None, **kwargs):
         """
-        create and attach 'empty' datasets with no actual data but rather
-        to provide times to compute the model
+        Create and attach empty data templates to compute the model.
 
-        additional keyword arguments can be provided and will be sent to the pbdeps
-        (passband, atm, ld_func, ld_coeffs, etc)
+        Additional keyword arguments contain information for the actual data
+        template (cf. the "columns" in a data file) as well as for the passband
+        dependable (pbdep) description of the dataset (optional, e.g. passband,
+        atm, ld_func, ld_coeffs, etc).
+        
+        **light curves**
+        
+        For a list of available parameters, see :ref:`lcdep <parlabel-phoebe-lcdep>
+        and :ref:`lcobs <parlabel-phoebe-lcobs>.
+        
+        >>> bundle.create_syn()
         
         @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
         @type category: str
@@ -1441,17 +1457,17 @@ class Bundle(object):
         output = {}
         for component in components:
             
-            if ref is None:
+            if dataref is None:
                 # If the reference is None, suggest one. We'll add it as "lc01"
                 # if no "lc01" exist, otherwise "lc02" etc (unless "lc02" already exists)
                 existing_refs = self.get_system().get_refs(category=category)
                 id_number = len(existing_refs)+1
-                ref = category + '{:02d}'.format(id_number)
-                while ref in existing_refs:
+                dataref = category + '{:02d}'.format(id_number)
+                while dataref in existing_refs:
                     id_number += 1
-                    ref = category + '{:02d}'.format(len(existing_refs)+1)
+                    dataref = category + '{:02d}'.format(len(existing_refs)+1)
             
-            ds = dataset_class(context=category+'obs', time=times, ref=ref)
+            ds = dataset_class(context=category+'obs', time=times, ref=dataref)
             
             # For the "dep" parameterSet, we'll use defaults derived from the
             # Body instead of the normal defaults. This should give the least
@@ -1461,7 +1477,7 @@ class Bundle(object):
             # main body parameterSet, then we'll take that as a default value,
             # but it can be overriden by pbkwargs
             main_parset = component.params.values()[0]
-            pb = parameters.ParameterSet(context=category+'dep', ref=ref)
+            pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
             for key in pb:
                 # derive default
                 if key in main_parset:
@@ -1476,6 +1492,138 @@ class Bundle(object):
         
         self._attach_datasets(output)
         
+        
+    def create_syn2(self, category='lc', objref=None, dataref=None, **kwargs):
+        """
+        Create and attach empty data templates to compute the model.
+
+        Additional keyword arguments contain information for the actual data
+        template (cf. the "columns" in a data file) as well as for the passband
+        dependable (pbdep) description of the dataset (optional, e.g. passband,
+        atm, ld_func, ld_coeffs, etc).
+        
+        **light curves**
+        
+        For a list of available parameters, see :ref:`lcdep <parlabel-phoebe-lcdep>
+        and :ref:`lcobs <parlabel-phoebe-lcobs>.
+        
+        >>> bundle.create_syn()
+        
+        @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
+        @type category: str
+        @param times: list of times
+        @type times: list
+        @param columns: list of columns in file
+        @type columns: list of strings
+        @param objref: component for each column in file
+        @type objref: None, str, list of str or list of bodies
+        @param ref: name for ref for all returned datasets
+        @type ref: str    
+        """
+        # create pbdeps and attach to the necessary object
+        # this function will be used for creating pbdeps without loading an actual file ie. creating a synthetic model only
+        # times will need to be provided by the compute options (auto will not load times out of a pbdep)
+        
+        # Modified functionality from datasets.parse_header
+        
+        # What DataSet subclass do we need? We can derive it from the category.
+        # This can be LCDataSet, RVDataSet etc.. If the category is not
+        # recognised, we'll add the generic "DataSet".
+        if not category in config.dataset_class:
+            dataset_class = DataSet
+        else:
+            dataset_class = getattr(datasets, config.dataset_class[category])
+    
+        # Suppose the user did not specifiy the object to attach anything to
+        if objref is None:
+            # then attempt to make smart prediction
+            if category == 'lc':
+                # then top-level
+                components = [self.get_system()]
+                logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
+            else:
+                logger.error('create_syn failed: components need to be provided')
+                return
+        # is component just one string?
+        elif isinstance(objref, str):
+            components = [self.get_object(objref)]
+        # is component a list of strings?
+        elif isinstance(objref[0], str):
+            components = [self.get_object(iobjref) for iobjref in objref]
+        # perhaps component is a list of bodies, that's just fine then
+        else:
+            components = objref
+        
+        # We need a reference to link the pb and ds together.
+        if dataref is None:
+            # If the reference is None, suggest one. We'll add it as "lc01"
+            # if no "lc01" exist, otherwise "lc02" etc (unless "lc02" already exists)
+            existing_refs = self.get_system().get_refs(category=category)
+            id_number = len(existing_refs)+1
+            dataref = category + '{:02d}'.format(id_number)
+            while dataref in existing_refs:
+                id_number += 1
+                dataref = category + '{:02d}'.format(len(existing_refs)+1)
+        
+        # Create template pb and ds:
+        ds = dataset_class(context=category+'obs', ref=dataref)
+        pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
+        
+        # Split up the kwargs in extra arguments for the dataset and pbdep. We
+        # are not filling in the pbdep parameters yet, because we're gonna use
+        # smart defaults (see below). If a parameter is in both parameterSets,
+        # the pbdep gets preference (e.g. for pblum, l3).
+        pbkwargs = {}
+        for key in kwargs:
+            if key in pb:
+                pbkwargs[key] = kwargs[key]
+            elif key in ds:
+                # Make sure time and phase are not both given, and that either
+                # time or phase ends up in the defined columns (this is important
+                # for the code that unphases)
+                if key == 'time' and 'phase' in kwargs:
+                    raise ValueError("You need to give either 'time' or 'phase', not both")
+                elif key == 'phase' and 'time' in ds['columns']:
+                    columns = ds['columns']
+                    columns[columns.index('time')] = 'phase'
+                    ds['columns'] = columns
+                # and fill in    
+                ds[key] = kwargs[key]
+                
+            else:
+                raise ValueError("Parameter '{}' not found in obs/dep".format(key))        
+        
+        # In the datasets, time and phase are mutually exclusive. It's one or
+        # the other!
+        
+            
+        
+        output = {}
+        for component in components:
+            # For the "dep" parameterSet, we'll use defaults derived from the
+            # Body instead of the normal defaults. This should give the least
+            # surprise to users: it is more logical to have default atmosphere,
+            # LD-laws etc the same as the Body, then the "uniform" or "blackbody"
+            # stuff that is in the defaults. So, if a parameter is in the
+            # main body parameterSet, then we'll take that as a default value,
+            # but it can be overriden by pbkwargs
+            main_parset = component.params.values()[0]
+            pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
+            for key in pb:
+                # derive default
+                if key in main_parset:
+                    default_value = main_parset[key]
+                    # but only set it if not overridden
+                    pb[key] = pbkwargs.get(key, default_value)
+                else:
+                    if key in pbkwargs.keys():
+                        pb[key] = pbkwargs.get(key)
+                        
+            output[component.get_label()] = [[ds],[pb]]
+        
+        self._attach_datasets(output)
+    
+    
     def get_syn(self, category=None, objref=None, dataref=0, return_type='single'):
         """
         Get synthetic
@@ -1486,6 +1634,12 @@ class Bundle(object):
         dss = OrderedDict()
         system = self.get_system()
         
+        # Smart defaults:
+        # For a light curve, it makes most sense to ask for the top level by
+        # default
+        if category == 'lc' and objref is None:
+            objref = system.get_label()
+            
         try:
             iterate_all_my_bodies = system.walk_bodies()
         except AttributeError:
@@ -1495,7 +1649,7 @@ class Bundle(object):
             this_objref = body.get_label()
             
             if objref is None or this_objref == objref:
-                ds = body.get_synthetic(ref=dataref, cumulative=True)
+                ds = body.get_synthetic(ref=dataref, cumulative=True).asarray()
                 
                 if ds is not None and ds != [] and (category is None or ds.context[:-3]==category):
                     dss['{}@{}'.format(ds['ref'],this_objref)] = ds
@@ -1994,12 +2148,12 @@ class Bundle(object):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_syn(dataref=dataref, objref=objref, force_dict=True)
+        dss = self.get_syn(dataref=dataref, objref=objref, return_type='dict')
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
         elif not len(dss):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
-        
+        print dss
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
         obj = self.get_object(dss.keys()[0])

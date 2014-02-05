@@ -77,6 +77,7 @@ def plot_lcsyn(system, *args, **kwargs):
     period = kwargs.pop('period', None)
     phased = kwargs.pop('phased', False)
     t0 = kwargs.pop('t0', 0.0)
+    y_unit = kwargs.pop('y_unit', None)
     
     # Get parameterSets and set a default label if none is given
     syn = system.get_synthetic(category='lc', ref=ref)
@@ -106,12 +107,28 @@ def plot_lcsyn(system, *args, **kwargs):
         pblum = syn['pblum']
         l3 = syn['l3']
     # else we don't scale
-
     
+    if y_unit is not None:
+        l3 = l3*pblum
+        pblum = 1
+
     # Now take third light and passband luminosity contributions into account
     time = np.array(syn['time'])
     flux = np.array(syn['flux'])
     flux = flux * pblum + l3
+    
+    if y_unit is not None:
+        if y_unit == 'pph':
+            flux = (flux / np.median(flux) - 1 )*100
+        elif y_unit == 'ppt':
+            flux = (flux / np.median(flux) - 1 )*1000
+        elif y_unit == 'ppm':
+            flux = (flux / np.median(flux) - 1 )*1e6
+        elif y_unit == 'relative':
+            flux = flux / np.median(flux)
+        else:
+            lcdep,ref = system.get_parset(category='lc', ref=ref)
+            flux = conversions.convert('erg/s/cm2/AA', y_unit, flux, passband=lcdep['passband'])
     
     # Get the period to repeat the LC with
     if period is None:

@@ -67,7 +67,26 @@ just linear combinations of the nonrotating case).
       The top row shows a nonrotating star, the bottom shows a rotating star.
       
       Note that if the rotation period is of the order of the pulsational period,
-      one should include higher order rotational effects in the calculations.
+      one should include higher order rotational effects in the calculations. The
+      strength of the rotational splitting can be modified with ``ledoux_coeff``.
+      This parameter is actually :math:`C_{n\ell}` in
+      
+      .. math::
+        
+         f_\mathrm{obs} = f_\mathrm{input} + m (1-C_{n\ell}) \Omega_\mathrm{rot}
+      
+      In zeroth order for pressure modes,
+      
+      .. math::
+      
+         C_{n\ell} \approx 0
+         
+      while for gravity modes
+      
+      .. math::
+      
+        C_{n\ell} \approx \frac{1}{\ell (\ell+1)}
+      
     - The inclination axis of each pulsation is given by :math:`i`. When the
       rotation axis and the pulsation axis are the same, then :math:`i=0^\circ`.
       If the pulsation and rotation axis are not aligned, then the same coordinate
@@ -330,6 +349,21 @@ def norm_J(l,m):
     else:
         J = 0.
     return J
+
+
+def norm_N(l, m):
+    r"""
+    Normalisation factor
+    
+    .. math::
+    
+        N_{\ell,m} = \sqrt{\frac{2\ell+1}{4\pi}\frac{(\ell-m)!}{(\ell+m)!}}
+        
+    """
+    Nlm = sqrt((2*l+1)/(4*pi) * factorial(l-m)/factorial(l+m))
+    return Nlm
+    
+
 
 def norm_atlp1(l,m,spin,k):
     r"""

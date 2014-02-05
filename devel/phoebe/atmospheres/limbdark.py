@@ -155,6 +155,8 @@ Did you ever want to know where the specific intensity files and limb darkening
 coefficient files are stored on your system? Then call::
 
     paths = limbdark.get_paths()
+    
+
 
 Section 7. Phoebe parameters atm, ld_coeffs and ld_func
 =========================================================
@@ -2155,7 +2157,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
 
 
 
-def local_intensity2(system, parset_pbdep, parset_isr={}):
+def local_intensity_new(system, parset_pbdep, parset_isr={}):
     """
     Calculate local intensity.
     
@@ -2238,10 +2240,18 @@ def local_intensity2(system, parset_pbdep, parset_isr={}):
     if atm_file == ldc_file and atm_file in config.atm_props:
         
         # Find the possible interpolation parameters
-        amt_kwargs = {key:system.mesh[key] for key in config.atm_props[atm_file]}
+        atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm_file]}
         
-        coeffs = interp_ld_coeffs(ld_coeffs, passband, atm_kwargs=atm_kwargs,
+        coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
                                            red_kwargs=red_kwargs, vgamma=vgamma)
+        # Fill in the LD coefficients, but put the intensities in the last
+        # column
+        for collnr, coefcoll in enumerate(coeffs[:-1]):
+            system.mesh[tag][:, collnr] = coefcoll
+        system.mesh[tag][:, -1] = coeffs[-1]
+    
+    else:
+        local_intensity(system, parset_pbdep, parset_isr={})
     
 
 
@@ -2385,6 +2395,27 @@ def get_paths():
     """
     return os.path.join(basedir, 'tables','ld_coeffs'),\
            os.path.join(basedir, 'tables','spec_intens')
+
+def get_info(path):
+    with pyfits.open(path) as ff:
+        passbands = [ext.header['extname'] for ext in ff[1:]]
+        fields = []
+        for key in ff[0].header:
+            if key[:5] == 'C__AI':
+                fields.append(ff[0].header[key].split('C__AI_')[-1])
+        
+        dimensions = []
+        for field in fields:
+            dimensions.append(np.unique(ff[1].data.field(field)))
+    
+    print("Atmosphere file: {}".format(path))
+    print("Passbands: {:d} ({})".format(len(passbands), ", ".join(passbands)))
+    print("Interpolatable quantities: {}".format(", ".join(fields)))
+    print("Dimensions:")
+    for field, dim in zip(fields, dimensions):
+        print "{}: {}".format(field, dim)
+        
+            
 
 def add_file(filename):
     """
