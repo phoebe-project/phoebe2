@@ -182,12 +182,14 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         expanded_plot.plot_gridLayout.addWidget(self.expanded_plot_widget,0,0)
         expanded_plot.zoom_in.info = {'axes_i': 'expanded', 'canvas': self.expanded_canvas}
         expanded_plot.zoom_out.info = {'axes_i': 'expanded', 'canvas': self.expanded_canvas}
+        expanded_plot.pop_mpl.info = {'axes_i': 'expanded'}
         expanded_plot.save.info = {'axes_i': 'expanded'}
         self.expanded_plot = expanded_plot
         
         QObject.connect(expanded_plot.zoom_in, SIGNAL("toggled(bool)"), self.on_plot_zoom_in_toggled)
         QObject.connect(self.expanded_canvas, SIGNAL("plot_zoom"), self.on_plot_zoom_in)
         QObject.connect(expanded_plot.zoom_out, SIGNAL("clicked()"), self.on_plot_zoom_out_clicked)
+        QObject.connect(expanded_plot.pop_mpl, SIGNAL("clicked()"), self.on_plot_pop_mpl_clicked)
         QObject.connect(expanded_plot.save, SIGNAL("clicked()"), self.on_plot_save_clicked)
       
         # Create undo stack
@@ -297,7 +299,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.latest_dir = None
         
         # send startup commands to interpreter
-        startup_default = 'import phoebe\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend.usersettings import Settings\nsettings = Settings()'
+        startup_default = 'import phoebe\nimport matplotlib.pyplot as plt\nfrom phoebe.frontend.bundle import Bundle, load\nfrom phoebe.parameters import parameters, create, tools\nfrom phoebe.io import parsers\nfrom phoebe.utils import utils\nfrom phoebe.frontend.usersettings import Settings\nsettings = Settings()'
         # this string is hardcoded - also needs to be in phoebe_dialogs.CreatePopPres.set_gui_from_prefs
         for line in startup_default.split('\n'):
             self.PyInterp_run(line, write=True, thread=False)
@@ -1173,6 +1175,21 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         undo_command = "bundle.get_axes('%s').set_zoom(%s)" % (axesname, current_zoom)
         description = "%s zoom out" % axesname
         self.on_param_command(do_command,undo_command,description='',kind='plots',thread=False)
+        
+    def on_plot_pop_mpl_clicked(self, *args):
+        button = self.sender()
+        axes_i = self.pop_i if button.info['axes_i'] == 'expanded' else button.info['axes_i']
+        axesname = self.bundle.get_axes(axes_i).get_value('title')
+        
+        do_command = "bundle.plot_axes('%s')" % (axesname)
+        undo_command = "print 'cannot undo plot axes'"
+        description = "plot axes"
+        self.on_param_command(do_command,undo_command,description='',kind='plots',thread=False)        
+        
+        do_command = "plt.show()"
+        undo_command = "print 'cannot undo plt.show()'"
+        description = "plot axes"
+        self.on_param_command(do_command,undo_command,description='',kind='plots',thread=False)        
         
     def on_plot_save_clicked(self,*args):
         button = self.sender()
