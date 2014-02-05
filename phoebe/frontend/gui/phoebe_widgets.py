@@ -128,6 +128,7 @@ class GeneralParameterTreeWidget(QTreeWidget):
     def __init__(self,parent = None):
         super(GeneralParameterTreeWidget, self).__init__()
         
+        self.myparent = parent
         self.items = None
         self.selected_item = None
         self.style = []
@@ -140,6 +141,9 @@ class GeneralParameterTreeWidget(QTreeWidget):
         
         self.link_icon = QIcon()
         self.link_icon.addPixmap(QPixmap(":/images/icons/link.png"), QIcon.Normal, QIcon.Off)
+        
+        self.list_icon = QIcon()
+        self.list_icon.addPixmap(QPixmap(":/images/icons/list.png"), QIcon.Normal, QIcon.Off)
         
         self.reload_icon = QIcon()
         self.reload_icon.addPixmap(QPixmap(":/images/icons/refresh.png"), QIcon.Normal, QIcon.Off)
@@ -891,6 +895,14 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             reload_button.setEnabled(False) #until signals attached
             HBox.addWidget(reload_button)
             
+            export_button = QPushButton()
+            export_button.setIcon(self.list_icon)
+            export_button.setMaximumSize(QSize(18, 18))
+            export_button.setToolTip("export synthetic model to ascii")
+            export_button.info = {'dataset': dataset}
+            QObject.connect(export_button, SIGNAL('clicked()'), self.on_export_clicked)
+            HBox.addWidget(export_button)
+            
             delete_button = QPushButton()
             delete_button.setIcon(self.delete_icon)
             delete_button.setMaximumSize(QSize(18, 18))
@@ -1222,6 +1234,20 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         # TODO - try to make this undoable
         description = "remove %s dataset" % ref
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
+        
+    def on_export_clicked(self):
+        ref = self.sender().info['dataset']['ref']
+        
+        # need popup file chooser
+        latest_dir = self.myparent.myparent.latest_dir
+        filename = QFileDialog.getSaveFileName(self, 'Save File', latest_dir if latest_dir is not None else './', **self.myparent.myparent._fileDialog_kwargs)
+        
+        if len(filename)>0:
+            do_command = "bundle.write_syn(dataref='%s', output_file='%s')" % (ref, filename)
+            undo_command = "print 'undo is not available for this action'"
+            # TODO - try to make this undoable
+            description = "export %s dataset" % ref
+            self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
         
     def axes_add(self):
         info = self.sender().info
