@@ -1280,6 +1280,22 @@ class Body(object):
         """
         self.reset()
         self.clear_synthetic()
+        
+        
+    def remove_ref(self, ref=None):
+        """
+        Remove all pbdep, syn and obs with a given reference.
+        
+        If no ref is given, everything is removed.
+        """
+        for dtype in ['syn', 'pbdep', 'obs']:
+            if hasattr(self,'params') and dtype in self.params:
+                for pbdeptype in self.params[dtype]:
+                    for iref in self.params[dtype][pbdeptype]:
+                        if ref is not None and iref!=ref:
+                            continue
+                        self.params[dtype][pbdeptype].pop(iref)
+                    
     
     
     def walk(self):
@@ -2727,6 +2743,7 @@ class Body(object):
         
             - :envvar:`summary='physical'`: lists only the physical parameters,
                but not the datasets::
+                
                 V380Cyg (BodyBag)
                 |
                 +----------> B1V_primary (BinaryRocheStar)
@@ -3830,7 +3847,14 @@ class PhysicalBody(Body):
                 self.mesh = pl.mlab.rec_drop_fields(self.mesh,fields)
                 logger.info('removed pbdeps {0}'.format(fields))
     
-    
+    def add_mesh_fields(self, fields):
+        dtypes = np.dtype(self.mesh.dtype.descr + fields)
+        onames = self.mesh.dtype.names
+        omesh = self.mesh.copy()
+        N = len(omesh)
+        self.mesh = np.zeros(N,dtype=dtypes)
+        if N>0:
+            self.mesh[onames] = omesh[onames]
         
     
     def remove_mesh(self):
@@ -4892,6 +4916,13 @@ class BodyBag(Body):
         """
         for body in self.bodies:
             body.reset()
+    
+    def remove_ref(self, ref=None):
+        """
+        We need to reimplement remove_ref here.
+        """
+        for body in self.bodies:
+            body.remove_ref(ref=ref)
     
     def append(self,other):
         """
@@ -6436,6 +6467,27 @@ class BinaryRocheStar(PhysicalBody):
         # Check for leftover kwargs and report to the user
         if kwargs:
             raise ValueError("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))
+        
+        
+        # Generate a comprehensive log message, that explains what has been
+        # added:
+        msg = "Created BinaryRocheStar {}".format(self.get_label())
+        msg_ = []
+        if circ_spot is not None:
+            msg_.append('{} circular spots'.format(len(self.params['circ_spot'])))
+        if puls is not None:
+            msg_.append('{} pulsations'.format(len(self.params['puls'])))
+        if magnetic_field is not None:
+            msg_.append('a magnetic field')
+        if 'pbdep' in self.params:
+            for type in self.params['pbdep']:
+                msg_.append('{} {}'.format(len(self.params['pbdep'][type]),type))
+        if 'obs' in self.params:
+            for type in self.params['obs']:
+                msg_.append('{} {}'.format(len(self.params['obs'][type]),type))
+        if len(msg_):
+            msg = msg + ': ' + ', '.join(msg_)
+        logger.info(msg)
         
     
     def set_label(self,label):

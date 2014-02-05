@@ -81,7 +81,7 @@ logger.addHandler(logging.NullHandler())
 
 @decorators.parse_ref
 def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
-    """
+    r"""
     Calculate the radiation budget for heating and reflection.
     
     For all refs in C{ref}, the following is done:
@@ -93,6 +93,18 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
         
         - if passband dependent, only the incoming radiation will be computed.
           Typically used for reflection effects.
+          
+    Some definitions used in the code and documentation:
+        
+        - :math:`\vec{s}` is the line-of-sight (``los``) between a triangle :math:`i`
+          on the irradiator and a triangle :math:`j` on the irradiated body.
+        - :math:`\psi_2^i`: the angle between the surface normal of triangle i
+          of the irradiator and the line :math:`s` that connects the two surface
+          elements.
+        - :math:`\psi_1^j`: is the angle between the surface normal of triangle
+          j of the irradiated body and the line :math:`s`.
+        - :math:`\alpha` is the phase angle, or the angle between a triangle on
+          the irradiator and the observer's line-of-sight.
     
     @param irradiated: star that gets irradiated. The flux or temperature of this object will be altered
     @type irradiated: Body
@@ -166,9 +178,15 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
         #-- what are the lines of sight?
         los = irradiator_mesh['center']-irradiated.mesh['center'][i]
         #-- what are the angles between the normal and the lines-of-sight on
-        #   the irradated object?
+        #   the irradiated object?
         #cos_psi1 = coordinates.cos_angle(irradiated.mesh['normal_'][i],los,axis=-1)
         cos_psi1 = fgeometry.cos_angle_3_nx3(irradiated.mesh['normal_'][i],los)
+        
+        # Phase angles: angles between body-body los and the real line-of-sight
+        # the phase angle is aka alpha or g. It is the angle between the object
+        # and the observer
+        #phase_angle = np.arccos(fgeometry.cos_angle_3_nx3(np.array([0,0,-1]),los))
+        
         
         #-- what are the angles between the normals and the line-of-sight on
         #   the irradiator?
@@ -200,10 +218,17 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
             #-- but every fluxray is also received under a specific angle on the
             #   irradiated object. The size of the receiving triangle doesn't matter
             Ibolmu = cos_psi1[keep]*Ibolmu
+            
+            # Scattering phase function
+            g = 0.0
+            if g != 0.0:
+                pf = (1.0 - g) + 2*g*(np.abs(cos_psi1-cos_psi2)<0.01)
+            else:
+                pf = (1.0 - g)
                 
             #-- the total (summed) projected intensity on this triangle is then
             #   dependent on the distance and the albedo
-            proj_Ibolmu = np.sum(Ibolmu/distance2)
+            proj_Ibolmu = np.sum(pf*Ibolmu/distance2)
             
             #-- what is the total intrinsic emergent flux from this triangle? We
             #   need to integrate over a solid angle of 2pi, that is let phi run

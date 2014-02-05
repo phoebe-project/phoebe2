@@ -57,4 +57,4 @@ file_extension = {'lc':'lc',
 atm_props = {'blackbody': ('teff',),
              'kurucz': ('teff', 'logg'),
              'phoenix': ('teff', 'logg', 'abun'),
-             'olivia': ('teff', 'abun', 'eddy', 'uvflux')}
+             'olivia.fits': ('teff', 'abun', 'eddy', 'uvflux')}
