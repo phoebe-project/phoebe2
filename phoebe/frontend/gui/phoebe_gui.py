@@ -2013,7 +2013,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             components = [comp for comp,check in pop.syn_components_checks.items() if check.isChecked()]
             if len(components) == 0: components = 'None'
             
-            do_command = "bundle.create_syn(category='%s', times=%s, objref=%s, passband='%s', ref='%s')" % (pop.category,timestr,components,passband,name)
+            do_command = "bundle.create_syn(category='%s', time=%s, objref=%s, passband='%s', dataref='%s')" % (pop.category,timestr,components,passband,name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "create %s synthetic dataset" % name
             
