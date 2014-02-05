@@ -51,7 +51,7 @@ lc_ph1 = phb.lc(tuple(ph.tolist()), 0)
 
 
 # Compute a phase curve with Phoebe2
-mybundle.create_syn2(category='lc', phase=ph)
+mybundle.create_syn(category='lc', phase=ph)
 mybundle.run_compute(eclipse_alg='binary')
 lc_ph2 = mybundle.get_syn(category='lc')['flux']
 
