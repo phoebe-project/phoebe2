@@ -662,12 +662,12 @@ def _parse_pbdeps(body, pbdep):
                        ifdep=datasets.IFDataSet)
     
     # Pbdep have to be given!
-    if not pbdep:
-        raise ValueError(('You need to give at least one ParameterSet'
-                          'representing dependables'))
+    #if not pbdep:
+    #    raise ValueError(('You need to give at least one ParameterSet'
+    #                      'representing dependables'))
         
     # pbdep need to be a list or a tuple. If not, make it one
-    elif not isinstance(pbdep, list) and not isinstance(pbdep, tuple):
+    if not isinstance(pbdep, list) and not isinstance(pbdep, tuple):
         pbdep = [pbdep]
     
     # If 'pbdep' is not in the 'params' dictionary, prepare an empty one

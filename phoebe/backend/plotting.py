@@ -920,7 +920,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     ax = kwargs.pop('ax',plt.gca())
     velocity = kwargs.pop('velocity',None)
     
-    syn, ref = system.get_parset(category='sp', type='syn', ref=ref)
+    syn = system.get_synthetic(category='sp', ref=ref)
     loaded = syn.load(force=False)
     
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
