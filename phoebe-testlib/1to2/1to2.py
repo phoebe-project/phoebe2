@@ -1,7 +1,9 @@
 import phoebeBackend as phb
 import scipy.stats as st
 import numpy as np
+import time
 import phoebe as phb2
+from phoebe.io import parsers
 
 
 # Initialize Phoebe1 and Phoebe2
@@ -37,19 +39,23 @@ mybundle.set_value('teff@secondary', phb.getpar('phoebe_teff2'))
 
 # Report
 print("# Qual = Phoebe1 -- Phoebe2")
-print("# pot1 = %f -- %f" % phb.getpar("phoebe_pot1"),mybundle.get_value('pot@primary'))
-print("# pot2 = %f -- %f" % phb.getpar("phoebe_pot2"),mybundle.get_value('pot@secondary'))
-print("# incl = %f -- %f" % phb.getpar("phoebe_incl"),mybundle.get_value('incl'))
-print("# ecc  = %f -- %f" % phb.getpar("phoebe_ecc"),mybundle.get_value('ecc'))
-print("# per0 = %f -- %f" % phb.getpar("phoebe_perr0"),mybundle.get_value('perr0'))
-print("# rm   = %f -- %f" % phb.getpar("phoebe_rm"),mybundle.get_value('rm'))
-print("# T2   = %f -- %f" % phb.getpar("phoebe_teff2"),mybundle.get_value('teff@secondary'))
+print("# pot1 = %f -- %f" % (phb.getpar("phoebe_pot1"), mybundle.get_value('pot@primary')))
+print("# pot2 = %f -- %f" % (phb.getpar("phoebe_pot2"), mybundle.get_value('pot@secondary')))
+print("# incl = %f -- %f" % (phb.getpar("phoebe_incl"), mybundle.get_value('incl')))
+print("# ecc  = %f -- %f" % (phb.getpar("phoebe_ecc"), mybundle.get_value('ecc')))
+print("# per0 = %f -- %f" % (phb.getpar("phoebe_perr0"), mybundle.get_value('per0')))
+print("# rm   = %f -- %f" % (phb.getpar("phoebe_rm"), mybundle.get_value('q')))
+print("# T2   = %f -- %f" % (phb.getpar("phoebe_teff2"), mybundle.get_value('teff@secondary')))
 
 # Template phases
 ph = np.linspace(-0.5, 0.5, 201)
 
 # Compute a phase curve with Phoebe1
+print("# Computing phoebe 1 light curve.")
+ts = time.time()
 lc_ph1 = phb.lc(tuple(ph.tolist()), 0)
+te = time.time()
+print("# Execution time: %3.3f seconds" % ((te-ts)))
 
 # Compute a phase curve with Phoebe2
 mybundle.create_syn(category='lc', phase=ph)
