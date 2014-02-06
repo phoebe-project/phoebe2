@@ -1474,8 +1474,9 @@ class Bundle(object):
         @type ref: str    
         """
         # create pbdeps and attach to the necessary object
-        # this function will be used for creating pbdeps without loading an actual file ie. creating a synthetic model only
-        # times will need to be provided by the compute options (auto will not load times out of a pbdep)
+        # this function will be used for creating pbdeps without loading an
+        # actual file ie. creating a synthetic model only times will need to be
+        # provided by the compute options (auto will not load times out of a pbdep)
         
         # Modified functionality from datasets.parse_header
         
@@ -1602,7 +1603,7 @@ class Bundle(object):
             this_objref = body.get_label()
             
             if objref is None or this_objref == objref:
-                ds = body.get_synthetic(ref=dataref, cumulative=True).asarray()
+                ds = body.get_synthetic(ref=dataref, cumulative=True)
                 
                 if ds is not None and ds != [] and (category is None or ds.context[:-3]==category):
                     dss['{}@{}'.format(ds['ref'],this_objref)] = ds
@@ -1938,12 +1939,22 @@ class Bundle(object):
                 fittingoptions.set_value(k,v)
             elif k in computeoptions.keys():
                 computeoptions.set_value(k,v)
-
+        
+        # here, we should disable those obs that have no flux/rv/etc.., i.e.
+        # the ones that were added just for exploration purposes. We should
+        # keep track of those and then re-enstate them to their original
+        # value afterwards (the user could also have disabled a dataset)
+        # <some code>
+        
+        # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions, fitparams=fittingoptions, mpi=mpi)
         
         if add_feedback:
             self.add_feedback(feedback)
-            
+        
+        # Then re-instate the status of the obs without flux/rv/etc..
+        # <some code>
+        
         if accept_feedback:
             fitting.accept_fit(self.get_system(),feedback)
             
