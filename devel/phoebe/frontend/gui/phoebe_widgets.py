@@ -896,7 +896,9 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             reload_button.setIcon(self.reload_icon)
             reload_button.setMaximumSize(QSize(18, 18))
             reload_button.setToolTip("reload %s dataset" % dataset['ref'])
-            reload_button.setEnabled(False) #until signals attached
+            #~ reload_button.setEnabled(False) #until signals attached
+            reload_button.info = {'dataset': dataset}
+            QObject.connect(reload_button, SIGNAL('clicked()'), self.on_reload_clicked)
             HBox.addWidget(reload_button)
             
             export_button = QPushButton()
@@ -1238,6 +1240,15 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         # TODO - try to make this undoable
         description = "remove %s dataset" % ref
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)
+        
+    def on_reload_clicked(self):
+        ref = self.sender().info['dataset']['ref']
+        
+        do_command = "bundle.reload_obs('%s')" % ref
+        undo_command = "print 'undo is not available for this action'"
+        # TODO - try to make this undoable
+        description = "reload %s dataset" % ref
+        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description)        
         
     def on_export_clicked(self):
         ref = self.sender().info['dataset']['ref']
