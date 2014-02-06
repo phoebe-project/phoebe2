@@ -915,11 +915,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if not skip_axes_attach:
             self.bundle.attach_signal(self.bundle, 'set_select_time', self.on_select_time_changed, i, canvas)
             self.bundle.attach_signal(self.bundle, 'set_system', self.plot_redraw, i, canvas) #will also be called for get_version(set_system=True)
+            self.bundle.attach_signal(self.bundle, 'reload_obs', self.plot_redraw, i, canvas)
             self.bundle.attach_signal(axes.settings['axes'], 'set_value', self.plot_redraw, i, canvas)
             #~ self.bundle.attach_signal(axes, 'set_value', self.plot_redraw, i, canvas)
             self.bundle.attach_signal(axes, 'add_plot', self.attach_plot_signals, i, canvas, True) # so that we can add the new parameter options
             self.bundle.attach_signal(axes, 'add_plot', self.plot_redraw, i, canvas)
             self.bundle.attach_signal(axes, 'remove_plot', self.plot_redraw, i, canvas)
+
             #~ self.attached_plot_signals.append((axes, canvas))
         else: # then we're coming from add_plot
             self.plot_redraw(None, i, canvas)

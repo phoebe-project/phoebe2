@@ -1720,6 +1720,18 @@ class Bundle(object):
                 obs.set_adjust('l3',l3)
             if pblum is not None:
                 obs.set_adjust('pblum',pblum)
+                
+    def reload_obs(self, dataref=None):
+        """
+        reload a dataset from its source file
+        
+        @param dataref: ref (name) of the dataset (or None for all)
+        @type dataref: str or None
+        """
+        
+        dss = self.get_obs(dataref=dataref,return_type='list')
+        for ds in dss:
+            ds.load()
 
     def remove_data(self, dataref):
         """
