@@ -1991,7 +1991,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             #TODO make this more intelligent so values that weren't changed by the user aren't sent
             
-            if '--Passband--' not in passband and '--Filter Set--' not in passband:
+            if '--Passband--' in passband or '--Filter Set--' in passband:
                 QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
                 return
             
