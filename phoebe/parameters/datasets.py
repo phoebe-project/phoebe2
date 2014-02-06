@@ -1631,7 +1631,7 @@ def parse_rv(filename, columns=None, components=None,
     
     # Convert to right units
     for col in units:
-        if col == 'rv':
+        if col == 'rv' and units[col] != myds.get_parameter(col).get_unit():
             # if sigma units and normal units are not the same, we need to
             # probably first convert rv to sigma units, then rv&sigma to correct
             # units, just to be safe (probably more important for mag-flux
