@@ -97,7 +97,7 @@ class Axes(object):
         @return: the desired plotoptions
         @rtype: ParameterSet        
         """
-        plots = OrderedDict([('{}:{}:{}'.format(pl.get_value('objref'),pl.get_value('dataref'),pl.get_value('type')), pl) for pl in self.settings['plots']])
+        plots = OrderedDict([('{}@{}@{}'.format(pl.get_value('dataref'),pl.get_value('type'),pl.get_value('objref')), pl) for pl in self.settings['plots']])
         
         if ident is None:
             return plots

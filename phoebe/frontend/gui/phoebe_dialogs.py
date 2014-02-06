@@ -470,9 +470,10 @@ class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
         
         
 class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None,devel_version=False):
         super(CreatePopFileEntry, self).__init__(parent)
         self.setupUi(self)
+        self.devel_version = devel_version
         
         self.colwidgets = []
         
@@ -490,10 +491,34 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         
         for w in [self.timeselect_arange_min, self.timeselect_arange_max, self.timeselect_linspace_min, self.timeselect_linspace_max]:
             self.connect(w, SIGNAL("clicked()"), self.on_timeselect_clicked)
-        
+            
+        if not devel_version:
+            self.sigmaLabel.setVisible(False)
+            self.sigmaSpinBox.setVisible(False)
+            
     def set_filters(self):
-        self.filtertypes = passbands.list_response()
-        self.pfe_filterComboBox.addItems(self.filtertypes)
+        self.filtertypes = {}
+        filters = passbands.list_response()
+        for filt in filters:
+            fset,fband = filt.split('.')[:]
+            if fset not in self.filtertypes:
+                self.filtertypes[fset] = []
+            self.filtertypes[fset].append(fband)
+            
+        self.pfe_filtersetComboBox.addItems(self.filtertypes.keys())
+        self.pfe_filterbandComboBox.setEnabled(False)
+        self.connect(self.pfe_filtersetComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_filterset_changed)
+        #~ self.pfe_filterComboBox.addItems(self.filtertypes)
+        
+    def on_filterset_changed(self,filterset):
+        filterset = str(filterset)
+        self.pfe_filterbandComboBox.clear()
+        if filterset in self.filtertypes.keys():
+            self.pfe_filterbandComboBox.addItems(['--Pasband--']+self.filtertypes[filterset])
+            self.pfe_filterbandComboBox.setEnabled(True)
+        else:
+            self.pfe_filterbandComboBox.addItems(['--Passband--'])
+            self.pfe_filterbandComboBox.setEnabled(False)
         
     def on_syn_choose(self):
         # show the time chooser widget
@@ -557,8 +582,12 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         if components is None:
             components = ['None']*ncols
         
-        if pbdep['passband'] in self.filtertypes:
-            passband = self.pfe_filterComboBox.setCurrentIndex(self.filtertypes.index(pbdep['passband'])+1)
+        filterset,filterband = pbdep['passband'].split('.')[:]
+        
+        if filterset in self.filtertypes.keys():
+            self.pfe_filtersetComboBox.setCurrentIndex(self.filtertypes.keys().index(filterset)+1)
+            if filterband in self.filtertypes[filterset]:
+                self.pfe_filterbandComboBox.setCurrentIndex(self.filtertypes[filterset].index(filterband)+1)
         
         # if no name has been provided, try to guess
         if self.name.text()=='':
@@ -572,7 +601,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
                 
         self.colwidgets = []
         for col in range(ncols):
-            colwidget = CreatePopFileEntryColWidget()
+            colwidget = CreatePopFileEntryColWidget(devel_version=self.devel_version)
             self.colwidgets.append(colwidget) # so we can iterate through these later
             self.horizontalLayout_ColWidgets.addWidget(colwidget)
 
@@ -688,9 +717,12 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
             colwidget.type_comboBox.addItems(self.datatypes)
 
 class CreatePopFileEntryColWidget(QWidget, gui.Ui_popFileEntryColWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None,devel_version=False):
         super(CreatePopFileEntryColWidget, self).__init__(parent)
         self.setupUi(self)
+        
+        if not devel_version:
+            self.units_comboBox.setVisible(False)
         
 class CreateFileEntryWidget(QWidget, gui.Ui_fileEntryWidget):
     def __init__(self, parent=None):
