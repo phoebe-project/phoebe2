@@ -8,8 +8,11 @@ import ui_phoebe_pyqt4 as gui
 ##### The pyphoebe.parameters import create line 
 ##### should be removed once we establish the system's
 ##### mesh as an argument to the widget
-from PyQt4.QtOpenGL import *
-from OpenGL.GL import *
+try:
+    from PyQt4.QtOpenGL import *
+    from OpenGL.GL import *
+except:
+    pass
 from phoebe.parameters import create
 from phoebe.utils import callbacks
 from phoebe.units import constants
@@ -793,7 +796,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         if plots!='all plots' or types!='all types':
             if plots!='all plots':
                 axes_incl = [bundle.get_axes(plots)]
-                typ = axes_incl[0].get_value('category') # will be rv or lc
+                typ = axes_incl[0].get_value('category') # will be rv, lc, etc 
                 self.style = 'plot'
             elif types!='all types': #plot will automatically handle filtering by type
                 typ = types
@@ -810,10 +813,10 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         for ax in axes_incl:
             for p in ax.get_plot().values():
                 if p['type'][-3:]=='obs':
-                    plotted_obs.append(bundle.get_obs(p['objref'],p['dataref']))
+                    plotted_obs.append(bundle.get_obs(objref=p['objref'],dataref=p['dataref']))
                     plotted_obs_ps.append(p)
                 elif p['type'][-3:]=='syn':
-                    plotted_syn.append(bundle.get_syn(p['objref'],p['dataref']))
+                    plotted_syn.append(bundle.get_syn(objref=p['objref'],dataref=p['dataref']))
                     plotted_syn_ps.append(p)
         
         # setup tree view
@@ -844,10 +847,11 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             label.setMinimumSize(QSize(400,18))
             HBox.addWidget(label)
             
-            for key in ['l3','pblum']:
-                label = QLabel(key[:2] if key in dataset.keys() and dataset.get_adjust(key) else '')
-                label.setMinimumSize(QSize(18,18))
-                HBox.addWidget(label)
+            if dataset.context[-3:]=='obs':
+                for key in ['l3','pblum']:
+                    label = QLabel(key[:2] if key in dataset.keys() and dataset.get_adjust(key) else '')
+                    label.setMinimumSize(QSize(18,18))
+                    HBox.addWidget(label)
             
             leftstackedwidget.addWidget(frame)
             

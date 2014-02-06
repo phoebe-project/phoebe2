@@ -1966,7 +1966,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         pop.show()
         
     def on_fileEntryShow(self):
-        pop = phoebe_dialogs.CreatePopFileEntry(self)
+        pop = phoebe_dialogs.CreatePopFileEntry(self,devel_version=_devel_version)
         pop.show()
 
         QObject.connect(pop.buttonBox.buttons()[1], SIGNAL("clicked()"), pop.close)
@@ -1974,7 +1974,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 
     def on_pfe_okClicked(self):
         pop = self.sender().topLevelWidget()
-        passband = pop.pfe_filterComboBox.currentText()
+        passband = '{}.{}'.format(pop.pfe_filtersetComboBox.currentText(), pop.pfe_filterbandComboBox.currentText())
         name = pop.name.text() if len(pop.name.text()) > 0 else None
 
         if pop.pfe_fileChooserButton.isVisible(): # then load_data
@@ -1991,7 +1991,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             #TODO make this more intelligent so values that weren't changed by the user aren't sent
             
-            if passband == '--Passband--':
+            if '--Passband--' not in passband and '--Filter Set--' not in passband:
                 QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
                 return
             

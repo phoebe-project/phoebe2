@@ -153,14 +153,14 @@
                <widget class="QLineEdit" name="name"/>
               </item>
               <item>
-               <widget class="QLabel" name="label_3">
+               <widget class="QLabel" name="sigmaLabel">
                 <property name="text">
                  <string>Sigma:</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QDoubleSpinBox" name="doubleSpinBox">
+               <widget class="QDoubleSpinBox" name="sigmaSpinBox">
                 <property name="enabled">
                  <bool>false</bool>
                 </property>
@@ -179,15 +179,6 @@
               <property name="text">
                <string>Passband:</string>
               </property>
-             </widget>
-            </item>
-            <item row="4" column="2">
-             <widget class="QComboBox" name="pfe_filterComboBox">
-              <item>
-               <property name="text">
-                <string>--Passband--</string>
-               </property>
-              </item>
              </widget>
             </item>
             <item row="0" column="0">
@@ -227,6 +218,28 @@
               </item>
              </widget>
             </item>
+            <item row="4" column="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <widget class="QComboBox" name="pfe_filtersetComboBox">
+                <item>
+                 <property name="text">
+                  <string>--Filter Set--</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="pfe_filterbandComboBox">
+                <item>
+                 <property name="text">
+                  <string>--Passband--</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+             </layout>
+            </item>
            </layout>
           </item>
          </layout>
@@ -258,6 +271,9 @@
          </item>
          <item row="3" column="8">
           <widget class="QSpinBox" name="linspace_num">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <property name="minimum">
             <number>1</number>
            </property>
@@ -294,7 +310,7 @@
             <string>custom list</string>
            </property>
            <property name="checked">
-            <bool>true</bool>
+            <bool>false</bool>
            </property>
           </widget>
          </item>
@@ -305,6 +321,9 @@
            </property>
            <property name="text">
             <string>np.linspace</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -320,6 +339,9 @@
          </item>
          <item row="3" column="5">
           <widget class="QDoubleSpinBox" name="linspace_max">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <property name="decimals">
             <number>6</number>
            </property>
@@ -330,6 +352,9 @@
          </item>
          <item row="3" column="2">
           <widget class="QDoubleSpinBox" name="linspace_min">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <property name="decimals">
             <number>6</number>
            </property>
@@ -379,6 +404,9 @@
          </item>
          <item row="3" column="3">
           <widget class="QPushButton" name="timeselect_linspace_min">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <property name="maximumSize">
             <size>
              <width>24</width>
@@ -399,6 +427,9 @@
          </item>
          <item row="2" column="5">
           <widget class="QDoubleSpinBox" name="arange_max">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="decimals">
             <number>6</number>
            </property>
@@ -409,6 +440,9 @@
          </item>
          <item row="2" column="3">
           <widget class="QPushButton" name="timeselect_arange_min">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="maximumSize">
             <size>
              <width>24</width>
@@ -428,7 +462,11 @@
           </widget>
          </item>
          <item row="1" column="1" colspan="8">
-          <widget class="QComboBox" name="datasetComboBox"/>
+          <widget class="QComboBox" name="datasetComboBox">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+          </widget>
          </item>
          <item row="2" column="4">
           <widget class="QLabel" name="label_7">
@@ -447,7 +485,11 @@
           </widget>
          </item>
          <item row="4" column="1" colspan="8">
-          <widget class="QLineEdit" name="time_custom"/>
+          <widget class="QLineEdit" name="time_custom">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+          </widget>
          </item>
          <item row="2" column="7">
           <widget class="QLabel" name="label_8">
@@ -467,6 +509,9 @@
          </item>
          <item row="3" column="6">
           <widget class="QPushButton" name="timeselect_linspace_max">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
            <property name="maximumSize">
             <size>
              <width>24</width>
@@ -487,6 +532,9 @@
          </item>
          <item row="2" column="2">
           <widget class="QDoubleSpinBox" name="arange_min">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="decimals">
             <number>6</number>
            </property>
@@ -497,6 +545,9 @@
          </item>
          <item row="2" column="6">
           <widget class="QPushButton" name="timeselect_arange_max">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="maximumSize">
             <size>
              <width>24</width>
@@ -533,6 +584,9 @@
          </item>
          <item row="2" column="8">
           <widget class="QDoubleSpinBox" name="arange_step">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="decimals">
             <number>6</number>
            </property>
@@ -558,5 +612,198 @@
  <resources>
   <include location="ui_resources.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>times_list</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>time_custom</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>506</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>455</x>
+     <y>507</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_linspace</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>linspace_min</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>473</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>265</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_linspace</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>linspace_max</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>473</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>480</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_linspace</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>linspace_num</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>473</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>689</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_linspace</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>timeselect_linspace_min</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>473</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>353</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_linspace</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>timeselect_linspace_max</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>473</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>568</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_arange</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>arange_min</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>440</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>265</x>
+     <y>441</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_arange</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>arange_max</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>440</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>480</x>
+     <y>441</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_arange</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>arange_step</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>440</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>689</x>
+     <y>441</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_arange</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>timeselect_arange_min</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>440</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>353</x>
+     <y>441</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_arange</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>timeselect_arange_max</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>440</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>568</x>
+     <y>441</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>times_match</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>datasetComboBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>407</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>455</x>
+     <y>408</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
