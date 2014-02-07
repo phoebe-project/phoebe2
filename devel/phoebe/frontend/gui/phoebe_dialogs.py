@@ -514,7 +514,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         filterset = str(filterset)
         self.pfe_filterbandComboBox.clear()
         if filterset in self.filtertypes.keys():
-            self.pfe_filterbandComboBox.addItems(['--Pasband--']+self.filtertypes[filterset])
+            self.pfe_filterbandComboBox.addItems(['--Passband--']+self.filtertypes[filterset])
             self.pfe_filterbandComboBox.setEnabled(True)
         else:
             self.pfe_filterbandComboBox.addItems(['--Passband--'])
