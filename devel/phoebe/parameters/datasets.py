@@ -1631,14 +1631,19 @@ def parse_rv(filename, columns=None, components=None,
     
     # Convert to right units
     for col in units:
-        if col == 'rv' and units[col] != myds.get_parameter(col).get_unit():
+        if col == 'rv':
             # if sigma units and normal units are not the same, we need to
             # probably first convert rv to sigma units, then rv&sigma to correct
             # units, just to be safe (probably more important for mag-flux
             # conversions)
-            f, e_f = conversions.convert(units[col],
+            if units[col] == 'Rsol/d' and myds.get_parameter(col).get_unit()=='km/s':
+                f = f*8.04986111111111
+                e_f = e_f*8.04986111111111
+            elif units[col] != myds.get_parameter(col).get_unit():
+                f, e_f = conversions.convert(units[col],
                                          myds.get_parameter(col).get_unit(), 
                                          myds['rv'], myds['sigma'])
+            
             myds['rv'] = f
             myds['sigma'] = e_f
     
