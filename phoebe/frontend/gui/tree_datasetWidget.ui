@@ -83,7 +83,7 @@
        </property>
        <column>
         <property name="text">
-         <string notr="true">1</string>
+         <string notr="true">Dataset</string>
         </property>
        </column>
       </widget>

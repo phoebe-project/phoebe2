@@ -863,7 +863,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             frame.setLayout(HBox) 
             
             check = EnabledCheck(dataset.get_enabled() is True)
-            check.setToolTip("toggle whether %s dataset is enabled for fitting" % dataset['ref'])
+            check.setToolTip("toggle whether %s dataset is enabled for computing" % dataset['ref'])
             item.info['check'] = check
             HBox.addWidget(check)
             

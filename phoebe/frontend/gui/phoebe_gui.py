@@ -791,7 +791,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         ds_obs_all = self.bundle.get_obs(return_type='all')
         ds_syn_all = self.bundle.get_syn(return_type='all')
         
-        
         # remove duplicates
         ds_obs = []
         ds_syn = []
@@ -823,6 +822,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 plots = tree.plotindex
             
             tree.set_data(ds_obs,ds_syn,types,plots,self.bundle,self.system_ps,self.system_names)
+            
+        self.mp_stackedWidget_to_grid(force_grid=len(self.bundle.get_axes(return_type='all'))!=0)
 
     @PyInterp_selfdebug
     def on_sysSel_selectionChanged(self,skip_collapse=False):
@@ -1110,11 +1111,21 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # we can access this info in plot_redraw() and on_select_time_changed() through self.pop_i
             
         else: #then we need to return to grid
-            self.mp_stackedWidget.setCurrentIndex(1)
+            self.mp_stackedWidget_to_grid(force_grid=True)
             
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(0)
             
         #~ self.update_datasets()
+        
+    def mp_stackedWidget_to_grid(self,force_grid=False):
+        if len(self.bundle.get_obs(return_type='list'))==0:
+            # load data tutorial
+            self.mp_stackedWidget.setCurrentIndex(5)
+        elif len(self.bundle.get_axes(return_type='list'))==0:
+            # create plot tutorial
+            self.mp_stackedWidget.setCurrentIndex(6)
+        elif force_grid:
+            self.mp_stackedWidget.setCurrentIndex(1)
         
     def on_plot_clicked(self,canvas,event):
         if not hasattr(canvas,'xaxis'):
@@ -1544,7 +1555,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.on_fittingOption_changed()
             self.update_observeoptions()
             if self.mp_stackedWidget.currentIndex()==0:
-                self.mp_stackedWidget.setCurrentIndex(1)
+                self.mp_stackedWidget_to_grid(force_grid=False)
+                #~ self.mp_stackedWidget.setCurrentIndex(1)
             self.tb_file_saveasAction.setEnabled(True)
             self.lp_DockWidget.setVisible(self.tb_view_lpAction.isChecked())
             self.rp_fittingDockWidget.setVisible(self.tb_view_rpAction.isChecked())
@@ -1976,15 +1988,18 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 
     def on_pfe_okClicked(self):
         pop = self.sender().topLevelWidget()
-        passband = '{}.{}'.format(pop.pfe_filtersetComboBox.currentText(), pop.pfe_filterbandComboBox.currentText())
+        passband = '{}.{}'.format(str(pop.pfe_filtersetComboBox.currentText()), str(pop.pfe_filterbandComboBox.currentText()))
         name = pop.name.text() if len(pop.name.text()) > 0 else None
+        
+        if '--Passband--' in passband or '--Filter Set--' in passband:
+            QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
+            return
 
         if pop.pfe_fileChooserButton.isVisible(): # then load_data
-            filename=pop.pfe_fileChooserButton.text()
-            
-            if filename is None: #then just create the synthetic (pbdeps)
-                #TODO: make this undoable
-                self.PyInterp_run('', thread=False, kind='sys')
+            filename=str(pop.pfe_fileChooserButton.text())
+
+            if filename=='Choose File':
+                QMessageBox.information(None, "Warning", "Cannot load data: either choose file or setup synthetic dataset")
                 return
             
             columns = [str(colwidget.type_comboBox.currentText()) if '--' not in str(colwidget.type_comboBox.currentText()) else None for colwidget in pop.colwidgets]
@@ -1992,11 +2007,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             components = [str(colwidget.comp_comboBox.currentText()) if '--' not in str(colwidget.comp_comboBox.currentText()) else None for colwidget in pop.colwidgets]
             
             #TODO make this more intelligent so values that weren't changed by the user aren't sent
-            
-            if '--Passband--' in passband or '--Filter Set--' in passband:
-                QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
-                return
-            
             for i,colwidget in enumerate(pop.colwidgets):
                 typecombo = colwidget.type_comboBox
                 unitscombo = colwidget.units_comboBox
