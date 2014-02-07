@@ -2049,6 +2049,19 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def main(self):
         self.show()
 
+
+def set_gui_parameters():
+    """
+    Tweak some parameters to have slightly different behaviour for the GUI.
+    """
+    defs = parameters.defs.defs
+    Npars = len(defs)
+    for i in range(Npars):
+        if defs[i]['qualifier'] == 'atm' and 'phoebe' in defs[i]['frame']:
+            defs[i]['cast_type'] = 'choose'
+            defs[i]['choices'] = ['kurucz', 'blackbody']
+    
+
 ### startup the main window and pass any command-line arguments
 if __name__=='__main__':
     STDOUT, STDERR, DEBUG = False, False, False
@@ -2059,6 +2072,7 @@ if __name__=='__main__':
         STDERR = True
     if "debug" in sys.argv:
         DEBUG = True
+    set_gui_parameters()
     app = QApplication(sys.argv)
     font = app.font()
     palette = app.palette()
