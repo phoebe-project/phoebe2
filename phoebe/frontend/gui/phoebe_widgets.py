@@ -174,12 +174,17 @@ class GeneralParameterTreeWidget(QTreeWidget):
         
         self.installEventFilter(self)
         self.connect(self, SIGNAL("itemClicked(QTreeWidgetItem*, int)"), self.item_clicked)
-        self.connect(self, SIGNAL("currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)"), self.item_changed)   
+        self.connect(self, SIGNAL("currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)"), self.item_changed) 
+        self.connect(self, SIGNAL("itemSelectionChanged()"), self.item_changed) # should handle focus being stolen by other items
         
     def eventFilter(self,object,event):
         if event.type()== QEvent.FocusIn:
             self.emit(SIGNAL("focusIn"))
+        #~ print event.type()
+        #~ if event.type()==QEvent.FocusOut:
+            #~ self.item_changed()
         return False
+        
 
     def get_parent_label(self,param):
         unique_label = param.get_unique_label()
