@@ -2098,7 +2098,7 @@ class Bundle(object):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True)
+        dss = self.get_obs(dataref=dataref, objref=objref, return_type='dict')
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
         elif not len(dss):
@@ -2106,7 +2106,7 @@ class Bundle(object):
         
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        obj = self.get_object(dss.keys()[0])
+        obj = self.get_object(dss.keys()[0].split('@')[2])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2129,10 +2129,9 @@ class Bundle(object):
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
         elif not len(dss):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
-        print dss
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        obj = self.get_object(dss.keys()[0])
+        obj = self.get_object(dss.keys()[0].split('@')[-1])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2149,20 +2148,20 @@ class Bundle(object):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_obs(dataref=dataref, objref=objref, force_dict=True).values()
+        dss = self.get_obs(dataref=dataref, objref=objref, return_type='dict')
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
         elif not len(dss):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
         
         # Get the obs DataSet and retrieve its context
-        ds = dss[0]
-        typ = ds.get_context()[:-3]
+        ds = dss.values()[0]
+        obj = self.get_object(dss.keys()[0].split('@')[2])
+        context = ds.get_context()
         
         # Now pass everything to the correct plotting function
         kwargs['ref'] = dataref
-        getattr(plotting, 'plot_{}res'.format(typ))(self.get_system(),
-                                                     *args, **kwargs)
+        getattr(plotting, 'plot_{}res'.format(context))(obj, *args, **kwargs)
     
     def write_syn(self, dataref, output_file, objref=None):
         dss = self.get_syn(dataref=dataref, objref=objref, return_type='all')

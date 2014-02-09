@@ -772,13 +772,25 @@ class ServerListTreeWidget(GeneralParameterTreeWidget):
     def on_server_status_changed(self,*args):
         self.emit(SIGNAL("serverStatusChanged"),False)
             
+def has_ydata(dataset):
+    category = dataset.context[:-3]
+    if category in ['lc','sp']:
+        ydata = dataset['flux']
+    elif category == 'rv':
+        ydata = dataset['rv']
+    elif category == 'etv':
+        ydata = dataset['etv']
+    else:
+        ydata = []
+        
+    return len(ydata)>0
             
 
 class DatasetTreeWidget(GeneralParameterTreeWidget):
     """
     parameter tree view in bottom panel and any plot popups
     """
-    
+       
     def set_data(self,data_obs,data_syn,types,plots,bundle,system_ps,system_names,style=[]):
         '''
         data_obs,data_syn - list of data ParameterSets (datasets) to be shown in the treeview
@@ -852,7 +864,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             label.setMinimumSize(QSize(400,18))
             HBox.addWidget(label)
             
-            if dataset.context[-3:]=='obs':
+            if has_ydata(dataset):
                 for key in ['l3','pblum']:
                     label = QLabel(key[:2] if key in dataset.keys() and dataset.get_adjust(key) else '')
                     label.setMinimumSize(QSize(18,18))
@@ -879,14 +891,15 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             HBox.addItem(spacer)
 
             adjust_checks = []
-            for key in ['l3','pblum']:  # move these to the edit window?
-                if key in dataset.keys():
-                    check = EnabledButton(dataset.get_adjust(key))
-                    check.setText(key[:2])
-                    check.key = key
-                    check.setToolTip("toggle whether %s is marked for adjustment/fitting" % key)
-                    adjust_checks.append(check)
-                    HBox.addWidget(check)
+            if has_ydata(dataset):
+                for key in ['l3','pblum']:  # move these to the edit window?
+                    if key in dataset.keys():
+                        check = EnabledButton(dataset.get_adjust(key))
+                        check.setText(key[:2])
+                        check.key = key
+                        check.setToolTip("toggle whether %s is marked for adjustment/fitting" % key)
+                        adjust_checks.append(check)
+                        HBox.addWidget(check)
             item.info['adjust_checks'] = adjust_checks
                     
             edit_button = QPushButton()
@@ -897,14 +910,15 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             edit_button.setEnabled(False) #until signals attached
             HBox.addWidget(edit_button)
 
-            reload_button = QPushButton()
-            reload_button.setIcon(self.reload_icon)
-            reload_button.setMaximumSize(QSize(18, 18))
-            reload_button.setToolTip("reload %s dataset" % dataset['ref'])
-            #~ reload_button.setEnabled(False) #until signals attached
-            reload_button.info = {'dataset': dataset}
-            QObject.connect(reload_button, SIGNAL('clicked()'), self.on_reload_clicked)
-            HBox.addWidget(reload_button)
+            if has_ydata(dataset):
+                reload_button = QPushButton()
+                reload_button.setIcon(self.reload_icon)
+                reload_button.setMaximumSize(QSize(18, 18))
+                reload_button.setToolTip("reload %s dataset" % dataset['ref'])
+                #~ reload_button.setEnabled(False) #until signals attached
+                reload_button.info = {'dataset': dataset}
+                QObject.connect(reload_button, SIGNAL('clicked()'), self.on_reload_clicked)
+                HBox.addWidget(reload_button)
             
             export_button = QPushButton()
             export_button.setIcon(self.list_icon)
@@ -934,21 +948,21 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 stackedwidget = QStackedWidget()
                 
                 # these two bools are used in the data view                
-                has_obs = len(bundle.get_obs(name, dataset['ref'], return_type='dict')) > 0
-                has_syn = len(bundle.get_syn(name, dataset['ref'], return_type='dict')) > 0
+                has_obs = len(bundle.get_obs(name, dataset['ref'], return_type='all')) > 0
+                #~ if has_obs:
+                    # need to check that its not empty
+                    #~ has_obs = has_ydata(bundle.get_obs(objref=name, dataref=dataset['ref'], return_type='all')[0])
+                has_syn = len(bundle.get_syn(objref=name, dataref=dataset['ref'], return_type='all')) > 0
                 
                 # get the dataset for this row AND column
                 if has_obs:
-                    col_obs = bundle.get_obs(name, dataset['ref'], return_type='all')[0]
+                    col_obs = bundle.get_obs(objref=name, dataref=dataset['ref'], return_type='all')[0]
                 else:
                     col_obs = None
                 if has_syn:
-                    col_syn = bundle.get_syn(name, dataset['ref'], return_type='all')[0]
+                    col_syn = bundle.get_syn(objref=name, dataref=dataset['ref'], return_type='all')[0]
                 else:
                     col_syn = None
-                
-                #~ po_refs = [po['ref'] for po in plotted_obs]
-                #~ ps_refs = [ps['ref'] for ps in plotted_syn]
                 
                 # the following bools are used in the plots view
                 #~ is_plotted_obs = dataset['ref'] in po_refs
@@ -983,22 +997,33 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 HBox = QHBoxLayout()
                 HBox.setSpacing(2)
                 HBox.setMargin(0)
-                frame.setLayout(HBox)                
+                frame.setLayout(HBox)   
+                
+                #~ print "***", dataset.get_value('ref'), name, has_obs, has_syn
+                             
                 if has_obs:
-                    # then data exists for this object and dataset
-                    label = QLabel()
-                    label.setPixmap(QPixmap(":/images/icons/database.png"))
-                    label.setScaledContents(True)
-                    label.setMaximumSize(QSize(18,18))
-                    label.setMaximumSize(QSize(18,18))
-                    label.setToolTip("%s includes data for %s" % (dataset.get_value('ref'),name))
-                    HBox.addWidget(label)
+                    #~ if has_obs and has_ydata(col_obs):
+                    if has_obs:
+                        # then data exists for this object and dataset
+                        label = QLabel()
+                        label.setPixmap(QPixmap(":/images/icons/database.png"))
+                        label.setScaledContents(True)
+                        label.setMaximumSize(QSize(18,18))
+                        label.setMaximumSize(QSize(18,18))
+                        label.setToolTip("%s includes data for %s" % (dataset.get_value('ref'),name))
+                        HBox.addWidget(label)
 
 
                     #~ if has_syn:
-                        #~ # then a syn exists for this object and dataset
+                        # then a syn exists for this object and dataset
                         #~ label = QLabel("S")
+                        #~ label.setPixmap(QPixmap(":/images/icons/database.png"))
+                        #~ label.setScaledContents(True)
+                        #~ label.setMaximumSize(QSize(18,18))
+                        #~ label.setMaximumSize(QSize(18,18))
+                        #~ label.setToolTip("%s includes synthetic data for %s" % (dataset.get_value('ref'),name))
                         #~ HBox.addWidget(label)
+
                     if True:
                         if self.style=='data':
                             if is_plotted:
@@ -1009,7 +1034,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                                 label.setToolTip("%s has plotoptions for %s" % (dataset.get_value('ref'),name))
                                 HBox.addWidget(label)
                         if self.style=='plot':
-                            if is_plotted_obs:
+                            if is_plotted_obs and has_ydata(col_obs):
                                 label = QLabel()
                                 label.setPixmap(QPixmap(":/images/icons/ellipsis.png"))
                                 label.setScaledContents(True)
@@ -1030,6 +1055,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                                     label.setGraphicsEffect(effect)
                                 
                                 HBox.addWidget(label)
+                            
                             if is_plotted_syn:
                                 label = QLabel()
                                 label.setPixmap(QPixmap(":/images/icons/commit.png"))
@@ -1101,16 +1127,17 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 
                 if has_obs:
                     # obs
-                    obs_color = ColorChooserButton('obs',plotted_obs_ps_curr.get_value('color') if plotted_obs_ps_curr is not None else 'auto')
-                    obs_marker = MarkerChooserCombo('obs',plotted_obs_ps_curr.get_value('marker') if plotted_obs_ps_curr is not None else 'auto')
-                    obs_errorbars = EnabledCheck(plotted_obs_ps_curr.get_value('errorbars') if plotted_obs_ps_curr is not None else True)
-                    obs_errorbars.setToolTip('show errorbars')
-                    obs_toggle = PlotEnabledToggle('obs',plotted_obs_ps_curr.get_value('active') if plotted_obs_ps_curr is not None else False,[obs_color,obs_marker])
-                    
-                    HBox.addWidget(obs_toggle)
-                    HBox.addWidget(obs_color)
-                    HBox.addWidget(obs_errorbars)
-                    HBox.addWidget(obs_marker)
+                    if has_ydata(col_obs):
+                        obs_color = ColorChooserButton('obs',plotted_obs_ps_curr.get_value('color') if plotted_obs_ps_curr is not None else 'auto')
+                        obs_marker = MarkerChooserCombo('obs',plotted_obs_ps_curr.get_value('marker') if plotted_obs_ps_curr is not None else 'auto')
+                        obs_errorbars = EnabledCheck(plotted_obs_ps_curr.get_value('errorbars') if plotted_obs_ps_curr is not None else True)
+                        obs_errorbars.setToolTip('show errorbars')
+                        obs_toggle = PlotEnabledToggle('obs',plotted_obs_ps_curr.get_value('active') if plotted_obs_ps_curr is not None else False,[obs_color,obs_marker])
+                        
+                        HBox.addWidget(obs_toggle)
+                        HBox.addWidget(obs_color)
+                        HBox.addWidget(obs_errorbars)
+                        HBox.addWidget(obs_marker)
                     
                     # syn
                     syn_color = ColorChooserButton('syn',plotted_syn_ps_curr.get_value('color') if plotted_syn_ps_curr is not None else 'auto')
