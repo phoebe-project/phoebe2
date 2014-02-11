@@ -82,6 +82,16 @@ def interp_spectable(gridfile,teff,logg,wrange):
     values[0] = np.log10(teff)
     values[1] = logg
     N = len(wrange)
+    #print len(axis_values), len(values)
+    #print 'axis values',axis_values[0]
+    #print 'axis values',axis_values[1]
+    #print 'values', values[0]
+    #print 'values', values[1]
+    #print values[0].min()>axis_values[0].min()
+    #print values[1].min()>axis_values[1].min()
+    #print values[0].max()<axis_values[0].max()
+    #print values[1].max()<axis_values[1].max()
+    #raise SystemExit
     try:
         pars = interp_nDgrid.interpolate(values,axis_values,pixelgrid)
     except IndexError:

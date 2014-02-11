@@ -1,9 +1,75 @@
-"""
+r"""
 Limb darkening and intensity fitting and querying
 
 .. contents::
     :local:
     :depth: 2
+
+.. _wonder_how_atmospheres:
+
+Section 0. Atmospheres in Phoebe 2
+===================================
+
+With the term 'atmosphere', we mean the layer of the star that is observed. In
+the framework of our model, it defines how much flux is observed, given a certain
+aspect angle and passband. This is set via three parameters:
+
+    - ``atm``: source of normal emergent specific intensities. That is, if we
+      look right at the center of the object (it's tangent surface being in the
+      plane of the sky), how many erg/s/cm2/AA/sr do we measure?
+    - ``ld_func``: determines the aspect angle dependency. There can be a linear
+      drop-off in :math:`\mu=\cos\theta` with :math:\`theta` the angle between the
+      line of sight and the surface normal, or it can be more complex.
+    - ``ld_coeffs``: It quanitifies the ``ld_func``. It tells you how much
+      erg/s/cm2/AA/sr is lost when look at the atmosphere from a different angle.
+      Typically, you choose an ``ld_func`` but let the parameters vary according
+      to the properties of the star (effective temperature, surface gravity etc).
+
+These three parameters are strongly linked: the combination of those should
+always reproduce the observed flux/luminosity of the Sun, given the solar
+effective temperature, radius, mass and composition. Ideally, ``atm`` and
+``ld_coeffs`` are fitted to a grid of computed specific intensities, assuming
+an ``ld_func`` (:py:func:`compute_grid_ld_coeffs`).
+
+Example combination of parameter values:
+
+    - :envvar:`atm=kurucz`
+    - :envvar:`ld_func=claret`
+    - :envvar:`ld_coeffs=kurucz`
+    
+It is possible to sever the link between the parameters, and take a different
+``ld_func`` or fixed ``ld_coeffs`` for any ``atm``. Still, we want to
+reproduce the solar luminosity, which means that integrated over all solid angles,
+the flux should stay the same. Therefore:
+
+    1. We compute the passband luminosity :math:`L_\mathrm{pb}` given
+       ``atm`` and the original ``ld_func`` and ``ld_coeffs`` used to determine
+       the ``atm`` values:
+       
+       .. math::
+    
+            L_\mathrm{pb} = 2\pi\int_S \int_{0}^{\frac{\pi}{2}}I_\mathrm{pb}(\cos\theta)\cos\theta\sin\theta d\theta dA \quad\mathrm{[erg/s]}
+       
+       where, for example for a linear limb darkening law:
+       
+       .. math::
+       
+            \frac{I_\mathrm{pb}(\mu)}{I_\mathrm{pb}(0)}  = 1 - \epsilon + \epsilon\mu
+       
+       with:
+       
+       .. math::
+       
+            \left\{\begin{array}{ll}
+            I_\mathrm{pb}(0) & \quad \mathrm{from }\ \mathtt{atm} \\
+            I_\mathrm{pb}(\cos\theta) & \quad \mathrm{from }\ \mathtt{ld\_func}\\
+            \epsilon & \quad \mathrm{from }\ \mathtt{ld\_coeffs}
+            \end{array}\right.
+       
+       
+    2. We compute the luminosity given the ``atm`` values and the newly given
+       ``ld_func`` and/or ``ld_coeffs``.
+    3. We rescale the ``atm`` values to reproduce the luminosity computed in (1).
 
 Section 1. File formats
 =======================
@@ -1326,6 +1392,11 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
     **Black body examples**
     
+    Note: due to a strange twist of faith, there is no parameter to set the
+    effective temperature range for blackbodies. If you want to expand the
+    parameter space from the default 10 - 100kK in 200 steps, log-space sampled,
+    you need to change the code in :py:func:`iter_grid_dimensions`. Sorry!
+    
     Case 0: plain black body
     
         >>> compute_grid_ld_coeffs('blackbody')
@@ -1474,7 +1545,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     passbands_ = sorted(list(set(list(passbands))))
     passbands = []
     for passband in passbands_:
-        these_responses = pbmod.list_response(name=passband)
+        these_responses = pbmod.list_response(name=passband.upper())
         passbands += these_responses
         if not these_responses:
             logger.warning('No passbands found matching pattern {}'.format(passband))
