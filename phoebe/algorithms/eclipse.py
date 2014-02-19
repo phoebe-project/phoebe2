@@ -23,7 +23,7 @@ except AttributeError:
     from scipy.spatial import KDTree
 
 from phoebe.algorithms import fraytracing
-from phoebe.algorithms import fconvex
+#from phoebe.algorithms import fconvex
 from phoebe.algorithms import ceclipse
 
 

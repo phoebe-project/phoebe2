@@ -4046,9 +4046,9 @@ class PhysicalBody(Body):
         if 'B_' in columns:
             self.mesh['B_'] = self.mesh['_o_B_']
         
-        for column in columns:
-           if column[:3] == '_o_' and column[3:] in columns:
-               self.mesh[column[3:]] = self.mesh[column]
+        #for column in columns:
+        #   if column[:3] == '_o_' and column[3:] in columns:
+        #       self.mesh[column[3:]] = self.mesh[column]
         
         # And we know nothing about the visibility
         self.mesh['partial'] = False
