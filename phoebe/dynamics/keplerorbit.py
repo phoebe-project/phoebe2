@@ -2002,30 +2002,21 @@ def place_in_binary_orbit(self,time):
     except:
         polar_dir = default_polar_dir
     
-    #velo_rot = np.cross(mesh['_o_center'],polar_dir*omega_rot) #NX3 array
-    velo_rot = fgeometry.cross_nx3_3(mesh['_o_center'], polar_dir*omega_rot)
-    
-#    velo_rot = rotate_into_orbit(velo_rot.T,euler).T
-
-    
-    velo_rot=ftrans.trans(velo_rot,euler,default_zeros,len(velo_rot))
-
-    #logger.info('orbital velocity = {:.3g} Rsol/d'.format(sqrt(velo[0]**2+velo[1]**2)))
-    #-- now place into binary orbit:
     fields = mesh.dtype.names
-        
-# Old version        
-
-#    mesh['center'] = rotate_into_orbit(mesh['center'].T,euler,loc).T
-#    mesh['triangle'][:,0:3] = rotate_into_orbit(mesh['triangle'][:,0:3].T,euler,loc).T
-#    mesh['triangle'][:,3:6] = rotate_into_orbit(mesh['triangle'][:,3:6].T,euler,loc).T
-#    mesh['triangle'][:,6:9] = rotate_into_orbit(mesh['triangle'][:,6:9].T,euler,loc).T
-#    for vectr in vectrs:
-#        mesh[vectr] = rotate_into_orbit(mesh[vectr].T,euler).T
-#    mesh['mu'] = cgeometry.cos_theta(mesh['normal_'].ravel(order='F').reshape((-1,3)),np.array([0,0,+1.0],float))
-
-# Optimized fortran version
-
+    
+    import ctrans
+    print mesh.shape
+    print mesh['size']
+    print euler, loc
+    ctrans.place_in_binary_orbit(mesh['size'], mesh['mu'], mesh['center'],
+                                 mesh['triangle'], mesh['normal_'],
+                                 mesh['velo___bol_'], polar_dir*omega_rot,
+                                 euler, loc)
+    print mesh['size']
+    raise SystemExit
+    
+    velo_rot = fgeometry.cross_nx3_3(mesh['_o_center'], polar_dir*omega_rot)
+    velo_rot = ftrans.trans(velo_rot,euler,default_zeros,len(velo_rot))
     mesh['center'] = ftrans.trans(mesh['center'],euler,loc,len(velo_rot))
     mesh['triangle'][:,0:3] = ftrans.trans(mesh['triangle'][:,0:3],euler,loc,len(mesh['triangle'][:,0:3]))
     mesh['triangle'][:,3:6] = ftrans.trans(mesh['triangle'][:,3:6],euler,loc,len(mesh['triangle'][:,3:6]))
