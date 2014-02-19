@@ -683,6 +683,12 @@ defs += [dict(qualifier='label',                description='label for the comut
                                                                    "'graham': uses Graham scan in conjunction with binary search trees to detect eclipsed triangles and label the ones which are partially visible //"
                                                                    "'binary': uses only_horizon outside of predicted eclipses, graham inside eclipses"
                                                                    "'auto': let (a) God decide which algorithm to use. I have no idea what it does."),cast_type='choose',value='graham',frame=['phoebe'],context='compute'),
+         dict(qualifier='beaming_alg',          description='Type of beaming algorithm',choices=['none','simple','local','full'],
+                                                 long_description=("'none': no beaming correction // "
+                                                                   "'simple': global increase/decrease of projected intensity according to mean stellar parameters // "
+                                                                   "'local': local increase/decrease of projected intensity according to local stellar parameters //"
+                                                                   "'full': adjust local intensity and limb darkening coefficients according to local stellar parameters"),
+                                                 cast_type='choose',value='full',frame=['phoebe'],context='compute'),
         ] 
 
 # Globals context

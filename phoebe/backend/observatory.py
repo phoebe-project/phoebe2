@@ -2059,11 +2059,11 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     # Compute intensities: it is possible that this is already taken care of
     # in set_time. It doesn't hurt to do it again, but this might be optimized.
-    if circular and (not beaming) and not ref in system.__had_refs:
-        system.intensity(ref=ref)
+    if circular and (not beaming == 'full') and not ref in system.__had_refs:
+        system.intensity(ref=ref, beaming_alg=beaming)
         system.__had_refs.append(ref)
-    elif (not circular) or beaming:
-        system.intensity(ref=ref)
+    elif (not circular) or (beaming == 'full'):
+        system.intensity(ref=ref, beaming_alg=beaming)
             
     update_intensity = False
     # Compute reflection effect (maybe just once, maybe always)
@@ -2075,7 +2075,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Recompute the intensities, temperatures might have changed due to
     # reflection)
     if update_intensity:
-        system.intensity(ref=ref)
+        system.intensity(ref=ref, beaming_alg=beaming)
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
@@ -2102,7 +2102,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
                 continue
             had_refs.append(iref)
         logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
-        getattr(system, itype[:-3])(ref=iref, time=time, correct_oversampling=isamp)
+        getattr(system, itype[:-3])(ref=iref, time=time, correct_oversampling=isamp, beaming_alg=beaming)
 
     # Call extra funcs if necessary
     for ef, kw in zip(extra_func, extra_func_kwargs):
@@ -2343,6 +2343,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     reflect = params['refl']
     nreflect = params['refl_num']
     ltt = params['ltt']
+    beaming = params['beaming_alg']
     
     # Heating and reflection are by default switched on. However, if there are
     # no irradiators, we don't need to compute it.
@@ -2417,12 +2418,16 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
     
     # And don't forget beaming!
-    beaming = False
+    beaming_is_relevant = False
     for parset in system.walk():
         if 'beaming' in parset and parset['beaming']:
-            beaming = True
+            beaming_is_relevant = True
             logger.info("Figured out that the system requires beaming")
             break
+    
+    # If beaming is not relevant, don't take it into account
+    if not beaming_is_relevant:
+        beaming = 'none'
     
     # If we include reflection, we need to reserve space in the mesh for the
     # reflected light. We need to fix the mesh afterwards because each body can
