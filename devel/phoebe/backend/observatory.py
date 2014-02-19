@@ -2059,7 +2059,10 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     # Compute intensities: it is possible that this is already taken care of
     # in set_time. It doesn't hurt to do it again, but this might be optimized.
-    if i == 0 or not circular or beaming:
+    if circular and (not beaming) and not ref in system.__had_refs:
+        system.intensity(ref=ref)
+        system.__had_refs.append(ref)
+    elif (not circular) or beaming:
         system.intensity(ref=ref)
             
     update_intensity = False
@@ -2432,11 +2435,15 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # If the system is circular, we're not recomputing stuff. Make sure to
     # have computed everything as least once:
-    if circular:
-        logger.info('System is circular, pre-computing system')
-        system.set_time(0., ref='all')
+    #if circular:
+    #    logger.info('System is circular, pre-computing system')
+    #    system.set_time(0., ref='all')
     
     logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
+    
+    # We're gonna keep a list of references for which the intensity has been
+    # computed already. This can be used for optimization of circular orbits
+    system.__had_refs = []
     
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
@@ -2577,8 +2584,10 @@ def binary_eclipse_algorithm(all_systems, algorithm):
     """
     if algorithm == 'binary':
         # Retrieve the coordinates
-        X1 = all_systems[0].as_point_source(only_coords=True)
-        X2 = all_systems[1].as_point_source(only_coords=True)
+        #X1 = all_systems[0].as_point_source(only_coords=True)
+        #X2 = all_systems[1].as_point_source(only_coords=True)
+        X1 = (all_systems[0].mesh['center']*all_systems[0].mesh['size'][:,None]/all_systems[0].mesh['size'].sum()).sum(axis=0)
+        X2 = (all_systems[1].mesh['center']*all_systems[1].mesh['size'][:,None]/all_systems[1].mesh['size'].sum()).sum(axis=0)
             
         # Retrieve the radii of the components        
         d1 = np.sqrt( ((all_systems[0].mesh['center'][:,:2]-X1[:2])**2).sum(axis=1))

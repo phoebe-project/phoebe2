@@ -34,7 +34,7 @@ Section 2.1 Model computations
     - bla
 * How is gravity darkening taken into account?
     - bla
-* How is limb darkening treated?
+* :ref:`How is limb darkening treated? <wonder_how_atmospheres>`
 
 
 Section 2.2 Generating observables

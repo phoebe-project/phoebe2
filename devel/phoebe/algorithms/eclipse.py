@@ -340,6 +340,12 @@ def inside_hull(testpoint, hull, iturn):
     inside[-is_out] = inside[-is_out] & (turn(hull_[ends-1][-is_out], hull_[ends[-is_out]], testpoint[-is_out])==-1)
     return inside
 
+def graham_scan_inside_hull(front, back):
+    sa = np.argsort(front[:,0], kind='heapsort')
+    hull, inside = ceclipse.graham_scan_inside_hull(front[sa], back)
+    return hull, inside
+
+
 def closest_points(hull, testpoints, distance):
     """
     Return all points in testpoints that are closer than distance from hull.
@@ -406,8 +412,10 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
             # Star in front ---> star in back
             if not front.shape[0]:
                 continue
-            hull, iturn = graham_scan(front)
-            inside = inside_hull(back, hull, iturn)
+            
+            #hull, iturn = graham_scan(front)
+            #inside = inside_hull(back, hull, iturn)
+            hull, inside = graham_scan_inside_hull(front, back)
             
             hidden = inside.reshape(3,-1).all(axis=0)
             arg = np.where(visible1)[0][hidden]
