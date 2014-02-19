@@ -2004,16 +2004,16 @@ def place_in_binary_orbit(self,time):
     
     fields = mesh.dtype.names
     
-    import ctrans
-    print mesh.shape
-    print mesh['size']
-    print euler, loc
-    ctrans.place_in_binary_orbit(mesh['size'], mesh['mu'], mesh['center'],
-                                 mesh['triangle'], mesh['normal_'],
-                                 mesh['velo___bol_'], polar_dir*omega_rot,
-                                 euler, loc)
-    print mesh['size']
-    raise SystemExit
+    #import ctrans
+    #print mesh.shape
+    #print mesh['size']
+    #print euler, loc
+    #ctrans.place_in_binary_orbit(mesh['size'], mesh['mu'], mesh['center'],
+                                 #mesh['triangle'], mesh['normal_'],
+                                 #mesh['velo___bol_'], polar_dir*omega_rot,
+                                 #euler, loc)
+    #print mesh['size']
+    #raise SystemExit
     
     velo_rot = fgeometry.cross_nx3_3(mesh['_o_center'], polar_dir*omega_rot)
     velo_rot = ftrans.trans(velo_rot,euler,default_zeros,len(velo_rot))
