@@ -2421,6 +2421,13 @@ class Body(object):
         """
         return self.mesh['size'].sum()
     
+    def get_distance(self):
+        globals_parset = self.get_globals()
+        if globals_parset is not None:
+            distance = globals_parset.request_value('distance', 'Rsol')
+        else:
+            distance = 10*constants.pc/constants.Rsol
+        return distance
     
     def get_coords(self,type='spherical',loc='center'):
         """
@@ -4030,9 +4037,18 @@ class PhysicalBody(Body):
         
         # All column names starting with _o_ are mapped to the ones without
         # _o_.
+        self.mesh['center'] = self.mesh['_o_center']
+        self.mesh['triangle'] = self.mesh['_o_triangle']
+        self.mesh['normal_'] = self.mesh['_o_normal_']
+        self.mesh['velo___bol_'] = self.mesh['_o_velo___bol_']
+        self.mesh['size'] = self.mesh['_o_size']
+        
+        if 'B_' in columns:
+            self.mesh['B_'] = self.mesh['_o_B_']
+        
         for column in columns:
-            if column[:3] == '_o_' and column[3:] in columns:
-                self.mesh[column[3:]] = self.mesh[column]
+           if column[:3] == '_o_' and column[3:] in columns:
+               self.mesh[column[3:]] = self.mesh[column]
         
         # And we know nothing about the visibility
         self.mesh['partial'] = False
@@ -5018,13 +5034,13 @@ class BodyBag(Body):
                 total_mass += body.get_mass()
         return total_mass
     
-    def get_distance(self):
-        globals_parset = self.get_globals()
-        if globals_parset is not None:
-            distance = globals_parset.request_value('distance', 'Rsol')
-        else:
-            distance = 10*constants.pc/constants.Rsol
-        return distance
+    #def get_distance(self):
+        #globals_parset = self.get_globals()
+        #if globals_parset is not None:
+            #distance = globals_parset.request_value('distance', 'Rsol')
+        #else:
+            #distance = 10*constants.pc/constants.Rsol
+        #return distance
         
     
     def set_label(self,label):
@@ -5367,8 +5383,8 @@ class AccretionDisk(PhysicalBody):
                     ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
                     lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
                     lds.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
-                    lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
-                    lds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                    #lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                    #lds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
             dtypes = np.dtype(self.mesh.dtype.descr + \
                      lds + [('logg','f8'),('teff','f8'),('abun','f8')])
         else:
@@ -5836,6 +5852,14 @@ class Star(PhysicalBody):
         """
         return self.params['star']['mass']
     
+    
+    def volume(self):
+        """
+        Compute volume of a convex mesh.
+        """
+        norm = coordinates.norm(self.mesh['_o_center'],axis=1)
+        return np.sum(self.mesh['_o_size']*norm/3.)
+    
     def surface_gravity(self):
         """
         Calculate local surface gravity
@@ -6221,8 +6245,8 @@ class Star(PhysicalBody):
                     ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
                     lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
                     lds.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
-                    lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
-                    lds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                    #lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                    #ds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
             extra = [('logg','f8'),('teff','f8'),('abun','f8')]
             if 'magnetic_field' in self.params:
                 extra += [('_o_B_','f8',(3,)),('B_','f8',(3,))]
@@ -6619,8 +6643,8 @@ class BinaryRocheStar(PhysicalBody):
                     if not 'ld_{0}'.format(ipbdep['ref']) in old_dtypes:
                         new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
                         new_dtypes.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
-                        new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
-                        new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                        #new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                        #new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
         if new_dtypes:    
             dtypes = np.dtype(self.mesh.dtype.descr + new_dtypes)
         else:
@@ -7434,8 +7458,8 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
                     if not 'ld_{0}'.format(ipbdep['ref']) in old_dtypes:
                         new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
                         new_dtypes.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
-                        new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
-                        new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                        #new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                        #new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
         if new_dtypes:    
             dtypes = np.dtype(self.mesh.dtype.descr + new_dtypes)
         else:
