@@ -1982,7 +1982,7 @@ def place_in_binary_orbit_old2(self,time):
                                  component=component, t0type=t0type)
     
     #-- we need a new copy of the mesh
-    mesh = self.mesh.copy()
+    mesh = self.mesh#.copy()
     
     #-- modify velocity vectors due to binarity and rotation within the orbit
     #   rotational velocity
@@ -2060,7 +2060,7 @@ def place_in_binary_orbit(self,time):
                                  component=component, t0type=t0type)
     
     #-- we need a new copy of the mesh
-    mesh = self.mesh.copy()
+    mesh = self.mesh#.copy()
     
     #-- modify velocity vectors due to binarity and rotation within the orbit
     #   rotational velocity
