@@ -4034,7 +4034,7 @@ class PhysicalBody(Body):
         Reset the mesh to its original position.
         """
         columns = self.mesh.dtype.names
-        
+
         # All column names starting with _o_ are mapped to the ones without
         # _o_.
         self.mesh['center'] = self.mesh['_o_center']
@@ -4171,7 +4171,7 @@ class PhysicalBody(Body):
             #-- replace old triangles with newly subdivided ones, but remember the
             #   old ones if this is the first time we subdivide the mesh
             if self.subdivision['orig'] is None:
-                self.subdivision['orig'] = self.mesh.copy()
+                self.subdivision['orig'] = self.mesh#.copy()
             self.mesh = np.hstack([self.mesh[-partial],subdivided])
             if subtype==1:
                 #self.update_mesh(self.mesh['partial'])
