@@ -936,12 +936,67 @@ PyArrayObject* creproject(PyArrayObject *table, int rows, char *potential, doubl
         *(double *)(new_table->data + i*table->strides[0] + 13*table->strides[1]) = p.n[0];
         *(double *)(new_table->data + i*table->strides[0] + 14*table->strides[1]) = p.n[1];
         *(double *)(new_table->data + i*table->strides[0] + 15*table->strides[1]) = p.n[2];
+        
     }
         
     free(pp);
     return new_table;
 }
 
+
+/*
+PyArrayObject* creproject_extra(PyArrayObject *table, double scale, int rows, char *potential, double *args)
+{
+    MeshVertex p;
+    double q[3];
+    double a, b, c, k, size;
+    double x1, x2, x3;
+    double y1, y2, y3;
+    double z1, z2, z3;
+    PotentialParameters *pp = initialize_pars(potential,args);
+    int i,j;
+    
+    PyArrayObject *new_table;
+    int dims[2];
+    
+    dims[0] = rows;
+    dims[1] = 17;
+    new_table = (PyArrayObject *)PyArray_FromDims(2, dims, PyArray_DOUBLE);
+
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < 3; j++){
+            q[0] = *(double *)(table->data + i*table->strides[0] + (4+3*j)*table->strides[1]);
+            q[1] = *(double *)(table->data + i*table->strides[0] + (5+3*j)*table->strides[1]);
+            q[2] = *(double *)(table->data + i*table->strides[0] + (6+3*j)*table->strides[1]);
+
+            p = project_onto_potential(q,pp,0);
+            
+            *(double *)(new_table->data + i*table->strides[0] + (4+3*j)*table->strides[1]) = p.r[0];
+            *(double *)(new_table->data + i*table->strides[0] + (5+3*j)*table->strides[1]) = p.r[1];
+            *(double *)(new_table->data + i*table->strides[0] + (6+3*j)*table->strides[1]) = p.r[2];
+        }
+
+        q[0] = *(double *)(table->data + i*table->strides[0]);
+        q[1] = *(double *)(table->data + i*table->strides[0] + table->strides[1]);
+        q[2] = *(double *)(table->data + i*table->strides[0] + 2*table->strides[1]);
+        
+        p = project_onto_potential(q,pp,0);
+        
+        *(double *)(new_table->data + i*table->strides[0]) = p.r[0];
+        *(double *)(new_table->data + i*table->strides[0] + table->strides[1]) = p.r[1];
+        *(double *)(new_table->data + i*table->strides[0] + 2*table->strides[1]) = p.r[2];
+        *(double *)(new_table->data + i*table->strides[0] + 13*table->strides[1]) = p.n[0];
+        *(double *)(new_table->data + i*table->strides[0] + 14*table->strides[1]) = p.n[1];
+        *(double *)(new_table->data + i*table->strides[0] + 15*table->strides[1]) = p.n[2];
+        
+        // add computation of sizes
+        a = sqrt(p.r[);
+        *(double *)(new_table->data + i*table->strides[0] + 16*table->strides[1]) = size;
+    }
+        
+    free(pp);
+    return new_table;
+}*/
 
 static PyObject *discretize(PyObject *self, PyObject *args)
 {

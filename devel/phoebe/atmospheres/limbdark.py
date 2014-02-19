@@ -2128,7 +2128,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
 
 #{ Phoebe interface
 
-def local_intensity(system, parset_pbdep, parset_isr={}):
+def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
     """
     Calculate local intensity.
     
@@ -2147,8 +2147,12 @@ def local_intensity(system, parset_pbdep, parset_isr={}):
     # take the bolometric passband
     passband = parset_pbdep.get('passband', 'OPEN.BOL')
     
-    # Doppler beaming: include it if there is such a keyword and it is turned on
+    # Doppler beaming: include it if there is such a keyword, it is turned on
+    # and the algorithm is "full"
     include_vgamma = parset_pbdep.get('beaming', False)
+    if not beaming_alg == 'full':
+        include_vgamma = False
+    
     
     # The reference we need to take to compute stuff (if not available, it's
     # bolometric)

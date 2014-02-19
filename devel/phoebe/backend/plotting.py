@@ -101,6 +101,8 @@ def plot_lcsyn(system, *args, **kwargs):
             l3 = obs['l3']
         except ValueError:
             pass
+        except TypeError:
+            pass
         #    raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
     # or using the synthetic computations    
     elif scale=='syn':
