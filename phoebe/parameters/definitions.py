@@ -359,6 +359,7 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
          dict(qualifier='sigma_vis2', description='Error on squared visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='vphase',   description='Phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='sigma_vphase',   description='Error on phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='images',   description='Basename for files of original baseline plots',cast_type=str,repr='%s',value='',frame=["phoebe"],context=['ifobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis2','sigma_vis2','vphase','sigma_vphase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
         ]
