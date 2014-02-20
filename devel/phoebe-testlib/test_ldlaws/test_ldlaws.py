@@ -25,7 +25,7 @@ def do_ldlaw(atm='kurucz', ld_func='linear', ld_coeffs=None):
     lum = phoebe.convert('cgs',"Lsol",phoebe.universe.luminosity(sun))
     proj1 = phoebe.convert('cgs','W/m2',sun.projected_intensity(ref='bol'))
     proj2 = phoebe.convert('erg/s/cm2/AA','mag',sun.projected_intensity(ref='visual'),passband='JOHNSON.V')
-    print lum, proj1, proj2
+    print atm, ld_func, ld_coeffs, lum, proj1, proj2
     assert(np.abs(lum-1)<0.01)
     assert(np.abs(proj1-1360)<10.)
     assert(np.abs(proj2+26.72)<0.05)

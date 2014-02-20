@@ -63,7 +63,7 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
      
     // Create convex hull
     std::vector<double> myhull;
-    int h_points = 10;
+    int h_points = 100;
     int turn_index = 0;
     inside = new bool[t_points];
     

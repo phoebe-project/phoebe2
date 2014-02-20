@@ -77,6 +77,8 @@ def test_lam_aqr():
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     
+    logger = phoebe.get_basic_logger()
+    
     x, y = test_eta_dra()
     plt.subplot(111,aspect='equal')
     plt.plot(x,y,'k-')
