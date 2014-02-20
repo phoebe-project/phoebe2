@@ -664,9 +664,10 @@ class Bundle(object):
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
-            options = self.get_compute(label)
+            options = self.get_compute(label).copy() # we don't want to override later
         
         # get server options
+        # <kyle> this is dangerous and won't always work (if server is not local)
         if server is not None:
             server = self.get_server(server)
             mpi = server.mpi_ps
@@ -676,12 +677,11 @@ class Bundle(object):
         options['time'] = [time]
         options['types'] = ['lc']
         options['refs'] = ['all']
-        options['samprate'] = [0]
+        options['samprate'] = [[0]]
         system.compute(mpi=mpi, **options)
                 
-        system.uptodate = label
-        
-        self.attach_system_signals()
+        #~ system.uptodate = label
+        #~ self.attach_system_signals()
         
     def get_uptodate(self):
         """
