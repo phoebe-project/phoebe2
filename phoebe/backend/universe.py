@@ -6084,7 +6084,7 @@ class Star(PhysicalBody):
         
         if globals_parset is not None:
             distance = globals_parset.request_value('distance', 'Rsol')
-            proj_int /= distance**2
+            proj_int /= (distance*distance)
         
         # Take reddening into account
         red_parset = self.get_globals('reddening')
@@ -7088,7 +7088,10 @@ class BinaryRocheStar(PhysicalBody):
         
         # Do the beaming correction
         if beaming_alg == 'simple':
-            # Retrieve beaming factor (not yet done)
+            # Retrieve beming factor (not yet done)
+            parset_isr = self.params['reddening']
+            #-- now run over all labels and compute the intensities
+            #alpha_b = limbdark.local_boosting(self, lcdep, parset_isr, beaming_alg=beaming_alg)
             alpha_b = 4.0
             # light speed in Rsol/d
             ampl_b = 1.0 + alpha_b * self.mesh['velo___bol_'][keep,2]/37241.94167601236
