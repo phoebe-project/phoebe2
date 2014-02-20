@@ -1596,10 +1596,10 @@ class Bundle(object):
         for icomponent in components:
             
             # We'll need to dig deeper in BodyBags
-            if hasattr(icomponent, 'get_bodies'):
-                icomponents = icomponent.get_bodies()
-            else:
-                icomponents = [icomponent]
+            #if hasattr(icomponent, 'get_bodies'):
+            #    icomponents = icomponent.get_bodies()
+            #else:
+            icomponents = [icomponent]
             
             for component in icomponents:
                 # For the "dep" parameterSet, we'll use defaults derived from the
