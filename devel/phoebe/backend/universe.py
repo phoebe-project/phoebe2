@@ -3421,7 +3421,8 @@ class Body(object):
                 etvsyn['time'] = np.append(etvsyn['time'],times)
                 etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
                 etvsyn['etv'] = np.append(etvsyn['etv'],t-times)
-                
+           
+           
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, correct_oversampling=1, beaming_alg='none'):
         """
@@ -3432,6 +3433,9 @@ class Body(object):
             for lbl in set(ref):
                 # Get the parameterSet with relevant parameters
                 ifobs, lbl = self.get_parset(type='obs', ref=lbl)
+                
+                # do we want to keep figures?
+                keepfig = ifobs.get('images', '')
                 
                 # Retrieve the times of observations, the baseline coordinates
                 # (baseline length and position angle) and effective wavelength
@@ -3453,9 +3457,16 @@ class Body(object):
                 # If nothing needs to be computed, don't do it
                 if sum(keep) == 0:
                     continue
+                
+                # make sure each time image has a unique name
+                if keepfig:
+                    keepfig = ('{}_time_{:.8f}'.format(keepfig,time)).replace('.','_')
+                else:
+                    keepfig = False
+                    
                 output = observatory.ifm(self, posangle=posangle[keep],
                                      baseline=baseline[keep],eff_wave=eff_wave,
-                                     ref=lbl, keepfig=False)
+                                     ref=lbl, keepfig=keepfig)
                                      #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
                 ifsyn, lbl = self.get_parset(type='syn', ref=lbl)
                 ifsyn['time'] += [time] * len(output[0])

@@ -945,11 +945,13 @@ PyArrayObject* creproject(PyArrayObject *table, int rows, char *potential, doubl
 
 
 /*
-PyArrayObject* creproject_extra(PyArrayObject *table, double scale, int rows, char *potential, double *args)
+PyArrayObject* creproject_extra(PyArrayObject *center, PyArrayObject *size,
+                                PyArrayObject *triangle, PyArrayObject *normal, 
+                                double scale, int rows, char *potential, double *args)
 {
     MeshVertex p;
     double q[3];
-    double a, b, c, k, size;
+    double a, b, c, k, s;
     double x1, x2, x3;
     double y1, y2, y3;
     double z1, z2, z3;
@@ -965,33 +967,47 @@ PyArrayObject* creproject_extra(PyArrayObject *table, double scale, int rows, ch
 
     for (i = 0; i < rows; i++){
         for (j = 0; j < 3; j++){
-            q[0] = *(double *)(table->data + i*table->strides[0] + (4+3*j)*table->strides[1]);
-            q[1] = *(double *)(table->data + i*table->strides[0] + (5+3*j)*table->strides[1]);
-            q[2] = *(double *)(table->data + i*table->strides[0] + (6+3*j)*table->strides[1]);
+            q[0] = *(double *)(table->data + i*table->strides[0] + (4+3*j)*table->strides[1])/scale;
+            q[1] = *(double *)(table->data + i*table->strides[0] + (5+3*j)*table->strides[1])/scale;
+            q[2] = *(double *)(table->data + i*table->strides[0] + (6+3*j)*table->strides[1])/scale;
 
             p = project_onto_potential(q,pp,0);
             
-            *(double *)(new_table->data + i*table->strides[0] + (4+3*j)*table->strides[1]) = p.r[0];
-            *(double *)(new_table->data + i*table->strides[0] + (5+3*j)*table->strides[1]) = p.r[1];
-            *(double *)(new_table->data + i*table->strides[0] + (6+3*j)*table->strides[1]) = p.r[2];
+            *(double *)(new_table->data + i*table->strides[0] + (4+3*j)*table->strides[1]) = p.r[0]*scale;
+            *(double *)(new_table->data + i*table->strides[0] + (5+3*j)*table->strides[1]) = p.r[1]*scale;
+            *(double *)(new_table->data + i*table->strides[0] + (6+3*j)*table->strides[1]) = p.r[2]*scale;
         }
 
-        q[0] = *(double *)(table->data + i*table->strides[0]);
-        q[1] = *(double *)(table->data + i*table->strides[0] + table->strides[1]);
-        q[2] = *(double *)(table->data + i*table->strides[0] + 2*table->strides[1]);
+        q[0] = *(double *)(table->data + i*table->strides[0])/scale;
+        q[1] = *(double *)(table->data + i*table->strides[0] + table->strides[1])/scale;
+        q[2] = *(double *)(table->data + i*table->strides[0] + 2*table->strides[1])/scale;
         
         p = project_onto_potential(q,pp,0);
         
-        *(double *)(new_table->data + i*table->strides[0]) = p.r[0];
-        *(double *)(new_table->data + i*table->strides[0] + table->strides[1]) = p.r[1];
-        *(double *)(new_table->data + i*table->strides[0] + 2*table->strides[1]) = p.r[2];
+        *(double *)(new_table->data + i*table->strides[0]) = p.r[0]*scale;
+        *(double *)(new_table->data + i*table->strides[0] + table->strides[1]) = p.r[1]*scale;
+        *(double *)(new_table->data + i*table->strides[0] + 2*table->strides[1]) = p.r[2]*scale;
         *(double *)(new_table->data + i*table->strides[0] + 13*table->strides[1]) = p.n[0];
         *(double *)(new_table->data + i*table->strides[0] + 14*table->strides[1]) = p.n[1];
         *(double *)(new_table->data + i*table->strides[0] + 15*table->strides[1]) = p.n[2];
         
         // add computation of sizes
-        a = sqrt(p.r[);
-        *(double *)(new_table->data + i*table->strides[0] + 16*table->strides[1]) = size;
+        x1 = *(double *)(table->data + i*table->strides[0] + (4)*table->strides[1]);
+        y1 = *(double *)(table->data + i*table->strides[0] + (5)*table->strides[1]);
+        z1 = *(double *)(table->data + i*table->strides[0] + (6)*table->strides[1]);
+        x2 = *(double *)(table->data + i*table->strides[0] + (7)*table->strides[1]);
+        y2 = *(double *)(table->data + i*table->strides[0] + (8)*table->strides[1]);
+        z2 = *(double *)(table->data + i*table->strides[0] + (9)*table->strides[1]);
+        x3 = *(double *)(table->data + i*table->strides[0] + (10)*table->strides[1]);
+        y3 = *(double *)(table->data + i*table->strides[0] + (11)*table->strides[1]);
+        z3 = *(double *)(table->data + i*table->strides[0] + (12)*table->strides[1]);
+        
+        a = sqrt( (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2));
+        b = sqrt( (x1-x3)*(x1-x3) + (y1-y3)*(y1-y3) + (z1-z3)*(z1-z3));
+        c = sqrt( (x2-x3)*(x2-x3) + (y2-y3)*(y2-y3) + (z2-z3)*(z2-z3));
+        k = 0.5 * (a+b+c);
+        s = sqrt( k*(k-a)*(k-b)*(k-c));
+        *(double *)(new_table->data + i*table->strides[0] + 16*table->strides[1]) = s;
     }
         
     free(pp);

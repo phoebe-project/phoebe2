@@ -1852,7 +1852,42 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
         system.intensity()
     logger.info("Added bitmap {}".format(image_file))
            
-           
+
+def find_period(system):
+    """
+    Extract the main period from a system, to conver phase to time.
+    
+    Currently three cases:
+    
+        - binary: orbital period
+        - pulsating star: pulsation period
+        - rotating star: rotation period.
+    """
+    period = 1.0
+    shift = 0
+    t0 = 0.0
+    
+    # BodyBag:
+    if hasattr(system, 'list_of_bodies'):    
+        period = system[0].params['orbit']['period']
+        t0 = system[0].params['orbit']['t0']
+        #phshift = system[0].params['orbit']['phshift']
+    else:
+        if 'orbit' in system.params:
+            period = system.params['orbit']['period']
+            t0 = system.params['orbit']['t0']
+        elif 'puls' in system.params:
+            period = 1.0/system.params['orbit']['puls'][0]['freq']
+            t0 = 1.0/system.params['orbit']['puls'][0]['t0']
+        else:
+            period = system.params.values()[0]['rotperiod']
+    
+    logger.warning(("Converted phases to times "
+                            "with period={}, t0={} and "
+                            "phshift={}").format(period, t0, shift))
+    
+    return period, shift, t0
+        
 def extract_times_and_refs(system, params, tol=1e-8):
     """
     Automatically extract times, references and types from a BodyBag.
@@ -1928,13 +1963,8 @@ def extract_times_and_refs(system, params, tol=1e-8):
             
             # For now, we just assume we have a simple binary (so it's not that
             # messy (yet)):
-            period = system[0].params['orbit']['period']
-            t0 = system[0].params['orbit']['t0']
-            phshift = system[0].params['orbit']['phshift']
+            period, shift, t0 = find_period(system)
             mytimes = (parset['phase'] * period) + t0
-            logger.warning(("Converted phases to times"
-                            "with period={}, t0={} and"
-                            "phshift={}").format(period, t0, phshift))
         else:
             mytimes = parset['time']
 

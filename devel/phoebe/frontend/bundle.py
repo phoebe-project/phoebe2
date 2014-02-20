@@ -16,6 +16,7 @@ Helper functions and classes:
     run_on_server
     load
     guess_filetype
+    
 """
 import pickle
 import logging
@@ -170,6 +171,16 @@ class Bundle(object):
             mybundle = Bundle('legacy.phoebe')
     
     For more details, see :py:func:`set_system`.
+    
+    **Interface**
+    
+    .. autosummary::
+    
+        set_value
+        get_value
+        create_syn
+        plot_syn
+        
     
     **Phoebe 1.0 Legacy interface**
     
@@ -995,7 +1006,9 @@ class Bundle(object):
                 
     def get_value(self, qualifier, return_type='single'):
         """
-        Get the value from a Parameter(s) in the system
+        Get the value from a Parameter(s) in the system.
+        
+        For more information on the syntax, see :py:func:`get_parameter <Bundle.get_parameter>`.
         
         @param qualifier: qualifier of the parameter, or None to search all
         @type qualifier: str or None
@@ -1021,6 +1034,8 @@ class Bundle(object):
     def set_value(self, qualifier, value, *args, **kwargs):
         """
         Set the value of a Parameter(s) in the system
+        
+        For more information on the syntax, see :py:func:`get_parameter <Bundle.get_parameter>`.
         
         @param qualifier: qualifier of the parameter
         @type qualifier: str
@@ -1400,16 +1415,22 @@ class Bundle(object):
 
         Additional keyword arguments contain information for the actual data
         template (cf. the "columns" in a data file) as well as for the passband
-        dependable (pbdep) description of the dataset (optional, e.g. passband,
-        atm, ld_func, ld_coeffs, etc).
+        dependable (pbdep) description of the dataset (optional, e.g. ``passband``,
+        ``atm``, ``ld_func``, ``ld_coeffs``, etc). For any parameter that is not
+        explicitly set, the defaults from each component are used, instead of the
+        Phoebe2 defaults. For example when adding a light curve, pbdeps are added
+        to each component, and the ``atm``, ``ld_func`` and ``ld_coeffs`` are
+        taken from the component (i.e. the bolometric parameters) unless explicitly
+        overriden.
         
         Unique references are added automatically if none are provided by the
-        user. Instead of the backend-popular UUID system, the bundle implements
-        a more readable system of unique references: the first light curve that
-        is added is named 'lc01', and similarly for other categories. If the
-        dataset with the reference already exists, 'lc02' is tried and so on.
+        user (via :envvar:`dataref`). Instead of the backend-popular UUID system,
+        the bundle implements a more readable system of unique references: the
+        first light curve that is added is named 'lc01', and similarly for other
+        categories. If the dataset with the reference already exists, 'lc02' is
+        tried and so on.
         
-        **Light curves**
+        **Light curves (default)**
         
         Light curves are typically added to the entire system, as the combined
         light from all components is observed.
@@ -1420,7 +1441,8 @@ class Bundle(object):
         >>> time = np.linspace(0, 10.33, 101)
         >>> bundle.create_syn(time=time, passband='GENEVA.V')
         
-        or in phase space:
+        or in phase space (phase space will probably not work for anything but
+        light curves and radial velocities):
         
         >>> phase = np.linspace(-0.5, 0.5, 101)
         >>> bundle.create_syn(phase=phase, passband='GENEVA.V')
@@ -1434,8 +1456,8 @@ class Bundle(object):
         and :ref:`rvobs <parlabel-phoebe-rvobs>`.
         
         >>> time = np.linspace(0, 10.33, 101)
-        >>> bundle.create_syn(objref='primary', time=time)
-        >>> bundle.create_syn(objref='secondary', time=time)
+        >>> bundle.create_syn(category='rv', objref='primary', time=time)
+        >>> bundle.create_syn(category='rv', objref='secondary', time=time)
         
         **Spectra**
         
@@ -1445,13 +1467,13 @@ class Bundle(object):
         For a list of available parameters, see :ref:`spdep <parlabel-phoebe-spdep>`
         and :ref:`spobs <parlabel-phoebe-spobs>`.
         
-        >>> phase = np.linspace(-0.5, 0.5, 11)
+        >>> time = np.linspace(-0.5, 0.5, 11)
         >>> wavelength = np.linspace(454.8, 455.2, 500)
-        >>> bundle.create_syn(objref='primary', phase=phase, wavelength=wavelength)
+        >>> bundle.create_syn(category='sp', objref='primary', time=time, wavelength=wavelength)
         
         or to add to the entire system:
         
-        >>> bundle.create_syn(phase=phase, wavelength=wavelength)
+        >>> bundle.create_syn(time=time, wavelength=wavelength)
         
         **Interferometry**
         
@@ -1460,11 +1482,31 @@ class Bundle(object):
         For a list of available parameters, see :ref:`ifdep <parlabel-phoebe-ifdep>`
         and :ref:`ifobs <parlabel-phoebe-ifobs>`.
         
-        >>> phase = 0.1 * np.ones(101)
+        >>> time = 0.1 * np.ones(101)
         >>> ucoord = np.linspace(0, 200, 101)
         >>> vcoord = np.zeros(101)
-        >>> bundle.create_syn(phase=phase, ucoord=ucoord, vcoord=vcoord)
+        >>> bundle.create_syn(category='if', time=time, ucoord=ucoord, vcoord=vcoord)
         
+        One extra option for interferometry is to set the keyword :envvar:`images`
+        to a string, e.g.:
+        
+        >>> bundle.create_syn(category='if', images='debug', time=time, ucoord=ucoord, vcoord=vcoord)
+        
+        This will generate plots of the system on the sky with the projected
+        baseline orientation (as well as some other info), but will also
+        write out an image with the summed profile (*_prof.png) and the rotated
+        image (to correspond to the baseline orientation, (*_rot.png). Lastly,
+        a FITS file is output that contains the image, for use in other programs.
+        This way, you have all the tools available for debugging and to check
+        if things go as expected.
+        
+        **And then what?**
+        
+        After creating synthetic datasets, you'll probably want to move on to
+        functions such as 
+        
+        - :py:func:`Bundle.run_compute`
+        - :py:func:`Bundle.plot_syn`
         
         @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
         @type category: str
@@ -1550,30 +1592,36 @@ class Bundle(object):
         # In the datasets, time and phase are mutually exclusive. It's one or
         # the other!
         
-            
-        
         output = {}
-        for component in components:
-            # For the "dep" parameterSet, we'll use defaults derived from the
-            # Body instead of the normal defaults. This should give the least
-            # surprise to users: it is more logical to have default atmosphere,
-            # LD-laws etc the same as the Body, then the "uniform" or "blackbody"
-            # stuff that is in the defaults. So, if a parameter is in the
-            # main body parameterSet, then we'll take that as a default value,
-            # but it can be overriden by pbkwargs
-            main_parset = component.params.values()[0]
-            pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
-            for key in pb:
-                # derive default
-                if key in main_parset:
-                    default_value = main_parset[key]
-                    # but only set it if not overridden
-                    pb[key] = pbkwargs.get(key, default_value)
-                else:
-                    if key in pbkwargs.keys():
-                        pb[key] = pbkwargs.get(key)
-                        
-            output[component.get_label()] = [[ds],[pb]]
+        for icomponent in components:
+            
+            # We'll need to dig deeper in BodyBags
+            if hasattr(icomponent, 'get_bodies'):
+                icomponents = icomponent.get_bodies()
+            else:
+                icomponents = [icomponent]
+            
+            for component in icomponents:
+                # For the "dep" parameterSet, we'll use defaults derived from the
+                # Body instead of the normal defaults. This should give the least
+                # surprise to users: it is more logical to have default atmosphere,
+                # LD-laws etc the same as the Body, then the "uniform" or "blackbody"
+                # stuff that is in the defaults. So, if a parameter is in the
+                # main body parameterSet, then we'll take that as a default value,
+                # but it can be overriden by pbkwargs
+                main_parset = component.params.values()[0]
+                pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
+                for key in pb:
+                    # derive default
+                    if key in main_parset:
+                        default_value = main_parset[key]
+                        # but only set it if not overridden
+                        pb[key] = pbkwargs.get(key, default_value)
+                    else:
+                        if key in pbkwargs.keys():
+                            pb[key] = pbkwargs.get(key)
+                            
+                output[component.get_label()] = [[ds],[pb]]
             
         self._attach_datasets(output)
     
@@ -2117,6 +2165,32 @@ class Bundle(object):
         
     def plot_syn(self, dataref, *args, **kwargs):
         """
+        Plot simulated/computed observations.
+        
+        Extra args and kwargs are passed to the corresponding plotting function
+        in :py:mod:`phoebe.backend.plotting` (which passes most on to matplotlib), except
+        the optional keyword argument :envvar:`objref`. The latter allows you to
+        plot the synthetic computations for only one component. Although this is
+        mainly useful for radial velocity computations, it also allows you to
+        plot the light curves or spectra of the individual components, even
+        though the computations are done for the entire system (this will not
+        work for interferometry yet).
+        
+        Example usage:
+        
+        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'create_syn'
+        >>> mybundle.plot_syn('lc01', 'r-', lw=2, scale=None)
+        
+        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'create_syn'
+        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'create_syn'
+        
+        More information on arguments and keyword arguments:
+        
+        - :py:func:`phoebe.backend.plotting.plot_lcsyn`
+        - :py:func:`phoebe.backend.plotting.plot_rvsyn`
+        - :py:func:`phoebe.backend.plotting.plot_spsyn_as_profile`
+        - :py:func:`phoebe.backend.plotting.plot_ifsyn`
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object

@@ -1409,12 +1409,12 @@ def plot_ifsyn(system, *args, **kwargs):
     """
     Plot ifsyn.
     
-    Parameter ``x`` can be any of:
+    Keyword :envvar:`x` can be any of:
     
         - ``'baseline'``: plot visibilities wrt baseline.
         - ``'time'``: plot visibilities wrt time
     
-    Parameter ``y`` can be any of:
+    Keyword :envvar:`y` can be any of:
     
         - ``'vis'``: Visibilities
         - ``'vis2'``: Squared visibilities
@@ -1442,8 +1442,10 @@ def plot_ifsyn(system, *args, **kwargs):
     
     if y == 'vis':
         plot_y = np.sqrt(syn['vis2'])
-    else:
+    elif y == 'vis2':
         plot_y = syn[y]
+    else:
+        raise NotImplementedError("y=phase not implemented in plot_ifsyn. Stick to vis or vis2")
     
     plt.plot(plot_x, plot_y, *args, **kwargs)
    
