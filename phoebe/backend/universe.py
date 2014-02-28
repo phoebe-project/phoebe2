@@ -208,6 +208,7 @@ rsol_2_au = constants.Rsol/constants.au
 m_2_au = 1.0/constants.au
 deg_2_rad = pi / 180.
 day_2_sec = 86400.0
+Nld_law = 5 # number of limb darkening coefficients + 1
 
 #{ Functions of general interest    
 
@@ -445,15 +446,13 @@ def init_mesh(self):
     # We need the length of the current mesh, and note that our limb-darkening
     # laws can have maximum 5 parameters (4 + intensity)
     N = len(self.mesh)
-    ld_law = 5
-    ldbol_law = 5
     
     # We construct all the fields that are needed in this Body. Then we check
     # which ones already exist, and remove those
         
     # Bolometric intensities (we don't need 'bolometric' velocities because
     # they have been added by the base class (Body) already
-    lds = [('ld___bol', 'f8', (5,)), ('proj___bol', 'f8')]
+    lds = [('ld___bol', 'f8', (Nld_law,)), ('proj___bol', 'f8')]
     
     # Velocities and passband intensities. Actually we don't need the
     # velocities. The bolometric velocities should be combined with the
@@ -464,7 +463,7 @@ def init_mesh(self):
     for pbdeptype in self.params['pbdep']:
         for iobs in self.params['pbdep'][pbdeptype]:
             iobs = self.params['pbdep'][pbdeptype][iobs]
-            lds.append(('ld_{0}'.format(iobs['ref']), 'f8', (5,)))
+            lds.append(('ld_{0}'.format(iobs['ref']), 'f8', (Nld_law,)))
             lds.append(('proj_{0}'.format(iobs['ref']), 'f8'))
             #lds.append(('velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
             #lds.append(('_o_velo_{0}_'.format(iobs['ref']), 'f8', (3,)))
@@ -1206,6 +1205,17 @@ class Body(object):
         String representation of a Body.
         """
         return self.to_string()
+    
+    def fix_mesh(self):
+        """
+        Fix the mesh.
+        
+        This function is a dummy function; a single Body doesn't need to fix
+        its mesh (there cannot be a clash in column names as for a BodyBag).
+        However, the function is here for completeness. Should be overloaded.
+        """
+        return None
+    
     
     def to_string(self,only_adjustable=False):
         """
@@ -3834,7 +3844,7 @@ class PhysicalBody(Body):
         #-- add columns to mesh
         if len(self.mesh):
             for ref in parsed_refs:
-                dtypes = [('ld_{0}'.format(ref),'f8',(5,))]
+                dtypes = [('ld_{0}'.format(ref),'f8',(Nld_law,))]
                 dtypes.append(('proj_{0}'.format(ref),'f8'))
                 #dtypes.append(('velo_{0}_'.format(ref),'f8',(3,)))
                 #dtypes.append(('_o_velo_{0}_'.format(ref),'f8',(3,)))
@@ -3913,6 +3923,21 @@ class PhysicalBody(Body):
                 self.mesh[field] = 0.0
                 logger.info('Emptied reflection column {}'.format(iref))
                     
+    @decorators.parse_ref
+    def prepare_beaming(self,ref=None):
+        """
+        Prepare the mesh to handle beaming.
+        """
+        for iref in ref:
+            field = 'alpha_b_{}'.format(iref)
+            if field in self.mesh.dtype.names:
+                continue
+            dtypes = np.dtype([(field,'f8')])
+            new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
+            self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
+            logger.debug('added beamin column for pbdep {}'.format(iref))
+    
+    
     
     def as_point_source(self,only_coords=False,ref=0):
         """
@@ -5389,14 +5414,13 @@ class AccretionDisk(PhysicalBody):
         Rin = self.params['disk'].get_value('rin','Rsol')
         Rout = self.params['disk'].get_value('rout','Rsol')
         height = self.params['disk'].get_value('height','Rsol')
-        ld_law = 5
-        ldbol_law = 5
+        
         if not 'logg' in self.mesh.dtype.names:
-            lds = [('ld___bol','f8',(5,)),('proj___bol','f8')]
+            lds = [('ld___bol','f8',(Nld_law,)),('proj___bol','f8')]
             for pbdeptype in self.params['pbdep']:
                 for ipbdep in self.params['pbdep'][pbdeptype]:
                     ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
-                    lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
+                    lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(Nld_law,)))
                     lds.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
                     #lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
                     #lds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
@@ -6253,14 +6277,13 @@ class Star(PhysicalBody):
                               "decrease the mesh density. It is also "
                               "possible that the equipotential surface is "
                               "not closed.").format(N))
-        ld_law = 5
-        ldbol_law = 5
+        
         if not 'logg' in self.mesh.dtype.names:
-            lds = [('ld___bol','f8',(5,)),('proj___bol','f8')]
+            lds = [('ld___bol','f8',(Nld_law,)),('proj___bol','f8')]
             for pbdeptype in self.params['pbdep']:
                 for ipbdep in self.params['pbdep'][pbdeptype]:
                     ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
-                    lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
+                    lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(Nld_law,)))
                     lds.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
                     #lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
                     #ds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
@@ -6397,12 +6420,24 @@ class BinaryRocheStar(PhysicalBody):
                  puls=None, circ_spot=None, magnetic_field=None, 
                  velocity_field=None, pbdep=None, obs=None, **kwargs):
         """
-        Component: 0 is primary 1 is secondary
-        """
-        super(BinaryRocheStar,self).__init__(dim=3)
-        #-- remember the values given, but check their contexts!
+        Initialize a BinaryRocheStar.
         
-        # Perform some checks on "component"
+        Only the :ref:`component <parlabel-phoebe-component>` parameterSet is
+        obligatory upon initalization, the rest can be added later. Before doing
+        any computations, :envvar:`orbit`, :envvar:`mesh` and :envvar:`pbdep`
+        need to be set. If you choose not to do this upon initalization, the
+        user is responsible for taking care of this.
+        
+        All other keyword ParameterSets are optional.
+        
+        Extra possible keyword arguments are:
+            - :envvar:`globals`: a parameterSet representing global parameters
+        """
+        
+        # Initialize the base body.
+        super(BinaryRocheStar,self).__init__(dim=3)
+        
+        # Perform some checks on "component", "orbit", and "mesh"
         check_input_ps(self, component, ['component'], 1)
         self.params['component'] = component
         
@@ -6412,11 +6447,14 @@ class BinaryRocheStar(PhysicalBody):
         check_input_ps(self, mesh, ['mesh:marching', 'mesh:wd'], 'mesh')
         self.params['mesh'] = mesh
         
+        # Prepare for the hiearchical dictionaries that hold the pbdep, obs and
+        # syn
         self.params['pbdep'] = OrderedDict()
         self.params['obs'] = OrderedDict()
         self.params['syn'] = OrderedDict()
         self.time = None
-        #-- label the body
+        
+        # label the body
         self.label = self.params['component']['label']
         
         # Add globals parameters, but only if given. DO NOT add default ones,
@@ -6426,8 +6464,8 @@ class BinaryRocheStar(PhysicalBody):
             check_input_ps(self, myglobals, ['globals'], 'globals')
             self.params['globals'] = myglobals
         
-        #-- add interstellar reddening (if none is given, set to the default,
-        #   this means no reddening
+        # add interstellar reddening (if none is given, set to the default,
+        # this means no reddening
         if reddening is None:
             reddening = parameters.ParameterSet(context='reddening:interstellar')
         
@@ -6466,6 +6504,7 @@ class BinaryRocheStar(PhysicalBody):
             check_input_ps(self, velocity_field, ['velocity_field:turb'], 'velocity_field')
             self.params['velocity_field'] = velocity_field
         
+        # Parse pbdeps and obs
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
         if obs is not None:
@@ -6476,7 +6515,7 @@ class BinaryRocheStar(PhysicalBody):
             this_comp = self.get_component()
         except TypeError:
             this_comp = None
-            logger.warning("No orbit specified in BinaryRocheStar.")
+            logger.warning("No orbit specified in BinaryRocheStar. Be sure to do it later.")
         if this_comp is None and orbit is not None:
             raise ValueError(("Cannot figure out which component this is: the "
                               "label in 'component' is '{}', but 'orbit' "
@@ -6486,7 +6525,7 @@ class BinaryRocheStar(PhysicalBody):
                               ".").format(component['label'], orbit['c1label'],
                               orbit['c2label']))
                 
-        #-- add common constraints
+        # add common constraints
         constraints = ['{sma1} = {sma} / (1.0 + 1.0/{q})',
                        '{sma2} = {sma} / (1.0 + {q})',
                        '{totalmass} = 4*pi**2 * {sma}**3 / {period}**2 / constants.GG',
@@ -6501,15 +6540,18 @@ class BinaryRocheStar(PhysicalBody):
             if self.params['orbit'] is not None and not self.params['orbit'].has_qualifier(qualifier):
                 self.params['orbit'].add_constraint(constraint)
         
+        # Initialize the mesh: this makes sure that all the necessary columns
+        # are available. If you combine Bodies in a BodyBag, you might want to
+        # call "fix_mesh" to make sure the mesh columns are uniform across all
+        # Bodies.
         init_mesh(self)
         
-        # add morphology contrainer to preprocessing
+        # add morphology constrainer to preprocessing
         self.add_preprocess('binary_morphology')
         
         # Check for leftover kwargs and report to the user
         if kwargs:
             raise ValueError("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))
-        
         
         # Generate a comprehensive log message, that explains what has been
         # added:
@@ -6533,6 +6575,12 @@ class BinaryRocheStar(PhysicalBody):
         
     
     def set_label(self,label):
+        """
+        Set the label of a BinaryRocheStar.
+        
+        @param label: new label of the Body
+        @type label: str
+        """
         this_component = self.get_component()
         self.params['component']['label'] = label
         self.params['orbit']['c{}label'.format(this_component+1)] = label
@@ -6540,6 +6588,9 @@ class BinaryRocheStar(PhysicalBody):
     def get_label(self):
         """
         Get the label of the Body.
+        
+        :return: label of the Body
+        :rtype: str
         """
         return self.params['component']['label']
     
@@ -6649,7 +6700,7 @@ class BinaryRocheStar(PhysicalBody):
         old_dtypes = self.mesh.dtype.names
         #-- check if the following required labels are in the mesh, if they
         #   are not, we'll have to add them
-        required = [('ld___bol','f8',(5,)),('proj___bol','f8'),
+        required = [('ld___bol','f8',(Nld_law,)),('proj___bol','f8'),
                     ('logg','f8'),('teff','f8'),('abun','f8')]
         for req in required:
             if not req[0] in old_dtypes:
@@ -6659,7 +6710,7 @@ class BinaryRocheStar(PhysicalBody):
                 for ipbdep in self.params['pbdep'][pbdeptype]:
                     ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
                     if not 'ld_{0}'.format(ipbdep['ref']) in old_dtypes:
-                        new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
+                        new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(Nld_law,)))
                         new_dtypes.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
                         #new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
                         #new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
@@ -7060,7 +7111,7 @@ class BinaryRocheStar(PhysicalBody):
         We can speed this up if we compute the local intensity first, keep track of the limb darkening
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
         
-        Beaming correction:
+        Beaming correction (this is done in limbdark.local_intensity):
         
             - ``beaming_alg='none'``: no beaming correction (possibly taken into account by local_intensity)
             - ``beaming_alg='full'``: no beaming correction (possibly taken into account by local_intensity)
@@ -7083,16 +7134,14 @@ class BinaryRocheStar(PhysicalBody):
         #   the only reason for defining it.
         visible = self.mesh['visible'][keep]
         #-- compute intensity using the already calculated limb darkening coefficents
-        logger.info('using limbdarkening law %s (%d vis)'%(lcdep['ld_func'],np.sum(keep)))
-        Imu = getattr(limbdark,'ld_%s'%(lcdep['ld_func']))(mus,self.mesh['ld_'+ref][keep].T)*self.mesh['ld_'+ref][keep,-1]#*size   
+        ld_func = lcdep.get_value('ld_func')
+        logger.info('using limbdarkening law %s'%(ld_func))
+        Imu = getattr(limbdark,'ld_%s'%(ld_func))(mus,self.mesh['ld_'+ref][keep].T)*self.mesh['ld_'+ref][keep,-1]#*size   
         
         # Do the beaming correction
-        if beaming_alg == 'simple':
-            # Retrieve beming factor (not yet done)
-            parset_isr = self.params['reddening']
-            #-- now run over all labels and compute the intensities
-            #alpha_b = limbdark.local_boosting(self, lcdep, parset_isr, beaming_alg=beaming_alg)
-            alpha_b = 4.0
+        if beaming_alg == 'simple' or beaming_alg == 'local':
+            # Retrieve beming factor
+            alpha_b = self.mesh['alpha_b_' + ref][keep]
             # light speed in Rsol/d
             ampl_b = 1.0 + alpha_b * self.mesh['velo___bol_'][keep,2]/37241.94167601236
         else:
@@ -7114,11 +7163,12 @@ class BinaryRocheStar(PhysicalBody):
         globals_parset = self.get_globals()
         if globals_parset is not None:
             #distance = globals_parset.request_value('distance', 'Rsol')
-            distance = globals_parset['distance'] * 3.085677581503e+16 / constants.Rsol
+            distance = globals_parset.get_value('distance') * 3.085677581503e+16 / constants.Rsol
         else:
             distance = 1.0
         
         proj_intens = proj_intens.sum()/distance**2
+        
         l3 = lcdep.get('l3',0.)
         pblum = lcdep.get('pblum',-1.0)
         
@@ -7483,13 +7533,12 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
                               "decrease the mesh density. It is also "
                               "possible that the equipotential surface is "
                               "not closed.").format(N))
-        ld_law = 5
-        ldbol_law = 5
+        
         new_dtypes = []
         old_dtypes = self.mesh.dtype.names
         #-- check if the following required labels are in the mesh, if they
         #   are not, we'll have to add them
-        required = [('ld___bol','f8',(5,)),('proj___bol','f8'),
+        required = [('ld___bol','f8',(Nld_law,)),('proj___bol','f8'),
                     ('logg','f8'),('teff','f8'),('abun','f8')]
         for req in required:
             if not req[0] in old_dtypes:
@@ -7499,7 +7548,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
                 for ipbdep in self.params['pbdep'][pbdeptype]:
                     ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
                     if not 'ld_{0}'.format(ipbdep['ref']) in old_dtypes:
-                        new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(5,)))
+                        new_dtypes.append(('ld_{0}'.format(ipbdep['ref']),'f8',(Nld_law,)))
                         new_dtypes.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
                         #new_dtypes.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
                         #new_dtypes.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))

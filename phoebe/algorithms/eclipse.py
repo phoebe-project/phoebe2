@@ -395,7 +395,7 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
             
             # If nothing is visible in the star behind, it's quite easy;
             # we will not detect anything better!
-            if not np.any(visible1):
+            if not visible1.any():
                 continue
             
             # Determine a scale factor for the triangle
@@ -436,7 +436,7 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
             arg = np.where(visible1)[0][partial]
             star1.mesh['visible'][arg] = False
             star1.mesh['partial'][arg] = True
-            if np.any(partial):
+            if partial.any():
                 detected_eclipse = True
             
             

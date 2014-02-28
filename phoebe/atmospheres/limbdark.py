@@ -355,6 +355,24 @@ def ld_claret(mu, coeffs):
     
     return Imu
 
+def ld_hillen(mu, coeffs):
+    r"""
+    Empirical limb darkening law devised by M. Hillen.
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)} = \left( C + (u+v|\mu| + w\mu^2) \arctan{\left(f(\mu-d)\right)}\right) \left(\frac{s}{\mu^4+s}+1\right)
+    
+    @param mu: limb angles mu=cos(theta)
+    @type mu: numpy array
+    @param coeffs: limb darkening coefficients
+    @type coeffs: list
+    @return: normalised intensity at limb angles
+    @rtype: array
+    """
+    Imu = (coeffs[0] + (coeffs[1] + coeffs[2] * np.abs(x) + coeffs[3] * mu**2) * np.arctan(coeffs[4]*(mu-coeffs[5])))*(-coeffs[6]/(mu**4+coeffs[6])+1.)
+    return Imu
+
 
 def ld_linear(mu, coeffs):
     r"""
@@ -996,7 +1014,7 @@ def choose_ld_coeffs_table_old(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
         # if that file exists!
         abun_is_scalar = np.isscalar(abun)
         equal_abun = abun_is_scalar or np.all(abun == abun[0])
-        
+
         if not abun_is_scalar:
             abun = abun[0]
         
@@ -1006,7 +1024,7 @@ def choose_ld_coeffs_table_old(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
             basename = ("{}_{}{:02.0f}_{}_{}_{}"
                         ".fits").format(atm, prefix, abun, ld_func,
                                         fitmethod, postfix)
-        
+            
             # if that file does not exist, we'll try to use the "full"
             # grid
             ret_val = os.path.join(basedir_ld_coeffs, basename)
@@ -1121,7 +1139,7 @@ def choose_ld_coeffs_table_new(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
             postfix.append('logg')
         if 'abun' in atm_kwargs:
             postfix.append('abun')
-        
+            
         # <-- insert reddening parameters here -->    
         # Beaming: only if the velocity is not zero   
         try:
@@ -1197,7 +1215,7 @@ def interp_ld_coeffs_old(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # Get the FITS-file containing the tables, and retrieve structured
     # information on the grid (memoized)
     atm = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,\
-                                 red_kwargs=red_kwargs, vgamma=vgamma)                         
+                                 red_kwargs=red_kwargs, vgamma=vgamma)
     axis_values, pixelgrid, labels = _prepare_grid(passband, atm)
 
     # Prepare input: the variable "labels" contains the name of all the
@@ -1277,7 +1295,7 @@ def interp_ld_coeffs_old(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
 
 
 def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
-                     order=1, return_header=False):
+                     order=1, return_header=False, cuts=None):
     """
     Interpolate an atmosphere table.
     
@@ -1295,7 +1313,7 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     @type order: integer
     """
     # Retrieve structured information on the grid (memoized)
-    axis_values, pixelgrid, labels, header = _prepare_grid_new(passband, atm)
+    axis_values, pixelgrid, labels, header = _prepare_grid_new(passband, atm, cuts=cuts)
 
     # Prepare input: the variable "labels" contains the name of all the
     # variables (teff, logg, ebv, etc... which can be interpolated. If all z
@@ -1375,7 +1393,7 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
 
 
 def interp_boosting(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
-                     order=1, return_header=False):
+                     order=1, interp_all=True, return_header=False):
     """
     Interpolate an atmosphere table for boosting coefficients.
     
@@ -1395,7 +1413,7 @@ def interp_boosting(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # Retrieve structured information on the grid (memoized)
     nointerp_columns = ['a{:d}'.format(i) for i in range(1,10)]+['res','dflux','alpha_b'] + ['imu1']
     
-    axis_values, pixelgrid, labels, header = limbdark._prepare_grid(passband, atm_file,
+    axis_values, pixelgrid, labels, header = _prepare_grid(passband, atm,
                    nointerp_columns=nointerp_columns, data_columns=['alpha_b'],
                    log_columns=[])
 
@@ -1447,6 +1465,11 @@ def interp_boosting(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         else:
             raise ValueError(("Somethin' wrong with the atmo table: cannot "
                               "interpret label {}").format(label))
+    
+    # Interpolate everything or just one value
+    if not interp_all:
+        values = values[:, :1]
+    
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order)
@@ -1467,9 +1490,9 @@ def interp_boosting(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     
     # That's it!
     if return_header:
-        return pars, header
+        return pars[0], header
     else:
-        return pars
+        return pars[0]
 
 
 
@@ -1738,6 +1761,7 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
         else:
             labels.append(par_column)
     grid_pars = grid_pars[keep_columns]
+        
     logger.info("Prepared grid {}: interpolate in {}".format(os.path.basename(atm),", ".join(labels)))
             
     #-- create the pixeltype grid
@@ -1747,7 +1771,7 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
 
 @decorators.memoized
 def _prepare_grid_new(passband,atm, data_columns=None, log_columns=None,
-                  nointerp_columns=None):
+                  nointerp_columns=None, cuts=None):
     """
     Read in a grid of limb darkening coefficients for one passband.
     
@@ -1809,6 +1833,19 @@ def _prepare_grid_new(passband,atm, data_columns=None, log_columns=None,
         else:
             labels.append(par_column)
     grid_pars = grid_pars[keep_columns]
+    
+    # Prepare to cut
+    if cuts is not None:
+        keep = np.ones(grid_pars.shape[1], bool)
+        for lbl in cuts:
+            col = labels.index(lbl)
+            keep = keep & (cuts[lbl][0]<=grid_pars[col]) & (grid_pars[col]<=cuts[lbl][1])
+            logger.info("Cut in {}: {}".format(lbl, cuts[lbl]))
+            
+        grid_pars = grid_pars[:,keep]
+        grid_data = grid_data[:,keep]
+
+    
     logger.info("Prepared grid {}: interpolate in {}".format(os.path.basename(atm),", ".join(labels)))
             
     #-- create the pixeltype grid
@@ -2218,6 +2255,9 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 lnl = np.log(wave)
                 # Numerical derivatives
                 dlnF_dlnl = utils.deriv(lnl, lnF)
+                #dlnF_dlnl2 = np.hstack([0,np.diff(lnF)/ np.diff(lnl)])
+                #dlnF_dlnl2[np.isnan(dlnF_dlnl2)] = 0.0
+                #dlnF_dlnl2[np.isinf(dlnF_dlnl2)] = 0.0
                 # Fix nans and infs
                 dlnF_dlnl[np.isnan(dlnF_dlnl)] = 0.0
                 dlnF_dlnl[np.isinf(dlnF_dlnl)] = 0.0
@@ -2229,6 +2269,21 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     num = np.trapz(Tk * (5 + dlnF_dlnl) * w_fl, x=wave)
                     den = np.trapz(Tk * w_fl, x=wave)        
                     extra.append(num/den)
+                    
+                    #import matplotlib.pyplot as plt
+                    #ax = plt.subplot(211)
+                    #plt.plot(lnl, lnF, 'ko-')
+                    #plt.twinx(plt.gca())
+                    #plt.plot(np.log(pwave), ptrans, 'bo-')
+                    #plt.plot(np.log(wave), Tk, 'ro-')
+                    #plt.subplot(212)
+                    #plt.plot(lnl, dlnF_dlnl, 'k-')
+                    #plt.plot(lnl, dlnF_dlnl2, 'r-')
+                    #print num/den
+                    #num = np.trapz(Tk * (5 + dlnF_dlnl2) * w_fl, x=wave)
+                    #den = np.trapz(Tk * w_fl, x=wave)
+                    #print num/den
+                    #plt.show()
             
             # Only if the law is not uniform, we really need to fit something
             if law != 'uniform':
@@ -2754,6 +2809,17 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     
     Small but perhaps important note: we do not take reddening into account
     for OPEN.BOL calculations, if the reddening is interstellar.
+    
+    Beaming options:
+    
+        - :envvar:`beaming_al='full'`: intensity and limb darkening coefficients
+          are corrected for local velocity
+        - :envvar:`beaming_al='local'`: local linear beaming coefficient is added
+          to the mesh
+        - :envvar:`beaming_al='simple': global linear beaming coefficients is added
+          to the mesh
+        - :envvar:`beaming_al='none'` or beaming parameter evaluates to False:
+          beaming is not taken into account
     """
     # Get the arguments we need concerning normal emergent intensities (atm),
     # LD coefficients and the LD function.
@@ -2788,21 +2854,19 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     # user, and some possible simplifications for the calculations.
     #
     # First of all, it is possible that the whole star has the same local
-    # parameters. In that case, we compute the limb darkening coefficients only
-    # for one surface element and then set all surface elements to be the same.
+    # parameters. In that case, we could compute the limb darkening coefficients
+    # only for one surface element and then set all surface elements to be the
+    # same.
     #
     # Basically, we need to compute intensities and limb darkening coefficients.
     # In principle, they could be derived from different sets of atmosphere
     # models, or, the LD coeffs could be set manually to be constant over the
     # whole star while the intensities are varied over the surface.
     
+    # Let's see which dataset we need to take care of
     tag = 'ld_' + ref
-    log_msg = "{:s}({:s}): ".format(passband, tag[3:])
+    log_msg = "{:s}({:s}):".format(passband, tag[3:])
     
-    # Now, in which parameters do we need to interpolate? This is probably teff
-    # and logg, but perhaps abundances, reddening,.. hell, perhaps even micro-
-    # turbulent velocity or mixing length parameter.
-    # 
     # We need parameters on the passband and reddening in the form of a
     # dictionary. We may add too much information, since the function
     # "interp_ld_coeffs" only extracts those that are relevant.
@@ -2816,13 +2880,8 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     else:
         red_kwargs = dict(parset_isr)
     
-    # extract possible atmospheric interpolation parameters
-    # find necessary interpolation parameters
-    # find non-atmospheric interpolation parameters
-    # find correct atmosphere file
-    # interpolate coefficients and intensities
-    
-    # Needs to change; could be not a file
+    # Extract parameters deciding the atmosphere, limb darkening coefficients
+    # and limbdarkening law
     atm = parset_pbdep['atm']
     ldc = parset_pbdep['ld_coeffs']
     ld_func = parset_pbdep['ld_func']
@@ -2833,15 +2892,11 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         # Find the possible interpolation parameters
         atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
         
+        # Get the atmosphere file
         atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
                                       ld_func=ld_func,
                                       fitmethod='equidist_r_leastsq')
-        
-        ldc_file = choose_ld_coeffs_table(ldc, atm_kwargs=atm_kwargs,
-                                      red_kwargs=red_kwargs, vgamma=vgamma,
-                                      ld_func=ld_func,
-                                      fitmethod='equidist_r_leastsq')        
         
         coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
                                            red_kwargs=red_kwargs, vgamma=vgamma)
@@ -2851,6 +2906,8 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         for collnr, coefcoll in enumerate(coeffs[:-1]):
             system.mesh[tag][:, collnr] = coefcoll
         system.mesh[tag][:, -1] = coeffs[-1]
+        
+        log_msg += ' atm and ld_coeffs from table {}'.format(os.path.basename(atm_file))
     
     # 2. atm_file and ld_coeffs file are not the same
     elif atm in config.atm_props:
@@ -2868,8 +2925,11 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         coeffs_atm, header = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
                                            red_kwargs=red_kwargs, vgamma=vgamma, return_header=True)
         
-        # ld_coeffs can either be a file or a user-specified list of coefficients
-        # In the latter case, we don't need to interpolate.
+        log_msg += ' atm from table {}'.format(os.path.basename(atm_file))
+        
+        # ld_coeffs can either be a file or a user-specified list of
+        # coefficients. We'll first assume that we have a file, if that doesn't
+        # work, we'll assume its a set of coefficients
         try:
             
             ldc_file = choose_ld_coeffs_table(ldc, atm_kwargs=atm_kwargs,
@@ -2877,17 +2937,22 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
                                       ld_func=ld_func,
                                       fitmethod='equidist_r_leastsq') 
         
-            coeffs_ldc = interp_ld_coeffs(ldc, passband, atm_kwargs=atm_kwargs,
+            coeffs_ldc = interp_ld_coeffs(ldc_file, passband, atm_kwargs=atm_kwargs,
                                            red_kwargs=red_kwargs, vgamma=vgamma)[:-1]
-        
-        # then it's a list or so
+            
+            log_msg += ', ld_coeffs from table {}'.format(os.path.basename(ldc_file))
+            
+        # Otherwise it's a list or so, and we don't need to interpolate
         except TypeError:
             coeffs_ldc = ldc
+            
+            log_msg += ', manual ld_coeffs ({})'.format(ldc)
         
         # Find out what the luminosity is for every triangle with the original
         # limb-darkening function. Compute a correction factor to keep the
         # luminosity from the atm grid, but rescale it to match the ld_func
-        # given.
+        # given. This is what happens when you give inconsistent atmosphere
+        # and limbdarkening coefficients!
         input_ld = header['C__LD_FUNC']
         atm_disk_integral = globals()['disk_{}'.format(input_ld)](coeffs_atm[:-1])
         ldc_disk_integral = globals()['disk_{}'.format(ld_func)](coeffs_ldc)
@@ -2901,8 +2966,12 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         
     # 3. True Blackbody we'll treat separately. There are no limits on the
     # effective temperature used. Note that black bodies are not sensitive to
-    # logg.
+    # logg (or anything else for that matter).
     elif atm == 'true_blackbody':
+        
+        if beaming_alg and beaming_alg != 'full':
+            raise ValueError("With atm=true_blackbody you can only use beaming_alg='full' or beaming_alg='none'.")
+        
         wave_ = np.logspace(1, 5, 10000)
         log_msg += (', intens via atm=true_blackbody (this is going to take '
                    'forever...)')
@@ -2931,6 +3000,29 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     else:
         logger.error("This should not happen: fallback to original local_intensity")
         local_intensity(system, parset_pbdep, parset_isr={})
+    
+    # 5. Take care of boosting option
+    if beaming_alg == 'simple':
+        alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
+                                      red_kwargs=red_kwargs, vgamma=vgamma,
+                                      interp_all=False)
+        system.mesh['alpha_b_' + ref] = alpha_b
+        log_msg += ' (simple boosting)'
+    
+    elif beaming_alg == 'local':
+        alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
+                                      red_kwargs=red_kwargs, vgamma=vgamma)
+        system.mesh['alpha_b_' + ref] = alpha_b
+        log_msg += ' (local boosting)'
+        
+    elif beaming_alg == 'global':
+        alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
+                                      red_kwargs=red_kwargs, vgamma=vgamma)
+        system.mesh['alpha_b_' + ref] = alpha_b
+        log_msg += ' (global boosting (currently still implemented as local))'
+    
+    elif beaming_alg == 'none' or not beaming_alg:
+        log_msg += " (no boosting)"
     
     logger.info(log_msg)
     
@@ -3166,12 +3258,17 @@ def download_atm(atm=None):
 
 #}
 
-local_intensity = local_intensity_old
-choose_ld_coeffs_table = choose_ld_coeffs_table_old
-interp_ld_coeffs = interp_ld_coeffs_old
-#local_intensity = local_intensity_new
-#choose_ld_coeffs_table = choose_ld_coeffs_table_new
-#interp_ld_coeffs = interp_ld_coeffs_new
+new = False
+
+if not new:
+    local_intensity = local_intensity_old
+    choose_ld_coeffs_table = choose_ld_coeffs_table_old
+    interp_ld_coeffs = interp_ld_coeffs_old
+else:
+    local_intensity = local_intensity_new
+    choose_ld_coeffs_table = choose_ld_coeffs_table_new
+    interp_ld_coeffs = interp_ld_coeffs_new
+    _prepare_grid = _prepare_grid_new
     
 if __name__=="__main__":
     import doctest

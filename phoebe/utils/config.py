@@ -56,5 +56,6 @@ file_extension = {'lc':'lc',
 # Atmosphere properties
 atm_props = {'blackbody': ('teff',),
              'kurucz': ('teff', 'logg', 'abun'),
+             'kurucz_p00': ('teff', 'logg'),
              'phoenix': ('teff', 'logg', 'abun'),
              'olivia.fits': ('teff', 'abun', 'eddy', 'uvflux')}

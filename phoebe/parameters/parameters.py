@@ -2110,7 +2110,7 @@ class ParameterSet(object):
         except AttributeError:
             raise AttributeError("ParameterSet '{}' has no keyword '{}'".format(self.context,qualifier))
     
-    def get(self,args,default):
+    def get(self, args, default):
         """
         Return a parameter value if it exists, otherwise return default.
         
@@ -2122,11 +2122,11 @@ class ParameterSet(object):
         @rtype: anything
         """
         if not isinstance(args,tuple):
-            args = args,
+           args = args,
         try:
-            return self.get_value(*args)
+           return self.get_value(*args)
         except AttributeError:
-            return default
+           return default
     
     def get_unit(self,qualifier):
         """
