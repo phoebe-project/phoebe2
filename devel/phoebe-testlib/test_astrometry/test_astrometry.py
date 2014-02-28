@@ -27,6 +27,7 @@ def setup_star(pmra, pmdec, ra, dec, distance):
     # Add the dep and obs, and compute
     star.add_pbdeps([amdep])
     star.add_obs([amobs])
+    star.init_mesh()
     star.compute()
 
     # Get the synthetic stuff

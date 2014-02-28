@@ -52,7 +52,7 @@ rvdep = phoebe.ParameterSet('rvdep', passband='JOHNSON.V', atm='kurucz',
 #--------------
 
 # We need two BinaryRocheStars and put them in an orbit:
-
+orbit['ecc'] = 0.1
 star1 = phoebe.BinaryRocheStar(comp1, mesh=mesh, pbdep=[lcdep,rvdep])
 star2 = phoebe.BinaryRocheStar(comp2, mesh=mesh, pbdep=[lcdep,rvdep])
 

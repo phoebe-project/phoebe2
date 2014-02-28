@@ -1099,7 +1099,7 @@ class Bundle(object):
             for param in params:
                 if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
                     lims = param.get_limits()
-                    param.set_prior(qualifier, distribution='uniform', lower=lims[0], upper=lims[1])
+                    param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
                 param.set_adjust(value, *args)
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
@@ -1353,6 +1353,10 @@ class Bundle(object):
 
                 #~ ds.load()
                 comp.add_obs(ds)
+        
+        # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
+        self.get_system().init_mesh()
+        
     
     
     def load_data(self, category, filename, passband=None, columns=None,

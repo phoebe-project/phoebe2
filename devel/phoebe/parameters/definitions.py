@@ -199,7 +199,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (alb heating, 1
          dict(qualifier='teff',   description='Mean effective temperature',repr='%.0f',cast_type=float,unit='K',value=10000.,llim=0.,ulim=1e20,step=1,adjust=False,frame=["phoebe"],context='component'),         
          dict(qualifier='morphology',   description='Binary type (unconstrained, detached...)',repr='%s',cast_type='choose',choices=['unconstrained','detached','semi-detached','overcontact'],value='unconstrained',frame=["phoebe"],context='component'),         
          #dict(qualifier='distance',description='Distance to the binary system',repr='%f',cast_type=float,value=10.,unit='pc',adjust=False,frame=['phoebe'],context='orbit'),
-         dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context=['component','star','accretion_disk']),
+         dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context=['component','star','accretion_disk']),
          dict(qualifier='abun',description='Metallicity',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context=['component','star']),
          dict(qualifier='label',  description='Name of the body',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['component','star','accretion_disk']),
         ]
@@ -255,7 +255,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['puls','circ_orbit']),
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep','etvdep','sidep']),
-         dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=False,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
+         dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='samprate',   description='Applied sampling rate',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
@@ -689,7 +689,7 @@ defs += [dict(qualifier='label',                description='label for the comut
                                                                    "'simple': global increase/decrease of projected intensity according to mean stellar parameters // "
                                                                    "'local': local increase/decrease of projected intensity according to local stellar parameters //"
                                                                    "'full': adjust local intensity and limb darkening coefficients according to local stellar parameters"),
-                                                 cast_type='choose',value='full',frame=['phoebe'],context='compute'),
+                                                 cast_type='choose',value='none',frame=['phoebe'],context='compute'),
         ] 
 
 # Globals context

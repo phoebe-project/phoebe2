@@ -2059,33 +2059,34 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     Do not *ever* use this, unless you know what you're doing. The parameters
     in this function are derived in :py:func:compute.
     
-    You are welcome to browse through the source code though.
+    You are welcome to browse through the source code though. Have a glass of
+    wine, your favorite easy chair. And of course, a compact disc playing on
+    your home stereo. So flip of your shoes, lift your feet up. Lean back, and
+    enjoy the melodies.
     
     Because you shouldn't use this function, I will not describe the parameters
     in details. Muhaha.
     """
     # Unsubdivide to prepare for this step (if necessary)
-    if params['subdiv_num']:  
+    subdiv_num = params.get_value('subdiv_num')
+    subdiv_alg = params.get_value('subdiv_alg')
+    eclipse_alg = params.get_value('eclipse_alg')
+    
+    if subdiv_num:  
         system.unsubdivide()
     
     # Execute some pre-processing steps if necessary
     system.preprocess(time)
     
     # Clear previous reflection effects if necessary (not if reflect==1 because
-    # might one to keep the reflection results in circular orbits or if they
+    # one might want to keep the reflection results in circular orbits or if they
     # otherwise do not change!)
     if reflect is True:
         system.clear_reflection()
     
     # Set the time of the system: this will put everything in the right place,
     # and compute the necessary physical quantities.
-    system.set_time(time, ref=ref)
-            
-    # The following step is not necessary anymore, apparently the temperatures
-    # are sufficiently set after "set_time"
-    # For heating an eccentric system, we first need to reset the temperature!
-    #if heating is True or i == 0 and heating == 1:
-    #    system.temperature(time)
+    system.set_time(time, ref=ref, beaming_alg=beaming)
     
     # Compute intensities: it is possible that this is already taken care of
     # in set_time. It doesn't hurt to do it again, but this might be optimized.
@@ -2094,9 +2095,11 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
         system.__had_refs.append(ref)
     elif (not circular) or (beaming == 'full'):
         system.intensity(ref=ref, beaming_alg=beaming)
-            
+    
+    # Compute reflection effect (maybe just once, maybe always). If this is done
+    # we need to update the intensities
     update_intensity = False
-    # Compute reflection effect (maybe just once, maybe always)
+    
     if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
         reflection.mutual_heating(*system.get_bodies(), heating=heating,
                                   reflection=reflect, niter=nreflect)
@@ -2109,21 +2112,18 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
-    ecl, found_partial = choose_eclipse_algorithm(system,
-                                       algorithm=params['eclipse_alg'])
+    ecl, found_partial = choose_eclipse_algorithm(system, algorithm=eclipse_alg)
     
     # If necessary, subdivide and redetect eclipses/horizon
-    for k in range(params['subdiv_num']):
+    for k in range(subdiv_num):
+        
         if found_partial is False:
             continue
-        system.subdivide(threshold=0, algorithm=params['subdiv_alg'])
+        
+        system.subdivide(threshold=0, algorithm=subdiv_alg)
         ecl_, found_partial = choose_eclipse_algorithm(system, algorithm=ecl)
-
-    # Correct for light travel time effects
-    #if ltt:
-    #    system.correct_time()
     
-    # Compute observables at this time step
+    # Compute the necessary observables at this time step
     had_refs = [] # we need this for the ifm, so that we don't compute stuff too much
     for itype, iref, isamp in zip(type, ref, samprate):
         if itype[:-3] == 'if':
@@ -2169,13 +2169,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     Automatically compute dependables of a system to match the observations.
     
     This is typically want you want to do if you have some data and want to
-    compute a model generating those data. The times, references and types at
-    which to compute anything, will be derived from the observations attached
-    to the ``system``.
+    compute a model generating those data. The independent variables (times,
+    wavelengths, UV-coords etc...), references and types at which to compute
+    anything, will be derived from the observations attached to the
+    :envvar:`system`.
     
     Detailed configuration of the computations is provided via the optional
-    :ref:`compute <parlabel-phoebe-compute>` parameterSet, set via the
-    ``params`` keyword::
+    :ref:`compute <parlabel-phoebe-compute>` parameterSet, set via the keyword
+    :envvar:`params`::
     
             time auto   --   phoebe Compute observables of system at these times
             refs auto   --   phoebe Compute observables of system at these times
@@ -2187,9 +2188,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
       subdiv_alg edge   --   phoebe Subdivision algorithm
       subdiv_num 3      --   phoebe Number of subdivisions
      eclipse_alg auto   --   phoebe Type of eclipse algorithm
+     beaming_alg full   --   phoebe Type of beaming algorithm
 
     But for convenience, all parameters in this parameterSet can also be
-    given as kwargs.
+    given as keyword arguments (kwargs).
         
     You can give an optional :ref:`mpi <parlabel-phoebe-mpi>` parameterSet for
     multithreading across different cores and/or machines.
@@ -2199,7 +2201,13 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     an image of a binary system as you compute through the orbit. See example
     functions such as :py:func:`ef_binary_image` for example signatures of these
     functions. It is perfectly possible that user-defined functions (i.e. those
-    not residing in this module) will not be callable when using MPI.
+    not residing in this module) will not be callable when using MPI. If you're
+    looking for functionality that automatically processes some information
+    before and after computations (e.g. setting correlated parameters), you need
+    to use the pre- and postprocessing tools from the Body.
+    
+    Live animation is supported via :envvar:`animate` (but again not available
+    with MPI).
     
     **Example usage**:
     
@@ -2219,6 +2227,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     >>> mpi = phoebe.ParameterSet(context='mpi', np=4)
     >>> compute(vega, subdiv_num=2, mpi=mpi)
     
+    A shortcut to this function is also available as a method of a Body.
+    
     **And then what?**:
     
     Things you might want to do after computing:
@@ -2235,7 +2245,6 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     Or substitute the name of the observations to the ``ref`` keyword. There are
     similar functions or keywords for other observables, simply replace `lc`
     with other types.
-    
     
     @param system: the system to compute
     @type system: Body
@@ -2345,11 +2354,19 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     system.preprocess(time=None)
     
     # Some simplifications: try to detect whether a system is circular is not
-    if hasattr(system, 'bodies') and 'orbit' in system.bodies[0].params and auto_detect_circular:
+    system_is_bbag = hasattr(system, 'bodies')
+    bbag_has_orbit = system_is_bbag and 'orbit' in system.bodies[0].params
+    
+    if system_is_bbag and bbag_has_orbit and auto_detect_circular:
+        
         circular = (system.bodies[0].params['orbit']['ecc'] == 0)
         logger.info("Figured out that system is{0}circular".format(circular and ' ' or ' not '))
-        # Perhaps one of the components is a star with a spot or pulsations
+        
+        # Perhaps one of the components is a star with a spot, pulsations or it
+        # is misaligned. If so, we can't use the circular optimizations since we
+        # need to recompute intensities each iteration.
         for body in system.bodies:
+            
             if 'puls' in body.params or 'circ_spot' in body.params:
                 circular = False
                 logger.info("... but at least one of the components has spots or pulsations: set circular=False")
@@ -2380,7 +2397,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     found_irradiator = False
     if heating or reflect:
         for loc, thing in system.walk_all():
-            if isinstance(thing, parameters.Parameter) and thing.get_qualifier() == 'irradiator':
+            thing_is_parameter = isinstance(thing, parameters.Parameter)
+            if thing_is_parameter and thing.get_qualifier() == 'irradiator':
                 
                 # Now we know 'thing' is the Parameter "irradiator"
                 if thing.get_value():
@@ -2392,8 +2410,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         else:
             logger.critical("Requested to include heating and/or reflection, but no irradiators were found. Please set the 'irradiator' parameter to 'True' in the relevant bodies.")
                     
-    # Otherwise we can switch it off
-    if not found_irradiator:
+    # Otherwise we can switch irradiation completely off
+    if not found_irradiator or not system_is_bbag:
         heating = False
         reflect = False
     
@@ -2402,6 +2420,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if heating and circular:
         heating = 1
         labl_per_time[0].append('__bol')
+        
     # Else heat always
     elif heating:
         for labl in labl_per_time:
@@ -2409,6 +2428,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # and uuhhh... what about reflection? Well, same as for heating: if
     # reflection is switched on, do it only once. Otherwise, reflect always.
+    # If heating is not enabled, we need to add the bolometric label.
     if reflect and circular:
         reflect = 1
         if not heating:
@@ -2447,32 +2467,39 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             body.params['syn']['orbsyn'] = OrderedDict()
             body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
     
-    # And don't forget beaming!
-    beaming_is_relevant = False
-    for parset in system.walk():
-        if 'beaming' in parset and parset['beaming']:
-            beaming_is_relevant = True
-            logger.info("Figured out that the system requires beaming")
-            break
+    # And don't forget beaming! If the user switches of beaming, we don't
+    # care. Else, we check if beaming needs to be computed. Thus, the user can
+    # set the beaming algorithm to be switched on, but still disable beaming in
+    # some (or all) of the bodies separately.
+    beaming_is_relevant = (beaming == 'none')
+    if beaming_is_relevant:
+        for parset in system.walk():
+            if 'beaming' in parset and parset['beaming']:
+                beaming_is_relevant = True
+                logger.info("Figured out that the system requires beaming")
+                break
+        else:
+            logger.warning(("Beaming algorithm = {} but no beaming Bodies "
+                            "found. Check the 'beaming' parameter in the "
+                            "Bodies".format(beaming)))
     
-    # If beaming is not relevant, don't take it into account
+    # If beaming is not relevant, don't take it into account. Else, if the
+    # beaming algorithm is not the "full" one, prepare to store beaming factors
     if not beaming_is_relevant:
         beaming = 'none'
+    elif beaming == 'full':
+        system.prepare_beaming(ref='all')
     
     # If we include reflection, we need to reserve space in the mesh for the
     # reflected light. We need to fix the mesh afterwards because each body can
     # have different fields appended in the mesh.
-    if reflect and len(system)>1:
+    if system_is_bbag and reflect and len(system)>1:
         system.prepare_reflection(ref='all')
-        system.fix_mesh()
-    elif reflect:
-        logger.warning("System contains irradiator but no other targets")
     
-    # If the system is circular, we're not recomputing stuff. Make sure to
-    # have computed everything as least once:
-    #if circular:
-    #    logger.info('System is circular, pre-computing system')
-    #    system.set_time(0., ref='all')
+    # Make sure all Bodies have the same columns in the mesh (we might have
+    # added different columns for reflection/beaming for different bodies).
+    if system_is_bbag and ((reflect and len(system)>1) or (beaming_is_relevant and not beaming == 'full')):
+        system.fix_mesh()
     
     logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
     
@@ -2483,6 +2510,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
     
+    # We're gonna compute one time step per turn, but this is different with
+    # and without animation.
     if not animate:
         for i, (time, ref, typ, samp) in enumerate(iterator):
             compute_one_time_step(system, i, time, ref, typ, samp, reflect, nreflect,
@@ -2490,8 +2519,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                 extra_func, extra_func_kwargs)
     
     else:
-        if animate is True:
+        if animate is True or animate == 1:
             animate = office.Animation1(system, select='teff')
+        elif animate == 2:
+            animate = office.Animation2(system, kwargs1=dict(select='teff'))
+        elif animate == 3:
+            animate = office.Animation3(system, select='teff')
+        elif animate == 4:
+            animate = office.Animation4(system, select='teff')
             
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),
@@ -2519,6 +2554,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             
         except:
             logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
+        
         
         
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,

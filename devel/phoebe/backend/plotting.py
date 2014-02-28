@@ -55,6 +55,8 @@ def plot_lcsyn(system, *args, **kwargs):
         - ``phased=False``: decide whether to phase the data according to
           ``period`` or not.
     
+    Optional keyword :envvar:`y_unit` can be any of ``ppt``, ``ppm``, ``relative``
+    or an actual physical unit.
     
     **Example usage:**
     

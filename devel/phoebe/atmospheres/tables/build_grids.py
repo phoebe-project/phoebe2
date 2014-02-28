@@ -91,20 +91,26 @@ if __name__=="__main__":
                 #ld_func='claret', fitmethod='equidist_r_leastsq',
                 #z='*', ebvs=None, redlaw=None, limb_zero=False,
                 #add_boosting_factor=True)
-
-        build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
-                ld_func='linear', fitmethod='equidist_r_leastsq',
-                z='*', ebvs=None, redlaw=None, limb_zero=False,
-                add_boosting_factor=True)
-
-        build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
-                ld_func='logarithmic', fitmethod='equidist_r_leastsq',
-                z='*', ebvs=None, redlaw=None, limb_zero=False,
-                add_boosting_factor=True)
         
         build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
-                ld_func='quadratic', fitmethod='equidist_r_leastsq',
+                ld_func='claret', fitmethod='equidist_r_leastsq',
                 z='*', ebvs=None, redlaw=None, limb_zero=False,
-                add_boosting_factor=True)
+                add_boosting_factor=True, vgamma=np.arange(-500,501,50))
+        
+        #build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+                #ld_func='linear', fitmethod='equidist_r_leastsq',
+                #z='*', ebvs=None, redlaw=None, limb_zero=False,
+                #add_boosting_factor=True)
+
+        #build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+                #ld_func='logarithmic', fitmethod='equidist_r_leastsq',
+                #z='*', ebvs=None, redlaw=None, limb_zero=False,
+                #add_boosting_factor=True)
+        
+        #build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+                #ld_func='quadratic', fitmethod='equidist_r_leastsq',
+                #z='*', ebvs=None, redlaw=None, limb_zero=False,
+                #add_boosting_factor=True)
+    
     else:
         limbdark.compute_grid_ld_coeffs(sys.argv[1], passbands=('GENEVA*',))
