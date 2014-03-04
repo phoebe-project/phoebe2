@@ -30,7 +30,7 @@ from fnmatch import fnmatch
 import matplotlib.pyplot as plt
 import copy
 import os
-from PIL import Image
+#~ from PIL import Image
 
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
