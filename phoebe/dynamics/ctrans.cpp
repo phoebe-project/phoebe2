@@ -77,7 +77,7 @@ static PyObject *place_in_binary_orbit(PyObject *dummy, PyObject *args)
     v1 = c2*s3+s2*c1c3;
     v2 = s2*s3-c2*c1c3;
     v3 = s1*c3;
-    w1 = s2*s1;
+    w1 = -s2*s1;
     w2 = c2*s1;
     w3 = c1;
     
