@@ -408,7 +408,8 @@ def image(the_system, ref='__bol', context='lcdep',
             cmap_ = cmap
             cmap = plotlib.blackbody_cmap()
             vmin_, vmax_ = 2000, 20000
-            colors = (values-vmin_) / (vmax_-vmin_)        
+            colors = (values-vmin_) / (vmax_-vmin_)     
+    
     # Check for nans or all zeros, that usually means the user did something
     # wrong (OK, there's also a tiny chance that there's a bug somewhere)
     if np.all(values == 0):
@@ -1104,7 +1105,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
             f0 = conversions.baseline_to_spatialfrequency(bl, wl)
             fn = f0
             df = 0
-            logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,wl))
+            #logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,wl))
             if keepfig and keepfig is not True:
                 pl.annotate('f={:.3g} cy/as\n d={:.3g} pc'.format(f0,dpc),(0.95,0.05),va='bottom',ha='right',xycoords='axes fraction',color='r',size=20)
                 pl.figure()

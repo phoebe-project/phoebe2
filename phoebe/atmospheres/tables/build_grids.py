@@ -92,10 +92,10 @@ if __name__=="__main__":
                 #z='*', ebvs=None, redlaw=None, limb_zero=False,
                 #add_boosting_factor=True)
         
-        build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
-                ld_func='claret', fitmethod='equidist_r_leastsq',
-                z='*', ebvs=None, redlaw=None, limb_zero=False,
-                add_boosting_factor=True, vgamma=np.arange(-500,501,50))
+        #build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+                #ld_func='claret', fitmethod='equidist_r_leastsq',
+                #z='*', ebvs=None, redlaw=None, limb_zero=False,
+                #add_boosting_factor=True, vgamma=np.arange(-500,501,50))
         
         #build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
                 #ld_func='linear', fitmethod='equidist_r_leastsq',
@@ -111,6 +111,12 @@ if __name__=="__main__":
                 #ld_func='quadratic', fitmethod='equidist_r_leastsq',
                 #z='*', ebvs=None, redlaw=None, limb_zero=False,
                 #add_boosting_factor=True)
+         
+        limbdark.compute_grid_ld_coeffs(['spec_intens/Jorissen_m1.0_t02_st_z+0.00_a+0.00_mu.fits'],
+              passbands=('JOHNSON.*','2MASS.*', 'KEPLER.V'), filetag='jorissen_m1.0_t02_st_z+0.00_a+0.00',
+              fitmethod='equidist_mu_leastsq',
+              law='hillen', debug_plot=True)
     
     else:
-        limbdark.compute_grid_ld_coeffs(sys.argv[1], passbands=('GENEVA*',))
+        limbdark.compute_grid_ld_coeffs(sys.argv[1], passbands=('JOHNSON.*','2MASS.*', 'KEPLER.V'))
+    

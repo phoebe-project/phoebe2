@@ -7,6 +7,8 @@ Limb darkening and intensity fitting and querying
 
 .. _wonder_how_atmospheres:
 
+.. _limbdark-atmospheres:
+
 Section 0. Atmospheres in Phoebe 2
 ===================================
 
@@ -18,10 +20,10 @@ aspect angle and passband. This is set via three parameters:
       look right at the center of the object (it's tangent surface being in the
       plane of the sky), how many erg/s/cm2/AA/sr do we measure?
     - ``ld_func``: determines the aspect angle dependency. There can be a linear
-      drop-off in :math:`\mu=\cos\theta` with :math:\`theta` the angle between the
+      drop-off in :math:`\mu=\cos\theta` with :math:`\theta` the angle between the
       line of sight and the surface normal, or it can be more complex.
     - ``ld_coeffs``: It quanitifies the ``ld_func``. It tells you how much
-      erg/s/cm2/AA/sr is lost when look at the atmosphere from a different angle.
+      erg/s/cm2/AA/sr is lost when you look at the atmosphere from a different angle.
       Typically, you choose an ``ld_func`` but let the parameters vary according
       to the properties of the star (effective temperature, surface gravity etc).
 
@@ -48,13 +50,13 @@ the flux should stay the same. Therefore:
        
        .. math::
     
-            L_\mathrm{pb} = 2\pi\int_S \int_{0}^{\frac{\pi}{2}}I_\mathrm{pb}(\cos\theta)\cos\theta\sin\theta d\theta dA \quad\mathrm{[erg/s]}
+            L_\mathrm{pb} = 2\pi\int_S \int_{0}^{\frac{\pi}{2}}I_\mathrm{pb}(0)I_\mathrm{pb}^N(\cos\theta)\cos\theta\sin\theta d\theta dA \quad\mathrm{[erg/s]}
        
        where, for example for a linear limb darkening law:
        
        .. math::
        
-            \frac{I_\mathrm{pb}(\mu)}{I_\mathrm{pb}(0)}  = 1 - \epsilon + \epsilon\mu
+            I_\mathrm{pb}^N(\mu) = \frac{I_\mathrm{pb}(\mu)}{I_\mathrm{pb}(0)}  = 1 - \epsilon + \epsilon\mu
        
        with:
        
@@ -62,14 +64,30 @@ the flux should stay the same. Therefore:
        
             \left\{\begin{array}{ll}
             I_\mathrm{pb}(0) & \quad \mathrm{from }\ \mathtt{atm} \\
-            I_\mathrm{pb}(\cos\theta) & \quad \mathrm{from }\ \mathtt{ld\_func}\\
+            I_\mathrm{pb}^N(\cos\theta) & \quad \mathrm{from }\ \mathtt{ld\_func}\\
             \epsilon & \quad \mathrm{from }\ \mathtt{ld\_coeffs}
             \end{array}\right.
+       
+       Note that, because of the dependence of the local intensity to local surface properties, actually
+       
+       .. math::
+       
+            I_\mathrm{pb} = I_\mathrm{pb}\left(T_\mathrm{eff}(\theta,\phi), g(\theta,\phi), z(\theta,\phi), v_\mathrm{rad}(\theta,\phi), \ldots\right).
        
        
     2. We compute the luminosity given the ``atm`` values and the newly given
        ``ld_func`` and/or ``ld_coeffs``.
+       
+       .. math::
+    
+            L_\mathrm{pb}\prime = 2\pi\int_S \int_{0}^{\frac{\pi}{2}}I_\mathrm{pb}(0)I_\mathrm{pb}^N\prime(\cos\theta)\cos\theta\sin\theta d\theta dA \quad\mathrm{[erg/s]}
+       
+       
     3. We rescale the ``atm`` values to reproduce the luminosity computed in (1).
+    
+        .. math::
+        
+            I_\mathrm{pb}(0)^\mathrm{new} = \frac{L_\mathrm{pb}}{L_\mathrm{pb}\prime}I_\mathrm{pb}(0)
 
 Section 1. File formats
 =======================
@@ -328,6 +346,7 @@ basedir_ld_coeffs = os.path.join(basedir, 'tables', 'ld_coeffs')
 
 Rsol_d_to_kms = constants.Rsol/(24*3600.)/1000.
 
+
 #{ LD laws
 
 def ld_claret(mu, coeffs):
@@ -355,6 +374,7 @@ def ld_claret(mu, coeffs):
     
     return Imu
 
+
 def ld_hillen(mu, coeffs):
     r"""
     Empirical limb darkening law devised by M. Hillen.
@@ -370,7 +390,14 @@ def ld_hillen(mu, coeffs):
     @return: normalised intensity at limb angles
     @rtype: array
     """
-    Imu = (coeffs[0] + (coeffs[1] + coeffs[2] * np.abs(x) + coeffs[3] * mu**2) * np.arctan(coeffs[4]*(mu-coeffs[5])))*(-coeffs[6]/(mu**4+coeffs[6])+1.)
+    # skew parameter cannot be smaller than zero
+    skew = coeffs[5]
+    min_skew, max_skew = 0.1, 1e9
+    # skew bounded
+    skew_bounded = np.sin( (skew - min_skew)/(max_skew-min_skew))
+    skew = skew_bounded*(max_skew-min_skew) + min_skew
+    Imu = (coeffs[0] + (coeffs[1] + coeffs[2] * np.abs(mu) + coeffs[6] * mu**2) * np.arctan(coeffs[4]*(mu-coeffs[3])))*(-skew*1e-8/(mu**4+skew*1e-8)+1.)
+    
     return Imu
 
 
@@ -593,7 +620,7 @@ def disk_square_root(coeffs):
     return np.pi * (1 - coeffs[0]/3.0 - coeffs[1]/5.)
 
 def disk_claret(coeffs):
-    a1x_,a2x_,a3x_,a4x_ = coeffs
+    a1x_,a2x_,a3x_,a4x_ = coeffs[:4]
     a0x_ = 1 - a1x_ - a2x_ - a3x_ - a4x_
     limb_coeffs = np.array([a0x_,a1x_,a2x_,a3x_,a4x_]).reshape((5,-1))
     int_moms = np.array([I_ls(0,1 + r/2.) for r in range(0,5,1)]).reshape((5,-1))
@@ -801,7 +828,7 @@ def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
 
 
 def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
-            limb_zero=True):
+            limb_zero=True, debug_plot=False):
     """
     Fit an LD law to a sampled set of limb angles/intensities.
     
@@ -861,9 +888,19 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     
     # Prepare array for coefficients and set the initial guess
     Ncoeffs = dict(claret=4, linear=1, nonlinear=2, logarithmic=2, quadratic=2,
-                   power=1)
+                   power=1, hillen=7)
     c0 = np.zeros(Ncoeffs[law])
     c0[0] = 0.6
+    
+    # Better initial guess for Hillen law
+    if law == 'hillen':
+        c0[0] = 0.10
+        c0[1] = 0.025
+        c0[2] = 0.53
+        c0[3] = 0.12
+        c0[4] = 70.0
+        c0[5] = 0.1
+        c0[6] = 0.0
     
     # Do the fitting; there's several possibilities
     
@@ -919,6 +956,22 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     res =  np.sum(Imu - myfit)**2
     int1, int2 = np.trapz(Imu, x=mu), np.trapz(myfit, x=mu)
     dflux = (int1 - int2) / int1
+    
+    # Make a debug plot if needed
+    if debug_plot:
+        pl.figure(int(debug_plot), figsize=(12,6))
+        pl.subplot(121)
+        pl.plot(mu, Imu, 'ko', label='Grid points')
+        pl.plot(mu_spl, Imu_spl, 'k-', mew=2, ms=10, label='Resampled')
+        pl.plot(mu, myfit, 'r-', lw=2, label='Fit')
+        pl.legend(loc='best', numpoints=1, prop=dict(size='small')).get_frame().set_alpha(0.5)
+        pl.xlabel(r'$\mu=\cos\theta$')
+        pl.subplot(122)
+        pl.plot(np.sqrt(1-mu**2), Imu, 'ko', label='Grid points')
+        pl.plot(np.sqrt(1-mu_spl**2), Imu_spl, 'kx-', mew=2, ms=10, label='Resampled')
+        pl.plot(np.sqrt(1-mu**2), myfit, 'r-', lw=2, label='Fit')
+        pl.xlabel(r'r-coordinate')
+    
     return csol, res, dflux
 
 
@@ -1152,6 +1205,9 @@ def choose_ld_coeffs_table_new(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
             postfix = "_"+"_".join(postfix)
         else:
             postfix = ''
+        
+        if atm == 'jorissen':
+            atm = 'jorissen_m1.0_t02_st_z+0.00_a+0.00'
             
         basename = "{}_{}_{}{}.fits".format(atm, ld_func, fitmethod, postfix)
         
@@ -1862,7 +1918,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
                            limb_zero=True, add_boosting_factor=True,\
-                           filetag='kurucz'):
+                           filetag='kurucz', debug_plot=False):
     r"""
     Create an interpolatable grid of limb darkening coefficients.
     
@@ -2188,11 +2244,69 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     if vgamma is not None:
         other_pars.append(vgamma)
         
+    for atm_file in atm_files:
+        do_close = False
+        # Special case if blackbody: we need to build our atmosphere model
+        if atm_file == 'blackbody':
+            wave_ = np.logspace(1, 5, 10000)
+        
+        # Check if the file exists
+        elif not os.path.isfile(atm_file):
+            raise ValueError(("Cannot fit LD law, specific intensity file {} "
+                             "does not exist").format(atm_file))
+        
+        # Else we pre-open the atmosphere file to try to gain some time
+        else:
+            do_close = True
+            open_atm_file = pyfits.open(atm_file)
+        
+        # Check for passband/specific intensity wavelength coverage, and remove
+        # any filter that is not completely covered by the specific intensities
+        if atm_file != 'blackbody':
+            min_wave = -np.inf
+            max_wave = +np.inf
+            # Run over all extenstions, and check for minimum/maximum wavelength
+            # We want to have the "maximum minimum", i.e. the minimum wavelength
+            # range that is covered by all extensions
+            for ext in open_atm_file[1:]:
+                if 'wavelength' in ext.data.dtype.names:
+                    this_min = ext.data.field('wavelength').min()
+                    this_max = ext.data.field('wavelength').max()
+                    if this_min > min_wave:
+                        min_wave = this_min
+                    if this_max < max_wave:
+                        max_wave = this_max
+            logger.info("Wavelength range from specific intensities: {} --> {} AA".format(min_wave, max_wave))
+            
+            # Check passbands:
+            for pb in passbands+[]:
+                if pb == 'OPEN.BOL':
+                    continue
+                wave_, trans_ = pbmod.get_response(pb)
+                has_trans = trans_ > 0.0
+                this_min = wave_[has_trans].min()
+                this_max = wave_[has_trans].max()
+                
+                if this_min < min_wave or this_max > max_wave:
+                    # Compute coverage percentage:
+                    new_wave_pb = np.linspace(this_min, this_max, 1000)
+                    new_wave_cv = np.linspace(min_wave, max_wave, 1000)
+                    new_pb = np.interp(new_wave_pb, wave_, trans_, left=0, right=0)
+                    new_cv = np.interp(new_wave_cv, wave_, trans_, left=0, right=0)
+                    covpct = (1.0 - np.trapz(new_cv, x=new_wave_cv) / np.trapz(new_pb, x=new_wave_pb))*100.
+                    logger.info('Removing passband {}: not completely covered by specific intensities ({:.3f}% missing)'.format(pb, covpct))
+                    passbands.remove(pb)
+             
+            logger.info("Using passbands {}".format(", ".join(passbands))) 
+        
+        if do_close:
+            open_atm_file.close()
+                
     # Prepare to store the results: for each passband, we need an array. The
     # rows of that array will be the grid points + coefficients + fit statistics
     output = {passband:[] for passband in passbands}
     
-    for atm_file in atm_files:
+    for atm_file in atm_files:                
         
         # Special case if blackbody: we need to build our atmosphere model
         if atm_file == 'blackbody':
@@ -2291,7 +2405,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     # Fit a limbdarkening law:
                     csol, res, dflux = fit_law(mu, Imu[:, i]/Imu[0, i],
                                                law=law, fitmethod=fitmethod,
-                                               limb_zero=limb_zero)
+                                               limb_zero=limb_zero,
+                                               debug_plot=(i+1 if debug_plot else False))
                     if add_boosting_factor:
                         to_append = list(val) + [extra[i]] + [res, dflux] + list(csol) + \
                                       [Imu[0, i]]
@@ -2316,7 +2431,18 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     output[pb].append(to_append)
             
                     logger.info("{}: {}".format(pb, output[pb][-1]))
-        
+            
+            if debug_plot:
+                for i, pb in enumerate(passbands):
+                    pl.figure(i+1)
+                    pl.subplot(121)
+                    pl.title(pb)
+                    debug_filename = pb + '__' + '__'.join([str(j) for j in val])
+                    debug_filename = debug_filename.replace('.','_')
+                    pl.savefig(debug_filename)
+                    pl.close()
+            
+            
         # Close the atm file again if necessary
         if atm_file != 'blackbody':
             open_atm_file.close()
@@ -2891,12 +3017,13 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         
         # Find the possible interpolation parameters
         atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
+        fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
         
         # Get the atmosphere file
         atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
                                       ld_func=ld_func,
-                                      fitmethod='equidist_r_leastsq')
+                                      fitmethod=fitmethod)
         
         coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
                                            red_kwargs=red_kwargs, vgamma=vgamma)
@@ -2914,12 +3041,13 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         
         # Find the possible interpolation parameters
         atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
+        fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
         
         # Find the interpolation file
         atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
                                       ld_func=ld_func,
-                                      fitmethod='equidist_r_leastsq')
+                                      fitmethod=fitmethod)
         
         # And interpolate the table
         coeffs_atm, header = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
@@ -2931,11 +3059,11 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         # coefficients. We'll first assume that we have a file, if that doesn't
         # work, we'll assume its a set of coefficients
         try:
-            
+            fitmethod_ldc = config.fit_props.get(ldc, 'equidist_r_leastsq')
             ldc_file = choose_ld_coeffs_table(ldc, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
                                       ld_func=ld_func,
-                                      fitmethod='equidist_r_leastsq') 
+                                      fitmethod=fitmethod_ldc) 
         
             coeffs_ldc = interp_ld_coeffs(ldc_file, passband, atm_kwargs=atm_kwargs,
                                            red_kwargs=red_kwargs, vgamma=vgamma)[:-1]
@@ -3055,7 +3183,7 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
     @type ref: str
     """
     body = system.params.values()[0]
-    if method=='numerical':
+    if method == 'numerical':
         #-- get limb angles
         mus = system.mesh['mu']
         #-- To calculate the total projected intensity, we keep track of the
@@ -3073,7 +3201,7 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         partial = system.mesh['partial'][keep]
         #-- compute intensity using the already calculated limb darkening coefficents
         logger.info('using limbdarkening law %s'%(ld_func))
-        Imu = globals()['ld_{}'.format(ld_func)](mus,system.mesh['ld_'+ref][keep].T)*system.mesh['ld_'+ref][keep,4]
+        Imu = globals()['ld_{}'.format(ld_func)](mus,system.mesh['ld_'+ref][keep].T)*system.mesh['ld_'+ref][keep,-1]
         proj_Imu = mus*Imu
         if with_partial_as_half:
             proj_Imu[partial] /= 2.0

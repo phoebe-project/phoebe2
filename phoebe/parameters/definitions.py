@@ -233,8 +233,8 @@ defs += [dict(qualifier='delta',    description='Stepsize for mesh generation vi
          ]        
         
 #    DATA contexts
-defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['lcdep','amdep','rvdep']),
-         dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
+defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret', 'hillen'],value='uniform',frame=["phoebe"],context=['lcdep','amdep','rvdep']),
+         dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret', 'hillen'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',long_description=("Limb darkening coefficients can be given in four ways: (1) using a short alias (e.g. 'kurucz') in which "
                                                                                   "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
                                                                                   "other information like reddening, beaming etc... (2) using a relative filename, in which case "

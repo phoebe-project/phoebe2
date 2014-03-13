@@ -71,7 +71,7 @@ import logging
 import os
 import numpy as np
 from numpy import cos,sin,sqrt,pi,log,tan
-from scipy.optimize import newton
+from scipy.optimize import newton, brentq
 from scipy.interpolate import RectBivariateSpline
 from phoebe.algorithms import marching
 from phoebe.algorithms import interp_nDgrid
@@ -1136,7 +1136,7 @@ def diffrotlaw_to_internal(omega_pole,omega_eq):
             raise ValueError("Impossible differential rotation")
         return (omega_eq-b1)/r0**2-b2
     return newton(funczero,b2,args=(omega_eq,b1))
-
+    
 #}
 
 if __name__=="__main__":

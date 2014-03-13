@@ -181,6 +181,12 @@ int triangle_array_append (TriangleArray *ta, Triangle t)
 // Caluclating both together saves some time, therefore pot function 
 // returns all values and der function returns only derivatives. In both 
 // cases they are packed into the passed ret array.
+//
+// Addition: for reprojection using the radius direction rather than the
+// normal vector, we only need to potential value after all. So I've added
+// p<function> as an addition to <function> and d<function?. The first only
+// returns the potential value, the second returns the potential and the
+// derivatives, the last one returns only the derivatives.
 
 //SPHERE++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++   
 void sphere(double r[3], double *p, double ret[4])
@@ -242,6 +248,22 @@ void dbinary_roche (double r[3], double *p, double ret[3])
     ret[0] = -r[0]*(e-g) - d*f - 1.0/(p[0]*p[0])*p[1];
     ret[1] = -r[1]*(h-g);
     ret[2] = -r[2]*h;
+}
+
+void pbinary_roche (double r[3], double *p, double ret[1])
+{
+    double a = r[0]*r[0];
+    double b = r[1]*r[1];
+    double c = r[2]*r[2];
+    double d = r[0]-p[0];
+    double e = a+b+c;
+    double f = d*d+b+c;
+    double g = p[2]*p[2]*(1.0+p[1]);
+    double k = 1.0/(p[0]*p[0]);
+    double l = sqrt(e);
+    double m = sqrt(f);
+    
+    ret[0] = 1.0/l + p[1]*(1.0/m-k*r[0]) + 0.5*g*(a+b) - p[3];
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

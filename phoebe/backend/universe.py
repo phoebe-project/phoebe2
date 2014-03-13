@@ -5942,7 +5942,19 @@ class Star(PhysicalBody):
         # If the gravity brightening law is not specified, use 'Zeipel's
         gravblaw = self.params['star'].get('gravblaw', 'zeipel')
         
-        # Compute temperature
+        # If we're using Claret's gravity darkening coefficients, we're actually
+        # using von Zeipel's law but with interpolated coefficients
+        if gravblaw == 'claret':
+            teff = np.log10(self.params['star']['teff'])
+            logg = np.log10(self.params['star'].request_value('g_pole')*100)
+            abun = self.params['star']['abun']
+            axv, pix = roche.claret_gravb()
+            gravb = interp_nDgrid.interpolate([[teff], [logg], [abun]], axv, pix)[0][0]
+            logger.info('gravb(Claret): teff = {:.3f}, logg = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**teff, logg, abun, gravb))            
+            self.params['star']['gravb'] = gravb
+            gravblaw = 'zeipel'
+            
+        # Compute the temperature
         getattr(roche,'temperature_{}'.format(gravblaw))(self)
         
         # Perhaps we want to add spots.
