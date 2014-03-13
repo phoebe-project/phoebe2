@@ -6440,8 +6440,11 @@ class BinaryRocheStar(PhysicalBody):
         check_input_ps(self, orbit, ['orbit'], 'orbit')
         self.params['orbit'] = orbit
         
-        check_input_ps(self, mesh, ['mesh:marching', 'mesh:wd'], 'mesh')
-        self.params['mesh'] = mesh
+        if mesh is None:
+            self.params['mesh'] = parameters.ParameterSet('mesh:marching')
+        else:
+            check_input_ps(self, mesh, ['mesh:marching', 'mesh:wd'], 'mesh')
+            self.params['mesh'] = mesh
         
         # Prepare for the hiearchical dictionaries that hold the pbdep, obs and
         # syn

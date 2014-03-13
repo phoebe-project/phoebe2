@@ -74,6 +74,14 @@ will still be irradiated, but other bodies will not receive their radiation.
 If you don't want a body to take part in anything, you will need to separate it
 from the others (e.g. in a disconnected BodyBag).
 
+The following algorithms can be chosen to compute irradiation:
+
+    - ``irradiation_alg='point_source'`` (fast): treat the irradiating body as a
+      point source. This is generally fine if the separation between the objects
+      is large enough.
+    - ``irradiation_alg='full'`` (slow): treat the irradiating body as an
+      extended body. Physically most correct.
+
 The following parameters are important in the reflection and heating effects:
 
     - ``alb``: highly reflective surface have a high albedo (e.g. snow is close
