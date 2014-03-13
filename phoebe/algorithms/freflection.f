@@ -220,7 +220,7 @@ C           the other triangle. If not, skip it
               cycle
             else
               distance2 = los(1)**2 + los(2)**2 + los(3)**2
-              
+                            
 C             Cycle over all passband dependables (lcs etc) and compute
 C             the radiation budget
               do 16 k=1,Nref
@@ -402,6 +402,8 @@ C               5=squareroot, 6=uniform
                 
                 Ibolmu = Ibolmu*irrors(j)*cos_psi2
                 Ibolmu = Ibolmu*cos_psi1/distance2
+                
+                
                 proj_Ibolmu(k) = proj_Ibolmu(k) + Ibolmu
 
 36            end do

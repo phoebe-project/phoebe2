@@ -2069,9 +2069,10 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     in details. Muhaha.
     """
     # Unsubdivide to prepare for this step (if necessary)
-    subdiv_num = params.get_value('subdiv_num')
-    subdiv_alg = params.get_value('subdiv_alg')
-    eclipse_alg = params.get_value('eclipse_alg')
+    subdiv_num = params['subdiv_num']
+    subdiv_alg = params['subdiv_alg']
+    eclipse_alg = params['eclipse_alg']
+    irradiation_alg = params['irradiation_alg']
     
     if subdiv_num:  
         system.unsubdivide()
@@ -2103,7 +2104,8 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
         reflection.mutual_heating(*system.get_bodies(), heating=heating,
-                                  reflection=reflect, niter=nreflect)
+                                  reflection=reflect, niter=nreflect,
+                                  irradiation_alg=irradiation_alg)
         update_intensity = True
     
     # Recompute the intensities, temperatures might have changed due to

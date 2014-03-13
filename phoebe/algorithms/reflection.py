@@ -369,35 +369,57 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
         # There are different approximations for the irradiation: treat the
         # irradiator as a point source or an extended body
         
-        if irradiation_alg == 'bla':#'point_source':
+        if irradiation_alg == 'point_source':
             # For a point source, we need to know the center-coordinates of the
             # irradiator, it's projected surface area and the direction. This
             # way we can treat the irradiator as a single surface element.
             
-            # line-of-sight between two centers of the Bodies
+            # line-of-sight and distance between two centers of the Bodies
             X1 = (irradiator.mesh['center']*irradiator.mesh['size'][:,None]/irradiator.mesh['size'].sum()).sum(axis=0)
             X2 = (irradiated.mesh['center']*irradiated.mesh['size'][:,None]/irradiated.mesh['size'].sum()).sum(axis=0)
-            d = np.sqrt( ((X1-X2)**2).sum(axis=1))
+            irradiator_mesh_normal = np.array([X2-X1])
+            irradiator_mesh_normal/= np.sqrt((irradiator_mesh_normal**2).sum())
+            d = np.sqrt( ((X1-X2)**2).sum())
             
+            # mu-angles from irradiator to irradiated (what does the irradiator see?)
+            mus = coordinates.cos_angle(irradiator.mesh['normal_'], irradiator_mesh_normal, axis=1)
+                        
+            # let's say that this is the location of the irradiator
             irradiator_mesh_center = np.array([X1])
             irradiator_mesh_size = np.array([1.0])
-            irradiator_mesh_normal = np.array([X2-X1])
-            irrorld = [irradiator.projected_intensity(los) for iref in ref]
             
-        #elif irradiation_alg == 'full':
-        else:
+            # Then compute the projected intensity of the irradiator towards
+            # the irradiated body
+            irrorld_ = []
+            keep = mus > 0
+            
+            # Summarize the mesh of the irradiator as one surface element
+            these_fields = irradiator.mesh.dtype.names
+            for i, ild in enumerate(irrorld):
+                this_ld_func = getattr(limbdark, 'ld_{}'.format(ld_laws_indices[ld_laws[i]]))
+                Imu = this_ld_func(mus[keep], irradiator.mesh['ld_'+ref[i]][keep].T)
+                proj_Imu = irradiator.mesh['ld_'+ref[i]][keep,-1] * Imu
+                if 'refl_'+ref[i] in these_fields:
+                    proj_Imu += irradiator.mesh['refl_'+ref[i]][keep] * mus[keep]
+                proj_Imu *= irradiator.mesh['size'][keep]* mus[keep]
+                
+                ld_laws[i] = 6 # i.e. uniform, because we did all the projection already
+                irrorld[i] = np.array([[0.0,0.0,0.0,0.0,proj_Imu.sum()]])
+            
+        elif irradiation_alg == 'full':
+            # Else, we'll use the full mesh
             irradiator_mesh_center = irradiator.mesh['center']
             irradiator_mesh_size = irradiator.mesh['size']
             irradiator_mesh_normal = irradiator.mesh['normal_']
+        else:
+            raise NotImplementedError("Irradiation algorithm {} unknown".format(irradiation_alg))
         
-        R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
-                           irradiator.mesh['size'],
-                           irradiator.mesh['normal_'], irrorld,
+        R1, R2, inco = freflection.reflection(irradiator_mesh_center,
+                           irradiator_mesh_size,
+                           irradiator_mesh_normal, irrorld,
                            irradiated.mesh['center'], irradiated.mesh['size'],
                            irradiated.mesh['normal_'], emer,
                            alb, redist, ld_laws)
-    
-    
     
     # Global redistribution factor:
     R2 = 1.0 + (1-redisth)*R2/total_surface
@@ -431,7 +453,8 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
 
         
 def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
-            heating=True, reflection=False, third_bodies=None):
+            heating=True, reflection=False, third_bodies=None,\
+            irradiation_alg='point_source'):
     """
     Compute heating and reflection for an irradiating star on an irradiated star.
     """
@@ -441,10 +464,13 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         ref = '__bol'        
     elif reflection:
         ref = 'all'#'alldep'
+    else: # useless option, except perhaps for debugging
+        ref = 'all'
     
     R1, R2, inco, emer, refs, A_irradiateds = radiation_budget_fast(irradiated,
-                                                    irradiator, ref=ref,
-                                                    third_bodies=third_bodies)
+                                                irradiator, ref=ref,
+                                                third_bodies=third_bodies,
+                                                irradiation_alg=irradiation_alg)
     #-- heating part:
     if heating:
         # update luminosities and temperatures: we need to copy and replace the
@@ -620,6 +646,7 @@ def mutual_heating(*objects,**kwargs):
     n = kwargs.pop('niter',1)
     kwargs.setdefault('heating',True)
     kwargs.setdefault('reflection',False)
+    kwargs.setdefault('irradiation_alg', 'point_source')
     #kwargs.setdefault('reflection',False)
     #kwargs.setdefault('heating',True)
     #-- expand bodybags --> this should be rewritten for deeper nesting
@@ -634,7 +661,7 @@ def mutual_heating(*objects,**kwargs):
     #-- do we want to set the local effective temperature after mutual
     #   reflection?
     update_temperature = kwargs.pop('update_temperature',True)
-    logger.info('mutual heating: {:d} iteration(s) on {:d} objects'.format(n,len(objects)))
+    logger.info('mutual heating: {:d} iteration(s) on {:d} objects (alg={})'.format(n,len(objects),kwargs['irradiation_alg']))
     for i in range(n):
         for j,obj1 in enumerate(objects):
             for k,obj2 in enumerate(objects):
