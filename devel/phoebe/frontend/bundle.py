@@ -1318,7 +1318,7 @@ class Bundle(object):
         
     #}
     #{ Datasets
-    def _attach_datasets(self, output):
+    def _attach_datasets(self, output, skip_defaults_from_body=True):
         """
         attach datasets and pbdeps from parsing file or creating synthetic datasets
         
@@ -1326,7 +1326,15 @@ class Bundle(object):
         datasets and pbdeps as the values {objectname: [[ds1,ds2],[ps1,ps2]]}
         
         this is called from bundle.load_data and bundle.create_syn
-        and should not be called on its own        
+        and should not be called on its own   
+        
+        If ``skip_defaults_from_body`` is True, none of the parameters in the
+        pbdep will be changed, and they will be added "as is". Else,
+        ``skip_defaults_from_body`` needs to be a list of parameter names that
+        **cannot** be changed. Any other key in the pbdep that is available in the
+        main body parameterSet (e.g. atm, ld_coeffs...) but not in the
+        ``skip_defaults_from_body`` list, will have the value taken from the main
+        body. This, way, defaults from the body can be easily transferred.
         """
         
         for objectlabel in output.keys():      
@@ -1342,10 +1350,37 @@ class Bundle(object):
             # so if comp is a body bag, attach it to all its predecessors
             if hasattr(comp, 'get_bodies'):
                 for body in comp.get_bodies():
+                    
+                    # get the main parameterSet:
+                    main_parset = body.params.values()[0]
+                    
                     for ps in pss:
+                        
+                        # Override defaults: those are all the keys that are
+                        # available in both the pbdep and the main parset, and
+                        # are not listed in skip_defaults_from_body
+                        if skip_defaults_from_body is not True:
+                            take_defaults = (set(ps.keys()) & set(main_parset.keys())) - set(skip_defaults_from_body)
+                            for key in take_defaults:
+                                print("== {} was {}, but changed to {}".format(key, ps[key], main_parset[key]))
+                                ps[key] = main_parset[key]
+                        
                         body.add_pbdeps(ps)
             else:
+                
+                # get the main parameterSet:
+                main_parset = comp.params.values()[0]
+                
                 for ps in pss:
+                    
+                    # Override defaults: those are all the keys that are
+                    # available in both the pbdep and the main parset, and
+                    # are not listed in skip_defaults_from_body
+                    if skip_defaults_from_body is not True:
+                        take_defaults = (set(ps.keys()) & set(main_parset.keys())) - set(skip_defaults_from_body)
+                        for key in take_defaults:
+                            ps[key] = main_parset[key]
+                    
                     comp.add_pbdeps(ps)
 
             # obs get attached to the requested object
@@ -1597,37 +1632,12 @@ class Bundle(object):
         # the other!
         
         output = {}
-        for icomponent in components:
+        skip_defaults_from_body = pbkwargs.keys()
+        for component in components:
+            pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
+            output[component.get_label()] = [[ds],[pb]]
             
-            # We'll need to dig deeper in BodyBags
-            #if hasattr(icomponent, 'get_bodies'):
-            #    icomponents = icomponent.get_bodies()
-            #else:
-            icomponents = [icomponent]
-            
-            for component in icomponents:
-                # For the "dep" parameterSet, we'll use defaults derived from the
-                # Body instead of the normal defaults. This should give the least
-                # surprise to users: it is more logical to have default atmosphere,
-                # LD-laws etc the same as the Body, then the "uniform" or "blackbody"
-                # stuff that is in the defaults. So, if a parameter is in the
-                # main body parameterSet, then we'll take that as a default value,
-                # but it can be overriden by pbkwargs
-                main_parset = component.params.values()[0]
-                pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
-                for key in pb:
-                    # derive default
-                    if key in main_parset:
-                        default_value = main_parset[key]
-                        # but only set it if not overridden
-                        pb[key] = pbkwargs.get(key, default_value)
-                    else:
-                        if key in pbkwargs.keys():
-                            pb[key] = pbkwargs.get(key)
-                            
-                output[component.get_label()] = [[ds],[pb]]
-            
-        self._attach_datasets(output)
+        self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
     
     
     def get_syn(self, category=None, objref=None, dataref=0, return_type='single'):
