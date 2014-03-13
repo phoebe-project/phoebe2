@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
-logger = phoebe.get_basic_logger(clevel='WARNING')
 
 
 
@@ -18,7 +17,7 @@ def do_mercury(redist):
     mercury = phoebe.PS('star', teff=100., atm=atm, radius=(0.3829,'Rearth'),
                     mass=(0.055,'Mearth'), ld_func='uniform', shape='sphere',
                     rotperiod=(58.646,'d'),alb=alb, label='mercury', redist=redist,
-                    incl=90., long=0)
+                    incl=90., long=0, irradiator=False)
 
     orbit = phoebe.PS('orbit', period=87.9691, t0=0, t0type='superior conjunction',
                     sma=(0.307499,'au'), q=mercury['mass']/sun['mass'], ecc=0.205630,
@@ -39,8 +38,10 @@ def do_mercury(redist):
     mercury = phoebe.BinaryStar(mercury, mesh=mesh2, orbit=orbit, pbdep=[lcdep2])
 
     system = phoebe.BodyBag([sun, mercury], obs=[obs], globals=globals)
-    system.compute(heating=True, refl=True, refl_num=1)
+    system.compute(heating=True, refl=True, refl_num=1, beaming_alg='none')
     return system
+
+
 
 def test_no_redist():
     """
@@ -59,9 +60,9 @@ def test_no_redist():
     print(teffmax)
     
     assert(np.abs(proj - 6.74991749527e-09)/6.74991749527e-09<1e-2)
-    assert(np.abs(teffmean-310)<5)
+    assert(np.abs(teffmean-305)<5)
     assert(np.abs(teffmin-100)<0.1)
-    assert(np.abs(teffmax-655)<5)
+    assert(np.abs(teffmax-640)<5)
 
 
 def test_little_redist():   
@@ -81,9 +82,9 @@ def test_little_redist():
     print(teffmax)
     
     assert(np.abs(proj - 6.74991749527e-09)/6.74991749527e-09<1e-2)
-    assert(np.abs(teffmean - 414)<5)
-    assert(np.abs(teffmin - 310)<5)
-    assert(np.abs(teffmax - 630)<5)
+    assert(np.abs(teffmean - 405)<5)
+    assert(np.abs(teffmin - 303)<5)
+    assert(np.abs(teffmax - 615)<5)
 
 def test_total_redist():
     """
@@ -96,17 +97,20 @@ def test_total_redist():
     teffmin = system[1].mesh['teff'].min()
     teffmax = system[1].mesh['teff'].max()
     
-    print(proj)
-    print(teffmean)
-    print(teffmin)
-    print(teffmax)
+    print("projected intensity",proj)
+    print('mean teff',teffmean)
+    print('min teff', teffmin)
+    print('max teff', teffmax)
     
     assert(np.abs(system[1].projected_intensity(ref='apparent') - 6.74991749527e-09)/6.74991749527e-09<1e-2)
-    assert(np.abs(system[1].mesh['teff'].mean()-463)<5)
-    assert(np.abs(system[1].mesh['teff'].min()-463)<5)
-    assert(np.abs(system[1].mesh['teff'].max()-463)<5)
+    assert(np.abs(system[1].mesh['teff'].mean()-453)<5)
+    assert(np.abs(system[1].mesh['teff'].min()-453)<5)
+    assert(np.abs(system[1].mesh['teff'].max()-453)<5)
     
 if __name__=="__main__":
+    
+    logger = phoebe.get_basic_logger(clevel='INFO')
     test_no_redist()
+    
     test_little_redist()
     test_total_redist()

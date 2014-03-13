@@ -258,7 +258,8 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
 
 
 @decorators.parse_ref
-def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
+def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
+                          irradiation_alg='point_source'):
     """
     Calculate the radiation budget for heating and reflection.
     
@@ -364,6 +365,30 @@ def radiation_budget_fast(irradiated,irradiator,ref=None,third_bodies=None):
                            irradiated.mesh['normal_'], emer,
                            albmap, redistmap, ld_laws)
     else:
+        
+        # There are different approximations for the irradiation: treat the
+        # irradiator as a point source or an extended body
+        
+        if irradiation_alg == 'bla':#'point_source':
+            # For a point source, we need to know the center-coordinates of the
+            # irradiator, it's projected surface area and the direction. This
+            # way we can treat the irradiator as a single surface element.
+            
+            # line-of-sight between two centers of the Bodies
+            X1 = (irradiator.mesh['center']*irradiator.mesh['size'][:,None]/irradiator.mesh['size'].sum()).sum(axis=0)
+            X2 = (irradiated.mesh['center']*irradiated.mesh['size'][:,None]/irradiated.mesh['size'].sum()).sum(axis=0)
+            d = np.sqrt( ((X1-X2)**2).sum(axis=1))
+            
+            irradiator_mesh_center = np.array([X1])
+            irradiator_mesh_size = np.array([1.0])
+            irradiator_mesh_normal = np.array([X2-X1])
+            irrorld = [irradiator.projected_intensity(los) for iref in ref]
+            
+        #elif irradiation_alg == 'full':
+        else:
+            irradiator_mesh_center = irradiator.mesh['center']
+            irradiator_mesh_size = irradiator.mesh['size']
+            irradiator_mesh_normal = irradiator.mesh['normal_']
         
         R1, R2, inco = freflection.reflection(irradiator.mesh['center'],
                            irradiator.mesh['size'],

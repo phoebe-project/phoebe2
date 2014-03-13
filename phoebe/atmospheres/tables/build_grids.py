@@ -112,11 +112,32 @@ if __name__=="__main__":
                 #z='*', ebvs=None, redlaw=None, limb_zero=False,
                 #add_boosting_factor=True)
          
-        limbdark.compute_grid_ld_coeffs(['spec_intens/Jorissen_m1.0_t02_st_z+0.00_a+0.00_mu.fits'],
-              passbands=('JOHNSON.*','2MASS.*', 'KEPLER.V'), filetag='jorissen_m1.0_t02_st_z+0.00_a+0.00',
-              fitmethod='equidist_mu_leastsq',
-              law='hillen', debug_plot=True)
+        #limbdark.compute_grid_ld_coeffs(['spec_intens/Jorissen_m1.0_t02_st_z+0.00_a+0.00_mu.fits'],
+        #      passbands=('JOHNSON.*','2MASS.*', 'KEPLER.V'), filetag='jorissen_m1.0_t02_st_z+0.00_a+0.00',
+        #      fitmethod='equidist_mu_leastsq',
+        #      law='hillen', debug_plot=True)
+        
+        #limbdark.compute_grid_ld_coeffs('blackbody', passbands=('*',), filetag='blackbody', law='uniform')
+        
+        #limbdark.compute_grid_ld_coeffs('blackbody', passbands=('*',), filetag='blackbody', law='uniform')
+        
+            
+        build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+                ld_func='linear', fitmethod='equidist_r_leastsq',
+                z='*', ebvs=None, redlaw=None, limb_zero=False,
+                add_boosting_factor=True)
+        
     
     else:
-        limbdark.compute_grid_ld_coeffs(sys.argv[1], passbands=('JOHNSON.*','2MASS.*', 'KEPLER.V'))
+        
+        # add box filters:
+        passbands = []
+        for clam in np.arange(3000,8001,500):
+            wave = np.linspace(clam-20,clam+20,1000)
+            trans = np.where(np.abs(clam-wave)<10.0, 1.0, 0.0)
+            passband ='BOX_10.{:.0f}'.format(clam)
+            passbands.append(passband)
+            limbdark.pbmod.add_response(wave, trans, passband=passband)
+        
+        limbdark.compute_grid_ld_coeffs(sys.argv[1], passbands=sys.argv[2:]+passbands)
     
