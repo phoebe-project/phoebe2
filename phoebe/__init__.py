@@ -85,7 +85,7 @@ The following algorithms can be chosen to compute irradiation:
 The following parameters are important in the reflection and heating effects:
 
     - ``alb``: highly reflective surface have a high albedo (e.g. snow is close
-      to unity). Absorbing surfaces have a low albedo (e.g. a coal). A low albedo
+      to unity). Absorbing surfaces have a low albedo (e.g. coal). A low albedo
       implies a high heating capacity :ref:`(more info) <label-alb-lcdep-phoebe>`
     - ``redist`` heat redistribution parameter. If zero, no heat will be
       redistribution. If unity, the heat redistribution is instantaneous.

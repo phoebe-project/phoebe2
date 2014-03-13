@@ -2474,7 +2474,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # care. Else, we check if beaming needs to be computed. Thus, the user can
     # set the beaming algorithm to be switched on, but still disable beaming in
     # some (or all) of the bodies separately.
-    beaming_is_relevant = (beaming == 'none')
+    beaming_is_relevant = (beaming != 'none')
     if beaming_is_relevant:
         for parset in system.walk():
             if 'beaming' in parset and parset['beaming']:
@@ -2485,12 +2485,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             logger.warning(("Beaming algorithm = {} but no beaming Bodies "
                             "found. Check the 'beaming' parameter in the "
                             "Bodies".format(beaming)))
-    
+    else:
+        logger.info("No beaming included")
+        
     # If beaming is not relevant, don't take it into account. Else, if the
     # beaming algorithm is not the "full" one, prepare to store beaming factors
     if not beaming_is_relevant:
         beaming = 'none'
-    elif beaming == 'full':
+    else:
         system.prepare_beaming(ref='all')
     
     # If we include reflection, we need to reserve space in the mesh for the
