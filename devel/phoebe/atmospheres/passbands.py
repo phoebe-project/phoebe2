@@ -143,11 +143,13 @@ Plots of all passbands of all systems:
 import numpy as np
 import os
 import glob
+import logging
 from phoebe.utils import decorators
 
 # Allow for on-the-fly addition of photometric passbands.
 custom_passbands = {'_prefer_file': True}
 
+logger = logging.getLogger('ATM.PB')
 
 @decorators.memoized
 def get_response(passband):
@@ -196,7 +198,7 @@ def get_response(passband):
     
     # Else we don't know what to do
     else:
-        raise IOError,('{0} does not exist {1}'.format(photband,custom_filters.keys())) 
+        raise IOError,('{0} does not exist {1}'.format(passband,custom_filters.keys())) 
     
     # make sure the contents are sorted according to wavelength
     sort_array = np.argsort(wave)
@@ -205,15 +207,19 @@ def get_response(passband):
    
 
 
-def eff_wave(passband, model=None):
-    """
+def eff_wave(passband, model=None, det_type=None):
+    r"""
     Return the effective wavelength of a photometric passband.
     
-    The effective wavelength is defined as the average wavelength weighted with
-    the response curve, and is given in angstrom.
+    The effective wavelength is defined as the pivot wavelength [Tokunaga2005]_
+    of the passband :math:`P` (for photon counting devices):
+    
+    .. math::
+    
+        \lambda_\mathrm{pivot} = \sqrt{ \frac{\int_\lambda \lambda P(\lambda) d\lambda}{ \int_\lambda P(\lambda)/\lambda d\lambda}}
     
     >>> eff_wave('2MASS.J')
-    12412.136241640892
+    12393.093155655277
     
     If you give model fluxes as an extra argument, the wavelengths will take
     these into account to calculate the true effective wavelength (e.g., 
@@ -223,6 +229,8 @@ def eff_wave(passband, model=None):
     @type passband: str ('SYSTEM.FILTER') or array/list of str
     @param model: model wavelength and fluxes
     @type model: tuple of 1D arrays (wave,flux)
+    @param det_type: detector type
+    @type det_type: ``BOL`` or ``CCD``
     @return: effective wavelength [A]
     @rtype: float or numpy array
     """
@@ -246,19 +254,32 @@ def eff_wave(passband, model=None):
         try:
             wave, response = get_response(ipassband)
             
+            #-- bolometric or ccd?
+            if det_type is None and len(get_info([ipassband])):
+                det_type = get_info([ipassband])['type'][0]
+            elif det_type is None:
+                det_type = 'CCD'
+                
             # If a model is given take it into account
             if model is None:
-                this_eff_wave = np.average(wave, weights=response)
+                if det_type == 'BOL':
+                    this_eff_wave = np.sqrt(np.trapz(response,x=wave)/np.trapz(response/wave**2,x=wave))
+                else:
+                    this_eff_wave = np.sqrt(np.trapz(wave*response,x=wave)/np.trapz(response/wave,x=wave))
+
             else:
                 # Interpolate response curve onto higher resolution model and
                 # take weighted average
                 #is_response = response > 1e-10
                 #start_response = wave[is_response].min()
                 #end_response = wave[is_response].max()
-                fluxm = 10**np.interp(np.log10(wave), np.log10(model[0]),
-                                      np.log10(model[1]))
-                this_eff_wave = np.trapz(wave*fluxm*response, x=wave) / \
-                                np.trapz(fluxm*response, x=wave)
+                fluxm = np.sqrt(10**np.interp(np.log10(wave),np.log10(model[0]),np.log10(model[1])))
+                
+                if det_type=='CCD':
+                    this_eff_wave = np.sqrt(np.trapz(wave*fluxm*response,x=wave) / np.trapz(fluxm*response/wave,x=wave))
+                elif det_type=='BOL':
+                    this_eff_wave = np.sqrt(np.trapz(fluxm*response,x=wave) / np.trapz(fluxm*response/wave**2,x=wave))     
+
         
         # If the passband is not defined, set the effective wavelength to nan
         except IOError:
@@ -291,8 +312,15 @@ def list_response(name='*'):
     @return: list of responses
     @rtype: list of str
     """
+    # File based responses
     responses = sorted(glob.glob(os.path.join(os.path.dirname(__file__),
                                  'ptf', name)))
+    
+    # Custom responses
+    responses = sorted(responses + \
+               [key for key in custom_passbands.keys() \
+                          if ((name in key) and not (key=='_prefer_file'))])
+    
     return [os.path.basename(resp) for resp in responses]
 
     
@@ -337,6 +365,9 @@ def get_info(passbands=None):
     # Cast the columns to the right type
     zp_table = [np.cast[dtype[i]](zp_table[i]) for i in range(len(zp_table))]
     zp_table = np.rec.array(zp_table, dtype=dtype)
+    #print zp_table
+    zp_extra = [custom_passbands[key]['zp'] for key in custom_passbands if not key=='_prefer_file' and 'zp' in custom_passbands[key]]
+    zp_table = np.hstack([zp_table] + zp_extra)
     zp_table = zp_table[np.argsort(zp_table['passband'])]
     
     # List passbands in order given, and remove those that do not have
@@ -407,14 +438,16 @@ def add_response(wave, response, passband='CUSTOM.PTF', force=False,
     kwargs.setdefault('type', 'CCD')
     kwargs.setdefault('eff_wave', eff_wave(passband, det_type=kwargs['type']))
     kwargs.setdefault('transmission', np.trapz(response, x=wave))
+    
     # Add info for zeropoints.dat file: make sure wherever "lit" is part of the
     # name, we replace it with "0". Then, we overwrite any existing information
     # with info given
-    myrow = get_info([kwargs['copy_from']])
+    myrow = get_info([copy_from])
     for name in myrow.dtype.names:
         if 'lit' in name:
             myrow[name] = 0
         myrow[name] = kwargs.pop(name, myrow[name])
+    myrow['passband'] = passband
         
     # Remove memoized things to be sure to have the most up-to-date info
     del decorators.memory[__name__]

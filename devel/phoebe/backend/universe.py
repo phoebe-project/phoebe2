@@ -2439,9 +2439,9 @@ class Body(object):
             distance = 10*constants.pc/constants.Rsol
         return distance
     
-    def get_coords(self,type='spherical',loc='center'):
+    def get_coords(self, type='spherical', loc='center'):
         """
-        Return the coordinates of the star in a convenient coordinate system.
+        Return the coordinates of the Body in a convenient coordinate system.
         
         Phi is longitude (between -PI and +PI)
         theta is colatitude (between 0 and +PI)
@@ -5604,15 +5604,11 @@ class AccretionDisk(PhysicalBody):
         """
         if method!='numerical':
             raise ValueError("Only numerical computation of projected intensity of AccretionDisk available")
-        idep,ref = self.get_parset(ref=ref,type='pbdep')
+        idep,ref = self.get_parset(ref=ref, type='pbdep')
         ld_func = idep['ld_func']
-        proj_int = limbdark.projected_intensity(self,method=method,
-                ld_func=ld_func,ref=ref,with_partial_as_half=with_partial_as_half)
-        # Scale the projected intensity with the distance
-        globals_parset = self.get_globals()
-        if globals_parset is not None:
-            distance = globals_parset.request_value('distance', 'Rsol')
-            proj_int /= distance**2
+        proj_int = limbdark.projected_intensity(self, method=method,
+                             ld_func=ld_func, ref=ref, los=los, 
+                             with_partial_as_half=with_partial_as_half)
         
         return proj_int
     
@@ -5861,7 +5857,7 @@ class Star(PhysicalBody):
     
     def get_label(self):
         """
-        Get the label of the Body.
+        Get the label of a Star.
         
         @return: label of the Star
         @rtype: str
@@ -5871,7 +5867,7 @@ class Star(PhysicalBody):
     
     def get_component(self):
         """
-        Check which component this is.
+        Check which component this Star is.
         
         @return: 0 (primary) or 1 (secondary) or None (fail)
         @rtype: integer/None
@@ -5896,14 +5892,14 @@ class Star(PhysicalBody):
     
     def volume(self):
         """
-        Compute volume of a convex mesh.
+        Compute volume of the convex mesh of the Star.
         """
         norm = coordinates.norm(self.mesh['_o_center'],axis=1)
         return np.sum(self.mesh['_o_size']*norm/3.)
     
     def surface_gravity(self):
         """
-        Calculate local surface gravity
+        Calculate local surface gravity of a Star.
         """
         # Retrieve basic information on coordinates, mass etc..
         x, y, z = self.mesh['_o_center'].T
@@ -5937,7 +5933,7 @@ class Star(PhysicalBody):
     
     def temperature(self, time):
         """
-        Calculate local temperature.
+        Calculate local temperature of a Star.
         """
         # If the gravity brightening law is not specified, use 'Zeipel's
         gravblaw = self.params['star'].get('gravblaw', 'zeipel')
@@ -5963,14 +5959,14 @@ class Star(PhysicalBody):
     
     def abundance(self, time=None):
         """
-        Set the abundance.
+        Set the abundance of a Star.
         """
         self.mesh['abun'] = list(self.params.values())[0]['abun']
     
     
     def magnetic_field(self, time=None):
         """
-        Calculate the magnetic field.
+        Calculate the magnetic field in a Star.
         
         The magnetic field can be a :py:func:`dipole <phoebe.atmospheres.magfield.get_dipole>`
         or a :py:func:`(non-linear) quadrupole <phoebe.atmospheres.magfield.get_quadrupole>`
@@ -6009,7 +6005,7 @@ class Star(PhysicalBody):
     @decorators.parse_ref
     def intensity(self, ref='all', beaming_alg='full'):
         """
-        Calculate local intensity and limb darkening coefficients.
+        Calculate local intensity and limb darkening coefficients of a Star.
         """
         #-- now run over all labels and compute the intensities
         parset_isr = dict() #self.params['reddening']
@@ -6021,7 +6017,7 @@ class Star(PhysicalBody):
     @decorators.parse_ref
     def velocity(self, time=None, ref=None):
         """
-        Calculate the velocity of each surface via the rotational velocity.
+        Calculate the velocity of each surface via the rotational velocity of a Star.
         """
         if time is None:
             time = self.time
@@ -6095,11 +6091,12 @@ class Star(PhysicalBody):
         self.mesh['velo___bol_'] = velo_rot
         
         
+        
     
     def projected_intensity(self, los=[0.,0.,+1], ref=0, method=None,
                             with_partial_as_half=True, beaming_alg='none'):
         """
-        Calculate local intensity.
+        Calculate projected intensity of a Star.
         
         We can speed this up if we compute the local intensity first, keep track of the limb darkening
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
@@ -6111,24 +6108,11 @@ class Star(PhysicalBody):
         l3 = idep.get('l3', 0.)
         pblum = idep.get('pblum', -1.0)
         
+        # Compute projected intensity, and correct for the distance and
+        # reddening
         proj_int = limbdark.projected_intensity(self, method=method,
-                ld_func=ld_func, ref=ref,
+                ld_func=ld_func, ref=ref, beaming_alg=beaming_alg,
                 with_partial_as_half=with_partial_as_half)
-        
-        # Scale the projected intensity with the distance
-        globals_parset = self.get_globals()
-        
-        if globals_parset is not None:
-            distance = globals_parset.request_value('distance', 'Rsol')
-            proj_int /= (distance*distance)
-        
-        # Take reddening into account
-        red_parset = self.get_globals('reddening')
-        
-        if red_parset is not None and ref!='__bol':
-            ebv = red_parset['extinction'] / red_parset['Rv']
-            proj_int = reddening.redden(proj_int, passbands=[idep['passband']], ebv=ebv, rtype='flux',
-                             law=red_parset['law'])[0]
             
         # Take passband luminosity into account
         if pblum >= 0:
@@ -7115,7 +7099,7 @@ class BinaryRocheStar(PhysicalBody):
         return limbdark.projected_velocity(self,method=method,ld_func=ld_func,ref=ref)
         
     def projected_intensity(self, los=[0.,0.,+1],
-                            ref=0, method=None, with_partial_as_half=True,
+                            ref=0, method='numerical', with_partial_as_half=True,
                             beaming_alg='none'):
         """
         Calculate local intensity.
@@ -7132,75 +7116,16 @@ class BinaryRocheStar(PhysicalBody):
         
         
         """
-        lcdep,ref = self.get_parset(ref)
-        if lcdep is None:
-            return None
+        if method!='numerical':
+            raise ValueError("Only numerical computation of projected intensity of BinaryRocheStar available")
+
+        idep,ref = self.get_parset(ref=ref, type='pbdep')
+        ld_func = idep['ld_func']
+        proj_int = limbdark.projected_intensity(self, method=method,
+                             ld_func=ld_func, ref=ref, los=los, 
+                             with_partial_as_half=with_partial_as_half)
         
-        #-- get limb angles
-        mus = self.mesh['mu']
-        #-- To calculate the total projected intensity, we keep track of the
-        #   partially visible triangles, and the totally visible triangles:
-        keep = (mus>0) & (self.mesh['partial'] | self.mesh['visible'])
-        mus = mus[keep]
-        #-- negating the next array gives the partially visible things, that is
-        #   the only reason for defining it.
-        visible = self.mesh['visible'][keep]
-        #-- compute intensity using the already calculated limb darkening coefficents
-        ld_func = lcdep.get_value('ld_func')
-        logger.info('using limbdarkening law %s'%(ld_func))
-        Imu = getattr(limbdark,'ld_%s'%(ld_func))(mus,self.mesh['ld_'+ref][keep].T)*self.mesh['ld_'+ref][keep,-1]#*size   
-        
-        # Do the beaming correction
-        if beaming_alg == 'simple' or beaming_alg == 'local':
-            # Retrieve beming factor
-            alpha_b = self.mesh['alpha_b_' + ref][keep]
-            # light speed in Rsol/d
-            ampl_b = 1.0 + alpha_b * self.mesh['velo___bol_'][keep,2]/37241.94167601236
-        else:
-            ampl_b = 1.0
-            
-        
-        proj_Imu = ampl_b*mus*Imu
-        if with_partial_as_half:
-            proj_Imu[-visible] /= 2.0
-        self.mesh['proj_'+ref] = 0.
-        self.mesh['proj_'+ref][keep] = proj_Imu
-        #-- take care of reflected light
-        if 'refl_'+ref in self.mesh.dtype.names:
-            proj_Imu += self.mesh['refl_'+ref][keep] * mus
-            logger.info("Projected intensity contains reflected light")
-        proj_intens = self.mesh['size'][keep]*proj_Imu
-        
-        # Scale the projected intensity with the distance
-        globals_parset = self.get_globals()
-        if globals_parset is not None:
-            #distance = globals_parset.request_value('distance', 'Rsol')
-            distance = globals_parset.get_value('distance') * 3.085677581503e+16 / constants.Rsol
-        else:
-            distance = 1.0
-        
-        proj_intens = proj_intens.sum()/distance**2
-        
-        l3 = lcdep.get('l3',0.)
-        pblum = lcdep.get('pblum',-1.0)
-        
-        if pblum >= 0:
-            # This definition of passband luminosity should mimic the definition
-            # of WD
-            if not 'pblum' in self._clear_when_reset:
-                passband_lum = luminosity(self, ref=ref)/ (100*constants.Rsol)**2
-                passband_lum = passband_lum / distance**2
-                self._clear_when_reset['pblum'] = passband_lum
-                #print "PBLUM",self.time, passband_lum,ref
-                #print "--->{:.6e}".format(proj_intens * pblum / passband_lum)
-            else:
-                passband_lum = self._clear_when_reset['pblum']
-                #print self.time, ref,luminosity(self,ref=ref)/ (100*constants.Rsol)**2
-                #print("V{}, RP={}, GP={}".format(self.volume(),self.params['component'].request_value('r_pole','Rsol'),self.params['component'].request_value('g_pole','[cm/s2]'),))
-                #print('~~~~')
-            proj_intens = proj_intens * pblum / passband_lum 
-        
-        return proj_intens + l3
+        return proj_int
     
     
     

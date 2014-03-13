@@ -690,6 +690,11 @@ defs += [dict(qualifier='label',                description='label for the comut
                                                                    "'local': local increase/decrease of projected intensity according to local stellar parameters //"
                                                                    "'full': adjust local intensity and limb darkening coefficients according to local stellar parameters"),
                                                  cast_type='choose',value='none',frame=['phoebe'],context='compute'),
+         dict(qualifier='irradiation_alg',          description='Type of irradiation algorithm',choices=['full', 'point_source'],
+                                                 long_description=("'full': complete irradiation calculation"
+                                                                   "'point_source':  approximate irradiator as point source"),
+                                                                   cast_type='choose',value='point_source',frame=['phoebe'],context='compute'),
+         
         ] 
 
 # Globals context

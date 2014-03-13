@@ -225,11 +225,10 @@ If you don't know or care where a certain atmosphere file is located, you could
 try specifying some the properties you want the table to have, and try to let
 the library choose the atmosphere table for you:
 
->>> atm = choose_ld_coeffs_table('kurucz',
-...                   atm_kwargs=dict(teff=4000, logg=4.0, abun=0,
-...                                   ld_func='claret', ld_coeffs='kurucz'))
+>>> atm = choose_ld_coeffs_table('kurucz', ld_func='claret',
+...                   atm_kwargs=dict(teff=4000, logg=4.0, abun=0))
 >>> coeffs = interp_ld_coeffs(atm, 'JOHNSON.V',
-...                           atm_kwargs=dict(teff=4000, logg=4.0))
+...                           atm_kwargs=dict(teff=5000, logg=4.0, abun=0))
 
 
 Section 6. Handling files and directories for atmosphere files
@@ -644,14 +643,20 @@ def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun')):
     """
     
     with pyfits.open(atm) as ff:
-        dims = [np.zeros(len(ff)-1) for par in atm_pars]
+        # ld_coeffs file
+        if atm_pars[0] in ff[1].data.dtype.names:
+            dims = [ff[1].data.field(key) for key in atm_pars]
         
-        # Just loop over all extensions
-        for i, mod in enumerate(ff[1:]):
+        # specific_intens files
+        else:
+            dims = [np.zeros(len(ff)-1) for par in atm_pars]
+        
+            # Just loop over all extensions
+            for i, mod in enumerate(ff[1:]):
             
-            # And retrieve the values from the atm_pars
-            for j, key in enumerate(atm_pars):
-                dims[j][i] = mod.header[key]            
+                # And retrieve the values from the atm_pars
+                for j, key in enumerate(atm_pars):
+                    dims[j][i] = mod.header[key]            
     
     return dims
 
@@ -840,16 +845,12 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     
     Possible options for ``fitmethod`` are:
     
-    - ``leastsq``: Levenberg-Marquardt fit on the coordinates as available in
-      the atmosphere grids
-    - ``fmin``: Nelder-Mead fit on the coordinates as available in the
-      atmosphere grids.
+    - ``leastsq``: Levenberg-Marquardt fit on the coordinates as available in the atmosphere grids
+    - ``fmin``: Nelder-Mead fit on the coordinates as available in the atmosphere grids.
     - ``equidist_r_leastsq``: LM-fit in r-coordinate resampled equidistantly
-    - ``equidist_mu_leastsq``: LM-fit in :math:`\mu`-coordinate resampled
-       equidistantly
+    - ``equidist_mu_leastsq``: LM-fit in :math:`\mu`-coordinate resampled equidistantly
     - ``equidist_r_fmin``: NM-fit in r-coordinate resampled equidistantly
-    - ``equidist_mu_fmin``: NM-fit in :math:`\mu`-coordinate resampled
-       equidistantly
+    - ``equidist_mu_fmin``: NM-fit in :math:`\mu`-coordinate resampled equidistantly
     
     If ``limb_zero=False``, the last point will not be used in the fit. This
     is most likely the :math:`\mu=0` point, or the point really at the edge.
@@ -1422,8 +1423,8 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order)
-        if np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
-            raise IndexError
+        #if np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
+        #    raise IndexError
     
     # Things can go outside the grid
     except IndexError:
@@ -1854,6 +1855,7 @@ def _prepare_grid_new(passband,atm, data_columns=None, log_columns=None,
     if nointerp_columns is None:
         #-- not all columns hold data that needs to be interpolated
         nointerp_columns = data_columns + ['alpha_b', 'res','dflux']
+        #nointerp_columns = data_columns + ['alpha_b', 'dflux']
     with pyfits.open(atm) as ff:
         header = ff[0].header
         try:
@@ -2116,6 +2118,13 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             logger.warning('No passbands found matching pattern {}'.format(passband))
     passbands = sorted(set(passbands + ['OPEN.BOL']))
     
+    # Sort out which passbands are not calibrated
+    filter_info = pbmod.get_info()
+    available = set(list(filter_info['passband']))
+    overlap = set(passbands) & available
+    logger.info("Skipping passbands {} (no calibration available)".format(sorted(list(set(passbands)-available))))
+    passbands = sorted(list(overlap))
+    
     # If the user gave a list of files, it needs to a list of specific
     # intensities.
     if not isinstance(atm_files, str):
@@ -2248,7 +2257,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         do_close = False
         # Special case if blackbody: we need to build our atmosphere model
         if atm_file == 'blackbody':
-            wave_ = np.logspace(1, 5, 10000)
+            wave_ = np.logspace(1, 6, 10000)
         
         # Check if the file exists
         elif not os.path.isfile(atm_file):
@@ -2310,7 +2319,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         
         # Special case if blackbody: we need to build our atmosphere model
         if atm_file == 'blackbody':
-            wave_ = np.logspace(1, 5, 10000)
+            wave_ = np.logspace(1, 7, 10000)
         
         # Check if the file exists
         elif not os.path.isfile(atm_file):
@@ -2360,10 +2369,16 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             # Compute boosting factor if necessary
             if add_boosting_factor:
                 extra = []
-                mus, wave, table = get_specific_intensities(open_atm_file,
+                
+                if atm_file != 'blackbody':
+                    mus, wave, table = get_specific_intensities(open_atm_file,
                                      atm_kwargs=atm_kwargs, red_kwargs=red_kwargs,
                                      vgamma=vgamma)            
-                flux = table[:,0]
+                    flux = table[:,0]
+                else:
+                    wave, flux = wave_*10, Imu_blackbody
+                
+                
                 # transform fluxes and wavelength
                 lnF = np.log(flux)
                 lnl = np.log(wave)
@@ -2381,23 +2396,31 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     pwave, ptrans = pbmod.get_response(pb)
                     Tk = np.interp(wave, pwave, ptrans)
                     num = np.trapz(Tk * (5 + dlnF_dlnl) * w_fl, x=wave)
+                    
+                    if num == 0:
+                        extra.append(0.0)
+                        continue
+                    
                     den = np.trapz(Tk * w_fl, x=wave)        
                     extra.append(num/den)
                     
-                    #import matplotlib.pyplot as plt
-                    #ax = plt.subplot(211)
-                    #plt.plot(lnl, lnF, 'ko-')
-                    #plt.twinx(plt.gca())
-                    #plt.plot(np.log(pwave), ptrans, 'bo-')
-                    #plt.plot(np.log(wave), Tk, 'ro-')
-                    #plt.subplot(212)
-                    #plt.plot(lnl, dlnF_dlnl, 'k-')
-                    #plt.plot(lnl, dlnF_dlnl2, 'r-')
-                    #print num/den
-                    #num = np.trapz(Tk * (5 + dlnF_dlnl2) * w_fl, x=wave)
-                    #den = np.trapz(Tk * w_fl, x=wave)
-                    #print num/den
-                    #plt.show()
+                    #if np.isnan(num/den):
+                        #import matplotlib.pyplot as plt
+                        #ax = plt.subplot(211)
+                        #plt.title(pb)
+                        #plt.plot(lnl, lnF, 'ko-')
+                        #plt.twinx(plt.gca())
+                        #plt.plot(np.log(pwave), ptrans, 'bo-')
+                        #plt.plot(np.log(wave), Tk, 'ro-')
+                        #plt.subplot(212)
+                        #plt.plot(lnl, dlnF_dlnl, 'k-')
+                        ##plt.plot(lnl, dlnF_dlnl2, 'r-')
+                        #print num, den, num/den
+                        ##num = np.trapz(Tk * (5 + dlnF_dlnl2) * w_fl, x=wave)
+                        #den = np.trapz(Tk * w_fl, x=wave)
+                        #print num/den
+
+                        #plt.show()
             
             # Only if the law is not uniform, we really need to fit something
             if law != 'uniform':
@@ -3160,8 +3183,9 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
 
 
 
-def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret',
-                        ref=0,with_partial_as_half=True):
+
+def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg='none',
+                        ld_func='claret', ref=0, with_partial_as_half=True):
     """
     Calculate local projected intensity.
     
@@ -3170,6 +3194,12 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
     only have to do a table lookup once.
     
     Analytical calculation can also be an approximation!
+    
+    Other things that are done when computing projected intensities:
+    
+        1. Correction for distance to the source
+        2. Correction for interstellar reddening if the passband is not bolometric
+        3. Correction for manually set passband luminosity
     
     @param system: object to compute temperature of
     @type system: Body or derivative class
@@ -3183,6 +3213,10 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
     @type ref: str
     """
     body = system.params.values()[0]
+    idep, ref = system.get_parset(ref=ref, type='pbdep')
+    l3 = idep.get('l3',0.)
+    pblum = idep.get('pblum',-1.0)
+    
     if method == 'numerical':
         #-- get limb angles
         mus = system.mesh['mu']
@@ -3201,10 +3235,23 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
         partial = system.mesh['partial'][keep]
         #-- compute intensity using the already calculated limb darkening coefficents
         logger.info('using limbdarkening law %s'%(ld_func))
-        Imu = globals()['ld_{}'.format(ld_func)](mus,system.mesh['ld_'+ref][keep].T)*system.mesh['ld_'+ref][keep,-1]
-        proj_Imu = mus*Imu
+        Imu = globals()['ld_{}'.format(ld_func)](mus, system.mesh['ld_'+ref][keep].T)\
+                      * system.mesh['ld_'+ref][keep,-1]
+                  
+        
+        # Do the beaming correction
+        if beaming_alg == 'simple' or beaming_alg == 'local':
+            # Retrieve beming factor
+            alpha_b = system.mesh['alpha_b_' + ref][keep]
+            # light speed in Rsol/d
+            ampl_b = 1.0 + alpha_b * system.mesh['velo___bol_'][keep,2]/37241.94167601236
+        else:
+            ampl_b = 1.0
+                  
+        proj_Imu = ampl_b * mus * Imu
         if with_partial_as_half:
             proj_Imu[partial] /= 2.0
+            
         system.mesh['proj_'+ref] = 0.
         system.mesh['proj_'+ref][keep] = proj_Imu
         #-- take care of reflected light
@@ -3212,26 +3259,49 @@ def projected_intensity(system,los=[0.,0.,+1],method='numerical',ld_func='claret
             proj_Imu += system.mesh['refl_'+ref][keep] * mus       
             logger.info("Projected intensity contains reflected light")
         proj_intens = system.mesh['size'][keep]*proj_Imu
-        #print system.get_label(),'partial:', sum(partial),sum(visible),len(partial)
-        #print proj_Imu
-        #print proj_intens.sum()
-        #print np.isnan(proj_Imu).sum()
-        #from mayavi import mlab
-        #system.plot3D()
-        #mlab.title(system.get_label())
-        #mlab.show()
-        
-        #-- we compute projected and total intensity. We have to correct for solid
-        #-- angle, radius of the star and distance to the star.
-        #distance = body.request_value('distance','Rsol')
-        proj_intens = proj_intens.sum()#/distance**2
+    
+    
     #-- analytical computation
     elif method=='analytical':
-        lcdep,ref = system.get_parset(ref)
+        lcdep, ref = system.get_parset(ref)
         # The projected intensity is normalised with the distance in cm, we need
         # to reconvert that into solar radii.
         proj_intens = sphere_intensity(body,lcdep)[1]/(constants.Rsol*100)**2
-    return proj_intens    
+        
+        
+    # Scale the projected intensity with the distance
+    globals_parset = system.get_globals()
+    if globals_parset is not None and pblum < 0:
+        distance = globals_parset.get_value('distance') * 3.085677581503e+16 / constants.Rsol
+    else:
+        distance = 1.0 
+    
+    proj_intens = proj_intens.sum()/distance**2    
+    
+    
+    # Take reddening into account
+    red_parset = system.get_globals('reddening')
+    if (red_parset is not None) and (ref != '__bol'):
+        ebv = red_parset['extinction'] / red_parset['Rv']
+        proj_intens = reddening.redden(proj_intens,
+                         passbands=[idep['passband']], ebv=ebv, rtype='flux',
+                         law=red_parset['law'])[0]
+    
+    
+    # Passband luminosity
+    if pblum >= 0.0:
+        # This definition of passband luminosity should mimic the definition
+        # of WD
+        if not 'pblum' in system._clear_when_reset:
+            passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2
+            system._clear_when_reset['pblum'] = passband_lum
+        else:
+            passband_lum = system._clear_when_reset['pblum']
+        
+        proj_intens = proj_intens * pblum / passband_lum
+        
+    # That's all folks!
+    return proj_intens + l3
     
 
 def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',ref=0):
