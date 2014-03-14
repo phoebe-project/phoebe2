@@ -7,7 +7,7 @@ import time
 
 
 atm = 'blackbody'
-alb = 0.932
+alb = 1-0.932
 
 def do_mercury(redist):
     sun = phoebe.create.from_library('sun')
@@ -54,10 +54,10 @@ def test_no_redist():
     teffmin = system[1].mesh['teff'].min()
     teffmax = system[1].mesh['teff'].max()
     
-    print(proj)
-    print(teffmean)
-    print(teffmin)
-    print(teffmax)
+    print('proj',proj)
+    print('mean',teffmean)
+    print('min',teffmin)
+    print('max',teffmax)
     
     assert(np.abs(proj - 6.74991749527e-09)/6.74991749527e-09<1e-2)
     assert(np.abs(teffmean-305)<5)

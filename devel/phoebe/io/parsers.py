@@ -304,33 +304,37 @@ def legacy_to_phoebe(inputfile, create_body=False,
 
 
         elif key == 'phoebe_alb1.VAL':
-            comp1['alb'] = val
+            comp1['alb'] = 1-float(val)
             # Switch on heating in the other component
-            if comp1['alb'] > 0:
+            if comp1['alb'] < 1:
                 comp2['irradiator'] = True
+            else:
+                comp2['irradiator'] = False
         elif key == 'phoebe_alb1.MAX':
-            comp1.get_parameter('alb').set_limits(ulim=float(val))
+            comp1.get_parameter('alb').set_limits(ulim=1-float(val))
             lower, upper = comp1.get_parameter('alb').get_limits()
             comp1.get_parameter('alb').set_prior(distribution='uniform',
                                                   lower=lower, upper=upper)
         elif key == 'phoebe_alb1.MIN':
-            comp1.get_parameter('alb').set_limits(llim=float(val))
+            comp1.get_parameter('alb').set_limits(llim=1-float(val))
         elif key == 'phoebe_alb1.STEP':
             comp1.get_parameter('alb').set_step(step=float(val))   
 
         elif key == 'phoebe_alb2.VAL':
-            comp2['alb'] = val   
+            comp2['alb'] = 1-float(val)
             alb2 = comp2['alb']
             # Switch on heating in the oterh component
-            if comp2['alb'] > 0:
+            if comp2['alb'] < 1:
                 comp1['irradiator'] = True
+            else:
+                comp1['irradiator'] = False
         elif key == 'phoebe_alb2.MAX':
-            comp2.get_parameter('alb').set_limits(ulim=float(val))
+            comp2.get_parameter('alb').set_limits(ulim=1-float(val))
             lower, upper = comp2.get_parameter('alb').get_limits()
             comp2.get_parameter('alb').set_prior(distribution='uniform',
                                                   lower=lower, upper=upper)
         elif key == 'phoebe_alb2.MIN':
-            comp2.get_parameter('alb').set_limits(llim=float(val))
+            comp2.get_parameter('alb').set_limits(llim=1-float(val))
         elif key == 'phoebe_alb2.STEP':
             comp2.get_parameter('alb').set_step(step=float(val))   
 

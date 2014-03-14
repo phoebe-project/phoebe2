@@ -263,8 +263,9 @@ C         Remember how much radiation enters in this triangle for this passband
                 
 
 C         Some more work for bolometric stuff                
-          R1(i) = 1d0 + (1-redist)*alb*inco(i,1)/irrede(i)
-          R2 = R2 + redist *alb*inco(i,1)/irrede(i)*irreds(i)
+C         Definition of albedo here is opposite of WDs (so the true definition)
+          R1(i) = 1d0 + (1d0-redist)*(1d0-alb)*inco(i,1)/irrede(i)
+          R2 = R2 + redist *(1d0-alb)*inco(i,1)/irrede(i)*irreds(i)
                 
             
 14      end do
@@ -417,8 +418,8 @@ C         Remember how much radiation enters in this triangle for this passband
                 
 
 C         Some more work for bolometric stuff                
-          R1(i) = 1d0 + (1-redist(i))*alb(i)*inco(i,1)/irrede(i)
-          R2 = R2 + redist(i) *alb(i)*inco(i,1)/irrede(i)*irreds(i)
+          R1(i) = 1d0 + (1-redist(i))*(1d0-alb(i))*inco(i,1)/irrede(i)
+          R2 = R2+redist(i) *(1d0-alb(i))*inco(i,1)/irrede(i)*irreds(i)
                 
             
 34      end do

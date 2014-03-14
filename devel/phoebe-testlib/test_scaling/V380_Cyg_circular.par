@@ -1,6 +1,6 @@
 [phoebe--component--myprimary]
 atm        = kurucz     #  Bolometric Atmosphere model
-alb        = 1.0        #  Bolometric albedo (alb heating, 1-alb reflected)
+alb        = 0.0        #  Bolometric albedo (alb heating, 1-alb reflected)
 redist     = 0.0        #  Global redist par (1-redist) local heating, redist global heating
 syncpar    = 1.54186025045 #  Synchronicity parameter
 gravb      = 1.0        #  Bolometric gravity brightening
@@ -15,7 +15,7 @@ ld_coeffs  = kurucz     #  Bolometric limb darkening coefficients
 
 [phoebe--component--mysecondary]
 atm        = kurucz     #  Bolometric Atmosphere model
-alb        = 1.0        #  Bolometric albedo (alb heating, 1-alb reflected)
+alb        = 0.0        #  Bolometric albedo (alb heating, 1-alb reflected)
 redist     = 0.0        #  Global redist par (1-redist) local heating, redist global heating
 syncpar    = 2.50197843753 #  Synchronicity parameter
 gravb      = 1.0        #  Bolometric gravity brightening

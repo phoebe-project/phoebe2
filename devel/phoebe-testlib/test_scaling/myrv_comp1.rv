@@ -1,7 +1,7 @@
 #-----------------
 # atm = kurucz
 # ld_func = claret
-# alb = 1.000000
+# alb = 0.000000
 # ref = myrv_comp1
 # beaming = False
 # ld_coeffs = kurucz

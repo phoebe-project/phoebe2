@@ -82,7 +82,7 @@ extra keyword arguments:
   distance 10.0            pc - phoebe Distance to the star
      shape equipot         --   phoebe Shape of surface
     vgamma 0.0           km/s - phoebe Systemic velocity
-       alb 1.0             -- - phoebe Bolometric albedo (alb heating, 1-alb reflected)
+       alb 1.0             -- - phoebe Bolometric albedo (1-alb heating, alb reflected)
     redist 0.0             -- - phoebe Global redist par (1-redist) local heating, redist global heating
 irradiator False           --   phoebe Treat body as irradiator of other objects
       abun 0.0             --   phoebe Metallicity
