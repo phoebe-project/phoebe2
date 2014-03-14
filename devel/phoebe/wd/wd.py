@@ -618,8 +618,14 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     rvdep2['atm'] = (ps_wd['ifat2']==0) and 'blackbody' or 'kurucz'
     
     #-- reflection?
-    body1['irradiator'] = ps_wd['alb2'] > 0
-    body2['irradiator'] = ps_wd['alb1'] > 0
+    body1['alb'] = 1-body1['alb']
+    body2['alb'] = 1-body2['alb']
+    lcdep1['alb'] = 1 - lcdep1['alb']
+    lcdep2['alb'] = 1 - lcdep2['alb']
+    rvdep1['alb'] = 1 - rvdep1['alb']
+    rvdep2['alb'] = 1 - rvdep2['alb']
+    body1['irradiator'] = True
+    body2['irradiator'] = True
     
     body1['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'
     body2['ld_func'] = 'logarithmic' if ps_wd['ld_model']==2 else 'linear'

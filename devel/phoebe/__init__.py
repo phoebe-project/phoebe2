@@ -93,6 +93,10 @@ The following parameters are important in the reflection and heating effects:
     - ``redisth``: sets the fraction of redistributed heat to be only along lines
       of constant latitude. :ref:`(more info) <label-redisth-star-phoebe>`
 
+The following parameters are important in the reflection effect:
+
+    - ``scattering``: determines the scattering phase function.
+
 .. warning::
 
     Just as for the atmospheric parameters, Phoebe2 distinguishes *bolometric*

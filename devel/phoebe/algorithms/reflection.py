@@ -1,8 +1,8 @@
 """
 
-.. _reflection-algorithms:
-
 Algorithms related to (mutual) irradation.
+
+.. _reflection-algorithms:
 
 One star (A) can emit radiation onto the surface of another star (B).
 Essentially two things can happen with that flux:
@@ -84,6 +84,7 @@ from phoebe.atmospheres import limbdark
 
 logger = logging.getLogger("ALGO.REFL")
 logger.addHandler(logging.NullHandler())
+
 
 @decorators.parse_ref
 def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
@@ -413,8 +414,8 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
                 ld_laws[i] = 6 # i.e. uniform, because we did all the projection already
                 irrorld[i] = np.array([[0.0,0.0,0.0,0.0,proj_Imu.sum()]])
             
+        # Else, we'll use the full mesh of the irradiator    
         elif irradiation_alg == 'full':
-            # Else, we'll use the full mesh
             irradiator_mesh_center = irradiator.mesh['center']
             irradiator_mesh_size = irradiator.mesh['size']
             irradiator_mesh_normal = irradiator.mesh['normal_']
@@ -511,21 +512,26 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         #  irradiated_mesh['teff'] = teff_old
         #  irradiated.mesh = irradiated_mesh
     
-    #-- reflection part:
+    
+    # Reflection part:
     if reflection:
-        # whatever is not used for heating can be reflected, we assume isotropic
-        # reflection
+        
+        # Whatever is not used for heating can be reflected
         for j,jref in enumerate(refs):
+            
             refl_ref = 'refl_{}'.format(jref)
-            # Bond albedo equals 1-A_irradiated ----> in WD definition!!
-            # In our definition, Bond albedo *is* A_irradiatied
+            
+            # In our definition, Bond albedo *is* A_irradiatied (it is the
+            # opposite in WD)
             try:
                 bond_albedo = A_irradiateds[j]
+            
                 if np.isscalar(A_irradiateds[j]):
                     bond_albedo = max(0, bond_albedo)
                 else:
                     bond_albedo[bond_albedo<0] = 0.
-                irradiated.mesh[refl_ref] += bond_albedo*inco[:,j]/np.pi
+                irradiated.mesh[refl_ref] += bond_albedo*inco[:,j]
+            
             except ValueError:
                 raise ValueError("Did not find ref {}. Did you prepare for reflection?".format(refl_ref))
                 
