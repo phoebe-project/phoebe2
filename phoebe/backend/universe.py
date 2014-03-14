@@ -205,6 +205,7 @@ logger.addHandler(logging.NullHandler())
 
 # some easy conversions
 rsol_2_au = constants.Rsol/constants.au
+kms_2_rsold = 1000. / constants.Rsol * 24.0 * 3600.0
 m_2_au = 1.0/constants.au
 deg_2_rad = pi / 180.
 day_2_sec = 86400.0
@@ -4239,11 +4240,14 @@ class PhysicalBody(Body):
         Notice that vgamma is in the opposite direction of our definition!
         """
         # Add systemic velocity:
-        globals = self.get_globals()
-        if globals is not None:
+        globs = self.get_globals()
+        
+        if globs is not None:
             #vgamma = globals.request_value('vgamma', 'Rsol/d')
-            vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
-            self.mesh['velo___bol_'][:,2] -= vgamma
+            vgamma = globs['vgamma'] * kms_2_rsold
+            if vgamma != 0:
+                self.mesh['velo___bol_'][:,2] -= vgamma
+        
         # Gravitational redshift
         if grav:
             radius = coordinates.norm(self.mesh['center'], axis=1)*constants.Rsol
@@ -5600,7 +5604,7 @@ class AccretionDisk(PhysicalBody):
     def projected_intensity(self,los=[0.,0.,+1],ref=0,method='numerical',with_partial_as_half=True,
                             beaming_alg='none'):
         """
-        Calculate local intensity.
+        Calculate local intensity of an AccretionDisk.
         """
         if method!='numerical':
             raise ValueError("Only numerical computation of projected intensity of AccretionDisk available")
@@ -6102,6 +6106,10 @@ class Star(PhysicalBody):
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
         """
         idep, ref = self.get_parset(ref=ref, type='pbdep')
+        
+        if idep is None:
+            raise ValueError("Unknown reference, use any of {} or __bol".format(", ".join(self.get_refs())))
+
         if method is None:
             method = 'method' in idep and idep['method'] or 'numerical'
         ld_func = idep['ld_func']
@@ -7105,7 +7113,7 @@ class BinaryRocheStar(PhysicalBody):
                             ref=0, method='numerical', with_partial_as_half=True,
                             beaming_alg='none'):
         """
-        Calculate local intensity.
+        Calculate local intensity of a BinaryRocheStar.
         
         We can speed this up if we compute the local intensity first, keep track of the limb darkening
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
@@ -7126,7 +7134,8 @@ class BinaryRocheStar(PhysicalBody):
         ld_func = idep['ld_func']
         proj_int = limbdark.projected_intensity(self, method=method,
                              ld_func=ld_func, ref=ref, los=los, 
-                             with_partial_as_half=with_partial_as_half)
+                             with_partial_as_half=with_partial_as_half,
+                             beaming_alg=beaming_alg)
         
         return proj_int
     

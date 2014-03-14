@@ -1,4 +1,7 @@
 """
+
+.. _reflection-algorithms:
+
 Algorithms related to (mutual) irradation.
 
 One star (A) can emit radiation onto the surface of another star (B).
@@ -16,17 +19,17 @@ Essentially two things can happen with that flux:
 
 It is important to note that heating is a **bolometric** effect, whereas
 reflection is a **passband dependent** effect. As such, the albedo parameter
-that is a property of a body denotes how much of the incident bolometric flux
-is used to heat up the body (albedo=1 means all bolometric flux is used for
+that is a property of a *body* denotes how much of the incident bolometric flux
+is used to heat up the body (albedo=0 means all bolometric flux is used for
 heating). By definition, the bolometric albedo is a value between 0 and 1.
 
 On the other hand, the albedo parameter that is a property of an observable
-(e.g. a light curve) is a wavelength dependent parameter. A value of one means
-effectively grey scattering, i.e. all incoming light is reflected in the same
-wavelengths. For grey scattering, the albedo is a value between 0 and 1
-(with 1 begin no reflection!), but when there is some kind of energy
+(e.g. a light curve) is a wavelength dependent parameter. Equal values for all
+passbands is called grey scattering, i.e. all incoming light is reflected in the
+same wavelengths. For grey scattering, the albedo is a value between 0 and 1
+(with 0 begin no reflection), but when there is some kind of energy
 redistribution, this doesn't need to be the case. The albedo in our definition
-can never exceed 1, but can be negative (it is 1-Bond's albedo).
+can exceed 1, but can never be negative (it is Bond's albedo).
 
 Note that the **heating** process we define here is actually called the
 **reflection** effect in the Wilson-Devinney code. The general effect of flux
@@ -36,6 +39,9 @@ to compute heating or reflection, we need to quantify the irradiation.
 In the next sections, some physical and programmatical details are discussed.
 For further details, please refer to the documentation of the relevant
 functions.
+
+Just remember: snow has an albedo close to 1 (not easily heated but good reflector),
+coals has albedo close to 0 (easily heated but reflects almost no light).
 
 Section 1. Irradiation
 ======================
@@ -285,14 +291,15 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
         cos_gamma = cos(gamma)
         Imu = coeffs[-1]*ld_law(cos_gamma,coeffs)
         return Imu*cos_gamma*sin(gamma) # sin(gamma) is for solid angle integration
+    
     Nl = len(ref)
     N = len(irradiated.mesh)
+    
     #-- run over each triangle on the irradiated star, and compute how much
     #   radiation it receives from the irradiator.
     R1 = np.ones(N) # local heating
     R2 = 1. # global heating (redistributed)
     inco = np.ones((N,Nl)) # total flux that is incident on the triangle
-    #day = np.zeros(N,bool)
     total_surface = irradiated.mesh['size'].sum()
     ps_irradiator = [irradiator.get_parset(ref=jref) for jref in ref]
     ps_irradiated = [irradiated.get_parset(ref=jref) for jref in ref]
@@ -401,7 +408,7 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
                 proj_Imu = irradiator.mesh['ld_'+ref[i]][keep,-1] * Imu
                 if 'refl_'+ref[i] in these_fields:
                     proj_Imu += irradiator.mesh['refl_'+ref[i]][keep] * mus[keep]
-                proj_Imu *= irradiator.mesh['size'][keep]* mus[keep]
+                proj_Imu *= irradiator.mesh['size'][keep]* mus[keep] # not sure about this mus!!
                 
                 ld_laws[i] = 6 # i.e. uniform, because we did all the projection already
                 irrorld[i] = np.array([[0.0,0.0,0.0,0.0,proj_Imu.sum()]])
@@ -510,9 +517,10 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         # reflection
         for j,jref in enumerate(refs):
             refl_ref = 'refl_{}'.format(jref)
-            #-- Bond albedo equals 1-A_irradiated
+            # Bond albedo equals 1-A_irradiated ----> in WD definition!!
+            # In our definition, Bond albedo *is* A_irradiatied
             try:
-                bond_albedo = (1-A_irradiateds[j])
+                bond_albedo = A_irradiateds[j]
                 if np.isscalar(A_irradiateds[j]):
                     bond_albedo = max(0, bond_albedo)
                 else:

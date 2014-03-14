@@ -109,6 +109,8 @@ The following parameters are important in the reflection and heating effects:
     
     Bolometric albedos need to be between 0 and 1, passband albedos can exceed 1.
 
+See the :ref:`reflection <reflection-algorithms>` module for more information.
+
 Section 2.3 Beaming
 -----------------------------------
 

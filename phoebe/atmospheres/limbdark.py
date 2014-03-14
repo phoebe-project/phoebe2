@@ -560,6 +560,24 @@ def ld_power(mu, coeffs):
     return mu**coeffs[0]
 
 
+def ld_exponential(mu, coeffs):
+    r"""
+    Exponential law
+    
+    .. math::
+    
+        \frac{I(\mu)}{I(0)}  = 1 - c_1(1-\mu) - c_2 \frac{1}{1-e^\mu}
+        
+    @param mu: limb angles mu=cos(theta)
+    @type mu: numpy array
+    @param coeffs: limb darkening coefficients
+    @type coeffs: list
+    @return: normalised intensity at limb angles
+    @rtype: array
+    """
+    return 1 - coeffs[0]*(1-mu) - h / (1-np.exp(mu))
+
+
 def _r(mu):
     r"""
     Convert mu to r coordinates
@@ -3212,39 +3230,51 @@ def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg=
     @param ref: ref of self's observation set to compute local intensities of
     @type ref: str
     """
+    
+    # Retrieve some basic information on the body, passband set, third light
+    # and passband luminosity
     body = system.params.values()[0]
     idep, ref = system.get_parset(ref=ref, type='pbdep')
     l3 = idep.get('l3',0.)
     pblum = idep.get('pblum',-1.0)
     
+    # Numerical computation (as opposed to analytical)
     if method == 'numerical':
-        #-- get limb angles
-        mus = system.mesh['mu']
-        #-- To calculate the total projected intensity, we keep track of the
-        #   partially visible triangles, and the totally visible triangles
-        #   (the correction for nans in the size of the faces is probably due
-        #   to a bug in the marching method, though I'm not sure):
-        if np.any(np.isnan(system.mesh['size'])):
-            print('encountered nan')
-            raise SystemExit
-        keep = (mus>0) & (system.mesh['partial'] | system.mesh['visible'])# & -np.isnan(self.mesh['size'])
-        mus = mus[keep]
-        #-- negating the next array gives the partially visible things, that is
-        #   the only reason for defining it.
-        visible = system.mesh['visible'][keep]
-        partial = system.mesh['partial'][keep]
-        #-- compute intensity using the already calculated limb darkening coefficents
-        logger.info('using limbdarkening law %s'%(ld_func))
-        Imu = globals()['ld_{}'.format(ld_func)](mus, system.mesh['ld_'+ref][keep].T)\
-                      * system.mesh['ld_'+ref][keep,-1]
-                  
         
+        # Get limb angles
+        mus = system.mesh['mu']
+        # To calculate the total projected intensity, we keep track of the
+        # partially visible triangles, and the totally visible triangles
+        
+        # (the correction for nans in the size of the faces is probably due to a
+        # bug in the marching method, though I'm not sure):
+        #if np.any(np.isnan(system.mesh['size'])):
+        #    print('encountered nan')
+        #    raise SystemExit
+        
+        keep = (mus>0) & (system.mesh['partial'] | system.mesh['visible'])
+        
+        # Create shortcut variables
+        vis_mesh = system.mesh[keep]
+        mus = mus[keep]
+        
+        # Negating the next array gives the partially visible things, that is
+        # the only reason for defining it.
+        visible = vis_mesh['visible']
+        partial = vis_mesh['partial']
+        
+        # Compute intensity using the already calculated limb darkening
+        # coefficents
+        logger.info('using limbdarkening law {}'.format((ld_func)))
+        Imu = globals()['ld_{}'.format(ld_func)](mus, vis_mesh['ld_'+ref].T)\
+                      * vis_mesh['ld_'+ref][:,-1]
+                  
         # Do the beaming correction
         if beaming_alg == 'simple' or beaming_alg == 'local':
             # Retrieve beming factor
-            alpha_b = system.mesh['alpha_b_' + ref][keep]
+            alpha_b = vis_mesh['alpha_b_' + ref]
             # light speed in Rsol/d
-            ampl_b = 1.0 + alpha_b * system.mesh['velo___bol_'][keep,2]/37241.94167601236
+            ampl_b = 1.0 + alpha_b * vis_mesh['velo___bol_'][:,2]/37241.94167601236
         else:
             ampl_b = 1.0
                   
@@ -3254,15 +3284,18 @@ def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg=
             
         system.mesh['proj_'+ref] = 0.
         system.mesh['proj_'+ref][keep] = proj_Imu
-        #-- take care of reflected light
-        if 'refl_'+ref in system.mesh.dtype.names:
-            proj_Imu += system.mesh['refl_'+ref][keep] * mus       
+        
+        
+        # Take care of reflected light
+        if ('refl_'+ref) in system.mesh.dtype.names:
+            proj_Imu += vis_mesh['refl_'+ref] * mus       
             logger.info("Projected intensity contains reflected light")
-        proj_intens = system.mesh['size'][keep]*proj_Imu
+            
+        proj_intens = vis_mesh['size']*proj_Imu
     
     
-    #-- analytical computation
-    elif method=='analytical':
+    # Analytical computation (as opposed to numerical)
+    elif method == 'analytical':
         lcdep, ref = system.get_parset(ref)
         # The projected intensity is normalised with the distance in cm, we need
         # to reconvert that into solar radii.
@@ -3279,11 +3312,13 @@ def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg=
     proj_intens = proj_intens.sum()/distance**2    
     
     
-    # Take reddening into account
-    red_parset = system.get_globals('reddening')
-    if (red_parset is not None) and (ref != '__bol'):
-        ebv = red_parset['extinction'] / red_parset['Rv']
-        proj_intens = reddening.redden(proj_intens,
+    # Take reddening into account (if given), but only for non-bolometric
+    # passbands and nonzero extinction
+    if ref != '__bol':
+        red_parset = system.get_globals('reddening')
+        if (red_parset is not None) and (red_parset['extinction'] > 0):
+            ebv = red_parset['extinction'] / red_parset['Rv']
+            proj_intens = reddening.redden(proj_intens,
                          passbands=[idep['passband']], ebv=ebv, rtype='flux',
                          law=red_parset['law'])[0]
     
