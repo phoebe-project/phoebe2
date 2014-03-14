@@ -326,6 +326,7 @@ except ImportError:
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import decorators
+from phoebe.utils import coordinates
 from phoebe.utils import config
 from phoebe.utils import utils
 from phoebe.io import fits
@@ -3280,18 +3281,86 @@ def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg=
                   
         proj_Imu = ampl_b * mus * Imu
         if with_partial_as_half:
-            proj_Imu[partial] /= 2.0
-            
-        system.mesh['proj_'+ref] = 0.
-        system.mesh['proj_'+ref][keep] = proj_Imu
-        
+            proj_Imu[partial] /= 2.0 
         
         # Take care of reflected light
         if ('refl_'+ref) in system.mesh.dtype.names:
-            proj_Imu += vis_mesh['refl_'+ref] * mus       
-            logger.info("Projected intensity contains reflected light")
+            
+            # Anisotropic scattering is difficult, we need to figure out where
+            # the companion is. Note that this doesn't really work for multiple
+            # systems; we should add different refl columns for that so that we
+            # can track the origin of the irradiation.
+            if 'scattering' in idep and idep['scattering'] != 'isotropic':
+                
+                # First, figure out where the companion is.
+                sibling = system.get_sibling()
+                
+                X2 = (sibling.mesh['center']*sibling.mesh['size'][:,None]/sibling.mesh['size'].sum()).sum(axis=0)
+                
+                # What are the lines-of-sight between this companion and its
+                # sibling?
+                los = X2[None,:] - vis_mesh['center']
+                
+                # Then, what is are the angles between the line-of-sights to the
+                # triangles, and the los from the triangle to the sibling?
+                mu = coordinates.cos_angle(los, np.array([[0,0,1]]), axis=1)
+                
+                # Henyey-Greenstein phase function
+                if idep['scattering'] == 'henyey':
+                    g = idep['asymmetry']
+                    #phase_function = 0.5 * (1-g**2) / (1 + g**2 - 2*g*mu)**1.5
+                    phase_function = (1-g**2) / (1 + g**2 - 2*g*mu)**1.5
+                
+                # Rayleigh phase function
+                elif idep['scattering'] == 'rayleigh':
+                    phase_function = 3.0/8.0 * (1-mu**2)
+                    
+                # Hapke model (http://stratus.ssec.wisc.edu/streamer/userman/surfalb.html)
+                # Vegetation (clover): w=0.101, q=-0.263, S=0.589, h=0.046 (Pinty and Verstraete 1991)
+                # Snow: w=0.99, q=0.6, S=0.0, h=0.995 (Domingue 1997, Verbiscer and Veverka 1990)
+                elif idep['scattering'] == 'hapke':
+                    
+                    # single scattering albedo
+                    w = idep['alb']
+                    Q = idep['asymmetry']
+                    S = idep['hot_spot_ampl']
+                    h = idep['hot_spot_width']
+                    
+                    # cosine of incidence angle
+                    mup = coordinates.cos_angle(los, vis_mesh['normal_'], axis=1)
+                    
+                    # cosine of view angle is mus
+                    
+                    # phase (scattering) angle
+                    g = np.arccos(mu)
+                    
+                    # backscattering function
+                    B0 = S/w * (1-Q**2) / (1 + Q**2 + 2*Q)**1.5    # yes, that's a plus
+                    Bg = B0 / (1 + 1./h*np.tan(0.5*g))
+                    
+                    # multiple scattering term
+                    Hmu = (1+2*mu)  / (1 +2*mu *np.sqrt(1-w))
+                    Hmup= (1+2*mup) / (1 +2*mup*np.sqrt(1-w))
+                    
+                    phase_function = 0.25*w * (1.0 / (mus + mup)) * \
+                          ((1 + Bg)*Pg + Hmu*Hmup - 1) 
+                
+                proj_Imu += vis_mesh['refl_'+ref] * mus * phase_function / np.pi
+                logger.info("Projected intensity contains reflected light with phase function {}".format(idep['scattering']))
+                
+                
+            # Isotropic scattering is easy, we don't need to figure out where
+            # the companion is
+            else:            
+                
+                proj_Imu += vis_mesh['refl_'+ref] * mus / np.pi 
+                logger.info("Projected intensity contains isotropic reflected light")
             
         proj_intens = vis_mesh['size']*proj_Imu
+        
+        # Fill in the mesh
+        system.mesh['proj_'+ref] = 0.
+        system.mesh['proj_'+ref][keep] = proj_Imu
     
     
     # Analytical computation (as opposed to numerical)
@@ -3334,7 +3403,8 @@ def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg=
             passband_lum = system._clear_when_reset['pblum']
         
         proj_intens = proj_intens * pblum / passband_lum
-        
+       
+    
     # That's all folks!
     return proj_intens + l3
     

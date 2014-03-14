@@ -256,6 +256,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep','etvdep','sidep']),
          dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
+         dict(qualifier='scattering',  description='Scattering phase function',repr='',value='isotropic',cast_type='choose',choices=['isotropic','henyey','rayleigh','hapke'], frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='samprate',   description='Applied sampling rate',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
@@ -442,7 +443,10 @@ defs += [dict(qualifier='Bpolar',     description='Polar magnetic field strength
 defs += [dict(qualifier='vmacro_rad', description='Radial macroturbulence component', cast_type=float, repr='%f',adjust=False,value=0.0,unit='km/s',frame=['phoebe'], context='velocity_field:turb'),
          dict(qualifier='vmacro_tan', description='Tangentional macroturbulence component', cast_type=float, repr='%f',adjust=False,value=0.0,unit='km/s',frame=['phoebe'], context='velocity_field:turb'),
          ]
-         
+
+# SCATTERING contexts
+defs += [dict(qualifier='asymmetry', description='Scattering asymmetry (negative = backwards, positive = forwards)', cast_type=float, repr='%f',adjust=False,value=0.0,frame=['phoebe'], context='scattering:henyey'),
+         ]
 
 #    Accretion disk contexts        
 defs += [dict(qualifier='dmdt',     description='Mass transfer rate',repr='%f',cast_type=float,value=1e-4,unit='Msol/yr',frame=["phoebe"],context='accretion_disk'),
