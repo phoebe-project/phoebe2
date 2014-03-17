@@ -93,9 +93,14 @@ The following parameters are important in the reflection and heating effects:
     - ``redisth``: sets the fraction of redistributed heat to be only along lines
       of constant latitude. :ref:`(more info) <label-redisth-star-phoebe>`
 
-The following parameters are important in the reflection effect:
+With the reflection effect, the ``scattering`` phase function can additionally be
+specified. The current options are:
 
-    - ``scattering``: determines the scattering phase function.
+    - ``isotropic``: Thompson scattering, e.g. in atmospheres of hot stars
+    - ``henyey``: Henyey-Greenstein scattering, for either front or backwards scattering
+    - ``henyey2``: Two-term Henyey-Greenstein scattering (Jupiter-like)
+    - ``rayleigh``: back-front symmetric scattering
+    - ``hapke``: for regolith surfaces, or even vegetation, snow...
 
 .. warning::
 

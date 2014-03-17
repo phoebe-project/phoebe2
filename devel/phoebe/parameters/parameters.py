@@ -1899,7 +1899,7 @@ class ParameterSet(object):
     
     def point_to(self, qualifier, parameter):
         """
-        Let a parameter point to another parameter, to guarentee equal values.
+        Let a parameter point to another parameter, to guarantee equal values.
         
         This replace the existing parameter :envvar:`qualifier` with
         :envvar:`parameter`, and adds the qualifier as an alias to parameter.

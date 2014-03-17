@@ -123,7 +123,7 @@ if __name__=="__main__":
         
             
         build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
-                ld_func='linear', fitmethod='equidist_r_leastsq',
+                ld_func='claret', fitmethod='equidist_r_leastsq',
                 z='*', ebvs=None, redlaw=None, limb_zero=False,
                 add_boosting_factor=True)
         

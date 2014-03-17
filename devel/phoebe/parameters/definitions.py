@@ -256,7 +256,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep','etvdep','sidep']),
          dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
-         dict(qualifier='scattering',  description='Scattering phase function',repr='',value='isotropic',cast_type='choose',choices=['isotropic','henyey','rayleigh','hapke'], frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
+         dict(qualifier='scattering',  description='Scattering phase function',repr='',value='isotropic',cast_type='choose',choices=['isotropic','henyey','henyey2', 'rayleigh','hapke'], frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='samprate',   description='Applied sampling rate',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
@@ -445,7 +445,13 @@ defs += [dict(qualifier='vmacro_rad', description='Radial macroturbulence compon
          ]
 
 # SCATTERING contexts
-defs += [dict(qualifier='asymmetry', description='Scattering asymmetry (negative = backwards, positive = forwards)', cast_type=float, repr='%f',adjust=False,value=0.0,frame=['phoebe'], context='scattering:henyey'),
+defs += [dict(qualifier='asymmetry', description='Scattering asymmetry (negative = backwards, positive = forwards)', cast_type=float, repr='%f', llim=-1, ulim=1, adjust=False,value=0.0,frame=['phoebe'], context='scattering:henyey'),
+         dict(qualifier='asymmetry1', description='Forward scattering strength (>0)', cast_type=float, repr='%f',adjust=False,value=0.8, llim=0, ulim=1, frame=['phoebe'], context='scattering:henyey2'),
+         dict(qualifier='asymmetry2', description='Backward scattering strength (<0)', cast_type=float, repr='%f',adjust=False,value=-0.38, llim=-1, ulim=0, frame=['phoebe'], context='scattering:henyey2'),
+         dict(qualifier='scat_ratio', description='Ratio between forward and backward scattering', cast_type=float, repr='%f',adjust=False,value=0.9, llim=0, ulim=1, frame=['phoebe'], context='scattering:henyey2'),
+         dict(qualifier='asymmetry', description='Scattering asymmetry (negative = backwards, positive = forwards)', cast_type=float, repr='%f',adjust=False,value=0.0,frame=['phoebe'], context='scattering:hapke'),
+         dict(qualifier='hot_spot_ampl', description='Amplitude of the hot spot', cast_type=float, repr='%f',adjust=False,value=0.0,frame=['phoebe'], context='scattering:hapke'),
+         dict(qualifier='hot_spot_width', description='Width of the hot spot', cast_type=float, repr='%f',adjust=False,value=0.0,frame=['phoebe'], context='scattering:hapke'),
          ]
 
 #    Accretion disk contexts        

@@ -52,6 +52,12 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
 
     add_parallax
     
+**Scattering**
+
+.. autosummary::
+
+    add_scattering
+    
 **Constraints for spectral synthesis**
 
 
@@ -1212,55 +1218,25 @@ def add_ebv(reddening, ebv=None, unit='mag', derive='extinction', **kwargs):
 
 #{ Other constraints
 
-def add_albbond(ps, albbond=0.0, **kwargs):
+def add_albgeom(ps, albgeom=0.0, **kwargs):
     r"""
-    Add Bond's albedo to a body or pbdep.
+    Add geometric albedo to a body or pbdep.
     
-    The relation between Bond's albedo :math:`a_B`, Phoebe's albedo definition
-    :math:`a_P` and the geometric albedo :math:`a_g` is the following (assuming
-    Lambert's law):
+    The relation between Bond's albedo :math:`a_B` (which is Phoebe's passband
+    albedo) and the geometric albedo :math:`a_g` is the following (assuming Lambert's law):
     
     .. math::
     
-        a_B = 1 - a_P \\
-        a_g = \frac{2}{3} a_B = \frac{2}{3} (1 - a_P)
+        a_g = \frac{2}{3} a_B
         
     or inversely
     
     .. math::
     
-        a_P = 1 - a_B \\
-        a_P = 1 - \frac{3}{2} a_g
+        a_B = \frac{3}{2} a_g
     
     See, for example, [Esteves2013]_ or [Lopez-Morales2007]_ for a more detailed
     explanation.
-    """
-    if kwargs and 'bondalb' in ps:
-        raise ValueError("You cannot give extra kwargs to add_albbond if albbond already exist")
-    
-    kwargs.setdefault('description',"Bond's albedo")
-    kwargs.setdefault('context',ps.context)
-    kwargs.setdefault('frame','phoebe')
-    kwargs.setdefault('cast_type',float)
-    kwargs.setdefault('repr','%f')
-    
-    #-- remove any constraints on albbond and add the parameter
-    ps.pop_constraint('albbond',None)
-    if not 'albbond' in star:
-        ps.add(parameters.Parameter(qualifier='albbond', value=albbond,**kwargs))
-    else:
-        ps['albbond'] = albbond
-        
-    ps.add_constraint('{{alb}} = 1-{{albbond}}')
-
-
-def add_albgeom(ps, albgeom=0.0, **kwargs):
-    r"""
-    Add geometric albedo to a body or pbdep.
-    
-    The relation between Bond's albedo :math:`a_B`, Phoebe's albedo definition
-    :math:`a_P` and the geometric albedo :math:`a_g` can be found in
-    :py:func:`add_albbond`.
     """
     if kwargs and 'albgeom' in ps:
         raise ValueError("You cannot give extra kwargs to add_albgeom if albgeom already exist")
@@ -1278,7 +1254,7 @@ def add_albgeom(ps, albgeom=0.0, **kwargs):
     else:
         ps['albgeom'] = albgeom
         
-    ps.add_constraint('{alb} = 1 - 1.5*{albgeom}')
+    ps.add_constraint('{alb} = 1.5*{albgeom}')
     
 
 def add_albmap(star, image, scale=None, invert=False, **kwargs):
@@ -1362,6 +1338,40 @@ def add_parallax(star,parallax=None,unit='mas',**kwargs):
     else:
         star.add_constraint('{distance} = constants.au/{parallax}')
         logger.info("star '{}': 'distance' constrained by 'parallax'".format(star['label']))
+
+
+def add_scattering(pbdep, scattering_type):
+    """
+    Add scattering properties to a passband dependable.
+    
+    The :envvar:`scattering_type` can be any of:
+    
+        - ``isotropic``: all info is already present, nothing is done
+        - ``henyey``: Henyey-Greenstein scattering phase function
+        - ``hapke``: Hapke model
+    
+    The necessary extra parameters are added to the :envvar:`pbdep`.
+    
+    @param pbdep: passband dependent parameterSet (lcdep,...)
+    @type pbdep: ParameterSet
+    @param scattering_type: type of scattering (see above)
+    @type scattering_type: str
+    """
+    
+    if scattering_type == 'isotropic':
+        pbdep['scattering'] = 'isotropic'
+        return None
+    
+    else:
+        extra_pars = parameters.ParameterSet('scattering:{}'.format(scattering_type))
+        
+        for extra_par in extra_pars:
+            extra_par = extra_pars.get_parameter(extra_par)
+            pbdep.add(extra_par)
+        
+        pbdep['scattering'] = scattering_type
+        logger.info("Added {} scattering parameters to pbdep {}".format(scattering_type, pbdep['ref']))
+
 
 def add_unbounded_from_bounded(parset,qualifier,from_='limits'):
     r"""

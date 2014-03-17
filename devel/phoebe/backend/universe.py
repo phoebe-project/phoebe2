@@ -179,6 +179,7 @@ from phoebe.algorithms import marching
 from phoebe.algorithms import subdivision
 from phoebe.algorithms import eclipse
 from phoebe.algorithms import interp_nDgrid
+from phoebe.algorithms import reflection
 from phoebe.backend import decorators
 from phoebe.backend import observatory
 from phoebe.backend import processing
@@ -325,6 +326,208 @@ def luminosity(body, ref='__bol', numerical=False):
         emer_Ibolmu = ld_disk(ld[:,:-1].T) * ld[:,-1]
         
     return (emer_Ibolmu * sizes).sum()
+    
+
+def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
+                beaming_alg='none', ld_func='claret', ref=0,
+                with_partial_as_half=True):
+    """
+    Calculate local projected intensity.
+    
+    We can speed this up if we compute the local intensity first, keep track of
+    the limb darkening coefficients and evaluate for different angles. Then we
+    only have to do a table lookup once.
+    
+    Analytical calculation can also be an approximation!
+    
+    Other things that are done when computing projected intensities:
+    
+        1. Correction for distance to the source
+        2. Correction for interstellar reddening if the passband is not bolometric
+        3. Correction for manually set passband luminosity
+        4. Scattering phase functions
+    
+    @param system: object to compute temperature of
+    @type system: Body or derivative class
+    @param los: line-of-sight vector. Best leave it at the default
+    @type los: list of three floats
+    @param method: flag denoting type of calculation: numerical or analytical approximation
+    @type method: str ('numerical' or 'analytical')
+    @param ld_func: limb-darkening model
+    @type ld_func: str
+    @param ref: ref of self's observation set to compute local intensities of
+    @type ref: str
+    """
+    
+    # Retrieve some basic information on the body, passband set, third light
+    # and passband luminosity
+    body = system.params.values()[0]
+    idep, ref = system.get_parset(ref=ref, type='pbdep')
+    l3 = idep.get('l3',0.)
+    pblum = idep.get('pblum',-1.0)
+    
+    # Numerical computation (as opposed to analytical)
+    if method == 'numerical':
+        
+        # Get limb angles
+        mus = system.mesh['mu']
+        # To calculate the total projected intensity, we keep track of the
+        # partially visible triangles, and the totally visible triangles
+        
+        # (the correction for nans in the size of the faces is probably due to a
+        # bug in the marching method, though I'm not sure):
+        #if np.any(np.isnan(system.mesh['size'])):
+        #    print('encountered nan')
+        #    raise SystemExit
+        
+        keep = (mus>0) & (system.mesh['partial'] | system.mesh['visible'])
+        
+        # Create shortcut variables
+        vis_mesh = system.mesh[keep]
+        mus = mus[keep]
+        
+        # Negating the next array gives the partially visible things, that is
+        # the only reason for defining it.
+        visible = vis_mesh['visible']
+        partial = vis_mesh['partial']
+        
+        # Compute intensity using the already calculated limb darkening
+        # coefficents
+        logger.info('using limbdarkening law {}'.format((ld_func)))
+        Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mus, vis_mesh['ld_'+ref].T)\
+                      * vis_mesh['ld_'+ref][:,-1]
+                  
+        # Do the beaming correction
+        if beaming_alg == 'simple' or beaming_alg == 'local':
+            # Retrieve beming factor
+            alpha_b = vis_mesh['alpha_b_' + ref]
+            # light speed in Rsol/d
+            ampl_b = 1.0 + alpha_b * vis_mesh['velo___bol_'][:,2]/37241.94167601236
+        else:
+            ampl_b = 1.0
+                  
+        proj_Imu = ampl_b * mus * Imu
+        if with_partial_as_half:
+            proj_Imu[partial] /= 2.0 
+        
+        # Take care of reflected light
+        if ('refl_'+ref) in system.mesh.dtype.names:
+            
+            # Anisotropic scattering is difficult, we need to figure out where
+            # the companion is. Note that this doesn't really work for multiple
+            # systems; we should add different refl columns for that so that we
+            # can track the origin of the irradiation.
+            if 'scattering' in idep and idep['scattering'] != 'isotropic':
+                
+                # First, figure out where the companion is.
+                sibling = system.get_sibling()
+                
+                X2 = (sibling.mesh['center']*sibling.mesh['size'][:,None]/sibling.mesh['size'].sum()).sum(axis=0)
+                
+                # What are the lines-of-sight between this companion and its
+                # sibling?
+                los = X2[None,:] - vis_mesh['center']
+                
+                # Then, what is are the angles between the line-of-sights to the
+                # triangles, and the los from the triangle to the sibling?
+                mu = coordinates.cos_angle(los, np.array([[0,0,1]]), axis=1)
+                
+                # Henyey-Greenstein phase function
+                if idep['scattering'] == 'henyey':
+                    g = idep['asymmetry']
+                    #phase_function = 0.5 * (1-g**2) / (1 + g**2 - 2*g*mu)**1.5
+                    phase_function = reflection.henyey_greenstein(mu, g)
+                
+                # Henyey-Greenstein phase function
+                elif idep['scattering'] == 'henyey2':
+                    g1 = idep['asymmetry1']
+                    g2 = idep['asymmetry2']
+                    f = idep['scat_ratio']
+                    phase_function = reflection.henyey_greenstein2(mu, g1, g2, f)
+                
+                # Rayleigh phase function
+                elif idep['scattering'] == 'rayleigh':
+                    phase_function = reflection.rayleigh(mu)
+                    
+                # Hapke model (http://stratus.ssec.wisc.edu/streamer/userman/surfalb.html)
+                # Vegetation (clover): w=0.101, q=-0.263, S=0.589, h=0.046 (Pinty and Verstraete 1991)
+                # Snow: w=0.99, q=0.6, S=0.0, h=0.995 (Domingue 1997, Verbiscer and Veverka 1990)
+                elif idep['scattering'] == 'hapke':
+                    
+                    # single scattering albedo
+                    w = idep['alb']
+                    Q = idep['asymmetry']
+                    S = idep['hot_spot_ampl']
+                    h = idep['hot_spot_width']
+                    
+                    # cosine of incidence angle
+                    mup = coordinates.cos_angle(los, vis_mesh['normal_'], axis=1)
+                    
+                    # Phase function
+                    phase_function = reflection.hapke(mu, mup, mus, w, Q, S, h)
+                
+                proj_Imu += vis_mesh['refl_'+ref] * mus * phase_function / np.pi
+                logger.info("Projected intensity contains reflected light with phase function {}".format(idep['scattering']))
+                
+                
+            # Isotropic scattering is easy, we don't need to figure out where
+            # the companion is
+            else:            
+                
+                proj_Imu += vis_mesh['refl_'+ref] * mus / np.pi 
+                logger.info("Projected intensity contains isotropic reflected light")
+            
+        proj_intens = vis_mesh['size']*proj_Imu
+        
+        # Fill in the mesh
+        system.mesh['proj_'+ref] = 0.
+        system.mesh['proj_'+ref][keep] = proj_Imu
+    
+    
+    # Analytical computation (as opposed to numerical)
+    elif method == 'analytical':
+        lcdep, ref = system.get_parset(ref)
+        # The projected intensity is normalised with the distance in cm, we need
+        # to reconvert that into solar radii.
+        proj_intens = limbdark.sphere_intensity(body,lcdep)[1]/(constants.Rsol*100)**2
+        
+        
+    # Scale the projected intensity with the distance
+    globals_parset = system.get_globals()
+    if globals_parset is not None and pblum < 0:
+        distance = globals_parset.get_value('distance') * 3.085677581503e+16 / constants.Rsol
+    else:
+        distance = 1.0 
+    
+    proj_intens = proj_intens.sum()/distance**2    
+    
+    
+    # Take reddening into account (if given), but only for non-bolometric
+    # passbands and nonzero extinction
+    if ref != '__bol':
+        red_parset = system.get_globals('reddening')
+        if (red_parset is not None) and (red_parset['extinction'] > 0):
+            ebv = red_parset['extinction'] / red_parset['Rv']
+            proj_intens = reddening.redden(proj_intens,
+                         passbands=[idep['passband']], ebv=ebv, rtype='flux',
+                         law=red_parset['law'])[0]
+    
+    
+    # Passband luminosity
+    if pblum >= 0.0:
+        # This definition of passband luminosity should mimic the definition
+        # of WD
+        if not 'pblum' in system._clear_when_reset:
+            passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2
+            system._clear_when_reset['pblum'] = passband_lum
+        else:
+            passband_lum = system._clear_when_reset['pblum']
+        
+        proj_intens = proj_intens * pblum / passband_lum
+       
+    
+    # That's all folks!
+    return proj_intens + l3    
     
     
 def load(filename):
@@ -5610,7 +5813,7 @@ class AccretionDisk(PhysicalBody):
             raise ValueError("Only numerical computation of projected intensity of AccretionDisk available")
         idep,ref = self.get_parset(ref=ref, type='pbdep')
         ld_func = idep['ld_func']
-        proj_int = limbdark.projected_intensity(self, method=method,
+        proj_int = generic_projected_intensity(self, method=method,
                              ld_func=ld_func, ref=ref, los=los, 
                              with_partial_as_half=with_partial_as_half)
         
@@ -6118,7 +6321,7 @@ class Star(PhysicalBody):
         
         # Compute projected intensity, and correct for the distance and
         # reddening
-        proj_int = limbdark.projected_intensity(self, method=method,
+        proj_int = generic_projected_intensity(self, method=method,
                 ld_func=ld_func, ref=ref, beaming_alg=beaming_alg,
                 with_partial_as_half=with_partial_as_half)
             
@@ -7131,8 +7334,12 @@ class BinaryRocheStar(PhysicalBody):
             raise ValueError("Only numerical computation of projected intensity of BinaryRocheStar available")
 
         idep,ref = self.get_parset(ref=ref, type='pbdep')
+        
+        if idep is None:
+            raise ValueError("Pbdep with ref '{}' not found in {}".format(self.get_label()))
+        
         ld_func = idep['ld_func']
-        proj_int = limbdark.projected_intensity(self, method=method,
+        proj_int = generic_projected_intensity(self, method=method,
                              ld_func=ld_func, ref=ref, los=los, 
                              with_partial_as_half=with_partial_as_half,
                              beaming_alg=beaming_alg)

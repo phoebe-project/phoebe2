@@ -2392,10 +2392,15 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 if atm_file != 'blackbody':
                     mus, wave, table = get_specific_intensities(open_atm_file,
                                      atm_kwargs=atm_kwargs, red_kwargs=red_kwargs,
-                                     vgamma=vgamma)            
-                    flux = table[:,0]
+                                     vgamma=vgamma)
+                    
+                    # Disk-integrate the specific intensities
+                    rs_ = np.sqrt(1 - mus**2)
+                    flux = (np.pi*np.diff(rs_[None,:]**2) * table[:,:-1]).sum(axis=1)
+                
                 else:
                     wave, flux = wave_*10, Imu_blackbody
+                
                 
                 
                 # transform fluxes and wavelength
@@ -2403,12 +2408,19 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 lnl = np.log(wave)
                 # Numerical derivatives
                 dlnF_dlnl = utils.deriv(lnl, lnF)
-                #dlnF_dlnl2 = np.hstack([0,np.diff(lnF)/ np.diff(lnl)])
-                #dlnF_dlnl2[np.isnan(dlnF_dlnl2)] = 0.0
-                #dlnF_dlnl2[np.isinf(dlnF_dlnl2)] = 0.0
                 # Fix nans and infs
                 dlnF_dlnl[np.isnan(dlnF_dlnl)] = 0.0
                 dlnF_dlnl[np.isinf(dlnF_dlnl)] = 0.0
+                
+                # Other definitions of numerical derivatives
+                #-- Simple differentiation
+                #dlnF_dlnl2 = np.hstack([0,np.diff(lnF)/ np.diff(lnl)])
+                #dlnF_dlnl2[np.isnan(dlnF_dlnl2)] = 0.0
+                #dlnF_dlnl2[np.isinf(dlnF_dlnl2)] = 0.0
+                #-- Spline differentiation
+                #splfit = splrep(lnl[-np.isinf(lnF)], lnF[-np.isinf(lnF)], k=2)
+                #dlnF_dlnl3 = splev(lnl, splfit, der=1)
+                
                 # compute boosting factor
                 w_fl = wave*flux
                 for i, pb in enumerate(passbands):
@@ -2422,6 +2434,11 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     
                     den = np.trapz(Tk * w_fl, x=wave)        
                     extra.append(num/den)
+                    
+                    #num2 = np.trapz(Tk * (5 + dlnF_dlnl2) * w_fl, x=wave)
+                    #num3 = np.trapz(Tk * (5 + dlnF_dlnl3) * w_fl, x=wave)
+                    #print num/den, num2/den, num3/den
+                    #raw_input('continue?')
                     
                     #if np.isnan(num/den):
                         #import matplotlib.pyplot as plt
@@ -3203,210 +3220,7 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
 
 
 
-def projected_intensity(system, los=[0.,0.,+1], method='numerical', beaming_alg='none',
-                        ld_func='claret', ref=0, with_partial_as_half=True):
-    """
-    Calculate local projected intensity.
-    
-    We can speed this up if we compute the local intensity first, keep track of
-    the limb darkening coefficients and evaluate for different angles. Then we
-    only have to do a table lookup once.
-    
-    Analytical calculation can also be an approximation!
-    
-    Other things that are done when computing projected intensities:
-    
-        1. Correction for distance to the source
-        2. Correction for interstellar reddening if the passband is not bolometric
-        3. Correction for manually set passband luminosity
-    
-    @param system: object to compute temperature of
-    @type system: Body or derivative class
-    @param los: line-of-sight vector. Best leave it at the default
-    @type los: list of three floats
-    @param method: flag denoting type of calculation: numerical or analytical approximation
-    @type method: str ('numerical' or 'analytical')
-    @param ld_func: limb-darkening model
-    @type ld_func: str
-    @param ref: ref of self's observation set to compute local intensities of
-    @type ref: str
-    """
-    
-    # Retrieve some basic information on the body, passband set, third light
-    # and passband luminosity
-    body = system.params.values()[0]
-    idep, ref = system.get_parset(ref=ref, type='pbdep')
-    l3 = idep.get('l3',0.)
-    pblum = idep.get('pblum',-1.0)
-    
-    # Numerical computation (as opposed to analytical)
-    if method == 'numerical':
-        
-        # Get limb angles
-        mus = system.mesh['mu']
-        # To calculate the total projected intensity, we keep track of the
-        # partially visible triangles, and the totally visible triangles
-        
-        # (the correction for nans in the size of the faces is probably due to a
-        # bug in the marching method, though I'm not sure):
-        #if np.any(np.isnan(system.mesh['size'])):
-        #    print('encountered nan')
-        #    raise SystemExit
-        
-        keep = (mus>0) & (system.mesh['partial'] | system.mesh['visible'])
-        
-        # Create shortcut variables
-        vis_mesh = system.mesh[keep]
-        mus = mus[keep]
-        
-        # Negating the next array gives the partially visible things, that is
-        # the only reason for defining it.
-        visible = vis_mesh['visible']
-        partial = vis_mesh['partial']
-        
-        # Compute intensity using the already calculated limb darkening
-        # coefficents
-        logger.info('using limbdarkening law {}'.format((ld_func)))
-        Imu = globals()['ld_{}'.format(ld_func)](mus, vis_mesh['ld_'+ref].T)\
-                      * vis_mesh['ld_'+ref][:,-1]
-                  
-        # Do the beaming correction
-        if beaming_alg == 'simple' or beaming_alg == 'local':
-            # Retrieve beming factor
-            alpha_b = vis_mesh['alpha_b_' + ref]
-            # light speed in Rsol/d
-            ampl_b = 1.0 + alpha_b * vis_mesh['velo___bol_'][:,2]/37241.94167601236
-        else:
-            ampl_b = 1.0
-                  
-        proj_Imu = ampl_b * mus * Imu
-        if with_partial_as_half:
-            proj_Imu[partial] /= 2.0 
-        
-        # Take care of reflected light
-        if ('refl_'+ref) in system.mesh.dtype.names:
-            
-            # Anisotropic scattering is difficult, we need to figure out where
-            # the companion is. Note that this doesn't really work for multiple
-            # systems; we should add different refl columns for that so that we
-            # can track the origin of the irradiation.
-            if 'scattering' in idep and idep['scattering'] != 'isotropic':
-                
-                # First, figure out where the companion is.
-                sibling = system.get_sibling()
-                
-                X2 = (sibling.mesh['center']*sibling.mesh['size'][:,None]/sibling.mesh['size'].sum()).sum(axis=0)
-                
-                # What are the lines-of-sight between this companion and its
-                # sibling?
-                los = X2[None,:] - vis_mesh['center']
-                
-                # Then, what is are the angles between the line-of-sights to the
-                # triangles, and the los from the triangle to the sibling?
-                mu = coordinates.cos_angle(los, np.array([[0,0,1]]), axis=1)
-                
-                # Henyey-Greenstein phase function
-                if idep['scattering'] == 'henyey':
-                    g = idep['asymmetry']
-                    #phase_function = 0.5 * (1-g**2) / (1 + g**2 - 2*g*mu)**1.5
-                    phase_function = (1-g**2) / (1 + g**2 - 2*g*mu)**1.5
-                
-                # Rayleigh phase function
-                elif idep['scattering'] == 'rayleigh':
-                    phase_function = 3.0/8.0 * (1-mu**2)
-                    
-                # Hapke model (http://stratus.ssec.wisc.edu/streamer/userman/surfalb.html)
-                # Vegetation (clover): w=0.101, q=-0.263, S=0.589, h=0.046 (Pinty and Verstraete 1991)
-                # Snow: w=0.99, q=0.6, S=0.0, h=0.995 (Domingue 1997, Verbiscer and Veverka 1990)
-                elif idep['scattering'] == 'hapke':
-                    
-                    # single scattering albedo
-                    w = idep['alb']
-                    Q = idep['asymmetry']
-                    S = idep['hot_spot_ampl']
-                    h = idep['hot_spot_width']
-                    
-                    # cosine of incidence angle
-                    mup = coordinates.cos_angle(los, vis_mesh['normal_'], axis=1)
-                    
-                    # cosine of view angle is mus
-                    
-                    # phase (scattering) angle
-                    g = np.arccos(mu)
-                    
-                    # backscattering function
-                    B0 = S/w * (1-Q**2) / (1 + Q**2 + 2*Q)**1.5    # yes, that's a plus
-                    Bg = B0 / (1 + 1./h*np.tan(0.5*g))
-                    
-                    # multiple scattering term
-                    Hmu = (1+2*mu)  / (1 +2*mu *np.sqrt(1-w))
-                    Hmup= (1+2*mup) / (1 +2*mup*np.sqrt(1-w))
-                    
-                    phase_function = 0.25*w * (1.0 / (mus + mup)) * \
-                          ((1 + Bg)*Pg + Hmu*Hmup - 1) 
-                
-                proj_Imu += vis_mesh['refl_'+ref] * mus * phase_function / np.pi
-                logger.info("Projected intensity contains reflected light with phase function {}".format(idep['scattering']))
-                
-                
-            # Isotropic scattering is easy, we don't need to figure out where
-            # the companion is
-            else:            
-                
-                proj_Imu += vis_mesh['refl_'+ref] * mus / np.pi 
-                logger.info("Projected intensity contains isotropic reflected light")
-            
-        proj_intens = vis_mesh['size']*proj_Imu
-        
-        # Fill in the mesh
-        system.mesh['proj_'+ref] = 0.
-        system.mesh['proj_'+ref][keep] = proj_Imu
-    
-    
-    # Analytical computation (as opposed to numerical)
-    elif method == 'analytical':
-        lcdep, ref = system.get_parset(ref)
-        # The projected intensity is normalised with the distance in cm, we need
-        # to reconvert that into solar radii.
-        proj_intens = sphere_intensity(body,lcdep)[1]/(constants.Rsol*100)**2
-        
-        
-    # Scale the projected intensity with the distance
-    globals_parset = system.get_globals()
-    if globals_parset is not None and pblum < 0:
-        distance = globals_parset.get_value('distance') * 3.085677581503e+16 / constants.Rsol
-    else:
-        distance = 1.0 
-    
-    proj_intens = proj_intens.sum()/distance**2    
-    
-    
-    # Take reddening into account (if given), but only for non-bolometric
-    # passbands and nonzero extinction
-    if ref != '__bol':
-        red_parset = system.get_globals('reddening')
-        if (red_parset is not None) and (red_parset['extinction'] > 0):
-            ebv = red_parset['extinction'] / red_parset['Rv']
-            proj_intens = reddening.redden(proj_intens,
-                         passbands=[idep['passband']], ebv=ebv, rtype='flux',
-                         law=red_parset['law'])[0]
-    
-    
-    # Passband luminosity
-    if pblum >= 0.0:
-        # This definition of passband luminosity should mimic the definition
-        # of WD
-        if not 'pblum' in system._clear_when_reset:
-            passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2
-            system._clear_when_reset['pblum'] = passband_lum
-        else:
-            passband_lum = system._clear_when_reset['pblum']
-        
-        proj_intens = proj_intens * pblum / passband_lum
-       
-    
-    # That's all folks!
-    return proj_intens + l3
+
     
 
 def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',ref=0):
@@ -3561,7 +3375,7 @@ def download_atm(atm=None):
 
 #}
 
-new = False
+new = True
 
 if not new:
     local_intensity = local_intensity_old
