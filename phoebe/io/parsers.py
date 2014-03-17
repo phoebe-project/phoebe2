@@ -83,6 +83,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
     comp2 = parameters.ParameterSet(frame='phoebe',context='component',label='secondary',
                                     add_constraints=True)
     globals = parameters.ParameterSet('globals')
+    compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
+                                      heating=True, label='from_legacy',
+                                      eclipse_alg='binary', subdiv_num=3)
     
     mesh1wd = parameters.ParameterSet(frame='phoebe',context='mesh:wd',add_constraints=True)
     mesh2wd = parameters.ParameterSet(frame='phoebe',context='mesh:wd',add_constraints=True)
@@ -141,7 +144,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
         #-- Remove any trailing white space
         while key[len(key)-1] == ' ': key=key[:-1]
 
-        #-- for each phoebe parameter incorportae an if statement
+        #-- for each phoebe parameter incorporate an if statement
         # consider the orbit first:
         if key == 'phoebe_lcno':
             lcno = int(val)
@@ -480,8 +483,14 @@ def legacy_to_phoebe(inputfile, create_body=False,
             elif val == "Square root law":
                 comp1['ld_func'] = 'square root'
                 comp2['ld_func'] = 'square root'
-         
-                      
+        
+        elif key == 'phoebe_reffect_switch':
+            switch = int(val)
+            if switch == 0:
+                compute['irradiation_alg'] = 'point_source'
+            elif switch == 1:
+                compute['irradiation_alg'] = 'full'
+        
         if key == 'phoebe_ld_xbol1':
             ld_xbol1 = float(val)
         if key == 'phoebe_ld_xbol2':
@@ -534,7 +543,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
         if key == 'phoebe_ld_rvx1':
             ld_rvx1 = float(val[1:-2])
         if key == 'phoebe_ld_rvx2':
-            ld_rvx2 = float(val[1:-2]) 
+            ld_rvx2 = float(val[1:-2])
      
         if key == 'phoebe_rv_sigma':
             rv_pbweight.append(float(val))
@@ -864,12 +873,13 @@ def legacy_to_phoebe(inputfile, create_body=False,
     #    return bundle
     
     if create_body:
-        return bodybag
+        return bodybag, compute
     
     body1 = comp1, mesh1, lcdep1, rvdep1, obsrv1
     body2 = comp2, mesh2, lcdep2, rvdep2, obsrv2
     logger.info("Successfully parsed Phoebe Legacy file {}".format(inputfile))
-    return body1, body2, orbit, globals, obslc 
+    
+    return body1, body2, orbit, globals, obslc, compute 
 
 
 

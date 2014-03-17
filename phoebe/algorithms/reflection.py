@@ -15,7 +15,8 @@ Essentially two things can happen with that flux:
        
     2. The flux emitted by star B can be reflected on the surface of star B,
        isotropically or aspect-dependently. Here, this process is called
-       **reflection**.
+       **reflection**. The function that determine the aspect angle dependency
+       is called the **scattering phase function**.
 
 It is important to note that heating is a **bolometric** effect, whereas
 reflection is a **passband dependent** effect. As such, the albedo parameter
@@ -58,6 +59,26 @@ Section 2. Heating
 Section 3. Reflection
 =====================
 
+The aspect-angle dependency of the reflected light is governed by the scattering
+phase function. The atmopsheres of hot stars mainly contain free electrons as
+scattering agents, which is **Thompson scattering**. Thompson scattering is grey
+(i.e. the incoming photon doesn't change its wavelength) and is, in a very good
+approximation, isotropic.
+
+In cooler stars, molecules can be present, in which case **Rayleigh scattering**
+can be important. Rayleigh scattering is not grey, and the scattering phase
+function is forward-backwards symmetric (but not isotropic).
+
+The Henyey-Greenstein phase function allows non-symmetric, backwards or forwards
+dominated scattering through the asymmetry parameter :math:`g`. There is also
+a two-term Henyey-Greenstein phase function available that can reproduce Jupiter's
+observed phase function.
+
+The Hapke model is a multi-parameter scattering model, originally build to
+mimic the properties of regolith.
+
+Important note: in order to have a somewhat feasible computation time, we
+approximate the source of the scattering photons by a point source.
 
 
 References
@@ -65,6 +86,17 @@ References
 
     - Wilson's canonical paper, [Wilson1990]_
     - [Budaj2011]_
+
+
+.. autosummary::
+
+    radiation_budget_fast
+    single_heating_reflection
+    mutual_heating
+    henyey_greenstein
+    henyey_greenstein2
+    rayleigh
+    hapke
     
 """
 import pylab as pl
@@ -699,3 +731,140 @@ def mutual_heating(*objects,**kwargs):
                 #single_heating(obj1,obj2,update_temperature=upd_temp,**kwargs)
                 single_heating_reflection(obj1,obj2,update_temperature=upd_temp,**kwargs)
     
+
+
+# Scattering phase function
+def henyey_greenstein(mu, g=0.0):
+    r"""
+    The Henyey-Greenstein scattering phase function.
+    
+    .. math::
+    
+        P(\mu) = \frac{1-g^2}{(1+g^2 - 2g\mu)^{3/2}}
+        
+    where :math:`\mu` is the scattering angle, or the angle between the incoming
+    radiation and the scattered radiation in the line-of-sight. The parameter
+    :math:`g`  is the asymmetry factor. When :math:`g=0`, the phase function
+    simplifies to isotropic scattering. Positive :math:`g` implies forward-dominated
+    scattering, negative :math:`g` means backwards-dominated scattering. When
+    :math:`g=1`, there is only forward scattering; i.e. for any other phase
+    angle, there will be no light reflected.
+    
+    @param mu: scattering phase angle
+    @type mu: float or array
+    @param g: asymmetry factor
+    @type g: float
+    @return: scattering phase function
+    @rtype: float or array
+    """
+    phase_function = (1-g**2) / (1 + g**2 - 2*g*mu)**1.5
+    return phase_function
+
+
+def henyey_greenstein2(mu, g1=0.8, g2=-0.38, f=0.9):
+    r"""
+    The two-term Henyey-Greenstein scattering phase function.
+    
+    .. math::
+    
+        P(\mu) = f P_\mathrm{HG}(g_1, \mu) + (1-f)P_\mathrm{HG}(g_2, \mu)
+    
+    .. math::
+    
+        P_\mathrm{HG}(\mu) = \frac{1-g^2}{(1+g^2 - 2g\mu)^{3/2}}
+    
+    where :math:`\mu` is the scattering angle, or the angle between the incoming
+    radiation and the scattered radiation in the line-of-sight. The parameter
+    :math:`g_i`  is the asymmetry factor. :math:`f` denotes the fraction of
+    the forward versus backward scattering. :math:`g_1` controls the sharpness
+    of the forward scattering lobe (and should be positive), while :math:`g_2`
+    controls the sharpness of the backscattering lobe.
+    
+    This scattering phase function can reproduce Jupiter's phase function, if
+    :math:`g_1=0.8`, :math:`g_2=-0.38` and :math:`f=0.9` (the defaults).
+    
+    (http://www.gps.caltech.edu/~ulyana/www_papers/exosaturn/exosaturn_submitted.pdf
+    where we have a different definition of :math:`\mu`).
+    
+    @param mu: scattering phase angle
+    @type mu: float or array
+    @param g: asymmetry factor
+    @type g: float
+    @return: scattering phase function
+    @rtype: float or array
+    """
+    term1 = henyey_greenstein(mu, g1)
+    term2 = henyey_greenstein(mu, g2)
+    phase_function = f*term1 + (1-f)*term2
+    return phase_function
+
+
+def rayleigh(mu):
+    r"""
+    Rayleigh scattering phase function.
+    
+    .. math::
+    
+        P(\mu) = \frac{3}{8} (1-\mu^2)
+        
+    
+    @param mu: scattering phase angle
+    @type mu: float or array
+    @return: scattering phase function
+    @rtype: float or array
+    """
+    phase_function = 3.0/8.0 * (1-mu**2)
+    return phase_function
+
+
+def hapke(mu, mup, muv, alb=0.99, q=0.6, S=0.0, h=0.995):
+    r"""
+    Hapke scattering phase function.
+    
+    (http://stratus.ssec.wisc.edu/streamer/userman/surfalb.html)
+    
+    .. math::
+    
+        P(\mu, \mu_p, \mu_v) = \frac{\omega}{4}\frac{1}{\mu_v+\mu_p} \left( (1+B(g))P(g) + H(\mu)H(\mu_p) -1\right)
+        
+    with
+    
+    .. math::
+    
+        H(x) = \frac{1 + 2x}{1+2\mu\sqrt{1-\omega}}\\
+        B(g) = \frac{B_0}{1 + \frac{1}{h}\tan(g/2)}
+    
+    and
+    
+    .. math::
+    
+        B_0 = \frac{S}{\omega} \frac{(1 + \Theta^2 + 2\Theta)^{3/2}}{1-\Theta^2}
+    
+    where :math:`\mu=\cos(g)` is the cosine of the scattering angle :math:`g`,
+    :math:`\mu_v` is the cosine of the viewing angle, and :math:`\mu_p` is the
+    cosine of the incidence angle. :math:`\Theta` is the asymmetry parameter,
+    :math:`\omega` the single scattering albedo, :math:`S` the hot spot
+    amplitude and :math:`h` the hot spot width.
+    
+    Vegetation (clover): w=0.101, q=-0.263, S=0.589, h=0.046 (Pinty and Verstraete 1991)
+    Snow: w=0.99, q=0.6, S=0.0, h=0.995 (Domingue 1997, Verbiscer and Veverka 1990)
+                
+    @param mup: cosine of incidence angle
+    @param muv: cosine of viewing angle
+    @param mu: cosine of scattering angle
+    """
+    # phase (scattering) angle
+    g = np.arccos(mu)
+    
+    # backscattering function
+    B0 = S/alb / (1-q**2) * (1 + q**2 + 2*q)**1.5    # yes, that's a plus
+    Bg = B0 / (1 + 1./h*np.tan(0.5*g))
+                    
+    # multiple scattering term
+    Hmu = (1+2*mu)  / (1 +2*mu *np.sqrt(1-alb))
+    Hmup= (1+2*mup) / (1 +2*mup*np.sqrt(1-alb))
+                    
+    phase_function = 0.25*alb * (1.0/(mus + mup)) * ((1 + Bg)*Pg + Hmu*Hmup - 1) 
+                    
+    return phase_function
+                

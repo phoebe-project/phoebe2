@@ -17,7 +17,7 @@ _aliases = {'atlas':'ATLASp_z0.0t0.0_a0.00_spectra.fits',\
             'bstar':'BSTAR2006_z0.000v2_vis_spectra.fits'}
 
 @decorators.memoized
-def _prepare_grid_spectrum(wrange,gridfile):
+def _prepare_grid_spectrum(wrange, gridfile):
     """
     Example: 4570 - 4572 (N=200)
     """
@@ -66,18 +66,28 @@ def choose_spec_table(profile,atm_kwargs={},red_kwargs={}):
 
 def interp_spectable(gridfile,teff,logg,wrange):
     """
-    Placeholder.
+    Interpolate a spectrum table.
     
     Return line shape and continuum arrays.
+    
+    @param teff: array of effective temperatures
+    @type teff: array
+    @param logg: array of surface gravities
+    @type logg: array
+    @param wrange: array of wavelengths (angstrom)
+    @type wrange: array
     """
-    #-- get the FITS-file containing the tables
-    #-- retrieve structured information on the grid (memoized)
+    
+    # Get the FITS-file containing the tables
+    # Retrieve structured information on the grid (memoized)
     if not os.path.isfile(gridfile):
         if gridfile in _aliases:
             gridfile = _aliases[gridfile]
         gridfile = os.path.join(os.path.dirname(os.path.abspath(__file__)),'tables','spectra',gridfile)
-    axis_values,pixelgrid = _prepare_grid_spectrum(wrange,gridfile)
-    #-- prepare input:
+    
+    axis_values, pixelgrid = _prepare_grid_spectrum(wrange, gridfile)
+    
+    # Prepare input:
     values = np.zeros((2,len(teff)))
     values[0] = np.log10(teff)
     values[1] = logg

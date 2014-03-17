@@ -178,6 +178,7 @@ class Bundle(object):
     
         set_value
         get_value
+        load_data
         create_syn
         plot_syn
         
@@ -571,8 +572,11 @@ class Bundle(object):
             if os.path.isfile(system):
                 file_type, contents = guess_filetype(system)
             
-                if file_type in ['phoebe_legacy', 'wd', 'pickle_body']:
+                if file_type in ['wd', 'pickle_body']:
                     system = contents
+                elif file_type == 'phoebe_legacy':
+                    system = contents[0]
+                    self.sections['compute'].append(contents[1])
                 elif file_type == 'pickle_bundle':
                     system = contents.get_system()
         
@@ -1362,7 +1366,7 @@ class Bundle(object):
                         if skip_defaults_from_body is not True:
                             take_defaults = (set(ps.keys()) & set(main_parset.keys())) - set(skip_defaults_from_body)
                             for key in take_defaults:
-                                print("== {} was {}, but changed to {}".format(key, ps[key], main_parset[key]))
+                                #print("== {} was {}, but changed to {}".format(key, ps[key], main_parset[key]))
                                 ps[key] = main_parset[key]
                         
                         body.add_pbdeps(ps)
@@ -1397,10 +1401,15 @@ class Bundle(object):
     def load_data(self, category, filename, passband=None, columns=None,
                   objref=None, ref=None, scale=False, offset=False):
         """
-        import data from a file, create multiple DataSets, load data,
+        Add data from a file.
+        
+        Create multiple DataSets, load data,
         and add to corresponding bodies
         
-        @param category: category (lc, rv, sp, etv)
+        Special case here is "sed", which parses a list of snapshot multicolour
+        photometry to different lcs. The will be grouped by ``filename``.
+        
+        @param category: category (lc, rv, sp, sed, etv)
         @type category: str
         @param filename: filename
         @type filename: str

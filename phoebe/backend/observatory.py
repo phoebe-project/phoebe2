@@ -364,8 +364,8 @@ def image(the_system, ref='__bol', context='lcdep',
     norm_proj = None
     if select == 'proj':
         colors = np.where(mesh['mu']>0, mesh['proj_'+ref] / mesh['mu'],0.0)       
-        if 'refl_'+ref in mesh.dtype.names:
-            colors += mesh['refl_'+ref]
+        #if 'refl_'+ref in mesh.dtype.names:
+        #    colors += mesh['refl_'+ref]
         norm_proj = colors.max()
         colors /= norm_proj
         values = colors
@@ -560,7 +560,7 @@ def image(the_system, ref='__bol', context='lcdep',
     return figure_decorations, artist_decorations, p
 
 
-def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
+def contour(system, select='B', res=300, prop=None, levels=None, ref=0, context='lcdep', **kwargs):
     """
     Draw contour lines on a Body.
     
@@ -570,6 +570,7 @@ def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
         * ``latitude``: latitudinal lines
         * ``B``: magnetic field lines
         * ``teff``: effective temperature lines
+        * ``proj``: projected flux
         * ... (any column in the mesh)
     
     The dictionary ``prop`` is passed on to ``pl.clabel``, and can for example
@@ -625,6 +626,8 @@ def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
     # Get the values for the contours
     if select == 'B':
         z = sqrt(mesh['B_'][:,0]**2 + mesh['B_'][:,1]**2 + mesh['B_'][:,2]**2)
+        if not 'colors' in kwargs:
+            kwargs.setdefault('cmap', pl.cm.jet)
     elif select in ['latitude', 'longitude']:
         # For longitudinal and latitudinal meshes, we convert the original
         # Cartesian coordinates to spherical coordinates
@@ -642,7 +645,21 @@ def contour(system, select='B', res=300, prop=None, levels=None, **kwargs):
             z = phi
             if levels is None:
                 levels = np.arange(-160,161,20.)
-            
+    elif select == 'proj':   
+        if not 'colors' in kwargs:
+            kwargs.setdefault('cmap', pl.cm.gray)
+        ps, ref = system.get_parset(ref=ref, context=context)
+        #the_system.projected_intensity(ref=ref, with_partial_as_half=False)
+        z = np.where(mesh['mu']>0, mesh['proj_'+ref] / mesh['mu'],0.0)       
+        z = z/z.max()
+    elif select == 'teff':
+        if not 'colors' in kwargs:
+            kwargs.setdefault('cmap', pl.cm.afmhot)
+        z = mesh[select]
+    elif select == 'rv':
+        if not 'colors' in kwargs:
+            kwargs.setdefault('cmap', pl.cm.RdBu_r)
+        z = -mesh['velo___bol_'][:, 2] * 8.049861
     else:
         z = mesh[select]
     
@@ -2818,6 +2835,7 @@ def ef_binary_image(system, time, i, name='ef_binary_image',
     without computing through it. For binary systems, this is of course fairly
     easy.
     """
+    kwargs.setdefault('with_partial_as_half', False)
     # Compute the orbit of the system
     if hasattr(system, '__len__'):
         orbit = system[0].params['orbit']
