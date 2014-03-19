@@ -963,6 +963,7 @@ PyArrayObject* creproject(PyArrayObject *table, int rows, char *potential, doubl
         
     free(pp);
     return new_table;
+
 }
 
 

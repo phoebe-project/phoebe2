@@ -671,8 +671,8 @@ class Uniform(DeprecatedDistribution):
                 lower, upper = self.get_limits(factor=factor)
                 domain = np.linspace(lower, upper, 1000)
             
-            return domain, getattr(distributions.uniform(loc=self.distr_pars['mu'],
-                                                 scale=self.distr_pars['sigma']),
+            return domain, getattr(distributions.uniform(loc=self.distr_pars['lower'],
+                                                 scale=self.distr_pars['upper']-self.distr_pars['lower']),
                                                  distr_type)(domain)
            
         # Else, we don't know what to do.

@@ -511,6 +511,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
             proj_intens = reddening.redden(proj_intens,
                          passbands=[idep['passband']], ebv=ebv, rtype='flux',
                          law=red_parset['law'])[0]
+            logger.info("Projected intensity is reddening with E(B-V)={} following {}".format(ebv, red_parset['law']))
     
     
     # Passband luminosity
@@ -2067,6 +2068,10 @@ class Body(object):
                                           ref=obs['ref'],
                                           cumulative=True)
             
+            # Perhaps calculations aren't done yet
+            if not len(modelset):
+                continue
+            
             # Make sure to have loaded the observations from a file
             loaded = obs.load(force=False)
             
@@ -2140,7 +2145,7 @@ class Body(object):
             n_data += len(obser)
             if loaded:
                 obs.unload()
-        
+            
         # Include priors if requested
         if include_priors:
             # Get a list of all parameters with priors
@@ -2150,7 +2155,7 @@ class Body(object):
                 # Get the log probability of the current value given the prior.
                 prior = par.get_prior()
                 value = par.get_value()
-                pdf = prior.pdf(x=value)[1]
+                pdf = prior.pdf(domain=value)[1]
                 this_logf = np.log(pdf)
                 log_f += this_logf
                 if prior.distribution == 'normal':
@@ -2159,7 +2164,7 @@ class Body(object):
                     this_chi2 = (value - mu)**2 / sigma**2
                 else:
                     if pdf==0:
-                        this_chi2 = 1e6#10*n_data
+                        this_chi2 = np.inf#1e6#10*n_data
                     else:
                         this_chi2 = 0.0
                     
@@ -5597,11 +5602,9 @@ class AccretionDisk(PhysicalBody):
         self.params['disk'] = accretion_disk
         self.params['mesh'] = mesh
         self.params['pbdep'] = OrderedDict()
-        #-- add interstellar reddening (if none is given, set to the default,
-        #   this means no reddening
-        if reddening is None:
-            reddening = parameters.ParameterSet(context='reddening:interstellar')
-        self.params['reddening'] = reddening
+        #-- add interstellar reddening
+        if reddening is not None:
+            self.params['reddening'] = reddening
         #-- add the parameters to compute dependables
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
@@ -5798,7 +5801,7 @@ class AccretionDisk(PhysicalBody):
         """
         ref = kwargs.pop('ref',['all'])
         beaming_alg = kwargs.get('beaming_alg', 'full')
-        parset_isr = self.params['reddening']
+        parset_isr = dict()#self.params['reddening']
         #-- now run over all labels and compute the intensities
         for iref in ref:
             parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
@@ -5851,6 +5854,37 @@ class Star(PhysicalBody):
     """
     Body representing a Star.
     
+    A Star Body only has one obligatory ParameterSet: context ``star``. It sets
+    the basic properties such as mass, radius and temperature. The ParameterSet
+    also contains some atmosphere and limbdarkening parameters, which are all
+    bolometric quantities.
+    
+    Optional parameterSets:
+    
+        - ``mesh``: determines mesh properties, such as mesh density and algorithm
+        - ``reddening``: set interstellar reddening properties (law, extinction)
+        - ``circ_spot``: spot properties (can be a list)
+        - ``puls``: pulsation mode properties (can be a list)
+        - ``magnetic_field``: global magnetic field properties (dipole...)
+        - ``velocity_field``: surface velocity field properties (macroturbulence)
+        - ``globals``: systemic velocity, position, distance...
+        
+    As for any other Body, you can give also a list of
+    
+        - ``pbdep``: passband dependables
+        - ``obs``: observations
+    
+    Useful functions:
+    
+    .. autosummary::
+    
+        get_mass
+        volume
+        vsini
+        critical_rotation
+    
+    Example usage:
+    
     Construct a simple star with the default parameters representing the Sun
     (sort of, don't start nitpicking):
     
@@ -5875,7 +5909,6 @@ class Star(PhysicalBody):
            ld_func uniform         -- phoebe Bolometric limb darkening model
          ld_coeffs [1.0]           -- phoebe Bolometric limb darkening coefficients
           surfgrav 274.351532944  n/a constr constants.GG*{mass}/{radius}**2    
-    
     
     Upon initialisation, only the basic parameters are set, nothing is computed.
     This is fine for passing Stars on to automatic computing functions like
@@ -5920,7 +5953,7 @@ class Star(PhysicalBody):
     ]include figure]]images/universe_star_0004.png]
     
     """
-    def __init__(self, star, mesh, reddening=None, circ_spot=None,
+    def __init__(self, star, mesh=None, reddening=None, circ_spot=None,
                  puls=None, magnetic_field=None, velocity_field=None,
                  pbdep=None, obs=None,
                  globals=None, label=None,
@@ -5942,6 +5975,10 @@ class Star(PhysicalBody):
         """
         # Basic initialisation
         super(Star, self).__init__(dim=3)
+        
+        # If there is no mesh, create default one
+        if mesh is None:
+            mesh = phoebe.PS('mesh:marching')
         
         # Prepare basic parameterSets and Ordered dictionaries
         check_input_ps(self, star, ['star'], 1)
@@ -5967,10 +6004,9 @@ class Star(PhysicalBody):
         
         # Add interstellar reddening (if none is given, set to the default, this
         # means no reddening
-        if reddening is None:
-            reddening = parameters.ParameterSet(context='reddening:interstellar')
-        check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
-        self.params['reddening'] = reddening
+        if reddening is not None:
+            check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
+            self.params['reddening'] = reddening
         
         # Add spot parameters when applicable
         if circ_spot is not None:
@@ -6406,7 +6442,7 @@ class Star(PhysicalBody):
     
     def compute_mesh(self,time=None):
         """
-        Compute the mesh
+        Compute the mesh of a Star.
         """
         M = self.params['star'].request_value('mass','kg')
         r_pole = self.params['star'].request_value('radius','m')
@@ -6676,11 +6712,9 @@ class BinaryRocheStar(PhysicalBody):
         
         # add interstellar reddening (if none is given, set to the default,
         # this means no reddening
-        if reddening is None:
-            reddening = parameters.ParameterSet(context='reddening:interstellar')
-        
-        check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
-        self.params['reddening'] = reddening
+        if reddening is not None:
+            check_input_ps(self, reddening, ['reddening:interstellar'], 'reddening')
+            self.params['reddening'] = reddening
         
         # Add spot parameters when applicable
         if circ_spot is not None:
@@ -7076,7 +7110,7 @@ class BinaryRocheStar(PhysicalBody):
         """
         Calculate local intensity and limb darkening coefficients.
         """
-        parset_isr = self.params['reddening']
+        parset_isr = dict()
         #-- now run over all labels and compute the intensities
         for iref in ref:
             parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
@@ -7333,14 +7367,14 @@ class BinaryRocheStar(PhysicalBody):
         if method!='numerical':
             raise ValueError("Only numerical computation of projected intensity of BinaryRocheStar available")
 
-        idep,ref = self.get_parset(ref=ref, type='pbdep')
+        idep,ref_ = self.get_parset(ref=ref, type='pbdep')
         
         if idep is None:
-            raise ValueError("Pbdep with ref '{}' not found in {}".format(self.get_label()))
+            raise ValueError("Pbdep with ref '{}' not found in {}".format(ref,self.get_label()))
         
         ld_func = idep['ld_func']
         proj_int = generic_projected_intensity(self, method=method,
-                             ld_func=ld_func, ref=ref, los=los, 
+                             ld_func=ld_func, ref=ref_, los=los, 
                              with_partial_as_half=with_partial_as_half,
                              beaming_alg=beaming_alg)
         

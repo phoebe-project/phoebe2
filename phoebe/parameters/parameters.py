@@ -935,7 +935,7 @@ class Parameter(object):
             if self.has_prior():
                 prior = self.get_prior()
                 value = self.get_value()
-                pdf *= prior.pdf(x=value)[1]
+                pdf *= prior.pdf(domain=value)[1]
             
         return np.log(pdf)
     

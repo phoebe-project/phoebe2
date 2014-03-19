@@ -3334,7 +3334,6 @@ def add_file(filename):
 def download_atm(atm=None):
     
     destin_folder = get_paths()[0]
-    destin_folder = os.path.join(destin_folder,'test')
     
     # Perhaps we need to be sudo?
     print("Copying to destination folder {}".format(destin_folder))
@@ -3356,6 +3355,8 @@ def download_atm(atm=None):
     
         tar = tarfile.open(destin)
         members = tar.getmembers()
+        for member in members:
+            print("Extracting {}...".format(member))
         tar.extractall(path=destin_folder)
         tar.close()
     
