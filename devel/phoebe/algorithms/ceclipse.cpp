@@ -65,9 +65,12 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     std::vector<double> myhull;
     int h_points = 100;
     int turn_index = 0;
+    
     inside = new bool[t_points];
     
-    convex_hull(points, n_points, myhull, h_points, turn_index);
+    convex_hull(points, n_points, myhull, h_points, turn_index);    
+    
+    // The following are different versions of the algorithm
     //inside_hull(testpoints, t_points, myhull, h_points, turn_index, inside);
     //inside_hull_iterative(testpoints, t_points, myhull, h_points, turn_index, inside);
     inside_hull_sorted(testpoints, t_points, myhull, h_points, turn_index, inside);
@@ -75,15 +78,14 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     // Create the output arrays: hull and boolean inside
     dims_hull[0] = h_points;
     dims_hull[1] = 2;
-    hull_arr = (PyArrayObject *)PyArray_FromDims(2, dims_hull, NPY_DOUBLE);
+    hull_arr = (PyArrayObject *)PyArray_FromDims(2, dims_hull, PyArray_DOUBLE);
     dims_inside[0] = t_points;
-    inside_arr = (PyArrayObject *)PyArray_FromDims(1, dims_inside, NPY_BOOL);
+    inside_arr = (PyArrayObject *)PyArray_FromDims(1, dims_inside, PyArray_BOOL);
     
     for (int i=0;i<t_points;i++){
         ((bool *)inside_arr->data)[i] = inside[i];
     }
     for (int i=0;i<h_points;i++){
-        //std::cout << myhull[2*i] << " " << myhull[2*i+1] << std::endl;
         ((double *)hull_arr->data)[2*i] = myhull[2*i];
         ((double *)hull_arr->data)[2*i+1] = myhull[2*i+1];
     }
@@ -91,7 +93,14 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     delete inside;
     Py_DECREF(arr1);
     Py_DECREF(arr2);
-    return Py_BuildValue("OO", hull_arr, inside_arr);            
+    
+    // Return tuple of arrays
+    PyObject *tupleresult = PyTuple_New(2);
+    PyTuple_SetItem(tupleresult, 0, PyArray_Return(hull_arr));
+    PyTuple_SetItem(tupleresult, 1, PyArray_Return(inside_arr));
+    return tupleresult;
+    //return Py_BuildValue("OO", hull_arr, inside_arr);
+    //return Py_BuildValue("dd", 3.0, 2.0);
 }
 
 
@@ -581,6 +590,7 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
             inside[i] = false;
         }
     }
+    delete inside_treated;
     
 }
                  

@@ -29,6 +29,8 @@ from phoebe.algorithms import ceclipse
 
 logger = logging.getLogger('ALGO.ECLIPSE')
 
+_only_xy = np.array([True,True,False,True,True,False,True,True,False])
+
 def detect_eclipse_horizon(body_list,threshold=1.25*np.pi,tolerance=1e-6):
     """
     Detect (self) (partially) eclipsed triangles in a mesh.
@@ -402,12 +404,15 @@ def convex_graham(body_list, distance_factor=1.0, first_iteration=True):
             distance = distance_factor * 2.0/3**0.25*np.sqrt(min_sizes[i])
             
             # Select only those triangles that are not hidden
-            front = np.vstack([star2.mesh['triangle'][visible2,0:2],
-                                star2.mesh['triangle'][visible2,3:5],
-                                star2.mesh['triangle'][visible2,6:8]])
-            back = np.vstack([star1.mesh['triangle'][visible1,0:2],
-                                star1.mesh['triangle'][visible1,3:5],
-                                star1.mesh['triangle'][visible1,6:8]])
+            submesh2 = star2.mesh['triangle'][visible2]
+            submesh1 = star1.mesh['triangle'][visible1]
+            front = np.vstack([submesh2[:,0:2], submesh2[:,3:5], submesh2[:,6:8]])
+            back = np.vstack([submesh1[:,0:2], submesh1[:,3:5], submesh1[:,6:8]])
+            #front = star2.mesh['triangle'][np.ix_(visible2, _only_xy)].reshape((-1,2))
+            #back = star1.mesh['triangle'][np.ix_(visible1, _only_xy)].reshape((-1,2))
+            #front = submesh2[:, _only_xy].reshape((-1,2)) + 0.0
+            #back = submesh1[:, _only_xy].reshape((-1,2)) + 0.0
+            
 
             # Star in front ---> star in back
             if not front.shape[0]:

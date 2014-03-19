@@ -1,6 +1,21 @@
 """
 Top level class of Phoebe.
 
+You can run Phoebe2 in Phoebe1 compatibility mode ('legacy' mode), if you start
+from a legacy parameter file.
+
+>>> mybundle = Bundle('legacy.phoebe')
+>>> mybundle.run_compute(label='from_legacy')
+>>> print(mybundle.get_logp())
+
+>>> mybundle.plot_obs('lightcurve_0', fmt='ko')
+>>> mybundle.plot_obs('primaryrv_0', fmt='ko')
+>>> mybundle.plot_obs('secondaryrv_0', fmt='ro')
+
+>>> mybundle.plot_syn('lightcurve_0', 'k-', lw=2)
+>>> mybundle.plot_syn('primaryrv_0', 'k-', lw=2)
+>>> mybundle.plot_syn('secondaryrv_0', 'r-', lw=2)
+
 Basic class:
 
 .. autosummary::
@@ -1080,6 +1095,8 @@ class Bundle(object):
         """
         Set whether a Parameter(s) in the system is set for adjustment/fitting
         
+        Extra args should not be given.
+        
         @param qualifier: qualifier of the parameter
         @type qualifier: str
         @param value: new value for adjust
@@ -1108,6 +1125,19 @@ class Bundle(object):
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
     
+    def set_adjust_all(self, value):
+        """
+        Lock or release all parameters.
+        """
+        nr = 0
+        for path, val in self.get_system().walk_all():
+            if isinstance(val, parameters.Parameter):
+                val.set_adjust(value)
+                nr += 1
+                
+        logger.info("Disabled {} parameters from fitting".format(nr))
+                
+            
     
     def get_prior(self, qualifier, return_type='single'):
         """
@@ -1142,34 +1172,40 @@ class Bundle(object):
             par.set_prior(**dist_kwargs)
             
     def get_logp(self, dataset=None):
+        """
+        Retrieve the log probability of a collection of (or all) datasets.
+        """
         
-        # First disable/enabled correct datasets
-        old_state = []
-        location = 0
-        for obs in self.get_system().walk_type(type='obs'):
-            old_state.append(obs.get_enabled())
-            this_state = False    
-            if dataset == obs['ref'] or dataset == obs.get_context():
-                if index is None or index == location:
-                    this_state = True
-                location += 1
-            obs.set_enabled(this_state)
+        if dataset is not None:
+            # First disable/enabled correct datasets
+            old_state = []
+            location = 0
+        
+            for obs in self.get_system().walk_type(type='obs'):
+                old_state.append(obs.get_enabled())
+                this_state = False
+                if dataset == obs['ref'] or dataset == obs.get_context():
+                    if index is None or index == location:
+                        this_state = True
+                    location += 1
+                obs.set_enabled(this_state)
         
         # Then compute statistics
-        logf, chi2, n_data = self.get_system().get_logp()
+        logf, chi2, n_data = self.get_system().get_logp(include_priors=True)
         
         # Then reset the enable property
-        for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
-            obs.set_enabled(state)
+        if dataset is not None:
+            for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
+                obs.set_enabled(state)
         
-        return chi2
+        return -0.5*sum(chi2)
     
     #}
     #{ Objects
     def get_object(self, objref=None):
         # return the Body/BodyBag from the system hierarchy
         system = self.get_system()
-        if objref is None or system.get_label() == objref:
+        if objref is None or system.get_label() == objref or objref == '__nolabel__':
             this_child = system
         else:
             for child in system.walk_bodies():
@@ -1366,12 +1402,12 @@ class Bundle(object):
                         if skip_defaults_from_body is not True:
                             take_defaults = (set(ps.keys()) & set(main_parset.keys())) - set(skip_defaults_from_body)
                             for key in take_defaults:
-                                #print("== {} was {}, but changed to {}".format(key, ps[key], main_parset[key]))
-                                ps[key] = main_parset[key]
+                                if ps[key] != main_parset[key]:
+                                    ps[key] = main_parset[key]
                         
-                        body.add_pbdeps(ps)
+                        body.add_pbdeps(ps.copy())
+                        
             else:
-                
                 # get the main parameterSet:
                 main_parset = comp.params.values()[0]
                 
@@ -1385,14 +1421,14 @@ class Bundle(object):
                         for key in take_defaults:
                             ps[key] = main_parset[key]
                     
-                    comp.add_pbdeps(ps)
-
+                    comp.add_pbdeps(ps.copy())
+            
             # obs get attached to the requested object
             for ds in dss:
 
                 #~ ds.load()
                 comp.add_obs(ds)
-        
+
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
         self.get_system().init_mesh()
         
@@ -1454,7 +1490,7 @@ class Bundle(object):
             print("only lc, rv, etv, and sp currently implemented")
         
         if output is not None:
-            self._attach_datasets(output)
+            self._attach_datasets(output, skip_defaults_from_body=dict())
                        
         
     def create_syn(self, category='lc', objref=None, dataref=None, **kwargs):
@@ -1889,8 +1925,9 @@ class Bundle(object):
         # clear all previous models and create new model
         system.clear_synthetic()
 
-        # <pieterdegroote> Necessary?
-        system.set_time(0)
+        # <pieterdegroote> I uncomment the following line, I don't think
+        # it is necessary?
+        #system.set_time(0)
         
         # get compute options
         if label is None:
@@ -2973,12 +3010,28 @@ class Bundle(object):
         
         return logf
     
-    def check(self, qualifier, index=0):
+    def check(self, qualifier=None, index=0):
         """
-        Check if a parameter has a finite log likelihood.
+        Check if a parameter (or all) has a finite log likelihood.
+        
+        If ``qualifier=None``, all parameters with priors are checked. If any is
+        found to be outside of bounds, ``False`` is returned. Otherwise, this
+        function returns ``True``.
         """
-        par = self.get_parameter(qualifier, return_type='all')[index]
-        return -np.isinf(par.get_logp())
+        
+        if qualifier is not None:
+            par = self.get_parameter(qualifier, return_type='all')[index]
+            return -np.isinf(par.get_logp())
+        
+        else:
+            system = self.get_system()
+            pars_with_priors = system.get_parameters_with_priors()
+            for par in pars_with_priors:
+                if np.isinf(par.get_logp()):
+                    return False
+        
+        return True
+            
         
     def updateLD(self):
         """

@@ -33,6 +33,7 @@ import os
 import itertools
 import functools
 import difflib
+import gc
 from collections import OrderedDict
 # Third party dependencies: matplotlib and pyfits are try-excepted
 import numpy as np
@@ -2576,7 +2577,11 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             
         except:
             logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
-        
+    
+    # There seems to be a memory leak in the marching method still, but it
+    # is solved by calling the gargabe collector. Perhaps there are some
+    # py_incref/py_decref statements missing?
+    gc.collect()
         
         
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
@@ -2695,6 +2700,11 @@ def binary_eclipse_algorithm(all_systems, algorithm):
     # If the separation between the two on the sky is smaller or equal to the 
     # sum of the radii, there can be an eclipse.
     if algorithm == 'binary_eclipse' or predict_eclipse:
+        
+        # If there is a total eclipse, we don't need to do anything either
+        # <program this>
+        
+        # Else, we can't do anything but truly compute the eclipses!
         eclipse.convex_graham([all_systems[0],all_systems[1]])
         return 'binary_eclipse', None
     # Else, we can treat them as simple detached stars

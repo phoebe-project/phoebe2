@@ -8,7 +8,7 @@ static PyObject *place_in_binary_orbit(PyObject *dummy, PyObject *args)
 {
     /* Place a mesh in a binary orbit
      * 
-     * Input: to-hull points, test points
+     *
      * Output: no output
      */
     

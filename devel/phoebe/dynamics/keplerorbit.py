@@ -1914,7 +1914,7 @@ def place_in_binary_orbit(self,time):
         polar_dir = default_polar_dir
     
     fields = mesh.dtype.names
-        
+    
     ctrans.place_in_binary_orbit(mesh['mu'], mesh['center'],
                              mesh['triangle'], mesh['normal_'],
                              mesh['velo___bol_'], polar_dir*omega_rot,
@@ -1924,6 +1924,85 @@ def place_in_binary_orbit(self,time):
         mesh['B_'] = ftrans.trans(mesh['B_'],euler,default_zeros,len(mesh['B_']))
     
     self.mesh = mesh
+
+
+
+def place_in_binary_orbit_old(self,time):
+    """
+    Place a body in a binary orbit at a specific time.
+    """
+    #-- get some information
+    P = self.params['orbit']['period']
+    e = self.params['orbit']['ecc']
+    a = self.params['orbit']['sma']
+    q = self.params['orbit']['q']
+    a1 = a / (1+1.0/q)
+    a2 = a-a1
+    deg2rad=pi/180.
+    inclin = self.params['orbit']['incl'] *deg2rad
+    argper = self.params['orbit']['per0'] *deg2rad
+    long_an = self.params['orbit']['long_an']*deg2rad
+    T0 = self.params['orbit'].get_value('t0')
+    n_comp = self.get_component()
+    component = ('primary', 'secondary')[n_comp]
+    t0type = self.params['orbit'].get('t0type','periastron passage')
+
+    if t0type == 'superior conjunction':
+        time = time - self.params['orbit']['phshift'] * P
+
+    a_comp = [a1, a2][n_comp]
+    
+    #-- where in the orbit are we? We need everything in cartesian Rsol units
+    loc, velo, euler = get_orbit(time, P, e, a_comp, T0, per0=argper, 
+                                 long_an=long_an, incl=inclin,
+                                 component=component, t0type=t0type)
+    
+    #-- we need a new copy of the mesh
+    mesh = self.mesh#.copy()
+    
+    #-- modify velocity vectors due to binarity and rotation within the orbit
+    #   rotational velocity
+    #   There's two posibilities: either we have a synchronicity parameter
+    #   or we don't. If we don't, we assume synchronous rotation
+    #-- rotational velocity
+    if 'component' in self.params and 'syncpar' in self.params['component']:
+        F = self.params['component']['syncpar']
+        logmsg = 'using synchronicity parameter ({:.3g})'.format(F)
+    else:
+        F = 1.
+        logmsg = 'could not find "syncpar"; assuming synchronisation'    
+    omega_rot = F * 2*pi/P # rad/d
+
+    #-- if we can't get the polar direction, assume it's in the negative Z-direction
+    try:
+        polar_dir = -self.get_polar_direction(norm=True)
+    except:
+        polar_dir = default_polar_dir
+    
+    fields = mesh.dtype.names
+    
+    velo_rot = fgeometry.cross_nx3_3(mesh['_o_center'], polar_dir*omega_rot)
+    velo_rot = ftrans.trans(velo_rot,euler,default_zeros,len(velo_rot))
+    mesh['center'] = ftrans.trans(mesh['center'],euler,loc,len(velo_rot))
+    mesh['triangle'][:,0:3] = ftrans.trans(mesh['triangle'][:,0:3],euler,loc,len(mesh['triangle'][:,0:3]))
+    mesh['triangle'][:,3:6] = ftrans.trans(mesh['triangle'][:,3:6],euler,loc,len(mesh['triangle'][:,3:6]))
+    mesh['triangle'][:,6:9] = ftrans.trans(mesh['triangle'][:,6:9],euler,loc,len(mesh['triangle'][:,6:9]))
+    mesh['normal_'] = ftrans.trans(mesh['normal_'],euler,default_zeros,len(mesh['normal_']))
+    mesh['velo___bol_'] += velo_rot+velo
+    mesh['mu'] = cgeometry.cos_theta(mesh['normal_'].ravel(order='F').reshape((-1,3)),default_los_dir)
+    # Add systemic velocity:
+    #globals = self.get_globals()
+    #if globals is not None:
+        ##vgamma = globals.request_value('vgamma', 'Rsol/d')
+        #vgamma = globals['vgamma'] * 1000. / constants.Rsol * 24 * 3600
+        #mesh['velo___bol_'][:,2] -= vgamma
+    
+    if 'B_' in fields:
+        mesh['B_'] = ftrans.trans(mesh['B_'],euler,default_zeros,len(mesh['B_']))
+    
+    self.mesh = mesh
+
+    #logger.info('Placed into orbit')
 
         
 def get_hierarchical_orbit_phoebe(times, orbits, comps):

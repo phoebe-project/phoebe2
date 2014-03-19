@@ -694,22 +694,35 @@ def plot_etvobs(system,errorbars=True,**kwargs):
 def plot_lcsyn_as_sed(system, *args, **kwargs):
     """
     Plot all lcsyns as an SED.
+    
+    To group together all the lcsyns which you want to plot, you can either
+    give:
+    
+        - :envvar:`time`: a single point in time
+        - :envvar:`group`: a group name
+        - :envvar:`ref_pattern`: a reference pattern contained in all references
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
     time = kwargs.pop('time', 0.)
+    group = kwargs.pop('group', None)
+    ref_pattern = kwargs.pop('ref_pattern', None)
     include_label = kwargs.pop('label', True)
     scale = kwargs.pop('scale', 'obs')
+    
+    
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
-    
     to_plot = OrderedDict()
+    
+    if ref_pattern is not None:
+        all_lc_refs = [ref for ref in all_lc_refs if ref_pattern in ref]
     
     # Collect the points per passband system, not per passband
     for j,ref in enumerate(all_lc_refs):
         # Get the pbdep (for info) and the synthetics
         dep, ref = system.get_parset(type='pbdep',ref=ref)
         syn = system.get_synthetic(category='lc',ref=ref).asarray()
-        print syn
+        
         # Try to get the observations. They don't need to be loaded, we just need
         # the pblum and l3 values.
         # We can scale the synthetic light curve using the observations
@@ -736,7 +749,11 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
             to_plot[pass_sys] = dict(x=[], y=[])
         
         # An SED means we need the effective wavelength of the passbands
-        right_time = (syn['time'] == time)
+        if group is None and ref_pattern is None:
+            right_time = (syn['time'] == time)
+        else:
+            right_time = np.ones(len(syn['time']), bool)
+        
         wave = passbands.get_info([passband])['eff_wave']
         wave = list(wave) * len(syn['flux'][right_time])
         
@@ -775,9 +792,14 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
     time = kwargs.pop('time', 0.)
+    group = kwargs.pop('group', None)
+    ref_pattern = kwargs.pop('ref_pattern', None)
     include_label = kwargs.pop('label', True)
+    
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
+    if ref_pattern is not None:
+        all_lc_refs = [ref for ref in all_lc_refs if ref_pattern in ref]
     
     to_plot = OrderedDict()
     
@@ -792,11 +814,15 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         
         
         # An SED means we need the effective wavelength of the passbands
-        right_time = (obs['time'] == time)
+        if group is None and ref_pattern is None:
+            right_time = (obs['time'] == time)    
+        else:
+            right_time = np.ones(len(obs['time']), bool)
+            
         if not np.any(right_time):
-            continue
-        wave = passbands.get_info([passband])['eff_wave']
+            continue    
         
+        wave = passbands.get_info([passband])['eff_wave']
         wave = list(wave) * len(obs['flux'][right_time])
         
         if not pass_sys in to_plot:
@@ -831,12 +857,18 @@ def plot_lcres_as_sed(system, *args, **kwargs):
     """
     cmap = kwargs.pop('cmap', plt.cm.spectral)
     time = kwargs.pop('time', 0.)
+    group = kwargs.pop('group', None)
+    ref_pattern = kwargs.pop('ref_pattern', None)
     scale = kwargs.pop('scale', 'obs')
     units = kwargs.pop('units', 'sigma')
     include_label = kwargs.pop('label', True)
+    
+    
     # We'll need to plot all the observations of the LC category
     all_lc_refs = system.get_refs(category='lc')
-    
+    if ref_pattern is not None:
+        all_lc_refs = [ref for ref in all_lc_refs if ref_pattern in ref]
+        
     to_plot = OrderedDict()
     
     # Collect the points per passband system, not per passband
@@ -873,7 +905,11 @@ def plot_lcres_as_sed(system, *args, **kwargs):
             to_plot[pass_sys] = dict(x=[], y=[], e_y=[])
         
         # An SED means we need the effective wavelength of the passbands
-        right_time = (obs['time'] == time)
+        if group is None and ref_pattern is None:
+            right_time = (obs['time'] == time)
+        else:
+            right_time = np.ones(len(obs['time']), bool)
+            
         if not sum(right_time):
             continue
         wave = passbands.get_info([passband])['eff_wave']
