@@ -750,6 +750,8 @@ def henyey_greenstein(mu, g=0.0):
     :math:`g=1`, there is only forward scattering; i.e. for any other phase
     angle, there will be no light reflected.
     
+    Reference: [Henyey1941]_
+    
     @param mu: scattering phase angle
     @type mu: float or array
     @param g: asymmetry factor
@@ -783,8 +785,8 @@ def henyey_greenstein2(mu, g1=0.8, g2=-0.38, f=0.9):
     This scattering phase function can reproduce Jupiter's phase function, if
     :math:`g_1=0.8`, :math:`g_2=-0.38` and :math:`f=0.9` (the defaults).
     
-    (http://www.gps.caltech.edu/~ulyana/www_papers/exosaturn/exosaturn_submitted.pdf
-    where we have a different definition of :math:`\mu`).
+    Reference: http://www.gps.caltech.edu/~ulyana/www_papers/exosaturn/exosaturn_submitted.pdf
+    where we have a different definition of :math:`\mu`.
     
     @param mu: scattering phase angle
     @type mu: float or array

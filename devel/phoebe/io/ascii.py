@@ -2,6 +2,7 @@
 Read and write ASCII files.
 """
 import gzip
+import bz2
 import logging
 import os
 import re
@@ -142,8 +143,11 @@ def read2list(filename,**kwargs):
     if isinstance(commentchar,str):
         commentchar = [commentchar]
     
-    if os.path.splitext(filename)[1] == '.gz':
+    extension = os.path.splitext(filename)[1]
+    if extension == '.gz':
         ff = gzip.open(filename)
+    elif extension == '.bz2':
+        ff = bz2.BZ2File(filename)
     else:
         ff = open(filename)
         

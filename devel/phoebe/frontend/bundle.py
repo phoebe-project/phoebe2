@@ -37,6 +37,7 @@ import pickle
 import logging
 import functools
 import inspect
+import textwrap
 import numpy as np
 from collections import OrderedDict
 from datetime import datetime
@@ -319,14 +320,31 @@ class Bundle(object):
         return self.to_string()
         
     def to_string(self):
+        
+        # Make sure to not print out all array variables
+        old_threshold = np.get_printoptions()['threshold']
+        np.set_printoptions(threshold=8)
         # TODO: expand this to be generic across all sections (with ignore_usersettings?)
         txt = ""
-        txt += "{} compute options\n".format(len(self.get_compute(return_type='list')))
+        txt += "============ Compute ============\n"
+        computes = self.get_compute(return_type='list')
+        for icomp in computes:
+            mystring = []
+            for par in icomp:
+                mystring.append("{}={}".format(par,icomp.get_parameter(par).to_str()))
+                if icomp.get_parameter(par).has_unit():
+                    mystring[-1] += ' {}'.format(icomp.get_parameter(par).get_unit())
+            mystring = ', '.join(mystring)
+            txt += "\n".join(textwrap.wrap(mystring, initial_indent='', subsequent_indent=7*' ', width=79))
+            txt += "\n"
+        txt += "============ Other ============\n"
         txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
         #txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
         txt += "============ System ============\n"
         txt += self.list(summary='full')
         
+        # Default printoption
+        np.set_printoptions(threshold=old_threshold)
         return txt
         
     ## act like a dictionary
@@ -1076,6 +1094,11 @@ class Bundle(object):
                 param.set_value(value, *args)
         else:
             raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
+        
+        # be sure to update the constraints
+        for path, val in self.get_system().walk_all():
+            if isinstance(val, parameters.ParameterSet):
+                val.run_constraints()
             
     def get_adjust(self, qualifier, return_type='single'):
         """
@@ -1144,7 +1167,7 @@ class Bundle(object):
         Get a prior.
         """
         pars = self.get_parameter(qualifier, return_type=return_type)
-        return pars[0].get_prior().get_limits()
+        return pars.get_prior()
     
     
     def set_prior(self, qualifier, apply_to='single', **dist_kwargs):
@@ -1175,6 +1198,9 @@ class Bundle(object):
         """
         Retrieve the log probability of a collection of (or all) datasets.
         """
+        
+        # Q <pieterdegroote>: should we check first for system.uptodate?
+        # Perhaps the run_compute didn't work out?
         
         if dataset is not None:
             # First disable/enabled correct datasets
@@ -1947,9 +1973,14 @@ class Bundle(object):
         else:
             mpi = kwargs.pop('mpi', None)
         
-        if options['time']=='auto' and anim==False:
+        # Q <pieterdegroote>: should we first set system.uptodate to False and
+        # then try/except the computations? Though we should keep track of
+        # why things don't work out.. how to deal with out-of-grid interpolation
+        # etc...
+        
+        if options['time'] == 'auto' and anim == False:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            system.compute(mpi=mpi,**options)
+            system.compute(mpi=mpi, **options)
         else:
             im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
             observatory.observe(system,options['time'],lc=True,rv=True,sp=True,pl=True,
@@ -1958,7 +1989,7 @@ class Bundle(object):
                 mpi=mpi,**options
                 )
                 
-        if anim!=False:
+        if anim != False:
             for ext in ['.gif','.avi']:
                 plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
@@ -2851,172 +2882,18 @@ class Bundle(object):
         self.set_system(self.get_system())
     
     #}
-    #{ Legacy interface
-    def getpar(self, qualifier, index=0):
-        """
-        Retrieve a parameter value.
-        
-        If there are more parameters with the same qualifier, you can use
-        :envvar:`index` to specify which one you want.
-        
-        **Example usage:**
-        
-        Let's have a look a the following system::
-        
-            >>> mybundle = Bundle('detached_1.phoebe')
-            >>> print(mybundle)
-            2 compute options
-            7 fitting options
-            Detached_1 (BodyBag)
-            lcobs: lightcurve_0
-            |
-            +----------> primary (BinaryRocheStar)
-            |            lcdep: lightcurve_0
-            |            rvdep: primaryrv_0
-            |
-            +----------> secondary (BinaryRocheStar)
-            |            lcdep: lightcurve_0
-            |            rvdep: secondaryrv_0
-            
-        If a parameter is unique, there is no ambiguity, but you still have the
-        option to specify to which parameterSet it belongs to::
-        
-            >>> print(mybundle.getpar('delta'))
-            0.0527721121858
-            >>> print(mybundle.getpar('delta@mesh:marching'))
-            0.0527721121858
-        
-        If you try to access a parameter that does not exist, you get a :envvar:`ValueError`::
-            
-            >>> print(mybundle.getpar('delta@component'))
-            ValueError: parameter delta with constraints "component" nowhere found in system
-            >>> print(mybundle.getpar('stock_price'))
-            ValueError: parameter stock_price with constraints "" nowhere found in system
-        
-        You can access *any* parameter, not just the physical ones::
-        
-            >>> print(mybundle.getpar('eclipse_alg'))
-            graham
-        
-        If a parameter is not unique, you get by default the first occurrence,
-        but you can specify the index to get the second one (or more)::
-        
-            >>> print(mybundle.getpar('teff'))
-            8350.0
-            >>> print(mybundle.getpar('teff', 1))
-            7780.0
-        
-        Alternatively, you can specify which component/parameterSet/dataset you
-        wish to access, and you can concatenate those specifications as long
-        as they go from lowest hierarchy (parameter name) to top level (body name).
-        In the latter concatenation, you can include/exclude as many levels as
-        you like::
-        
-            >>> print(mybundle.getpar('teff@secondary'))
-            7780.0
-            >>> print(mybundle.getpar('passband@secondaryrv_0'))
-            JOHNSON.V
-            >>> print(mybundle.getpar('passband@lightcurve_0@primary'))
-            JOHNSON.V
-            
-        .. note::
-        
-            You can always check your changes with::
-            
-                >>> print(mybundle.list(summary='physical'))
-            
-        @param qualifier: name of the parameter.
-        @type qualifier: str
-        @param index: takes the index-th occurrence of the parameter if multiple
-                      are found. If less then (index+1) occurrence are found,
-                      raises IndexError
-        @param index: int
-        @return: parameter value
-        """
-        pars = self.get_parameter(qualifier, return_type='all')
-        return pars[index].get_value()
-    
-    def setpar(self, qualifier, value, index=0):
-        """
-        Retrieve a parameter value.
-        
-        If there are more parameters with the same qualifier, you can use
-        :envvar:``index`` to specify which one you want.
-        
-        See :py:func:`Bundle.getpar` for examples on usage.
-        
-        @param qualifier: name of the parameter.
-        @type qualifier: str
-        @param value: parameter value
-        @type value: undefined
-        @param index: takes the index-th occurrence of the parameter if multiple
-                      are found. If less then (index+1) occurrence are found,
-                      raises IndexError
-        @param index: int
-        @return: parameter value
-        """
-        pars = self.get_parameter(qualifier, return_type='all')
-        return pars[index].set_value(value)
-    
-    
-    def getlim(self, qualifier, index=0):
-        """
-        Retrieve the limits of the prior on a parameter.
-        
-        @param qualifier: name of the parameter.
-        @type qualifier: str
-        @param index: takes the index-th occurrence of the parameter if multiple
-                      are found. If less then (index+1) occurrence are found,
-                      raises IndexError
-        @param index: int
-        @return: parameter limits
-        @rtype: tuple (low, high)
-        """
-        pars = self.get_parameter(qualifier, return_type='all')
-        return pars[index].get_prior().get_limits()
-    
-    def setlim(self, qualifier, lower, upper, index=0):
-        """
-        Set the limits of the prior on a parameter (only uniform priors).
-        """
-        pars = self.get_parameter(qualifier, return_type='all')
-        return pars[index].set_prior(distribution='uniform',
-                                     lower=lower, upper=upper)
-    
-    def cfval(self, dataset, index=None):
-        """
-        Retrieve the loglikelihood of one or more datasets.
-        
-        If index is None, all enabled datasets will be included.
-        """
-        # First disable/enabled correct datasets
-        old_state = []
-        location = 0
-        for obs in self.get_system().walk_type(type='obs'):
-            old_state.append(obs.get_enabled())
-            this_state = False    
-            if dataset == obs['ref'] or dataset == obs.get_context():
-                if index is None or index == location:
-                    this_state = True
-                location += 1
-            obs.set_enabled(this_state)
-        
-        # Then compute statistics
-        logf, chi2, n_data = self.get_system().get_logp()
-        
-        # Then reset the enable property
-        for obs, state in zip(self.get_system().walk_type(type='obs'), old_state):
-            obs.set_enabled(state)
-        
-        return logf
     
     def check(self, qualifier=None, index=0):
         """
         Check if a parameter (or all) has a finite log likelihood.
         
         If ``qualifier=None``, all parameters with priors are checked. If any is
-        found to be outside of bounds, ``False`` is returned. Otherwise, this
-        function returns ``True``.
+        found to be outside of bounds, ``False`` is returned. Any other parameter,
+        even the ones without priors, are checked for their limits. If any is
+        outside of the limits, ``False`` is returned. If no parameters are
+        outside of their priors and/or limits, ``True`` is returned.
+        
+        
         """
         
         if qualifier is not None:
@@ -3024,13 +2901,39 @@ class Bundle(object):
             return -np.isinf(par.get_logp())
         
         else:
+            
+            already_checked = []
             system = self.get_system()
-            pars_with_priors = system.get_parameters_with_priors()
-            for par in pars_with_priors:
-                if np.isinf(par.get_logp()):
-                    return False
-        
-        return True
+            
+            for path, val in system.walk_all():
+                
+                # If it's not a parameter don't bother
+                if not isinstance(val, parameters.Parameter):
+                    continue
+                
+                # If we've already checked this parameter, don't bother
+                if val in already_checked:
+                    continue
+                
+                # If the value has zero probability, we're not OK!
+                if val.has_prior() and np.isinf(val.get_logp()):
+                    break
+                
+                # If the value is outside of the limits (if it has any), we are
+                # not OK!
+                if not val.is_inside_limits():
+                    break
+                    
+                # Remember we checked this one
+                already_checked.append(val)
+            
+            else:
+                return True
+            
+            # If we jumped outside of the for loop, we've encountered at least
+            # one parameter that was not OK.
+            return False
+
             
         
     def updateLD(self):

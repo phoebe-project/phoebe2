@@ -573,6 +573,7 @@ def keep_only_results(system):
     system.remove_mesh()
     return system
 
+
 def remove_disabled_data(system):
     """
     Remove disabled data.
@@ -762,32 +763,58 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
         O = P_b M + l_3
     
     where :math:`O` represents the observations, :math:`M` the model, :math:`P_b`
-    represents a linear scaling factor (sometimes called passband luminosity)
-    and :math:`l_3` represents an offset term (sometimes called third light).
+    represents a linear scaling factor (here called passband luminosity)
+    and :math:`l_3` represents an offset term (here called third light). The
+    parameter :envvar:`sigma` represent the uncertainty on the observations,
+    which are used as weights in the fit. If they are not given, they are set
+    to unity.
     
     The user has the choice to fit none of, only one of, or both of ``pblum``
     and ``l3``.
     
     Note that the philosophy of this function is that we do **not** (I repeat
-    do **not**) touch the observations in *(any** circumstance. Our model should
-    generate the data, not otherwise. Of course sometimes you want to process
-    the observations before; you can, but do so before passing them to Phoebe
-    (e.g. normalizing a spectrum). Parameters that you want to introduce (either
-    fixed or to be fitted) should be stored inside the ``obs`` DataSets, and the
-    data generating functions (``lc`` etc..) should know about them.
+    do **not**) touch the observations in **any** circumstance. Our model should
+    generate the data, not the other way around. Of course sometimes you want to
+    process the observations before; you can, but do so before passing them to
+    Phoebe (e.g. normalizing a spectrum). Parameters that you want to introduce
+    (either fixed or to be fitted) should be stored inside the ``obs`` DataSets,
+    and the data generating functions (``lc`` etc..) should know about them.
     
     If no uncertainties are given, they will be set to unity.
     
-    Type:
-        - **nnls** does not allow negative coefficients: this can be useful for
-          light curves: you perhaps don't want to accommodate for negative third
-          light thingies.
-        - **lstsq** does allow negative coefficients: this can be used for spectral
-          lines: if the model profile is shallower than the observations, you
-          can still enlargen them.
+    Types:
+        - :envvar:`type='nnls'` does not allow negative coefficients: this can
+          be useful for light curves: you perhaps don't want to accommodate for
+          negative third light thingies.
+        - :envvar:`type='lstsq'` does allow negative coefficients: this can be
+          used for spectral lines: if the model profile is shallower than the
+          observations, you can still enlargen them.
           
-    The type can only be given if pblum and l3 need to be fitted (for no
-    particular reason).
+    The type only has effect if pblum and l3 need to be fitted simultaneously.
+    If only ``pblum`` is to be fitted, the passband luminosity is computed as
+    
+    .. math::
+    
+        P_b = \frac{\sum_i w_i \frac{O_i}{M_i}}{\sum_i w_i},
+        
+    with
+    
+    .. math::
+    
+        w_i = \frac{M^i}{\sigma_i^2}.
+        
+    If only third light needs to be computed, it is computed as
+    
+    .. math::
+    
+        l_3 = \frac{\sum_i w_i (O_i-M_i)}{\sum_i w_i},
+        
+    with
+    
+    .. math::
+    
+        w_i = \sigma_i^{-2}.
+        
     """
     # Choose the algorithm
     algorithm = dict(nnls=nnls, lstsq=np.linalg.lstsq)[type]
@@ -1703,6 +1730,13 @@ class Body(object):
         same pblum and/or l3 (i.e link them). This could make sense for SED
         fits, where pblum is then interpreted as some kind of scaling factor
         (e.g. the angular diameter). Perhaps there are other applications.
+        
+        The pblum and l3 (scale factor and offset value) have to be stored in
+        the observation set, because the synthetic sets can be virtual: for
+        example for light curves, there is no "one" synthetic light curve,
+        every component has its own from which the total one is built.
+        
+        See :py:func:`compute_pblum_or_l3` for more information.
         """
         link = None
         # We need observations of course
@@ -1732,7 +1766,7 @@ class Body(object):
                 continue
             
             # Get the model corresponding to this observation
-            model = subsystem.get_synthetic(category=obs.context[:-3],
+            syn = subsystem.get_synthetic(category=obs.context[:-3],
                                        ref=obs['ref'],
                                        cumulative=True)
 
@@ -1741,17 +1775,17 @@ class Body(object):
             
             # Get the "model" and "observations" and their error.
             if obs.context in ['spobs','plobs'] and 'flux' in obs:
-                model = np.array(model['flux'])/np.array(model['continuum'])
+                model = np.array(syn['flux'])/np.array(syn['continuum'])
                 obser = np.array(obs['flux']) / np.array(obs['continuum'])
                 sigma = np.array(obs['sigma'])
             
             elif obs.context == 'lcobs' and 'flux' in obs:
-                model = np.array(model['flux'])
+                model = np.array(syn['flux'])
                 obser = np.array(obs['flux'])
                 sigma = np.array(obs['sigma'])
             
             elif obs.context == 'rvobs' and 'rv' in obs and 'sigma' in obs:
-                model = np.array(model['rv'])
+                model = np.array(syn['rv'])
                 obser = np.array(obs['rv']/constants.Rsol*(24*3.6e6))
                 sigma = np.array(obs['sigma']/constants.Rsol*(24*3.6e6))
             
@@ -2338,7 +2372,6 @@ class Body(object):
         """
         mylist = []
         for path, val in self.walk_all():
-            path = list(path)
             if isinstance(val,parameters.Parameter) and val.has_prior() and not val in mylist:
                 mylist.append(val)
         return mylist
@@ -3011,6 +3044,10 @@ class Body(object):
         @param summary: type of summary (envvar:`long`, envvar:`short`, envvar:`physical`, envvar:`full`)
         @type summary: str
         """
+        # Make sure to not print out all array variables
+        old_threshold = np.get_printoptions()['threshold']
+        np.set_printoptions(threshold=8)
+        
         def add_summary_short(thing, text, width=79):
             """
             Add information on pbdeps, obs and syn
@@ -3343,6 +3380,9 @@ class Body(object):
             
             # Remember the label
             previous_label = label
+            
+        # Default printoption
+        np.set_printoptions(threshold=old_threshold)    
             
         return "\n".join(text)
     

@@ -49,6 +49,13 @@ static PyObject *place_in_binary_orbit(PyObject *dummy, PyObject *args)
     arr5 = PyArray_FROM_OTF(arg5, NPY_DOUBLE, NPY_INOUT_ARRAY);
     arr6 = PyArray_FROM_OTF(arg6, NPY_DOUBLE, NPY_INOUT_ARRAY);
     arr7 = PyArray_FROM_OTF(arg7, NPY_DOUBLE, NPY_IN_ARRAY);
+    if (arr1 == NULL) return NULL;
+    if (arr2 == NULL) return NULL;
+    if (arr3 == NULL) return NULL;
+    if (arr4 == NULL) return NULL;
+    if (arr5 == NULL) return NULL;
+    if (arr6 == NULL) return NULL;
+    if (arr7 == NULL) return NULL;
     
     // Pointers to data
     mu = (double *)PyArray_DATA(arr1); // pointer to data.
@@ -152,14 +159,16 @@ static PyObject *place_in_binary_orbit(PyObject *dummy, PyObject *args)
     }                    
         
     
-    Py_DECREF(arr1);
-    Py_DECREF(arr2);
-    Py_DECREF(arr3);
-    Py_DECREF(arr4);
-    Py_DECREF(arr5);
-    Py_DECREF(arr6);
-    Py_DECREF(arr7);
-    
+    Py_XDECREF(arr1);
+    Py_XDECREF(arr2);
+    Py_XDECREF(arr3);
+    Py_XDECREF(arr4);
+    Py_XDECREF(arr5);
+    Py_XDECREF(arr6);
+    Py_XDECREF(arr7);
+    // We need to incref Py None, otherwise we'll get a fatal Python error
+    // somewhere after executing this for many times...
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
