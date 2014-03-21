@@ -2941,12 +2941,7 @@ class Bundle(object):
                 # Remember we checked this one
                 already_checked.append(val)
             
-            else:
-                return True
-            
-            # If we jumped outside of the for loop, we've encountered at least
-            # one parameter that was not OK.
-            return False
+            return were_still_OK
 
             
         
