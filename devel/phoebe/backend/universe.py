@@ -760,14 +760,19 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
     
     .. math::
         
-        O = P_b M + l_3
+        O = P_b S + l_3
     
-    where :math:`O` represents the observations, :math:`M` the model, :math:`P_b`
-    represents a linear scaling factor (here called passband luminosity)
-    and :math:`l_3` represents an offset term (here called third light). The
-    parameter :envvar:`sigma` represent the uncertainty on the observations,
-    which are used as weights in the fit. If they are not given, they are set
-    to unity.
+    where :math:`O` represents the observations, :math:`S` the synthetics (the
+    model), :math:`P_b` represents a linear scaling factor (here called passband
+    luminosity) and :math:`l_3` represents an offset term (here called third
+    light). The parameter :envvar:`sigma` represent the uncertainty on the
+    observations, which are used as weights in the fit. If they are not given,
+    they are set to unity.
+    
+    The units of ``l3`` are the observer's units: i.e. if the observations are
+    normalised to 1, ``l3`` will be fractional. If they are normalised to 100,
+    ``l3`` is in percentage. If they are in absolute flux units, then also ``l3``
+    is in absolute flux units.
     
     The user has the choice to fit none of, only one of, or both of ``pblum``
     and ``l3``.
@@ -790,24 +795,25 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
           used for spectral lines: if the model profile is shallower than the
           observations, you can still enlargen them.
           
-    The type only has effect if pblum and l3 need to be fitted simultaneously.
-    If only ``pblum`` is to be fitted, the passband luminosity is computed as
+    The type only has effect if ``pblum`` and ``l3`` need to be fitted
+    simultaneously. If only ``pblum`` is to be fitted, the passband luminosity
+    is computed as
     
     .. math::
     
-        P_b = \frac{\sum_i w_i \frac{O_i}{M_i}}{\sum_i w_i},
+        P_b = \frac{\sum_i w_i \frac{O_i}{S_i}}{\sum_i w_i},
         
     with
     
     .. math::
     
-        w_i = \frac{M^i}{\sigma_i^2}.
+        w_i = \left(\frac{\sigma_i}{S_i}\right)^{-2}.
         
     If only third light needs to be computed, it is computed as
     
     .. math::
     
-        l_3 = \frac{\sum_i w_i (O_i-M_i)}{\sum_i w_i},
+        l_3 = \frac{\sum_i w_i (O_i-S_i)}{\sum_i w_i},
         
     with
     
@@ -1594,7 +1600,12 @@ class Body(object):
         And remember at what level we are!
         
         Each iteration, this function returns a path and a object (Body,
-        ParameterSet, Parameter)
+        ParameterSet, Parameter).
+        
+        We have a serious issue with this function: it should actually be
+        defined outside of the Body. Right now, you **have** to iterate completely
+        over it, i.e. not use the break statement. Otherwise, next time you
+        iterate you start from there..
         """
         for val,path in utils.traverse_memory(self,
                                      list_types=(Body, list,tuple),
@@ -1818,12 +1829,16 @@ class Body(object):
             # available in the dataset, and they are set to be adjustable
             do_pblum = False
             do_l3 = False
+            preset_pblum = 1.0 if not 'pblum' in obs else obs['pblum']
+            preset_l3 = 0.0 if not 'l3' in obs else obs['l3']
             
-            if 'pblum' in obs and obs.get_adjust('pblum'):
+            if 'pblum' in obs and obs.get_adjust('pblum') and not obs.has_prior('pblum'):
                 do_pblum = True
+                preset_pblum = 1.0
             
-            if 'l3' in obs and obs.get_adjust('l3'):
+            if 'l3' in obs and obs.get_adjust('l3') and not obs.has_prior('l3'):
                 do_l3 = True
+                preset_l3 = 0.0
             
             
             # Do the computations
@@ -1836,8 +1851,10 @@ class Body(object):
                 # But not in other stuff
                 else:
                     alg = 'nnls'
-                pblum,l3 = compute_pblum_or_l3(model, obser, sigma, 
-                               pblum=do_pblum, l3=do_l3, type=alg)
+                    
+                pblum,l3 = compute_pblum_or_l3(model,
+                               (obser - preset_l3)/preset_pblum,
+                               (sigma/preset_pblum), pblum=do_pblum, l3=do_l3, type=alg)
             
             #   perhaps we don't need to fit, but we still need to
             #   take it into account
@@ -2406,8 +2423,30 @@ class Body(object):
         @param func: name of a processing function in backend.processes
         @type func: str
         """
-        self._preprocessing.append((func, args, kwargs))
-
+        # first check if the preprocess is already available
+        available = [prep[0] for prep in self._preprocessing]
+        
+        # If it's available, overwrite
+        if func in available:
+            index = available.index(func)
+            self._preprocessing[index] = (func, args, kwargs)
+        
+        # Else append
+        else:
+            self._preprocessing.append((func, args, kwargs))
+    
+    def remove_preprocess(self, func):
+        """
+        Remove preprocess from a Body.
+        """
+        # first check if the preprocess is available
+        available = [prep[0] for prep in self._preprocessing]
+        
+        # If it's available, remove
+        if func in available:
+            index = available.index(func)
+            thrash = self._preprocessing.pop(index)
+        
 
     def add_postprocess(self, func, *args, **kwargs):
         """
