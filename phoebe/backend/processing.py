@@ -1,5 +1,5 @@
 """
-List of user-defined contraints.
+List of user-defined preprocessors.
 """
 from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
@@ -32,6 +32,49 @@ def binary_teffratio(self, time, teff_ratio=0.5, fix=0):
     self[1-fix].params['component']['teff'] = teff_ratio * self[fix].params['component']['teff']**( (-1)**fix)
 
 
+def gray_scattering(self, time):
+    """
+    Gray scattering means the same albedo in all passbands.
+    
+    This function runs over all albedo's, and founds the one which is adjustable.
+    It takes the value of that one, and forces it onto the other ones. This is
+    done on a body-to-body basis.
+    """
+    
+    for body in self.get_bodies():
+        
+        # We collect parameterSets because that allows us to keep evaluating
+        # constraints automatically. Keep track of the reference albedo (i.e.
+        # the adjustable one)
+        ps_with_alb = []
+        reference_albedo = None
+        
+        for path, val in body.walk_all():
+            if isinstance(val, parameter.ParameterSet):
+                if 'alb' in val:
+                    
+                    # Keep track of reference albedo
+                    if val.get_adjust('alb'):
+                        if reference_albdo is not None:
+                            raise ValueError("More than one albedo is set to be fitted in Body {}, can't figure out what gray scattering means in this context".format(body.get_label()))
+                        reference_albedo = val.get_value('alb')
+                    else:
+                        # Keep track of PSet
+                        ps_with_alb.append(val)
+        
+        # If there are albedos but none are adjustable, what do we need to set then?
+        if reference_albedo is None and len(ps_with_albedo):
+            raise ValueError("Albedos found in Body {}, but no reference albedo. Can't figure out what gray scattering means...".format(body.get_label()))
+
+        # Now set the albedo's to be equal
+        for ps in ps_with_alb:
+            ps['alb'] = reference_albedo
+            
+                    
+                
+        
+        
+
 
 def binary_morphology(self, time):
     """
@@ -47,6 +90,11 @@ def binary_morphology(self, time):
         - overcontact: set the maximum value of the potential to be the critical one
     
     """
+    # Don't rescale in the middle of the computations, only do it after everyting
+    # was computed (see observatory.compute)
+    if time is not None:
+        return None
+    
     orbit = self.params['orbit']
     component = self.params['component']
     morphology = component.get('morphology', 'detached')

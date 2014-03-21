@@ -2417,6 +2417,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     found_irradiator = False
     if heating or reflect:
         for loc, thing in system.walk_all():
+            
+            if found_irradiator:
+                continue
+            
             thing_is_parameter = isinstance(thing, parameters.Parameter)
             if thing_is_parameter and thing.get_qualifier() == 'irradiator':
                 
@@ -2426,9 +2430,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                     # If there's at least one irradiator, we need to leave it on
                     found_irradiator = True
                     logger.info("Including heating and/or reflection effects")
-                    break
-        else:
-            logger.critical("Requested to include heating and/or reflection, but no irradiators were found. Please set the 'irradiator' parameter to 'True' in the relevant bodies.")
+
                     
     # Otherwise we can switch irradiation completely off
     if not found_irradiator or not system_is_bbag:

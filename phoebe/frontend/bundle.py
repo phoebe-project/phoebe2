@@ -1960,7 +1960,7 @@ class Bundle(object):
             options = parameters.ParameterSet(context='compute')
         else:
             options = self.get_compute(label).copy()
-         
+        
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
             if k in options.keys():
@@ -1988,7 +1988,7 @@ class Bundle(object):
                 extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
                 mpi=mpi,**options
                 )
-                
+        
         if anim != False:
             for ext in ['.gif','.avi']:
                 plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
@@ -2885,7 +2885,13 @@ class Bundle(object):
     
     def check(self, qualifier=None, index=0):
         """
-        Check if a parameter (or all) has a finite log likelihood.
+        Check if a system is OK.
+        
+        What 'OK' is, depends on a lot of stuff. Typically this function can be
+        used to do some sanity checks when fitting, such that impossible systems
+        can be avoided.
+        
+        We check if a parameter (or all) has a finite log likelihood.
         
         If ``qualifier=None``, all parameters with priors are checked. If any is
         found to be outside of bounds, ``False`` is returned. Any other parameter,
@@ -2893,8 +2899,10 @@ class Bundle(object):
         outside of the limits, ``False`` is returned. If no parameters are
         outside of their priors and/or limits, ``True`` is returned.
         
-        
+        We preprocess the system first.
         """
+        
+        self.get_system().preprocess()
         
         if qualifier is not None:
             par = self.get_parameter(qualifier, return_type='all')[index]
@@ -2904,8 +2912,12 @@ class Bundle(object):
             
             already_checked = []
             system = self.get_system()
+            were_still_OK = True
             
             for path, val in system.walk_all():
+                
+                if not were_still_OK:
+                    continue
                 
                 # If it's not a parameter don't bother
                 if not isinstance(val, parameters.Parameter):
@@ -2917,12 +2929,14 @@ class Bundle(object):
                 
                 # If the value has zero probability, we're not OK!
                 if val.has_prior() and np.isinf(val.get_logp()):
-                    break
+                    were_still_OK = False
+                    continue
                 
                 # If the value is outside of the limits (if it has any), we are
                 # not OK!
                 if not val.is_inside_limits():
-                    break
+                    were_still_OK = False
+                    continue
                     
                 # Remember we checked this one
                 already_checked.append(val)
@@ -2969,6 +2983,16 @@ class Bundle(object):
         """
         self.set_value('refl', on, apply_to='all')
     
+    def set_gray_scattering(self, on=True):
+        """
+        Force gray scattering.
+        """
+        system = self.get_system()
+        if on:
+            system.add_preprocess('gray_scattering')
+        else:
+            system.remove_preprocess('gray_scattering')
+            
     
     
 class Version(object):

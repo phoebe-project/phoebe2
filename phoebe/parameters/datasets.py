@@ -147,7 +147,10 @@ class DataSet(parameters.ParameterSet):
         FITS and ASCII. This load function should be different for spectra,
         light curve etc.
         """
+        # File exists
         if self.has_qualifier('filename') and os.path.isfile(self.get_value('filename')):
+            
+            # First load data
             filename = self.get_value('filename')
             columns = self.get_value('columns')
             #-- check if the data is already in here, and only reload when
@@ -160,7 +163,37 @@ class DataSet(parameters.ParameterSet):
                     self.add(dict(qualifier=columns[i],value=col,description='<loaded from file {}>'.format(filename)))
                 else:
                     self[columns[i]] = col
-           # logger.info("Loaded contents of {}".format(filename))
+           
+            # Then try to load header:
+            with open(filename, 'r') as ff:
+                while True:
+                    line = ff.readline()
+                    
+                    # End of file
+                    if not line:
+                        break
+                   
+                    # End of header
+                    elif not line[0] == '#':
+                        break
+                   
+                    # Separator
+                    elif line[:4] == '#---':
+                        continue
+                    
+                    # Some other line
+                    elif not '=' in line:
+                        continue
+                    
+                    key, val = line[1:].split('=')
+                    key = key.strip()
+                    val = val.strip()                    
+                   
+                    if key in self.keys():
+                        self[key] = val
+           
+           
+        # File does not exist
         elif self.has_qualifier('filename') and self['filename']:
             
             if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
@@ -184,7 +217,7 @@ class DataSet(parameters.ParameterSet):
             for col in columns:
                 if col in self: self.remove(col)
     
-    def save(self,filename=None,pretty_header=False):
+    def save(self, filename=None, pretty_header=False):
         """
         Save the contents of C{columns} to C{filename}.
         
@@ -210,13 +243,14 @@ class DataSet(parameters.ParameterSet):
             filename = self['ref']
         
         #-- prepare to write a pretty header.
-        header = '# '   
+        header = '#NAME '   
         #-- possibly we need to redefine the columns here:
         for col in self['columns']:
             if not len(self[col]):
                 self[col] = np.zeros(len(self['time']))
             header += ' {} '.format(col)
-        header = header + '\n' + '#' + '-'*(len(header)-1) + '\n'
+        separator = '#' + '-'*(len(header)-1) + '\n'
+        header = header + '\n' + separator
                 
         #-- open the filename or the stream
         if isinstance(filename,str):
@@ -225,6 +259,9 @@ class DataSet(parameters.ParameterSet):
             ff = filename
         
         #-- write the parameters which are not columns
+        if pretty_header:
+            ff.write(separator)
+        
         for key in self:
             if not key in self['columns']:
                 par = self.get_parameter(key)
