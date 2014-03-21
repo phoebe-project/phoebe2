@@ -618,10 +618,23 @@ def disk_linear(coeffs):
     Disk integration.
     
     From Kallrath & Milone.
+    
+    .. math::
+        
+        \int_{2\pi} (1 - \epsilon + \epsilon\mu d\Omega = \pi (1-\frac{\epsilon}{3})
+        
     """
     return np.pi*(1 - coeffs[0]/3.)
 
 def disk_uniform(coeffs):
+    """
+    Disk integration with no limbdarkening (uniform).
+    
+    .. math::
+    
+        \int_{2\pi} d\Omega = \pi
+        
+    """
     return np.pi
 
 def disk_nonlinear(coeffs):

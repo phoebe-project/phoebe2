@@ -54,6 +54,7 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     arr1 = PyArray_FROM_OTF(arg1, NPY_DOUBLE, NPY_IN_ARRAY);
     if (arr1 == NULL) return NULL;
     arr2 = PyArray_FROM_OTF(arg2, NPY_DOUBLE, NPY_IN_ARRAY);
+    if (arr2 == NULL) return NULL;
     
     
     points = (double *)PyArray_DATA(arr1); // pointer to data.
@@ -91,8 +92,8 @@ static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
     }
     
     delete inside;
-    Py_DECREF(arr1);
-    Py_DECREF(arr2);
+    Py_XDECREF(arr1);
+    Py_XDECREF(arr2);
     
     // Return tuple of arrays
     PyObject *tupleresult = PyTuple_New(2);
