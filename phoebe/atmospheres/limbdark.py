@@ -1455,8 +1455,8 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order)
-        #if np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
-        #    raise IndexError
+        if np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
+            raise IndexError
     
     # Things can go outside the grid
     except IndexError:
@@ -3111,14 +3111,15 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     # 2. atm_file and ld_coeffs file are not the same
     elif atm in config.atm_props:
         
+        # First the local normal emergent intensities.
         # Find the possible interpolation parameters
         atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
         fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
         
-        # Find the interpolation file
+        # Find the interpolation file. Force a uniform ld.
         atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
-                                      ld_func=ld_func,
+                                      ld_func='uniform',
                                       fitmethod=fitmethod)
         
         # And interpolate the table
