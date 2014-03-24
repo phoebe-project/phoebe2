@@ -346,6 +346,8 @@ basedir_ld_coeffs = os.path.join(basedir, 'tables', 'ld_coeffs')
 
 Rsol_d_to_kms = constants.Rsol/(24*3600.)/1000.
 
+_prsa_ld = np.linspace(0, 1, 32)
+_prsa_res = _prsa_ld[0] - _prsa_ld[1]
 
 #{ LD laws
 
@@ -399,6 +401,22 @@ def ld_hillen(mu, coeffs):
     Imu = (coeffs[0] + (coeffs[1] + coeffs[2] * np.abs(mu) + coeffs[6] * mu**2) * np.arctan(coeffs[4]*(mu-coeffs[3])))*(-skew*1e-8/(mu**4+skew*1e-8)+1.)
     
     return Imu
+
+
+
+def ld_prsa(mu, coeffs):
+    r"""
+    Empirical limb darkening law proposed by A. Prsa.
+    """
+    # 32 samples uniformly in cos(theta) = mu
+    mu = 1-mu
+    indices1 = np.searchsorted(_prsa_ld, mu)
+    indices2 = indices1 - 1
+    dy_dx = (coeffs[:,indices2] - coeffs[:,indices1]) / (_prsa_ld[indices2] - _prsa_ld[indices1])
+    Imu = dy_dx * (mu - _prsa_ld[indices1]) + coeffs[:,indices1]
+    
+    return Imu[0]
+    
 
 
 def ld_linear(mu, coeffs):
@@ -614,7 +632,7 @@ def _mu(r_):
 
 
 def disk_linear(coeffs):
-    """
+    r"""
     Disk integration.
     
     From Kallrath & Milone.
@@ -662,9 +680,10 @@ def disk_claret(coeffs):
 #{ Specific intensities
 
 
-def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun')):
+def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun'),
+                        beaming=False):
     """
-    Retrieve all gridpoints from a specific intensity grid.
+    Retrieve all gridpoints from a specific intensity grid or LD coeffs file.
     
     @param atm: atmosphere grid filename
     @type atm: str
@@ -674,6 +693,13 @@ def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun')):
     @return: arrays with the axis values for each grid point.
     """
     
+    # Derive the filename if the user gave a ParameterSet
+    if not isinstance(atm, str):
+        atm = choose_ld_coeffs_table(atm['atm'], ld_func=atm['ld_func'],
+                               atm_kwargs={key:[] for key in atm_pars},
+                               vgamma=0.0 if not beaming else 1.0)
+    
+    # Now open the file and go
     with pyfits.open(atm) as ff:
         # ld_coeffs file
         if atm_pars[0] in ff[1].data.dtype.names:
@@ -691,6 +717,35 @@ def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun')):
                     dims[j][i] = mod.header[key]            
     
     return dims
+
+
+
+def get_passbands(atm, atm_pars=('teff', 'logg', 'abun'),
+                        beaming=False):
+    """
+    Retrieve all passbands from a LD coeffs file.
+    
+    @param atm: atmosphere grid filename
+    @type atm: str
+    @param atm_pars: grid axis
+    @type atm_pars: tuple of strings
+    @rtype: n x array
+    @return: arrays with the axis values for each grid point.
+    """
+    
+    # Derive the filename if the user gave a ParameterSet
+    if not isinstance(atm, str):
+        atm = choose_ld_coeffs_table(atm['atm'], ld_func=atm['ld_func'],
+                               atm_kwargs={key:[] for key in atm_pars},
+                               vgamma=0.0 if not beaming else 1.0)
+    
+    # Now open the file and go
+    with pyfits.open(atm) as ff:
+        passbands = [ext.header['EXTNAME'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF']
+    
+    return passbands
+
+
 
 
 def iter_grid_dimensions(atm,atm_pars,other_pars):
@@ -3119,7 +3174,7 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         # Find the interpolation file. Force a uniform ld.
         atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
-                                      ld_func='uniform',
+                                      ld_func=ld_func,
                                       fitmethod=fitmethod)
         
         # And interpolate the table
