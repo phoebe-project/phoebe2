@@ -61,7 +61,10 @@ that case, supply a list with coefficients to ``ld_coeffs``.
     passband, set the ``atm``, ``ld_coeffs`` and ``ld_func`` as well!
 
 
-See the :ref:`limbdark <limbdark-atmospheres>` module for more information.
+See the :ref:`limbdark <limbdark-atmospheres>` module for more information and
+:py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.limbdark.compute_grid_ld_coeffs>`
+for more info on how to compute limb darkening tables.
+
 
 Section 2.2 Reflection and heating
 -----------------------------------
@@ -157,10 +160,19 @@ treated correctly.
 Section 2.5 Eclipse detection
 --------------------------------------
 
-The default eclipse detection is optimized for binaries but will not work
-otherwise. Depending on the circumstances, you can choose any of the following:
+The eclipse detection algorithm is set via the parameter ``eclipse_alg``.
+Depending on the circumstances, you can choose any of the following:
 
-TBD
+    - ``only_horizon``: simples, and assumes different bodies do not overlap
+      at all. If the normal of a triangle is pointed in the observer's direction,
+      it is assumed to be visible.
+    - ``full``: checks if any triangle is eclipsed by any other. Can also detect
+      self-eclipsing parts. Very slow.
+    - ``graham``: Assumes bodies have convex shapes, and uses a Graham scan and
+      fast "point in hull" algorithms to label eclipsed triangles.
+    - ``binary`` (default): uses Graham scan algorithm (assuming convex bodies)
+      to compute eclipses during expected eclipse times, and uses ``only_horizon``
+      otherwise.
 
 Section 2.6 Subdivision
 --------------------------------------

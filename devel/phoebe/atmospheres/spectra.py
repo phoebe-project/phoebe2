@@ -14,7 +14,9 @@ from phoebe.utils import decorators
 logger = logging.getLogger('ATMO.SP')
 
 _aliases = {'atlas':'ATLASp_z0.0t0.0_a0.00_spectra.fits',\
-            'bstar':'BSTAR2006_z0.000v2_vis_spectra.fits'}
+            'bstar':'BSTAR2006_z0.000v2_vis_spectra.fits',
+            'ostar':'OSTAR2002_z0.000v10_vis_spectra.fits',
+            'ostarfw':'OSTARFW_z0.000v5_vis_spectra.fits',}
 
 @decorators.memoized
 def _prepare_grid_spectrum(wrange, gridfile):
@@ -34,6 +36,8 @@ def _prepare_grid_spectrum(wrange, gridfile):
             #print index1,index2,wave.min(),wave.max(),len(wave),len(flux),len(cont)wrange[0],wrange[-1]
             index1 -= 1
             index2 += 1
+            if index1 < 0:
+                raise ValueError("Template wavelength for spectrum is not covered by grid (min wavelength in grid = {}, min wavelength of template = {})".format(wave.min(), wrange[0]))
             flux = np.interp(wrange,wave[index1:index2],flux[index1:index2])
             cont = np.interp(wrange,wave[index1:index2],cont[index1:index2])
             grid_data[:,i] = np.hstack([flux,cont])

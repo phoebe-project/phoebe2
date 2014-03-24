@@ -363,6 +363,56 @@ def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):
         logger.info("star '{}': 'rotperiod' not necessarily consistent with 'rotfreqcrit'".format(star['label']))
     #-- we didn't explicitly set a value here!
     star.run_constraints()
+
+def add_vrotcrit(star, vrotcrit=None, derive='rotperiod',**kwargs):
+    r"""
+    Add the fractional critical rotation velocity to a star.
+    
+    .. math::
+    
+        \frac{v}{v_c} = \frac{R(\omega)}{R_\mathrm{eq}}\frac{\Omega}{\Omega_c}\\
+           &          = 2\cos\left(\frac{\pi+\arccos(\omega)}{3}\right)
+           
+    and thus
+    
+    .. math::
+        
+        \omega = \cos\left(3\arccos(\frac{v}{2v_c})-\pi\right)
+           
+    Small :math:`\omega` is fractional rotation frequency (dimensionless), big
+    :math:\Omega` is true rotation frequency (Hz).
+    """
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('description','Equatorial rotational velocity/critical rotational velocity')
+    kwargs.setdefault('llim',0.0)
+    kwargs.setdefault('ulim',1.0)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
+    
+    star.pop_constraint('vrotcrit', None)
+    
+    if vrotcrit is None:
+        radius = star.get_value('radius','m')
+        mass = star.get_value('mass','kg')
+        rotperiod = star.get_value('rotperiod','s')
+        
+    
+    if not 'vrotcrit' in star:
+        star.add(parameters.Parameter(qualifier='vrotcrit',
+                                      value=vrotcrit, **kwargs))
+    else:
+        star['vrotcrit'] = vrotcrit
+    
+    if derive == 'rotperiod':
+        star.pop_constraint('rotperiod', None)
+        # Rotperiod = omega/omega_crit * omega_crit, derived from v/v_crit
+        star.add_constraint('{rotperiod} = 2*np.pi / (np.cos(3*np.arccos(0.5*{vrotcrit}) - np.pi) * np.sqrt( (8*constants.GG*{mass})/(27*{radius}**3)))')
+        logger.info("star '{}': 'rotperiod' constrained by 'vrotcrit'".format(star['label']))
+
+    star.run_constraints()
+
     
 
 def add_radius_eq(star,radius_eq=None,derive=None,unit='Rsol',**kwargs):
