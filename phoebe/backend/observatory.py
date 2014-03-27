@@ -269,6 +269,10 @@ def image(the_system, ref='__bol', context='lcdep',
         cmap = pl.cm.afmhot
         if background is None:
             background = '0.7'
+    elif cmap is None and select == 'logg':
+        cmap = pl.cm.gnuplot
+        if background is None:
+            background = '0.7'
     elif cmap is None and select[0] == 'B':
         cmap = pl.cm.jet
     elif cmap is None:
@@ -1418,10 +1422,10 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         total_continum = np.ones_like(wavelengths)
 
     #-- convolve with instrumental profile if desired
-    if R is not None:
+    if R is not None and R > 0:
         instr_fwhm = wc/R
         
-        logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA'.format(instr_fwhm))
+        logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA (R={})'.format(instr_fwhm, R))
         try:
             total_spectrum = tools.broadening_instrumental(wavelengths,
                        total_spectrum/total_continum, width=instr_fwhm,

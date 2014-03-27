@@ -7,6 +7,7 @@ Tools to handle parameters and ParameterSets, and add nonstandard derivative par
     
     add_vsini
     add_rotfreqcrit
+    add_vrotcrit
     add_surfgrav
     add_teffpolar
     add_angdiam
@@ -212,6 +213,49 @@ def add_surfgrav(star,surfgrav=None,derive='mass',unit='[cm/s2]',**kwargs):
         logger.info("star '{}': '{}' constrained by 'surfgrav' and 'mass'".format(star['label'],derive))
     else:
         raise ValueError("Cannot derive {} from surface gravity".format(derive))
+
+
+def add_luminosity(star, luminosity=None, derive=None,unit='[Lsol]',**kwargs):
+    r"""
+    Add luminosity to a Star parameterSet.
+   
+    @param star: star parameterset
+    @type star: ParameterSet of context star
+    @param surfgrav: luminosity
+    @type surfgrav: float
+    @param derive: qualifier of the dependent parameter
+    @type derive: str, one of C{teff}, C{radius}
+    @param unit: units of luminosity
+    @type unit: str
+    """
+    if kwargs and 'luminosity' in star:
+        raise ValueError("You cannot give extra kwargs to add_surfgrav if it already exist")
+    
+    kwargs.setdefault('description','Luminosity')
+    kwargs.setdefault('unit',unit)
+    kwargs.setdefault('context',star.context)
+    kwargs.setdefault('adjust',False)
+    kwargs.setdefault('frame','phoebe')
+    kwargs.setdefault('cast_type',float)
+    kwargs.setdefault('repr','%f')
+    
+    
+    #-- remove any constraints on luminosity and add the parameter
+    star.pop_constraint('luminosity',None)
+    if not 'luminosity' in star:
+        star.add(parameters.Parameter(qualifier='luminosity',value=0.0,
+                                      **kwargs))
+    else:
+        star['luminosity'] = luminosity
+        
+    #-- specify the dependent parameter
+    if derive is None:
+        star.add_constraint('{luminosity} = 4*np.pi*{radius}**2*constants.sigma*{teff}**4')
+        logger.info("star '{}': 'luminosity' constrained by 'teff' and 'radius'".format(star['label']))
+    else:
+        raise ValueError("Cannot derive {} from luminosity".format(derive))
+
+
    
 def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     r"""

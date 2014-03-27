@@ -297,9 +297,10 @@ def luminosity(body, ref='__bol', numerical=False):
     # Set the intensities if they are not calculated yet
     ld_law = parset['ld_func']
     ld = body.mesh['ld_' + ref]
+    
     if np.all(ld==0):
         body.intensity(ref=ref)
-    
+        
     # Get a reference to the mesh, and get the sizes of the triangles in real
     # units
     mesh = body.mesh
@@ -392,11 +393,15 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         partial = vis_mesh['partial']
         
         # Compute intensity using the already calculated limb darkening
-        # coefficents
+        # coefficents, or interpolate here if we're using the Prsa method.
         logger.info('using limbdarkening law {}'.format((ld_func)))
-        Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mus, vis_mesh['ld_'+ref].T)\
+        if ld_func != 'prsa':
+            Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mus, vis_mesh['ld_'+ref].T)\
                       * vis_mesh['ld_'+ref][:,-1]
-                  
+        else:
+            Imu = limbdark.ld_intensity_prsa(system, idep)
+        
+        
         # Do the beaming correction
         if beaming_alg == 'simple' or beaming_alg == 'local':
             # Retrieve beming factor

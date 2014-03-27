@@ -16,8 +16,8 @@ logger = logging.getLogger('ATMO.SP')
 _aliases = {'atlas':'ATLASp_z0.0t0.0_a0.00_spectra.fits',\
             'bstar':'BSTAR2006_z0.000v2_vis_spectra.fits',
             'ostar':'OSTAR2002_z0.000v10_vis_spectra.fits',
-            'ostarfw':'OSTARFW_z0.000v5_vis_spectra.fits',
-            'bstarfw':'BSTARFW_z0.000v5_vis_spectra.fits'}
+            'fw_HHe':'FWHHe_z0.000v5_vis_spectra.fits',
+            'fw_HHeSiCNOMg':'FWHHeSiCNOMg_z0.000v5_vis_spectra.fits'}
 
 @decorators.memoized
 def _prepare_grid_spectrum(wrange, gridfile):

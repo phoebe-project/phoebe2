@@ -58,7 +58,7 @@ def create_pixeltypegrid(grid_pars, grid_data):
     return axis_values, pixelgrid
 
 
-def interpolate(p, axis_values, pixelgrid, order=1):
+def interpolate(p, axis_values, pixelgrid, order=1, mode='constant', cval=0.0):
     """
     Interpolates in a grid prepared by create_pixeltypegrid().
     
@@ -80,7 +80,9 @@ def interpolate(p, axis_values, pixelgrid, order=1):
         prefilter = False
     else:
         prefilter = False
-    return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=order, prefilter=prefilter) \
+
+    return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=order,
+                                    prefilter=prefilter, mode=mode, cval=cval) \
                 for i in range(np.shape(pixelgrid)[-1])]
     
 

@@ -3102,7 +3102,6 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     if not include_vgamma or ref=='__bol':
         vgamma = 0.0
     
-
     # In the following we need to take care of a lot of possible inputs by the
     # user, and some possible simplifications for the calculations.
     #
@@ -3139,123 +3138,128 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     ldc = parset_pbdep['ld_coeffs']
     ld_func = parset_pbdep['ld_func']
     
-    # 1. Easiest case: atm_file and ld_coeffs file are consistent
-    if atm == ldc and atm in config.atm_props:
-        
-        # Find the possible interpolation parameters
-        atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
-        fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
-        
-        # Get the atmosphere file
-        atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
-                                      red_kwargs=red_kwargs, vgamma=vgamma,
-                                      ld_func=ld_func,
-                                      fitmethod=fitmethod)
-        
-        coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
-                                           red_kwargs=red_kwargs, vgamma=vgamma)
-        
-        # Fill in the LD coefficients, but put the intensities in the last
-        # column
-        for collnr, coefcoll in enumerate(coeffs[:-1]):
-            system.mesh[tag][:, collnr] = coefcoll
-        system.mesh[tag][:, -1] = coeffs[-1]
-        
-        log_msg += ' atm and ld_coeffs from table {}'.format(os.path.basename(atm_file))
-    
-    # 2. atm_file and ld_coeffs file are not the same
-    elif atm in config.atm_props:
-        
-        # First the local normal emergent intensities.
-        # Find the possible interpolation parameters
-        atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
-        fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
-        
-        # Find the interpolation file. Force a uniform ld.
-        atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
-                                      red_kwargs=red_kwargs, vgamma=vgamma,
-                                      ld_func=ld_func,
-                                      fitmethod=fitmethod)
-        
-        # And interpolate the table
-        coeffs_atm, header = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
-                                           red_kwargs=red_kwargs, vgamma=vgamma, return_header=True)
-        
-        log_msg += ' atm from table {}'.format(os.path.basename(atm_file))
-        
-        # ld_coeffs can either be a file or a user-specified list of
-        # coefficients. We'll first assume that we have a file, if that doesn't
-        # work, we'll assume its a set of coefficients
-        try:
-            fitmethod_ldc = config.fit_props.get(ldc, 'equidist_r_leastsq')
-            ldc_file = choose_ld_coeffs_table(ldc, atm_kwargs=atm_kwargs,
-                                      red_kwargs=red_kwargs, vgamma=vgamma,
-                                      ld_func=ld_func,
-                                      fitmethod=fitmethod_ldc) 
-        
-            coeffs_ldc = interp_ld_coeffs(ldc_file, passband, atm_kwargs=atm_kwargs,
-                                           red_kwargs=red_kwargs, vgamma=vgamma)[:-1]
+    if not ldc == 'prsa':
+        # 1. Easiest case: atm_file and ld_coeffs file are consistent
+        if atm == ldc and atm in config.atm_props:
             
-            log_msg += ', ld_coeffs from table {}'.format(os.path.basename(ldc_file))
+            # Find the possible interpolation parameters
+            atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
+            fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
             
-        # Otherwise it's a list or so, and we don't need to interpolate
-        except TypeError:
-            coeffs_ldc = ldc
+            # Get the atmosphere file
+            atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
+                                        red_kwargs=red_kwargs, vgamma=vgamma,
+                                        ld_func=ld_func,
+                                        fitmethod=fitmethod)
             
-            log_msg += ', manual ld_coeffs ({})'.format(ldc)
+            coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
+                                            red_kwargs=red_kwargs, vgamma=vgamma)
+            
+            # Fill in the LD coefficients, but put the intensities in the last
+            # column
+            for collnr, coefcoll in enumerate(coeffs[:-1]):
+                system.mesh[tag][:, collnr] = coefcoll
+            system.mesh[tag][:, -1] = coeffs[-1]
+            
+            log_msg += ' atm and ld_coeffs from table {}'.format(os.path.basename(atm_file))
         
-        # Find out what the luminosity is for every triangle with the original
-        # limb-darkening function. Compute a correction factor to keep the
-        # luminosity from the atm grid, but rescale it to match the ld_func
-        # given. This is what happens when you give inconsistent atmosphere
-        # and limbdarkening coefficients!
-        input_ld = header['C__LD_FUNC']
-        atm_disk_integral = globals()['disk_{}'.format(input_ld)](coeffs_atm[:-1])
-        ldc_disk_integral = globals()['disk_{}'.format(ld_func)](coeffs_ldc)
-        correction_factor = atm_disk_integral / ldc_disk_integral
+        # 2. atm_file and ld_coeffs file are not the same
+        elif atm in config.atm_props:
+            
+            # First the local normal emergent intensities.
+            # Find the possible interpolation parameters
+            atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
+            fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
+            
+            # Find the interpolation file. (todo: Force a uniform ld in the future.)
+            atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
+                                        red_kwargs=red_kwargs, vgamma=vgamma,
+                                        ld_func=ld_func,
+                                        fitmethod=fitmethod)
+            
+            # And interpolate the table
+            coeffs_atm, header = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
+                                            red_kwargs=red_kwargs, vgamma=vgamma, return_header=True)
+            
+            log_msg += ' atm from table {}'.format(os.path.basename(atm_file))
+            
+            # ld_coeffs can either be a file or a user-specified list of
+            # coefficients. We'll first assume that we have a file, if that doesn't
+            # work, we'll assume its a set of coefficients
+            try:
+                fitmethod_ldc = config.fit_props.get(ldc, 'equidist_r_leastsq')
+                ldc_file = choose_ld_coeffs_table(ldc, atm_kwargs=atm_kwargs,
+                                        red_kwargs=red_kwargs, vgamma=vgamma,
+                                        ld_func=ld_func,
+                                        fitmethod=fitmethod_ldc) 
+            
+                coeffs_ldc = interp_ld_coeffs(ldc_file, passband, atm_kwargs=atm_kwargs,
+                                            red_kwargs=red_kwargs, vgamma=vgamma)[:-1]
+                
+                log_msg += ', ld_coeffs from table {}'.format(os.path.basename(ldc_file))
+                
+            # Otherwise it's a list or so, and we don't need to interpolate
+            except TypeError:
+                coeffs_ldc = ldc
+                
+                log_msg += ', manual ld_coeffs ({})'.format(ldc)
+            
+            # Find out what the luminosity is for every triangle with the original
+            # limb-darkening function. Compute a correction factor to keep the
+            # luminosity from the atm grid, but rescale it to match the ld_func
+            # given. This is what happens when you give inconsistent atmosphere
+            # and limbdarkening coefficients!
+            input_ld = header['C__LD_FUNC']
+            atm_disk_integral = globals()['disk_{}'.format(input_ld)](coeffs_atm[:-1])
+            ldc_disk_integral = globals()['disk_{}'.format(ld_func)](coeffs_ldc)
+            correction_factor = atm_disk_integral / ldc_disk_integral
+            
+            # Fill in the LD coefficients, but put the intensities in the last
+            # column. Correct the intensities for the new limb darkening law
+            for collnr, coefcoll in enumerate(coeffs_ldc):
+                system.mesh[tag][:, collnr] = coefcoll
+            system.mesh[tag][:, -1] = coeffs_atm[-1] * correction_factor
+            
+        # 3. True Blackbody we'll treat separately. There are no limits on the
+        # effective temperature used. Note that black bodies are not sensitive to
+        # logg (or anything else for that matter).
+        elif atm == 'true_blackbody':
+            
+            if beaming_alg and beaming_alg != 'full':
+                raise ValueError("With atm=true_blackbody you can only use beaming_alg='full' or beaming_alg='none'.")
+            
+            wave_ = np.logspace(1, 5, 10000)
+            log_msg += (', intens via atm=true_blackbody (this is going to take '
+                    'forever...)')
+            
+            # Seriously, don't try to do this for every triangle! Let's hope
+            # uniform_pars is true...
+            uniform_pars = False
+            if uniform_pars:
+                Imu_blackbody = sed.blackbody(wave_,
+                                            atm_kwargs['teff'][0],
+                                            vrad=vgamma)
+                system.mesh[tag][:, -1] = sed.synthetic_flux(wave_*10,
+                                            Imu_blackbody, [passband])[0]
+            
+            # What the frack? You must be kidding... OK, here we go, creating
+            # black bodies and integrating them over the passband as we go...
+            # Imagine doing this for several light curves... Djeez.
+            else:
+                for i,T in enumerate(atm_kwargs['teff']):
+                    Imu_blackbody = sed.blackbody(wave_, T,
+                                        vrad=vgamma[i])
+                    system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
+                                                    Imu_blackbody, [passband])[0]
         
-        # Fill in the LD coefficients, but put the intensities in the last
-        # column. Correct the intensities for the new limb darkening law
-        for collnr, coefcoll in enumerate(coeffs_ldc):
-            system.mesh[tag][:, collnr] = coefcoll
-        system.mesh[tag][:, -1] = coeffs_atm[-1] * correction_factor
-        
-    # 3. True Blackbody we'll treat separately. There are no limits on the
-    # effective temperature used. Note that black bodies are not sensitive to
-    # logg (or anything else for that matter).
-    elif atm == 'true_blackbody':
-        
-        if beaming_alg and beaming_alg != 'full':
-            raise ValueError("With atm=true_blackbody you can only use beaming_alg='full' or beaming_alg='none'.")
-        
-        wave_ = np.logspace(1, 5, 10000)
-        log_msg += (', intens via atm=true_blackbody (this is going to take '
-                   'forever...)')
-        
-        # Seriously, don't try to do this for every triangle! Let's hope
-        # uniform_pars is true...
-        uniform_pars = False
-        if uniform_pars:
-            Imu_blackbody = sed.blackbody(wave_,
-                                          atm_kwargs['teff'][0],
-                                          vrad=vgamma)
-            system.mesh[tag][:, -1] = sed.synthetic_flux(wave_*10,
-                                          Imu_blackbody, [passband])[0]
-        
-        # What the frack? You must be kidding... OK, here we go, creating
-        # black bodies and integrating them over the passband as we go...
-        # Imagine doing this for several light curves... Djeez.
+        # 4. Escape route
         else:
-            for i,T in enumerate(atm_kwargs['teff']):
-                Imu_blackbody = sed.blackbody(wave_, T,
-                                       vrad=vgamma[i])
-                system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
-                                                 Imu_blackbody, [passband])[0]
+            raise ValueError("atm and ld_coeffs not understood; did you register them?")
+            local_intensity_old(system, parset_pbdep, parset_isr={})
     
-    # 4. Escape route
+    # We're using the Prsa law here:
     else:
-        raise ValueError("atm and ld_coeffs not understood; did you register them?")
-        local_intensity_old(system, parset_pbdep, parset_isr={})
+        log_msg += " (Prsa law and intensities)"
     
     # 5. Take care of boosting option
     if beaming_alg == 'simple':
@@ -3283,6 +3287,102 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     logger.info(log_msg)
     
 
+
+
+def ld_intensity_prsa(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
+    """
+    Calculate projected LD intensity with the Prsa law.
+    
+    Small but perhaps important note: we do not take reddening into account
+    for OPEN.BOL calculations, if the reddening is interstellar.
+    
+    Beaming options:
+    
+        - :envvar:`beaming_al='full'`: intensity and limb darkening coefficients
+          are corrected for local velocity
+        - :envvar:`beaming_al='local'`: local linear beaming coefficient is added
+          to the mesh
+        - :envvar:`beaming_al='simple': global linear beaming coefficients is added
+          to the mesh
+        - :envvar:`beaming_al='none'` or beaming parameter evaluates to False:
+          beaming is not taken into account
+    """
+    # Get the arguments we need concerning normal emergent intensities (atm),
+    # LD coefficients and the LD function.
+    atm = parset_pbdep['atm']
+    ld_coeffs = parset_pbdep['ld_coeffs']
+    ld_func = parset_pbdep['ld_func']
+    
+    # Passband: if it's not available (e.g. in the "Star" parset), we need to
+    # take the bolometric passband
+    passband = parset_pbdep.get('passband', 'OPEN.BOL')
+    
+    # Doppler beaming: include it if there is such a keyword and it is turned on
+    # and the algorithm is "full"
+    include_vgamma = parset_pbdep.get('beaming', False)
+    if not beaming_alg == 'full':
+        include_vgamma = False
+    
+    # The reference we need to take to compute stuff (if not available, it's
+    # bolometric)
+    ref = parset_pbdep.get('ref', '__bol')
+    
+    # Radial velocity needs to be in km/s, while the natural units in the 
+    # Universe are Rsol/d. If vrad needs to be computed, we'll also include
+    # gravitational redshift
+    #vrad = conversions.convert('Rsol/d','km/s',system.mesh['velo___bol_'][:,2])
+    vgamma = Rsol_d_to_kms * system.mesh['velo___bol_'][:,2]
+    if not include_vgamma or ref=='__bol':
+        vgamma = 0.0
+    
+    # Let's see which dataset we need to take care of
+    tag = 'ld_' + ref
+    log_msg = "{:s}({:s}):".format(passband, tag[3:])
+    
+    # We need parameters on the passband and reddening in the form of a
+    # dictionary. We may add too much information, since the function
+    # "interp_ld_coeffs" only extracts those that are relevant.
+    atm_kwargs = dict(parset_pbdep)
+    
+    # No reddening for bolometric fluxes!
+    if ref == '__bol':
+        red_kwargs = {}
+        logger.info(("Not propagating interstellar reddening info for bolometric flux "
+                    "(taking default from grid)"))
+    else:
+        red_kwargs = dict(parset_isr)
+    
+    # Extract parameters deciding the atmosphere, limb darkening coefficients
+    # and limbdarkening law
+    atm = parset_pbdep['atm']
+    ldc = parset_pbdep['ld_coeffs']
+    ld_func = parset_pbdep['ld_func']
+    
+    # Find the possible interpolation parameters and add 'mu'
+    atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
+    atm_kwargs['mu'] = system.mesh['mu']
+    fitmethod = config.fit_props.get(atm, 'equidist_r_leastsq')
+    
+    # Get the atmosphere file
+    atm_file = choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
+                                red_kwargs=red_kwargs, vgamma=vgamma,
+                                ld_func=ld_func,
+                                fitmethod=fitmethod)
+    
+    coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
+                                    red_kwargs=red_kwargs, vgamma=vgamma)
+    
+    # Fill in the LD coefficients, but put the intensities in the last
+    # column
+    for collnr, coefcoll in enumerate(coeffs[:-1]):
+        system.mesh[tag][:, collnr] = coefcoll
+    system.mesh[tag][:, -1] = coeffs[-1]
+    
+    log_msg += ' atm and ld_coeffs from table {}'.format(os.path.basename(atm_file))
+    
+    
+    logger.info(log_msg)
+    
 
 
 
