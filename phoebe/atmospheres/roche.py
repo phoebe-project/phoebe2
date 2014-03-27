@@ -236,16 +236,16 @@ def temperature_espinosa(system):
     factor_eq = (1 - omega**2)**(-0.5/3.)
     scale = teffpolar * np.sqrt(cr_pole)/factor_pole
     
-    # Now compute the effective temperature
-    factor = sqrt(tan(var_theta) / tan(theta))
-    factor[(factor>factor_eq) | (factor<factor_pole)] = factor_eq
+    # Now compute the effective temperature, but we include an empirical
+    # correction for when tan(x)/tan(y) becomes very large (or tan(y) becomes
+    # zero)
+    factor = np.where(np.abs(theta-np.pi/2)<0.002, factor_eq, sqrt(tan(var_theta) / tan(theta)))
     teff = scale * (cr**-4 + omega**4*cr**2*sin(theta)**2-2*omega**2*sin(theta)**2/cr)**0.125*factor
     
     # And put it in the mesh
     system.mesh['teff'] = teff
     
     logger.info("derived effective temperature (Espinosa) (%.3f <= teff <= %.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max()))
-
 
 
 
