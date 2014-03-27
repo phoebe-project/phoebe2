@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import phoebe
 from phoebe.utils import coordinates
 
-def summarize(system, time=None):
+def summarize(system, time=None, filename=None):
     """
     Summarize a system's parameters in human readable form.
     
@@ -143,7 +143,11 @@ def summarize(system, time=None):
                 text.append("Passband dlnI/dlng = {:.4f}".format(dlnI_dlng))
                 text.append("Passband gravity darkening = {:.4f}".format(passband_gravb))
                 
-    print("\n".join(text))
+    if filename is None:
+        return "\n".join(text)
+    else:
+        with open(filename,'w') as ff:
+            ff.write("\n".join(text))
 
 
 
