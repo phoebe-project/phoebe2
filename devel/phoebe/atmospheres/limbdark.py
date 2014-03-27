@@ -738,11 +738,10 @@ def get_passbands(atm, atm_pars=('teff', 'logg', 'abun'),
         atm = choose_ld_coeffs_table(atm['atm'], ld_func=atm['ld_func'],
                                atm_kwargs={key:[] for key in atm_pars},
                                vgamma=0.0 if not beaming else 1.0)
-    
     # Now open the file and go
     with pyfits.open(atm) as ff:
         passbands = [ext.header['EXTNAME'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF']
-    
+    print passbands
     return passbands
 
 
@@ -1439,7 +1438,8 @@ def interp_ld_coeffs_old(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
 
 
 def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
-                     order=1, return_header=False, cuts=None):
+                     order=1, return_header=False, cuts=None,
+                     mode='constant', cval=0.0, safe=True):
     """
     Interpolate an atmosphere table.
     
@@ -1509,8 +1509,8 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
                               "interpret label {}").format(label))
     # Try to interpolate
     try:
-        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order)
-        if np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
+        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
+        if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     
     # Things can go outside the grid
@@ -3254,8 +3254,8 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
     
     # 4. Escape route
     else:
-        logger.error("This should not happen: fallback to original local_intensity")
-        local_intensity(system, parset_pbdep, parset_isr={})
+        raise ValueError("atm and ld_coeffs not understood; did you register them?")
+        local_intensity_old(system, parset_pbdep, parset_isr={})
     
     # 5. Take care of boosting option
     if beaming_alg == 'simple':
@@ -3342,6 +3342,15 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
 #}
 
 #{ System administration
+
+def register_atm_table(atm, pars=('teff', 'logg')):
+    """
+    Register an atmosphere table.
+    
+    Sadly, this won't work over MPI.
+    """
+    config.atm_props[atm] = pars
+    logger.info("Registered atm table {} to interpolate in {}".format(atm, pars))
 
 def get_paths():
     """

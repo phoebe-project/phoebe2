@@ -122,10 +122,15 @@ if __name__=="__main__":
         #limbdark.compute_grid_ld_coeffs('blackbody', passbands=('*',), filetag='blackbody', law='uniform')
         
             
-        build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
-                ld_func='claret', fitmethod='equidist_r_leastsq',
-                z='*', ebvs=None, redlaw=None, limb_zero=False,
-                add_boosting_factor=True)
+        #build_grid(filetag='kurucz', passbands=('JOHNSON.V','KEPLER.V'),
+                #ld_func='claret', fitmethod='equidist_r_leastsq',
+                #z='*', ebvs=None, redlaw=None, limb_zero=False,
+                #add_boosting_factor=True)
+    
+        build_grid(filetag='kurucz', passbands=('JOHNSON.V','JOHNSON.B',
+                'GAIA.BP', 'GAIA.RP', 'KEPLER.V'), ld_func='linear',
+                fitmethod='equidist_r_leastsq', z='p00', ebvs=None, redlaw=None,
+                limb_zero=False, add_boosting_factor=True)
         
     
     else:
