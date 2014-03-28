@@ -92,16 +92,25 @@ the flux should stay the same. Therefore:
 Section 1. File formats
 =======================
 
-There are two types of grids defined in the FITS format:
+There are four types of grids defined in the FITS format:
 
-    1. grids with B{specific intensities}, holding in each extension a FITS
-       table with a full at discrete limb angles, for a given set of parameter
-       values. Grids supplied with Phoebe should live in the directory
+    1. grids with **specific intensities**, holding in each extension a FITS
+       table with a full SED at discrete limb angles, for a given set of
+       parameter values. Grids supplied with Phoebe should live in the directory
        ``atmospheres/tables/spec_intens/``
-    2. grids with B{LD coefficients}, holding in each extension a FITS table a
+    2. grids with **spectral energy distributions**, holding in each extension
+       a FITS table with a full disk-integrated SED, for a given set of
+       parameter values. Grids supplied with Phoebe should live in the directory
+       ``atmospheres/tables/sed/``. These grids can be used as backup for when
+       the specific intensities are not available. Then the disk-integrated
+       intensities can still be used, but the limb-darkening coefficients need
+       to be supplied manually or using another grid.
+    3. grids with **LD coefficients**, holding in each extension a FITS table a
        grid of coefficients as a function of a given set of parameter values.
        These grids should live in the directory
        ``atmospheres/tables/ld_coeffs/``
+    
+    4. grids with **high resolution spectra**, holding ... what?
    
 Section 1.1 FITS of Specific intensities
 ----------------------------------------
@@ -115,6 +124,9 @@ Each FITS table has the following header keys (KEY (type)):
     - C{VMIC} (float): microturbulent velocity (km/s) (optional)
     - C{...} (float):  any other float that is relevant to this atmosphere model
       and which can be used to interpolate in
+      
+In principle, each of these are optional, it depends on what you eventually
+want to interpolate in (or what Phoebe can handle).
 
 Each FITS table has a data array with the following columns:
 
@@ -123,8 +135,37 @@ Each FITS table has a data array with the following columns:
     - C{'G.GGGGGG'}: string representation of the second mu angle (mu<1)
     - ... : string representation of other mu angles
     - C{'0.000000'}: string representation of the last mu angle (mu=0)
+    
+The units are ``erg/s/cm2/AA/sr``. When disk-integrated and multiplied with
+the dilution factor :math:``(R_*/d)^2`` (with :math:`R_*` the stellar radius
+and :math:`d` the distance to the target), they transform to observed fluxes.
+    
+Section 1.2 FITS of SEDs
+----------------------------------------
 
-Section 1.2 FITS of LD coefficients
+Each FITS table has the following header keys (KEY (type)):
+
+    - C{TEFF} (float): effective temperature (K) of the specific intensities in
+      the extension
+    - C{LOGG} (float): log of surface gravity (cgs)
+    - C{ABUN} (float): log of metallicity wrt to solar (optional)
+    - C{VMIC} (float): microturbulent velocity (km/s) (optional)
+    - C{...} (float):  any other float that is relevant to this atmosphere model
+      and which can be used to interpolate in
+
+In principle, each of these are optional, it depends on what you eventually
+want to interpolate in (or what Phoebe can handle).
+
+Each FITS table has a data array with the following columns:
+
+    - C{WAVELENGTH}: wavelength array
+    - C{FLUX}: disk-integrated intensities
+    
+The units are ``erg/s/cm2/AA/sr``. When multiplied with the dilution factor
+:math:``(R_*/d)^2`` (with :math:`R_*` the stellar radius and :math:`d` the
+distance to the target), they transform to observed fluxes.
+
+Section 1.3 FITS of LD coefficients
 -----------------------------------
 
 These grids can be created from the grids of specific intensities (see
@@ -839,13 +880,20 @@ def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
             raise ValueError(("Did not found pars {} in "
                               "{}").format(atm_kwargs, atm))
         
-        # Retrieve the mu angles, table and wavelength array
-        whole_table = np.array(mod.data.tolist(), float)
-        wave = whole_table[:, 0] # first column, but skip first row
-        table = whole_table[:, 1:] 
-        mu = np.array(mod.columns.names[1:], float)
-        logger.debug(("Model LD taken directly from file "
-                     "({})").format(atm))
+        # Treat disk-integrated intensities differently. We can recognise them
+        # because they have 'wavelength' and 'flux' in the data fields.
+        available_fields = [name.lower() for name in mod.data.dtype.names]
+        if 'wavelength' in available_fields and 'flux' in available_fields:
+            wave = mod.data.field('wavelength')
+            table = np.array([mod.data.field('flux')]).T
+            mu = np.array([np.nan])
+        
+        else:
+            # Retrieve the mu angles, table and wavelength array
+            whole_table = np.array(mod.data.tolist(), float)
+            wave = whole_table[:, 0] # first column, but skip first row
+            table = whole_table[:, 1:] 
+            mu = np.array(mod.columns.names[1:], float)
         
     except KeyError:
         raise KeyError("Specific intensity not available in atmosphere file")
@@ -870,6 +918,7 @@ def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
     # That's it!
     return mu, wave, table
     
+
 
 def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
               passbands=('JOHNSON.V',), normalised=False):
@@ -2007,13 +2056,14 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
                            limb_zero=True, add_boosting_factor=True,\
-                           filetag='kurucz', debug_plot=False):
+                           filetag='kurucz', debug_plot=False,
+                           check_passband_coverage=True):
     r"""
     Create an interpolatable grid of limb darkening coefficients.
     
     A FITS file will be created, where each extension has the name of the
     passband. For reference, there is also an extension ``_REF_PASSBAND`` for
-    each passband with the used response curves.
+    each passband with the used response curves, for later reference.
     
     Each extension contains a  data table with some information on the fit
     and the fit statistics, as well as the limb darkening coefficients and the
@@ -2030,8 +2080,19 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
     .. math::
             
-            \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda}\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
+        \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda}\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
     
+    To get :math:`F_\lambda` from specific intensities, first a disk integration
+    is performed (equivalent to a traditional spectral energy distribution):
+    
+    .. math::
+        
+        r = \sqrt( 1- \mu^2)\\
+        F_\lambda = \sum\left( \pi (\Delta r)^2 I_\lambda(\mu)\right)
+        
+    When boosting factors are computed, also disk-integrated intensities are
+    computed. That might be beneficial for some calculations.
+        
     There is a lot of flexibility in creating grids with limb darkening grids,
     to make sure that the values you are interested in can be interpolated if
     necessary, or otherwise be fixed. Therefore, creating these kind of grids
@@ -2179,6 +2240,12 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     @type fitmethod: any recognised fit method
     @param filetag: tag used as prefix for the generated filename
     @type filetag: str
+    @param add_boosting_factor: compute linear boosting factors and
+     disk-integrated intensities
+    @type add_boosting_factor: bool
+    @param check_passband_coverage: if True, remove passbands that are not fully
+     covered from the computations
+    @param check_passband_coverage: bool
     """
     overwrite = None
     
@@ -2355,10 +2422,27 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         else:
             do_close = True
             open_atm_file = pyfits.open(atm_file)
+            
+            # Now, it's possible that we're not dealing with specific intensities
+            # but rather disk-integrated fluxes. In that case, we can only
+            # assume uniform limb darkening (i.e. rescale the integrated
+            # intensities such that we have a normal intensities, that, if
+            # disk-integrated assuming a uniform law, reproduces the original
+            # intensity). If the given law is not uniform, we raise an error.
+            available_fields = [name.lower() for name in open_atm_file[1].data.dtype.names]
+            if 'wavelength' in available_fields and 'flux' in available_fields:
+                
+                if not law in ['uniform', 'sed']:
+                    raise ValueError("Cannot fit LD law: disk integrated intensities require uniform LD law")
+                
+                # we change the law in "sed" to distinguish between uniform
+                # LD and these things
+                law = 'sed'
+                
         
         # Check for passband/specific intensity wavelength coverage, and remove
         # any filter that is not completely covered by the specific intensities
-        if atm_file != 'blackbody':
+        if check_passband_coverage and atm_file != 'blackbody':
             min_wave = -np.inf
             max_wave = +np.inf
             # Run over all extenstions, and check for minimum/maximum wavelength
@@ -2444,7 +2528,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                                        atm_kwargs=atm_kwargs,
                                        red_kwargs=red_kwargs, vgamma=vgamma,
                                        passbands=passbands)
-            
+
             # Blackbodies must have a uniform LD law
             elif law == 'uniform':
                 Imu_blackbody = sed.blackbody(wave_, val[0], vrad=vgamma)
@@ -2453,7 +2537,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             else:
                 raise ValueError("Blackbodies must have a uniform LD law (you can adjust them later)")
             
-            # Compute boosting factor if necessary
+            # Compute boosting factor if necessary, and in that case also
+            # compute the disk-integrated passband intensity
             if add_boosting_factor:
                 extra = []
                 
@@ -2462,14 +2547,19 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                                      atm_kwargs=atm_kwargs, red_kwargs=red_kwargs,
                                      vgamma=vgamma)
                     
-                    # Disk-integrate the specific intensities
-                    rs_ = np.sqrt(1 - mus**2)
-                    flux = (np.pi*np.diff(rs_[None,:]**2) * table[:,:-1]).sum(axis=1)
+                    if not np.isnan(mus[0]):
+                        # Disk-integrate the specific intensities
+                        rs_ = np.sqrt(1 - mus**2)
+                        flux = (np.pi*np.diff(rs_[None,:]**2) * table[:,:-1]).sum(axis=1)
+                    else:
+                        # otherwise it's already disk-integrated
+                        flux = table[:,0]
                 
                 else:
-                    wave, flux = wave_*10, Imu_blackbody
+                    wave, flux = wave_*10, Imu_blackbody                                
                 
-                
+                # Compute disk-integrated fluxes
+                disk_integrateds = sed.synthetic_flux(wave, flux, passbands)
                 
                 # transform fluxes and wavelength
                 lnF = np.log(flux)
@@ -2535,8 +2625,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                                                limb_zero=limb_zero,
                                                debug_plot=(i+1 if debug_plot else False))
                     if add_boosting_factor:
-                        to_append = list(val) + [extra[i]] + [res, dflux] + list(csol) + \
-                                      [Imu[0, i]]
+                        to_append = list(val) + [extra[i], disk_integrateds[i]] + \
+                                    [res, dflux] + list(csol) + [Imu[0, i]]
                     else:
                         to_append = list(val) + [res, dflux] + list(csol) + \
                                       [Imu[0, i]]
@@ -2544,17 +2634,18 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     
                     logger.info("{}: {}".format(pb, output[pb][-1]))
             
-            # For a uniform limb darkening law, we can just take the center-of-
-            # disk intensity
+            # For a uniform limb darkening law, we can just take the 
+            # disk-integrated intensity and divide by pi.
             else:
                 csol = []
                 for i, pb in enumerate(passbands):
                     
                     # So don't fit a law, we know what it is
                     if add_boosting_factor:
-                        to_append = list(val) + [extra[i]] + [0.0, 0.0] + [Imu[i]]
+                        to_append = list(val) + [extra[i], disk_integrateds[i]] + \
+                                    [0.0, 0.0] + [disk_integrateds[i]/np.pi]
                     else:
-                        to_append = list(val) + [0.0, 0.0] + [Imu[i]]
+                        to_append = list(val) + [0.0, 0.0] + [disk_integrateds[i]/np.pi]
                     output[pb].append(to_append)
             
                     logger.info("{}: {}".format(pb, output[pb][-1]))
@@ -2582,6 +2673,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             col_names.append('vgamma')
     if add_boosting_factor:
         col_names.append('alpha_b')
+        col_names.append('Idisk')
     col_names = col_names + ['res', 'dflux'] + \
                    ['a{:d}'.format(i+1) for i in range(len(csol))] + ['Imu1']
     
