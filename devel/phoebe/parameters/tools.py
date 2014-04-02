@@ -620,7 +620,7 @@ def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
 
 #{ Common constraints for the BinaryRocheStar or Orbit
 
-def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
+def add_asini(orbit, asini=None, derive='sma', unit='Rsol', **kwargs):
     """
     Add asini to an orbit parameterSet.
     
@@ -645,7 +645,9 @@ def add_asini(orbit,asini=None,derive='sma',unit='Rsol',**kwargs):
     
     Extra C{kwargs} will be passed to the creation of the Parameter C{asini} if
     it does not exist yet.
-   
+    
+    See also :py:func:`phoebe.dynamics.keplerorbit.calculate_asini`.
+    
     @param orbit: orbit parameterset
     @type orbit: ParameterSet of context star
     @param asini: system projected semi-major axis

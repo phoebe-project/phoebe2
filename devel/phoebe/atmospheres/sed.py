@@ -40,11 +40,34 @@ def blackbody(wl,T,vrad=0):
     
     
     To get them into the same units as the Kurucz disc-integrated SEDs, multiply
-    by :math:`\sqrt{2\pi}`:
+    by :math:`\pi`:
     
     .. math::
     
-        I(\lambda)_\mathrm{Kurucz} =  I(\lambda)_\mathrm{output} \times\sqrt{2\pi}
+        I(\lambda)_\mathrm{Kurucz} =  I(\lambda)_\mathrm{output} \times\pi
+        
+    For example, to compute the luminosity of a star with 10000K with a blackbody
+    spectrum and uniform limbdarkening, you can do (all in CGS):
+    
+    .. math::
+    
+        L & = 4\pi R_*^2 \int_\lambda \pi I(\lambda)_\mathrm{output} d\lambda \\
+          & = 4\pi R_*^2 \sigma T_\mathrm{eff}^4
+          
+    Then :math:`L` is in ``erg/s``. In code, the above translates to::
+        
+        wave_nm = np.logspace(0.95, 5.2, 2000)
+        wave_AA = wave_nm*10
+        Teff = 10000.0
+        fluxb = blackbody(wave_nm, Teff)
+        lumi = np.trapz(fluxb*np.pi, x=wave_AA)*Rsol_cgs**2*4*pi
+    
+    which is equivalent to::
+    
+        lumi = 4*np.pi*Rsol_cgs**2*sigma_cgs*Teff**4
+        
+    
+    **Further examples**
     
     >>> wl = np.linspace(100,10000,10000)
     >>> f0 = blackbody(wl,1000.)

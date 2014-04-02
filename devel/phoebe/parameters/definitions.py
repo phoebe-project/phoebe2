@@ -247,7 +247,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
                                                                                   "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
                                                                                   " (3) via an absolute filename or (4) via a list of user-specified floats. In the latter case, "
                                                                                   "you need to have as many coefficients as the 'ld_func' requires"),repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['component','star','accretion_disk']),
-         dict(qualifier='passband', description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context=['lcdep','amdep','sidep']),
+         dict(qualifier='passband', description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context=['lcdep','amdep','sidep', 'analytical:binary']),
          dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=-1.0,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),
          dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),
          dict(qualifier='alb',      description="Passband Bond's albedo , alb=0 is no reflection",          repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep']),
@@ -464,6 +464,32 @@ defs += [dict(qualifier='dmdt',     description='Mass transfer rate',repr='%f',c
          dict(qualifier='height',   description='height of disk',repr='%f',cast_type=float,value=1e-2,unit='Rsol',frame=["phoebe"],context='accretion_disk'),
          dict(qualifier='b',        description='Host star rotation parameter',repr='%f',cast_type=float,value=1.,llim=0,ulim=1,frame=["phoebe"],context='accretion_disk'),
          #dict(qualifier='distance', description='Distance to the disk',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='accretion_disk'),
+        ]
+
+# Analytical binary model
+defs += [dict(qualifier='flux_cont', description='Continuum flux level', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='flux_night', description='Night side flux level', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='alb_geom', description='Geometrical albedo', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='mass1', description='Primary mass', repr='%f', unit='Msol', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='mass2', description='Secondary mass', repr='%f', unit='Msol', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='teff1', description='Primary effective temperature', repr='%f', unit='K', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='teff2', description='Secondary effective temperature', repr='%f', unit='K', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='abun1', description='Primary metallicity', repr='%f', cast_type=float, value=0.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='abun2', description='Secondary metallicity', repr='%f', cast_type=float, value=0.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='radius1', description='Primary radius', unit='Rsol', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='radius2_rel', description='Relative secondary radius (units of radius1)', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='alpha_d1', description='Doppler boosting', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='ld_linear1', description='Linear limb darkening parameter', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='ld_func1', description='Primary limb darkening function', repr='%s', cast_type=str, value='linear', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='ld_func2', description='Secondary limb darkening function', repr='%s', cast_type=str, value='linear', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='gravb1', description='Gravity brightening parameter', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='c01', description='Primary first LD coefficient', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='c11', description='Primary second LD coefficient', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='c21', description='Primary third LD coefficient', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='c31', description='Primary fourth LD coefficient', repr='%s', cast_type='return_self', value='kurucz', frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='period', description='Orbital period', repr='%f', cast_type=float, unit='d', value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='incl', description='Orbital inclination', repr='%f', cast_type=float, unit='deg', value=1.0, frame=['phoebe'], context='analytical:binary'),
+         dict(qualifier='sma_rel', description='Relative semi-major axis (units of radius1)', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
         ]
 
 #    Fitting contexts       

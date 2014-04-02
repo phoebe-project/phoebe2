@@ -111,6 +111,9 @@ There are four types of grids defined in the FITS format:
        ``atmospheres/tables/ld_coeffs/``
     
     4. grids with **high resolution spectra**, holding ... what?
+
+Note that SED files are actually a less-informative version of the spectral grids.
+Consequently, any spectral grid file can act as an SED file.
    
 Section 1.1 FITS of Specific intensities
 ----------------------------------------
@@ -137,8 +140,62 @@ Each FITS table has a data array with the following columns:
     - C{'0.000000'}: string representation of the last mu angle (mu=0)
     
 The units are ``erg/s/cm2/AA/sr``. When disk-integrated and multiplied with
-the dilution factor :math:``(R_*/d)^2`` (with :math:`R_*` the stellar radius
+the dilution factor :math:`(R_*/d)^2` (with :math:`R_*` the stellar radius
 and :math:`d` the distance to the target), they transform to observed fluxes.
+
+**Example**::
+
+    XTENSION= 'BINTABLE'           / binary table extension                         
+    BITPIX  =                    8 / array data type                                                                                                                                 
+    NAXIS   =                    2 / number of array dimensions                                                                                                                      
+    NAXIS1  =                   76 / length of dimension 1                                                                                                                           
+    NAXIS2  =                 1221 / length of dimension 2                                                                                                                           
+    PCOUNT  =                    0 / number of group parameters                                                                                                                      
+    GCOUNT  =                    1 / number of groups                                                                                                                                
+    TFIELDS =                   19 / number of table fields                                                                                                                          
+    TTYPE1  = 'wavelength'                                                          
+    TFORM1  = 'E       '                                                            
+    TTYPE2  = '1.000000'                                                            
+    TFORM2  = 'E       '                                                            
+    TTYPE3  = '0.900000'                                                            
+    TFORM3  = 'E       '                                                            
+    TTYPE4  = '0.800000'                                                            
+    TFORM4  = 'E       '                                                            
+    TTYPE5  = '0.700000'                                                            
+    TFORM5  = 'E       '                                                            
+    TTYPE6  = '0.600000'                                                            
+    TFORM6  = 'E       '                                                            
+    TTYPE7  = '0.500000'                                                            
+    TFORM7  = 'E       '                                                            
+    TTYPE8  = '0.400000'                                                            
+    TFORM8  = 'E       '                                                            
+    TTYPE9  = '0.300000'                                                            
+    TFORM9  = 'E       '                                                            
+    TTYPE10 = '0.250000'                                                            
+    TFORM10 = 'E       '                                                            
+    TTYPE11 = '0.200000'                                                            
+    TFORM11 = 'E       '                                                            
+    TTYPE12 = '0.150000'                                                            
+    TFORM12 = 'E       '                                                            
+    TTYPE13 = '0.125000'                                                            
+    TFORM13 = 'E       '                                                            
+    TTYPE14 = '0.100000'                                                            
+    TFORM14 = 'E       '                                                            
+    TTYPE15 = '0.075000'                                                            
+    TFORM15 = 'E       '                                                            
+    TTYPE16 = '0.050000'                                                            
+    TFORM16 = 'E       '                                                            
+    TTYPE17 = '0.025000'                                                            
+    TFORM17 = 'E       '                                                            
+    TTYPE18 = '0.010000'                                                            
+    TFORM18 = 'E       '                                                            
+    TTYPE19 = '0.000000'                                                            
+    TFORM19 = 'E       '                                                            
+    EXTNAME = 'T03500_logg0.00'    / name of the extension                          
+    TEFF    =               3500.0 / Effective temperature (K)                      
+    LOGG    =                  0.0 / Log(g)                                         
+    ABUN    =                    0 / log Metallicity wrt solar                      
+    VMIC    =                    2 / Mircoturbulent velocity (km/s)
     
 Section 1.2 FITS of SEDs
 ----------------------------------------
@@ -186,6 +243,97 @@ Each FITS table has a data array with the following columns:
     - ...
     - C{an}: n-th limb darkening coefficient
     - C{Imu1}: flux of mu=1 SED.
+    - C{alpha_b}: boosting factor
+    - C{Idisk}: disk integrated intensity
+    
+If you want the grid-computer to be able to automatically add extra passbands
+with the same setup as was used for the existing passbands, all the required
+information needs to be added in the primary header. The keywords are the same
+as for the grid-computer function, but preceded with the prefix ``C__``.
+
+**Example of primary header**::
+
+    SIMPLE  =                    T / conforms to FITS standard                      
+    BITPIX  =                   64 / array data type                                
+    NAXIS   =                    2 / number of array dimensions                     
+    NAXIS1  =                    1                                                  
+    NAXIS2  =                    1                                                  
+    EXTEND  =                    T                                                  
+    FILETYPE= 'LDCOEFFS'           / type of file                                   
+    HIERARCH C__FITMETHOD = 'equidist_r_leastsq' / method used to fit the LD coeffic
+    HIERARCH C__LD_FUNC = 'claret  ' / fitted limb darkening function               
+    HIERARCH C__LIMBZERO = T / point at the disk limb included or not               
+    HIERARCH C__AI_teff = 'teff    ' / iterated atmosphere parameter                
+    HIERARCH C__AI_logg = 'logg    ' / iterated atmosphere parameter                
+    HIERARCH C__AI_abun = 'abun    ' / iterated atmosphere parameter                
+    HIERARCH C__ATMFILE000 = 'kurucz_mu_im01k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE001 = 'kurucz_mu_im02k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE002 = 'kurucz_mu_im03k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE003 = 'kurucz_mu_im05k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE004 = 'kurucz_mu_im10k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE005 = 'kurucz_mu_im15k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE006 = 'kurucz_mu_im20k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE007 = 'kurucz_mu_im25k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE008 = 'kurucz_mu_im30k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE009 = 'kurucz_mu_im35k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE010 = 'kurucz_mu_im45k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE011 = 'kurucz_mu_im50k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE012 = 'kurucz_mu_ip00k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE013 = 'kurucz_mu_ip02k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE014 = 'kurucz_mu_ip03k2.fits' / included specific intensity f
+    HIERARCH C__ATMFILE015 = 'kurucz_mu_ip05k2.fits' / included specific intensity f
+    VMIC    =                    2 / key from first atm_file                        
+    ABUN    =                 -0.1 / key from first atm_file                        
+    REF     = 'KURUCZ  '           / key from first atm_file
+
+**Example of extension header**::
+
+    XTENSION= 'BINTABLE'           / binary table extension                         
+    BITPIX  =                    8 / array data type                                
+    NAXIS   =                    2 / number of array dimensions                     
+    NAXIS1  =                   88 / length of dimension 1                          
+    NAXIS2  =                 5888 / length of dimension 2                          
+    PCOUNT  =                    0 / number of group parameters                     
+    GCOUNT  =                    1 / number of groups                               
+    TFIELDS =                   12 / number of table fields                         
+    TTYPE1  = 'teff    '                                                            
+    TFORM1  = 'D       '                                                            
+    TUNIT1  = 'NA      '                                                            
+    TTYPE2  = 'logg    '                                                            
+    TFORM2  = 'D       '                                                            
+    TUNIT2  = 'NA      '                                                            
+    TTYPE3  = 'abun    '                                                            
+    TFORM3  = 'D       '                                                            
+    TUNIT3  = 'NA      '                                                            
+    TTYPE4  = 'alpha_b '                                                            
+    TFORM4  = 'D       '                                                            
+    TUNIT4  = 'NA      '                                                            
+    TTYPE5  = 'res     '                                                            
+    TFORM5  = 'D       '                                                            
+    TUNIT5  = 'NA      '                                                            
+    TTYPE6  = 'dflux   '                                                            
+    TFORM6  = 'D       '                                                            
+    TUNIT6  = 'NA      '                                                            
+    TTYPE7  = 'a1      '                                                            
+    TFORM7  = 'D       '                                                            
+    TUNIT7  = 'NA      '                                                            
+    TTYPE8  = 'a2      '                                                            
+    TFORM8  = 'D       '                                                            
+    TUNIT8  = 'NA      '                                                            
+    TTYPE9  = 'a3      '                                                            
+    TFORM9  = 'D       '                                                            
+    TUNIT9  = 'NA      '                                                            
+    TTYPE10 = 'a4      '                                                            
+    TFORM10 = 'D       '                                                            
+    TUNIT10 = 'NA      '                                                            
+    TTYPE11 = 'Imu1    '                                                            
+    TFORM11 = 'D       '                                                            
+    TUNIT11 = 'NA      '
+    TTYPE12 = 'Idisk   '                                                            
+    TFORM12 = 'D       '                                                            
+    TUNIT12 = 'NA      '                                                            
+    EXTNAME = 'JOHNSON.V'
+
 
 Section 2. Creating LD grids
 ============================
@@ -968,7 +1116,7 @@ def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
 
 
 def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
-            limb_zero=True, debug_plot=False):
+            limb_zero=True, oversampling=5000, debug_plot=False):
     """
     Fit an LD law to a sampled set of limb angles/intensities.
     
@@ -989,6 +1137,10 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     
     If ``limb_zero=False``, the last point will not be used in the fit. This
     is most likely the :math:`\mu=0` point, or the point really at the edge.
+    
+    The :envvar:`oversampling` factor determines the oversampling rate of the
+    splines, which will be used to make the r or mu coordinate equidistant. For
+    the Prsa law, this should better be :envvar:`oversampling=32`.
     
     In my (Pieter's) experience, C{fitmethod='equidist_r_leastsq'} seems
     appropriate for the Kurucz models, though ``limb_zero=False`` seems to
@@ -1037,7 +1189,7 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
         c0[4] = 70.0
         c0[5] = 0.1
         c0[6] = 0.0
-    
+        
     # Do the fitting; there's several possibilities
     
     # On the original resolution with the Levenberg-Marquardt (LM) algorithm
@@ -1053,25 +1205,31 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     elif fitmethod == 'equidist_mu_leastsq':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order], Imu[mu_order],s=0.0, k=2)
-        mu_spl = np.linspace(mu[mu_order][0], 1, 5000)
-        Imu_spl = splev(mu_spl, tck, der=0)    
+        mu_spl = np.linspace(mu[mu_order][0], 1, oversampling)
+        Imu_spl = splev(mu_spl, tck, der=0)
+        if law == 'prsa':
+            return Imu_spl, mu_spl, 0.
         (csol, ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl, Imu_spl, law))
     
     # Equidistantly sampled in radius coordinate + LM
     elif fitmethod == 'equidist_r_leastsq':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order], Imu[mu_order],s=0., k=2)
-        r_spl = np.linspace(mu[mu_order][0], 1, 5000)
+        r_spl = np.linspace(mu[mu_order][0], 1, oversampling)
         mu_spl = np.sqrt(1-r_spl**2)
         Imu_spl = splev(mu_spl, tck, der=0)    
+        if law == 'prsa':
+            return Imu_spl, mu_spl, 0.
         (csol,ierr)  = leastsq(ldres_leastsq, c0, args=(mu_spl,Imu_spl,law))
     
     # Equidistantly sampled in limb angle coordinate + NMS
     elif fitmethod == 'equidist_mu_fmin':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order], Imu[mu_order],k=2, s=0.0)
-        mu_spl = np.linspace(mu[mu_order][0], 1, 5000)
+        mu_spl = np.linspace(mu[mu_order][0], 1, oversampling)
         Imu_spl = splev(mu_spl, tck, der=0)
+        if law == 'prsa':
+            return Imu_spl, mu_spl, 0.
         csol = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,
                      args=(mu_spl, Imu_spl, law), disp=0)
     
@@ -1079,9 +1237,11 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     elif fitmethod == 'equidist_r_fmin':
         mu_order = np.argsort(mu)
         tck = splrep(mu[mu_order],Imu[mu_order],k=2, s=0.0)
-        r_spl = np.linspace(mu[mu_order][0],1,5000)
+        r_spl = np.linspace(mu[mu_order][0],1,oversampling)
         mu_spl = np.sqrt(1-r_spl**2)
         Imu_spl = splev(mu_spl, tck, der=0)
+        if law == 'prsa':
+            return Imu_spl, mu_spl, 0.
         csol  = fmin(ldres_fmin, c0, maxiter=1000, maxfun=2000,args=(mu_spl,\
                                                          Imu_spl, law), disp=0)
     
@@ -1492,7 +1652,7 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     """
     Interpolate an atmosphere table.
     
-    @param atm: atmosphere table filename or alias
+    @param atm: atmosphere table absolute filename
     @type atm: string
     @param atm_kwargs: dict with keys specifying the atmospheric parameters
     @type atm_kwargs: dict
@@ -1983,14 +2143,14 @@ def _prepare_grid_new(passband,atm, data_columns=None, log_columns=None,
     if data_columns is None:
         #-- data columns are C{ai} columns with C{i} an integer, plus C{Imu1} that
         #   holds the centre-of-disk intensity
-        data_columns = ['a{:d}'.format(i) for i in range(1,10)] + ['imu1']
+        data_columns = ['a{:d}'.format(i) for i in range(1,10)]+['imu1']
     if log_columns is None:
         #-- some columns are transformed to log for interpolation, because the
         #   data behaves more or less linearly in log scale.
         log_columns = ['imu1']#,'Teff']
     if nointerp_columns is None:
         #-- not all columns hold data that needs to be interpolated
-        nointerp_columns = data_columns + ['alpha_b', 'res','dflux']
+        nointerp_columns = data_columns + ['alpha_b', 'res','dflux','idisk']
         #nointerp_columns = data_columns + ['alpha_b', 'dflux']
     with pyfits.open(atm) as ff:
         header = ff[0].header
@@ -2087,7 +2247,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
     .. math::
         
-        r = \sqrt( 1- \mu^2)\\
+        r = \sqrt{ 1- \mu^2}\\
         F_\lambda = \sum\left( \pi (\Delta r)^2 I_\lambda(\mu)\right)
         
     When boosting factors are computed, also disk-integrated intensities are
@@ -2617,7 +2777,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                         #plt.show()
             
             # Only if the law is not uniform, we really need to fit something
-            if law != 'uniform':
+            if law != 'uniform' and not law != 'prsa':
                 for i, pb in enumerate(passbands):
                     # Fit a limbdarkening law:
                     csol, res, dflux = fit_law(mu, Imu[:, i]/Imu[0, i],
@@ -2630,6 +2790,23 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     else:
                         to_append = list(val) + [res, dflux] + list(csol) + \
                                       [Imu[0, i]]
+                    output[pb].append(to_append)
+                    
+                    logger.info("{}: {}".format(pb, output[pb][-1]))
+            
+            # For the Prsa law, we need to append values for each mu
+            elif law == 'prsa':
+                for i, pb in enumerate(passbands):
+                    # Fit a limbdarkening law:
+                    allcsol, mu_grid, dflux = fit_law(mu, Imu[:, i]/Imu[0, i],
+                                               law=law, fitmethod=fitmethod,
+                                               limb_zero=limb_zero, oversampling=32,
+                                               debug_plot=(i+1 if debug_plot else False))
+                    to_append = []
+                    for i, imu in enumerate(mu_grid):
+                        csol = allcsol[i:i+1]
+                        to_append += list(val) + [imu] + [extra[i], disk_integrateds[i]] + \
+                                    [res, dflux] + csol + [Imu[0, i]]
                     output[pb].append(to_append)
                     
                     logger.info("{}: {}".format(pb, output[pb][-1]))
@@ -2669,6 +2846,8 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
     # Names of the columns
     col_names = atm_par_names + red_par_names
+    if law == 'prsa':
+        col_names += ['mu']
     if vgamma is not None and 'vgamma' not in col_names:
             col_names.append('vgamma')
     if add_boosting_factor:

@@ -254,7 +254,7 @@ class Bundle(object):
     **History and GUI functionality**
     
     
-    """
+    """        
     def __init__(self, system=None, remove_dataref=False):
         """
         Initialize a Bundle.
@@ -574,9 +574,6 @@ class Bundle(object):
         2. If :envvar:`system` is a string, the following options exist:
             - the string represents a Phoebe pickle file containing a Body; that
               one will be set
-            - the string represents a Phoebe pickle file containing a Bundle;
-              the system from that bundle will be set (to load a complete Bundle,
-              use :py:func`load`
             - the string represents a Phoebe Legacy file, then it will be parsed
               to a system
             - the string represents a WD lcin file, then it will be parsed to
@@ -596,6 +593,7 @@ class Bundle(object):
         elif isinstance(system, universe.Body):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
+            print system
             self.sections['system'] = [create.system(system)]
         
         # Or we could've given a filename
@@ -3039,39 +3037,23 @@ def load(filename, load_usersettings=True):
     @return: Bundle saved in file
     @rtype: Bundle
     """
+    file_type, contents = guess_filetype(filename)
     
-    # First: is this thing a file?
-    if os.path.isfile(filename):
-        
-        # If it is a file, try to unpickle it:   
-        try:
-            with open(filename, 'r') as open_file:
-                contents = pickle.load(open_file)
-        except:
-            raise IOError(("Cannot load file {}: probably not "
-                           "a Bundle file").format(filename))
-        
-        # If we can unpickle it, check if it is a Body(Bag) or a bundle. If it
-        # is a Body(Bag), create a new bundle and set the system
-        if isinstance(contents, universe.Body):
-            bundle = Bundle(system=contents)
-            
-        # If it a bundle, we don't need to initiate it anymore
-        elif isinstance(contents, Bundle):
-            bundle = contents
-            # for set_system to update all signals, etc
-            bundle.set_system(bundle.get_system())
-        
-        # Else, we could load it, but we don't know what to do with it
-        else:
-            raise IOError(("Cannot load file {}: unrecognized contents "
-                           "(probably not a Bundle file)").format(filename))
-    else:
-        raise IOError("Cannot load file {}: it does not exist".format(filename))
+    if file_type == 'pickle_bundle':
+        bundle = contents
+    elif file_type == 'pickle_body':
+        bundle = Bundle(system=contents)
+    elif file_type == 'phoebe_legacy':
+        bundle = Bundle(system=contents[0])
+        bundle.add_compute(contents[1])
+    elif file_type == 'wd':
+        bundle = Bundle(system=contents)
     
     # Load this users settings into the bundle
     if load_usersettings:
         bundle.set_usersettings()
+    
+    logger.info("Loaded contents of {}-file from {} into a Bundle".format(file_type, filename))
     
     # That's it!
     return bundle
