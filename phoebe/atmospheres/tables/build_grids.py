@@ -128,8 +128,8 @@ if __name__=="__main__":
                 #add_boosting_factor=True)
     
         build_grid(filetag='kurucz', passbands=('JOHNSON.V','JOHNSON.B',
-                'GAIA.BP', 'GAIA.RP', 'KEPLER.V'), ld_func='linear',
-                fitmethod='equidist_r_leastsq', z='p00', ebvs=None, redlaw=None,
+                'GAIA.BP', 'GAIA.RP', 'KEPLER.V'), ld_func='quadratic',
+                fitmethod='equidist_r_leastsq', z='*', ebvs=None, redlaw=None,
                 limb_zero=False, add_boosting_factor=True)
         
     

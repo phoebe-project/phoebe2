@@ -397,8 +397,8 @@ class Animation3(Animation2):
     """
     Image and spectrum
     """
-    def __init__(self, *args, **kwargs):
-        super(Animation3,self).__init__(*args,**kwargs)
+    def __init__(self, system, kwargs1=None, kwargs2=None, **kwargs):
+        super(Animation3,self).__init__(system, kwargs1=kwargs1, kwargs2=kwargs2, **kwargs)
         self.draw_funcs = [image, plot_spsyn]
     
     

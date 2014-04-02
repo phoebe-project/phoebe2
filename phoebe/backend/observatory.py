@@ -378,6 +378,7 @@ def image(the_system, ref='__bol', context='lcdep',
     else:
         if select == 'rv':
             values = -mesh['velo___bol_'][:, 2] * 8.049861
+            print values.min(), values.max()
         elif select == 'intensity':
             values = mesh['ld_'+ref+'_'][:, -1]
         elif select == 'proj2':
@@ -1299,7 +1300,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     keep = the_system.mesh['proj_'+ref] > 0
     
     if not np.sum(keep):
-        logger.info('no spectrum synthesized, zero flux received')
+        logger.info('no spectrum {} synthesized, zero flux received'.format(ref))
         return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
     
     cc_ = constants.cc / 1000.
@@ -2231,7 +2232,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     to use the pre- and postprocessing tools from the Body.
     
     Live animation is supported via :envvar:`animate` (but again not available
-    with MPI).
+    with MPI). You can in principle customize what you want to see in your
+    animations, but there are few shortcuts:
+    
+        - :envvar:`animate=1`: complete image, coloured according to effective
+          temperature
+        - :envvar:`animate=2`: image and light curve
+        - :envvar:`animate=3`: image and spectrum
+        - :envvar:`animate=4`: separated images of the (two) components
     
     **Example usage**:
     
@@ -2550,9 +2558,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         if animate is True or animate == 1:
             animate = office.Animation1(system, select='teff')
         elif animate == 2:
-            animate = office.Animation2(system, kwargs1=dict(select='teff'))
+            animate = office.Animation2(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
         elif animate == 3:
-            animate = office.Animation3(system, select='teff')
+            animate = office.Animation3(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
         elif animate == 4:
             animate = office.Animation4(system, select='teff')
             
