@@ -378,7 +378,6 @@ def image(the_system, ref='__bol', context='lcdep',
     else:
         if select == 'rv':
             values = -mesh['velo___bol_'][:, 2] * 8.049861
-            print values.min(), values.max()
         elif select == 'intensity':
             values = mesh['ld_'+ref+'_'][:, -1]
         elif select == 'proj2':
@@ -408,7 +407,10 @@ def image(the_system, ref='__bol', context='lcdep',
         
         # Special treatment for black body map, since the limits need to be
         # fixed for the colors to match the temperature
-        colors = (values - vmin_) / (vmax_ - vmin_)
+        if len(values.shape)==1:
+            colors = (values - vmin_) / (vmax_ - vmin_)
+        else:
+            colors = values
         if cmap == 'blackbody' or cmap == 'blackbody_proj' or cmap == 'eye':
             cmap_ = cmap
             cmap = plotlib.blackbody_cmap()
@@ -428,13 +430,20 @@ def image(the_system, ref='__bol', context='lcdep',
     
     # Collect the triangle objects for plotting
     patches = []
-    if not cmap_ in ['blackbody_proj', 'eye']:
+    if not cmap_ in ['blackbody_proj', 'eye'] and len(values.shape)==1:
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              array=values,
-                             closed=True,
+                             closed=False,
                              edgecolors=cmap(colors),
                              facecolors=cmap(colors),
                              cmap=cmap, zorder=zorder)
+    
+    # When a RGB select color values is given
+    elif not cmap_ in ['blackbody_proj', 'eye']:
+        p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
+                             closed=False,
+                             edgecolors=colors,
+                             facecolors=colors, zorder=zorder)
     elif cmap_ == 'blackbody_proj':
         # In this particular case we also need to set the values for the
         # triangles first
@@ -444,11 +453,10 @@ def image(the_system, ref='__bol', context='lcdep',
         values = (values / values.max()).reshape((-1, 1)) * np.ones((len(values), 4))
         values[:, -1] = 1.0
         colors = np.array([cmap(c) for c in colors]) * values 
-        
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
-                             closed=True,
+                             closed=False,
                              edgecolors=colors,
-                             facecolors=colors)
+                             facecolors=colors,)
         
     elif cmap_ == 'eye':
         values = np.abs(mesh['proj_'+ref] / mesh['mu'])
@@ -462,7 +470,7 @@ def image(the_system, ref='__bol', context='lcdep',
         colors[colors > 1] = 1.0
         
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
-                             closed=True,
+                             closed=False,
                              edgecolors=colors,
                              facecolors=colors)
 
@@ -683,6 +691,34 @@ def contour(system, select='B', res=300, prop=None, levels=None, ref=0, context=
     CS = pl.contour(xi, yi, zi, levels=levels, **kwargs)
     if prop:
         pl.clabel(CS, **prop)
+    
+    
+def quiver(system, select='velo___bol_', **kwargs):
+    """
+    Draw vector quantities on a Body.
+    
+    Possible vector quantities lines:
+        
+        * ``B``: magnetic field lines
+        * ``velo___bol_``: velocity field
+        * ``normal_``: normal vectors
+    
+    """
+    
+    # Location of vectors
+    visible = system.mesh['visible']
+    mesh = system.mesh[visible]
+    x = mesh['center'][:,0]
+    y = mesh['center'][:,1]
+    
+    # Vector directions
+    u = mesh[select][:,0]
+    v = mesh[select][:,1]
+    
+    # Draw the arrows
+    print x,y
+    print u,v
+    pl.quiver(x, y, u, v, **kwargs)
     
     
 
@@ -1272,7 +1308,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     method = pbdep['method']
     profile = pbdep['profile']
     extend = pbdep.get('extend', 500.)
-    keep = the_system.mesh['mu'] <= 0
+    keep = the_system.mesh['mu'] >= 0
     
     # Set the central wavelength "wc".
     wc = (wavelengths[0]+wavelengths[-1])/2.

@@ -47,15 +47,29 @@ def get_macroturbulence(normal, vmacro_rad=0.0, vmacro_tan=0.0):
             vmacro[:,2][:,None] * vertical
     
     logger.info("Added macroturbulent velocity field with vR,vT={},{}".format(vmacro_rad,vmacro_tan))
-    
+    return vmacro
     
     
 def get_meridional(center, radius=1.0, inner_radius=0.5, vmeri_ampl=1.0, wc=0.2,
                    angle=0.0):
-    """
+    r"""
     Compute velocity field due to meridional circulation.
     
-    Inspired upon [Mitra2011]_.
+    Inspired upon [Mitra2011]_:
+    
+    .. math::
+    
+        U_r^\mathrm{circ} & = v g(r) \frac{1}{\sin\theta}\frac{\partial}{\partial\theta}(\sin\theta\psi)\\
+        U_\theta^\mathrm{circ} & = -v g(r) \frac{1}{r}\frac{\partial}{\partial r}(r\psi)\\
+        U_\phi^\mathrm{circ} & = 0
+    
+    with
+    
+    .. math::
+    
+        \psi & = \frac{f(r)}{r}\sin^2(\theta-\theta_1)\cot\theta\\
+        f(r) & = (r-r_2)(r-r_1)^2\\
+        g(r) & = \frac{1}{2} \left[ 1 - \tanh\left(\frac{r-r_2}{w_\mathrm{circ}}\right)\right]
     
     Note: the absolute magnitude of the theta component at the solar surface is
     about 10 to 20 m/s.
@@ -133,10 +147,12 @@ def get_meridional(center, radius=1.0, inner_radius=0.5, vmeri_ampl=1.0, wc=0.2,
     position =  (r, phi, ctheta)
     direction = (ur, uphi, -utheta)
     vmeri = np.array(coordinates.spher2cart(position, direction))[index_inv].T
+    vmeri *= 20
     
     # Solve for zero vectors
     vmeri[np.isnan(vmeri)] = 0.0
     vmeri *= -1
+    
     
     #print np.sqrt(vmeri[0]**2 + vmeri[1]**2 + vmeri[2]**2).max()
     

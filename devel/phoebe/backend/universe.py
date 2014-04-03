@@ -6365,7 +6365,8 @@ class Star(PhysicalBody):
         omega_rot = np.array([0.,0.,-omega_rot])
         logger.info('Calculating rotation velocity (Omega={:.3f} rad/d)'.format(omega_rot[-1]*2*pi))
         
-        if 'diffrot' in self.params['star'] and self.params['star']['diffrot']!=0:
+        # Consistent shape and differential rotation
+        if self.params['star']['shape']=='equipot' and self.params['star']['diffrot']!=0:
             #-- compute the local rotation velocities in cy/d
             b1,b2 = self.subdivision['mesh_args'][1:3]
             rpole_sol = self.subdivision['mesh_args'][-1]
@@ -6377,7 +6378,28 @@ class Star(PhysicalBody):
             omega_rot = np.column_stack([np.zeros_like(omega_rot),\
                                    np.zeros_like(omega_rot),\
                                    -omega_rot])
-        
+            
+        # Spherical shape but still differential rotation
+        # OK, I realize this is extremely messy and slow code, but who's going
+        # to use this seriously?
+        elif self.params['star']['diffrot']!=0:
+            M = self.params['star'].request_value('mass','kg')
+            r_pole = self.params['star'].request_value('radius','m')
+            Omega_crit = sqrt( 8*constants.GG*M / (27.*r_pole**3))
+            diffrot = self.params['star'].get_value('diffrot','s')
+            Period_eq = diffrot + self.params['star'].request_value('rotperiod','s')
+            Omega_eq = 2*pi/Period_eq/Omega_crit
+            Omega_param= 2*pi/self.params['star'].request_value('rotperiod','s')
+            Omega = Omega_param/Omega_crit
+            b1 = Omega*0.54433105395181736
+            b2 = roche.diffrotlaw_to_internal(Omega,Omega_eq)
+            rpole_sol = self.subdivision['mesh_args'][-1]
+            s = sqrt(self.mesh['_o_center'][:,0]**2+self.mesh['_o_center'][:,1]**2)/rpole_sol
+            omega_rot = (b1+b2*s**2)/0.54433105395181736*Omega_crit/(2*pi)*3600*24.
+            omega_rot = np.column_stack([np.zeros_like(omega_rot),\
+                                   np.zeros_like(omega_rot),\
+                                   -omega_rot])
+            
         # The velocity is the cross product of the centers with the rotation
         # vector pointed in the Z direction.
         velo_rot = 2*pi*np.cross(self.mesh['_o_center'],omega_rot) #NX3 array
@@ -6730,7 +6752,6 @@ class Star(PhysicalBody):
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=False)
             self.detect_eclipse_horizon(eclipse_detection='simple')
         
-        #self.mesh['velo___bol_'][:,2] = self.mesh['velo___bol_'][:,2] - self.params['star'].request_value('vgamma','Rsol/d')
         self.add_systemic_velocity()
         if self.time is None or has_freq or has_spot:
             self.intensity(ref=ref, beaming_alg=beaming_alg)
@@ -7455,10 +7476,15 @@ class BinaryRocheStar(PhysicalBody):
 
         idep,ref_ = self.get_parset(ref=ref, type='pbdep')
         
+        # Fallback to openbol
         if idep is None:
-            raise ValueError("Pbdep with ref '{}' not found in {}".format(ref,self.get_label()))
+            #raise ValueError("Pbdep with ref '{}' not found in {}".format(ref,self.get_label()))
+            ref_ = '__bol'
+            ld_func = self.params.values()[0]['ld_func']
+        else:
+            ld_func = idep['ld_func']
         
-        ld_func = idep['ld_func']
+        
         proj_int = generic_projected_intensity(self, method=method,
                              ld_func=ld_func, ref=ref_, los=los, 
                              with_partial_as_half=with_partial_as_half,
