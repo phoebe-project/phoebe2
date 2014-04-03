@@ -13,6 +13,7 @@ import logging
 import shutil
 import os
 import pyfits
+import argparse
 
 logger = logging.getLogger("ATM.GRID")
 
@@ -21,7 +22,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
-                           limb_zero=True, \
+                           limb_zero=False, \
                            filetag='kurucz', debug_plot=False,
                            check_passband_coverage=True):
     r"""
@@ -599,12 +600,15 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                                                law=law, fitmethod=fitmethod,
                                                limb_zero=limb_zero, oversampling=32,
                                                debug_plot=(i+1 if debug_plot else False))
-                    to_append = []
-                    for i, imu in enumerate(mu_grid):
-                        csol = allcsol[i:i+1]
-                        to_append += list(val) + [imu] + [extra[i], disk_integrateds[i]] + \
+                    res = 0.0
+                    sa = np.argsort(mu_grid)
+                    allcsol = allcsol[sa]
+                    mu_grid = mu_grid[sa]
+                    for j, imu in enumerate(mu_grid):
+                        csol = list(allcsol[j:j+1])
+                        to_append = list(val) + [imu] + [extra[i], disk_integrateds[i]] + \
                                     [res, dflux] + csol + [Imu[0, i]]
-                    output[pb].append(to_append)
+                        output[pb].append(to_append)
                     
                     logger.info("{}: {}".format(pb, output[pb][-1]))
             
@@ -717,3 +721,33 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
 
 
 
+if __name__ == "__main__":
+    logger = utils.get_basic_logger()
+    
+    #-- initialize the parser and subparsers
+    parser = argparse.ArgumentParser(description='Compute limb darkening tables',
+                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    
+    #-- add positional arguments
+    parser.add_argument('atm_files', metavar='atm_file', type=str, nargs='*',
+                   default=None,
+                   help='Input atmosphere file(s)')
+    
+    parser.add_argument('--passbands', default='JOHNSON.V', help='Comma separated list of passbands')
+    parser.add_argument('--ld_func', default='claret', help='Limb darkening function')
+    parser.add_argument('--filetag', default='myfiletag', help='Tag to identify file')
+    
+    args = vars(parser.parse_args())
+    
+    atm_files = args.pop('atm_files')
+    passbands = [pb.strip() for pb in args.pop('passbands').split(',')]
+    law = args.pop('ld_func')
+    filetag = args.pop('filetag')
+    
+    compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
+                           red_pars_iter={},red_pars_fixed={},vgamma=None,\
+                           passbands=passbands,\
+                           law=law,fitmethod='equidist_r_leastsq',\
+                           limb_zero=False, \
+                           filetag=filetag,
+                           check_passband_coverage=True)
