@@ -89,6 +89,8 @@ the flux should stay the same. Therefore:
         
             I_\mathrm{pb}(0)^\mathrm{new} = \frac{L_\mathrm{pb}}{L_\mathrm{pb}\prime}I_\mathrm{pb}(0)
 
+.. _limbdark-atmospheres-fileformats:
+
 Section 1. File formats
 =======================
 
@@ -1176,7 +1178,7 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
     
     # Prepare array for coefficients and set the initial guess
     Ncoeffs = dict(claret=4, linear=1, nonlinear=2, logarithmic=2, quadratic=2,
-                   power=1, hillen=7)
+                   power=1, hillen=7, prsa=oversampling)
     c0 = np.zeros(Ncoeffs[law])
     c0[0] = 0.6
     

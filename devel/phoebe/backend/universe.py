@@ -5967,7 +5967,7 @@ class Star(PhysicalBody):
         vsini
         critical_rotation
     
-    Example usage:
+    **Example usage**:
     
     Construct a simple star with the default parameters representing the Sun
     (sort of, don't start nitpicking):

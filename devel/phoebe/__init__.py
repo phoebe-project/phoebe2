@@ -65,6 +65,9 @@ See the :ref:`limbdark <limbdark-atmospheres>` module for more information and
 :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.limbdark.compute_grid_ld_coeffs>`
 for more info on how to compute limb darkening tables.
 
+See the section on :ref:`file formats <limbdark-atmospheres-fileformats>` for
+more information on the file structure of limb darkening tables.
+
 
 Section 2.2 Reflection and heating
 -----------------------------------
@@ -144,8 +147,30 @@ options for the beaming algorithm:
 The latter two options are particularly useful for circular orbits, as the
 beaming coefficients only need to be computed once.
 
+Section 2.4 Morphological constraints
+--------------------------------------
 
-Section 2.4 Light time travel effects
+Morphological constraints are currently only implemented for binaries. There is
+a parameter :ref:`morphology <label-morphology-component-phoebe>` in the
+component ParameterSet for this purpose. It can take the following values:
+    
+    - ``morphology='unconstrained'``: has no effect
+    - ``morphology='detached'``: the component must have a potential value above
+      the critical value
+    - ``morphology='semi-detached'``: the component must have a potential value
+      equal to the critical value
+    - ``morphology='overcontact'``: the component must have a potential value
+      below the critical value
+
+Note that these values are not strictly enforced, and in principle do not
+interfere with any of the computations. However, a preprocessing step is added
+using :py:func:`binary_morphology <phoebe.backend.processing.binary_morphology>`,
+which adjusts the limits on the potential value parameter. Then it can be
+easily checked if the potential value satisfies the constraint, e.g. during
+fitting.
+
+
+Section 2.5 Light time travel effects
 --------------------------------------
 
 Light time travel effects are off by default. You can enable them by setting
@@ -157,7 +182,7 @@ components is not taken into account, i.e. reflection/heating effects are not
 treated correctly.
 
 
-Section 2.5 Eclipse detection
+Section 2.6 Eclipse detection
 --------------------------------------
 
 The eclipse detection algorithm is set via the parameter ``eclipse_alg``.
@@ -174,32 +199,32 @@ Depending on the circumstances, you can choose any of the following:
       to compute eclipses during expected eclipse times, and uses ``only_horizon``
       otherwise.
 
-Section 2.6 Subdivision
+Section 2.7 Subdivision
 --------------------------------------
 
 TBD
 
-Section 2.7 Interstellar reddening
+Section 2.8 Interstellar reddening
 --------------------------------------
 
 TBD
 
-Section 2.8 Pulsations
+Section 2.9 Pulsations
 --------------------------------------
 
 TBD
 
-Section 2.9 Magnetic fields
+Section 2.10 Magnetic fields
 --------------------------------------
 
 TBD
 
-Section 2.10 Spots
+Section 2.11 Spots
 --------------------------------------
 
 TBD
 
-Section 2.11 Potential shapes
+Section 2.12 Potential shapes
 --------------------------------------
 
 TBD
@@ -239,7 +264,7 @@ from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
 from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
                               PulsatingBinaryRocheStar
-from .frontend.bundle import Bundle
+from .frontend.bundle import Bundle, load
 
 #-- common input and output
 from .parameters.parameters import load as load_ps
