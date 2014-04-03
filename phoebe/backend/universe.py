@@ -191,6 +191,7 @@ from phoebe.atmospheres import limbdark
 from phoebe.atmospheres import spots
 from phoebe.atmospheres import pulsations
 from phoebe.atmospheres import magfield
+from phoebe.atmospheres import velofield
 from phoebe.atmospheres import reddening
 from phoebe.dynamics import keplerorbit
 try:
@@ -6062,7 +6063,7 @@ class Star(PhysicalBody):
         
         # If there is no mesh, create default one
         if mesh is None:
-            mesh = phoebe.PS('mesh:marching')
+            mesh = parameters.ParameterSet('mesh:marching')
         
         # Prepare basic parameterSets and Ordered dictionaries
         check_input_ps(self, star, ['star'], 1)
@@ -6127,8 +6128,18 @@ class Star(PhysicalBody):
         
         # Add velocity field parameters when applicable
         if velocity_field is not None:
-            check_input_ps(self, velocity_field, ['velocity_field:turb'], 'velocity_field')
-            self.params['velocity_field'] = velocity_field
+            if not isinstance(velocity_field, list):
+                to_add = [velocity_field]
+            else:
+                to_add = velocity_field
+            
+            # Perhaps the user gave an empty list, then that's a bit silly
+            if len(velocity_field) > 0:
+                for ito_add in to_add:
+                    check_input_ps(self, ito_add, ['velocity_field:turb',
+                                                   'velocity_field:meri'],
+                                   'velocity_field', is_list=True)
+                self.params['velocity_field'] = to_add
         
         # Add the parameters to compute dependables
         if pbdep is not None:
@@ -6373,47 +6384,38 @@ class Star(PhysicalBody):
         
         # We can add velocity fields here if we wish:
         if 'velocity_field' in self.params:
-            ps = self.params['velocity_field']
-            context = ps.get_context()
-            subcontext = context.split(':')[1]
+            for ps in self.params['velocity_field']:
+                context = ps.get_context()
+                subcontext = context.split(':')[1]
+                
+                # Macroturbulence
+                if subcontext == 'turb':
+                    vmacro_rad = ps.request_value('vmacro_rad', 'Rsol/d')
+                    vmacro_tan = ps.request_value('vmacro_tan', 'Rsol/d')
+                
+                    if vmacro_rad > 0 or vmacro_tan > 0:
+                        normal = self.mesh['_o_normal_']
+                        vmacro = velofield.get_macroturbulence(normal,
+                                                      vmacro_rad=vmacro_rad,
+                                                      vmacro_tan=vmacro_tan)
+                        velo_rot += vmacro
+                        
+                # Meridional circulation
+                elif subcontext == 'meri':
+                    radius = ps.request_value('location')
+                    inner_radius = ps.request_value('bottom')
+                    vmeri_ampl = ps.request_value('vmeri_ampl', 'Rsol/d')
+                    wc = ps.request_value('penetration_depth')
+                    angle = ps.request_value('latitude', 'rad')
+                    if vmeri_ampl>0 and radius>inner_radius:
+                        center = self.mesh['_o_center']
+                        vmeri = velofield.get_meridional(center, radius,
+                                                         inner_radius,
+                                                         vmeri_ampl, wc,
+                                                         angle)
+                        velo_rot += vmeri
+                    
             
-            if subcontext == 'turb':
-                vmacro_rad = ps.request_value('vmacro_rad', 'Rsol/d')
-                vmacro_tan = ps.request_value('vmacro_tan', 'Rsol/d')
-            
-                # In order to get it similar to tools.broadening_macroturbulent, I
-                # suspiciously need to divide my vmacro with pi/sqrt(2)....
-                if vmacro_rad > 0 or vmacro_tan > 0:
-                    
-                    # Compute the local coordinate frames that have one axis as the
-                    # normal on each surface element, one that is horizontal (wrt
-                    # the z-axis) and one vertical.
-                    radial = self.mesh['_o_normal_']
-                    x, y, z = radial.T
-                    n = np.sqrt(x**2+y**2)
-                    horizontal = np.array([y/n, -x/n, np.zeros_like(x)]).T
-                    vertical = np.array([z*x/n, z*y/n, -(x**2+y**2)/n]).T
-                    vmacro_radial = vmacro_rad
-                    vmacro_tanx = vmacro_tan/np.sqrt(2)
-                    vmacro_tany = vmacro_tan/np.sqrt(2)
-                    
-                    # Then generate randomly distributed Gaussian velocities for
-                    # each direction
-                    np.random.seed(1111)
-                    vmacro = np.random.normal(size=velo_rot.shape)
-                    vmacro[:,0] *= vmacro_radial
-                    vmacro[:,1] *= vmacro_tanx
-                    vmacro[:,2] *= vmacro_tany
-                    
-                    # And convert them from the local reference frame to the global
-                    # one
-                    vmacro = vmacro[:,0][:,None] * radial + \
-                            vmacro[:,1][:,None] * horizontal + \
-                            vmacro[:,2][:,None] * vertical
-                    velo_rot += vmacro
-                    
-                    logger.info("Added macroturbulent velocity field with vR,vT={},{}".format(vmacro_rad,vmacro_tan))
-        
         self.mesh['_o_velo___bol_'] = velo_rot
         self.mesh['velo___bol_'] = velo_rot
         
