@@ -958,7 +958,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
     index = kwargs.pop('index', 0)
     offset = kwargs.pop('offset', 0)
     ax = kwargs.pop('ax',plt.gca())
-    velocity = kwargs.pop('velocity',None)
+    x_unit = kwargs.pop('x_unit', 'nm')
     
     syn = system.get_synthetic(category='sp', ref=ref)
     loaded = syn.load(force=False)
@@ -985,8 +985,8 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
             #raise ValueError(("No observations in this system or component, "
             #             "so no scalings available: set keyword `scale=None`"))
     
-    if velocity is not None:
-        x = conversions.convert('nm','km/s', x, wave=velocity)
+    if x_unit is not 'nm':
+        x = conversions.convert('nm',x_unit, x, wave=(np.median(x),'nm'))
     
     y = y * pblum + l3
     
