@@ -446,6 +446,13 @@ defs += [dict(qualifier='vmacro_rad', description='Radial macroturbulence compon
          dict(qualifier='vmacro_tan', description='Tangentional macroturbulence component', cast_type=float, repr='%f',adjust=False,value=0.0,unit='km/s',frame=['phoebe'], context='velocity_field:turb'),
          ]
 
+defs += [dict(qualifier='bottom', description='Relative depth of meridional cell', cast_type=float, repr='%f',adjust=False,value=0.5,frame=['phoebe'], context='velocity_field:meri'),
+         dict(qualifier='location', description='Relative location of stellar surface wrt circulation', cast_type=float, repr='%f',adjust=False,value=1.0,frame=['phoebe'], context='velocity_field:meri'),
+         dict(qualifier='vmeri_ampl', description='Amplitude of meridional velocity', cast_type=float, repr='%f',adjust=False,value=0.002,unit='km/s',frame=['phoebe'], context='velocity_field:meri'),
+         dict(qualifier='penetration_depth', description='Penetration depth', cast_type=float, repr='%f',adjust=False,value=0.2,frame=['phoebe'], context='velocity_field:meri'),
+         dict(qualifier='latitude', description='Latitude of start of circulation', cast_type=float, repr='%f',adjust=False,value=0.0,unit='deg', frame=['phoebe'], context='velocity_field:meri'),
+         ]
+
 # SCATTERING contexts
 defs += [dict(qualifier='asymmetry', description='Scattering asymmetry (negative = backwards, positive = forwards)', cast_type=float, repr='%f', llim=-1, ulim=1, adjust=False,value=0.0,frame=['phoebe'], context='scattering:henyey'),
          dict(qualifier='asymmetry1', description='Forward scattering strength (>0)', cast_type=float, repr='%f',adjust=False,value=0.8, llim=0, ulim=1, frame=['phoebe'], context='scattering:henyey2'),
