@@ -1499,7 +1499,7 @@ class Body(object):
                 for i,ipbdep in enumerate(params[param]):
                     txt += level4.format(param, i,\
                               ipbdep.to_string(only_adjustable=only_adjustable))
-            else:
+            elif params[param] is not None:
                 txt += level3.format(param,\
                        params[param].to_string(only_adjustable=only_adjustable))
         
@@ -3730,7 +3730,11 @@ class Body(object):
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, correct_oversampling=1, beaming_alg='none'):
         """
+        Compute interferometry.
+        
         You can only do this if you have observations attached.
+        
+        For details on the computations, see :py:func:`observatory.ifm <phoebe.backend.observatory.ifm>`
         """
         # Don't bother if we cannot do anything...
         if hasattr(self,'params') and 'obs' in self.params and 'ifobs' in self.params['obs']:
@@ -3803,7 +3807,8 @@ class Body(object):
             
             3. If we have a body(bag) with pbdep matching the previously found
                obs, compute the Stokes profile.
-               
+        
+        For details on the computations, see :py:func:`observatory.stokes <phoebe.backend.observatory.stokes>`
         """
         # We need to get the observation ParameterSet so that we know all the
         # required info on **what** exactly to compute (**how** to compute it
@@ -3894,7 +3899,8 @@ class Body(object):
             
             3. If we have a body(bag) with pbdep matching the previously found
                obs, compute the spectrum.
-               
+        
+        For details on the computations, see :py:func:`observatory.spectrum <phoebe.backend.observatory.spectrum>`
         """
         # We need to get the observation ParameterSet so that we know all the
         # required info on **what** exactly to compute (**how** to compute it
@@ -3967,7 +3973,9 @@ class Body(object):
     @decorators.parse_ref
     def am(self, ref='allamdep', time=None, obs=None, correct_oversampling=1, beaming_alg='none'):
         """
-        Compute astrometry and add results to the pbdep ParameterSet
+        Compute astrometry and add results to the pbdep ParameterSet.
+        
+        For details on the computations, see :py:func:`observatory.astrometry <phoebe.backend.observatory.astrometry>`
         """
         # We need to get the observation ParameterSet so that we know all the
         # required info on **what** exactly to compute (**how** to compute it
@@ -4668,30 +4676,6 @@ class PhysicalBody(Body):
                 base['time'].append(time)
                 base['flux'].append(proj_intens)
                 base['samprate'].append(correct_oversampling)
-                
-                # If we don't need to oversample or just starting a new bin, we
-                # need to make a new bin
-                #if not len(base('samprate')) or base['samprate'][-1]==correct_oversampling:
-                    #base['time'].append(time)
-                    #base['flux'].append(proj_intens)
-                    #base['samprate'].append(1)
-                ## Else, if we didn't reach the oversampling rate yet, we need
-                ## to add the fluxes to the previous one. We only set the time
-                ## if it's the middle time
-                #else:
-                    ## if oversampling rate is odd, it's easy:
-                    #time_bin = base['samprate'][-1] == (correct_oversampling//2)
-                    #if correct_oversampling%2==1 and time_bin:
-                        #base['time'][-1] = time
-                    #elif time_bin:
-                        #base['time'][-1] = (base['time'][-1] + time)/2.0
-                    #base['flux'][-1] = base['flux'][-1] + proj_intens
-                    #base['samprate'][-1] = base['samprate'][-1] + 1
-                
-                ## If we did reach the oversampling rate, we need to take the
-                ## average of the fluxes
-                #if base['samprate'][-1] == correct_oversampling:
-                    #base['flux'][-1] = base['flux'][-1] / correct_oversampling
                 
                 
     @decorators.parse_ref
@@ -5627,7 +5611,7 @@ class BinaryBag(BodyBag):
                 # if the object has an empty orbit, assume we have to fill it in now
                 elif has_empty_orbit:
                     iobject.params['orbit'] = orbit
-                    iobject.set_label(ilabel)
+                    iobject.set_label(ilabel, component=i)
                     logger.info("BinaryBag: Component {} (label={}) had empty orbit".format(i,ilabel))
                 # else, the object could have an orbit but it is not equal to
                 # the one given. In that case, pack it into a BodyBag with the
@@ -6864,7 +6848,7 @@ class BinaryRocheStar(PhysicalBody):
         # Check if this star is actually a component in the orbit:
         try:
             this_comp = self.get_component()
-        except TypeError:
+        except TypeError, KeyError:
             this_comp = None
             logger.warning("No orbit specified in BinaryRocheStar. Be sure to do it later.")
         if this_comp is None and orbit is not None:
@@ -6925,14 +6909,22 @@ class BinaryRocheStar(PhysicalBody):
         logger.info(msg)
         
     
-    def set_label(self,label):
+    def set_label(self, label, component=None):
         """
         Set the label of a BinaryRocheStar.
+        
+        If :envvar:`component` is None (default), the component will be derived
+        automatically. This is usually what you want, except in rare cases when
+        initializing the BinaryBag, for example. Then component is either 0
+        (primary) or 1 (secondary).
         
         @param label: new label of the Body
         @type label: str
         """
-        this_component = self.get_component()
+        if component is None:
+            this_component = self.get_component()
+        else:
+            this_component = component
         self.params['component']['label'] = label
         self.params['orbit']['c{}label'.format(this_component+1)] = label
     

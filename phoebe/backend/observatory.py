@@ -1837,7 +1837,7 @@ def astrometry(system, obs, pbdep, index):
     """
     Compute a body's apparent coordinates on the sky.
     
-    For more information, see :py:func:`phoebe.keplerorbit.apparent_coordinates`.
+    For more information, see :py:func:`apparent_coordinates <phoebe.dynamics.keplerorbit.apparent_coordinates>`.
     """
     myglobals = system.get_globals()
     ra = myglobals['ra']
