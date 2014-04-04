@@ -410,10 +410,13 @@ def plot_rvsyn(system,*args,**kwargs):
         for n in range(repeat+1):
             p, = ax.plot(time+n, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
             artists.append(p)
-
+    
+    # Return the synthetic computations as an array
+    ret_syn = syn.asarray()
+    
     if loaded: syn.unload()
     
-    return artists,syn,l3
+    return artists, ret_syn, l3
 
 
 def plot_rvobs(system,errorbars=True,**kwargs):

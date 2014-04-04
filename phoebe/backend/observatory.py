@@ -2273,9 +2273,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
         - :envvar:`animate=1`: complete image, coloured according to effective
           temperature
-        - :envvar:`animate=2`: image and light curve
-        - :envvar:`animate=3`: image and spectrum
-        - :envvar:`animate=4`: separated images of the (two) components
+        - :envvar:`animate=2`: separated images of the (two) components
+        - :envvar:`animate='lc'`: image and light curve
+        - :envvar:`animate='rv'`: image and radial velocity curve
+        - :envvar:`animate='sp'`: image and spectrum
+        - :envvar:`animate='pl'`: image and spectrapolarimetry
+        - :envvar:`animate='ifm'`: image and IF visibilities
+        - :envvar:`animate='am'`: image and astrometry
+        
     
     **Example usage**:
     
@@ -2594,11 +2599,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         if animate is True or animate == 1:
             animate = office.Animation1(system, select='teff')
         elif animate == 2:
-            animate = office.Animation2(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
-        elif animate == 3:
-            animate = office.Animation3(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
-        elif animate == 4:
             animate = office.Animation4(system, select='teff')
+        elif animate == 'lc':
+            animate = office.AnimationImLC(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
+        elif animate == 'rv':
+            animate = office.AnimationImRV(system, kwargs1=dict(select='teff'))
+        elif animate == 'sp':
+            animate = office.AnimationImSP(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
+        
             
         ani = animation.FuncAnimation(pl.gcf(), animate_one_time_step,
                                   range(len(time_per_time)),

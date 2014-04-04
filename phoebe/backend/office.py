@@ -316,7 +316,37 @@ def plot_lcsyn(*args, **kwargs):
     
     return out[0],
 
-
+def plot_rvsyn(*args, **kwargs):
+    """
+    Draw a light curve.
+    """
+    xlims = kwargs.pop('xlims', None)
+    ylims = kwargs.pop('ylims', None)
+    do_init = kwargs.pop('do_init', False)
+    ax = kwargs.pop('ax')
+    system = args[0]
+    
+    kwargs['color'] = 'k'
+    out1 = phoebe.plotting.plot_rvsyn(system[0], ax=ax,**kwargs)
+    kwargs['color'] = 'r'
+    out2 = phoebe.plotting.plot_rvsyn(system[1], ax=ax,**kwargs)
+    if xlims is None:
+        xlims = out1[1]['time'].min(),out1[1]['time'].max()
+    #xlims_ = plt.xlim()
+    #ax.set_xlim(min(xlims_[0], xlims[0]), max(xlims_[1], xlims[1]))
+    ax.set_xlim(xlims)
+    
+    #if ylims is None:
+    #    ylims = out1[1]['rv'].min(),out1[1]['rv'].max()
+    #ylims_ = plt.ylim()
+    #ax.set_ylim(min(ylims_[0], ylims[0]), max(ylims_[1], ylims[1]))
+    #ax.set_ylim(ylims)
+    
+    if do_init:
+        plt.xlabel("Time")
+        plt.ylabel("Radial velocity")
+    
+    return out1[0] + out2[0],
 
 def plot_spsyn(*args, **kwargs):
     """
@@ -370,7 +400,7 @@ class Animation1(Animation):
         
 
 
-class Animation2(Animation):
+class AnimationImLC(Animation):
     """
     Image and light curve
     """
@@ -391,14 +421,40 @@ class Animation2(Animation):
         self.draw_args = [(system,),(system,)]
         self.draw_kwargs = [kwargs1, kwargs2]
         self.initialized = False
+        
+class AnimationImRV(Animation):
+    """
+    Image and radial velocity curve
+    """
+    def __init__(self, system, kwargs1=None, kwargs2=None, **kwargs):
+        if kwargs1 is None:
+            kwargs1 = dict()
+        if kwargs2 is None:
+            kwargs2 = dict()
+        
+        #kwargs1.setdefault('context','rvdep')
+        #kwargs1.setdefault('ref',0)
+            
+        self.system = system
+        self.repeat = kwargs.pop('repeat', False)
+        self.save = kwargs.pop('save', None)
+        self.close_after_finish = kwargs.pop('close_after_finish',True)
+        ax1 = plt.subplot(121)
+        ax2 = plt.subplot(122)
+        self.axes = [ax1, ax2, ax2]
+        self.draw_funcs = [image, plot_rvsyn]
+        self.draw_args = [(system,),(system,)]
+        self.draw_kwargs = [kwargs1, kwargs2]
+        self.initialized = False
+        
 
 
-class Animation3(Animation2):
+class AnimationImSP(AnimationImLC):
     """
     Image and spectrum
     """
     def __init__(self, system, kwargs1=None, kwargs2=None, **kwargs):
-        super(Animation3,self).__init__(system, kwargs1=kwargs1, kwargs2=kwargs2, **kwargs)
+        super(AnimationImSP,self).__init__(system, kwargs1=kwargs1, kwargs2=kwargs2, **kwargs)
         self.draw_funcs = [image, plot_spsyn]
     
     
