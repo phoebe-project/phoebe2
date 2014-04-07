@@ -1372,6 +1372,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         else:
             try:
                 spectra = modspectra.interp_spectable(profile, teff, logg, wavelengths)
+                                
             except IndexError:
                 logger.error(("no spectrum synthesized (outside of grid "
                           "({}<=teff<={}, {}<=logg<={}), zero flux "
@@ -1384,7 +1385,6 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         proj_intens = spectra[1] * mus * Imu * the_system.mesh['size'][keep]
         rad_velos = -the_system.mesh['velo___bol_'][keep, 2]
         rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
-        
         rad_velos += vgamma
         logger.info('Systemic radial velocity = {:.3f} km/s'.format(vgamma))
         logger.info('synthesizing spectrum using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
@@ -1402,11 +1402,16 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
                                                   flux=spectra[0,:,i]*proj_intens[:,i])
             total_continum += tools.doppler_shift(wavelengths, rv+rv_grav,
                                                   flux=proj_intens[:,i])
+                                                  
+            #if i%10==0:
+            #    pl.plot(wavelengths,tools.doppler_shift(wavelengths, rv+rv_grav,
+            #                                      flux=spectra[0,:,i]))
             
             # Inline
             #wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
             #total_spectrum += 
-    
+        #pl.show()
+        
     # Numerical computation with Gaussian profile
     elif method == 'numerical':
         
