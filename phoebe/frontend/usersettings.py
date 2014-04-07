@@ -2,11 +2,184 @@ import os
 import pickle
 import ConfigParser
 from collections import OrderedDict
+from fnmatch import fnmatch
+import copy
 from server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
 
-class Settings(object):
+class Container(object):
+    """
+    Class that controlls accessing sections and parametersets
+    
+    This class in inherited by both the bundle and usersettings
+    """
+    
+    def __init__(self):
+        self.sections = OrderedDict()
+        
+    ## act like a dictionary
+    def keys(self):
+        return self.sections.keys()
+        
+    def values(self):
+        return self.sections.values()
+        
+    def items(self):
+        return self.sections.items()
+        
+    ## generic functions to get non-system parametersets
+    def _return_from_dict(self,dictionary,return_type):
+        """
+        this functin takes a dictionary of results from a searching function
+        ie. _get_from_section and returns in the desired format ('list',
+        'dict', or 'single')
+        
+        @param dictionary: the dictionary of results
+        @type dictionary: dict or OrderedDict
+        @param return_type: 'list', 'dict', or 'single'
+        @type return_type: str
+        """
+        #~ if return_type=='single' and len(dictionary) == 0:    
+            #~ raise ValueError("no results found: set return_type='single_or_none' to bypass error")
+        if return_type in ['single'] and len(dictionary)==0:
+            return None
+        elif return_type in ['single'] and len(dictionary)>1:
+            raise ValueError("more than one dataset was returned from the search: either constrain search or set return_type='all'")
+        elif return_type in ['single']:
+            return dictionary.values()[0]
+        elif return_type in ['all','list']:
+            return dictionary.values()
+        else:
+            return dictionary   
+                
+    def _get_from_section_single(self,section):
+        """
+        retrieve a parameterset by section when only one is expected
+        ie. system, gui, logger
+        """
+        items = self._get_from_section(section, search=None, search_by=None,
+                                return_type='list', ignore_usersettings=True)
+        # NOTE: usersettings will always be ignored since search_by == None
+        if len(items) == 0:
+            raise ValueError("ERROR: no {} attached".format(section))
+            return None
+        if len(items) > 1:
+            raise ValueError("ERROR: more than 1 {} attached".format(section))
+        return items[0]
+
+                
+    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
+        """
+        retrieve a parameterset (or similar object) by section and label (optional)
+        if the section is also in the defaults set by usersettings, 
+        then those results will be included but overridden by those
+        in the bundle
+        
+        this function should be called by any get_* function that gets an item 
+        from one of the lists in self.sections
+        
+        @param section: name of the section (key of self.sections)
+        @type section: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
+        @param return_type: 'single', 'list', 'dict'
+        @type return_type: str
+        @param ignore_usersettings: whether to ignore defaults in usersettings (default: False)
+        @type ignore_usersettings: bool
+        """
+        # We'll start with an empty dictionary, fill it, and then convert
+        # to the requested format
+        items = OrderedDict()
+        
+        #~ print "***", section, section in self.sections.keys(), ignore_usersettings, search_by
+        
+        # First we'll get the items from the bundle
+        # If a duplicate is found in usersettings, the bundle version will trump it
+        if section in self.sections.keys():
+            for ps in self.sections[section]:
+                #~ if search is None or ps.get_value(search_by)==search:
+                if search is None or fnmatch(ps.get_value(search_by), search):
+                    # if search_by is None then we want to return everything
+                    # NOTE: in this case usersettings will be ignored
+                    if search_by is not None:
+                        try:
+                            key = ps.get_value(search_by)
+                        except AttributeError:
+                            continue
+                    else:
+                        key = len(items)
+                    
+                    items[key] = ps
+
+        if not ignore_usersettings and search_by is not None:
+            # Now let's check the defaults in usersettings
+            usersettings = self.get_usersettings().sections
+            if section in usersettings.keys():
+                for ps in usersettings[section]:
+                    #~ if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
+                    if (search is None or fnmatch(ps.get_value(search_by), search)) and ps.get_value(search_by) not in items.keys():
+                        # Then these defaults exist in the usersettings but 
+                        # are not (yet) overridden by the bundle.
+                        #
+                        # In this case, we need to make a deepcopy and save it
+                        # to the bundle (since it could be edited here).
+                        # This is the version that will be returned in this 
+                        # and any future retrieval attempts.
+                        #
+                        # In order to return to the usersettings default,
+                        # the user needs to remove the bundle version, or 
+                        # access directly from usersettings (bundle.get_usersettings().get_...).
+                        #
+                        # NOTE: in the case of things that have defaults in
+                        # usersettings but not in bundle by default (ie logger, servers, etc)
+                        # this will still create a new copy (for consistency)
+
+                        psc = copy.deepcopy(ps)
+                        items[psc.get_value(search_by)] = psc
+                        # now we add the copy to the bundle
+                        self._add_to_section(section,psc)
+                    
+        # and now return in the requested format
+        return self._return_from_dict(items,return_type)
+
+    def _remove_from_section(self,section,search,search_by='label'):
+        """
+        remove a parameterset from by section and label
+        
+        this will not affect any defaults set in usersettings - so this
+        function can be called to 'reset to user defaults'
+        
+        this function should be called by any remove_* function that gets an item 
+        from one of the lists in self.sections
+        
+        @param section: name of the section (key of self.sections)
+        @type section: str
+        @param search: value to search by (depending on search_by)
+        @type search: str or None
+        @param search_by: key to search by (defaults to label)
+        @type search_by: str
+        """
+        if search is None:    return None
+        return self.sections[section].remove(self._get_from_section(section,search,search_by))
+        
+    def _add_to_section(self,section,ps):
+        """
+        add a new parameterset to section - the label of the parameterset
+        will be used as the key to retrieve it using _get_from_section
+        
+        @param section: name of the section (key of self.sections)
+        @type section: str
+        @param ps: the new parameterset with label set
+        @type ps: ParameterSet
+        """
+        if section not in self.sections.keys():
+            self.sections[section] = []
+        self.sections[section].append(ps)
+
+class Settings(Container):
     """
     Class representing settings for phoebe on a particular machine.
     
@@ -82,49 +255,11 @@ class Settings(object):
                 
         return txt
         
-    def _get_from_section(self,section,label=None):
-        """
-        retrieve a parameterset from a list by label
-        
-        @param section: name of the section ('servers','compute',etc)
-        @type section: str
-        @param label: label of the parameterset in that section
-        @type label: str or None
-        @return: ps or list of parametersets (if label==None)
-        @rtype: ParameterSet or list
-        """
-        items = OrderedDict([(ps.get_value('label') if 'label' in ps.keys() else section, ps) for ps in self.sections[section]])
-        
-        if label is None:
-            return items
-        elif label in items:
-            return items[label]
-        else:
-            return None
-            
-    def _add_to_section(self,section,ps):
-        """
-        add a new parameterset to a section
-        
-        @param section: name of the section ('servers','compute',etc)
-        @type section: str
-        @param ps: the ParameterSet
-        @type ps: ParameterSet
-        """
-        self.sections[section].append(ps)
-            
-    def _remove_from_section(self,section,label):
-        """
-        remove a parameterset from a list by label
-        
-        @param section: name of the section ('servers','compute',etc)
-        @type section: str
-        @param label: label of the parameterset in that section
-        @type label: str or None
-        """
-        if label is None:    return None
-        return self.sections[section].pop(self.sections[section].index(self._get_from_section(section,label))) 
-        
+    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
+        return super(Settings, self)._get_from_section(section=section, search=search,
+                            search_by=search_by, return_type=return_type,
+                            ignore_usersettings=True)
+                
     #{ General Parameters
     
     def get_logger(self):
@@ -134,7 +269,7 @@ class Settings(object):
         @return: logger ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('logger').values()[0]
+        return self._get_from_section_single('logger')
         
     def apply_logger(self):
         """
@@ -144,11 +279,14 @@ class Settings(object):
         this must be called to apply them.
         """
         lps = self.get_logger()
-        logger = utils.get_basic_logger(style=lps.get_value('style'),
-                                clevel=lps.get_value('clevel'),
-                                flevel=lps.get_value('flevel'),
-                                filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
-                                filemode=lps.get_value('filemode'))
+        if lps is not None:
+            logger = utils.get_basic_logger(style=lps.get_value('style'),
+                                    clevel=lps.get_value('clevel'),
+                                    flevel=lps.get_value('flevel'),
+                                    filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
+                                    filemode=lps.get_value('filemode'))
+        else:
+            logger = utils.get_basic_logger()
         
     def get_gui(self):
         """
@@ -157,90 +295,7 @@ class Settings(object):
         @return: gui ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('gui').values()[0]
-        
-    #~ def get_ps(self,section=None):
-        #~ """
-        #~ get a parameterset by section
-        #~ 
-        #~ @param section: setting section (gui, logger, etc)
-        #~ @type section: str
-        #~ @return: parameterset
-        #~ @rtype: ParameterSet
-        #~ """
-        #~ if section is None:
-            #~ return self.sections
-        #~ return self.sections[section]
-        
-    #~ def get_parameter(self,qualifier,section=None):
-        #~ """
-        #~ Retrieve a parameter from the settings
-        #~ If section is not provided and there are more than one object in 
-        #~ settings containing a parameter with the same name, this will
-        #~ return an error and ask you to provide a valid section
-        #~ 
-        #~ @param qualifier: name or alias of the variable
-        #~ @type qualifier: str
-        #~ @param section: setting section (gui, logger, etc)
-        #~ @type objref: str
-        #~ @return: Parameter corresponding to the qualifier
-        #~ @rtype: Parameter
-        #~ """
-        #~ if section is None:
-            #~ categories = [c for c in self.sections.keys() if not isinstance(self.sections[c],list)]
-        #~ else:
-            #~ categories = [section]
-        #~ 
-        #~ return_params = []
-        #~ return_categories = []
-        #~ 
-        #~ for section in categories:
-            #~ ps = self.get_ps(section)
-            #~ if qualifier in ps.keys():
-                #~ return_params.append(ps.get_parameter(qualifier))
-                #~ return_categories.append(section)
-                #~ 
-        #~ if len(return_params) > 1:
-            #~ raise ValueError("parameter '{}' is ambiguous, please provide one of the following for section:\n{}".format(qualifier,'\n'.join(["\t'%s'" % c for c in return_categories])))
-#~ 
-        #~ elif len(return_params)==0:
-            #~ raise ValueError("parameter '{}' was not found in any of the objects in the system".format(qualifier))
-            #~ 
-        #~ return return_params[0]
-        
-    #~ def get_value(self,qualifier,section=None):
-        #~ """
-        #~ Retrieve the value of a parameter from the settings
-        #~ If section is not provided and there are more than one object in 
-        #~ settings containing a parameter with the same name, this will
-        #~ return an error and ask you to provide a valid section
-        #~ 
-        #~ @param qualifier: name or alias of the variable
-        #~ @type qualifier: str
-        #~ @param section: setting section (gui, logger, etc)
-        #~ @type objref: str
-        #~ @return: value of the Parameter corresponding to the qualifier
-        #~ @rtype: (depends on the parameter)
-        #~ """
-        #~ param = self.get_parameter(qualifier,section)
-        #~ return param.get_value()
-                    
-    #~ def set_value(self,qualifier,value,section=None):
-        #~ """
-        #~ Retrieve the value of a parameter from the settings
-        #~ If section is not provided and there are more than one object in 
-        #~ settings containing a parameter with the same name, this will
-        #~ return an error and ask you to provide a valid section
-        #~ 
-        #~ @param qualifier: name or alias of the variable
-        #~ @type qualifier: str
-        #~ @param value: the new value for the parameter
-        #~ @type value: (depends on parameter)
-        #~ @param section: setting section (gui, logger, etc)
-        #~ @type objref: str
-        #~ """
-        #~ param = self.get_parameter(qualifier,section)
-        #~ param.set_value(value)
+        return self._get_from_section_single('gui')
         
     #}
         
@@ -257,7 +312,7 @@ class Settings(object):
         """
         self.sections['servers'].append(Server(label,mpi,**kwargs))
         
-    def get_server(self,label=None):
+    def get_server(self,label=None,return_type='single'):
         """
         get a server by name
         
@@ -266,7 +321,7 @@ class Settings(object):
         @return: server
         @rtype: Server
         """
-        return self._get_from_section('servers',label)
+        return self._get_from_section('servers',label,return_type=return_type)
         
     def remove_server(self,label):
         """
@@ -296,7 +351,7 @@ class Settings(object):
             
         self.sections['compute'].append(compute)
 
-    def get_compute(self,label=None):
+    def get_compute(self,label=None,return_type='single'):
         """
         Get a compute ParameterSet by name
         
@@ -305,7 +360,7 @@ class Settings(object):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label)
+        return self._get_from_section('compute',label,return_type=return_type)
 
     def remove_compute(self,label):
         """
@@ -340,7 +395,7 @@ class Settings(object):
             
         self.sections['fitting'].append(fitting)
 
-    def get_fitting(self,label=None):
+    def get_fitting(self,label=None,return_type='single'):
         """
         Get a fitting ParameterSet by name
         
@@ -349,7 +404,7 @@ class Settings(object):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label)
+        return self._get_from_section('fitting',label,return_type=return_type)
         
     def remove_fitting(self,label):
         """

@@ -684,7 +684,7 @@
           </widget>
          </item>
          <item row="1" column="2">
-          <widget class="QRadioButton" name="p_pyinterp_thread_off">
+          <widget class="QRadioButton" name="pyinterp_thread_off">
            <property name="enabled">
             <bool>true</bool>
            </property>

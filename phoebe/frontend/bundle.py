@@ -56,7 +56,7 @@ from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
 from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
-from phoebe.frontend.usersettings import Settings
+from phoebe.frontend.usersettings import Settings, Container
 from phoebe.frontend.figures import Axes
 
 logger = logging.getLogger("BUNDLE")
@@ -154,8 +154,9 @@ def run_on_server(fctn):
         return fctn(bundle, *args, **kwargs)
     
     return parse
+    
 
-class Bundle(object):
+class Bundle(Container):
     """
     Class representing a collection of systems and stuff related to it.
     
@@ -347,163 +348,6 @@ class Bundle(object):
         np.set_printoptions(threshold=old_threshold)
         return txt
         
-    ## act like a dictionary
-    def keys(self):
-        return self.sections.keys()
-        
-    def values(self):
-        return self.sections.values()
-        
-    def items(self):
-        return self.sections.items()
-        
-    ## generic functions to get non-system parametersets
-    def _return_from_dict(self,dictionary,return_type):
-        """
-        this functin takes a dictionary of results from a searching function
-        ie. _get_from_section and returns in the desired format ('list',
-        'dict', or 'single')
-        
-        @param dictionary: the dictionary of results
-        @type dictionary: dict or OrderedDict
-        @param return_type: 'list', 'dict', or 'single'
-        @type return_type: str
-        """
-        #~ if return_type=='dict':
-            #~ return dictionary
-        #~ elif return_type=='list':
-            #~ return dictionary.values()
-        #~ elif return_type=='single':
-            #~ if len(dictionary) > 1:
-                #~ raise ValueError("search resulted in more than one result: modify search or change return_type to 'list' or 'dict'")
-            #~ elif len(dictionary)==1: #then only one match
-                #~ return dictionary.values()[0]
-            #~ else: #then no results
-                #~ return None
-                
-        #~ if return_type=='single' and len(dictionary) == 0:    
-            #~ raise ValueError("no results found: set return_type='single_or_none' to bypass error")
-        if return_type=='single' and len(dictionary)==0:
-            return None
-        elif return_type in ['single'] and len(dictionary)>1:
-            raise ValueError("more than one dataset was returned from the search: either constrain search or set return_type='all'")
-        elif return_type in ['single']:
-            return dictionary.values()[0]
-        elif return_type in ['all','list']:
-            return [f for f in dictionary.values()]
-        else:
-            return dictionary   
-                
-
-                
-    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
-        """
-        retrieve a parameterset (or similar object) by section and label (optional)
-        if the section is also in the defaults set by usersettings, 
-        then those results will be included but overridden by those
-        in the bundle
-        
-        this function should be called by any get_* function that gets an item 
-        from one of the lists in self.sections
-        
-        @param section: name of the section (key of self.sections)
-        @type section: str
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        @param return_type: 'single', 'list', 'dict'
-        @type return_type: str
-        @param ignore_usersettings: whether to ignore defaults in usersettings (default: False)
-        @type ignore_usersettings: bool
-        """
-        # We'll start with an empty dictionary, fill it, and then convert
-        # to the requested format
-        items = OrderedDict()
-        
-        # First we'll get the items from the bundle
-        # If a duplicate is found in usersettings, the bundle version will trump it
-        if section in self.sections.keys():
-            for ps in self.sections[section]:
-                #~ if search is None or ps.get_value(search_by)==search:
-                if search is None or fnmatch(ps.get_value(search_by), search):
-                    # if search_by is None then we want to return everything
-                    # NOTE: in this case usersettings will be ignored
-                    if search_by is not None:
-                        try:
-                            key = ps.get_value(search_by)
-                        except AttributeError:
-                            continue
-                    else:
-                        key = len(items)
-                    items[key] = ps
-
-        if not ignore_usersettings and search_by is not None:
-            # Now let's check the defaults in usersettings
-            usersettings = self.get_usersettings().sections
-            if section in usersettings.keys():
-                for ps in usersettings[section]:
-                    #~ if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
-                    if (search is None or fnmatch(ps.get_value(search_by), search)) and ps.get_value(search_by) not in items.keys():
-                        # Then these defaults exist in the usersettings but 
-                        # are not (yet) overridden by the bundle.
-                        #
-                        # In this case, we need to make a deepcopy and save it
-                        # to the bundle (since it could be edited here).
-                        # This is the version that will be returned in this 
-                        # and any future retrieval attempts.
-                        #
-                        # In order to return to the usersettings default,
-                        # the user needs to remove the bundle version, or 
-                        # access directly from usersettings (bundle.get_usersettings().get_...).
-                        #
-                        # NOTE: in the case of things that have defaults in
-                        # usersettings but not in bundle by default (ie logger, servers, etc)
-                        # this will still create a new copy (for consistency)
-
-                        psc = copy.deepcopy(ps)
-                        items[psc.get_value(search_by)] = psc
-                        # now we add the copy to the bundle
-                        self._add_to_section(section,psc)
-                    
-        # and now return in the requested format
-        return self._return_from_dict(items,return_type)
-
-    def _remove_from_section(self,section,search,search_by='label'):
-        """
-        remove a parameterset from by section and label
-        
-        this will not affect any defaults set in usersettings - so this
-        function can be called to 'reset to user defaults'
-        
-        this function should be called by any remove_* function that gets an item 
-        from one of the lists in self.sections
-        
-        @param section: name of the section (key of self.sections)
-        @type section: str
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-        if search is None:    return None
-        #~ return self.sections[section].pop(self.sections[section].index(self._get_from_section(section,search,search_by))) 
-        return self.sections[section].remove(self._get_from_section(section,search,search_by))
-        
-    def _add_to_section(self,section,ps):
-        """
-        add a new parameterset to section - the label of the parameterset
-        will be used as the key to retrieve it using _get_from_section
-        
-        @param section: name of the section (key of self.sections)
-        @type section: str
-        @param ps: the new parameterset with label set
-        @type ps: ParameterSet
-        """
-        if section not in self.sections.keys():
-            self.sections[section] = []
-        self.sections[section].append(ps)
-        
     #{ Settings
     def set_setting(self,key,value):
         """
@@ -653,18 +497,10 @@ class Bundle(object):
         @return: the attached system
         @rtype: Body or BodyBag
         """
-        # for consistency sake, we'll use _get_from_section and confirm
-        # that only one entry is returned 
         # NOTE: since we're passing search_by=None, usersettings will be ignored
         # so you cannot set a default system in usersettings
-        system = self._get_from_section('system',search_by=None,return_type='list')
-        if len(system) == 0:
-            raise ValueError("ERROR: no system attached")
-            return None
-        if len(system) > 1:
-            raise ValueError("ERROR: returned more than 1 server")
-        return system[0]
-                       
+        return self._get_from_section_single('system')
+        
     def list(self, summary=None, *args):
         """
         List with indices all the ParameterSets that are available.

@@ -24,7 +24,7 @@
        <widget class="QComboBox" name="ds_typeComboBox">
         <item>
          <property name="text">
-          <string>all types</string>
+          <string>all categories</string>
          </property>
         </item>
         <item>

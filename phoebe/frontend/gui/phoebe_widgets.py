@@ -810,12 +810,12 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         ### filter which rows we want to show
         axes_incl = bundle.get_axes(return_type='dict').values() #default
         self.style = 'data' #default
-        if plots!='all plots' or types!='all types':
+        if plots!='all plots' or types!='all categories':
             if plots!='all plots':
                 axes_incl = [bundle.get_axes(plots)]
                 typ = axes_incl[0].get_value('category') # will be rv, lc, etc 
                 self.style = 'plot'
-            elif types!='all types': #plot will automatically handle filtering by type
+            elif types!='all categories': #plot will automatically handle filtering by type
                 typ = types
                 
             # override the input lists for data_obs and data_syn to only show the requested rows
@@ -919,6 +919,8 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 reload_button.info = {'dataset': dataset}
                 QObject.connect(reload_button, SIGNAL('clicked()'), self.on_reload_clicked)
                 HBox.addWidget(reload_button)
+            else:
+                reload_button = None
             
             export_button = QPushButton()
             export_button.setIcon(self.list_icon)
@@ -1778,7 +1780,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
             if self.selected_item[1]==0: #then first column and we can exit
                 self.selected_item = None
                 return
-                
+
             # get this info first since access to the widget will disappear after emitting a signal
             if len(self.selected_item) <= 2: return
             item=self.selected_item[0]
@@ -1796,8 +1798,8 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
             self.removeItemWidget(item,col)
             self.createLabel(item,col)
             
+            self.selected_item=None
             if not change_value:
-                self.selected_item=None
                 return
 
             # get check state only if type is float (fitable)
@@ -1806,7 +1808,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
                 new_check = True if check.checkState()==2 else False
                 old_check = check.info['originalvalue']
             
-            if className=='QDoubleSpinBox' or className=='QSpinBox':
+            elif className=='QDoubleSpinBox' or className=='QSpinBox':
                 new_value=str(widget.value())
                 if new_value!=old_value:
                     item.setData(col,0,new_value)
@@ -1824,11 +1826,10 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
                     item.setData(col,0,new_value)
                     self.emit(SIGNAL("parameterChanged"),self,label,param,old_value,new_value)
             
-            if className=='QDoubleSpinBox' and 'nofit' not in self.style and hasattr(param,'adjust'): #only floats are fitable
+            elif className=='QDoubleSpinBox' and 'nofit' not in self.style and hasattr(param,'adjust'): #only floats are fitable
                 if new_check!=old_check: 
                     self.emit(SIGNAL("parameterChanged"),self,label,param,old_check,new_check,None,None,True)
             
-            self.selected_item=None
             return
             
     def on_infobutton_clicked(self):
