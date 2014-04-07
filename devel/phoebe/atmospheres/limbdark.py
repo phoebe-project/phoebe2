@@ -3796,7 +3796,8 @@ def download_atm(atm=None):
     # Perhaps we need to be sudo?
     print("Copying to destination folder {}".format(destin_folder))
     if not os.access(destin_folder, os.W_OK):
-        print("User has no write priviliges in destination folder, switching to sudo mode")
+        raise IOError(("User has no write priviliges in destination folder, run sudo python"
+                        "before calling this function"))
         #output = subprocess.check_call(['sudo']+sys.argv)
     
     if atm is None:
@@ -3806,9 +3807,9 @@ def download_atm(atm=None):
             urllib.urlretrieve(source, destin)
             print("Downloaded tar archive from phoebe-project.org")
         except IOError:
-            raise IOError(("Failed to download atmosphere file {} (you probably "
-                           "need to create on yourself starting from the specific "
-                           "intensities)").format( 'ldcoeffs.tar.gz'))
+            raise IOError(("Failed to download atmosphere file {} to {} (you probably "
+                           "need to create one yourself starting from the specific "
+                           "intensities)").format(source, destin))
             
     
         tar = tarfile.open(destin)
