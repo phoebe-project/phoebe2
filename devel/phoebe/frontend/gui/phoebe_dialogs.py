@@ -199,16 +199,16 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         for w in self.findChildren(QComboBox):
             if w.objectName().split('_')[0]=='s':
                 key = "_".join(str(w.objectName()).split('_')[1:])
-                names = ['None']+self.prefs.get_server().keys()
+                names = ['None']+self.prefs.get_server(return_type='dict').keys()
             elif w.objectName() == 'sx_serveredit_combo':
                 key = None
-                names = self.prefs.get_server().keys()
+                names = self.prefs.get_server(return_type='dict').keys()
             elif w.objectName() == 'co_edit_combo':
                 key = None
-                names = self.prefs.get_compute().keys()
+                names = self.prefs.get_compute(return_type='dict').keys()
             elif w.objectName() == 'fo_edit_combo':
                 key = None
-                names = self.prefs.get_fitting().keys()
+                names = self.prefs.get_fitting(return_type='dict').keys()
             else:
                 continue
             
@@ -242,7 +242,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                     self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.item_changed)
                 
         ### create server list treeview
-        self.serverlist_treeWidget.set_data(self.prefs.get_server())
+        self.serverlist_treeWidget.set_data(self.prefs.get_server(return_type='dict'))
             
         # logger stuff
         self.lo_psedit.set_data([self.prefs.get_logger()],style=['nofit'])
@@ -457,16 +457,17 @@ class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
             times = self.get_times(dataref)
             #~ print "***", dataref, len(times)
         
-        if compute == 'min':
-            time = times.min()
-        elif compute == 'max':
-            time = times.max()
-        elif compute == 'median':
-            time = np.median(times)
-        elif compute == 'mean':
-            time = np.mean(times)
-        
-        self.time.setText(str(time))
+        if len(times):
+            if compute == 'min':
+                time = times.min()
+            elif compute == 'max':
+                time = times.max()
+            elif compute == 'median':
+                time = np.median(times)
+            elif compute == 'mean':
+                time = np.mean(times)
+            
+            self.time.setText(str(time))
         
         
 class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
@@ -505,7 +506,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
                 self.filtertypes[fset] = []
             self.filtertypes[fset].append(fband)
             
-        self.pfe_filtersetComboBox.addItems(self.filtertypes.keys())
+        self.pfe_filtersetComboBox.addItems(sorted(self.filtertypes.keys()))
         self.pfe_filterbandComboBox.setEnabled(False)
         self.connect(self.pfe_filtersetComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_filterset_changed)
         #~ self.pfe_filterComboBox.addItems(self.filtertypes)
@@ -539,6 +540,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         self.syn_timeWidget.setVisible(True)
         
         # this is now a synthetic dataset - hide the file chooser button
+        self.dataTextEdit.setVisible(False)
         self.pfe_synChooserButton.setEnabled(False)
         self.pfe_fileChooserButton.setVisible(False)
         

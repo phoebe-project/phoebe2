@@ -1727,7 +1727,7 @@ class Ui_popAbout_Dialog(object):
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"></p>\n"
 "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">version/download information</p>\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><a href=\"http://phoebe.villanova.edu\"><span style=\" text-decoration: underline; color:#0000ff;\">PHOEBE Website</span></a></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><a href=\"http://phoebe-project.org/2.0/\"><span style=\" text-decoration: underline; color:#0000ff;\">PHOEBE Website</span></a></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.TabWidget.setTabText(self.TabWidget.indexOf(self.info_tabWidget), QtGui.QApplication.translate("popAbout_Dialog", "Info", None, QtGui.QApplication.UnicodeUTF8))
         self.changeLog_TextEdit.setHtml(QtGui.QApplication.translate("popAbout_Dialog", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
@@ -2887,10 +2887,10 @@ class Ui_popPrefs_Dialog(object):
         self.radioButton_6.setEnabled(False)
         self.radioButton_6.setObjectName(_fromUtf8("radioButton_6"))
         self.gridLayout_4.addWidget(self.radioButton_6, 2, 1, 1, 1)
-        self.p_pyinterp_thread_off = QtGui.QRadioButton(self.tab)
-        self.p_pyinterp_thread_off.setEnabled(True)
-        self.p_pyinterp_thread_off.setObjectName(_fromUtf8("p_pyinterp_thread_off"))
-        self.gridLayout_4.addWidget(self.p_pyinterp_thread_off, 1, 2, 1, 1)
+        self.pyinterp_thread_off = QtGui.QRadioButton(self.tab)
+        self.pyinterp_thread_off.setEnabled(True)
+        self.pyinterp_thread_off.setObjectName(_fromUtf8("pyinterp_thread_off"))
+        self.gridLayout_4.addWidget(self.pyinterp_thread_off, 1, 2, 1, 1)
         self.label_11 = QtGui.QLabel(self.tab)
         self.label_11.setTextFormat(QtCore.Qt.RichText)
         self.label_11.setObjectName(_fromUtf8("label_11"))
@@ -2989,7 +2989,7 @@ class Ui_popPrefs_Dialog(object):
         self.save_pyinterp_startup_custom.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Save", None, QtGui.QApplication.UnicodeUTF8))
         self.radioButton_5.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Python Tab", None, QtGui.QApplication.UnicodeUTF8))
         self.radioButton_6.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Terminal", None, QtGui.QApplication.UnicodeUTF8))
-        self.p_pyinterp_thread_off.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Disabled", None, QtGui.QApplication.UnicodeUTF8))
+        self.pyinterp_thread_off.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Disabled", None, QtGui.QApplication.UnicodeUTF8))
         self.label_11.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Threading:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.label_3.setText(QtGui.QApplication.translate("popPrefs_Dialog", "<html><head/><body><p><span style=\" font-weight:600;\">Redirect stderr:</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.radioButton_4.setText(QtGui.QApplication.translate("popPrefs_Dialog", "Log Tab", None, QtGui.QApplication.UnicodeUTF8))
@@ -3128,7 +3128,7 @@ class Ui_datasetWidget(object):
 
     def retranslateUi(self, datasetWidget):
         datasetWidget.setWindowTitle(QtGui.QApplication.translate("datasetWidget", "Form", None, QtGui.QApplication.UnicodeUTF8))
-        self.ds_typeComboBox.setItemText(0, QtGui.QApplication.translate("datasetWidget", "all types", None, QtGui.QApplication.UnicodeUTF8))
+        self.ds_typeComboBox.setItemText(0, QtGui.QApplication.translate("datasetWidget", "all categories", None, QtGui.QApplication.UnicodeUTF8))
         self.ds_typeComboBox.setItemText(1, QtGui.QApplication.translate("datasetWidget", "lc", None, QtGui.QApplication.UnicodeUTF8))
         self.ds_typeComboBox.setItemText(2, QtGui.QApplication.translate("datasetWidget", "rv", None, QtGui.QApplication.UnicodeUTF8))
         self.ds_typeComboBox.setItemText(3, QtGui.QApplication.translate("datasetWidget", "sp", None, QtGui.QApplication.UnicodeUTF8))

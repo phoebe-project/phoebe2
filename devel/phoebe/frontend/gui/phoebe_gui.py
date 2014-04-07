@@ -274,7 +274,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.paramTreeViews = [self.lp_compTreeView,self.lp_orbitTreeView, self.lp_meshTreeView, self.rp_fitinTreeView, self.rp_fitoutTreeView, self.rp_fitoptionsTreeView, self.lp_observeoptionsTreeView, self.datasetswidget_main.datasetTreeView, self.versions_treeView, self.rp_savedFeedbackTreeView, self.sys_orbitOptionsTreeView, self.sys_meshOptionsTreeView]
         for tv in self.paramTreeViews:
             QObject.connect(tv, SIGNAL("parameterChanged"), self.on_param_changed)
-            QObject.connect(tv, SIGNAL("parameterCommand"), self.on_param_command)
             QObject.connect(tv, SIGNAL("focusIn"), self.on_paramfocus_changed)
         QObject.connect(self.rp_fitinTreeView, SIGNAL("priorChanged"), self.on_prior_changed)  
         QObject.connect(self.rp_savedFeedbackTreeView, SIGNAL("feedbackExamine"), self.on_feedback_changed) 
@@ -818,7 +817,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 else:
                     self.datasetswidget_main.ds_typeComboBox.setEnabled(True)
             else:
-                types = 'all types'
+                types = 'all categories'
                 plots = tree.plotindex
             
             tree.set_data(ds_obs,ds_syn,types,plots,self.bundle,self.system_ps,self.system_names)
@@ -1303,7 +1302,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_servers_avail(self,update_prefs=False):
         if update_prefs:
             self.prefs = self.PyInterp_get('settings')
-        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server().values() if s.last_known_status['status']]        
+        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server(return_type='dict').values() if s.last_known_status['status']]        
         for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
             orig_text = str(w.currentText())
             w.clear()
@@ -1335,7 +1334,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key in self.prefs.get_compute()
+        in_settings = key in self.prefs.get_compute(return_type='dict')
         self.lp_observeoptionsReset.setVisible(in_settings)
         self.lp_observeoptionsDelete.setVisible(in_settings==False)
 
@@ -1446,7 +1445,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             #~ self.undoStack.push(command)
         
         qualifier = '%s@%s' % (parname,label)
-        if kind in ['compute','fitting','orbitview','meshview']:
+        if kind in ['compute','fitting']:
+            # not meshview or orbitview because they are required to only have 1 item (no labels)
             qualifier += '@%s' % kind
         
         # change adjust/value if necessary
@@ -1469,7 +1469,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 undo_command = "bundle.get_ps(%s).add_constraint('{%s} = %s')" % (labelstr,parname,oldvalue)
         
             command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,thread=False,description="change constraint on %s:%s" % (label,parname))
-            
+        
         self.undoStack.push(command)
         
         # change units
@@ -1800,7 +1800,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key in self.prefs.get_fitting()
+        in_settings = key in self.prefs.get_fitting(return_type='dict')
         self.rp_fitoptionsReset.setVisible(in_settings)
         self.rp_fitoptionsDelete.setVisible(in_settings==False)
 
