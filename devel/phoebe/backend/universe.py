@@ -6118,7 +6118,7 @@ class Star(PhysicalBody):
                 to_add = velocity_field
             
             # Perhaps the user gave an empty list, then that's a bit silly
-            if len(velocity_field) > 0:
+            if len(to_add) > 0:
                 for ito_add in to_add:
                     check_input_ps(self, ito_add, ['velocity_field:turb',
                                                    'velocity_field:meri'],
@@ -6748,6 +6748,37 @@ class Star(PhysicalBody):
 class BinaryRocheStar(PhysicalBody):    
     """
     Body representing a binary Roche surface.
+    
+    A BinaryRocheStar strictly has only one obligatory ParameterSet: context
+    ``component``. It sets the basic properties such as mass, radius (through
+    the potential) and temperature. Because potential is used rather than radius,
+    there is a second ParameterSet which is necessary to do any computations
+    (though not necessary to initialize): context ``orbit``. It is recommended
+    to treat the ``orbit`` also as an obligatory ParameterSet, the exception
+    being when working with BinaryBags.
+    
+    Optional parameterSets:
+    
+        - ``mesh``: determines mesh properties, such as mesh density and algorithm
+        - ``reddening``: set interstellar reddening properties (law, extinction)
+        - ``puls``: pulsation mode properties (can be a list)
+        - ``circ_spot``: spot properties (can be a list)
+        - ``magnetic_field``: global magnetic field properties (dipole...)
+        - ``velocity_field``: surface velocity field properties (macroturbulence)
+        - ``globals``: systemic velocity, position, distance...
+        
+    As for any other Body, you can give also a list of
+    
+        - ``pbdep``: passband dependables
+        - ``obs``: observations
+    
+    Useful function:
+    
+    .. autosummary::
+    
+        get_component
+        volume
+        get_mass
     """
     
     def __init__(self, component, orbit=None, mesh=None, reddening=None,
@@ -6762,10 +6793,7 @@ class BinaryRocheStar(PhysicalBody):
         need to be set. If you choose not to do this upon initalization, the
         user is responsible for taking care of this.
         
-        All other keyword ParameterSets are optional.
-        
-        Extra possible keyword arguments are:
-            - :envvar:`globals`: a parameterSet representing global parameters
+        All other keyword ParameterSets are optional.        
         """
         
         # Initialize the base body.

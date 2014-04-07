@@ -3525,7 +3525,14 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
                     system.mesh[tag][i,-1] = sed.synthetic_flux(wave_*10,
                                                     Imu_blackbody, [passband])[0]
         
-        # 4. Escape route
+        # 4. Wilson Devinney compatibility layer
+        elif os.path.splitext(atm)[1] == '.dat':
+            system.mesh[tag][:, -1] = interp_ld_coeffs_wd(atm, passband,
+                                         atm_kwargs=atm_kwargs,
+                                         red_kwargs=red_kwargs, vgamma=vgamma)
+        
+        
+        # 5. Escape route
         else:
             raise ValueError("atm and ld_coeffs not understood; did you register them?")
             local_intensity_old(system, parset_pbdep, parset_isr={})
