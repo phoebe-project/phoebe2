@@ -919,7 +919,11 @@ class Bundle(Container):
         if kwargs:
             raise SyntaxError("set_value does not take extra keyword arguments")
         
-        params = self.get_parameter(qualifier, return_type=apply_to)
+        try:
+            params = self.get_parameter(qualifier, return_type=apply_to)
+        except ValueError:
+            raise ValueError("more than one parameter named 'atm' was returned from the search: either constrain search or set apply_to='all'")
+
         
         if apply_to in ['single']:
             params.set_value(value, *args)
