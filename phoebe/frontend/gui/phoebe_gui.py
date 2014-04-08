@@ -629,7 +629,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         this will result in a call to on_new_bundle        
         """
         #this will obviously be reworked to be more general
-        self.PyInterp_run('bundle = Bundle(system = create.from_library(\'HV2241\', create_body=True))', kind='sys', thread=False) 
+        self.PyInterp_run("bundle = Bundle('defaults.phoebe')", kind='sys', thread=False) 
     
     def splash_triple(self):
         """
@@ -720,6 +720,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             struc['mask'].append(True)
 
         # recursively loop to get hierarchical structure
+        #~ print "*** searching for child with label", itemlabel
         children = bundle.get_children(itemlabel)
         if len(children) > 1:
             for typ in all_types:

@@ -503,6 +503,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
         #-- Global name of the system
         if key == 'phoebe_name':
             system_label = val[2:-2]
+            
+            if not system_label:
+                system_label = 'new system'
 
         #-- now populate the lcdep and rvdep parameters 
         if key == 'phoebe_lc_filename':
@@ -818,7 +821,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
     #-- copy the component labels to the orbits
     orbit['c1label'] = comp1['label']
     orbit['c2label'] = comp2['label']
-    orbit['label'] = 'orbit'
+    orbit['label'] = system_label
     
     # t0 is the time of superior conjunction in Phoebe Legacy
     orbit['t0type'] = 'superior conjunction'
