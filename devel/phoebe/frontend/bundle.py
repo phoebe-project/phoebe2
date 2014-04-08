@@ -157,6 +157,35 @@ def run_on_server(fctn):
         return fctn(bundle, *args, **kwargs)
     
     return parse
+
+
+def build_generic_access_qualifier(system, parameter):
+    """
+    Build a generic access qualifier for a parameter in a system.
+    """
+    my_unique_label = parameter.get_unique_label()
+    generic_access_qualifier = None
+    # figure out the component of the parameter
+    do_continue = False
+    for path, val in system.walk_all(path_as_string=False):
+        if do_continue:
+            continue
+        if isinstance(val, parameters.Parameter):
+            if val.get_unique_label() == my_unique_label:
+                # we got it!
+                do_continue = True
+                # what's the component:
+                labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
+                component = labels[-1]
+                qualifier = parameter.get_qualifier()
+                # Get the data label or parameter context
+                if isinstance(path[-2],str):
+                    context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
+                else:
+                    context = path[-2].get_context()
+                generic_access_qualifier = '@'.join([qualifier,context,component])
+                
+    return generic_access_qualifier
     
 
 class Bundle(Container):
