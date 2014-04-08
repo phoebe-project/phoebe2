@@ -46,6 +46,7 @@ from fnmatch import fnmatch
 import matplotlib.pyplot as plt
 import copy
 import os
+import re
 #~ from PIL import Image
 
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
@@ -61,6 +62,8 @@ from phoebe.frontend.figures import Axes
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
+
+delim = '@|->'
 
 def run_on_server(fctn):
     """
@@ -564,7 +567,7 @@ class Bundle(Container):
         
         # Extract the info on the name and structure info. The name is always
         # first
-        qualifier = qualifier.split('@')
+        qualifier = re.split(delim, qualifier)
         if len(qualifier)>1:
             structure_info = qualifier[1:]
         qualifier = qualifier[0]
@@ -730,7 +733,7 @@ class Bundle(Container):
         
         # Extract the info on the qualifier and structure info. The qualifier
         # is always first
-        qualifier = qualifier.split('@')
+        qualifier = re.split(delim, qualifier)
         if len(qualifier)>1:
             structure_info = qualifier[1:]
         qualifier = qualifier[0]
@@ -1088,7 +1091,7 @@ class Bundle(Container):
         """
         qualifier = 'orbit'
         if objref is not None:
-            qualifier += '@{}'.format(objref)
+            qualifier += '{}{}'.format(delim[0],objref)
         return self.get_ps(qualifier, return_type=return_type)
         
     def get_meshps(self, objref=None, return_type='single'):
@@ -1102,7 +1105,7 @@ class Bundle(Container):
         """
         qualifier = 'mesh*'
         if objref is not None:
-            qualifier += '@{}'.format(objref)
+            qualifier += '{}{}'.format(delim[0],objref)
         return self.get_ps(qualifier, return_type=return_type)
         
     #}  
@@ -1558,7 +1561,7 @@ class Bundle(Container):
                 ds = body.get_synthetic(ref=dataref, cumulative=True)
                 
                 if ds is not None and ds != [] and (category is None or ds.context[:-3]==category):
-                    dss['{}@{}'.format(ds['ref'],this_objref)] = ds
+                    dss['{}{}{}'.format(ds['ref'],delim[0],this_objref)] = ds
                 
                 
                 #~ # If category is not given, run over all of them
@@ -1608,7 +1611,7 @@ class Bundle(Container):
                     for this_dataref in body.params['obs'][obstype]:
                         if dataref is None or dataref==this_dataref:
                             ds = body.params['obs'][obstype][this_dataref]
-                            dss['{}@{}@{}'.format(this_dataref,obstype,this_objref)] = ds
+                            dss['{}{}{}{}{}'.format(this_dataref,delim[0],obstype,delim[0],this_objref)] = ds
                             
         return self._return_from_dict(dss,all)
         
@@ -2062,7 +2065,8 @@ class Bundle(Container):
         
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        obj = self.get_object(dss.keys()[0].split('@')[2])
+        #obj = self.get_object(dss.keys()[0].split(delim)[2])
+        obj = self.get_object(re.split(delim, dss.keys()[0])[2])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2113,7 +2117,8 @@ class Bundle(Container):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        obj = self.get_object(dss.keys()[0].split('@')[-1])
+        #obj = self.get_object(dss.keys()[0].split(delim)[-1])
+        obj = self.get_object(re.split(delim, dss.keys()[0])[-1])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2138,7 +2143,8 @@ class Bundle(Container):
         
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        obj = self.get_object(dss.keys()[0].split('@')[2])
+        #obj = self.get_object(dss.keys()[0].split(delim)[2])
+        obj = self.get_object(re.split(delim, dss.keys()[0])[2])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
