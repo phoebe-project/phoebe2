@@ -196,26 +196,9 @@ class Bundle(Container):
         set_value
         get_value
         load_data
-        create_syn
+        create_data
         plot_syn
         
-    
-    **Phoebe 1.0 Legacy interface**
-    
-    .. autosummary::
-    
-        getpar
-        setpar
-        getlim
-        setlim
-        cfval
-        check
-        updateLD
-        set_beaming
-        set_ltt
-        set_heating
-        set_reflection
-    
     **What is the Bundle?**
     
     The Bundle aims at providing a user-friendly interface to a Body or BodyBag,
@@ -328,7 +311,7 @@ class Bundle(Container):
         # TODO: expand this to be generic across all sections (with ignore_usersettings?)
         txt = ""
         txt += "============ Compute ============\n"
-        computes = self.get_compute(return_type='list')
+        computes = self.get_compute(all=True).values()
         for icomp in computes:
             mystring = []
             for par in icomp:
@@ -339,8 +322,8 @@ class Bundle(Container):
             txt += "\n".join(textwrap.wrap(mystring, initial_indent='', subsequent_indent=7*' ', width=79))
             txt += "\n"
         txt += "============ Other ============\n"
-        txt += "{} fitting options\n".format(len(self.get_fitting(return_type='list')))
-        #txt += "{} axes\n".format(len(self.get_axes(return_type='list')))
+        txt += "{} fitting options\n".format(len(self.get_fitting(all=True).values()))
+        #txt += "{} axes\n".format(len(self.get_axes(all=True).values()))
         txt += "============ System ============\n"
         txt += self.list(summary='full')
         
@@ -396,14 +379,14 @@ class Bundle(Container):
         """
         return self.usersettings
             
-    def get_server(self,label=None,return_type='list'):
+    def get_server(self,label=None,all=False):
         """
         Return a server by name
         
         @param servername: name of the server
         @type servername: string
         """
-        return self._get_from_section('servers',label,return_type=return_type)
+        return self._get_from_section('servers',label,all=False)
         
     #}    
     #{ System
@@ -482,7 +465,7 @@ class Bundle(Container):
         #self.attach_system_signals()
         
         # check to see if in versions, and if so set versions_curr_i
-        #versions_sys = [v.get_system() for v in self.get_version(return_type='list')]
+        #versions_sys = [v.get_system() for v in self.get_version(all=True).values()]
         
         #if system in versions_sys:
         #    i = versions_sys.index(system)
@@ -847,17 +830,17 @@ class Bundle(Container):
             if len(structure_info) == 2:
                 mylist = self._get_from_section(structure_info[0],
                                                 search=structure_info[1],
-                                                return_type='list')
+                                                all=True).values()
             elif len(structure_info) == 1:
                 # structure_info[0] may be the section
                 mylist = self._get_from_section(structure_info[0],
-                                                return_type='list')
+                                                all=True).values()
                 
                 # or structure_info[0] may be the label
                 for section in sections:
                     mylist += self._get_from_section(section,
                                                      search=structure_info[0],
-                                                     return_type='list')
+                                                     all=True).values()
             else:
                 mylist = []
                 for section in sections:
@@ -1147,7 +1130,7 @@ class Bundle(Container):
         # reattach signals to the system
         self.attach_system_signals()
         
-    def get_version(self,search=None,search_by='name',return_type='single'):
+    def get_version(self,search=None,search_by='name',all=False):
         """
         Retrieve a stored version by one of its keys
         
@@ -1163,9 +1146,9 @@ class Bundle(Container):
         @rtype: Version
         """
         if isinstance(search,int): #then easy to return from list
-            return self._get_from_section('version',return_type='list')[self.versions_curr_i+version]
+            return self._get_from_section('version',all=True).values()[self.versions_curr_i+version]
             
-        return self._get_from_section('version',search,search_by,return_type=return_type)
+        return self._get_from_section('version',search,search_by,all=all)
            
     def restore_version(self,search,search_by='name'):
         """
@@ -1229,7 +1212,7 @@ class Bundle(Container):
         output is a dictionary with object names as keys and lists of both
         datasets and pbdeps as the values {objectname: [[ds1,ds2],[ps1,ps2]]}
         
-        this is called from bundle.load_data and bundle.create_syn
+        this is called from bundle.load_data and bundle.create_data
         and should not be called on its own   
         
         If ``skip_defaults_from_body`` is True, none of the parameters in the
@@ -1299,7 +1282,7 @@ class Bundle(Container):
     
     
     def load_data(self, category, filename, passband=None, columns=None,
-                  objref=None, ref=None, scale=False, offset=False):
+                  objref=None, dataref=None, scale=False, offset=False):
         """
         Add data from a file.
         
@@ -1319,27 +1302,27 @@ class Bundle(Container):
         @type columns: list of strings
         @param objref: component for each column in file
         @type objref: list of strings (labels of the bodies)
-        @param ref: name for ref for all returned datasets
-        @type ref: str    
+        @param dataref: name for ref for all returned datasets
+        @type dataref: str    
         """
         
         if category == 'rv':
             output = datasets.parse_rv(filename, columns=columns,
                                        components=objref, full_output=True,
-                                       **{'passband':passband, 'ref': ref})
+                                       **{'passband':passband, 'ref': dataref})
         elif category == 'lc':
             output = datasets.parse_lc(filename, columns=columns,
                                        components=objref, full_output=True,
-                                       **{'passband':passband, 'ref': ref})
+                                       **{'passband':passband, 'ref': dataref})
         elif category == 'etv':
             output = datasets.parse_etv(filename, columns=columns,
                                         components=objref, full_output=True,
-                                        **{'passband':passband, 'ref': ref})
+                                        **{'passband':passband, 'ref': dataref})
         
         elif category == 'sp':
             output = datasets.parse_sp(filename, columns=columns,
                                        components=objref, full_output=True,
-                                       **{'passband':passband, 'ref': ref})
+                                       **{'passband':passband, 'ref': dataref})
         
         elif category == 'sed':
             output = datasets.parse_phot(filename, columns=columns,
@@ -1351,13 +1334,13 @@ class Bundle(Container):
         #                               **{'passband':passband, 'ref': ref})
         else:
             output = None
-            print("only lc, rv, etv, and sp currently implemented")
+            print("only lc, rv, etv, sed, and sp currently implemented")
         
         if output is not None:
             self._attach_datasets(output, skip_defaults_from_body=dict())
                        
         
-    def create_syn(self, category='lc', objref=None, dataref=None, **kwargs):
+    def create_data(self, category='lc', objref=None, dataref=None, **kwargs):
         """
         Create and attach empty data templates to compute the model.
 
@@ -1387,13 +1370,13 @@ class Bundle(Container):
         and :ref:`lcobs <parlabel-phoebe-lcobs>`.
         
         >>> time = np.linspace(0, 10.33, 101)
-        >>> bundle.create_syn(time=time, passband='GENEVA.V')
+        >>> bundle.create_data(time=time, passband='GENEVA.V')
         
         or in phase space (phase space will probably not work for anything but
         light curves and radial velocities):
         
         >>> phase = np.linspace(-0.5, 0.5, 101)
-        >>> bundle.create_syn(phase=phase, passband='GENEVA.V')
+        >>> bundle.create_data(phase=phase, passband='GENEVA.V')
         
         **Radial velocity curves**
         
@@ -1404,8 +1387,8 @@ class Bundle(Container):
         and :ref:`rvobs <parlabel-phoebe-rvobs>`.
         
         >>> time = np.linspace(0, 10.33, 101)
-        >>> bundle.create_syn(category='rv', objref='primary', time=time)
-        >>> bundle.create_syn(category='rv', objref='secondary', time=time)
+        >>> bundle.create_data(category='rv', objref='primary', time=time)
+        >>> bundle.create_data(category='rv', objref='secondary', time=time)
         
         **Spectra**
         
@@ -1417,11 +1400,11 @@ class Bundle(Container):
         
         >>> time = np.linspace(-0.5, 0.5, 11)
         >>> wavelength = np.linspace(454.8, 455.2, 500)
-        >>> bundle.create_syn(category='sp', objref='primary', time=time, wavelength=wavelength)
+        >>> bundle.create_data(category='sp', objref='primary', time=time, wavelength=wavelength)
         
         or to add to the entire system:
         
-        >>> bundle.create_syn(time=time, wavelength=wavelength)
+        >>> bundle.create_data(time=time, wavelength=wavelength)
         
         **Interferometry**
         
@@ -1433,12 +1416,12 @@ class Bundle(Container):
         >>> time = 0.1 * np.ones(101)
         >>> ucoord = np.linspace(0, 200, 101)
         >>> vcoord = np.zeros(101)
-        >>> bundle.create_syn(category='if', time=time, ucoord=ucoord, vcoord=vcoord)
+        >>> bundle.create_data(category='if', time=time, ucoord=ucoord, vcoord=vcoord)
         
         One extra option for interferometry is to set the keyword :envvar:`images`
         to a string, e.g.:
         
-        >>> bundle.create_syn(category='if', images='debug', time=time, ucoord=ucoord, vcoord=vcoord)
+        >>> bundle.create_data(category='if', images='debug', time=time, ucoord=ucoord, vcoord=vcoord)
         
         This will generate plots of the system on the sky with the projected
         baseline orientation (as well as some other info), but will also
@@ -1486,7 +1469,7 @@ class Bundle(Container):
                 components = [self.get_system()]
                 logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
             else:
-                logger.error('create_syn failed: components need to be provided')
+                logger.error('create_data failed: components need to be provided')
                 return
         # is component just one string?
         elif isinstance(objref, str):
@@ -1549,12 +1532,10 @@ class Bundle(Container):
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
     
     
-    def get_syn(self, category=None, objref=None, dataref=0, return_type='single'):
+    def get_syn(self, category=None, objref=None, dataref=0, all=False):
         """
         Get synthetic
         
-        @param return_type: 'single','all','dict'
-        @type return_type: str
         """
         dss = OrderedDict()
         system = self.get_system()
@@ -1601,18 +1582,16 @@ class Bundle(Container):
                     #~ if ds is not None:
                         #~ dss['{}@{}@{}'.format(ds['ref'],obstype,this_objref)] = ds
                     
-        return self._return_from_dict(dss,return_type)
+        return self._return_from_dict(dss,all)
                     
 
     def get_dep(self, objref=None, dataref=None, return_type='single'):
         pass
         
-    def get_obs(self, objref=None, dataref=None, return_type='single'):
+    def get_obs(self, objref=None, dataref=None, all=False):
         """
         Get observations
         
-        @param return_type: 'single','all','dict'
-        @type return_type: str
         """
         dss = OrderedDict()
         system = self.get_system()
@@ -1631,7 +1610,7 @@ class Bundle(Container):
                             ds = body.params['obs'][obstype][this_dataref]
                             dss['{}@{}@{}'.format(this_dataref,obstype,this_objref)] = ds
                             
-        return self._return_from_dict(dss,return_type)
+        return self._return_from_dict(dss,all)
         
     def enable_obs(self, dataref=None, objref=None):
         """
@@ -1686,7 +1665,7 @@ class Bundle(Container):
 
 
     def adjust_obs(self, dataref=None, l3=None, pblum=None):
-        for obs in self.get_obs(dataref=dataref,return_type='list'):
+        for obs in self.get_obs(dataref=dataref,all=True).items():
             if l3 is not None:
                 obs.set_adjust('l3',l3)
             if pblum is not None:
@@ -1700,7 +1679,7 @@ class Bundle(Container):
         @type dataref: str or None
         """
         
-        dss = self.get_obs(dataref=dataref,return_type='list')
+        dss = self.get_obs(dataref=dataref,all=True).items()
         for ds in dss:
             ds.load()
 
@@ -1745,7 +1724,7 @@ class Bundle(Container):
 
         self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None,return_type='single'):
+    def get_compute(self,label=None,all=False):
         """
         Get a compute ParameterSet by name
         
@@ -1754,7 +1733,7 @@ class Bundle(Container):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label,return_type=return_type)
+        return self._get_from_section('compute',label,all=all)
         
     def remove_compute(self,label):
         """
@@ -1859,7 +1838,7 @@ class Bundle(Container):
         self._add_to_section('fitting',fitting)
         self._attach_set_value_signals(fitting)
             
-    def get_fitting(self,label=None,return_type='single'):
+    def get_fitting(self,label=None,all=False):
         """
         Get a fitting ParameterSet by name
         
@@ -1868,7 +1847,7 @@ class Bundle(Container):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label,return_type=return_type)
+        return self._get_from_section('fitting',label,all=all)
 
     def remove_fitting(self,label):
         """
@@ -1967,7 +1946,7 @@ class Bundle(Container):
         
         self._add_to_section('feedback',feedback)
         
-    def get_feedback(self,search=None,search_by='label',return_type='single'):
+    def get_feedback(self,search=None,search_by='label',all=False):
         """
         Retrieve a stored feedback by one of its keys
         
@@ -1976,7 +1955,7 @@ class Bundle(Container):
         @param search_by: key to search by (defaults to label)
         @type search_by: str
         """
-        return self._get_from_section('feedback',search,search_by,return_type=return_type)
+        return self._get_from_section('feedback',search,search_by,all=all)
         
     def remove_feedback(self,search,search_by='label'):
         """
@@ -2075,7 +2054,7 @@ class Bundle(Container):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_obs(dataref=dataref, objref=objref, return_type='dict')
+        dss = self.get_obs(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
         elif not len(dss):
@@ -2107,11 +2086,11 @@ class Bundle(Container):
         
         Example usage:
         
-        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'create_syn'
+        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'create_data'
         >>> mybundle.plot_syn('lc01', 'r-', lw=2, scale=None)
         
-        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'create_syn'
-        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'create_syn'
+        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'create_data'
+        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'create_data'
         
         More information on arguments and keyword arguments:
         
@@ -2127,7 +2106,7 @@ class Bundle(Container):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_syn(dataref=dataref, objref=objref, return_type='dict')
+        dss = self.get_syn(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
         elif not len(dss):
@@ -2151,7 +2130,7 @@ class Bundle(Container):
         """
         objref = kwargs.pop('objref', None)
         
-        dss = self.get_obs(dataref=dataref, objref=objref, return_type='dict')
+        dss = self.get_obs(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
             logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
         elif not len(dss):
@@ -2167,7 +2146,7 @@ class Bundle(Container):
         getattr(plotting, 'plot_{}res'.format(context))(obj, *args, **kwargs)
     
     def write_syn(self, dataref, output_file, objref=None):
-        dss = self.get_syn(dataref=dataref, objref=objref, return_type='all')
+        dss = self.get_syn(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
         elif not len(dss):
@@ -2177,7 +2156,7 @@ class Bundle(Container):
         ds = dss[0]
         ds.save(output_file)
     
-    def get_axes(self,ident=None,return_type='single'):
+    def get_axes(self,ident=None,all=False):
         """
         Return an axes or list of axes that matches index OR title
         
@@ -2189,9 +2168,9 @@ class Bundle(Container):
         if isinstance(ident,int): 
             #then we need to return all in list and take index
             # TODO: this currently ignores return_type
-            return self._get_from_section('axes',search_by='title',return_type='list')[ident]
+            return self._get_from_section('axes',search_by='title',all=True).items()[ident]
         
-        return self._get_from_section('axes',ident,'title',return_type=return_type)
+        return self._get_from_section('axes',ident,'title',all=all)
         
     def add_axes(self,axes=None,**kwargs):
         """
@@ -2341,11 +2320,11 @@ class Bundle(Container):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self,label='default',return_type='single'):
+    def get_meshview(self,label='default',all=False):
         """
         
         """
-        return self._get_from_section('meshview',search=label,return_type=return_type)
+        return self._get_from_section('meshview',search=label,all=all)
       
         
     def _get_meshview_limits(self,times):
@@ -2424,13 +2403,13 @@ class Bundle(Container):
             axes.set_xlim(lims[0],lims[1])
             axes.set_ylim(lims[2],lims[3])
         
-    def get_orbitview(self,label='default',return_type='single'):
+    def get_orbitview(self,label='default',all=False):
         """
         
         """
         # TODO: fix this so we can set defaults in usersettings
         # (currently can't with search_by = None)
-        return self._get_from_section('orbitview',search=label,return_type=return_type)
+        return self._get_from_section('orbitview',search=label,all=all)
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """

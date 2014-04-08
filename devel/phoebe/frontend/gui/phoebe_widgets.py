@@ -808,7 +808,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             return
         
         ### filter which rows we want to show
-        axes_incl = bundle.get_axes(return_type='dict').values() #default
+        axes_incl = bundle.get_axes(all=True).values() #default
         self.style = 'data' #default
         if plots!='all plots' or types!='all categories':
             if plots!='all plots':
@@ -950,19 +950,19 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 stackedwidget = QStackedWidget()
                 
                 # these two bools are used in the data view                
-                has_obs = len(bundle.get_obs(name, dataset['ref'], return_type='all')) > 0
+                has_obs = len(bundle.get_obs(name, dataset['ref'], all=True)) > 0
                 #~ if has_obs:
                     # need to check that its not empty
                     #~ has_obs = has_ydata(bundle.get_obs(objref=name, dataref=dataset['ref'], return_type='all')[0])
-                has_syn = len(bundle.get_syn(objref=name, dataref=dataset['ref'], return_type='all')) > 0
+                has_syn = len(bundle.get_syn(objref=name, dataref=dataset['ref'], all=True)) > 0
                 
                 # get the dataset for this row AND column
                 if has_obs:
-                    col_obs = bundle.get_obs(objref=name, dataref=dataset['ref'], return_type='all')[0]
+                    col_obs = bundle.get_obs(objref=name, dataref=dataset['ref'], all=True)[0]
                 else:
                     col_obs = None
                 if has_syn:
-                    col_syn = bundle.get_syn(objref=name, dataref=dataset['ref'], return_type='all')[0]
+                    col_syn = bundle.get_syn(objref=name, dataref=dataset['ref'], all=True)[0]
                 else:
                     col_syn = None
                 
@@ -1184,7 +1184,8 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         #show buttons on right only if col 0 was clicked
         #else we'll just see the enabled check
         for button in leftstackedwidget.info['buttons']:
-            button.setVisible(col==0)
+            if button is not None:
+                button.setVisible(col==0)
         
         if col != 0:          
             obj = self.system_names[col-1]

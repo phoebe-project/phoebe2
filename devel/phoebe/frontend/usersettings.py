@@ -29,37 +29,34 @@ class Container(object):
         return self.sections.items()
         
     ## generic functions to get non-system parametersets
-    def _return_from_dict(self,dictionary,return_type):
+    def _return_from_dict(self,dictionary,all=False):
         """
         this functin takes a dictionary of results from a searching function
-        ie. _get_from_section and returns in the desired format ('list',
-        'dict', or 'single')
+        ie. _get_from_section and returns either a single item or the dictionary
         
         @param dictionary: the dictionary of results
         @type dictionary: dict or OrderedDict
-        @param return_type: 'list', 'dict', or 'single'
-        @type return_type: str
+        @param all: whether to return a single item or all in a dictionary
+        @type all: bool
         """
-        #~ if return_type=='single' and len(dictionary) == 0:    
-            #~ raise ValueError("no results found: set return_type='single_or_none' to bypass error")
-        if return_type in ['single'] and len(dictionary)==0:
-            return None
-        elif return_type in ['single'] and len(dictionary)>1:
-            raise ValueError("more than one dataset was returned from the search: either constrain search or set return_type='all'")
-        elif return_type in ['single']:
-            return dictionary.values()[0]
-        elif return_type in ['all','list']:
-            return dictionary.values()
+        if all:
+            return dictionary
         else:
-            return dictionary   
-                
+            if len(dictionary)==0:
+                #~ raise ValueError("no results found: set all=True to bypass error")
+                return None
+            elif len(dictionary)>1:
+                raise ValueError("more than one dataset was returned from the search: either constrain search or set all=True")    
+            else:
+                return dictionary.values()[0]
+        
     def _get_from_section_single(self,section):
         """
         retrieve a parameterset by section when only one is expected
         ie. system, gui, logger
         """
         items = self._get_from_section(section, search=None, search_by=None,
-                                return_type='list', ignore_usersettings=True)
+                                all=True, ignore_usersettings=True).values()
         # NOTE: usersettings will always be ignored since search_by == None
         if len(items) == 0:
             raise ValueError("ERROR: no {} attached".format(section))
@@ -69,7 +66,7 @@ class Container(object):
         return items[0]
 
                 
-    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
+    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_usersettings=False):
         """
         retrieve a parameterset (or similar object) by section and label (optional)
         if the section is also in the defaults set by usersettings, 
@@ -85,8 +82,8 @@ class Container(object):
         @type search: str or None
         @param search_by: key to search by (defaults to label)
         @type search_by: str
-        @param return_type: 'single', 'list', 'dict'
-        @type return_type: str
+        @param all: whether to return a single item or all in a dictionary
+        @type all: bool
         @param ignore_usersettings: whether to ignore defaults in usersettings (default: False)
         @type ignore_usersettings: bool
         """
@@ -143,7 +140,7 @@ class Container(object):
                         self._add_to_section(section,psc)
                     
         # and now return in the requested format
-        return self._return_from_dict(items,return_type)
+        return self._return_from_dict(items,all)
 
     def _remove_from_section(self,section,search,search_by='label'):
         """
@@ -255,9 +252,9 @@ class Settings(Container):
                 
         return txt
         
-    def _get_from_section(self,section,search=None,search_by='label',return_type='single',ignore_usersettings=False):
+    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_usersettings=False):
         return super(Settings, self)._get_from_section(section=section, search=search,
-                            search_by=search_by, return_type=return_type,
+                            search_by=search_by, all=all,
                             ignore_usersettings=True)
                 
     #{ General Parameters
@@ -310,9 +307,9 @@ class Settings(Container):
         @param mpi: the mpi options to use for this server
         @type mpi: ParameterSet with context 'mpi'
         """
-        self.sections['servers'].append(Server(label,mpi,**kwargs))
+        self.sections['server'].append(Server(label,mpi,**kwargs))
         
-    def get_server(self,label=None,return_type='single'):
+    def get_server(self,label=None,all=False):
         """
         get a server by name
         
@@ -321,7 +318,7 @@ class Settings(Container):
         @return: server
         @rtype: Server
         """
-        return self._get_from_section('servers',label,return_type=return_type)
+        return self._get_from_section('server',label,all=all)
         
     def remove_server(self,label):
         """
@@ -330,7 +327,7 @@ class Settings(Container):
         @param label: name of the server
         @type label: str
         """
-        return self._remove_from_section('servers',label)
+        return self._remove_from_section('server',label)
         
     #}
     #{ Compute
@@ -351,7 +348,7 @@ class Settings(Container):
             
         self.sections['compute'].append(compute)
 
-    def get_compute(self,label=None,return_type='single'):
+    def get_compute(self,label=None,all=False):
         """
         Get a compute ParameterSet by name
         
@@ -360,7 +357,7 @@ class Settings(Container):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label,return_type=return_type)
+        return self._get_from_section('compute',label,all=all)
 
     def remove_compute(self,label):
         """
@@ -395,7 +392,7 @@ class Settings(Container):
             
         self.sections['fitting'].append(fitting)
 
-    def get_fitting(self,label=None,return_type='single'):
+    def get_fitting(self,label=None,all=False):
         """
         Get a fitting ParameterSet by name
         
@@ -404,7 +401,7 @@ class Settings(Container):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label,return_type=return_type)
+        return self._get_from_section('fitting',label,all=all)
         
     def remove_fitting(self,label):
         """
@@ -435,7 +432,7 @@ class Settings(Container):
         
         to save all sections, use save()
         
-        @param section: name of the section ('servers','compute',etc)
+        @param section: name of the section ('server','compute',etc)
         @type section: str
         @param basedir: base directory, or None to save to initialized basedir
         @type basedir: str or None
@@ -449,7 +446,7 @@ class Settings(Container):
         
         for label,ps in self._get_from_section(section).items():
             # here label is the ConfigParser 'section'
-            if section == 'servers':
+            if section == 'server':
                 for subsection in ['server','mpi']:
                     if ps.settings[subsection] is not None: #mpi might be None
                         self._add_to_config(config,section,'{}@{}'.format(subsection,ps.settings['server'].get_value('label')),ps.settings[subsection])
@@ -499,14 +496,14 @@ class Settings(Container):
         # If you want to roll back any of your preferences to defaults,
         # simply delete the .cfg file and reload usersettings
         
-        self.sections['servers'] = []
-        if not self.load_cfg('servers', basedir):
+        self.sections['server'] = []
+        if not self.load_cfg('server', basedir):
             pass
         
         self.sections['compute'] = []
         if not self.load_cfg('compute', basedir):
-            self.add_compute(label='Preview',refl=False,heating=False,subdiv_num=1)
-            self.add_compute(label='Compute',ltt=True)
+            self.add_compute(label='preview',refl=False,heating=False,eclipse_alg='binary',subdiv_num=1)
+            self.add_compute(label='detailed',ltt=True,eclipse_alg='binary',beaming_alg='local')
             
         self.sections['fitting'] = []
         if not self.load_cfg('fitting', basedir):
@@ -538,7 +535,7 @@ class Settings(Container):
         to load the settings of all sections, simply initialize a new settings class
         or call load()
         
-        @param section: name of the section ('servers','compute',etc)
+        @param section: name of the section ('server','compute',etc)
         @type section: str
         @param basedir: base directory, or None to save to initialized basedir
         @type basedir: str or None
@@ -565,7 +562,7 @@ class Settings(Container):
             items = config.items(label)
             items_dict = {key:value for key,value in items}
             
-            if section=='servers':
+            if section=='server':
                 # context already covered by context, so its a bit ambiguous
                 label = label.split('@')[1]
                 #~ items_dict['label'] = label
@@ -578,7 +575,7 @@ class Settings(Container):
                 ps.set_value(key, value)
             
             # and now add the ps to the section in usersettings
-            if section=='servers':
+            if section=='server':
                 # then we need to retrieve and add to a server class or 
                 # create a new one
                 server = self.get_server(label)

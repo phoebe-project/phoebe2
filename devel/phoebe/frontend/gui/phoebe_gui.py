@@ -502,7 +502,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
         self.plotEntry_axes_i = [None]
         
-        
         self.datasetswidget_main.datasetTreeView.clear()
         self.datasetswidget_main.ds_plotComboBox.clear()
         
@@ -788,8 +787,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.get_system() is None:
             return
         # get obs and syn
-        ds_obs_all = self.bundle.get_obs(return_type='all')
-        ds_syn_all = self.bundle.get_syn(return_type='all')
+        ds_obs_all = self.bundle.get_obs(all=True).values()
+        ds_syn_all = self.bundle.get_syn(all=True).values()
         
         # remove duplicates
         ds_obs = []
@@ -823,7 +822,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             tree.set_data(ds_obs,ds_syn,types,plots,self.bundle,self.system_ps,self.system_names)
             
-        self.mp_stackedWidget_to_grid(force_grid=len(self.bundle.get_axes(return_type='all'))!=0)
+        self.mp_stackedWidget_to_grid(force_grid=len(self.bundle.get_axes(all=True))!=0)
 
     @PyInterp_selfdebug
     def on_sysSel_selectionChanged(self,skip_collapse=False):
@@ -949,7 +948,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
     def plot_redraw(self, param=None, i=0, canvas=None):
         #~ print "*** redraw plot", i
-        if param is not None and len(self.plot_canvases) != len(self.bundle.get_axes(return_type='list')):
+        if param is not None and len(self.plot_canvases) != len(self.bundle.get_axes(all=True)):
             #then this is being called from a signal, but the number of canvases isn't right
             #so redraw all to make sure we're in sync
             self.on_plots_changed()
@@ -988,7 +987,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     plottype='rvobs'
                 if self.sender()==self.mp_addSPPlotPushButton:
                     plottype='spobs'
-            title = 'Plot %d' % len(self.bundle.get_axes(return_type='list'))+1
+            title = 'Plot %d' % len(self.bundle.get_axes(all=True))+1
             add_command = "bundle.add_axes(category='%s', title='Plot %d')" % (plottype[:-3],title)
             remove_command = "bundle.remove_axes('%s')" % (title)
             command = phoebe_widgets.CommandRun(self.PythonEdit,add_command,remove_command,kind='plots',thread=False,description='add new plot')
@@ -1118,10 +1117,10 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         #~ self.update_datasets()
         
     def mp_stackedWidget_to_grid(self,force_grid=False):
-        if len(self.bundle.get_obs(return_type='list'))==0:
+        if len(self.bundle.get_obs(all=True))==0:
             # load data tutorial
             self.mp_stackedWidget.setCurrentIndex(5)
-        elif len(self.bundle.get_axes(return_type='list'))==0:
+        elif len(self.bundle.get_axes(all=True))==0:
             # create plot tutorial
             self.mp_stackedWidget.setCurrentIndex(6)
         elif force_grid:
@@ -1303,7 +1302,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_servers_avail(self,update_prefs=False):
         if update_prefs:
             self.prefs = self.PyInterp_get('settings')
-        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server(return_type='dict').values() if s.last_known_status['status']]        
+        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server(all=True).values() if s.last_known_status['status']]        
         for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
             orig_text = str(w.currentText())
             w.clear()
@@ -1315,7 +1314,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_observeoptions(self):
         currenttext = self.lp_methodComboBox.currentText()
         self.lp_methodComboBox.clear()
-        for k,v in self.bundle.get_compute(return_type='dict').iteritems():
+        for k,v in self.bundle.get_compute(all=True).iteritems():
             self.lp_methodComboBox.addItem(k)
 
         # return to original selection
@@ -1335,7 +1334,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key in self.prefs.get_compute(return_type='dict')
+        in_settings = key in self.prefs.get_compute(all=True)
         self.lp_observeoptionsReset.setVisible(in_settings)
         self.lp_observeoptionsDelete.setVisible(in_settings==False)
 
@@ -1584,12 +1583,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.sys_meshAutoUpdate.setEnabled(True)
             
             # update version - should probably move this
-            self.versions_treeView.set_data(self.bundle.get_version(return_type='list'))
-            self.rp_savedFeedbackTreeView.set_data(self.bundle.get_feedback(return_type='list'))
+            self.versions_treeView.set_data(self.bundle.get_version(all=True).values())
+            self.rp_savedFeedbackTreeView.set_data(self.bundle.get_feedback(all=True).values())
             
             # update plot mesh options - should probably move this
-            self.sys_meshOptionsTreeView.set_data(self.bundle.get_meshview(return_type='list'),style=['nofit'])
-            self.sys_orbitOptionsTreeView.set_data(self.bundle.get_orbitview(return_type='list'),style=['nofit'])
+            self.sys_meshOptionsTreeView.set_data(self.bundle.get_meshview(all=True).values(),style=['nofit'])
+            self.sys_orbitOptionsTreeView.set_data(self.bundle.get_orbitview(all=True).values(),style=['nofit'])
 
             # bundle lock
             if self.bundle.lock['locked']:
@@ -1659,7 +1658,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_axes_add(self,category,objref,dataref):
         # signal received from dataset treeview with info to create new plot
-        title = 'Plot %d' % (len(self.bundle.get_axes(return_type='list'))+1)
+        title = 'Plot %d' % (len(self.bundle.get_axes(all=True))+1)
         
         do_command = "bundle.add_axes(category='%s', title='%s')" % (category,title)
         undo_command = "bundle.remove_axes('%s')" % (title)
@@ -1667,7 +1666,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.undoStack.push(command)
         
         for context_kind in ['obs','syn']:
-            if (context_kind=='obs' and len(self.bundle.get_obs(objref=objref,dataref=dataref,return_type='all')) > 0 and phoebe_widgets.has_ydata(self.bundle.get_obs(objref=objref,dataref=dataref,return_type='all')[0])) or (context_kind=='syn' and len(self.bundle.get_syn(objref=objref,dataref=dataref,return_type='all')) > 0):
+            if (context_kind=='obs' and len(self.bundle.get_obs(objref=objref,dataref=dataref,all=True)) > 0 and phoebe_widgets.has_ydata(self.bundle.get_obs(objref=objref,dataref=dataref,all=True).values()[0])) or (context_kind=='syn' and len(self.bundle.get_syn(objref=objref,dataref=dataref,all=True).values()) > 0):
                 do_command = "bundle.get_axes('%s').add_plot(type='%s%s',objref='%s',dataref='%s')" % (title,category,context_kind,objref,dataref)
                 undo_command = "bundle.get_axes('%s').remove_plot(0)" % (title)
                 command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='plots',thread=False,description='add new plot')
@@ -1677,7 +1676,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     
     def on_axes_goto(self,plotname=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
-        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes(return_type='dict').keys().index(plotname)+1)        
+        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes(all=True).keys().index(plotname)+1)        
         # expand plot? or leave as is?
 
     def on_plots_add(self,*args):
@@ -1698,7 +1697,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currentText = self.datasetswidget_main.ds_plotComboBox.currentText()
         self.datasetswidget_main.ds_plotComboBox.setEnabled(False) # so we can ignore the signal
         self.datasetswidget_main.ds_plotComboBox.clear()
-        items = ['all plots']+self.bundle.get_axes(return_type='dict').keys()
+        items = ['all plots']+self.bundle.get_axes(all=True).keys()
         self.datasetswidget_main.ds_plotComboBox.addItems(items)
         if currentText in items:
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(items.index(currentText))
@@ -1717,7 +1716,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.on_plots_rename() # to update selection combo
         
         #redraw all plots
-        for i,axes in enumerate(self.bundle.get_axes(return_type='dict').values()):
+        for i,axes in enumerate(self.bundle.get_axes(all=True).values()):
                 
             new_plot_widget, canvas = self.create_plot_widget(thumb=True)
             canvas.info['axes_i'] = i
@@ -1734,7 +1733,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # create hooks
             self.attach_plot_signals(axes, i, canvas)
         
-        for i in range(len(self.bundle.get_axes(return_type='list'))):    
+        for i in range(len(self.bundle.get_axes(all=True).values())):    
             self.plot_redraw(None,i)
             
     def on_select_time_changed(self,param=None,i=None,canvas=None):
@@ -1781,7 +1780,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_fittingOptions(self, *args):
         currenttext = self.rp_methodComboBox.currentText()
         self.rp_methodComboBox.clear()
-        for k,v in self.bundle.get_fitting(return_type='dict').iteritems():
+        for k,v in self.bundle.get_fitting(all=True).iteritems():
             self.rp_methodComboBox.addItem(k)
 
         # return to original selection
@@ -1801,7 +1800,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key in self.prefs.get_fitting(return_type='dict')
+        in_settings = key in self.prefs.get_fitting(all=True)
         self.rp_fitoptionsReset.setVisible(in_settings)
         self.rp_fitoptionsDelete.setVisible(in_settings==False)
 
@@ -2019,19 +2018,19 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                         QMessageBox.information(None, "Warning", "Cannot load data: no component for column %d" % (i+1))  
                         return
 
-            do_command = "bundle.load_data(category='%s', filename='%s', passband='%s', columns=%s, objref=%s, ref='%s')" % (pop.category, filename, passband, columns, components, name)
+            do_command = "bundle.load_data(category='%s', filename='%s', passband='%s', columns=%s, objref=%s, dataref='%s')" % (pop.category, filename, passband, columns, components, name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "load %s dataset" % name
             
             command = phoebe_widgets.CommandRun(self.PythonEdit,do_command,undo_command,kind='sys',thread=False,description=description)
             self.undoStack.push(command)
             
-        else: # then create_syn
+        else: # then create_data
             
             # determine times
             if pop.times_match.isChecked():
                 dataref = str(pop.datasetComboBox.currentText())
-                timestr = "bundle.get_syn(dataref='%s',return_type='all')[0]['time']" % dataref
+                timestr = "bundle.get_syn(dataref='%s',all=True).values()[0]['time']" % dataref
             elif pop.times_arange.isChecked():
                 timestr = "np.arange(%f,%f,%f)" % (pop.arange_min.value(),pop.arange_max.value(),pop.arange_step.value())
             elif pop.times_linspace.isChecked():
@@ -2043,7 +2042,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             components = [comp for comp,check in pop.syn_components_checks.items() if check.isChecked()]
             if len(components) == 0: components = 'None'
             
-            do_command = "bundle.create_syn(category='%s', time=%s, objref=%s, passband='%s', dataref='%s')" % (pop.category,timestr,components,passband,name)
+            do_command = "bundle.create_data(category='%s', time=%s, objref=%s, passband='%s', dataref='%s')" % (pop.category,timestr,components,passband,name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "create %s synthetic dataset" % name
             
