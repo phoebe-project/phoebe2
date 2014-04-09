@@ -315,9 +315,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
 
         # Set system to None - this will then result in a call to on_new_bundle
         # any additional setup should be done there
-        self.PyInterp_run("bundle = Bundle()",kind='sys',thread=False)
+        self.PyInterp_run("bundle = Bundle(False)",kind='sys',write=False,thread=False)
         #~ self.on_new_bundle()
-        #~ self.PyInterp_run("bundle = Bundle('defaults.phoebe')",kind='sys',thread=False)
+        #~ self.PyInterp_run("bundle = Bundle()",kind='sys',thread=False)
         self.on_new_clicked()
         
     def bundle_get_system_structure(self,bundle,return_type='label',flat=False,**kwargs):
@@ -485,7 +485,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.undoStack.redo()
 
     def on_new_clicked(self):
-        self.PyInterp_run("bundle = Bundle('defaults.phoebe')",kind='sys',thread=False) # this will call on_new_bundle and reset to home/splash screen
+        self.PyInterp_run("bundle = Bundle()",kind='sys',thread=False) # this will call on_new_bundle and reset to home/splash screen
 
     @PyInterp_selfdebug
     def on_new_bundle(self):
