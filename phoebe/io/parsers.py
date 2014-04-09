@@ -165,6 +165,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('dpdt').set_limits(llim=float(val)*31557600)
         elif key == 'phoebe_dpdt.STEP':
             orbit.get_parameter('dpdt').set_step(step=float(val)*31557600) 
+        elif key == 'phoebe_dpdt.ADJ':
+            orbit.get_parameter('dpdt').set_adjust(int(val))
                
         elif key == 'phoebe_dperdt.VAL':
             orbit['dperdt'] = (val,'rad/d')    
@@ -177,6 +179,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('dperdt').set_limits(llim=float(val)*np.pi*365.25/180)
         elif key == 'phoebe_dperdt.STEP':
             orbit.get_parameter('dperdt').set_step(step=float(val)*np.pi*365.25/180)                    
+        elif key == 'phoebe_dperdt.ADJ':
+            orbit.get_parameter('dperdt').set_adjust(int(val))
                      
         elif key == 'phoebe_ecc.VAL':
             orbit['ecc'] = val   
@@ -189,6 +193,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('ecc').set_limits(llim=float(val))    
         elif key == 'phoebe_ecc.STEP':
             orbit.get_parameter('ecc').set_step(step=float(val))            
+        elif key == 'phoebe_ecc.ADJ':
+            orbit.get_parameter('ecc').set_adjust(int(val))
             
         elif key == 'phoebe_hjd0.VAL':
             orbit['t0'] = (val,'JD') 
@@ -201,6 +207,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('t0').set_limits(llim=float(val))            
         elif key == 'phoebe_hjd0.STEP':
             orbit.get_parameter('t0').set_step(step=float(val))            
+        elif key == 'phoebe_hjd0.ADJ':
+            orbit.get_parameter('hjd0').set_adjust(int(val))
             
         elif key == 'phoebe_incl.VAL':
             orbit['incl'] = (val,'deg') 
@@ -213,7 +221,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('incl').set_limits(llim=float(val))                        
         elif key == 'phoebe_incl.STEP':
             orbit.get_parameter('incl').set_step(step=float(val))            
-            
+        elif key == 'phoebe_incl.ADJ':
+            orbit.get_parameter('incl').set_adjust(int(val))
+
         elif key == 'phoebe_period.VAL':
             orbit['period'] = (val,'d')
         elif key == 'phoebe_period.MAX':
@@ -225,6 +235,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('period').set_limits(llim=float(val))                        
         elif key == 'phoebe_period.STEP':
             orbit.get_parameter('period').set_step(step=float(val))          
+        elif key == 'phoebe_period.ADJ':
+            orbit.get_parameter('period').set_adjust(int(val))
             
         elif key == 'phoebe_perr0.VAL':
             orbit['per0'] = (val,'rad')
@@ -237,6 +249,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('per0').set_limits(llim=float(val)/np.pi*180)            
         elif key == 'phoebe_perr0.STEP':
             orbit.get_parameter('per0').set_step(step=float(val)/np.pi*180)           
+        elif key == 'phoebe_perr0.ADJ':
+            orbit.get_parameter('per0').set_adjust(int(val))
             
         elif key == 'phoebe_pshift.VAL':
             orbit['phshift'] = val   
@@ -249,7 +263,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('phshift').set_limits(llim=float(val))            
         elif key == 'phoebe_pshift.STEP':
             orbit.get_parameter('phshift').set_step(step=float(val))                        
-            
+        elif key == 'phoebe_pshift.ADJ':
+            orbit.get_parameter('phshift').set_adjust(int(val))
+
         elif key == 'phoebe_rm.VAL':
             orbit['q'] = val
         elif key == 'phoebe_rm.MAX':
@@ -261,6 +277,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('q').set_limits(llim=float(val))
         elif key == 'phoebe_rm.STEP':
             orbit.get_parameter('q').set_step(step=float(val))                     
+        elif key == 'phoebe_rm.ADJ':
+            orbit.get_parameter('rm').set_adjust(int(val))
                        
         elif key == 'phoebe_vga.VAL':
             globals['vgamma'] = (val,'km/s')  
@@ -273,6 +291,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             globals.get_parameter('vgamma').set_limits(llim=float(val))
         elif key == 'phoebe_vga.STEP':
             globals.get_parameter('vgamma').set_step(step=float(val))                     
+        elif key == 'phoebe_vga.ADJ':
+            globals.get_parameter('vgamma').set_adjust(int(val))
                      
         elif key == 'phoebe_sma.VAL':
             orbit['sma'] = (val,'Rsol')    
@@ -285,7 +305,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('sma').set_limits(llim=float(val))
         elif key == 'phoebe_sma.STEP':
             orbit.get_parameter('sma').set_step(step=float(val))                     
-        
+        elif key == 'phoebe_sma.ADJ':
+            orbit.get_parameter('sma').set_adjust(int(val))
+
         #-- gridsizes:
         elif key == 'phoebe_grid_finesize1':
             mesh1wd['gridsize'] = val
@@ -322,6 +344,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp1.get_parameter('alb').set_limits(llim=1-float(val))
         elif key == 'phoebe_alb1.STEP':
             comp1.get_parameter('alb').set_step(step=float(val))   
+        elif key == 'phoebe_alb1.ADJ':
+            comp1.get_parameter('alb').set_adjust(int(val))
 
         elif key == 'phoebe_alb2.VAL':
             comp2['alb'] = 1-float(val)
@@ -340,6 +364,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp2.get_parameter('alb').set_limits(llim=1-float(val))
         elif key == 'phoebe_alb2.STEP':
             comp2.get_parameter('alb').set_step(step=float(val))   
+        elif key == 'phoebe_alb2.ADJ':
+            comp2.get_parameter('alb').set_adjust(int(val))
 
         elif key == 'phoebe_f1.VAL':
             comp1['syncpar'] = val  
@@ -352,6 +378,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp1.get_parameter('syncpar').set_limits(llim=float(val))
         elif key == 'phoebe_f1.STEP':
             comp1.get_parameter('syncpar').set_step(step=float(val))   
+        elif key == 'phoebe_f1.ADJ':
+            comp1.get_parameter('syncpar').set_adjust(int(val))
 
         elif key == 'phoebe_f2.VAL':
             comp2['syncpar'] = val  
@@ -364,6 +392,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp2.get_parameter('syncpar').set_limits(llim=float(val))
         elif key == 'phoebe_f2.STEP':
             comp2.get_parameter('syncpar').set_step(step=float(val))   
+        elif key == 'phoebe_f2.ADJ':
+            comp2.get_parameter('syncpar').set_adjust(int(val))
 
         elif key == 'phoebe_grb1.VAL':
             comp1['gravb'] = val    
@@ -376,6 +406,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp1.get_parameter('gravb').set_limits(llim=float(val))
         elif key == 'phoebe_grb1.STEP':
             comp1.get_parameter('gravb').set_step(step=float(val))   
+        elif key == 'phoebe_grb1.ADJ':
+            comp1.get_parameter('gravb').set_adjust(int(val))
 
         elif key == 'phoebe_grb2.VAL':
             comp2['gravb'] = val    
@@ -388,6 +420,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp2.get_parameter('gravb').set_limits(llim=float(val))
         elif key == 'phoebe_grb2.STEP':
             comp2.get_parameter('gravb').set_step(step=float(val))   
+        elif key == 'phoebe_grb2.ADJ':
+            comp2.get_parameter('gravb').set_adjust(int(val))
 
         elif key == 'phoebe_pot1.VAL':
             comp1['pot'] = val 
@@ -400,6 +434,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp1.get_parameter('pot').set_limits(llim=float(val))
         elif key == 'phoebe_pot1.STEP':
             comp1.get_parameter('pot').set_step(step=float(val))   
+        elif key == 'phoebe_pot1.ADJ':
+            comp1.get_parameter('pot').set_adjust(int(val))
 
         elif key == 'phoebe_pot2.VAL':
             comp2['pot'] = val  
@@ -412,6 +448,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp2.get_parameter('pot').set_limits(llim=float(val))
         elif key == 'phoebe_pot2.STEP':
             comp2.get_parameter('pot').set_step(step=float(val))   
+        elif key == 'phoebe_pot2.ADJ':
+            comp2.get_parameter('pot').set_adjust(int(val))
 
         elif key == 'phoebe_teff1.VAL':
             comp1['teff'] = (val,'K') 
@@ -424,6 +462,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp1.get_parameter('teff').set_limits(llim=float(val))
         elif key == 'phoebe_teff1.STEP':
             comp1.get_parameter('teff').set_step(step=float(val))   
+        elif key == 'phoebe_teff1.ADJ':
+            comp1.get_parameter('teff').set_adjust(int(val))
 
         elif key == 'phoebe_teff2.VAL':
             comp2['teff'] = (val,'K')
@@ -436,6 +476,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp2.get_parameter('teff').set_limits(llim=float(val))
         elif key == 'phoebe_teff2.STEP':
             comp2.get_parameter('teff').set_step(step=float(val))   
+        elif key == 'phoebe_teff2.ADJ':
+            comp2.get_parameter('teff').set_adjust(int(val))
 
         #elif key == 'phoebe_reffect_switch':
             #if val[1:-2] == "1":
@@ -459,6 +501,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp1.get_parameter('abun').set_limits(llim=float(val))
         elif key == 'phoebe_met1.STEP':
             comp1.get_parameter('abun').set_step(step=float(val))   
+        elif key == 'phoebe_met1.ADJ':
+            comp1.get_parameter('abun').set_adjust(int(val))
 
         elif key == 'phoebe_met2.VAL':
             comp2['abun'] = val   
@@ -471,7 +515,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             comp2.get_parameter('abun').set_limits(llim=float(val))
         elif key == 'phoebe_met2.STEP':
             comp2.get_parameter('abun').set_step(step=float(val))   
-    
+        elif key == 'phoebe_met2.ADJ':
+            comp2.get_parameter('abun').set_adjust(int(val))
+
         elif key == 'phoebe_ld_model':
             val = val[2:-2]
             if val == "Logarithmic law":
@@ -528,14 +574,22 @@ def legacy_to_phoebe(inputfile, create_body=False,
             lcdep1[index]['passband'] = val
             lcdep2[index]['passband'] = val
      
+        # INCLUDE STEPS, MINS, MAXES!!
+     
         if key == 'phoebe_hla.VAL':
             lcdep1[index]['pblum'] = float(val)
-        if key == 'phoebe_cla.VAL': 
+        if key == 'phoebe_hla.ADJ':
+            lcdep1[index].get_parameter('pblum').set_adjust(int(val))
+        if key == 'phoebe_cla.VAL':
             lcdep2[index]['pblum'] = float(val)
+        if key == 'phoebe_cla.ADJ':
+            lcdep2[index].get_parameter('pblum').set_adjust(int(val))
         if key == 'phoebe_el3.VAL':
             lcdep1[index]['l3'] = float(val)
             lcdep2[index]['l3'] = float(val)
-
+        if key == 'phoebe_el3.ADJ':
+            lcdep1[index].get_parameter('l3').set_adjust(int(val))
+            lcdep2[index].get_parameter('l3').set_adjust(int(val))
 
         if key == 'phoebe_ld_rvy1':
             ld_rvy1 = float(val[1:-2])
