@@ -52,7 +52,7 @@ vega['ld_func'] = 'claret'
 vega['atm'] = 'kurucz'
 vega['ld_coeffs'] = 'kurucz'
 
-globals = phoebe.ParameterSet('globals')
+globals = phoebe.ParameterSet('position')
 globals['distance'] = 7.756, 'pc'
 
 # We want to compute interferometric visibilities in the K band:

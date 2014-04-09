@@ -77,7 +77,7 @@ mesh2 = phoebe.PS('mesh:marching', delta=0.03, maxpoints=40000)
 
 # Put the system at about 1 AU:
 
-globals = phoebe.PS('globals', distance=(1,'au')) 
+globals = phoebe.PS('position', distance=(1,'au')) 
 
 # Body setup
 # ----------

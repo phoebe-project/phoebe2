@@ -15,10 +15,10 @@ def do_ldlaw(atm='kurucz', ld_func='linear', ld_coeffs=None):
     lcdep2 = phoebe.PS('lcdep', passband='JOHNSON.V', atm=atm, beaming=False,
                     ld_coeffs=ld_coeffs, ld_func=ld_func, ref='visual')
     
-    globals = phoebe.ParameterSet(context='globals')
+    globals = phoebe.ParameterSet(context='position')
     globals['distance'] = 1.,'au'
     
-    sun = phoebe.Star(star, mesh=mesh, pbdep=[lcdep1, lcdep2], globals=globals)
+    sun = phoebe.Star(star, mesh=mesh, pbdep=[lcdep1, lcdep2], position=globals)
     
     sun.set_time(0.)
     

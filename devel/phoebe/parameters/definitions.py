@@ -746,13 +746,13 @@ defs += [dict(qualifier='label',                description='label for the comut
         ] 
 
 # Globals context
-defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['globals']),
-         dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['globals']),
-         dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value='J2000', cast_type=str, frame=['phoebe'], context=['globals']),
-         dict(qualifier='pmra', description='Proper motion in right ascension', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['globals']),
-         dict(qualifier='pmdec', description='Proper motion in declination', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['globals']),
-         dict(qualifier='distance',description='Distance to the object',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='globals'),
-         dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='globals'),         
+defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['position']),
+         dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['position']),
+         dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value='J2000', cast_type=str, frame=['phoebe'], context=['position']),
+         dict(qualifier='pmra', description='Proper motion in right ascension', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['position']),
+         dict(qualifier='pmdec', description='Proper motion in declination', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['position']),
+         dict(qualifier='distance',description='Distance to the object',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='position'),
+         dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='position'),         
         ]
 
         

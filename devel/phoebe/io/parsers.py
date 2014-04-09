@@ -82,7 +82,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
                                     add_constraints=True)
     comp2 = parameters.ParameterSet(frame='phoebe',context='component',label='secondary',
                                     add_constraints=True)
-    globals = parameters.ParameterSet('globals')
+    globals = parameters.ParameterSet('position')
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
                                       heating=True, label='from_legacy',
                                       eclipse_alg='binary', subdiv_num=3)
@@ -1005,7 +1005,7 @@ def phoebe_to_wd(system, create_body=False):
         body2 = system[1]
     
     
-    globals = system.params['globals']
+    globals = system.params['position']
     mesh1 = system[0].params['mesh']
     
     ps['name'] = orbit['label']

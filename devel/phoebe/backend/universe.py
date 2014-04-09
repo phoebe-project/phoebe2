@@ -1668,7 +1668,7 @@ class Body(object):
         component = self.get_component()
         return [child for child in parent.get_children() if child.get_component()!=component][0]
     
-    def get_globals(self, context='globals'):
+    def get_globals(self, context='position'):
         """
         Return a global ParameterSet if possible, otherwise return None.
         
@@ -4917,8 +4917,8 @@ class BodyBag(Body):
         
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'globals' in kwargs:
-            self.params['globals'] = kwargs.pop('globals')
+        if 'position' in kwargs:
+            self.params['position'] = kwargs.pop('position')
         
         # Also the _plot is a leftover from earlier days, this is deprecated
         self._plot = self.bodies[0]._plot
@@ -6026,7 +6026,7 @@ class Star(PhysicalBody):
     def __init__(self, star, mesh=None, reddening=None, circ_spot=None,
                  puls=None, magnetic_field=None, velocity_field=None,
                  pbdep=None, obs=None,
-                 globals=None, label=None,
+                 position=None, label=None,
                  **kwargs):
         """
         Initialize a star.
@@ -6068,9 +6068,9 @@ class Star(PhysicalBody):
         
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if globals is not None:
-            check_input_ps(self, globals, ['globals'], 'globals')
-            self.params['globals'] = globals
+        if position is not None:
+            check_input_ps(self, position, ['position'], 'position')
+            self.params['position'] = position
         
         # Add interstellar reddening (if none is given, set to the default, this
         # means no reddening
@@ -6766,7 +6766,7 @@ class BinaryRocheStar(PhysicalBody):
         - ``circ_spot``: spot properties (can be a list)
         - ``magnetic_field``: global magnetic field properties (dipole...)
         - ``velocity_field``: surface velocity field properties (macroturbulence)
-        - ``globals``: systemic velocity, position, distance...
+        - ``position``: systemic velocity, position, distance...
         
     As for any other Body, you can give also a list of
     
@@ -6784,7 +6784,7 @@ class BinaryRocheStar(PhysicalBody):
     
     def __init__(self, component, orbit=None, mesh=None, reddening=None,
                  puls=None, circ_spot=None, magnetic_field=None, 
-                 velocity_field=None, pbdep=None, obs=None, **kwargs):
+                 velocity_field=None, position=None, pbdep=None, obs=None, **kwargs):
         """
         Initialize a BinaryRocheStar.
         
@@ -6823,12 +6823,11 @@ class BinaryRocheStar(PhysicalBody):
         # label the body
         self.label = self.params['component']['label']
         
-        # Add globals parameters, but only if given. DO NOT add default ones,
+        # Add position parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'globals' in kwargs:
-            myglobals = kwargs.pop('globals')
-            check_input_ps(self, myglobals, ['globals'], 'globals')
-            self.params['globals'] = myglobals
+        if position is not None:
+            check_input_ps(self, position, ['position'], 'position')
+            self.params['position'] = position
         
         # add interstellar reddening (if none is given, set to the default,
         # this means no reddening

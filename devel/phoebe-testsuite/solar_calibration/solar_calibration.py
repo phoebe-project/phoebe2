@@ -63,7 +63,7 @@ sun['atm'] = 'kurucz'
 sun['ld_coeffs'] = 'kurucz'
 sun['ld_func'] = 'claret'
 
-globs = phoebe.ParameterSet(context='globals')
+globs = phoebe.ParameterSet(context='position')
 globs['distance'] = 1.0, 'au'
 
 # Aside from physical parameters, we also need numerical ones. We wish to use

@@ -7,12 +7,12 @@ basedir = os.path.dirname(os.path.abspath(__file__))
 def setup_star(pmra, pmdec, ra, dec, distance):
     # Create the star
     star = phoebe.create.from_library('vega', create_body=True)
-    star.params['globals']['epoch'] = 'J1991.25'
-    star.params['globals']['pmra'] = pmra
-    star.params['globals']['pmdec'] = pmdec
-    star.params['globals']['ra'] = ra
-    star.params['globals']['dec'] = dec
-    star.params['globals']['distance'] = distance
+    star.params['position']['epoch'] = 'J1991.25'
+    star.params['position']['pmra'] = pmra
+    star.params['position']['pmdec'] = pmdec
+    star.params['position']['ra'] = ra
+    star.params['position']['dec'] = dec
+    star.params['position']['distance'] = distance
     
     # Read in the Hipparcos positions
     times, x_earth, y_earth, z_earth = np.genfromtxt(os.path.join(basedir,'hipparcos_position.dat'),
