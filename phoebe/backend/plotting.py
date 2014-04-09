@@ -219,7 +219,8 @@ def plot_lcobs(system,errorbars=True,**kwargs):
         raise IOError("No times or phases defined")
     
     flux = obs['flux']
-    sigm = obs['sigma']
+    if errorbars:
+        sigm = obs['sigma']
     
     if not len(sigm):
         raise ValueError("Did not find uncertainties")
