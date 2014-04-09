@@ -165,7 +165,7 @@ def plot_lcsyn(system, *args, **kwargs):
     return artists, ret_syn, pblum, l3
 
 
-def plot_lcobs(system,errorbars=True,**kwargs):
+def plot_lcobs(system, **kwargs):
     """
     Plot lcobs as a light curve.
     
@@ -199,6 +199,7 @@ def plot_lcobs(system,errorbars=True,**kwargs):
     phased = kwargs.pop('phased', False)
     t0 = kwargs.pop('t0', 0.0)
     ax = kwargs.pop('ax',plt.gca())
+    errorbars = kwargs.pop('errorbars', True)
 
     # Get parameterSets
     obs = system.get_obs(category='lc', ref=ref)
@@ -219,11 +220,13 @@ def plot_lcobs(system,errorbars=True,**kwargs):
         raise IOError("No times or phases defined")
     
     flux = obs['flux']
-    if errorbars:
-        sigm = obs['sigma']
     
-    if not len(sigm):
-        raise ValueError("Did not find uncertainties")
+    if errorbars and 'sigma' in obs and len(obs['sigma']):
+        sigm = obs['sigma']
+    else:
+        logger.info("No uncertainties on data found")
+        errorbars = False
+        
     
     #-- get the period to repeat the LC with
     if period is None:
