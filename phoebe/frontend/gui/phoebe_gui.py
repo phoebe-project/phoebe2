@@ -64,7 +64,7 @@ def PyInterp_selfdebug(fctn):
         
 ### MAIN WINDOW
 class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
-    def __init__(self, DEBUG=(False, False), selfdebug=False, font=None, palette=None, parent=None):
+    def __init__(self, DEBUG=(False, False), selfdebug=False, font=None, palette=None, parent=None, file_to_open=None):
         """
         setup the gui
         connect signals
@@ -318,7 +318,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.PyInterp_run("bundle = Bundle(False)",kind='sys',write=False,thread=False)
         #~ self.on_new_bundle()
         #~ self.PyInterp_run("bundle = Bundle()",kind='sys',thread=False)
-        self.on_new_clicked()
+        self.on_new_clicked(file_to_open)
         
     def bundle_get_system_structure(self,bundle,return_type='label',flat=False,**kwargs):
         """
@@ -484,8 +484,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def on_redo_clicked(self):
         self.undoStack.redo()
 
-    def on_new_clicked(self):
-        self.PyInterp_run("bundle = Bundle()",kind='sys',thread=False) # this will call on_new_bundle and reset to home/splash screen
+    def on_new_clicked(self,file_to_open=None):
+        self.PyInterp_run("bundle = Bundle('%s')" % file_to_open if file_to_open is not None else "bundle=Bundle()",kind='sys',thread=False) # this will call on_new_bundle and reset to home/splash screen
 
     @PyInterp_selfdebug
     def on_new_bundle(self):
@@ -2079,17 +2079,22 @@ def set_gui_parameters():
 if __name__=='__main__':
     STDOUT, STDERR, DEBUG = False, False, False
     #~ STDOUT, STDERR = True, True
-    if "stdout" in sys.argv:
+    argv = sys.argv
+    if "stdout" in argv:
         STDOUT = True
-    if "stderr" in sys.argv:
+        argv.remove('stdout')
+    if "stderr" in argv:
         STDERR = True
-    if "debug" in sys.argv:
+        argv.remove('stderr')
+    if "debug" in argv:
         DEBUG = True
+        argv.remove('debug')
+    file_to_open = argv[-1] if len(argv)==2 else None
     set_gui_parameters()
     app = QApplication(sys.argv)
     font = app.font()
     palette = app.palette()
-    phoebegui = PhoebeGUI((STDOUT, STDERR),DEBUG,font,palette)
+    phoebegui = PhoebeGUI((STDOUT, STDERR),DEBUG,font,palette,file_to_open=file_to_open)
     phoebegui._fileDialog_kwargs = _fileDialog_kwargs
     phoebegui.main()
     app.exec_()
