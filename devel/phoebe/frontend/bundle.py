@@ -414,14 +414,14 @@ class Bundle(Container):
         """
         return self.usersettings
             
-    def get_server(self,label=None,all=False):
+    def get_server(self,label=None,all=False,ignore_errors=False):
         """
         Return a server by name
         
         @param servername: name of the server
         @type servername: string
         """
-        return self._get_from_section('servers',label,all=False)
+        return self._get_from_section('servers',label,all=all,ignore_errors=ignore_errors)
         
     #}    
     #{ System
@@ -729,7 +729,7 @@ class Bundle(Container):
             return found
             
             
-    def get_parameter(self, qualifier, all=False):
+    def get_parameter(self, qualifier, all=False, ignore_errors=False):
         """
         Smart retrieval of a Parameter(s) from the system.
 
@@ -894,22 +894,9 @@ class Bundle(Container):
             found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
         
         found = {build_twig(system, par):par for par in found}
-        return self._return_from_dict(found,all)
+        return self._return_from_dict(found,all,ignore_errors)
         
-        #~ if len(found) == 0:    
-            #~ raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
-        #~ 
-        #~ if all == False and len(found)>1:
-            #~ raise ValueError("more than one parameter named '{}' was returned from the search: either constrain search or set return_type='all'".format(qualifier))
-        #~ 
-        #~ if all == False:
-            #~ return found[0]
-        #~ else:
-            #~ found = {build_twig(system, par):par for par in found}
-            #~ return found
-                
-                
-    def get_value(self, qualifier, all=False):
+    def get_value(self, qualifier, all=False, ignore_errors=False):
         """
         Get the value from a Parameter(s) in the system.
         
@@ -926,7 +913,7 @@ class Bundle(Container):
         @return: value of the parameter
         @rtype: depends on parameter type
         """
-        par = self.get_parameter(qualifier, all=all)
+        par = self.get_parameter(qualifier, all=all, ignore_errors=ignore_errors)
         if all == False:
             return par.get_value()
         else:
@@ -968,7 +955,7 @@ class Bundle(Container):
             if isinstance(val, parameters.ParameterSet):
                 val.run_constraints()
             
-    def get_adjust(self, qualifier, all=False):
+    def get_adjust(self, qualifier, all=False, ignore_errors=False):
         """
         Get whether a Parameter(s) in the system is set for adjustment/fitting
         
@@ -979,7 +966,7 @@ class Bundle(Container):
         @return: adjust
         @rtype: bool
         """
-        par = self.get_parameter(qualifier, all=all)
+        par = self.get_parameter(qualifier, all=all, ignore_errors=ignore_errors)
         return par.get_adjust()
             
     def set_adjust(self, qualifier, value, *args, **kwargs):
@@ -992,8 +979,8 @@ class Bundle(Container):
         @type qualifier: str
         @param value: new value for adjust
         @type value: bool
-        @param apply_to: 'single', 'all'
-        @type apply_to: str   
+        @param all:
+        @type all: bool
         """
         all = kwargs.pop('all', False)
         if kwargs:
@@ -1029,11 +1016,11 @@ class Bundle(Container):
                 
             
     
-    def get_prior(self, qualifier, all=False):
+    def get_prior(self, qualifier, all=False, ignore_errors=False):
         """
         Get a prior.
         """
-        pars = self.get_parameter(qualifier, all=all)
+        pars = self.get_parameter(qualifier, all=all, ignore_errors=ignore_errors)
         return pars.get_prior()
     
     
@@ -1176,7 +1163,7 @@ class Bundle(Container):
         # reattach signals to the system
         self.attach_system_signals()
         
-    def get_version(self,search=None,search_by='name',all=False):
+    def get_version(self,search=None,search_by='name',all=False,ignore_errors=False):
         """
         Retrieve a stored version by one of its keys
         
@@ -1194,7 +1181,7 @@ class Bundle(Container):
         if isinstance(search,int): #then easy to return from list
             return self._get_from_section('version',all=True).values()[self.versions_curr_i+version]
             
-        return self._get_from_section('version',search,search_by,all=all)
+        return self._get_from_section('version',search,search_by,all=all,ignore_errors=ignore_errors)
            
     def restore_version(self,search,search_by='name'):
         """
@@ -1578,7 +1565,7 @@ class Bundle(Container):
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
     
     
-    def get_syn(self, category=None, objref=None, dataref=0, all=False):
+    def get_syn(self, category=None, objref=None, dataref=0, all=False, ignore_errors=False):
         """
         Get synthetic
         
@@ -1628,13 +1615,13 @@ class Bundle(Container):
                     #~ if ds is not None:
                         #~ dss['{}@{}@{}'.format(ds['ref'],obstype,this_objref)] = ds
                     
-        return self._return_from_dict(dss,all)
+        return self._return_from_dict(dss,all,ignore_errors)
                     
 
     def get_dep(self, objref=None, dataref=None, return_type='single'):
         pass
         
-    def get_obs(self, objref=None, dataref=None, all=False):
+    def get_obs(self, objref=None, dataref=None, all=False, ignore_errors=False):
         """
         Get observations
         
@@ -1656,7 +1643,7 @@ class Bundle(Container):
                             ds = body.params['obs'][obstype][this_dataref]
                             dss['{}{}{}{}{}'.format(this_dataref,delim[0],obstype,delim[0],this_objref)] = ds
                             
-        return self._return_from_dict(dss,all)
+        return self._return_from_dict(dss,all,ignore_errors)
         
     def enable_obs(self, dataref=None, objref=None):
         """
@@ -1770,7 +1757,7 @@ class Bundle(Container):
 
         self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None,all=False):
+    def get_compute(self,label=None,all=False,ignore_errors=False):
         """
         Get a compute ParameterSet by name
         
@@ -1779,7 +1766,7 @@ class Bundle(Container):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label,all=all)
+        return self._get_from_section('compute',label,all=all,ignore_errors=ignore_errors)
         
     def remove_compute(self,label):
         """
@@ -1888,7 +1875,7 @@ class Bundle(Container):
         self._add_to_section('fitting',fitting)
         self._attach_set_value_signals(fitting)
             
-    def get_fitting(self,label=None,all=False):
+    def get_fitting(self,label=None,all=False,ignore_errors=False):
         """
         Get a fitting ParameterSet by name
         
@@ -1897,7 +1884,7 @@ class Bundle(Container):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label,all=all)
+        return self._get_from_section('fitting',label,all=all,ignore_errors=ignore_errors)
 
     def remove_fitting(self,label):
         """
@@ -1996,7 +1983,7 @@ class Bundle(Container):
         
         self._add_to_section('feedback',feedback)
         
-    def get_feedback(self,search=None,search_by='label',all=False):
+    def get_feedback(self,search=None,search_by='label',all=False,ignore_errors=False):
         """
         Retrieve a stored feedback by one of its keys
         
@@ -2005,7 +1992,7 @@ class Bundle(Container):
         @param search_by: key to search by (defaults to label)
         @type search_by: str
         """
-        return self._get_from_section('feedback',search,search_by,all=all)
+        return self._get_from_section('feedback',search,search_by,all=all,ignore_errors=ignore_errors)
         
     def remove_feedback(self,search,search_by='label'):
         """
@@ -2209,7 +2196,7 @@ class Bundle(Container):
         ds = dss[0]
         ds.save(output_file)
     
-    def get_axes(self,ident=None,all=False):
+    def get_axes(self,ident=None,all=False,ignore_errors=False):
         """
         Return an axes or list of axes that matches index OR title
         
@@ -2223,7 +2210,7 @@ class Bundle(Container):
             # TODO: this currently ignores return_type
             return self._get_from_section('axes',search_by='title',all=True).values()[ident]
         
-        return self._get_from_section('axes',ident,'title',all=all)
+        return self._get_from_section('axes',ident,'title',all=all,ignore_errors=ignore_errors)
         
     def add_axes(self,axes=None,**kwargs):
         """
@@ -2373,11 +2360,11 @@ class Bundle(Container):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self,label='default',all=False):
+    def get_meshview(self,label='default',all=False,ignore_errors=False):
         """
         
         """
-        return self._get_from_section('meshview',search=label,all=all)
+        return self._get_from_section('meshview',search=label,all=all,ignore_errors=ignore_errors)
       
         
     def _get_meshview_limits(self,times):
@@ -2456,13 +2443,13 @@ class Bundle(Container):
             axes.set_xlim(lims[0],lims[1])
             axes.set_ylim(lims[2],lims[3])
         
-    def get_orbitview(self,label='default',all=False):
+    def get_orbitview(self,label='default',all=False,ignore_errors=False):
         """
         
         """
         # TODO: fix this so we can set defaults in usersettings
         # (currently can't with search_by = None)
-        return self._get_from_section('orbitview',search=label,all=all)
+        return self._get_from_section('orbitview',search=label,all=all,ignore_errors=ignore_errors)
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
