@@ -47,6 +47,8 @@ import matplotlib.pyplot as plt
 import copy
 import os
 import re
+import readline
+        
 #~ from PIL import Image
 
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
@@ -59,11 +61,13 @@ from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
 from phoebe.frontend.usersettings import Settings, Container
 from phoebe.frontend.figures import Axes
+import phcompleter
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
 delim = '@|->'
+
 
 def run_on_server(fctn):
     """
@@ -189,6 +193,30 @@ def build_twig(system, parameter):
                 else:
                     twig = '@'.join([qualifier,context])
     return twig
+    
+
+def generate_twigs(system):
+    """
+    Build a list of twigs available in the system.
+    """
+    twigs = []
+    for path, val in system.walk_all(path_as_string=False):
+        if isinstance(val, parameters.Parameter):
+            # what's the component:
+            labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
+            component = labels[-1] if len(labels) else None
+            qualifier = val.get_qualifier()
+            # Get the data label or parameter context
+            if isinstance(path[-2],str):
+                context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
+            else:
+                context = path[-2].get_context()
+            if component is not None:
+                twig = '@'.join([qualifier,context,component])
+            else:
+                twig = '@'.join([qualifier,context])
+            twigs.append(twig)
+    return twigs
     
 
 class Bundle(Container):
@@ -333,6 +361,14 @@ class Bundle(Container):
         # Lastly we'll set the system, which will parse the string sent
         # to init and will handle attaching all necessary signals
         self.set_system(system, remove_dataref=remove_dataref)
+        
+        
+        self.twigs = generate_twigs(self.get_system())
+        readline.set_completer(phcompleter.Completer().complete)
+        readline.set_completer_delims(' \t\n`~!#$%^&*)-=+[{]}\\|;:,<>/?')
+        readline.parse_and_bind("tab: complete")
+
+        
         
     ## string representation
     def __str__(self):
@@ -837,6 +873,7 @@ class Bundle(Container):
                         # If it is a ParameterSet, we'll try to match the label,
                         # reference or context
                         elif isinstance(level, parameters.ParameterSet):
+                            # ignore synthetic datasets?
                             if 'ref' in level:
                                 name_of_this_level = level['ref']
                             elif 'label' in level:
@@ -877,7 +914,7 @@ class Bundle(Container):
                         
                     found.append(val)            
                     found_labels.append(val.get_unique_label())
-                    
+
         # for now, we'll only search the bundle sections if no other match 
         # has been found within the system
         if len(found) == 0:
@@ -908,59 +945,41 @@ class Bundle(Container):
         found = {build_twig(system, par):par for par in found}
         return self._return_from_dict(found,all,ignore_errors)
         
-    def get_value(self, qualifier, all=False, ignore_errors=False):
+    def get_value(self, twig):
         """
         Get the value from a Parameter(s) in the system.
         
         For more information on the syntax, see :py:func:`get_parameter <Bundle.get_parameter>`.
         
-        @param qualifier: qualifier of the parameter, or None to search all
-        @type qualifier: str or None
-        @param name: label or ref of ps, or None to search all
-        @type name: str or list orNone
-        @param context: context of ps, or None to search all
-        @type context: str or list or None
-        @param all: flag to return all occurences or just one
-        @type all: bool
+        @param twig: twig of the parameter
+        @type twig: str
         @return: value of the parameter
         @rtype: depends on parameter type
         """
-        par = self.get_parameter(qualifier, all=all, ignore_errors=ignore_errors)
-        if all == False:
-            return par.get_value()
-        else:
-            return {p:par[p].get_value() for p in par}
+        par = self.get_parameter(twig, all=False, ignore_errors=False)
+        # at this point there should be only one
+        return par.get_value()
             
     
         
-    def set_value(self, qualifier, value, *args, **kwargs):
+    def set_value(self, twig, value, unit=None):
         """
         Set the value of a Parameter(s) in the system
         
         For more information on the syntax, see :py:func:`get_parameter <Bundle.get_parameter>`.
-        
-        @param qualifier: qualifier of the parameter
-        @type qualifier: str
+                
+        @param twig: twig of the parameter
+        @type twig: str
         @param value: new value of the parameter
         @type value: depends on parameter type
-        @param apply_to: 'single', 'all'
-        @type apply_to: str        
+        @param unit: unit of the parameter (if there is any)
+        @type unit: str or None
         """
-        all = kwargs.pop('all', False)
-        if kwargs:
-            raise SyntaxError("set_value does not take extra keyword arguments")
-        
-        try:
-            params = self.get_parameter(qualifier, all=all)
-        except ValueError:
-            raise ValueError("more than one parameter was returned from the search: either constrain search or set apply_to='all'")
-
-        
-        if all == False:
-            params.set_value(value, *args)
+        param = self.get_parameter(twig, all=False, ignore_errors=False)
+        if unit is None:
+            param.set_value(value)
         else:
-            for unique_qual in params:
-                params[unique_qual].set_value(value, *args)
+            param.set_value(value, unit)
         
         # be sure to update the constraints
         for path, val in self.get_system().walk_all():
@@ -2995,3 +3014,9 @@ def guess_filetype(filename):
                       "it does not exist").format(filename))
     
     return file_type, contents
+
+
+
+
+
+

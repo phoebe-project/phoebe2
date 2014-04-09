@@ -29,7 +29,7 @@ class Container(object):
         return self.sections.items()
         
     ## generic functions to get non-system parametersets
-    def _return_from_dict(self,dictionary,all=False,ignore_errors=False):
+    def _return_from_dict(self, dictionary, all=False, ignore_errors=False):
         """
         this functin takes a dictionary of results from a searching function
         ie. _get_from_section and returns either a single item or the dictionary
@@ -44,16 +44,18 @@ class Container(object):
         if all:
             return dictionary
         else:
-            if len(dictionary)==0:
+            if len(dictionary) == 0:
                 if ignore_errors:
                     return None
-                raise ValueError("no results found: set ignore_errors to return None")
+                raise ValueError("no parameter found matching the criteria")
                 #~ raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
                 #~ return None
-            elif len(dictionary)>1:
+            elif len(dictionary) > 1:
                 if ignore_errors:
                     return dictionary.values()[0]
-                raise ValueError("more than one result was returned from the search: either constrain search, set all=True, or ignore_errors=True")    
+                # build a string representation of the results
+                results = ", ".join(["{} ({})".format(twig, dictionary[twig].get_value()) for twig in dictionary])
+                raise ValueError("more than one parameter was found matching the criteria: {}".format(results))    
             else:
                 return dictionary.values()[0]
         
