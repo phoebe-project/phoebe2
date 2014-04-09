@@ -177,15 +177,17 @@ def build_twig(system, parameter):
                 do_continue = True
                 # what's the component:
                 labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
-                component = labels[-1]
+                component = labels[-1] if len(labels) else None
                 qualifier = parameter.get_qualifier()
                 # Get the data label or parameter context
                 if isinstance(path[-2],str):
                     context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
                 else:
                     context = path[-2].get_context()
-                twig = '@'.join([qualifier,context,component])
-                
+                if component is not None:
+                    twig = '@'.join([qualifier,context,component])
+                else:
+                    twig = '@'.join([qualifier,context])
     return twig
     
 
@@ -446,8 +448,11 @@ class Bundle(Container):
         """
         # Possibly we initialized an empty Bundle
         if system is None:
-            self.sections['system'] = [None]
-            return None
+            #~ self.sections['system'] = [None]
+            #~ return None
+            library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'../parameters/library/')
+            system = os.path.join(library_dir, 'defaults.phoebe')
+        
         
         # Or a real system
         elif isinstance(system, universe.Body):
@@ -458,6 +463,11 @@ class Bundle(Container):
         
         # Or we could've given a filename
         else:
+            if not os.path.isfile(system):
+                # then let's see if the filename exists in the library
+                library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'../parameters/library/')
+                if os.path.isfile(os.path.join(library_dir, system)):
+                    system = os.path.join(library_dir, system)
             
             # Try to guess the file type (if it is a file)
             if os.path.isfile(system):
@@ -752,8 +762,8 @@ class Bundle(Container):
         
         @param qualifier: qualifier of the parameter, or None to search all
         @type qualifier: str or None
-        @param return_type: 'single', 'all'
-        @type return_type: str
+        @param all: flag to return all occurences or just one
+        @type all: bool
         @return: Parameter or list
         @rtype: Parameter or list
         """
@@ -880,18 +890,20 @@ class Bundle(Container):
                                            return_type='list')
             found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
         
+        found = {build_twig(system, par):par for par in found}
+        return self._return_from_dict(found,all)
         
-        if len(found) == 0:    
-            raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
-        
-        if all == False and len(found)>1:
-            raise ValueError("more than one parameter named '{}' was returned from the search: either constrain search or set return_type='all'".format(qualifier))
-        
-        if all == False:
-            return found[0]
-        else:
-            found = {build_twig(system, par):par for par in found}
-            return found
+        #~ if len(found) == 0:    
+            #~ raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+        #~ 
+        #~ if all == False and len(found)>1:
+            #~ raise ValueError("more than one parameter named '{}' was returned from the search: either constrain search or set return_type='all'".format(qualifier))
+        #~ 
+        #~ if all == False:
+            #~ return found[0]
+        #~ else:
+            #~ found = {build_twig(system, par):par for par in found}
+            #~ return found
                 
                 
     def get_value(self, qualifier, all=False):
@@ -2202,7 +2214,7 @@ class Bundle(Container):
         if isinstance(ident,int): 
             #then we need to return all in list and take index
             # TODO: this currently ignores return_type
-            return self._get_from_section('axes',search_by='title',all=True).items()[ident]
+            return self._get_from_section('axes',search_by='title',all=True).values()[ident]
         
         return self._get_from_section('axes',ident,'title',all=all)
         
@@ -2756,7 +2768,7 @@ class Bundle(Container):
         self.get_system().preprocess()
         
         if qualifier is not None:
-            par = self.get_parameter(qualifier, return_type='all')[index]
+            par = self.get_parameter(qualifier, all=True).values()[index]
             return -np.isinf(par.get_logp())
         
         else:
@@ -2800,8 +2812,8 @@ class Bundle(Container):
         """
         Update limbdarkening coefficients according to local quantities.
         """
-        atm_types = self.get_parameter('atm', return_type='all')
-        ld_coeffs = self.get_parameter('ld_coeffs', return_type='all')
+        atm_types = self.get_parameter('atm', all=True).values()
+        ld_coeffs = self.get_parameter('ld_coeffs', all=True).values()
         for atm_type, ld_coeff in zip(atm_types, ld_coeffs):
             ld_coeff.set_value(atm_type)
     
