@@ -159,12 +159,13 @@ def run_on_server(fctn):
     return parse
 
 
-def build_generic_access_qualifier(system, parameter):
+def build_twig(system, parameter):
     """
-    Build a generic access qualifier for a parameter in a system.
+    Build the twig for a parameter in a system.
+    
     """
     my_unique_label = parameter.get_unique_label()
-    generic_access_qualifier = None
+    twig = None
     # figure out the component of the parameter
     do_continue = False
     for path, val in system.walk_all(path_as_string=False):
@@ -183,9 +184,9 @@ def build_generic_access_qualifier(system, parameter):
                     context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
                 else:
                     context = path[-2].get_context()
-                generic_access_qualifier = '@'.join([qualifier,context,component])
+                twig = '@'.join([qualifier,context,component])
                 
-    return generic_access_qualifier
+    return twig
     
 
 class Bundle(Container):
@@ -715,18 +716,17 @@ class Bundle(Container):
             return found
             
             
-    def get_parameter(self, qualifier, return_type='single'):
+    def get_parameter(self, qualifier, all=False):
         """
         Smart retrieval of a Parameter(s) from the system.
 
         If :envvar:`qualifier` is the sole occurrence of a parameter in this
         Bundle, there is no confusion and that parameter will be returned.
         If there is another occurrence, then the behaviour depends on the value
-        of :envvar:`return_type`:
+        of :envvar:`all`:
         
-            - :envvar:`return_type='single'`: a ValueError is raised if multiple occurrences exit
-            - :envvar:`return_type='all'`: a list of all occurrences will be returned
-            - :envvar:`return_type='dict'`: a dictionary with the structure.
+            - :envvar:`return_type=False`: a ValueError is raised if multiple occurrences exit
+            - :envvar:`return_type=True`: a dictionary with the (flattened) structure.
        
         You can specify which qualifier you want with the :envvar:`@` operator.
         This operator allows you to hierarchically specify which parameter you
@@ -879,18 +879,22 @@ class Bundle(Container):
                     mylist += self._get_from_section(section,
                                            return_type='list')
             found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
-            
+        
+        
         if len(found) == 0:    
             raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
-        elif return_type == 'single' and len(found)>1:
+        
+        if all == False and len(found)>1:
             raise ValueError("more than one parameter named '{}' was returned from the search: either constrain search or set return_type='all'".format(qualifier))
-        elif return_type in ['single']:
+        
+        if all == False:
             return found[0]
         else:
+            found = {build_twig(system, par):par for par in found}
             return found
                 
                 
-    def get_value(self, qualifier, return_type='single'):
+    def get_value(self, qualifier, all=False):
         """
         Get the value from a Parameter(s) in the system.
         
@@ -902,18 +906,16 @@ class Bundle(Container):
         @type name: str or list orNone
         @param context: context of ps, or None to search all
         @type context: str or list or None
-        @param return_type: 'single', 'all'
-        @type return_type: str
+        @param all: flag to return all occurences or just one
+        @type all: bool
         @return: value of the parameter
         @rtype: depends on parameter type
         """
-        par = self.get_parameter(qualifier, return_type=return_type)
-        if return_type in ['single']:
+        par = self.get_parameter(qualifier, all=all)
+        if all == False:
             return par.get_value()
-        elif return_type in ['list','all']:
-            return [p.get_value() for p in par]
         else:
-            raise ValueError("Cannot interpret argument return_type='{}'".format(return_type))        
+            return {p:par[p].get_value() for p in par}
             
     
         
@@ -930,41 +932,39 @@ class Bundle(Container):
         @param apply_to: 'single', 'all'
         @type apply_to: str        
         """
-        apply_to = kwargs.pop('apply_to', 'single')
+        all = kwargs.pop('all', False)
         if kwargs:
             raise SyntaxError("set_value does not take extra keyword arguments")
         
         try:
-            params = self.get_parameter(qualifier, return_type=apply_to)
+            params = self.get_parameter(qualifier, all=all)
         except ValueError:
-            raise ValueError("more than one parameter named 'atm' was returned from the search: either constrain search or set apply_to='all'")
+            raise ValueError("more than one parameter was returned from the search: either constrain search or set apply_to='all'")
 
         
-        if apply_to in ['single']:
+        if all == False:
             params.set_value(value, *args)
-        elif apply_to in ['all']:
-            for param in params:
-                param.set_value(value, *args)
         else:
-            raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
+            for unique_qual in params:
+                params[unique_qual].set_value(value, *args)
         
         # be sure to update the constraints
         for path, val in self.get_system().walk_all():
             if isinstance(val, parameters.ParameterSet):
                 val.run_constraints()
             
-    def get_adjust(self, qualifier, return_type='single'):
+    def get_adjust(self, qualifier, all=False):
         """
         Get whether a Parameter(s) in the system is set for adjustment/fitting
         
         @param qualifier: qualifier of the parameter, or None to search all
         @type qualifier: str or None
-        @param return_type: 'single', 'dict', 'list'
-        @type return_type: str
+        @param all: flag to adjust all occurrences of a parameter, or just one
+        @type all: bool
         @return: adjust
         @rtype: bool
         """
-        par = self.get_parameter(qualifier, return_type=return_type)
+        par = self.get_parameter(qualifier, all=all)
         return par.get_adjust()
             
     def set_adjust(self, qualifier, value, *args, **kwargs):
@@ -980,26 +980,25 @@ class Bundle(Container):
         @param apply_to: 'single', 'all'
         @type apply_to: str   
         """
-        apply_to = kwargs.pop('apply_to', 'single')
+        all = kwargs.pop('all', False)
         if kwargs:
             raise SyntaxError("set_adjust does not take extra keyword arguments")
         
-        params = self.get_parameter(qualifier, return_type=apply_to)
+        params = self.get_parameter(qualifier, all=all)
         
-        if apply_to in ['single']:
+        if all == False:
             # check if need to add prior
             if not params.has_prior() and params.get_qualifier() not in ['l3','pblum']:
                 lims = params.get_limits()
                 params.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
             params.set_adjust(value, *args)
-        elif apply_to in ['all']:
+        else:
             for param in params:
                 if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
                     lims = param.get_limits()
                     param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
                 param.set_adjust(value, *args)
-        else:
-            raise ValueError("Cannot interpret argument apply_to='{}'".format(apply_to))
+        
     
     def set_adjust_all(self, value):
         """
@@ -1015,15 +1014,15 @@ class Bundle(Container):
                 
             
     
-    def get_prior(self, qualifier, return_type='single'):
+    def get_prior(self, qualifier, all=False):
         """
         Get a prior.
         """
-        pars = self.get_parameter(qualifier, return_type=return_type)
+        pars = self.get_parameter(qualifier, all=all)
         return pars.get_prior()
     
     
-    def set_prior(self, qualifier, apply_to='single', **dist_kwargs):
+    def set_prior(self, qualifier, all=False, **dist_kwargs):
         """
         Set properties of a prior.
         
@@ -1039,9 +1038,9 @@ class Bundle(Container):
         See :py:func:`phoebe.parameters.parameters.Parameter.set_prior` and
         :py:class:`phoebe.parameters.distributions.Distribution`.
         """
-        pars = self.get_parameter(qualifier, return_type='all')
+        pars = self.get_parameter(qualifier, all=all)
         
-        if apply_to == 'single' and len(pars) != 1:
+        if all == True and len(pars) != 1:
             raise ValueError('more than one found')
         
         for par in pars:

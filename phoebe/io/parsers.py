@@ -160,7 +160,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('dpdt').set_limits(ulim=float(val)*31557600)
             lower, upper = orbit.get_parameter('dpdt').get_limits()
             orbit.get_parameter('dpdt').set_prior(distribution='uniform',
-                                                  lower=lower, upper=upper)
+                                                  lower=lower, upper=upper)        
         elif key == 'phoebe_dpdt.MIN':
             orbit.get_parameter('dpdt').set_limits(llim=float(val)*31557600)
         elif key == 'phoebe_dpdt.STEP':

@@ -2025,7 +2025,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
             
             # Bracket the temperature (much like we did above for Mb and Lb):
             j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
-            
+            print m,l,t, mm, ll
             # Read out Legendre coefficients for the bracketed temperature and
             # compute the intensity from the series expansion:
             Cl = table[idx+j,2:]
@@ -2040,8 +2040,8 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         # Perform the interpolation:
         av, pg = interp_nDgrid.create_pixeltypegrid(grid_pars, grid_data)
         p = np.array([[m], [l]])
-        val = interp_nDgrid.interpolate(p, av, pg)
-
+        val = interp_nDgrid.interpolate(p, av, pg)[0]
+        
         # Store the result; it is in log10, per angstrom.
         ints[i] = val
         #print ("DEBUG: Iinterp = %12.9f" % (val))
@@ -3527,6 +3527,8 @@ def local_intensity_new(system, parset_pbdep, parset_isr={}, beaming_alg='full')
         
         # 4. Wilson Devinney compatibility layer
         elif os.path.splitext(atm)[1] == '.dat':
+            atm_kwargs = {key:system.mesh[key] for key in config.atm_props['wd']}
+            print atm_kwargs
             system.mesh[tag][:, -1] = interp_ld_coeffs_wd(atm, passband,
                                          atm_kwargs=atm_kwargs,
                                          red_kwargs=red_kwargs, vgamma=vgamma)

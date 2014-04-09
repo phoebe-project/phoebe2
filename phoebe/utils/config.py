@@ -59,6 +59,7 @@ atm_props = {'blackbody': ('teff',),
              'kurucz_p00': ('teff', 'logg'),
              'phoenix': ('teff', 'logg', 'abun'),
              'olivia.fits': ('teff', 'abun', 'eddy', 'uvflux'),
-             'jorissen': ('teff', 'logg',)}
+             'jorissen': ('teff', 'logg',),
+             'wd':('teff','logg','abun',)}
 
 fit_props = {'jorissen': 'equidist_mu_leastsq'}
