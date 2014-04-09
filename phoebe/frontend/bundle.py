@@ -452,10 +452,9 @@ class Bundle(Container):
             #~ return None
             library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'../parameters/library/')
             system = os.path.join(library_dir, 'defaults.phoebe')
-        
-        
+            
         # Or a real system
-        elif isinstance(system, universe.Body):
+        if isinstance(system, universe.Body):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
             print system
