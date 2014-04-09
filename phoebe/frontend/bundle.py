@@ -529,7 +529,19 @@ class Bundle(Container):
         # NOTE: since we're passing search_by=None, usersettings will be ignored
         # so you cannot set a default system in usersettings
         return self._get_from_section_single('system')
+    
+    def summary(self):
+        """
+        Make a summary of the system
+        """
+        return self.get_system().list(summary='cursory')
         
+    def tree(self):
+        """
+        Make a summary of the system
+        """
+        return self.get_system().list(summary='full')
+    
     def list(self, summary=None, *args):
         """
         List with indices all the ParameterSets that are available.

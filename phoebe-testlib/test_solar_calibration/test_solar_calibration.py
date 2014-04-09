@@ -30,7 +30,7 @@ def main():
     lcdep2['method'] = 'analytical'
     lcdep2['ref'] = 'Bolometric (analytical)'
 
-    the_sun = phoebe.Star(sun,sun_mesh,pbdep=[lcdep1,lcdep2], globals=globals)
+    the_sun = phoebe.Star(sun,sun_mesh,pbdep=[lcdep1,lcdep2], position=globals)
 
     the_sun.set_time(0)
 

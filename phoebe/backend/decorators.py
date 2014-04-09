@@ -306,7 +306,7 @@ def mpirun(fctn):
                 
                 # Build and run the command
                 if mpirun_par.get_context().split(':')[-1] == 'mpi':
-                    cmd = ("mpirun -np {num_proc} {hostfile} {byslot} {python} "
+                    cmd = ("mpiexec -np {num_proc} {hostfile} {byslot} {python} "
                        "{mpirun_loc} {fctn.__name__} {sys_file.name} "
                        "{args_file.name} {kwargs_file.name}").format(**locals())
                 elif mpirun_par.get_context().split(':')[-1] == 'slurm':

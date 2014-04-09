@@ -101,7 +101,7 @@ setup(
               'phoebe.parameters','phoebe.io','phoebe.dynamics',
               'phoebe.frontend','phoebe.frontend.gui'],
     
-    package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*'],#'tables/ld_coeffs/*.fits'],
+    package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*','tables/ld_coeffs/README'],
                   'phoebe.parameters':['catalogs/*.dat','library/*.par','library/*.phoebe'],
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},
