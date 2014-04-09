@@ -105,7 +105,7 @@ class Container(object):
                         try:
                             key = ps.get_value(search_by)
                         except AttributeError:
-                            continue
+                            key = len(items)
                     else:
                         key = len(items)
                     
@@ -240,7 +240,7 @@ class Settings(Container):
         txt = ""
         for section in self.sections.keys():
             if isinstance(self.sections[section],list):
-                for label,ps in self._get_from_section(section).items():
+                for label,ps in self._get_from_section(section, all=True).items():
                     if ps is not None:
                         txt += "\n============ {}:{} ============\n".format(section,label)
                         txt += ps.to_string()
@@ -444,7 +444,8 @@ class Settings(Container):
             
         config = ConfigParser.ConfigParser()
         
-        for label,ps in self._get_from_section(section).items():
+        #~ print "***", section
+        for label,ps in self._get_from_section(section, all=True).items():
             # here label is the ConfigParser 'section'
             if section == 'server':
                 for subsection in ['server','mpi']:

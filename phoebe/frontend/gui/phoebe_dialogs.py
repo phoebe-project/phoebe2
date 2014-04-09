@@ -16,7 +16,7 @@ def get_datarefs(bundle):
     note this does not include duplicates if multiple objrefs have the same dataref
     """
     
-    ds_syn_all = bundle.get_syn(return_type='all')
+    ds_syn_all = bundle.get_syn(all=True).values()
     ds_syn_names = []
     for dss in ds_syn_all:
         if dss['ref'] not in ds_syn_names:
@@ -199,16 +199,16 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         for w in self.findChildren(QComboBox):
             if w.objectName().split('_')[0]=='s':
                 key = "_".join(str(w.objectName()).split('_')[1:])
-                names = ['None']+self.prefs.get_server(return_type='dict').keys()
+                names = ['None']+self.prefs.get_server(all=True).keys()
             elif w.objectName() == 'sx_serveredit_combo':
                 key = None
-                names = self.prefs.get_server(return_type='dict').keys()
+                names = self.prefs.get_server(all=True).keys()
             elif w.objectName() == 'co_edit_combo':
                 key = None
-                names = self.prefs.get_compute(return_type='dict').keys()
+                names = self.prefs.get_compute(all=True).keys()
             elif w.objectName() == 'fo_edit_combo':
                 key = None
-                names = self.prefs.get_fitting(return_type='dict').keys()
+                names = self.prefs.get_fitting(all=True).keys()
             else:
                 continue
             
@@ -242,7 +242,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                     self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.item_changed)
                 
         ### create server list treeview
-        self.serverlist_treeWidget.set_data(self.prefs.get_server(return_type='dict'))
+        self.serverlist_treeWidget.set_data(self.prefs.get_server(all=True))
             
         # logger stuff
         self.lo_psedit.set_data([self.prefs.get_logger()],style=['nofit'])
@@ -426,7 +426,7 @@ class CreatePopTimeSelect(QDialog, gui.Ui_popTimeSelect_Dialog):
         as we are assuming they should all have the same times
         """
         # used to be get_syn - but that won't work until compute has been run
-        return self.bundle.get_obs(dataref=dataref,return_type='all')[0].asarray()['time']
+        return self.bundle.get_obs(dataref=dataref,all=True).values()[0].asarray()['time']
         
     def get_time(self):
         """
