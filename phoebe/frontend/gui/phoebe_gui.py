@@ -885,7 +885,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.get_system() is not None:
             #~ print "*** updating fitting treeviews", len(self.bundle.get_system().get_adjustable_parameters())
             self.rp_fitinTreeView.set_data(self.bundle.get_system().get_adjustable_parameters(),self.system_ps,self.system_names)
-            self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1),self.system_ps,self.system_names)
+            self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1,ignore_errors=True),self.system_ps,self.system_names)
         else:
             self.rp_fitinTreeView.set_data([],self.system_ps,self.system_names)
             self.rp_fitoutTreeView.set_data({},self.system_ps,self.system_names)

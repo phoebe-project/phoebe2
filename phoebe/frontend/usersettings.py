@@ -29,7 +29,7 @@ class Container(object):
         return self.sections.items()
         
     ## generic functions to get non-system parametersets
-    def _return_from_dict(self,dictionary,all=False):
+    def _return_from_dict(self,dictionary,all=False,ignore_errors=False):
         """
         this functin takes a dictionary of results from a searching function
         ie. _get_from_section and returns either a single item or the dictionary
@@ -38,15 +38,22 @@ class Container(object):
         @type dictionary: dict or OrderedDict
         @param all: whether to return a single item or all in a dictionary
         @type all: bool
+        @param ignore_errors: if all==False, ignore errors if 0 or > 1 result
+        @type ignore_errors: bool
         """
         if all:
             return dictionary
         else:
             if len(dictionary)==0:
-                #~ raise ValueError("no results found: set all=True to bypass error")
-                return None
+                if ignore_errors:
+                    return None
+                raise ValueError("no results found: set ignore_errors to return None")
+                #~ raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+                #~ return None
             elif len(dictionary)>1:
-                raise ValueError("more than one dataset was returned from the search: either constrain search or set all=True")    
+                if ignore_errors:
+                    return dictionary.values()[0]
+                raise ValueError("more than one result was returned from the search: either constrain search, set all=True, or ignore_errors=True")    
             else:
                 return dictionary.values()[0]
         
@@ -66,7 +73,7 @@ class Container(object):
         return items[0]
 
                 
-    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_usersettings=False):
+    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_usersettings=False,ignore_errors=False):
         """
         retrieve a parameterset (or similar object) by section and label (optional)
         if the section is also in the defaults set by usersettings, 
@@ -140,7 +147,7 @@ class Container(object):
                         self._add_to_section(section,psc)
                     
         # and now return in the requested format
-        return self._return_from_dict(items,all)
+        return self._return_from_dict(items,all,ignore_errors)
 
     def _remove_from_section(self,section,search,search_by='label'):
         """
