@@ -3795,6 +3795,14 @@ def download_atm(atm=None):
     
     destin_folder = get_paths()[0]
     
+    # Does the directory exist?
+    if not os.path.isdir(destin_folder):
+        direcs = os.sep.split(destin_folder)
+        level1 = os.path.join(direcs[:-1])
+        if not os.path.isdir(level1):
+            os.mkdir(level1)
+        os.mkdir(destin_folder)
+    
     # Perhaps we need to be sudo?
     print("Copying to destination folder {}".format(destin_folder))
     if not os.access(destin_folder, os.W_OK):
