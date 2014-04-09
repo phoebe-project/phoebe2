@@ -689,7 +689,8 @@ defs += [dict(qualifier='label', description='label for the server',repr='%s',ca
          ]
          
 # Logger context
-defs += [dict(qualifier='style',    description='logger style',repr='%s',cast_type='choose',value='default',choices=['default','grandpa','minimal','trace'],frame=["phoebe"],context='logger'),
+defs += [dict(qualifier='label', description='label',repr='%s',cast_type=str,value='default_logger',frame=["phoebe"],context='logger'),
+         dict(qualifier='style',    description='logger style',repr='%s',cast_type='choose',value='default',choices=['default','grandpa','minimal','trace'],frame=["phoebe"],context='logger'),
          dict(qualifier='clevel',   description='print to consolve this level and above',repr='%s',cast_type='choose',value='WARNING',choices=['INFO','DEBUG','WARNING'],frame=["phoebe"],context='logger'),
          dict(qualifier='flevel',   description='print to file this level and above',repr='%s',cast_type='choose',value='DEBUG',choices=['INFO','DEBUG','WARNING'],frame=["phoebe"],context='logger'),
          dict(qualifier='filename', description='log file to print messages with level flevel and above',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='logger'),
@@ -697,7 +698,8 @@ defs += [dict(qualifier='style',    description='logger style',repr='%s',cast_ty
          ]
 
 # GUI context
-defs += [dict(qualifier='panel_system', description='show system panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
+defs += [dict(qualifier='label', description='label',repr='%s',cast_type=str,value='default_gui',frame=["phoebe"],context='gui'),
+         dict(qualifier='panel_system', description='show system panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_params', description='show parameters panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_fitting', description='show fitting panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_versions', description='show versions panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
