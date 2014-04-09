@@ -1711,7 +1711,7 @@ class Bundle(Container):
 
 
     def adjust_obs(self, dataref=None, l3=None, pblum=None):
-        for obs in self.get_obs(dataref=dataref,all=True).items():
+        for obs in self.get_obs(dataref=dataref,all=True).values():
             if l3 is not None:
                 obs.set_adjust('l3',l3)
             if pblum is not None:
@@ -1725,7 +1725,7 @@ class Bundle(Container):
         @type dataref: str or None
         """
         
-        dss = self.get_obs(dataref=dataref,all=True).items()
+        dss = self.get_obs(dataref=dataref,all=True).values()
         for ds in dss:
             ds.load()
 
@@ -1822,7 +1822,11 @@ class Bundle(Container):
         if label is None:
             options = parameters.ParameterSet(context='compute')
         else:
-            options = self.get_compute(label).copy()
+            options_orig = self.get_compute(label)
+            if options_orig is None:
+                raise ValueError("compute options with name '{}' were not found".format(label))
+            else:
+                options = options_orig.copy()
         
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
