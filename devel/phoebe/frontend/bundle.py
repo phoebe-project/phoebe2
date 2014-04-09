@@ -494,7 +494,7 @@ class Bundle(Container):
         # got me an error 
         system = self.get_system()
         if system is None:
-           return
+            raise IOError('Initalisation failed: file/system not found')
        
         # Clear references if necessary:
         if remove_dataref is not False:
