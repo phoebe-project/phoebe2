@@ -688,10 +688,10 @@ def legacy_to_phoebe(inputfile, create_body=False,
         #-- make sure lables are the same
         lcdep2[i]['ref'] = lcdep1[i]['ref']
 
-        lcdep1[i].get_parameter('pblum').set_adjust(hla_adjust)
-        lcdep2[i].get_parameter('pblum').set_adjust(cla_adjust)
-        lcdep1[i].get_parameter('l3').set_adjust(l3_adjust)
-        lcdep2[i].get_parameter('l3').set_adjust(l3_adjust)
+        lcdep1[i].get_parameter('pblum').set_adjust(adjust_hla)
+        lcdep2[i].get_parameter('pblum').set_adjust(adjust_cla)
+        lcdep1[i].get_parameter('l3').set_adjust(adjust_l3)
+        lcdep2[i].get_parameter('l3').set_adjust(adjust_l3)
         
         if lc_file[i] != "Undefined":
             if lcsigma[i] == 'undefined': 
