@@ -573,23 +573,14 @@ def legacy_to_phoebe(inputfile, create_body=False,
         if key == 'phoebe_lc_filter':
             lcdep1[index]['passband'] = val
             lcdep2[index]['passband'] = val
-     
-        # INCLUDE STEPS, MINS, MAXES!!
-     
+
         if key == 'phoebe_hla.VAL':
             lcdep1[index]['pblum'] = float(val)
-        if key == 'phoebe_hla.ADJ':
-            lcdep1[index].get_parameter('pblum').set_adjust(int(val))
         if key == 'phoebe_cla.VAL':
             lcdep2[index]['pblum'] = float(val)
-        if key == 'phoebe_cla.ADJ':
-            lcdep2[index].get_parameter('pblum').set_adjust(int(val))
         if key == 'phoebe_el3.VAL':
             lcdep1[index]['l3'] = float(val)
             lcdep2[index]['l3'] = float(val)
-        if key == 'phoebe_el3.ADJ':
-            lcdep1[index].get_parameter('l3').set_adjust(int(val))
-            lcdep2[index].get_parameter('l3').set_adjust(int(val))
 
         if key == 'phoebe_ld_rvy1':
             ld_rvy1 = float(val[1:-2])
@@ -667,6 +658,13 @@ def legacy_to_phoebe(inputfile, create_body=False,
                 lcsigma.append('weight')
             else:
                 lcsigma.append('undefined')
+
+        if key == 'phoebe_hla.ADJ':
+            adjust_hla = int(val)
+        if key == 'phoebe_cla.ADJ':
+            adjust_cla = int(val)
+        if key == 'phoebe_el3.ADJ':
+            adjust_l3 = int(val)
                 
     orbit['long_an'] = 0.
  
@@ -689,6 +687,11 @@ def legacy_to_phoebe(inputfile, create_body=False,
         lcdep2[i]['ld_func'] = comp2['ld_func']
         #-- make sure lables are the same
         lcdep2[i]['ref'] = lcdep1[i]['ref']
+
+        lcdep1[i].get_parameter('pblum').set_adjust(hla_adjust)
+        lcdep2[i].get_parameter('pblum').set_adjust(cla_adjust)
+        lcdep1[i].get_parameter('l3').set_adjust(l3_adjust)
+        lcdep2[i].get_parameter('l3').set_adjust(l3_adjust)
         
         if lc_file[i] != "Undefined":
             if lcsigma[i] == 'undefined': 
