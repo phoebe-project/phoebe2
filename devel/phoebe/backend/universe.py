@@ -951,9 +951,12 @@ def _parse_pbdeps(body, pbdep):
         
         # If the ref already exist, generate a new one but warn the user
         if ref in body.params['pbdep'][context]:
+            #logger.warning(("Adding pbdeps: ref '{}' already exists, "
+            #                "generating a new one (via UUID4)").format(ref))
             logger.warning(("Adding pbdeps: ref '{}' already exists, "
-                            "generating a new one (via UUID4)").format(ref))
-            ref = str(uuid.uuid4())
+                            "overwriting existing one."))
+            
+            #ref = str(uuid.uuid4())
             parset['ref'] = ref
         
         # Add the parameterSet to the relevant dictionary
