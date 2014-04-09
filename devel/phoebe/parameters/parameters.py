@@ -1154,6 +1154,7 @@ class Parameter(object):
         @parameter adjust: flag to set/release/change adjust
         @type adjust: boolean
         """
+        # maybe cast adjust to a boolean for consistency?
         if hasattr(self,'adjust'):
             self.adjust = adjust
             #logger.debug('set_adjust {0} to {1}'.format(self.qualifier,adjust))

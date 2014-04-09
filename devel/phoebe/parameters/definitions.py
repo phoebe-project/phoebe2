@@ -717,6 +717,7 @@ defs += [dict(qualifier='label',                description='label for the comut
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='samprate',             description='Compute observables of system with these sampling rates',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
+         dict(qualifier='mesh_rescale',         description='Scaling factor for mesh densities (<1 decrease, >1 increase)',repr='%s',cast_type=float,value=1.0,frame=['phoebe'],context='compute'),
          dict(qualifier='heating',              description='Allow irradiators to heat other Bodies',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context='compute'),
          dict(qualifier='refl',                 description='Allow irradiated Bodies to reflect light',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context='compute'),
          dict(qualifier='refl_num',             description='Number of reflections',repr='%d',cast_type=int,value=1,frame=['phoebe'],context='compute'),

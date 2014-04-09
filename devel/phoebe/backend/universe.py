@@ -524,8 +524,9 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
     if pblum >= 0.0:
         # This definition of passband luminosity should mimic the definition
         # of WD
+        #passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2
         if not 'pblum' in system._clear_when_reset:
-            passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2
+            passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2    
             system._clear_when_reset['pblum'] = passband_lum
         else:
             passband_lum = system._clear_when_reset['pblum']

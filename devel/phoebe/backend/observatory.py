@@ -2182,10 +2182,9 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     # If necessary, subdivide and redetect eclipses/horizon
     for k in range(subdiv_num):
-        
         if found_partial is False:
             continue
-        
+        logger.info('Subdividing stage {}/{}'.format(k+1, subdiv_num))
         system.subdivide(threshold=0, algorithm=subdiv_alg)
         ecl_, found_partial = choose_eclipse_algorithm(system, algorithm=ecl)
     
@@ -2469,6 +2468,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     nreflect = params['refl_num']
     ltt = params['ltt']
     beaming = params['beaming_alg']
+    mesh_scale = params['mesh_rescale']
     
     # Heating and reflection are by default switched on. However, if there are
     # no irradiators, we don't need to compute it.
@@ -2487,7 +2487,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                     
                     # If there's at least one irradiator, we need to leave it on
                     found_irradiator = True
-                    logger.info("Including heating and/or reflection effects")
+                    logger.info("Including heating and/or reflection effects ({})".format(params['irradiation_alg']))
 
                     
     # Otherwise we can switch irradiation completely off
@@ -2578,6 +2578,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if system_is_bbag and reflect and len(system)>1:
         system.prepare_reflection(ref='all')
     
+    # Scale mesh density
+    if mesh_scale != 1:
+        for pset in system.walk():
+            if pset.get_context() == 'mesh:marching':
+                current = marching.delta_to_nelements(pset['delta'])
+                pset['delta'] = marching.nelements_to_delta(current*mesh_scale)
+        logger.info("{} mesh density with a factor {}".format('Increased' if mesh_scale>1 else 'Decreased', mesh_scale))
+    
     # Make sure all Bodies have the same columns in the mesh (we might have
     # added different columns for reflection/beaming for different bodies).
     if system_is_bbag and ((reflect and len(system)>1) or (beaming_is_relevant and not beaming == 'full')):
@@ -2640,10 +2648,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         except:
             logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
     
-    ## There seems to be a memory leak in the marching method still, but it
-    ## is solved by calling the gargabe collector. Perhaps there are some
-    ## py_incref/py_decref statements missing?
-    #gc.collect()
+        # Scale mesh density
+        if mesh_scale != 1:
+            for pset in system.walk():
+                if pset.get_context() == 'mesh:marching':
+                    current = marching.delta_to_nelements(pset['delta'])
+                    pset['delta'] = marching.nelements_to_delta(current/mesh_scale)
+            logger.info("Restored mesh densities")
+    
         
         
 def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
