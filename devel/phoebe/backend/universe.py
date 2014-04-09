@@ -954,7 +954,7 @@ def _parse_pbdeps(body, pbdep):
             #logger.warning(("Adding pbdeps: ref '{}' already exists, "
             #                "generating a new one (via UUID4)").format(ref))
             logger.warning(("Adding pbdeps: ref '{}' already exists, "
-                            "overwriting existing one."))
+                            "overwriting existing one.".format(ref)))
             
             #ref = str(uuid.uuid4())
             parset['ref'] = ref
@@ -1084,7 +1084,7 @@ def _parse_obs(body, data):
             #logger.warning(('Data parsing: ref {} already exists!'
             #              'Generating new one...'.format(ref)))
             logger.warning(('Data parsing: ref {} already exists!'
-                          'overwriting existing one.'))
+                          'overwriting existing one.'.format(ref)))
             #ref = str(uuid.uuid4())
             parset['ref'] = ref
             

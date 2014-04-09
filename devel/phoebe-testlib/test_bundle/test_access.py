@@ -28,16 +28,6 @@ def test_access():
     mybundle.set_value('atm@component@secondary','something')
     assert(mybundle.get_value('atm@component@secondary')=='something')
     
-    # test dictionairy output
-    out = mybundle.get_value('teff', all=True)
-    assert(out['teff@component@primary'] == 9001)
-    assert(out['teff@component@secondary'] == 7780.)
-    
-    mybundle.set_value('teff', 8123, all=True)
-    out = mybundle.get_value('teff', all=True)
-    assert(out['teff@component@primary'] == 8123)
-    assert(out['teff@component@secondary'] == 8123)
-    
     
     
 if __name__ == "__main__":
