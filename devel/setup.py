@@ -102,7 +102,7 @@ setup(
               'phoebe.frontend','phoebe.frontend.gui'],
     
     package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*'],#'tables/ld_coeffs/*.fits'],
-                  'phoebe.parameters':['catalogs/*.dat','library/*.par'],
+                  'phoebe.parameters':['catalogs/*.dat','library/*.par','library/*.phoebe'],
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},
     scripts=['phoebe/frontend/gui/phoebe_gui.py'],
