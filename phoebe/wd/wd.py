@@ -668,7 +668,7 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     
     orbit['t0type'] = 'superior conjunction'
     #-- gamma velocity needs to be corrected
-    globals = pars.ParameterSet('globals', vgamma=ps_wd.get_value('vga','km/s'))
+    globals = pars.ParameterSet('position', vgamma=ps_wd.get_value('vga','km/s'))
     #orbit['vgamma'] = orbit['vgamma']*100.
     
     return comp1,comp2,orbit, globals

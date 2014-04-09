@@ -38,7 +38,7 @@ lcdep1 = create.dep_from_object(sun,context='lcdep', passband='JOHNSON.V',
 lcdep2 = create.dep_from_object(venus,context='lcdep', passband='JOHNSON.V',
                                 ref='Visual')
 
-globals = phoebe.ParameterSet('globals', distance=(4.84813681108e-06,'pc'))
+globals = phoebe.ParameterSet('position', distance=(4.84813681108e-06,'pc'))
 
 # Body setup
 # ----------

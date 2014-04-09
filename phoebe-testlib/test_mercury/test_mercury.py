@@ -31,13 +31,13 @@ def do_mercury(redist):
     mesh1 = phoebe.PS('mesh:marching', delta=0.1)
     mesh2 = phoebe.PS('mesh:marching', delta=0.04, maxpoints=22000)
 
-    globals = phoebe.PS('globals', distance=(1,'au')) 
+    globals = phoebe.PS('position', distance=(1,'au')) 
 
 
     sun = phoebe.BinaryStar(sun, mesh=mesh1, orbit=orbit, pbdep=[lcdep1])
     mercury = phoebe.BinaryStar(mercury, mesh=mesh2, orbit=orbit, pbdep=[lcdep2])
 
-    system = phoebe.BodyBag([sun, mercury], obs=[obs], globals=globals)
+    system = phoebe.BodyBag([sun, mercury], obs=[obs], position=globals)
     system.compute(heating=True, refl=True, refl_num=1, beaming_alg='none')
     return system
 

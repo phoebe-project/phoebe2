@@ -13,7 +13,7 @@ def main():
     sun['ld_coeffs'] = 'kurucz'
     sun['ld_func'] = 'claret'
 
-    globals = phoebe.ParameterSet(context='globals')
+    globals = phoebe.ParameterSet(context='position')
     globals['distance'] = 1.,'au'
 
     sun_mesh = phoebe.ParameterSet(context='mesh:marching',alg='c')
