@@ -3171,6 +3171,74 @@ class Body(object):
            
             text += summary
         
+        def add_summary_cursory(thing, text, width=79):
+            """
+            Add information on pbdeps, obs and syn
+            """
+           
+            # Construct the  "|     |     " string that preceeds the summary info
+            # We need to have the same length as the previous line. If there
+            # is no previous line, or it is not indented, we don't need to indent
+            # this one
+            try:
+                indent = text[-1].split('+')[0] \
+                       + '|'\
+                       + ' '*len(text[-1].split('+')[1].split('>')[0]) \
+                       + '  '
+            except IndexError:
+                indent = ''
+               
+            # Collect references
+            summary = []
+            
+            mystring = []
+            # Loop over all stuff but just list the available contexts
+            # If this thing has a child, see if it has an orbit and print it
+            if hasattr(thing, 'bodies') and 'orbit' in thing.get_children()[0].params:
+                i_have_orbit = ['orbit']
+            else:
+                i_have_orbit = []
+            
+            # Global system parameters
+            for param in thing.params:
+                if param in ['pbdep', 'obs', 'syn']:
+                    continue
+                
+                if param == 'orbit':
+                    continue
+                
+                mystring.append(param)
+                
+                if param == 'globals':
+                    mystring += i_have_orbit
+                    i_have_orbit = []
+            
+            # Add orbit in any case
+            mystring += i_have_orbit
+            summary = []
+            for imystring in mystring:
+                summary.append("\n".join(textwrap.wrap(imystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+
+            # Loop over all categories and make a string
+            for category in ['lc', 'rv', 'sp', 'if', 'pl', 'etv', 'am']:
+               
+                for ptype in ['pbdep','obs']:
+                    ns = 0 
+                    lbl = (category+ptype[-3:])
+                    mystring = ['{}: '.format(lbl)]
+                    if ptype in thing.params and lbl in thing.params[ptype]:
+                        for ref in thing.params[ptype][lbl]:
+                            mystring.append(ref)
+                        ns += len(thing.params[ptype][lbl])
+                    mystring = mystring[0] + ', '.join(mystring[1:])
+                    # Only report if there are some
+                    if ns > 0:
+                        summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=79)))
+           
+            text += summary
+        
+        
+        
         def add_summary_physical(thing, text, width=79):
             """
             Add information on pbdeps, obs and syn
@@ -3231,10 +3299,30 @@ class Body(object):
                
             # Collect references
             summary = []
+            # If this thing has a child, see if it has an orbit and print it
+            i_have_orbit = []
+            if hasattr(thing, 'bodies') and 'orbit' in thing.get_children()[0].params:
+                lbl = 'orbit'
+                mystring = ['{}: '.format(lbl)]
+                iiterover = thing.get_children()[0].params['orbit']
+                for par in iiterover:
+                        mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
+                        if iiterover.get_parameter(par).has_unit():
+                            mystring[-1] += ' {}'.format(iiterover.get_parameter(par).get_unit())
+                        if emphasize and iiterover.get_parameter(par).get_adjust():
+                            mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
+                mystring = mystring[0] + ', '.join(mystring[1:])
+                i_have_orbit.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+            
             # Loop over all categories and make a string
             for param in thing.params:
                 if param in ['pbdep', 'obs', 'syn']:
                     continue
+                
+                # Skip orbits, we should've taken care of those at a higher level
+                if param == 'orbit':
+                    continue
+                
                 lbl = param
                 mystring = ['{}: '.format(lbl)]
                 if not isinstance(thing.params[param],list):
@@ -3250,6 +3338,14 @@ class Body(object):
                             mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
                 mystring = mystring[0] + ', '.join(mystring[1:])
                 summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
+                
+                # we need to insert orbit after globals if there is any (seriously)
+                if lbl == 'globals':
+                    summary += i_have_orbit
+                    i_have_orbit = []
+            
+            # if there were no globals, add the orbit
+            summary += i_have_orbit
             
             # Loop over all pbdep and make a string
             for param in thing.params:
@@ -5376,7 +5472,7 @@ class BodyBag(Body):
             elif comp==1:
                 self.params['orbit']['c2label'] = label
         except Exception as msg:
-            logger.warning(str(msg))
+            logger.info(str(msg))
         
         self.label = label
             

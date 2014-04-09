@@ -104,7 +104,7 @@ lcdep2['ref'] = 'Bolometric (analytical)'
 # ``the_sun.params['pbdep']['lcdep'].values()[0]``, and the numerical light
 # curve on its turn via ``the_sun.params['pbdep']['lcdep'].values()[1]``.
 
-the_sun = phoebe.Star(sun, mesh=sun_mesh, pbdep=[lcdep1, lcdep2], globals=globs)
+the_sun = phoebe.Star(sun, mesh=sun_mesh, pbdep=[lcdep1, lcdep2], position=globs)
 
 # Computation of observables
 # --------------------------
