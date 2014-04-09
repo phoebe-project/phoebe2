@@ -919,9 +919,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2) 
                    
         if lcno !=0:
-            bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals,obs=obslc)
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=globals,obs=obslc)
         else:
-            bodybag = universe.BodyBag([star1,star2],solve_problems=True, globals=globals)
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=globals)
         
         # Set the name of the thing
         bodybag.set_label(system_label)
