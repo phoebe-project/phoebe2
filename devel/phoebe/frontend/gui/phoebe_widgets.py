@@ -958,11 +958,11 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 
                 # get the dataset for this row AND column
                 if has_obs:
-                    col_obs = bundle.get_obs(objref=name, dataref=dataset['ref'], all=True)[0]
+                    col_obs = bundle.get_obs(objref=name, dataref=dataset['ref'], all=True).values()[0]
                 else:
                     col_obs = None
                 if has_syn:
-                    col_syn = bundle.get_syn(objref=name, dataref=dataset['ref'], all=True)[0]
+                    col_syn = bundle.get_syn(objref=name, dataref=dataset['ref'], all=True).values()[0]
                 else:
                     col_syn = None
                 
@@ -1140,6 +1140,8 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                         HBox.addWidget(obs_color)
                         HBox.addWidget(obs_errorbars)
                         HBox.addWidget(obs_marker)
+                    else:
+                        obs_color, obs_marker, obs_errorbars, obs_toggle = None, None, None, None
                     
                     # syn
                     syn_color = ColorChooserButton('syn',plotted_syn_ps_curr.get_value('color') if plotted_syn_ps_curr is not None else 'auto')
