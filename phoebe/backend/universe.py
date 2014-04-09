@@ -1081,9 +1081,11 @@ def _parse_obs(body, data):
         # If the ref already exist, generate a new one. This should never
         # happen, so send a critical message to the user
         if ref in body.params['obs'][data_context]:
+            #logger.warning(('Data parsing: ref {} already exists!'
+            #              'Generating new one...'.format(ref)))
             logger.warning(('Data parsing: ref {} already exists!'
-                          'Generating new one...'.format(ref)))
-            ref = str(uuid.uuid4())
+                          'overwriting existing one.'))
+            #ref = str(uuid.uuid4())
             parset['ref'] = ref
             
         # Prepare results if they were not already added by the data parser

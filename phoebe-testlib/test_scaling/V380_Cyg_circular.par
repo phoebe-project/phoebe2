@@ -55,7 +55,7 @@ q1 ~  {q}
 q2 ~  1.0/{q}
 
 
-[phoebe--globals--V380Cyg_globals]
+[phoebe--position--V380Cyg_globals]
 ra         = 0.0        # (deg) Right ascension
 dec        = 0.0        # (deg) Declination
 epoch      = J2000      #  Epoch of coordinates

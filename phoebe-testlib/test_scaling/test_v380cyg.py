@@ -49,7 +49,7 @@ def test_pblums_l3(debug=False):
     starB = universe.BinaryRocheStar(Bpars, mesh=meshpars, orbit=orbitpars,
                                     pbdep=[pbdep_lc,pbdep_rv_b], obs=[obs_rv_b])
     system = universe.BinaryBag([starA,starB], orbit=orbitpars, label='V380Cyg',
-                                globals=globs,obs=[obs_lc])
+                                position=globs,obs=[obs_lc])
 
     # compute
     obs_lc.set_adjust('l3',True)
