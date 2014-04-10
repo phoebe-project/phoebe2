@@ -139,6 +139,7 @@ def read2list(filename,**kwargs):
     splitchar = kwargs.get('delimiter',None)
     skip_empty = kwargs.get('skipempty',True)
     skip_lines = kwargs.get('skiprows',0)
+    exp_fmt = kwargs.get('exp_fmt', None)
     
     if isinstance(commentchar,str):
         commentchar = [commentchar]
@@ -168,6 +169,12 @@ def read2list(filename,**kwargs):
         
         #-- remove return characters
         line = line.replace('\n','')
+        
+        #-- replace exponential formats
+        if exp_fmt is not None:
+            line = line.replace(exp_fmt+'+', 'E+')
+            line = line.replace(exp_fmt+'-', 'E-')
+        
         #-- when reading a comment line
         if line[0] in commentchar:
             comm.append(line[1:])

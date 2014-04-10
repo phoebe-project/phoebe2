@@ -1955,7 +1955,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     l = atm_kwargs.get('logg', 4.5)
     t = atm_kwargs.get('teff', 10000)
     p = passband
-
+    
     # Check the bounds; Pieter will probably modify these to array tests.
     if np.any(l < 0.0) or np.any(l > 5.0):
         logger.error("log(g) outside of grid: Consider using a different atmosphere model")
@@ -2019,13 +2019,15 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
         # table, run a Legendre-powered interpolator and compute the
         # intensity. Variable grid_data will hold all 4 intensities.
         grid_data = []
+        
         for (mm, ll) in grid_pars.T:
             # Get the pointer to the (P,M,L) block in the 'atmcof.dat' table:
             idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
             
             # Bracket the temperature (much like we did above for Mb and Lb):
+            print [table[idx+j,1] for j in range(4)]
             j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
-            print m,l,t, mm, ll
+            print m,l,t, mm, ll, j
             # Read out Legendre coefficients for the bracketed temperature and
             # compute the intensity from the series expansion:
             Cl = table[idx+j,2:]

@@ -48,9 +48,6 @@ import copy
 import os
 import re
 import readline
-        
-#~ from PIL import Image
-
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
@@ -66,8 +63,8 @@ import phcompleter
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
+# delimiter for twigs, some people prefer '@', others '->'
 delim = '@|->'
-
 
 def run_on_server(fctn):
     """
@@ -77,6 +74,7 @@ def run_on_server(fctn):
     @functools.wraps(fctn)
     def parse(bundle,*args,**kwargs):
         """
+        Real parser.
         """
         # first we need to reconstruct the arguments passed to the original function
         callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
@@ -166,23 +164,40 @@ def build_twig_from_path(thing, path):
     """
     Build the twig for a parameter in a system.
     
+    @param thing: some object from a Bundle (Parameter, ParameterSet, Body...)
+    @type thing: some type
+    @param path: all levels of the hieararchy of the thing (as a list of objects)
+    @type path: list of objects
     """
     twig = None
-    if isinstance(thing, parameters.Parameter):        
+    
+    # We have different behaviour for twigs representing Parameters and
+    # ParameterSets
+    if isinstance(thing, parameters.Parameter): 
+        
+        # A twig for a parameterSet is built as:
+        # <qualifier>@[<label>@]<context>[@<component>]
+        
         # what's the component:
         labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
         component = labels[-1] if len(labels) else None
         qualifier = thing.get_qualifier()
+        
         # Get the data label or parameter context
         if isinstance(path[-2],str):
             context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
         else:
-            context = path[-2].get_context()
+            context = ''
+            if 'label' in path[-2]:
+                context += path[-2]['label'] + '@'
+            context += path[-2].get_context()
+            
         if component is not None:
             twig = '@'.join([qualifier,context,component])
         else:
             twig = '@'.join([qualifier,context])
-                        
+    
+    
     elif isinstance(thing, parameters.ParameterSet):
         # what's the component:
         labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
@@ -203,16 +218,17 @@ def generate_twigs(bundle):
     twigs = []
     for path, val in walk(bundle):
         this_twig = build_twig_from_path(val, path)
-        if this_twig is not None:
+        if this_twig is not None and this_twig not in twigs:
             twigs.append(this_twig)
     return twigs
 
 
 def walk(mybundle):
+    
     for val,path in utils.traverse_memory(mybundle,
                                      list_types=(Bundle, universe.Body, list,tuple),
                                      dict_types=(dict, ),
-                                       parset_types=(parameters.ParameterSet, ),
+                                     parset_types=(parameters.ParameterSet, ),
                                      get_label=(universe.Body, ),
                                      get_context=(parameters.ParameterSet, ),
                                      skip=()):
@@ -220,8 +236,11 @@ def walk(mybundle):
             # First one is always root
             path[0] = str(mybundle.__class__.__name__)
             
+            
             # All is left is to return it
+            
             yield path, val
+    
     
 
 class Bundle(Container):
@@ -404,7 +423,13 @@ class Bundle(Container):
         # Default printoption
         np.set_printoptions(threshold=old_threshold)
         return txt
-        
+    
+    def __getitem__(self, twig):
+        return self.get_value(twig)
+    
+    def __setitem__(self, twig, value):
+        self.set_value(twig, value)
+    
     #{ Settings
     def set_setting(self,key,value):
         """
@@ -1029,7 +1054,25 @@ class Bundle(Container):
         for path, val in self.get_system().walk_all():
             if isinstance(val, parameters.ParameterSet):
                 val.run_constraints()
-            
+    
+    def set_value_all(self, twig, value, unit=None):
+        """
+        Set the value of any Parameter that matches the twig.
+        """
+        params = self.get_parameter(twig, all=True, ignore_errors=False)
+        for key in params:
+            if unit is None:
+                params[key].set_value(value)
+            else:
+                params[key].set_value(value, unit)
+        
+        # be sure to update the constraints
+        for path, val in self.get_system().walk_all():
+            if isinstance(val, parameters.ParameterSet):
+                val.run_constraints()
+    
+    
+    
     def get_adjust(self, qualifier, all=False, ignore_errors=False):
         """
         Get whether a Parameter(s) in the system is set for adjustment/fitting
@@ -1354,13 +1397,15 @@ class Bundle(Container):
                         # Override defaults: those are all the keys that are
                         # available in both the pbdep and the main parset, and
                         # are not listed in skip_defaults_from_body
+                        take_defaults = None
                         if skip_defaults_from_body is not True:
                             take_defaults = (set(ps.keys()) & set(main_parset.keys())) - set(skip_defaults_from_body)
                             for key in take_defaults:
                                 if ps[key] != main_parset[key]:
                                     ps[key] = main_parset[key]
-                        
-                        body.add_pbdeps(ps.copy())
+                            # and in case of overwriting existing one
+                            take_defaults = set(ps.keys()) - set(skip_defaults_from_body)
+                        body.add_pbdeps(ps.copy(), take_defaults=take_defaults)
                         
             else:
                 # get the main parameterSet:
@@ -1371,12 +1416,12 @@ class Bundle(Container):
                     # Override defaults: those are all the keys that are
                     # available in both the pbdep and the main parset, and
                     # are not listed in skip_defaults_from_body
+                    take_defaults = None
                     if skip_defaults_from_body is not True:
                         take_defaults = (set(ps.keys()) & set(main_parset.keys())) - set(skip_defaults_from_body)
                         for key in take_defaults:
                             ps[key] = main_parset[key]
-                    
-                    comp.add_pbdeps(ps.copy())
+                    comp.add_pbdeps(ps.copy(), take_defaults=take_defaults)
             
             # obs get attached to the requested object
             for ds in dss:
@@ -2738,7 +2783,11 @@ class Bundle(Container):
             param = ps.get_parameter(key)
             self.attach_signal(param,'set_value',self._on_param_changed,ps)
             self.attached_signals_system.append(param)
-
+    
+    def _add_to_section(self, *args, **kwargs):
+        super(Bundle, self)._add_to_section(*args, **kwargs)
+        self.twigs = generate_twigs(self)
+    
     def _on_param_changed(self,param,ps=None):
         """
         this function is called whenever a signal is emitted that was attached

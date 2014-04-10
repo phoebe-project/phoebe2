@@ -31,6 +31,8 @@ class Container(object):
     def __iter__(self):
         for param in self.sections.keys():
             yield self.sections[param]
+        for param in self.get_usersettings().sections.keys():
+            yield self.get_usersettings().sections[param]
         
     ## generic functions to get non-system parametersets
     def _return_from_dict(self, dictionary, all=False, ignore_errors=False):
@@ -192,6 +194,7 @@ class Container(object):
         if section not in self.sections.keys():
             self.sections[section] = []
         self.sections[section].append(ps)
+        
 
 class Settings(Container):
     """

@@ -449,7 +449,8 @@ class DataSet(parameters.ParameterSet):
     def asarray(self):
         self_copy = self.copy()
         for col in self['columns']:
-            self_copy[col] = np.array(self[col])
+            if col in self:
+                self_copy[col] = np.array(self[col])
         return self_copy
     
     def clear(self):
