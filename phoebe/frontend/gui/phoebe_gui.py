@@ -1707,7 +1707,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currentText = self.datasetswidget_main.ds_plotComboBox.currentText()
         self.datasetswidget_main.ds_plotComboBox.setEnabled(False) # so we can ignore the signal
         self.datasetswidget_main.ds_plotComboBox.clear()
-        items = ['all plots']+self.bundle.get_axes(all=True).keys()
+        items = ['all plots']+[pl.split('@')[0] for pl in self.bundle.get_axes(all=True).keys()]
         self.datasetswidget_main.ds_plotComboBox.addItems(items)
         if currentText in items:
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(items.index(currentText))
@@ -2000,7 +2000,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         pop = self.sender().topLevelWidget()
         passband_filterset = str(pop.pfe_filtersetComboBox.currentText())
         passband_passband = str(pop.pfe_filterbandComboBox.currentText())
-        passband = '{}.{}'.format(passband_filterset, pop.pfe_filterbandComboBox.currentText)
+        passband = '{}.{}'.format(passband_filterset, passband_passband)
+        
         name = pop.name.text() if len(pop.name.text()) > 0 else None
         
         if '--Passband--' in passband or '--Filter Set--' in passband or len(passband_filterset)==0 or len(passband_passband)==0:
