@@ -298,10 +298,10 @@ class DataSet(parameters.ParameterSet):
         # contruct parameter if not present
         if not to_col in self:
             context = self.get_context()
-            par = parameter.Parameter(to_col, context=context, frame='phoebe')
+            par = parameters.Parameter(to_col, context=context, frame='phoebe')
             self.add(par)
         
-        if not to_col in self or force:
+        if not to_col in self or force or not len(self[to_col])==len(self):
             # Fill with the value
             self[to_col] = sigma #np.hstack([noise[0],noise])
         

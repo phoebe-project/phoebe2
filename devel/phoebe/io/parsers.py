@@ -902,6 +902,12 @@ def legacy_to_phoebe(inputfile, create_body=False,
         mesh1 = mesh1wd
         mesh2 = mesh2wd
     
+    # make sure default sigmas are attached to all observations
+    for gobs in [obsrv1, obsrv2, obslc]:
+        for iobs in gobs:
+            iobs.estimate_sigma(from_col=None, force=False)
+        
+    
     if create_body:
         
         ##need an if statement here incase no obs
