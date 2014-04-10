@@ -2033,7 +2033,9 @@ def extract_times_and_refs(system, params, tol=1e-8):
             mytimes = parset['time']
 
         for itime, iexp, isamp in zip(mytimes, exps, samp):
-            times.append(np.linspace(itime - iexp/2.0/(24*3600.), itime + iexp/2.0/(24*3600.), isamp+2)[1:-1])
+            iexp_d = iexp/(24*3600.)
+            times.append(np.linspace(itime - iexp_d/2., itime + iexp_d/2.0, isamp+1)[:-1]+(iexp_d/2./isamp))
+
             refs.append([parset['ref']] * isamp)
             types.append([parset.context] * isamp)
             samps.append([isamp]*isamp)

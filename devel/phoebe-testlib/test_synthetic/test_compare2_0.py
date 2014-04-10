@@ -275,7 +275,7 @@ if __name__=="__main__":
     else:
         pr = cProfile.Profile()
         pr.enable()
-        compare(name, mpi=None)
+        compare(name, mpi=True)
         pr.disable()
         name = name+"_"+"".join(['{:02d}'.format(i) for i in datetime.datetime.today().timetuple()[:6]])
         pr.dump_stats(name+'.profile')

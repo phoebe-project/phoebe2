@@ -31,7 +31,7 @@ def compare(name):
     
     # Parse the Legacy file
     filename = os.path.join(basedir, "{}.phoebe".format(name))
-    system = parsers.legacy_to_phoebe(filename, mesh='marching',
+    system, compute = parsers.legacy_to_phoebe(filename, mesh='marching',
                                     create_body=True, root=basedir)
     print(system.list(summary='long'))
     print(system.list(summary='physical'))

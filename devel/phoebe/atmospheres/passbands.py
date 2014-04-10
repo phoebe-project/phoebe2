@@ -196,7 +196,7 @@ def get_response(passband):
     
     # Else we don't know what to do
     else:
-        raise IOError,('{0} does not exist {1}'.format(passband,custom_filters.keys())) 
+        raise IOError('{0} does not exist {1}'.format(passband,custom_filters.keys())) 
     
     # make sure the contents are sorted according to wavelength
     sort_array = np.argsort(wave)
@@ -478,7 +478,7 @@ def add_response(wave, response, passband='CUSTOM.PTF', force=False,
     # Check if the passband already exists:
     photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
     if os.path.isfile(photfile) and not kwargs['force']:
-        raise ValueError, 'bandpass {0} already exists'.format(photfile)
+        raise ValueError('bandpass {0} already exists'.format(photfile))
     elif passband in custom_passbands:
         logger.debug('Overwriting previous definition of {0}'.format(passband))
     custom_passbands[passband] = dict(response=(wave, response))
