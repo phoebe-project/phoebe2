@@ -1380,8 +1380,8 @@ class Bundle(Container):
             
             # obs get attached to the requested object
             for ds in dss:
-
                 #~ ds.load()
+                ds.estimate_sigma(from_col=None, force=False)
                 comp.add_obs(ds)
 
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...

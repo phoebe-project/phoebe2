@@ -594,9 +594,11 @@ class Parameter(object):
                 if not qualifier== idef['qualifier'] or (hasattr(idef,'alias') and not qualifier in idef['alias']):
                     continue
                 #-- is the frame correct?
-                if not frame in idef['frame']: continue
+                if not frame in idef['frame']:
+                    continue
                 #-- is the context correct?
-                if context and context!=idef['context']: continue
+                if context and not (context in idef['context']):
+                    continue
                 #-- else, this is the correct one
                 props = idef
                 break
