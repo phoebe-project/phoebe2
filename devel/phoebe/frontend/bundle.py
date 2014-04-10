@@ -979,7 +979,7 @@ class Bundle(Container):
         #    look deeper if we already found a match
         # 3. syn should be freely asked of any level if possible, using get_synthetic
         
-        #~ return self._return_from_dict(found,all,ignore_errors)
+        return self._return_from_dict(found,all,ignore_errors)
         
     def info(self, twig):
         return self.get_parameter(twig).__repr__
