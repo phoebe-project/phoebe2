@@ -162,36 +162,41 @@ def run_on_server(fctn):
     
     return parse
 
-
-def build_twig(system, parameter):
+def build_twig(system, thing):
     """
     Build the twig for a parameter in a system.
     
     """
-    my_unique_label = parameter.get_unique_label()
-    twig = None
-    # figure out the component of the parameter
-    do_continue = False
-    for path, val in system.walk_all(path_as_string=False):
-        if do_continue:
-            continue
-        if isinstance(val, parameters.Parameter):
-            if val.get_unique_label() == my_unique_label:
-                # we got it!
-                do_continue = True
-                # what's the component:
-                labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
-                component = labels[-1] if len(labels) else None
-                qualifier = parameter.get_qualifier()
-                # Get the data label or parameter context
-                if isinstance(path[-2],str):
-                    context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
-                else:
-                    context = path[-2].get_context()
-                if component is not None:
-                    twig = '@'.join([qualifier,context,component])
-                else:
-                    twig = '@'.join([qualifier,context])
+    if isinstance(thing, parameters.Parameter):
+        my_unique_label = thing.get_unique_label()
+        twig = None
+        # figure out the component of the parameter
+        do_continue = False
+        for path, val in system.walk_all(path_as_string=False):
+            if do_continue:
+                continue
+            if isinstance(val, parameters.Parameter):
+                if val.get_unique_label() == my_unique_label:
+                    # we got it!
+                    do_continue = True
+                    # what's the component:
+                    labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
+                    component = labels[-1] if len(labels) else None
+                    qualifier = thing.get_qualifier()
+                    # Get the data label or parameter context
+                    if isinstance(path[-2],str):
+                        context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
+                    else:
+                        context = path[-2].get_context()
+                    if component is not None:
+                        twig = '@'.join([qualifier,context,component])
+                    else:
+                        twig = '@'.join([qualifier,context])
+                        
+    elif isinstance(thing, parameters.ParameterSet):
+        twig = ''
+
+
     return twig
     
 
@@ -647,7 +652,7 @@ class Bundle(Container):
     #}
     #{ Parameters/ParameterSets
     
-    def get_ps(self, qualifier, return_type='single'):
+    def get_ps(self, qualifier, all=False, ignore_errors=False):
         """
         Retrieve a ParameterSet(s) from the system
         
@@ -753,28 +758,31 @@ class Bundle(Container):
             if len(structure_info) == 2:
                 mylist = self._get_from_section(structure_info[0],
                                                 search=structure_info[1],
-                                                return_type='list')
+                                                all=all)
             elif len(structure_info) == 1:
                 # structure_info[0] may be the section
                 mylist = self._get_from_section(structure_info[0],
-                                                return_type='list')
+                                                all=all)
                 
                 # or structure_info[0] may be the label
                 for section in sections:
                     mylist += self._get_from_section(section,
                                                      search=structure_info[0],
-                                                     return_type='list')
+                                                     all=all)
             found = found + mylist
+            
+        found = {build_twig(self.get_system(), par):par for par in found}
+        return self._return_from_dict(found,all,ignore_errors)
                 
                     
-        if len(found) == 0:
-            raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
-        elif return_type == 'single' and len(found)>1:
-            raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
-        elif return_type in ['single']:
-            return found[0]
-        else:
-            return found
+        #~ if len(found) == 0:
+            #~ raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
+        #~ elif return_type == 'single' and len(found)>1:
+            #~ raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
+        #~ elif return_type in ['single']:
+            #~ return found[0]
+        #~ else:
+            #~ return found
             
             
     def get_parameter(self, qualifier, all=False, ignore_errors=False):
@@ -833,7 +841,7 @@ class Bundle(Container):
         
         # First we'll loop through matching parametersets and gather all
         # parameters that match the qualifier
-        found = []
+        found = {}
         found_labels = []
         
         system = self.get_system()
@@ -916,7 +924,7 @@ class Bundle(Container):
                     if val.get_context()[-3:] == 'syn':
                         continue
                     
-                    found.append(val)            
+                    found[build_twig(system,val)] = val          
                     found_labels.append(val.get_unique_label())
         
         # for now, we'll only search the bundle sections if no other match 
@@ -926,25 +934,43 @@ class Bundle(Container):
             index = 0
             sections = self.sections.keys()[1:]
             if len(structure_info) == 2:
-                mylist = self._get_from_section(structure_info[0],
+                new = self._get_from_section(structure_info[0],
                                                 search=structure_info[1],
-                                                all=True).values()
+                                                all=True)
+                for k,v in new.items():
+                    for qualifier,param in v.items():
+                        if qualifier in v.get_label():
+                            found['{}@{}'.format(qualifier,k)] = v
+                    
             elif len(structure_info) == 1:
                 # structure_info[0] may be the section
-                mylist = self._get_from_section(structure_info[0],
-                                                all=True).values()
+                new = self._get_from_section(structure_info[0],
+                                                all=True)
+                                                
+                for k,v in new.items():
+                    for qualifier,param in v.items():
+                        if qualifier in v.get_label():
+                            found['{}@{}'.format(qualifier,k)] = v
                 
                 # or structure_info[0] may be the label
                 for section in sections:
-                    mylist += self._get_from_section(section,
+                    new = self._get_from_section(section,
                                                      search=structure_info[0],
-                                                     all=True).values()
+                                                     all=True)
+                    for k,v in new.items():
+                        for qualifier,param in v.items():
+                            if qualifier in v.get_label():
+                                found['{}@{}'.format(qualifier,k)] = v
             else:
                 mylist = []
                 for section in sections:
-                    mylist += self._get_from_section(section,
-                                           return_type='list')
-            found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
+                    new = self._get_from_section(section,
+                                           all=True)
+                    for k,v in new.items():
+                        for qualifier,param in v.items():
+                            if qualifier in v.get_label():
+                                found['{}@{}'.format(qualifier,k)] = v
+                        
         
         # We want special handling of some stuff:
         # 1. passbands need to be the same for every pbdep belonging to a certain
@@ -953,8 +979,10 @@ class Bundle(Container):
         #    look deeper if we already found a match
         # 3. syn should be freely asked of any level if possible, using get_synthetic
         
-        found = {build_twig(system, par):par for par in found}
-        return self._return_from_dict(found,all,ignore_errors)
+        #~ return self._return_from_dict(found,all,ignore_errors)
+        
+    def info(self, twig):
+        return self.get_parameter(twig).__repr__
         
     def get_value(self, twig):
         """
@@ -2249,7 +2277,7 @@ class Bundle(Container):
         """
         if isinstance(ident,int): 
             #then we need to return all in list and take index
-            # TODO: this currently ignores return_type
+            # TODO: this currently ignores 'all'
             return self._get_from_section('axes',search_by='title',all=True).values()[ident]
         
         return self._get_from_section('axes',ident,'title',all=all,ignore_errors=ignore_errors)
@@ -2287,7 +2315,6 @@ class Bundle(Container):
             raise NotImplementedError
             return
             # TODO - this won't work - we need to make _remove_from_section take an index
-            #~ return self._get_from_section('axes',return_type='list')[ident]
         
         return self._remove_from_section('axes',ident,'title')
                                 
@@ -2702,8 +2729,6 @@ class Bundle(Container):
 
         self.purge_signals(self.attached_signals_system) # this will also clear the list
         # get_system_structure is not implemented yet
-        #for ps in [self.get_ps(label) for label in self.get_system_structure(return_type='label',flat=True)]+self.sections['compute']:
-        #    self._attach_set_value_signals(ps)
         
         # these might already be attached?
         self.attach_signal(self,'load_data',self._on_param_changed)

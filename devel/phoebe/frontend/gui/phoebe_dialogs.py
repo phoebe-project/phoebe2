@@ -475,6 +475,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         super(CreatePopFileEntry, self).__init__(parent)
         self.setupUi(self)
         self.devel_version = devel_version
+        self.syn_components_checks = {}
         
         self.colwidgets = []
         
@@ -482,6 +483,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         
         self.dataTextEdit.setVisible(False)
         self.syn_timeWidget.setVisible(False)
+
         
         self.set_filters()
         self.on_category_changed('lc') # initialize the datatypes combo to lc
@@ -489,6 +491,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         self.connect(self.pfe_fileChooserButton, SIGNAL("clicked()"), self.on_file_choose)
         self.connect(self.pfe_synChooserButton, SIGNAL("clicked()"), self.on_syn_choose)
         self.connect(self.pfe_categoryComboBox, SIGNAL("currentIndexChanged(QString)"), self.on_category_changed)
+        self.connect(self.times_timeorphase, SIGNAL("currentIndexChanged(QString)"), self.on_syn_set_default_times)
         
         for w in [self.timeselect_arange_min, self.timeselect_arange_max, self.timeselect_linspace_min, self.timeselect_linspace_max]:
             self.connect(w, SIGNAL("clicked()"), self.on_timeselect_clicked)
@@ -520,7 +523,54 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         else:
             self.pfe_filterbandComboBox.addItems(['--Passband--'])
             self.pfe_filterbandComboBox.setEnabled(False)
+            
+    def on_syn_set_default_component_checks(self):
+        for name,ps in zip(self.parent().system_names,self.parent().system_ps):
+            if name in self.syn_components_checks:
+                check = self.syn_components_checks[name]
         
+                if self.category in ['lc','etv']:
+                    if ps.context in ['orbit']:
+                        check.setChecked(True)
+                    else:
+                        check.setChecked(False)
+                elif self.category in ['rv']:
+                    if ps.context not in ['orbit']:
+                        check.setChecked(True)
+                    else:
+                        check.setChecked(False)
+                else:
+                    check.setChecked(False)
+                    
+    def on_syn_set_default_times(self, timeorphase):
+        if str(timeorphase)=='time':
+            try:
+                period = self.parent().bundle.get_value('period')
+            except:
+                # maybe there was more than one period
+                pass
+            else:
+                self.arange_max.setValue(period)
+                self.linspace_max.setValue(period)
+        
+            self.timeselect_arange_min.setEnabled(True)
+            self.timeselect_arange_max.setEnabled(True)
+            self.timeselect_linspace_min.setEnabled(True)
+            self.timeselect_linspace_max.setEnabled(True)
+            #~ self.times_match.setEnabled(True)
+        
+        else:
+            self.arange_max.setValue(1.)
+            self.linspace_max.setValue(1.)
+
+            self.timeselect_arange_min.setEnabled(False)
+            self.timeselect_arange_max.setEnabled(False)
+            self.timeselect_linspace_min.setEnabled(False)
+            self.timeselect_linspace_max.setEnabled(False)
+            #~ if self.times_match.isChecked():
+                #~ self.times_arange.setChecked(True)
+            #~ self.times_match.setEnabled(False)
+            
     def on_syn_choose(self):
         # show the time chooser widget
         
@@ -529,12 +579,15 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         self.datasetComboBox.addItems(datarefs)
         
         # set components
-        self.syn_components_checks = {}
         vbox = QVBoxLayout(self.syn_componentsWidget)
         for name in self.parent().system_names:
             check = QCheckBox(name)
             self.syn_components_checks[name] = check
             vbox.addWidget(check)
+            
+        self.on_syn_set_default_component_checks()
+        self.on_syn_set_default_times(self.times_timeorphase.currentText())
+                
             
         # show panel
         self.syn_timeWidget.setVisible(True)
@@ -717,6 +770,8 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         for colwidget in self.colwidgets:
             colwidget.type_comboBox.clear()
             colwidget.type_comboBox.addItems(self.datatypes)
+            
+        self.on_syn_set_default_component_checks()
 
 class CreatePopFileEntryColWidget(QWidget, gui.Ui_popFileEntryColWidget):
     def __init__(self, parent=None,devel_version=False):

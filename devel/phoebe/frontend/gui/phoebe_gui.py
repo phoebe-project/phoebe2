@@ -89,6 +89,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.unity_launcher = Unity.LauncherEntry.get_for_desktop_id("phoebe_gui.desktop")
         else:
             self.unity_launcher = None
+            
+        # initialize needed stuff
+        self.plotEntry_widgets = []
         
         # hide float and close buttons on dock widgets
         #~ self.bp_pyDockWidget.setTitleBarWidget(QWidget())
@@ -1318,7 +1321,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currenttext = self.lp_methodComboBox.currentText()
         self.lp_methodComboBox.clear()
         for k,v in self.bundle.get_compute(all=True).iteritems():
-            self.lp_methodComboBox.addItem(k)
+            self.lp_methodComboBox.addItem(k.split('@')[0])
 
         # return to original selection
         if len(currenttext) > 0: #ignore empty case
@@ -1337,7 +1340,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key in self.prefs.get_compute(all=True)
+        in_settings = key.split('@')[0] in self.prefs.get_compute(all=True)
         self.lp_observeoptionsReset.setVisible(in_settings)
         self.lp_observeoptionsDelete.setVisible(in_settings==False)
 
@@ -1784,7 +1787,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currenttext = self.rp_methodComboBox.currentText()
         self.rp_methodComboBox.clear()
         for k,v in self.bundle.get_fitting(all=True).iteritems():
-            self.rp_methodComboBox.addItem(k)
+            self.rp_methodComboBox.addItem(k.split('@')[0])
 
         # return to original selection
         if len(currenttext) > 0: #ignore empty case
@@ -1796,14 +1799,14 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         key = str(combo.currentText())
         if len(key)==0: return
         #~ print "*** on_fittingOption_changed", key
-        
+
         fitting = self.bundle.get_fitting(key)
             
         self.rp_fitoptionsTreeView.set_data([fitting],style=['nofit','incl_label'])
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key in self.prefs.get_fitting(all=True)
+        in_settings = key.split('@')[0] in self.prefs.get_fitting(all=True)
         self.rp_fitoptionsReset.setVisible(in_settings)
         self.rp_fitoptionsDelete.setVisible(in_settings==False)
 
@@ -2045,7 +2048,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             components = [comp for comp,check in pop.syn_components_checks.items() if check.isChecked()]
             if len(components) == 0: components = 'None'
             
-            do_command = "bundle.create_data(category='%s', time=%s, objref=%s, passband='%s', dataref='%s')" % (pop.category,timestr,components,passband,name)
+            timeorphase = str(pop.times_timeorphase.currentText())
+            
+            do_command = "bundle.create_data(category='%s', %s=%s, objref=%s, passband='%s', dataref='%s')" % (pop.category,timeorphase,timestr,components,passband,name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "create %s synthetic dataset" % name
             

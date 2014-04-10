@@ -117,8 +117,9 @@ class Container(object):
                             key = len(items)
                     else:
                         key = len(items)
-                    
-                    items[key] = ps
+                        
+                    twig = '{}@{}'.format(key, section)
+                    items[twig] = ps
 
         if not ignore_usersettings and search_by is not None:
             # Now let's check the defaults in usersettings
@@ -144,7 +145,9 @@ class Container(object):
                         # this will still create a new copy (for consistency)
 
                         psc = copy.deepcopy(ps)
-                        items[psc.get_value(search_by)] = psc
+                        key = psc.get_value(search_by)
+                        twig = '{}@{}'.format(key, section)
+                        items[twig] = psc
                         # now we add the copy to the bundle
                         self._add_to_section(section,psc)
                     
