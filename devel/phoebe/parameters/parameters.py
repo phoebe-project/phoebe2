@@ -880,6 +880,17 @@ class Parameter(object):
         if hasattr(self,'context'):
             return self.context
     
+    def set_context(self, context):
+        """
+        Set the context.
+        
+        @param context: new context
+        @type context: str
+        @return: context
+        @rtype: str/None
+        """
+        self.context = context
+    
     def get_step(self):
         """
         Returns the step size on this variable.
@@ -1896,6 +1907,8 @@ class ParameterSet(object):
         if with_qualifier is None:
             with_qualifier = parameter.qualifier
         self.container[with_qualifier] = parameter
+        # force context
+        self.container[with_qualifier].set_context(self.context)
         #self.__dict__[parameter.qualifier] = parameter.get_value()
     
     def point_to(self, qualifier, parameter):

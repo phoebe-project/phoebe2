@@ -1,12 +1,12 @@
 import phoebe
 import os
+import numpy as np
 
 def test_access():
     """
     Testing bundle setters and getters
     """
     mybundle = phoebe.Bundle(os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe'))
-    #print mybundle
     
     # test get value
     assert(mybundle.get_value('distance')==10)
@@ -27,6 +27,14 @@ def test_access():
     assert(mybundle.get_value('atm@lcdep@secondary')=='blackbody')
     mybundle.set_value('atm@component@secondary','something')
     assert(mybundle.get_value('atm@component@secondary')=='something')
+    
+    # add some data and do similar stuff
+    mybundle.create_data(category='lc', dataref='mylc', time=np.linspace(0,1,100), flux=np.ones(100))
+    mybundle.create_data(category='rv', dataref='myprimrv', objref='primary', time=np.linspace(0,1,100), rv=np.ones(100))
+    mybundle.create_data(category='rv', dataref='mysecrv', objref='secondary', time=np.linspace(0.2,0.3,109), rv=-np.ones(109))
+    #print mybundle.get_value('time@mylc')
+    
+    
     
     
     
