@@ -1787,7 +1787,7 @@ class Bundle(Container):
         """
 
         # disable any plotoptions that use this dataset
-        for axes in self.get_axes(return_type='list'):
+        for axes in self.get_axes(all=True).values():
             for pl in axes.get_plot().values():
                 if pl.get_value('dataref')==dataref:
                     pl.set_value('active',False)
