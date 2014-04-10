@@ -718,7 +718,7 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         elif selection=='flux':
             unitscombo.addItems(['erg/s/cm2/AA'])
         elif selection=='rv':
-            unitscombo.addItems(['m/s', 'km/s', 'Rsol/d'])
+            unitscombo.addItems(['km/s', 'm/s', 'Rsol/d'])
         elif selection in ['o-c', 'exptime']:
             unitscombo.addItems(['seconds', 'mins', 'days'])
         #~ elif selection=='sigma':
