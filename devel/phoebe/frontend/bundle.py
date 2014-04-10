@@ -1391,7 +1391,7 @@ class Bundle(Container):
     
     
     def load_data(self, category, filename, passband=None, columns=None,
-                  objref=None, dataref=None, scale=False, offset=False):
+                  objref=None, units={}, dataref=None, scale=False, offset=False):
         """
         Add data from a file.
         
@@ -1411,13 +1411,16 @@ class Bundle(Container):
         @type columns: list of strings
         @param objref: component for each column in file
         @type objref: list of strings (labels of the bodies)
+        @param units: provide any non-default units
+        @type units: dict
         @param dataref: name for ref for all returned datasets
         @type dataref: str    
         """
         
         if category == 'rv':
             output = datasets.parse_rv(filename, columns=columns,
-                                       components=objref, full_output=True,
+                                       components=objref, units=units, 
+                                       full_output=True,
                                        **{'passband':passband, 'ref': dataref})
         elif category == 'lc':
             output = datasets.parse_lc(filename, columns=columns,
@@ -1425,16 +1428,19 @@ class Bundle(Container):
                                        **{'passband':passband, 'ref': dataref})
         elif category == 'etv':
             output = datasets.parse_etv(filename, columns=columns,
-                                        components=objref, full_output=True,
+                                        components=objref, units=units,
+                                        full_output=True,
                                         **{'passband':passband, 'ref': dataref})
         
         elif category == 'sp':
             output = datasets.parse_sp(filename, columns=columns,
-                                       components=objref, full_output=True,
+                                       components=objref, units=units,
+                                       full_output=True,
                                        **{'passband':passband, 'ref': dataref})
         
         elif category == 'sed':
             output = datasets.parse_phot(filename, columns=columns,
+                  units=units,
                   group=filename, group_kwargs=dict(scale=scale, offset=offset),
                   full_output=True)
         #elif category == 'pl':
@@ -1649,6 +1655,7 @@ class Bundle(Container):
         system = self.get_system()
         
         # Smart defaults:
+        objref_orig = objref
         # For a light curve, it makes most sense to ask for the top level by
         # default
         if category == 'lc' and objref is None:
@@ -1665,31 +1672,13 @@ class Bundle(Container):
             if objref is None or this_objref == objref:
                 ds = body.get_synthetic(ref=dataref, cumulative=True)
                 
-                if ds is not None and ds != [] and (category is None or ds.context[:-3]==category):
+                if ds is not None and ds != []\
+                    and (category is None or ds.context[:-3]==category)\
+                    and not (objref_orig is None and category is None and ds.context[:-3]=='lc' and this_objref != system.get_label()):
+                    
                     dss['{}{}{}'.format(ds['ref'],delim[0],this_objref)] = ds
                 
                 
-                #~ # If category is not given, run over all of them
-                #~ if category is None:
-                    #~ obstypes = body.params['syn'].keys()
-                #~ else:
-                    #~ obstypes = [category+'syn']
-                #~ 
-                #~ for obstype in obstypes:
-                    #~ 
-                    #~ # dataref can be integer
-                    #~ if isinstance(dataref, int):
-                        #~ if len(body.params['syn'][obstype].values())>dataref:
-                            #~ ds = body.params['syn'][obstype].values()[dataref]
-                        #~ else:
-                            #~ ds = None
-                    #~ # but dataref can be string
-                    #~ elif dataref in body.params['syn'][obstype]:
-                        #~ ds = body.params['syn'][obstype][dataref]
-                    #~ # else nothing happens and we keep searching
-                    #~ if ds is not None:
-                        #~ dss['{}@{}@{}'.format(ds['ref'],obstype,this_objref)] = ds
-                    
         return self._return_from_dict(dss,all,ignore_errors)
                     
 

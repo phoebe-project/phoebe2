@@ -52,13 +52,14 @@ class Container(object):
                 if ignore_errors:
                     return None
                 raise ValueError("no parameter found matching the criteria")
-                #~ raise ValueError('parameter {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
-                #~ return None
             elif len(dictionary) > 1:
                 if ignore_errors:
                     return dictionary.values()[0]
                 # build a string representation of the results
-                results = ", ".join(["{} ({})".format(twig, dictionary[twig].get_value()) for twig in dictionary])
+                #~ results = ", ".join(["{} ({})".format(twig, dictionary[twig].get_value()) for twig in dictionary])
+                # but this function is called for more than just get_value, so for now we won't show this info
+                
+                results = ", ".join(["{}".format(twig) for twig in dictionary])
                 raise ValueError("more than one parameter was found matching the criteria: {}".format(results))    
             else:
                 return dictionary.values()[0]
