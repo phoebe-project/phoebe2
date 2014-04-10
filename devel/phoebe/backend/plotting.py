@@ -221,7 +221,7 @@ def plot_lcobs(system, **kwargs):
     
     flux = obs['flux']
     
-    if errorbars and 'sigma' in obs and len(obs['sigma']):
+    if errorbars and 'sigma' in obs and len(obs['sigma']) and not np.all(obs['sigma']==-1):
         sigm = obs['sigma']
     else:
         logger.info("No uncertainties on data found")

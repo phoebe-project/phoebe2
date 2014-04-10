@@ -853,7 +853,7 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
     return pblum, l3
                     
                     
-def _parse_pbdeps(body, pbdep):
+def _parse_pbdeps(body, pbdep, take_defaults=None):
     """
     Attach passband dependables to a body.
     
@@ -958,6 +958,13 @@ def _parse_pbdeps(body, pbdep):
             
             #ref = str(uuid.uuid4())
             parset['ref'] = ref
+            
+            # replace values from original one to this one, at least if
+            # they are a member of take_defaults
+            if take_defaults is not None:
+                for key in take_defaults:
+                    if key in body.params['pbdep'][context][ref]:
+                        parset[key] = body.params['pbdep'][context][ref][key]
         
         # Add the parameterSet to the relevant dictionary
         # This might be a little over the top, but I'll also check if the thing
@@ -4239,12 +4246,12 @@ class PhysicalBody(Body):
         return np.average(self.mesh['center'][:,2],weights=self.mesh['size'])
     
     
-    def add_pbdeps(self,pbdep):
+    def add_pbdeps(self, pbdep, take_defaults=None):
         """
         Add a list of dependable ParameterSets to the Body.
         """
         #-- add dependables to params
-        parsed_refs = _parse_pbdeps(self,pbdep)
+        parsed_refs = _parse_pbdeps(self, pbdep, take_defaults=take_defaults)
         #-- add columns to mesh
         if len(self.mesh):
             for ref in parsed_refs:
