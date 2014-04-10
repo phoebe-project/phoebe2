@@ -2063,6 +2063,11 @@ class Ui_popFileEntry_Dialog(object):
         self.syn_componentsWidget = QtGui.QWidget(self.syn_timeWidget)
         self.syn_componentsWidget.setObjectName(_fromUtf8("syn_componentsWidget"))
         self.gridLayout_2.addWidget(self.syn_componentsWidget, 6, 0, 1, 2)
+        self.times_timeorphase = QtGui.QComboBox(self.syn_timeWidget)
+        self.times_timeorphase.setObjectName(_fromUtf8("times_timeorphase"))
+        self.times_timeorphase.addItem(_fromUtf8(""))
+        self.times_timeorphase.addItem(_fromUtf8(""))
+        self.gridLayout_2.addWidget(self.times_timeorphase, 0, 1, 1, 2)
         self.gridLayout_4.addWidget(self.syn_timeWidget, 4, 0, 1, 1)
         self.gridLayout.addWidget(self.plot_Widget, 0, 0, 1, 1)
 
@@ -2113,6 +2118,8 @@ class Ui_popFileEntry_Dialog(object):
         self.timeselect_linspace_max.setToolTip(QtGui.QApplication.translate("popFileEntry_Dialog", "set from existing datasets", None, QtGui.QApplication.UnicodeUTF8))
         self.timeselect_arange_max.setToolTip(QtGui.QApplication.translate("popFileEntry_Dialog", "set from existing datasets", None, QtGui.QApplication.UnicodeUTF8))
         self.label_12.setText(QtGui.QApplication.translate("popFileEntry_Dialog", "Times:", None, QtGui.QApplication.UnicodeUTF8))
+        self.times_timeorphase.setItemText(0, QtGui.QApplication.translate("popFileEntry_Dialog", "time", None, QtGui.QApplication.UnicodeUTF8))
+        self.times_timeorphase.setItemText(1, QtGui.QApplication.translate("popFileEntry_Dialog", "phase", None, QtGui.QApplication.UnicodeUTF8))
 
 
 class Ui_popHelp_Dialog(object):
