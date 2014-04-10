@@ -16,6 +16,7 @@ except:
 from phoebe.parameters import create
 from phoebe.utils import callbacks
 from phoebe.units import constants
+from phoebe.frontend import phcompleter
 ################################################
 
 from collections import OrderedDict
@@ -812,7 +813,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         self.style = 'data' #default
         if plots!='all plots' or types!='all categories':
             if plots!='all plots':
-                axes_incl = [bundle.get_axes(plots)]
+                axes_incl = [bundle.get_axes(plots,ignore_errors=True)]
                 typ = axes_incl[0].get_value('category') # will be rv, lc, etc 
                 self.style = 'plot'
             elif types!='all categories': #plot will automatically handle filtering by type
@@ -2424,6 +2425,10 @@ class PyInterp(QTextEdit):
         palette.setColor(QPalette.Text, QColor("black"))
         self.setPalette(palette)
         self.setFont(QFont('Courier', 10))
+        
+        readline.set_completer(phcompleter.Completer().complete)
+        readline.set_completer_delims(' \t\n`~!#$%^&*)-=+[{]}\\|;:,<>/?')
+        #~ readline.parse_and_bind("tab: complete")
 
         # initilize interpreter with self locals
         self.initInterpreter(locals())
@@ -2737,6 +2742,7 @@ class PyInterp(QTextEdit):
                            pass
                            
                 if len(term.split('.'))==1:
+                #~ if True:
                     out = comp(term, i)
                     while isinstance(out, str):
                         results.append(out)

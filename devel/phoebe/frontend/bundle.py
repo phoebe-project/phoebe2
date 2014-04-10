@@ -1185,7 +1185,7 @@ class Bundle(Container):
         # return the parent of self.get_object(objref)
         return self.get_object(objref).get_parent()
         
-    def get_orbitps(self, objref=None, return_type='single'):
+    def get_orbitps(self, objref=None, all=False, ignore_errors=False):
         """
         retrieve the orbit ParameterSet that belongs to a given object
         
@@ -1197,9 +1197,9 @@ class Bundle(Container):
         qualifier = 'orbit'
         if objref is not None:
             qualifier += '{}{}'.format(delim[0],objref)
-        return self.get_ps(qualifier, return_type=return_type)
+        return self.get_ps(qualifier, all=all, ignore_errors=ignore_errors)
         
-    def get_meshps(self, objref=None, return_type='single'):
+    def get_meshps(self, objref=None, all=False, ignore_errors=False):
         """
         retrieve the mesh ParameterSet that belongs to a given object
         
@@ -1211,7 +1211,7 @@ class Bundle(Container):
         qualifier = 'mesh*'
         if objref is not None:
             qualifier += '{}{}'.format(delim[0],objref)
-        return self.get_ps(qualifier, return_type=return_type)
+        return self.get_ps(qualifier, all=all, ignore_errors=ignore_errors)
         
     #}  
     #{ Versions
