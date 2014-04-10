@@ -27,6 +27,10 @@ class Container(object):
         
     def items(self):
         return self.sections.items()
+    
+    def __iter__(self):
+        for param in self.sections.keys():
+            yield self.sections[param]
         
     ## generic functions to get non-system parametersets
     def _return_from_dict(self, dictionary, all=False, ignore_errors=False):
