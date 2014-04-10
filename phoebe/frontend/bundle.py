@@ -873,7 +873,7 @@ class Bundle(Container):
                         # If it is a ParameterSet, we'll try to match the label,
                         # reference or context
                         elif isinstance(level, parameters.ParameterSet):
-                            # ignore synthetic datasets?
+                            # Otherwise, check the reference, label or context
                             if 'ref' in level:
                                 name_of_this_level = level['ref']
                             elif 'label' in level:
@@ -911,10 +911,14 @@ class Bundle(Container):
                     if 'orbit' in val.get_context() and structure_info:
                         if not 'orbit' in structure_info[-1] and not (structure_info[-1] == path[-2]['label']):
                             continue
-                        
+                    
+                    # Ignore parameters that are synthetics
+                    if val.get_context()[-3:] == 'syn':
+                        continue
+                    
                     found.append(val)            
                     found_labels.append(val.get_unique_label())
-
+        
         # for now, we'll only search the bundle sections if no other match 
         # has been found within the system
         if len(found) == 0:
@@ -941,6 +945,13 @@ class Bundle(Container):
                     mylist += self._get_from_section(section,
                                            return_type='list')
             found = found + [ps.get_parameter(qualifier) for ps in mylist if qualifier in ps]
+        
+        # We want special handling of some stuff:
+        # 1. passbands need to be the same for every pbdep belonging to a certain
+        #    ref
+        # 2. obs should be really tied to a component or bodybag, we shouldn't
+        #    look deeper if we already found a match
+        # 3. syn should be freely asked of any level if possible, using get_synthetic
         
         found = {build_twig(system, par):par for par in found}
         return self._return_from_dict(found,all,ignore_errors)
