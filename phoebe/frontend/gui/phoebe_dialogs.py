@@ -202,13 +202,13 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                 names = ['None']+self.prefs.get_server(all=True).keys()
             elif w.objectName() == 'sx_serveredit_combo':
                 key = None
-                names = self.prefs.get_server(all=True).keys()
+                names = [l.split('@')[0] for l in self.prefs.get_server(all=True).keys()]
             elif w.objectName() == 'co_edit_combo':
                 key = None
-                names = self.prefs.get_compute(all=True).keys()
+                names = [l.split('@')[0] for l in self.prefs.get_compute(all=True).keys()]
             elif w.objectName() == 'fo_edit_combo':
                 key = None
-                names = self.prefs.get_fitting(all=True).keys()
+                names = [l.split('@')[0] for l in self.prefs.get_fitting(all=True).keys()]
             else:
                 continue
             
@@ -300,7 +300,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         if label == 'None' or label == '':
             co = None
         else:
-            co = self.prefs.get_compute(str(label))
+            co = self.prefs.get_compute(str(label), ignore_errors=True)
             
         self.co_psedit.set_data([co] if co is not None else [],style=['nofit','incl_label'],hide_params=['time','refs','types'])
         
@@ -308,7 +308,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         if label == 'None' or label == '':
             fo = None
         else:
-            fo = self.prefs.get_fitting(str(label))
+            fo = self.prefs.get_fitting(str(label),ignore_errors=True)
             
         self.fo_psedit.set_data([fo] if fo is not None else [],style=['nofit'])
         

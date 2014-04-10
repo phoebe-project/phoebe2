@@ -269,9 +269,9 @@ class Settings(Container):
                 
         return txt
         
-    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_usersettings=False):
+    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_errors=False,ignore_usersettings=False):
         return super(Settings, self)._get_from_section(section=section, search=search,
-                            search_by=search_by, all=all,
+                            search_by=search_by, all=all, ignore_errors=ignore_errors,
                             ignore_usersettings=True)
                 
     #{ General Parameters
@@ -326,7 +326,7 @@ class Settings(Container):
         """
         self.sections['server'].append(Server(label,mpi,**kwargs))
         
-    def get_server(self,label=None,all=False):
+    def get_server(self,label=None,all=False,ignore_errors=False):
         """
         get a server by name
         
@@ -335,7 +335,7 @@ class Settings(Container):
         @return: server
         @rtype: Server
         """
-        return self._get_from_section('server',label,all=all)
+        return self._get_from_section('server',label,all=all,ignore_errors=ignore_errors)
         
     def remove_server(self,label):
         """
@@ -365,7 +365,7 @@ class Settings(Container):
             
         self.sections['compute'].append(compute)
 
-    def get_compute(self,label=None,all=False):
+    def get_compute(self,label=None,all=False,ignore_errors=False):
         """
         Get a compute ParameterSet by name
         
@@ -374,7 +374,7 @@ class Settings(Container):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label,all=all)
+        return self._get_from_section('compute',label,all=all,ignore_errors=ignore_errors)
 
     def remove_compute(self,label):
         """
@@ -409,7 +409,7 @@ class Settings(Container):
             
         self.sections['fitting'].append(fitting)
 
-    def get_fitting(self,label=None,all=False):
+    def get_fitting(self,label=None,all=False,ignore_errors=False):
         """
         Get a fitting ParameterSet by name
         
@@ -418,7 +418,7 @@ class Settings(Container):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label,all=all)
+        return self._get_from_section('fitting',label,all=all,ignore_errors=ignore_errors)
         
     def remove_fitting(self,label):
         """
