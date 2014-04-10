@@ -1,6 +1,7 @@
 import phoebe
 import os
 import numpy as np
+import nose.tools
 
 def test_access():
     """
@@ -28,16 +29,24 @@ def test_access():
     mybundle.set_value('atm@component@secondary','something')
     assert(mybundle.get_value('atm@component@secondary')=='something')
     
+    
+    
     # add some data and do similar stuff
     mybundle.create_data(category='lc', dataref='mylc', time=np.linspace(0,1,100), flux=np.ones(100))
     mybundle.create_data(category='rv', dataref='myprimrv', objref='primary', time=np.linspace(0,1,100), rv=np.ones(100))
     mybundle.create_data(category='rv', dataref='mysecrv', objref='secondary', time=np.linspace(0.2,0.3,109), rv=-np.ones(109))
     #print mybundle.get_value('time@mylc')
     
-    
-    
+@nose.tools.raises(ValueError)    
+def test_error():
+    """
+    Testing error raise 
+    """
+    mybundle = phoebe.Bundle(os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe'))
+    mybundle.get_value('teff')
     
     
 if __name__ == "__main__":
     test_access()
+    test_error()
     

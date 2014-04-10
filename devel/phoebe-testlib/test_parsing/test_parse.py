@@ -201,3 +201,23 @@ def test_parse_lc_01():
     #bla = obs.get_value('flux','mag')
     #assert(np.all(bla-np.array([10., 11.1, 10.7, 10.8])<1e-14))
     assert(pbdep['passband']=='JOHNSON.B')
+    
+    
+if __name__=="__main__":
+    phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
+    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
+    
+    assert(len(obs['time'])==0)
+    assert(obs['columns']==['phase', 'flux', 'sigma'])
+    
+    
+    phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
+    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
+    assert(len(obs['time']) == 0)
+    assert(obs['columns'] == ['phase', 'flux', 'sigma'])
+    
+    data = np.loadtxt(phasedfile).T
+    
+    flux1 = phoebe.convert('mag','erg/s/cm2/AA',data[1], passband=pbdep['passband'])
+    #flux2 = phoebe.convert('W/m3','erg/s/cm2/AA',10**(-data[1]/2.5))
+    assert(np.all(flux1 == obs['flux']))

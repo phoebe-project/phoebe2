@@ -280,16 +280,35 @@ class DataSet(parameters.ParameterSet):
         
         logger.info('Wrote file {} with columns {} from dataset {}:{}'.format(filename,', '.join(self['columns']),self.context,self['ref']))
     
-    def estimate_noise(self,from_col='flux',to_col='sigma'):
+    def estimate_sigma(self, from_col='flux', to_col='sigma', force=True):
         """
-        Estimate the noise by differencing.
+        Estimate the sigma.
         """
         did_load = False
-        if not len(self[from_col]):
-            self.load()
-            did_load = True
-        noise = np.diff(self[from_col])/np.sqrt(2)
-        self[to_col] = np.ones(len(self)) * np.std(noise) #np.hstack([noise[0],noise])
+        
+        if from_col is not None:
+            if not len(self[from_col]):
+                self.load()
+                did_load = True
+            sigma = np.diff(self[from_col])/np.sqrt(2)
+            sigma = np.ones(len(self)) * np.std(sigma) 
+        else:
+            sigma = -1*np.ones(len(self))
+        
+        # contruct parameter if not present
+        if not to_col in self:
+            context = self.get_context()
+            par = parameter.Parameter(to_col, context=context, frame='phoebe')
+            self.add(par)
+        
+        if not to_col in self or force:
+            # Fill with the value
+            self[to_col] = sigma #np.hstack([noise[0],noise])
+        
+        # Make sure the column is in the columns
+        if not to_col in self['columns']:
+            self['columns'].append(to_col)
+        
         if did_load:
             self.unload()
     
@@ -696,19 +715,23 @@ class SPDataSet(DataSet):
                     
                 
     
-    def estimate_noise(self,from_col='flux',to_col='sigma'):
+    def estimate_sigma(self,from_col='flux',to_col='sigma', force=True):
         """
         Estimate the noise by differencing.
         """
         if not to_col in self['columns']:
             self['columns'].append(to_col)
+        
         did_load = False
+        
         if not len(self[from_col]):
             self.load()
             did_load = True
+        
         for i in range(len(self[from_col])):
             noise = np.diff(self[from_col][i])/np.sqrt(2)
             self[to_col].append(np.ones(len(self[from_col][i]))*noise.std())#np.hstack([noise[0],noise]))
+        
         if did_load:
             self.unload()
     
@@ -1605,8 +1628,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     myds = output.values()[0][0][0]
     mypb = output.values()[0][1][0]
     if not 'sigma' in myds['columns']:
-        myds.estimate_noise(from_col='flux', to_col='sigma')
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("Obs {}: sigma estimated (not available)".format(myds['ref']))
     
     # Convert to right units
@@ -1663,8 +1685,7 @@ def parse_rv(filename, columns=None, components=None,
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
     if not 'sigma' in myds['columns']:
-        myds.estimate_noise(from_col='rv', to_col='sigma')
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds.estimate_sigma(from_col='rv', to_col='sigma')
     
     # Convert to right units
     for col in units:
@@ -1746,8 +1767,7 @@ def parse_etv(filename, columns=None, components=None,
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
     if not 'sigma' in myds['columns']:
-        myds.estimate_noise(from_col='etv', to_col='sigma')
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds.estimate_sigma(from_col='etv', to_col='sigma')
     
     # Convert to right units
     for col in units:
@@ -2115,8 +2135,7 @@ def parse_spec_timeseries(timefile, clambda=None, columns=None,
     
     # Add sigma if not available
     if not 'sigma' in myds['columns']:
-        myds.estimate_noise(from_col='flux', to_col='sigma')
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
     
     # Add continuum if not available
@@ -2196,8 +2215,7 @@ def parse_spec_as_lprof(filename, clambda=None, wrange=None, time=0.0,
     
     # Add sigma if not available
     if not 'sigma' in myds['columns']:
-        myds.estimate_noise(from_col='flux', to_col='sigma')
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
     
     # Add continuum if not available
@@ -2438,8 +2456,7 @@ def parse_plprof(filename, clambda=None, wrange=None, time=0.0, columns=None,
     
     # Add sigma if not available
     if not 'sigma' in myds['columns']:
-        myds.estimate_noise(from_col='flux', to_col='sigma')
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
     
     # Add continuum if not available
@@ -2592,7 +2609,7 @@ def parse_lsd_as_plprof(filename,columns=None,components=None,full_output=False,
             ds['flux'] = ds['flux'].reshape((1,-1))
             ds['sigma'] = ds['sigma'].reshape((1,-1))
             ds['ref'] = ref
-            #ds.estimate_noise()
+            #ds.estimate_sigma()
             ds['filename'] = ref+'.plobs'
             ds['columns'] = columns_in_file + ['continuum']
             if not 'time' in columns_in_file:
