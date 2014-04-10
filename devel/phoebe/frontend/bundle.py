@@ -167,6 +167,7 @@ def build_twig_from_path(thing, path):
     Build the twig for a parameter in a system.
     
     """
+    twig = None
     if isinstance(thing, parameters.Parameter):        
         # what's the component:
         labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
@@ -183,32 +184,27 @@ def build_twig_from_path(thing, path):
             twig = '@'.join([qualifier,context])
                         
     elif isinstance(thing, parameters.ParameterSet):
-        twig = ''
+        # what's the component:
+        labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
+        component = labels[-1] if len(labels) else None
+        context = thing.get_context()
+        if component is not None:
+            twig = '@'.join([context,component])
+        else:
+            twig = '@'.join([context])
 
     return twig
     
 
-def generate_twigs(system):
+def generate_twigs(bundle):
     """
     Build a list of twigs available in the system.
     """
     twigs = []
-    for path, val in system.walk_all(path_as_string=False):
-        if isinstance(val, parameters.Parameter):
-            # what's the component:
-            labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
-            component = labels[-1] if len(labels) else None
-            qualifier = val.get_qualifier()
-            # Get the data label or parameter context
-            if isinstance(path[-2],str):
-                context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
-            else:
-                context = path[-2].get_context()
-            if component is not None:
-                twig = '@'.join([qualifier,context,component])
-            else:
-                twig = '@'.join([qualifier,context])
-            twigs.append(twig)
+    for path, val in walk(bundle):
+        this_twig = build_twig_from_path(val, path)
+        if this_twig is not None:
+            twigs.append(this_twig)
     return twigs
 
 
@@ -371,8 +367,7 @@ class Bundle(Container):
         # to init and will handle attaching all necessary signals
         self.set_system(system, remove_dataref=remove_dataref)
         
-        
-        self.twigs = generate_twigs(self.get_system())
+        # set tab completer
         readline.set_completer(phcompleter.Completer().complete)
         readline.set_completer_delims(' \t\n`~!#$%^&*)-=+[{]}\\|;:,<>/?')
         readline.parse_and_bind("tab: complete")
@@ -562,6 +557,7 @@ class Bundle(Container):
         #else:
         #    i = None
         #self.versions_curr_i = i
+        self.twigs = generate_twigs(self)
         
     def get_system(self):
         """
@@ -573,6 +569,12 @@ class Bundle(Container):
         # NOTE: since we're passing search_by=None, usersettings will be ignored
         # so you cannot set a default system in usersettings
         return self._get_from_section_single('system')
+    
+    def search(self, substring):
+        """
+        Search for substring in the list of twigs.
+        """
+        return [twig for twig in self.twigs if substring in twig]
     
     def summary(self):
         """
@@ -929,7 +931,7 @@ class Bundle(Container):
         
                     found[build_twig_from_path(val,path)] = val          
                     found_labels.append(val.get_unique_label())
-        print 'found',found
+        
         # for now, we'll only search the bundle sections if no other match 
         # has been found within the system
         if len(found) == 0:
@@ -1384,6 +1386,7 @@ class Bundle(Container):
 
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
         self.get_system().init_mesh()
+        self.twigs = generate_twigs(self)
         
     
     
@@ -1637,7 +1640,7 @@ class Bundle(Container):
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
     
     
-    def get_syn(self, category=None, objref=None, dataref=0, all=False, ignore_errors=False):
+    def get_syn(self, dataref=0, category=None, objref=None, all=False, ignore_errors=False):
         """
         Get synthetic
         
