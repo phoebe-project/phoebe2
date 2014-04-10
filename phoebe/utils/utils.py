@@ -240,7 +240,8 @@ def traverse(o, list_types=(list, tuple),dict_types=(dict,)):
 
 
 def traverse_memory(o, memory=None, list_types=(list, tuple),dict_types=(dict,),
-                    get_label=(),get_key=(),get_context=(),skip=(),parset_types=()):
+                    get_label=(),get_key=(),get_context=(),skip=(),
+                    parset_types=(),container_types=()):
     """
     Walk down nested iterables.
     
@@ -285,11 +286,16 @@ def traverse_memory(o, memory=None, list_types=(list, tuple),dict_types=(dict,),
                                                 parset_types=parset_types):
                 if isinstance(subvalue,skip): continue
                 yield subvalue,mem
-    #-- in the case of a dictionary:
+    #-- in the case of a parameterSet:
     elif isinstance(o, parset_types):
         for value in o:
             value = o.get_parameter(value)
             yield value,memory+[value]
+    #-- in the case of a Container
+    elif isinstance(o, container_types):
+        for key in o.sections.keys():
+            value = o.sections[key]
+            yield value, memory+[value]
     #-- otherwise we don't have to traverse
     else:
         yield o,memory

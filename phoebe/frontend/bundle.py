@@ -162,40 +162,28 @@ def run_on_server(fctn):
     
     return parse
 
-def build_twig(system, thing):
+def build_twig_from_path(thing, path):
     """
     Build the twig for a parameter in a system.
     
     """
-    if isinstance(thing, parameters.Parameter):
-        my_unique_label = thing.get_unique_label()
-        twig = None
-        # figure out the component of the parameter
-        do_continue = False
-        for path, val in system.walk_all(path_as_string=False):
-            if do_continue:
-                continue
-            if isinstance(val, parameters.Parameter):
-                if val.get_unique_label() == my_unique_label:
-                    # we got it!
-                    do_continue = True
-                    # what's the component:
-                    labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
-                    component = labels[-1] if len(labels) else None
-                    qualifier = thing.get_qualifier()
-                    # Get the data label or parameter context
-                    if isinstance(path[-2],str):
-                        context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
-                    else:
-                        context = path[-2].get_context()
-                    if component is not None:
-                        twig = '@'.join([qualifier,context,component])
-                    else:
-                        twig = '@'.join([qualifier,context])
+    if isinstance(thing, parameters.Parameter):        
+        # what's the component:
+        labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
+        component = labels[-1] if len(labels) else None
+        qualifier = thing.get_qualifier()
+        # Get the data label or parameter context
+        if isinstance(path[-2],str):
+            context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
+        else:
+            context = path[-2].get_context()
+        if component is not None:
+            twig = '@'.join([qualifier,context,component])
+        else:
+            twig = '@'.join([qualifier,context])
                         
     elif isinstance(thing, parameters.ParameterSet):
         twig = ''
-
 
     return twig
     
@@ -222,6 +210,22 @@ def generate_twigs(system):
                 twig = '@'.join([qualifier,context])
             twigs.append(twig)
     return twigs
+
+
+def walk(mybundle):
+    for val,path in utils.traverse_memory(mybundle,
+                                     list_types=(Bundle, universe.Body, list,tuple),
+                                     dict_types=(dict, ),
+                                       parset_types=(parameters.ParameterSet, ),
+                                     get_label=(universe.Body, ),
+                                     get_context=(parameters.ParameterSet, ),
+                                     skip=()):
+            
+            # First one is always root
+            path[0] = str(mybundle.__class__.__name__)
+            
+            # All is left is to return it
+            yield path, val
     
 
 class Bundle(Container):
@@ -372,7 +376,6 @@ class Bundle(Container):
         readline.set_completer(phcompleter.Completer().complete)
         readline.set_completer_delims(' \t\n`~!#$%^&*)-=+[{]}\\|;:,<>/?')
         readline.parse_and_bind("tab: complete")
-
         
         
     ## string representation
@@ -771,7 +774,7 @@ class Bundle(Container):
                                                      all=all)
             found = found + mylist
             
-        found = {build_twig(self.get_system(), par):par for par in found}
+        found = {build_twig_from_path(par, path):par for par in found}
         return self._return_from_dict(found,all,ignore_errors)
                 
                     
@@ -923,10 +926,10 @@ class Bundle(Container):
                     # Ignore parameters that are synthetics
                     if val.get_context()[-3:] == 'syn':
                         continue
-                    
-                    found[build_twig(system,val)] = val          
-                    found_labels.append(val.get_unique_label())
         
+                    found[build_twig_from_path(val,path)] = val          
+                    found_labels.append(val.get_unique_label())
+        print 'found',found
         # for now, we'll only search the bundle sections if no other match 
         # has been found within the system
         if len(found) == 0:
@@ -1629,9 +1632,8 @@ class Bundle(Container):
         output = {}
         skip_defaults_from_body = pbkwargs.keys()
         for component in components:
-            pb = parameters.ParameterSet(context=category+'dep', ref=dataref)
+            pb = parameters.ParameterSet(context=category+'dep', ref=dataref, **pbkwargs)
             output[component.get_label()] = [[ds],[pb]]
-            
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
     
     
@@ -1885,17 +1887,18 @@ class Bundle(Container):
             else:
                 options = options_orig.copy()
         
-        # now temporarily override with any values passed through kwargs    
-        for k,v in kwargs.items():
-            if k in options.keys():
-                options.set_value(k,v)
+        mpi = kwargs.pop('mpi', None)
         
         # get server options
         if server is not None:
             server = self.get_server(server)
             mpi = server.mpi_ps
-        else:
-            mpi = kwargs.pop('mpi', None)
+            
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            #if k in options.keys(): # otherwise nonexisting kwargs can be given
+            options.set_value(k,v)
+        
         
         # Q <pieterdegroote>: should we first set system.uptodate to False and
         # then try/except the computations? Though we should keep track of
@@ -2216,7 +2219,7 @@ class Bundle(Container):
         
         dss = self.get_syn(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
-            logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
+            logger.info('Retrieving synthetic computations with objref={}'.format(dss.keys()[0]))
         elif not len(dss):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
         # Get the obs DataSet and retrieve its context

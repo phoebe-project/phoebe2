@@ -173,14 +173,12 @@ def get_response(passband):
     passband = passband.upper()
     prefer_file = custom_passbands['_prefer_file']
     
-    
     # It's easy for a bolometric filter: totally open
     if passband == 'OPEN.BOL':
         return np.array([1, 1e10]), np.array([1 / (1e10-1), 1 / (1e10-1)])
     
     # Either get the passband from a file or get it from the dictionary of
     # custom passbands
-    
     photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
     photfile_is_file = os.path.isfile(photfile)
     
@@ -205,6 +203,57 @@ def get_response(passband):
     return wave[sort_array], response[sort_array]
 
    
+def read_standard_response(filename):
+    """
+    Read standardized format of passbands.
+    """
+    fields = ['PASS_SET', 'PASSBAND', 'EFFWL', 'WLFACTOR', 'REFERENCE']
+    header = dict()
+    
+    with open(filename, 'r') as ff:
+        while True:
+            # only read the header
+            line = ff.readline().strip()
+            if not line:
+                break
+            if not line[0] == '#':
+                break
+            
+            # read the header information
+            field, entry = line[0].split(None,1)
+            if field in fields:
+                header[field] = entry
+                fields.remove(field)
+        
+    if len(fields):
+        raise ValueError("Not a standard response file")
+    
+    data = np.loadtxt(filename).T
+    
+    return data, header
+
+def set_standard_response():
+    """
+    Collect info on passbands
+    """
+    files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ptf', '*')))
+    
+    for filename in files:
+        try:
+            data, header = read_standard_response(filename)
+        except ValueError:
+            continue
+        
+        tag = '{}.{}'.format(header['PASS_SET'].upper(), header['PASSBAND'].upper())
+        add_response(data[0], data[1], passband=tag, force=True)
+    
+    custom_passbands['_prefer_file'] = False
+    
+        
+            
+        
+    
+
 
 
 def eff_wave(passband, model=None, det_type=None):
