@@ -1880,7 +1880,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
 
         pop = CreatePopParamEdit()
                 
-        pop.kindLabel.setText("%s:" % par.get_context()[0].title())
+        pop.kindLabel.setText("%s:" % par.get_context().title())
         pop.objectLabel.setText(self.headerItem().text(int(self.selected_item[1])))
         pop.parameterLabel.setText(par.get_qualifier())
         pop.descriptionLabel.setText(par.get_description())
@@ -2511,6 +2511,7 @@ class PyInterp(QTextEdit):
         QObject.disconnect(self.thread, SIGNAL("set_time"), self.on_set_time)
         self.write(str(self.thread.message)+"\n")
         self.emit(SIGNAL("GUIUnlock"))
+        self.emit(SIGNAL("GUIthrowerror"),self.thread.message)
         self.marker()
         self.comp = rlcompleter.readline.get_completer() 
 

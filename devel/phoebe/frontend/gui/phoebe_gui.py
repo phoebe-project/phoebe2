@@ -284,7 +284,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         # pyinterp signals
         QObject.connect(self.PythonEdit, SIGNAL("command_run"), self.on_PyInterp_commandrun)
         QObject.connect(self.PythonEdit, SIGNAL("GUILock"), self.gui_lock)
-        QObject.connect(self.PythonEdit, SIGNAL("GUIUnlock"), self.gui_unlock) 
+        QObject.connect(self.PythonEdit, SIGNAL("GUIUnlock"), self.gui_unlock)
+        QObject.connect(self.PythonEdit, SIGNAL("GUIthrowerror"), self.thread_failed) 
         QObject.connect(self.PythonEdit, SIGNAL("set_time"), self.on_set_time)
         QObject.connect(self.PythonEdit, SIGNAL("undo"), self.on_undo_clicked) 
         QObject.connect(self.PythonEdit, SIGNAL("redo"), self.on_redo_clicked) 
@@ -480,6 +481,9 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             # restore gui
             self.gui_unlock()
+            
+    def thread_failed(self, message):
+        QMessageBox.information(None, "Error", str(message))
         
     def on_undo_clicked(self):
         self.undoStack.undo()
@@ -1682,7 +1686,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     
     def on_axes_goto(self,plotname=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
-        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes(all=True).keys().index(plotname)+1)        
+        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes(all=True).keys().index('{}@axes'.format(plotname))+1)        
         # expand plot? or leave as is?
 
     def on_plots_add(self,*args):
