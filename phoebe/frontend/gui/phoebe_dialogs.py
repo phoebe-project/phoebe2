@@ -708,25 +708,28 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
 
         unitscombo.setEnabled(False)
         unitscombo.clear()
-        unitscombo.setEnabled(True)
+        #~ unitscombo.setEnabled(True)
 
-        if selection=='--Data Type--' or selection=='ignore' or selection=='component':
-            unitscombo.addItems(['--Units--'])
-            unitscombo.setEnabled(False)
-        if selection=='time' or selection=='eclipse time':
-            unitscombo.addItems(['BJD', 'HJD', 'Phase'])
+
+        #~ if selection=='time' or selection=='eclipse time':
+            #~ unitscombo.addItems(['bjd'])
         if selection=='wavelength':
             unitscombo.addItems(['Angstroms'])
-        if selection=='flux':
-            unitscombo.addItems(['Flux','Magnitude'])
-        if selection=='rv':
-            unitscombo.addItems(['m/s', 'km/s'])
-        if selection=='o-c':
-            unitscombo.addItems(['days', 'mins'])
-        if selection=='sigma':
-            unitscombo.addItems(['Standard Weight', 'Standard Deviation'])
+        elif selection=='flux':
+            unitscombo.addItems(['erg/s/cm2/AA'])
+        elif selection=='rv':
+            unitscombo.addItems(['m/s', 'km/s', 'Rsol/d'])
+        elif selection in ['o-c', 'exptime']:
+            unitscombo.addItems(['seconds', 'mins', 'days'])
+        #~ elif selection=='sigma':
+            #~ unitscombo.addItems(['Standard Weight', 'Standard Deviation'])
             
-        unitscombo.setEnabled(False) #TODO unit support
+        unitscombo.setEnabled(True)
+
+        if unitscombo.count()==0:
+        #~ if selection in ['--Data Type--', 'ignore', 'component', 'phase', 'flux', 'magnitude', 'sigma', 'weights']:
+            unitscombo.addItems(['--Units--'])
+            unitscombo.setEnabled(False)
 
         if selection=='component':
             compcombo.setVisible(False)
@@ -751,10 +754,10 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         
         #determine what type of data we're loading, and set options accordingly
         if category=='lc':
-            self.datatypes = ['--Data Type--', 'time', 'flux', 'sigma']
+            self.datatypes = ['--Data Type--', 'time', 'phase', 'flux', 'magnitude', 'sigma', 'weights', 'flag', 'exptime', 'samprate']
             #~ self.datatypes = ['--Data Type--', 'time', 'flux', 'sigma', 'component', 'ignore']
         elif category=='rv':
-            self.datatypes = ['--Data Type--', 'time', 'rv', 'sigma']
+            self.datatypes = ['--Data Type--', 'time', 'rv', 'sigma', 'weights', 'flag', 'exptime', 'samprate']
             #~ self.datatypes = ['--Data Type--', 'time', 'rv', 'sigma', 'component', 'ignore']
         elif category=='etv':
             self.datatypes = ['--Data Type--', 'time', 'o-c', 'sigma']
@@ -778,8 +781,8 @@ class CreatePopFileEntryColWidget(QWidget, gui.Ui_popFileEntryColWidget):
         super(CreatePopFileEntryColWidget, self).__init__(parent)
         self.setupUi(self)
         
-        if not devel_version:
-            self.units_comboBox.setVisible(False)
+        #~ if not devel_version:
+            #~ self.units_comboBox.setVisible(False)
         
 class CreateFileEntryWidget(QWidget, gui.Ui_fileEntryWidget):
     def __init__(self, parent=None):

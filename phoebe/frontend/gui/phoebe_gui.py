@@ -1998,10 +1998,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 
     def on_pfe_okClicked(self):
         pop = self.sender().topLevelWidget()
-        passband = '{}.{}'.format(str(pop.pfe_filtersetComboBox.currentText()), str(pop.pfe_filterbandComboBox.currentText()))
+        passband_filterset = str(pop.pfe_filtersetComboBox.currentText())
+        passband_passband = str(pop.pfe_filterbandComboBox.currentText())
+        passband = '{}.{}'.format(passband_filterset, pop.pfe_filterbandComboBox.currentText)
         name = pop.name.text() if len(pop.name.text()) > 0 else None
         
-        if '--Passband--' in passband or '--Filter Set--' in passband:
+        if '--Passband--' in passband or '--Filter Set--' in passband or len(passband_filterset)==0 or len(passband_passband)==0:
             QMessageBox.information(None, "Warning", "Cannot load data: no passband provided")  
             return
 
@@ -2013,8 +2015,13 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                 return
             
             columns = [str(colwidget.type_comboBox.currentText()) if '--' not in str(colwidget.type_comboBox.currentText()) else None for colwidget in pop.colwidgets]
-            units = [str(colwidget.units_comboBox.currentText()) if '--' not in str(colwidget.units_comboBox.currentText()) else None for colwidget in pop.colwidgets]
+            units_all = [str(colwidget.units_comboBox.currentText()) if ('--' not in str(colwidget.units_comboBox.currentText()) and colwidget.units_comboBox.count()>1) else None for colwidget in pop.colwidgets]
             components = [str(colwidget.comp_comboBox.currentText()) if '--' not in str(colwidget.comp_comboBox.currentText()) else None for colwidget in pop.colwidgets]
+            
+            units = {}
+            for u,col in zip(units_all, columns):
+                if u is not None:
+                    units[col] = u
             
             #TODO make this more intelligent so values that weren't changed by the user aren't sent
             for i,colwidget in enumerate(pop.colwidgets):
@@ -2028,7 +2035,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                         QMessageBox.information(None, "Warning", "Cannot load data: no component for column %d" % (i+1))  
                         return
 
-            do_command = "bundle.load_data(category='%s', filename='%s', passband='%s', columns=%s, objref=%s, dataref='%s')" % (pop.category, filename, passband, columns, components, name)
+            do_command = "bundle.load_data(category='%s', filename='%s', passband='%s', columns=%s, objref=%s, units=%s, dataref='%s')" % (pop.category, filename, passband, columns, components, units, name)
             undo_command = "bundle.remove_data(ref='%s')" % name
             description = "load %s dataset" % name
             
