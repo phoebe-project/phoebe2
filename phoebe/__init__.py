@@ -199,32 +199,59 @@ Depending on the circumstances, you can choose any of the following:
       to compute eclipses during expected eclipse times, and uses ``only_horizon``
       otherwise.
 
-Section 2.7 Subdivision
+Section 2.7 Oversampling in time
+--------------------------------------
+
+If the exposure time of your observations is relatively long compared to the rate at which you
+expect changes in the them to happen, you should oversample the computations in time. For example, 
+if you want to compute a light curve taken at 60s cadence of a star that has an eclipse that lasts
+only a few minutes, the ingress and egress of the eclipse will not correctly be modelled if you do
+not oversample in time. 
+
+Oversampling can be set using the parameters ``exptime`` (exposure time in seconds) and ``samprate``
+(number of time points to be computed within one exposure). Both can be single values that will be
+used for every time point, or arrays with the same length as the time array of the observations.
+The latter can be useful to, e.g., use a higher oversampling during eclipses when the changes in 
+a light curve are more rapid.
+
+The oversampling is done as follows: say that you want to compute observables at time 100s, using an
+integration time of 200s and with an oversampling of 4, then the observation started at 0s and ended
+ at 200s. As a result, you get the average value of the observables at times 25s, 75s, 125s and 
+ 175s.
+
+The functions in which the times extract times and refs and binoversampling are done under the hood
+are :py:func:`(extract_times_and_refs) <phoebe.backend.observatory.extract_times_and_refs>` and
+:py:func:`(bin_oversampling) <phoebe.backend.universe.Body.bin_oversampling>`.
+
+
+
+Section 2.8 Subdivision
 --------------------------------------
 
 TBD
 
-Section 2.8 Interstellar reddening
+
+Section 2.9 Interstellar reddening
 --------------------------------------
 
 TBD
 
-Section 2.9 Pulsations
+Section 2.10 Pulsations
 --------------------------------------
 
 TBD
 
-Section 2.10 Magnetic fields
+Section 2.11 Magnetic fields
 --------------------------------------
 
 TBD
 
-Section 2.11 Spots
+Section 2.12 Spots
 --------------------------------------
 
 TBD
 
-Section 2.12 Potential shapes
+Section 2.13 Potential shapes
 --------------------------------------
 
 TBD
