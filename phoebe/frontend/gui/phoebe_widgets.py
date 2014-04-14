@@ -809,11 +809,11 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
             return
         
         ### filter which rows we want to show
-        axes_incl = bundle.get_axes(all=True).values() #default
+        axes_incl = bundle._get_dict_of_section('axes').values() #default
         self.style = 'data' #default
         if plots!='all plots' or types!='all categories':
             if plots!='all plots':
-                axes_incl = [bundle.get_axes(plots,ignore_errors=True)]
+                axes_incl = bundle._get_by_search(plots, kind='Container', section='axes', all=True, ignore_errors=True)
                 typ = axes_incl[0].get_value('category') # will be rv, lc, etc 
                 self.style = 'plot'
             elif types!='all categories': #plot will automatically handle filtering by type

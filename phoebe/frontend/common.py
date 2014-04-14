@@ -1,10 +1,21 @@
 import os
+import functools
 from collections import OrderedDict
 from fnmatch import fnmatch
 import copy
 from phoebe.parameters import parameters
 from phoebe.backend import universe
 
+def rebuild_trunk(fctn):
+    """
+    rebuild the cached trunk *after* running the original function
+    """
+    @functools.wraps(fctn)
+    def rebuild(container,*args,**kwargs):
+        return_ = fctn(container, *args, **kwargs)
+        container._build_trunk()
+        return return_
+    return rebuild
 
 class Container(object):
     """
@@ -19,10 +30,10 @@ class Container(object):
         
     ## act like a dictionary
     def keys(self):
-        return self.sections.keys()
+        return self.list_twigs()
         
     def values(self):
-        return self.sections.values()
+        return [self.get_value(twig) for twig in self.list_twigs()]
         
     def items(self):
         return self.sections.items()
@@ -37,16 +48,16 @@ class Container(object):
         #~ for _yield in self._loop_through_container(return_type='item'):
             #~ yield _yield
     
-    def _loop_through_container(self,container=None):
+    def _loop_through_container(self,container=None,label=None):
         return_items = []
         for section_name,section in self.sections.items():
             for item in section:
-                ri = self._get_info_from_item(item,section=section_name,container=container)
+                ri = self._get_info_from_item(item,section=section_name,container=container,label=label)
                 if ri is not None:
                     return_items.append(ri)
                     
                     if ri['kind']=='Container':
-                        return_items += ri['item']._loop_through_container(container=self.__class__.__name__)
+                        return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'])
                     elif ri['kind']=='BodyBag':
                         return_items += self._loop_through_system(item, section_name=section_name)
                     elif ri['kind']=='ParameterSet': # these should be coming from the sections
@@ -90,7 +101,7 @@ class Container(object):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             component = labels[-1] if len(labels) else None
             context = item.get_context()
-            label = item.get_value('label') if 'label' in item else None
+            label = item.get_value('label') if 'label' in item else label
             unique_label = None
             qualifier = None
         elif isinstance(item, parameters.Parameter):
@@ -106,7 +117,6 @@ class Container(object):
                 #then we're coming from a section and already know the context
                 context = context
             if path:
-                #~ if len(labels)>3 and labels[-3][-3:] in ['obs','dep']:
                 if context[-3:] in ['obs','dep']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
                     # do to bad design by Pieter, this needs a hack to make sure we get the right label
@@ -125,7 +135,7 @@ class Container(object):
             kind = 'Container'
             component = None
             context = None
-            label = None
+            label = item.get_label() if hasattr(item, 'get_label') else label
             unique_label = None
             qualifier = None
         else:
@@ -204,7 +214,7 @@ class Container(object):
                 
         return [matching_twigs_orig[i] for i in matching_indices] 
         
-    def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, **kwargs):
+    def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, use_search=False, **kwargs):
         # can take kwargs for searching by any other key stored in the trunk dictionary
         
         # first let's search through the trunk by section
@@ -214,7 +224,10 @@ class Container(object):
                 trunk = [ti for ti in trunk if ti[key]==kwargs[key]]
         
         if twig is not None:
-            matched_twigs = self._match_twigs(twig, trunk)
+            if use_search:
+                matched_twigs = self._search_twigs(twig, trunk)
+            else:
+                matched_twigs = self._match_twigs(twig, trunk)
         else:
             matched_twigs = [ti['twig_full'] for ti in trunk]
         
@@ -232,15 +245,15 @@ class Container(object):
             else:
                 return items[0]
                 
-    def _get_by_section(self, label=None, section=None, all=False, ignore_errors=False, return_trunk_item=False):
+    def _get_by_section(self, label=None, section=None, kind="ParameterSet", all=False, ignore_errors=False, return_trunk_item=False):
         twig = "{}@{}".format(label,section) if label is not None and section is not None else None
         #~ twig = section if label is None else label
-        return self._get_by_search(twig,section=section,kind='ParameterSet',
+        return self._get_by_search(twig,section=section,kind=kind,
                         all=all, ignore_errors=ignore_errors, 
                         return_trunk_item=return_trunk_item)
                         
-    def _get_dict_of_section(self, section):
-        all_ti = self._get_by_search(twig=None, section=section, kind='ParameterSet',
+    def _get_dict_of_section(self, section, kind='ParameterSet'):
+        all_ti = self._get_by_search(twig=None, section=section, kind=kind,
                         all=True, ignore_errors=True,
                         return_trunk_item=True)
                         
@@ -362,4 +375,84 @@ class Container(object):
     def set_prior(self, twig, **dist_kwargs):
         param = self.get_parameter(twig)
         param.set_prior(**dist_kwargs)
+        
+    @rebuild_trunk
+    def add_compute(self,ps=None,**kwargs):
+        """
+        Add a new compute ParameterSet
+        
+        @param ps: compute ParameterSet
+        @type ps:  None or ParameterSet
+        @param label: label of the compute options (will override label in ps)
+        @type label: str
+        """
+        if ps is None:
+            ps = parameters.ParameterSet(context='compute')
+        for k,v in kwargs.items():
+            ps.set_value(k,v)
+            
+        self._add_to_section('compute',ps)
+
+        self._attach_set_value_signals(ps)
+            
+    def get_compute(self,label=None):
+        """
+        Get a compute ParameterSet by name
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: compute ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label,"compute")
+    
+    @rebuild_trunk
+    def remove_compute(self,label):
+        """
+        Remove a given compute ParameterSet
+        
+        @param label: name of compute ParameterSet
+        @type label: str
+        """
+        return self._remove_from_section('compute',label)
+        
+    @rebuild_trunk
+    def add_fitting(self,ps=None,**kwargs):
+        """
+        Add a new fitting ParameterSet
+        
+        @param ps: fitting ParameterSet
+        @type ps:  None, or ParameterSet
+        @param label: name of the fitting options (will override label in ps)
+        @type label: str
+        """
+        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
+        if fitting is None:
+            fitting = parameters.ParameterSet(context=context)
+        for k,v in kwargs.items():
+            fitting.set_value(k,v)
+            
+        self._add_to_section('fitting',fitting)
+        self._attach_set_value_signals(fitting)
+            
+    def get_fitting(self,label=None):
+        """
+        Get a fitting ParameterSet by name
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: fitting ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label,"fitting")
+
+    @rebuild_trunk
+    def remove_fitting(self,label):
+        """
+        Remove a given fitting ParameterSet
+        
+        @param label: name of fitting ParameterSet
+        @type label: str
+        """
+        self._remove_from_section('fitting',label)
         

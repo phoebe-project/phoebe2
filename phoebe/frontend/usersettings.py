@@ -8,7 +8,7 @@ from server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
 from phoebe.backend import universe
-from phoebe.frontend.common import Container
+from phoebe.frontend.common import Container, rebuild_trunk
 
 
 class Settings(Container):
@@ -50,6 +50,7 @@ class Settings(Container):
     the interface in this class.  To write all the settings in the class
     to these files, call settings.save()
     """
+    @rebuild_trunk
     def __init__(self, basedir='~/.phoebe'):
         """
         Initialize settings and attempt to load from config files
@@ -100,7 +101,7 @@ class Settings(Container):
         @return: logger ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_by_search('logger', section='logger', ignore_errors=True)
+        return self._get_by_search('default_logger', section='logger', ignore_errors=True)
         
     def apply_logger(self):
         """
@@ -153,7 +154,8 @@ class Settings(Container):
         @rtype: Server
         """
         return self._get_by_section(label,"server")
-        
+    
+    @rebuild_trunk
     def remove_server(self,label):
         """
         remove a server by name
@@ -166,6 +168,7 @@ class Settings(Container):
     #}
     #{ Compute
     
+    @rebuild_trunk
     def add_compute(self, compute=None, **kwargs):
         """
         Add a new compute ParameterSet
@@ -192,7 +195,8 @@ class Settings(Container):
         @rtype: ParameterSet
         """
         return self._get_by_section(label,"compute")
-        
+    
+    @rebuild_trunk
     def remove_compute(self,label):
         """
         Remove a given compute ParameterSet
@@ -206,6 +210,7 @@ class Settings(Container):
     #}
     #{ Fitting
 
+    @rebuild_trunk
     def add_fitting(self,fitting=None,**kwargs):
         """
         Add a new fitting ParameterSet
@@ -236,7 +241,8 @@ class Settings(Container):
         @rtype: ParameterSet
         """
         return self._get_by_section(label,"fitting")
-        
+    
+    @rebuild_trunk
     def remove_fitting(self,label):
         """
         Remove a given fitting ParameterSet
