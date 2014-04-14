@@ -56,7 +56,8 @@ from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
 from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
-from phoebe.frontend.usersettings import Settings, Container
+from phoebe.frontend.usersettings import Settings
+from phoebe.frontend.common import Container
 from phoebe.frontend.figures import Axes
 import phcompleter
 
@@ -744,106 +745,6 @@ class Bundle(Container):
         return self.get_ps(qualifier)
         
     #}  
-    #{ Versions
-    @rebuild_trunk
-    def add_version(self,name=None):
-        """
-        Add the current snapshot of the system as a new version entry
-        Generally this is best to be handled by setting add_version=True in bundle.run_compute
-        
-        @param name: name of the version (defaults to current timestamp)
-        @type name: str        
-        """
-        # purge any signals attached to system before copying
-        self.purge_signals()
-        
-        # create copy of self.system and save to version
-        system = self.get_system().copy()
-        version = Version(system)
-        date_created = datetime.now()
-        version.set_value('date_created', date_created)
-        version.set_value('name', name if name is not None else str(date_created))
-        
-        self._add_to_section('version',version)
-
-        # reattach signals to the system
-        self.attach_system_signals()
-        
-    def get_version(self,search=None,search_by='name',all=False,ignore_errors=False):
-        """
-        Retrieve a stored version by one of its keys
-        
-        example:
-        bundle.get_version('teff 4500')
-        bundle.get_version(-2) # will go back 2 from the current version
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        @return: version (get system from version.get_system())
-        @rtype: Version
-        """
-        if isinstance(search,int): #then easy to return from list
-            return self._get_from_section('version',all=True).values()[self.versions_curr_i+version]
-            
-        return self._get_from_section('version',search,search_by,all=all,ignore_errors=ignore_errors)
-           
-    def restore_version(self,search,search_by='name'):
-        """
-        Restore a system version to be the current working system
-        This should be used instead of bundle.set_system(bundle.get_version(...))
-        
-        See bundle.get_version() for syntax examples
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-        
-        # retrieve the desired system
-        version = self.get_version(search,search_by)
-        system = copy.deepcopy(version.get_system())
-        
-        # set the current system
-        # set_system attempts to find the version and reset versions_curr_i
-        self.set_system(system)
-    
-    @rebuild_trunk
-    def remove_version(self,search,search_by='name'):
-        """
-        Permanently delete a stored version.
-        This will not affect the current system.
-        
-        See bundle.get_version() for syntax examples
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-
-        # TODO: this won't work for search=int
-        self._remove_from_section('version',search,search_by)
-        
-        
-    def rename_version(self,search,newname,search_by='name'):
-        """
-        Rename a currently existing version
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str
-        @param newname: new name for the version
-        @type newname: str
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str      
-        """
-        
-        version = self.get_version(search,search_by)
-        version['name'] = newname
-        
-    #}
     #{ Datasets
     @rebuild_trunk
     def _attach_datasets(self, output, skip_defaults_from_body=True):
@@ -1367,7 +1268,7 @@ class Bundle(Container):
 
         self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None,all=False,ignore_errors=False):
+    def get_compute(self,label=None):
         """
         Get a compute ParameterSet by name
         
@@ -1578,112 +1479,6 @@ class Bundle(Container):
             fitting.accept_fit(self.get_system(),feedback)
             
         return feedback
-    
-    @rebuild_trunk
-    def add_feedback(self,ps,alias=None):
-        """
-        Add fitting results to the bundle.
-        
-        @param ps: results from the fitting
-        @type ps: ParameterSet
-        @param alias: alias name for this feedback (optional, defaults to datecreated string)
-        @type alias: str
-        """
-       
-        date_created = datetime.now()
-
-        feedback = Feedback(ps)
-        feedback.set_value('date_created', date_created)
-        feedback.set_value('alias', alias if alias is not None else str(date_created))
-        
-        self._add_to_section('feedback',feedback)
-        
-    def get_feedback(self,search=None,search_by='label',all=False,ignore_errors=False):
-        """
-        Retrieve a stored feedback by one of its keys
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-        return self._get_from_section('feedback',search,search_by,all=all,ignore_errors=ignore_errors)
-        
-    @rebuild_trunk
-    def remove_feedback(self,search,search_by='label'):
-        """
-        Permanently delete a stored feedback.
-        This will not affect the current system.
-        
-        See bundle.get_feedback() for syntax examples
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-        self._remove_from_section('feedback',search,search_by)
-
-    def rename_feedback(self,old_alias,new_alias):
-        """
-        Rename (the alias of) a currently existing feedback
-        
-        @param old_alias: the current alias of the feedback
-        @type old_alias: str
-        @param new_alias: the new alias of the feedback
-        @type new_alias: str
-        """
-        raise NotImplementedError
-        ps = self.get_feedback(old_alias,'alias')
-        ps.set_value('alias',new_alias)
-        
-    def accept_feedback(self,search,search_by='label'):
-        """
-        Accept fitting results and apply to system
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-        fitting.accept_fit(self.get_system(),self.get_feedback(search,search_by).get_ps())
-        
-    def continue_mcmc(self,search,search_by='label',add_feedback=None,server=None,extra_iter=10):
-        """
-        Continue an MCMC chain.
-        
-        If you don't provide a label, the last MCMC run will be continued.
-        
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        @param extra_iter: extra number of iterations
-        @type extra_iter: int
-        """
-        raise NotImplementedError
-        
-        fitparams = self.get_feedback(search,search_by).get_ps()
-        if fitparams.context.split(':')[-1] in ['pymc','emcee']:
-            fitparams['iter'] += extra_iter
-            
-            self.run_fitting(computelabel,fitparams,add_feedback,server)
-            
-            feedback = fitting.run_emcee(self.get_system(),params=self.compute,
-                                fitparams=fitparams,mpi=self.mpi)
-
-        
-        #~ if label is not None:
-            #~ allfitparams = [self.get_feedback(feedback,by)]
-        #~ else:
-            #~ allfitparams = self.feedbacks.values()[::-1]
-        #~ #-- take the last fitting ParameterSet that represents an mcmc
-        #~ for fitparams in allfitparams:
-            #~ if fitparams.context.split(':')[-1] in ['pymc','emcee']:
-                #~ fitparams['iter'] += extra_iter
-                #~ feedback = fitting.run_emcee(self.get_system(),params=self.compute,
-                                    #~ fitparams=fitparams,mpi=self.mpi)
-                #~ break
     #}
 
     #{ Figures
@@ -1812,21 +1607,22 @@ class Bundle(Container):
         ds = dss[0]
         ds.save(output_file)
     
-    def get_axes(self,ident=None,all=False,ignore_errors=False):
+    def get_axes(self,ident=None):
         """
         Return an axes or list of axes that matches index OR title
         
         @param ident: index or title of the desired axes
         @type ident: int or str
         @return: axes
-        @rtype: plotting.Axes
+        @rtype: frontend.figures.Axes
         """
         if isinstance(ident,int): 
             #then we need to return all in list and take index
             # TODO: this currently ignores 'all'
-            return self._get_from_section('axes',search_by='title',all=True).values()[ident]
+            #~ return self._get_from_section('axes',search_by='title',all=True).values()[ident]
+            return self._get_dict_of_section('axes').values()[ident]
         
-        return self._get_from_section('axes',ident,'title',all=all,ignore_errors=ignore_errors)
+        return self._get_by_section('axes',ident)
         
     @rebuild_trunk
     def add_axes(self,axes=None,**kwargs):
