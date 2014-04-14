@@ -1011,6 +1011,158 @@ class Bundle(Container):
         
         return self._return_from_dict(found,all,ignore_errors)
         
+    def get_parameter2(self, qualifier, all=False, ignore_errors=False):
+        """
+        Smart retrieval of a Parameter(s) from the system.
+
+        If :envvar:`qualifier` is the sole occurrence of a parameter in this
+        Bundle, there is no confusion and that parameter will be returned.
+        If there is another occurrence, then the behaviour depends on the value
+        of :envvar:`all`:
+        
+            - :envvar:`return_type=False`: a ValueError is raised if multiple occurrences exit
+            - :envvar:`return_type=True`: a dictionary with the (flattened) structure.
+       
+        You can specify which qualifier you want with the :envvar:`@` operator.
+        This operator allows you to hierarchically specify which parameter you
+        mean. The general syntax is::
+        
+            <qualifier>@<label/ref/context>@<label/ref/context>
+        
+        You can repeat as many :envvar:`@` operators as you want, as long as
+        it they are hierarchically ordered, with the top level label of the
+        system **last**.
+        
+        Examples::
+        
+            bundle.get_parameter('teff')
+            bundle.get_parameter('teff@star') # star context
+            bundle.get_parameter('teff@Vega') # name of the Star
+            
+            bundle.get_parameter('teff@primary') # if there is Body named primary
+            bundle.get_parameter('teff@primary@V380_Cyg')
+            
+            bundle.get_parameter('time@lcsyn') # no confusion if there is only one lc
+            bundle.get_parameter('flux@my_hipparcos_lightcurve')
+        
+        @param qualifier: qualifier of the parameter, or None to search all
+        @type qualifier: str or None
+        @param all: flag to return all occurences or just one
+        @type all: bool
+        @return: Parameter or list
+        @rtype: Parameter or list
+        """
+        # Put the hierarchical structure in a list, that's easier to reference
+        structure_info = []
+        
+        # Extract the info on the qualifier and structure info. The qualifier
+        # is always first
+        qualifier = re.split(delim, qualifier)
+        if len(qualifier)>1:
+            structure_info = qualifier[1:]
+        qualifier = qualifier[0]
+                 
+        # Reverse the structure info, that's easier to handle
+        structure_info = structure_info[::-1]
+        
+        # First we'll loop through matching parametersets and gather all
+        # parameters that match the qualifier
+        found = {}
+        found_labels = []
+        
+        system = self.get_system()
+        
+        # You can always give top level system information if you desire
+        if structure_info and structure_info[0] == system.get_label():
+            start_index = 1
+        else:
+            start_index = 0
+        
+        # Now walk recursively over all parameters in the system, keeping track
+        # of the history
+        for path, val in walk(self):
+            
+            # Only if structure info is given, we need to do some work
+            if structure_info:
+                
+                # We should look for the first structure information before
+                # advancing to deeper levels; as long as we don't encounter
+                # that reference/label/context, we can't look for the next one
+                index = start_index
+                
+                # Look down the tree structure
+                for jlevel, level in enumerate(path):
+                    
+                    # but only if we still have structure information
+                    if index < len(structure_info):
+                        
+                        # We don't now the name of this level yet, but we'll
+                        # figure it out
+                        name_of_this_level = None
+                        
+                        # If this level is a Body, we check it's label
+                        if isinstance(level, universe.Body):
+                            name_of_this_level = level.get_label()
+                            
+                        # If it is a ParameterSet, we'll try to match the label,
+                        # reference or context
+                        elif isinstance(level, parameters.ParameterSet):
+                            # Otherwise, check the reference, label or context
+                            if 'ref' in level:
+                                name_of_this_level = level['ref']
+                            elif 'label' in level:
+                                name_of_this_level = level['label']
+                            if name_of_this_level != structure_info[index]:
+                                name_of_this_level = level.get_context()
+                        
+                        # The walk iterator could also give us 'lcsyn' or something
+                        # the like, it apparently doesn't walk over these PSsets
+                        # themselves -- but no problem, this works
+                        elif isinstance(level, str):
+                            name_of_this_level = level
+                            
+                        # We're on the right track and can advance to find the
+                        # next label in the structure!
+                        #~ if name_of_this_level == structure_info[index]:
+                        if isinstance(name_of_this_level,str) and fnmatch(name_of_this_level, structure_info[index]):
+                            index += 1
+                        
+                # Keep looking if we didn't exhaust all specifications yet.
+                # If we're at the end already, this will avoid finding a
+                # variable at all (which is what we want)
+                if index < len(structure_info):
+                    continue
+            
+            # Now did we find it? We also need to check if the found parameter
+            # hasn't already been found (e.g. when two identical  parameterSets
+            # are added).
+            if isinstance(val, parameters.Parameter):
+                #~ if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
+                if fnmatch(val.get_qualifier(), qualifier) and not val.get_unique_label() in found_labels:
+                    
+                    # Special handling of orbits: you can't request orbital
+                    # information of a component, only of the BodyBag.
+                    if 'orbit' in val.get_context() and structure_info:
+                        if not 'orbit' in structure_info[-1] and not (structure_info[-1] == path[-2]['label']):
+                            continue
+                    
+                    # Ignore parameters that are synthetics
+                    if val.get_context()[-3:] == 'syn':
+                        continue
+        
+                    found[build_twig_from_path(val,path)] = val          
+                    found_labels.append(val.get_unique_label())        
+                        
+        
+        # We want special handling of some stuff:
+        # 1. passbands need to be the same for every pbdep belonging to a certain
+        #    ref
+        # 2. obs should be really tied to a component or bodybag, we shouldn't
+        #    look deeper if we already found a match
+        # 3. syn should be freely asked of any level if possible, using get_synthetic
+        
+        return self._return_from_dict(found,all,ignore_errors)    
+        
     def info(self, twig):
         return self.get_parameter(twig).__repr__
         
@@ -1680,8 +1832,13 @@ class Bundle(Container):
             else:
                 raise ValueError("Parameter '{}' not found in obs/dep".format(key))        
         
-        # In the datasets, time and phase are mutually exclusive. It's one or
-        # the other!
+        # Special treatment of oversampling rate and exposure time: if they are
+        # single numbers, we need to convert them in arraya as long as as the
+        # times
+        for expand_key in ['samprate', 'exptime']:
+            if expand_key in ds and not hasattr(ds[expand_key],'__len__'):
+                ds[expand_key] = len(ds) * [ds[expand_key]]
+        
         
         output = {}
         skip_defaults_from_body = pbkwargs.keys()

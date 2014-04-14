@@ -418,7 +418,6 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         
         # Take care of reflected light
         if ('refl_'+ref) in system.mesh.dtype.names:
-            
             # Anisotropic scattering is difficult, we need to figure out where
             # the companion is. Note that this doesn't really work for multiple
             # systems; we should add different refl columns for that so that we
@@ -530,6 +529,8 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
             system._clear_when_reset['pblum'] = passband_lum
         else:
             passband_lum = system._clear_when_reset['pblum']
+        #passband_lum = 1.00185*passband_lum
+            
         
         proj_intens = proj_intens * pblum / passband_lum
        
@@ -3296,7 +3297,6 @@ class Body(object):
             """
             Add information on pbdeps, obs and syn
             """
-           
             # Construct the  "|     |     " string that preceeds the summary info
             # We need to have the same length as the previous line. If there
             # is no previous line, or it is not indented, we don't need to indent
@@ -3369,13 +3369,15 @@ class Body(object):
                         
                         # The pbdep
                         lbl = '{}[{}]'.format(ptype, iref)
-                        mystring = ['{}: '.format(lbl)]
+                        mystring = ['{}'.format(lbl)]
                         iterover = thing.params[param][ptype][ref].keys()
                         iiterover = thing.params[param][ptype][ref]
                         # First the reference for clarity:
                         if 'ref' in iterover:
                             iterover.remove('ref')
                             iterover = ['ref'] + iterover
+                        
+                        mystring[-1] += ' ({}@{}@{}): '.format(ref,ptype,thing.get_label())
                         
                         for par in iterover:
                             mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
@@ -3394,10 +3396,13 @@ class Body(object):
                         if not ref in thing.params['obs'][ptype_]:
                             continue
                         lbl = '{}[{}]'.format(ptype_, iref)
-                        mystring = ['{}: '.format(lbl)]
+                        mystring = ['{}'.format(lbl)]
                         oparam = 'obs'
                         iterover = thing.params[oparam][ptype_][ref].keys()
                         iiterover = thing.params[oparam][ptype_][ref]
+                        
+                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,'lcobs',thing.get_label(),len(iiterover))
+                        
                         # First the reference for clarity:
                         if 'ref' in iterover:
                             iterover.remove('ref')
@@ -3425,14 +3430,14 @@ class Body(object):
                             continue
 
                         lbl = '{}[{}]'.format(ptype, iref)
-                        mystring = ['{}: '.format(lbl)]
+                        mystring = ['{}'.format(lbl)]
                         iterover = thing.params[param][ptype][ref].keys()
                         iiterover = thing.params[param][ptype][ref]
                         # First the reference for clarity:
                         if 'ref' in iterover:
                             iterover.remove('ref')
                             iterover = ['ref'] + iterover
-                        
+                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,'lcobs',thing.get_label(),len(iiterover))
                         for par in iterover:
                             mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
                             if iiterover.get_parameter(par).has_unit():
@@ -4202,6 +4207,9 @@ class PhysicalBody(Body):
         
         logger.info('light travel time at LOS distance {:.3f} Rsol from barycentre: {:+.3g} min'.format(mydistance,correction*24*60))
     
+    def clear_from_reset(self, key):
+        if key in self._clear_when_reset:
+            self._clear_when_reset.pop(key)
     
     def get_proper_time(self, time):
         """
@@ -4255,7 +4263,13 @@ class PhysicalBody(Body):
         #-- add columns to mesh
         if len(self.mesh):
             for ref in parsed_refs:
-                dtypes = [('ld_{0}'.format(ref),'f8',(Nld_law,))]
+                new_name = 'ld_{0}'.format(ref),'f8',(Nld_law,)
+                
+                # don't bother if it allready exists
+                if new_name[0] in self.mesh.dtype.names:
+                    continue
+                
+                dtypes = [new_name]
                 dtypes.append(('proj_{0}'.format(ref),'f8'))
                 #dtypes.append(('velo_{0}_'.format(ref),'f8',(3,)))
                 #dtypes.append(('_o_velo_{0}_'.format(ref),'f8',(3,)))
@@ -4777,7 +4791,8 @@ class PhysicalBody(Body):
         """
         #-- don't bother if we cannot do anything...
         if hasattr(self,'params') and 'pbdep' in self.params:
-            if not ('lcdep' in self.params['pbdep']): return None
+            if not ('lcdep' in self.params['pbdep']):
+                return None
             #-- compute the projected intensities for all light curves.
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')

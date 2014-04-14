@@ -2004,7 +2004,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
         loaded = parset.load(force=False)
 
         # Retrieve exposure times
-        if 'exptime' in parset and len(parset['exptime']):
+        if 'exptime' in parset and hasattr(parset, '__len__') and len(parset['exptime']):
             exps = parset['exptime']
         else:
             exps = [0] * len(parset)
@@ -2177,6 +2177,8 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # reflection)
     if update_intensity:
         system.intensity(ref=ref, beaming_alg=beaming)
+        if i == 0:
+            system[0].clear_from_reset('pblum')
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
