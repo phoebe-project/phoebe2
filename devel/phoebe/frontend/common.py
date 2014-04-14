@@ -49,6 +49,10 @@ class Container(object):
             #~ yield _yield
     
     def _loop_through_container(self,container=None,label=None):
+        """
+        loop through the current container to compile all items for the trunk
+        this will then be called recursively if it hits another Container/PS/BodyBag
+        """
         return_items = []
         for section_name,section in self.sections.items():
             for item in section:
@@ -66,6 +70,9 @@ class Container(object):
         return return_items
         
     def _loop_through_ps(self, ps, section_name, container, label):
+        """
+        called when _loop_through_container hits a PS
+        """
         return_items = []
         
         for qualifier in ps:
@@ -77,6 +84,9 @@ class Container(object):
         return return_items
         
     def _loop_through_system(self, system, section_name):
+        """
+        called when _loop_through_container hits the system
+        """
         return_items = []
         
         for path, item in system.walk_all(path_as_string=False):
@@ -94,6 +104,11 @@ class Container(object):
         return return_items
         
     def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None):
+        """
+        general function to pull all information we need from any item we may come across
+    
+        providing other information (section, container, context, label) may be necessary if we don't know where we are
+        """
         container = self.__class__.__name__ if container is None else container
         kind = item.__class__.__name__
 
@@ -164,6 +179,12 @@ class Container(object):
             twig=twig, twig_full=twig_full, item=item)
             
     def _build_trunk(self):
+        """
+        this function should be called (probably through the @rebuild_trunk decorator)
+        whenever anything is changed (besides changing values, etc)
+        
+        this sets self.trunk which is then used whenever the container is searched for an item
+        """
         self.trunk = self._loop_through_container()
         
     def _make_twig(self, path):
@@ -171,7 +192,6 @@ class Container(object):
         compile a twig for an ordered list of strings that makeup the path
         this list should be [qualifier,label,context,component,section,container]        
         """
-        # path should be an ordered list (bottom up) of strings
         while None in path:
             path.remove(None)
         return '@'.join(path)
@@ -187,7 +207,9 @@ class Container(object):
         
     def _match_twigs(self, twigglet, trunk=None):
         """
-        return a list of twigs that match the input (from left to right)
+        return a list of twigs that match the input
+        the first item is required to be first, but any other item
+        must simply occur left to right
         """
         if trunk is None:
             trunk = self.trunk
@@ -215,6 +237,23 @@ class Container(object):
         return [matching_twigs_orig[i] for i in matching_indices] 
         
     def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, use_search=False, **kwargs):
+        """
+        this function searches the cached trunk
+        kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
+        
+        @param twig: the twig/twigglet to use when searching
+        @type twig: str
+        @param all: whether to return a list or a single item
+        @type all: bool
+        @param ignore_errors: whether to ignore length of results errors and always return a list
+        @type ignore_errors: bool
+        @param return_trunk_item: whether to return the full trunk listing instead of just the param
+        @type return_trunk_item: bool
+        @param use_search: whether to use substring search instead of match
+        @type use_search: bool
+        """
+        
+        
         # can take kwargs for searching by any other key stored in the trunk dictionary
         
         # first let's search through the trunk by section
@@ -246,6 +285,10 @@ class Container(object):
                 return items[0]
                 
     def _get_by_section(self, label=None, section=None, kind="ParameterSet", all=False, ignore_errors=False, return_trunk_item=False):
+        """
+        shortcut to _get_by_search which automatically builds a searching twig from the label
+        and has defaults for kind (ParameterSet)        
+        """
         twig = "{}@{}".format(label,section) if label is not None and section is not None else None
         #~ twig = section if label is None else label
         return self._get_by_search(twig,section=section,kind=kind,
@@ -253,6 +296,10 @@ class Container(object):
                         return_trunk_item=return_trunk_item)
                         
     def _get_dict_of_section(self, section, kind='ParameterSet'):
+        """
+        shortcut to _get_by_search that takes the name of a section and will always
+        return a dictionary with label as the keys and item as the values
+        """
         all_ti = self._get_by_search(twig=None, section=section, kind=kind,
                         all=True, ignore_errors=True,
                         return_trunk_item=True)
@@ -290,7 +337,8 @@ class Container(object):
             
             else:
                 return dictionary.values()[0] 
-                
+    
+    @rebuild_trunk
     def _add_to_section(self,section,ps):
         """
         add a new parameterset to section - the label of the parameterset
@@ -306,33 +354,111 @@ class Container(object):
         self.sections[section].append(ps)
         
     def list_twigs(self):
+        """
+        return a list of all available twigs
+        """
         return [t['twig_full'] for t in self.trunk]
 
     def search(self, twig):
+        """
+        return a list of twigs matching a substring search
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: list of twigs
+        @rtype: list of strings
+        """
         return self._search_twigs(twig)
         
     def match(self, twig):
+        """
+        return a list of matching twigs (with same method as used in
+        get_value, get_parameter, get_prior, etc)
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: list of twigs
+        @rtype: list of strings
+        """
         return self._match_twigs(twig)
     
     def get(self, twig):
+        """
+        search and retrieve any item without specifying its type
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: matching item
+        @rtype: varies
+        """
         return self._get_by_search(twig)
         
     def get_all(self, twig):
+        """
+        same as get except will return a list of items instead of throwing
+        and error if more than one are found
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: all matching items
+        @rtype: list
+        """
         return self._get_by_search(twig, all=True)
         
     def get_ps(self, twig):
+        """
+        retrieve a ParameterSet
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: ParameterSet
+        @rtype: ParameterSet
+        """
         return self._get_by_search(twig, kind='ParameterSet')
 
     def get_parameter(self, twig):
+        """
+        retrieve a Parameter
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: Parameter
+        @rtype: Parameter
+        """
         return self._get_by_search(twig, kind='Parameter')
         
     def info(self, twig):
+        """
+        retrieve info on a Parameter.
+        this is just a shortcut to str(get_parameter(twig))
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: info
+        @rtype: str
+        """
         return str(self.get_parameter(twig))
                 
     def get_value(self, twig):
+        """
+        retrieve the value of a Parameter
+        
+        @param twig: the search twig
+        @type twig: str
+        """
         return self.get_parameter(twig).get_value()
         
     def set_value(self, twig, value, unit=None):
+        """
+        set the value of a Parameter
+        
+        @param twig: the search twig
+        @type twig: str
+        @param value: the value
+        @type value: depends on Parameter
+        @param unit: unit of value (if not default)
+        @type unit: str or None
+        """
         param = self.get_parameter(twig)
         
         if unit is None:
@@ -341,6 +467,16 @@ class Container(object):
             param.set_value(value, unit)
             
     def set_value_all(self, twig, value, unit=None):
+        """
+        set the value of all matching Parameters
+        
+        @param twig: the search twig
+        @type twig: str
+        @param value: the value
+        @type value: depends on Parameter
+        @param unit: unit of value (if not default)
+        @type unit: str or None
+        """
         params = self._get_by_search(twig, kind='Parameter', all=True)
         
         for param in params:
@@ -350,9 +486,25 @@ class Container(object):
                 param.set_value(value, unit)
                 
     def get_adjust(self, twig):
+        """
+        retrieve whether a Parameter is marked to be adjusted
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: adjust
+        @rtype: bool
+        """
         return self.get_parameter(twig).get_adjust()
         
     def set_adjust(self, twig, value):
+        """
+        set whether a Parameter is marked to be adjusted
+        
+        @param twig: the search twig
+        @type twig: str
+        @param value: adjust
+        @type value: bool
+        """
         param = self.get_parameter(twig)
         
         if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
@@ -361,6 +513,14 @@ class Container(object):
         param.set_adjust(value)
         
     def set_adjust_all(self, twig, value):
+        """
+        set whether all matching Parameters are marked to be adjusted
+        
+        @param twig: the search twig
+        @type twig: str
+        @param value: adjust
+        @type value: bool
+        """
         params = self._get_by_search(twig, kind='Parameter', all=True)
         
         for param in params:
@@ -370,9 +530,25 @@ class Container(object):
             param.set_adjust(value)
     
     def get_prior(self, twig):
+        """
+        retrieve the prior on a Parameter
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: prior
+        @rtype: ParameterSet
+        """
         return self.get_parameter(twig).get_prior()
         
     def set_prior(self, twig, **dist_kwargs):
+        """
+        set the prior on a Parameter
+        
+        @param twig: the search twig
+        @type twig: str
+        @param **kwargs: necessary parameters for distribution
+        @type **kwargs: varies
+        """
         param = self.get_parameter(twig)
         param.set_prior(**dist_kwargs)
         
@@ -381,7 +557,7 @@ class Container(object):
         """
         Add a new compute ParameterSet
         
-        @param ps: compute ParameterSet
+        @param ps: compute ParameterSet (or None)
         @type ps:  None or ParameterSet
         @param label: label of the compute options (will override label in ps)
         @type label: str
