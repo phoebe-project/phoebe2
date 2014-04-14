@@ -383,7 +383,7 @@ class Bundle(Container):
         # TODO: expand this to be generic across all sections (with ignore_usersettings?)
         txt = ""
         txt += "============ Compute ============\n"
-        computes = self._get_by_section(section='compute',all=True)
+        computes = self._get_dict_of_section('compute').values()
         for icomp in computes:
             mystring = []
             for par in icomp:
