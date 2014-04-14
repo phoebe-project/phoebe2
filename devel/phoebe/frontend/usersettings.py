@@ -136,7 +136,7 @@ class Container(object):
             section_twig = section
             
         # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
-        print [qualifier,label,context,component,section_twig,container]
+        #~ print [qualifier,label,context,component,section_twig,container]
         twig = self._make_twig([qualifier,label,context,component,section_twig])
         twig_full = self._make_twig([qualifier,label,context,component,section_twig,container])
         
