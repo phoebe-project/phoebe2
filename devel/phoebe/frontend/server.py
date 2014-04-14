@@ -5,7 +5,7 @@ import socket
 from collections import OrderedDict
 from datetime import datetime
 from phoebe.parameters import parameters
-from phoebe.frontend.common import Container
+from phoebe.frontend.common import Container, rebuild_trunk
 
 class Server(Container):
     def __init__(self,label=None,mpi=None,**kwargs):

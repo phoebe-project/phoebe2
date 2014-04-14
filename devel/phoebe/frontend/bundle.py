@@ -57,7 +57,7 @@ from phoebe.backend import universe
 from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
 from phoebe.frontend.usersettings import Settings
-from phoebe.frontend.common import Container
+from phoebe.frontend.common import Container, rebuild_trunk
 from phoebe.frontend.figures import Axes
 import phcompleter
 
@@ -158,17 +158,7 @@ def run_on_server(fctn):
     
     return parse
     
-def rebuild_trunk(fctn):
-    """
-    Parse usersettings to determine whether to run a function locally
-    or submit it to a server
-    """
-    @functools.wraps(fctn)
-    def rebuild(bundle,*args,**kwargs):
-        return_ = fctn(bundle, *args, **kwargs)
-        bundle._build_trunk()
-        return return_
-    return rebuild
+
         
 
 def walk(mybundle):
@@ -394,8 +384,10 @@ class Bundle(Container):
             txt += "\n".join(textwrap.wrap(mystring, initial_indent='', subsequent_indent=7*' ', width=79))
             txt += "\n"
         txt += "============ Other ============\n"
-        txt += "{} fitting options\n".format(len(self._get_by_section(section='compute',all=True)))
-        #txt += "{} axes\n".format(len(self.get_axes(all=True).values()))
+        if len(self._get_dict_of_section("fitting")):
+            txt += "{} fitting options\n".format(len(self._get_dict_of_section("fitting")))
+        if len(self._get_dict_of_section("axes")):
+            txt += "{} axes\n".format(len(self._get_dict_of_section("axes")))
         txt += "============ System ============\n"
         txt += self.list(summary='full')
         
@@ -1249,45 +1241,6 @@ class Bundle(Container):
     #}
     
     #{ Compute
-    @rebuild_trunk
-    def add_compute(self,ps=None,**kwargs):
-        """
-        Add a new compute ParameterSet
-        
-        @param ps: compute ParameterSet
-        @type ps:  None or ParameterSet
-        @param label: label of the compute options (will override label in ps)
-        @type label: str
-        """
-        if ps is None:
-            ps = parameters.ParameterSet(context='compute')
-        for k,v in kwargs.items():
-            ps.set_value(k,v)
-            
-        self._add_to_section('compute',ps)
-
-        self._attach_set_value_signals(ps)
-            
-    def get_compute(self,label=None):
-        """
-        Get a compute ParameterSet by name
-        
-        @param label: name of ParameterSet
-        @type label: str
-        @return: compute ParameterSet
-        @rtype: ParameterSet
-        """
-        return self._get_by_section(label,"compute")
-    
-    @rebuild_trunk
-    def remove_compute(self,label):
-        """
-        Remove a given compute ParameterSet
-        
-        @param label: name of compute ParameterSet
-        @type label: str
-        """
-        return self._remove_from_section('compute',label)
     
     @run_on_server
     def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
@@ -1370,46 +1323,7 @@ class Bundle(Container):
     #}
             
     #{ Fitting
-    @rebuild_trunk
-    def add_fitting(self,ps=None,**kwargs):
-        """
-        Add a new fitting ParameterSet
-        
-        @param ps: fitting ParameterSet
-        @type ps:  None, or ParameterSet
-        @param label: name of the fitting options (will override label in ps)
-        @type label: str
-        """
-        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
-        if fitting is None:
-            fitting = parameters.ParameterSet(context=context)
-        for k,v in kwargs.items():
-            fitting.set_value(k,v)
-            
-        self._add_to_section('fitting',fitting)
-        self._attach_set_value_signals(fitting)
-            
-    def get_fitting(self,label=None):
-        """
-        Get a fitting ParameterSet by name
-        
-        @param label: name of ParameterSet
-        @type label: str
-        @return: fitting ParameterSet
-        @rtype: ParameterSet
-        """
-        return self._get_by_section(label,"fitting")
 
-    @rebuild_trunk
-    def remove_fitting(self,label):
-        """
-        Remove a given fitting ParameterSet
-        
-        @param label: name of fitting ParameterSet
-        @type label: str
-        """
-        self._remove_from_section('fitting',label)
-        
     @run_on_server
     def run_fitting(self,computelabel=None,fittinglabel=None,add_feedback=None,accept_feedback=False,server=None,**kwargs):
         """
@@ -1620,9 +1534,9 @@ class Bundle(Container):
             #then we need to return all in list and take index
             # TODO: this currently ignores 'all'
             #~ return self._get_from_section('axes',search_by='title',all=True).values()[ident]
-            return self._get_dict_of_section('axes').values()[ident]
+            return self._get_dict_of_section('axes', kind='Container').values()[ident]
         
-        return self._get_by_section('axes',ident)
+        return self._get_by_section(section='axes', kind='Container', label=ident)
         
     @rebuild_trunk
     def add_axes(self,axes=None,**kwargs):
@@ -1641,6 +1555,10 @@ class Bundle(Container):
         """
         if axes is None:
             axes = Axes()
+            
+        if 'title' not in kwargs.keys():
+            kwargs['title'] = "myaxes{}".format(int(len(self._get_dict_of_section('axes'))+1))
+            
         for key in kwargs.keys():
             axes.set_value(key, kwargs[key])
             

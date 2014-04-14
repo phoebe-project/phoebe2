@@ -199,16 +199,16 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         for w in self.findChildren(QComboBox):
             if w.objectName().split('_')[0]=='s':
                 key = "_".join(str(w.objectName()).split('_')[1:])
-                names = ['None']+self.prefs.get_server(all=True).keys()
+                names = ['None']+self.prefs._get_dict_of_section('server').keys()
             elif w.objectName() == 'sx_serveredit_combo':
                 key = None
-                names = [l.split('@')[0] for l in self.prefs.get_server(all=True).keys()]
+                names = [l.split('@')[0] for l in self.prefs._get_dict_of_section('server').keys()]
             elif w.objectName() == 'co_edit_combo':
                 key = None
-                names = [l.split('@')[0] for l in self.prefs.get_compute(all=True).keys()]
+                names = [l.split('@')[0] for l in self.prefs._get_dict_of_section('compute').keys()]
             elif w.objectName() == 'fo_edit_combo':
                 key = None
-                names = [l.split('@')[0] for l in self.prefs.get_fitting(all=True).keys()]
+                names = [l.split('@')[0] for l in self.prefs._get_dict_of_section('fitting').keys()]
             else:
                 continue
             
@@ -242,7 +242,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
                     self.connect(w, SIGNAL("currentIndexChanged(QString)"), self.item_changed)
                 
         ### create server list treeview
-        self.serverlist_treeWidget.set_data(self.prefs.get_server(all=True))
+        self.serverlist_treeWidget.set_data(self.prefs._get_dict_of_section('server'))
             
         # logger stuff
         self.lo_psedit.set_data([self.prefs.get_logger()],style=['nofit'])
@@ -300,7 +300,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         if label == 'None' or label == '':
             co = None
         else:
-            co = self.prefs.get_compute(str(label), ignore_errors=True)
+            co = self.prefs._get_by_search(str(label), kind='ParameterSet', section='compute', ignore_errors=True)
             
         self.co_psedit.set_data([co] if co is not None else [],style=['nofit','incl_label'],hide_params=['time','refs','types'])
         
@@ -308,7 +308,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         if label == 'None' or label == '':
             fo = None
         else:
-            fo = self.prefs.get_fitting(str(label),ignore_errors=True)
+            fo = self.prefs._get_by_search(str(label), kind='ParameterSet', section='fitting', ignore_errors=True)
             
         self.fo_psedit.set_data([fo] if fo is not None else [],style=['nofit'])
         

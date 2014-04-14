@@ -833,7 +833,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
             tree.set_data(ds_obs,ds_syn,types,plots,self.bundle,self.system_ps,self.system_names)
             
-        self.mp_stackedWidget_to_grid(force_grid=len(self.bundle.get_axes(all=True))!=0)
+        self.mp_stackedWidget_to_grid(force_grid=len(self.bundle._get_dict_of_section('axes'))!=0)
 
     @PyInterp_selfdebug
     def on_sysSel_selectionChanged(self,skip_collapse=False):
@@ -893,7 +893,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.get_system() is not None:
             #~ print "*** updating fitting treeviews", len(self.bundle.get_system().get_adjustable_parameters())
             self.rp_fitinTreeView.set_data(self.bundle.get_system().get_adjustable_parameters(),self.system_ps,self.system_names)
-            #~ self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1,ignore_errors=True),self.system_ps,self.system_names)
             self.rp_fitoutTreeView.set_data(self.bundle._get_dict_of_section('feedback'),self.system_ps,self.system_names)
         else:
             self.rp_fitinTreeView.set_data([],self.system_ps,self.system_names)
@@ -960,7 +959,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             
     def plot_redraw(self, param=None, i=0, canvas=None):
         #~ print "*** redraw plot", i
-        if param is not None and len(self.plot_canvases) != len(self.bundle.get_axes(all=True)):
+        if param is not None and len(self.plot_canvases) != len(self.bundle._get_dict_of_section('axes')):
             #then this is being called from a signal, but the number of canvases isn't right
             #so redraw all to make sure we're in sync
             self.on_plots_changed()
@@ -999,7 +998,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     plottype='rvobs'
                 if self.sender()==self.mp_addSPPlotPushButton:
                     plottype='spobs'
-            title = 'Plot %d' % len(self.bundle.get_axes(all=True))+1
+            title = 'Plot %d' % len(self.bundle._get_dict_of_section('axes'))+1
             add_command = "bundle.add_axes(category='%s', title='Plot %d')" % (plottype[:-3],title)
             remove_command = "bundle.remove_axes('%s')" % (title)
             command = phoebe_widgets.CommandRun(self.PythonEdit,add_command,remove_command,kind='plots',thread=False,description='add new plot')
@@ -1314,7 +1313,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_servers_avail(self,update_prefs=False):
         if update_prefs:
             self.prefs = self.PyInterp_get('settings')
-        servers_on = ['None']+[s.get_value('label') for s in self.prefs.get_server(all=True).values() if s.last_known_status['status']]        
+        servers_on = ['None']+[s.get_value('label') for s in self.prefs._get_dict_of_section('server').values() if s.last_known_status['status']]        
         for w in [self.lp_serverComboBox, self.rp_serverComboBox]:
             orig_text = str(w.currentText())
             w.clear()
@@ -1326,7 +1325,6 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_observeoptions(self):
         currenttext = self.lp_methodComboBox.currentText()
         self.lp_methodComboBox.clear()
-        #~ for k,v in self.bundle.get_compute(all=True).iteritems():
         for k,v in self.bundle._get_dict_of_section(section='compute').iteritems():
             self.lp_methodComboBox.addItem(k.split('@')[0])
 
@@ -1347,7 +1345,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.lp_observeoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key.split('@')[0] in self.prefs.get_compute(all=True)
+        in_settings = key.split('@')[0] in self.prefs._get_dict_of_section('compute')
         self.lp_observeoptionsReset.setVisible(in_settings)
         self.lp_observeoptionsDelete.setVisible(in_settings==False)
 
@@ -1596,12 +1594,12 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.sys_meshAutoUpdate.setEnabled(True)
             
             # update version - should probably move this
-            self.versions_treeView.set_data(self.bundle.get_version(all=True).values())
-            self.rp_savedFeedbackTreeView.set_data(self.bundle.get_feedback(all=True).values())
+            self.versions_treeView.set_data(self.bundle._get_dict_of_section('version').values())
+            self.rp_savedFeedbackTreeView.set_data(self.bundle._get_dict_of_section('feedback').values())
             
             # update plot mesh options - should probably move this
-            self.sys_meshOptionsTreeView.set_data(self.bundle.get_meshview(all=True).values(),style=['nofit'])
-            self.sys_orbitOptionsTreeView.set_data(self.bundle.get_orbitview(all=True).values(),style=['nofit'])
+            self.sys_meshOptionsTreeView.set_data(self.bundle._get_dict_of_section('meshview').values(),style=['nofit'])
+            self.sys_orbitOptionsTreeView.set_data(self.bundle._get_dict_of_section('meshview').values(),style=['nofit'])
 
             # bundle lock
             if self.bundle.lock['locked']:
@@ -1671,7 +1669,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         
     def on_axes_add(self,category,objref,dataref):
         # signal received from dataset treeview with info to create new plot
-        title = 'Plot %d' % (len(self.bundle.get_axes(all=True))+1)
+        title = 'Plot %d' % (len(self.bundle._get_dict_of_section('axes'))+1)
         
         do_command = "bundle.add_axes(category='%s', title='%s')" % (category,title)
         undo_command = "bundle.remove_axes('%s')" % (title)
@@ -1689,7 +1687,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     
     def on_axes_goto(self,plotname=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
-        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle.get_axes(all=True).keys().index('{}@axes'.format(plotname))+1)        
+        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle._get_dict_of_section('axes').keys().index('{}@axes'.format(plotname))+1)        
         # expand plot? or leave as is?
 
     def on_plots_add(self,*args):
@@ -1710,7 +1708,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currentText = self.datasetswidget_main.ds_plotComboBox.currentText()
         self.datasetswidget_main.ds_plotComboBox.setEnabled(False) # so we can ignore the signal
         self.datasetswidget_main.ds_plotComboBox.clear()
-        items = ['all plots']+[pl.split('@')[0] for pl in self.bundle.get_axes(all=True).keys()]
+        items = ['all plots']+[pl.split('@')[0] for pl in self.bundle._get_dict_of_section('axes').keys()]
         self.datasetswidget_main.ds_plotComboBox.addItems(items)
         if currentText in items:
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(items.index(currentText))
@@ -1729,7 +1727,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.on_plots_rename() # to update selection combo
         
         #redraw all plots
-        for i,axes in enumerate(self.bundle.get_axes(all=True).values()):
+        for i,axes in enumerate(self.bundle._get_dict_of_section('axes').values()):
                 
             new_plot_widget, canvas = self.create_plot_widget(thumb=True)
             canvas.info['axes_i'] = i
@@ -1746,7 +1744,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             # create hooks
             self.attach_plot_signals(axes, i, canvas)
         
-        for i in range(len(self.bundle.get_axes(all=True).values())):    
+        for i in range(len(self.bundle._get_dict_of_section('axes').values())):    
             self.plot_redraw(None,i)
             
     def on_select_time_changed(self,param=None,i=None,canvas=None):
@@ -1793,7 +1791,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_fittingOptions(self, *args):
         currenttext = self.rp_methodComboBox.currentText()
         self.rp_methodComboBox.clear()
-        for k,v in self.bundle.get_fitting(all=True).iteritems():
+        for k,v in self.bundle._get_dict_of_section('fitting').iteritems():
             self.rp_methodComboBox.addItem(k.split('@')[0])
 
         # return to original selection
@@ -1813,7 +1811,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.rp_fitoptionsTreeView.headerItem().setText(1, key)
         
         # set visibility of reset/delete buttons
-        in_settings = key.split('@')[0] in self.prefs.get_fitting(all=True)
+        in_settings = key.split('@')[0] in self.prefs._get_dict_of_section('fitting')
         self.rp_fitoptionsReset.setVisible(in_settings)
         self.rp_fitoptionsDelete.setVisible(in_settings==False)
 

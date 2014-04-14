@@ -7,12 +7,13 @@ from phoebe.backend import plotting
 import matplotlib.pyplot as plt
 import numpy as np
 
-from phoebe.frontend.common import Container
+from phoebe.frontend.common import Container, rebuild_trunk
 
 class Axes(Container):
     """
     Class representing a collection of plot commands for a single axes
     """
+    @rebuild_trunk
     def __init__(self,**kwargs):
         """
         Initialize an axes
@@ -53,7 +54,11 @@ class Axes(Container):
                     txt += self.sections[section].to_string()
                 
         return txt
-            
+        
+    def get_label(self):
+        return self.get_value('title')
+    
+    @rebuild_trunk
     def add_plot(self,plotoptions=None,**kwargs):
         """
         Add a new plot command to this axes
@@ -69,6 +74,7 @@ class Axes(Container):
             plotoptions.set_value(key, kwargs[key])
         self.sections['plots'].append(plotoptions)
         
+    @rebuild_trunk
     def remove_plot(self,i):
         """
         Remove (permanently) the plot at the given index from the axes
