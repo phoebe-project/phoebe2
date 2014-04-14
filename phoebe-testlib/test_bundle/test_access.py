@@ -12,7 +12,7 @@ def test_access():
     # test get value
     assert(mybundle.get_value('distance')==10)
     assert(mybundle.get_value('teff@primary')==8350)
-    assert(mybundle.get_value('teff->primary')==8350)
+    #assert(mybundle.get_value('teff->primary')==8350)
     assert(mybundle.get_value('delta@mesh:marching@secondary')==0.0527721121857703257)
     assert(mybundle.get_value('atm@lcdep@secondary')=='kurucz')
     assert(mybundle.get_value('atm@component@secondary')=='kurucz')
@@ -20,8 +20,8 @@ def test_access():
     # test set value
     mybundle.set_value('teff@primary',9000)
     assert(mybundle.get_value('teff@primary')==9000)
-    mybundle.set_value('teff->primary', 9001)
-    assert(mybundle.get_value('teff->primary')==9001)
+    mybundle.set_value('teff@primary', 9001)
+    assert(mybundle.get_value('teff@primary')==9001)
     mybundle.set_value('delta@mesh:marching@secondary', 0.5)
     assert(mybundle.get_value('delta@mesh:marching@secondary')==0.5)
     mybundle.set_value('atm@lcdep@secondary', 'blackbody')
