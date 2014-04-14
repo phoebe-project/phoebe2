@@ -55,7 +55,7 @@ def create_pixeltypegrid(grid_pars, grid_data):
     # now populate the multiDgrid
     indices = [uv[1] for uv in uniques]
     pixelgrid[indices] = grid_data.T
-    return axis_values, pixelgrid
+    return tuple(axis_values), pixelgrid
 
 
 def interpolate(p, axis_values, pixelgrid, order=1, mode='constant', cval=0.0):
