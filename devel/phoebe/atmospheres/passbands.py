@@ -139,6 +139,60 @@ Plots of all passbands of all systems:
 |    :width: 300px                                            |    :width: 300px                                            |    :width: 300px                                            |
 +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
 
+Section 2. File format
+=======================================
+
+PHOEBE uses a standard library of passbands (see above), which can be complemented by a user-defined
+library. The passbands should be provided in a ``.fits`` file. 
+
+Each FITS table specifies one passband and has the following header keys (KEY (type)):
+
+    - C{SYSTEM} (string): filter system (e.g. 'Johnson')
+    - C{PASSBAND} (string): passband (e.g. 'V')
+    - C{SOURCE} (string): reference to the passband measurement/definition (optional)
+    - C{VERSION} (integer): version of the form 1.0, (optional, 1 is used when not specified)
+    - C{EXTNAME} (string): Unique name of the extension, recommended form: JOHNSON.V.1
+    - C{DETTYPE} (string): Type of detector, 'flux' (e.g. for a CCD) or 'energy' (e.g. PMT)
+    - C{WAVLEFF} (float): Effective wavelength using a gray atmosphere
+    - C{COMMENTS} (string): Free comment field
+    - C{ZPFLUX} (float): Flux zeropoint
+    - C{ZPFLUXUN} (string): Unit of the flux zeropoint (must be 'erg/s/cm2/AA' or 'erg/s/cm2/Hz')
+    - C{ZPMAG} (float): Magnitude zeropoint
+    - C{ZPMAGTYP} (string): Type of magnitude zeropoint (must be 'Vega', 'AB' or 'ST')
+
+Each FITS table has a data array with the following columns:
+
+    - C{WAVELENGTH}: wavelength array (Angstrom)
+    - C{RESPONSE}: response (only relative values are needed, absolute scaling is irrelevant)
+    
+
+**Example**::
+
+    XTENSION= 'BINTABLE'           / binary table extension                         
+    BITPIX  =                    8 / array data type                                                                                                                                 
+    NAXIS   =                    2 / number of array dimensions                                                                                                                      
+    NAXIS1  =                   76 / length of dimension 1                                                                                                                           
+    NAXIS2  =                 1221 / length of dimension 2                                                                                                                           
+    PCOUNT  =                    0 / number of group parameters                                                                                                                      
+    GCOUNT  =                    1 / number of groups                                                                                                                                
+    TFIELDS =                   19 / number of table fields                                                                                                                          
+    TTYPE1  = 'wavelength'                                                          
+    TFORM1  = 'E       '                                                            
+    TTYPE2  = 'response'                                                            
+    TFORM2  = 'E       '                                                            
+    EXTNAME = 'JOHNSON.V.1'     / name of the extension                          
+    SYSTEM  = 'Johnson'        / Filter system
+    PASSBAND= 'V'              / Passband
+    SOURCE  = 'Johnson1953'    / Source of the response curve
+    VERSION = '1'              / Version number
+    DETTYPE = 'flux'           / Detector type
+    WAVLEFF = '4567.2'         / Effective wavelength
+    COMMENTS= 'Not needed'     / Comments
+    ZPFLUX  = '1e-8'           / Zeropoint flux
+    ZPFLUXUN= 'erg/s/cm2/AA'   / Flux unit
+    ZPMAG   = '0.03'           / Zeropoint magnitude
+    ZPMAGTYP= 'Vega'           / Vega, AB, ST  
+    
 """
 import numpy as np
 import os

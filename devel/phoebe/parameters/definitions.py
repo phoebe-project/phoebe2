@@ -276,7 +276,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='samprate',    description='Signal sampling rate',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
          
          #dict(qualifier='fittransfo',    description='Transform variable in fit',repr='%s',cast_type=str,value='linear',frame=["phoebe"],context=['lcobs']),
-         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma','flag','weights'],cast_type='return_list_of_strings',frame=["phoebe"],context=['lcobs']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma','flag','weight'],cast_type='return_list_of_strings',frame=["phoebe"],context=['lcobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','samprate','used_samprate'],cast_type='return_list_of_strings',frame=["phoebe"],context=['lcsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv','sigma'],frame=["phoebe"],context=['rvobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','etv','sigma'],frame=["phoebe"],context=['etvobs']),
