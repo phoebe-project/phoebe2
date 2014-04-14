@@ -893,7 +893,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if self.bundle.get_system() is not None:
             #~ print "*** updating fitting treeviews", len(self.bundle.get_system().get_adjustable_parameters())
             self.rp_fitinTreeView.set_data(self.bundle.get_system().get_adjustable_parameters(),self.system_ps,self.system_names)
-            self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1,ignore_errors=True),self.system_ps,self.system_names)
+            #~ self.rp_fitoutTreeView.set_data(self.bundle.get_feedback(-1,ignore_errors=True),self.system_ps,self.system_names)
+            self.rp_fitoutTreeView.set_data(self.bundle._get_dict_of_section('feedback'),self.system_ps,self.system_names)
         else:
             self.rp_fitinTreeView.set_data([],self.system_ps,self.system_names)
             self.rp_fitoutTreeView.set_data({},self.system_ps,self.system_names)
@@ -1325,7 +1326,8 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
     def update_observeoptions(self):
         currenttext = self.lp_methodComboBox.currentText()
         self.lp_methodComboBox.clear()
-        for k,v in self.bundle.get_compute(all=True).iteritems():
+        #~ for k,v in self.bundle.get_compute(all=True).iteritems():
+        for k,v in self.bundle._get_dict_of_section(section='compute').iteritems():
             self.lp_methodComboBox.addItem(k.split('@')[0])
 
         # return to original selection

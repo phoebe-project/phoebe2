@@ -7,7 +7,9 @@ from phoebe.backend import plotting
 import matplotlib.pyplot as plt
 import numpy as np
 
-class Axes(object):
+from phoebe.frontend.common import Container
+
+class Axes(Container):
     """
     Class representing a collection of plot commands for a single axes
     """
@@ -18,12 +20,11 @@ class Axes(object):
         all kwargs will be added to the plotting:axes ParameterSet
         it is suggested to at least initialize with a category (lc,rv,etc) and title
         """
+        super(Axes, self).__init__()
         
-        self.settings = OrderedDict()
-        
-        self.settings['axes'] = parameters.ParameterSet(context="plotting:axes")
-        self.settings['selector'] = parameters.ParameterSet(context="plotting:selector")
-        self.settings['plots'] = []
+        self.sections['axes'] = [parameters.ParameterSet(context="plotting:axes")]
+        self.sections['selector'] = [parameters.ParameterSet(context="plotting:selector")]
+        self.sections['plots'] = []
         
         self.phased = False
         self.period = None
@@ -36,8 +37,8 @@ class Axes(object):
         
     def to_string(self):
         txt = ""
-        for section in self.settings.keys():
-            if isinstance(self.settings[section],list):
+        for section in self.sections.keys():
+            if isinstance(self.sections[section],list):
                 # then assume plots (if add another section with list
                 # then we'll need to make this more general like it is
                 # in usersettings
@@ -46,19 +47,13 @@ class Axes(object):
                         txt += "\n============ {}:{} ============\n".format(section,label)
                         txt += ps.to_string()
             else:
-                ps = self.settings[section]
+                ps = self.sections[section]
                 if ps is not None:
                     txt += "\n============ {} ============\n".format(section)
-                    txt += self.settings[section].to_string()
+                    txt += self.sections[section].to_string()
                 
         return txt
             
-    def keys(self):
-        return self.settings['axes'].keys()
-        
-    def values(self):
-        return self.settings['axes'].values()
-        
     def add_plot(self,plotoptions=None,**kwargs):
         """
         Add a new plot command to this axes
@@ -72,7 +67,7 @@ class Axes(object):
             plotoptions = parameters.ParameterSet(context="plotting:plot")
         for key in kwargs.keys():
             plotoptions.set_value(key, kwargs[key])
-        self.settings['plots'].append(plotoptions)
+        self.sections['plots'].append(plotoptions)
         
     def remove_plot(self,i):
         """
@@ -86,7 +81,7 @@ class Axes(object):
         """
         plot = self.get_plot(i)
         
-        return self.settings['plots'].pop(self.settings['plots'].index(plot))
+        return self.sections['plots'].pop(self.sections['plots'].index(plot))
         
     def get_plot(self,ident=None):
         """
@@ -97,7 +92,7 @@ class Axes(object):
         @return: the desired plotoptions
         @rtype: ParameterSet        
         """
-        plots = OrderedDict([('{}@{}@{}'.format(pl.get_value('dataref'),pl.get_value('type'),pl.get_value('objref')), pl) for pl in self.settings['plots']])
+        plots = OrderedDict([('{}@{}@{}'.format(pl.get_value('dataref'),pl.get_value('type'),pl.get_value('objref')), pl) for pl in self.sections['plots']])
         
         if ident is None:
             return plots
@@ -109,7 +104,7 @@ class Axes(object):
     def get_selector(self):
         """
         """
-        return self.settings['selector']
+        return self.sections['selector']
             
     def get_dataset(self,plot,bundle):
         """
@@ -122,7 +117,7 @@ class Axes(object):
         @return: the dataset attached to the plotoptions
         @rtype: ParameterSet
         """
-        if plot in self.settings['plots']: #then we already have the plot
+        if plot in self.sections['plots']: #then we already have the plot
             plotoptions = plot
         else:
             plotoptions = self.get_plot(plot)
@@ -133,28 +128,6 @@ class Axes(object):
         else:
             dataset,ref = obj.get_parset(type=plotoptions['type'][-3:], context=plotoptions['type'], ref=plotoptions['dataref'])
         return dataset
-        
-    def get_value(self,key):
-        """
-        Get a value from the axesoptions
-        Same as axes.axesoptions.get_value()
-        
-        @param key: the name of the parameter
-        @type key: str
-        @return: the parameter
-        """
-        return self.settings['axes'].get_value(key)
-    
-    def set_value(self,key,value):
-        """
-        Set a value in the axesoptions
-        Same as axes.axesoptions.set_value()
-        
-        @param key: the name of the parameter
-        @type key: str
-        @param value: the new value
-        """
-        self.settings['axes'].set_value(key,value)
         
     def set_zoom(self,xlim,ylim):
         """
@@ -210,9 +183,9 @@ class Axes(object):
         
         # get options for axes
         ao = {}
-        for key in self.settings['axes'].keys():
+        for key in self.sections['axes'].keys():
             if key not in ['location', 'active', 'category', 'xaxis', 'yaxis']:
-                ao[key] = self.settings['axes'].get_value(key)
+                ao[key] = self.sections['axes'].get_value(key)
                 
         # override anything set from kwargs
         for key in kwargs:
@@ -220,17 +193,17 @@ class Axes(object):
 
             
         # control auto options
-        xaxis, yaxis = self.settings['axes']['xaxis'], self.settings['axes']['yaxis']
+        xaxis, yaxis = self.sections['axes']['xaxis'], self.sections['axes']['yaxis']
         if xaxis == 'auto':
             xaxis = 'time'
         if yaxis == 'auto':
-            if self.settings['axes']['category'] == 'lc':
+            if self.sections['axes']['category'] == 'lc':
                 yaxis = 'flux'
-            elif self.settings['axes']['category'] == 'rv':
+            elif self.sections['axes']['category'] == 'rv':
                 yaxis = 'rv'
-            elif self.settings['axes']['category'] == 'sp':
+            elif self.sections['axes']['category'] == 'sp':
                 yaxis = 'wavelength'
-            elif self.settings['axes']['category'] == 'etv':
+            elif self.sections['axes']['category'] == 'etv':
                 yaxis = 'ETV'
         if ao['xlabel'] == 'auto':
             ao['xlabel'] = xaxis
@@ -251,7 +224,7 @@ class Axes(object):
             
         # add the axes to the figure
         if location is None:
-            location = self.settings['axes']['location'] # location not added in ao
+            location = self.sections['axes']['location'] # location not added in ao
             
         # of course we may be trying to plot to a different figure
         # so we'll override this later if that is the case 
@@ -274,11 +247,11 @@ class Axes(object):
                 axes = mplfig.add_subplot(111,**ao)
         
         # get phasing information
-        xaxis = self.settings['axes'].get_value('xaxis')
+        xaxis = self.sections['axes'].get_value('xaxis')
         phased = xaxis.split(':')[0]=='phase'
         
         # now loop through individual plot commands
-        for plotoptions in self.settings['plots']:
+        for plotoptions in self.sections['plots']:
             #~ print "***", plotoptions['dataref'], plotoptions['objref'], plotoptions['type'], plotoptions['active']
             if not plotoptions['active']:
                 continue
@@ -363,7 +336,7 @@ class Axes(object):
             
             xlim = mplfig.data_axes.get_xlim()
             if time < xlim[1] and time > xlim[0]:
-                # change command here based on self.settings['selector'] ps
+                # change command here based on self.sections['selector'] ps
                 so = self.get_selector()
                 if so.get_value('type')=='axvline':
                     mplaxes_sel.axvline(time, color=so.get_value('color'), alpha=so.get_value('alpha'))
