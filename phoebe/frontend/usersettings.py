@@ -99,6 +99,8 @@ class Container(object):
                 #then coming from the system and we need to build the context from the path
                 #~ context = path[-2] if isinstance(path[-2],str) else path[-2].get_context()
                 context = item.get_context()
+                if isinstance(context, list): #because sometimes its returning a list and sometimes a string
+                    context = context[0]
             else:
                 #then we're coming from a section and already know the context
                 context = context
@@ -134,6 +136,7 @@ class Container(object):
             section_twig = section
             
         # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
+        print [qualifier,label,context,component,section_twig,container]
         twig = self._make_twig([qualifier,label,context,component,section_twig])
         twig_full = self._make_twig([qualifier,label,context,component,section_twig,container])
         
