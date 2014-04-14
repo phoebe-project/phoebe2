@@ -76,7 +76,9 @@ class Container(object):
             #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
             
             # ignore parameters that are synthetics and make sure this is not a duplicate
-            if ri is not None and ri['context']!='syn' and ri['qualifier'] not in ['ref','label'] and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]):
+            if ri is not None and ri['context']!='syn' and ri['qualifier'] not in ['ref','label'] \
+                    and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
+                    and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
                 return_items.append(ri)
             
         return return_items
@@ -179,10 +181,10 @@ class Container(object):
         matching_twigs = [t['twig_full'].split('@') for t in trunk]
         matching_indices = range(len(matching_twigs))
         
-        for tsp in twig_split:
+        for tsp_i,tsp in enumerate(twig_split):
             remove = []
             for mtwig_i, mtwig in enumerate(matching_twigs):
-                if tsp in mtwig:
+                if (tsp_i != 0 and tsp in mtwig) or tsp==mtwig[0]:
                     # then find where are only keep stuff to the right
                     ind = mtwig.index(tsp)
                     mtwig = mtwig[ind+1:]
@@ -213,10 +215,10 @@ class Container(object):
         if len(matched_twigs) == 0:
             if ignore_errors:
                 return None
-            raise ValueError("no parameter found matching the criteria")
+            raise ValueError("no match found matching the criteria")
         elif all == False and ignore_errors == False and len(matched_twigs) > 1:
             results = ', '.join(matched_twigs)
-            raise ValueError("more than one parameter was found matching the criteria: {}".format(results))
+            raise ValueError("more than one result was found matching the criteria: {}".format(results))
         else:
             items = [ti if return_trunk_item else ti['item'] for ti in trunk if ti['twig_full'] in matched_twigs]
             if all:
@@ -288,10 +290,10 @@ class Container(object):
         return self._match_twigs(twig)
     
     def get(self, twig):
-        return self._get_by_search(twig, kind=None)
+        return self._get_by_search(twig)
         
     def get_all(self, twig):
-        return self._get_by_search(twig, kind=None, all=True)
+        return self._get_by_search(twig, all=True)
         
     def get_ps(self, twig):
         return self._get_by_search(twig, kind='ParameterSet')
