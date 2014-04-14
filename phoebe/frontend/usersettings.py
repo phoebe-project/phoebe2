@@ -2,7 +2,6 @@ import os
 import pickle
 import ConfigParser
 from collections import OrderedDict
-from fnmatch import fnmatch
 import copy
 from server import Server
 from phoebe.utils import utils

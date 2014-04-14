@@ -42,7 +42,6 @@ import numpy as np
 from collections import OrderedDict
 from datetime import datetime
 from time import sleep
-from fnmatch import fnmatch
 import matplotlib.pyplot as plt
 import copy
 import os
@@ -370,7 +369,7 @@ class Bundle(Container):
         # Make sure to not print out all array variables
         old_threshold = np.get_printoptions()['threshold']
         np.set_printoptions(threshold=8)
-        # TODO: expand this to be generic across all sections (with ignore_usersettings?)
+        # TODO: expand this to be generic across all sections
         txt = ""
         txt += "============ Compute ============\n"
         computes = self._get_dict_of_section('compute').values()
@@ -542,17 +541,6 @@ class Bundle(Container):
         # connect signals
         #self.attach_system_signals()
         
-        # check to see if in versions, and if so set versions_curr_i
-        #versions_sys = [v.get_system() for v in self.get_version(all=True).values()]
-        
-        #if system in versions_sys:
-        #    i = versions_sys.index(system)
-        #else:
-        #    i = None
-        #self.versions_curr_i = i
-        
-        
-        
     def get_system(self):
         """
         Return the system.
@@ -717,10 +705,12 @@ class Bundle(Container):
         @param return_type: 'single','all'
         @type return_type: str
         """
-        qualifier = 'orbit'
-        if objref is not None:
-            qualifier += '{}{}'.format("@",objref)
-        return self.get_ps(qualifier)
+        #~ qualifier = 'orbit'
+        #~ if objref is not None:
+            #~ qualifier += '{}{}'.format("@",objref)
+        #~ return self.get_ps(qualifier)
+        
+        return self._get_by_search(label=objref, kind='ParameterSet', context='orbit')
         
     def get_meshps(self, objref=None):
         """
@@ -731,10 +721,12 @@ class Bundle(Container):
         @param return_type: 'single','all'
         @type return_type: str
         """
-        qualifier = 'mesh*'
-        if objref is not None:
-            qualifier += '{}{}'.format("@",objref)
-        return self.get_ps(qualifier)
+        #~ qualifier = 'mesh*'
+        #~ if objref is not None:
+            #~ qualifier += '{}{}'.format("@",objref)
+        #~ return self.get_ps(qualifier)
+        
+        return self._get_by_search(component=objref, kind='ParameterSet', context='mesh*')
         
     #}  
     #{ Datasets
@@ -1531,9 +1523,6 @@ class Bundle(Container):
         @rtype: frontend.figures.Axes
         """
         if isinstance(ident,int): 
-            #then we need to return all in list and take index
-            # TODO: this currently ignores 'all'
-            #~ return self._get_from_section('axes',search_by='title',all=True).values()[ident]
             return self._get_dict_of_section('axes', kind='Container').values()[ident]
         
         return self._get_by_section(section='axes', kind='Container', label=ident)

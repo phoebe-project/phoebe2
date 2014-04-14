@@ -96,7 +96,7 @@ class Container(object):
             #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
             
             # ignore parameters that are synthetics and make sure this is not a duplicate
-            if ri is not None and ri['context']!='syn' and ri['qualifier'] not in ['ref','label'] \
+            if ri is not None and ri['context']!='syn' \
                     and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
                     and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
                 return_items.append(ri)
@@ -168,6 +168,8 @@ class Container(object):
         else:
             section_twig = section
             
+        hidden = qualifier in ['ref','label']
+            
         # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
         #~ print [qualifier,label,context,component,section_twig,container]
         twig = self._make_twig([qualifier,label,context,component,section_twig])
@@ -176,7 +178,8 @@ class Container(object):
         return dict(qualifier=qualifier, component=component,
             container=container, section=section, kind=kind, 
             context=context, label=label, unique_label=unique_label, 
-            twig=twig, twig_full=twig_full, item=item)
+            twig=twig, twig_full=twig_full, item=item,
+            hidden=hidden)
             
     def _build_trunk(self):
         """
@@ -187,6 +190,13 @@ class Container(object):
         """
         self.trunk = self._loop_through_container()
         
+    def _purge_trunk(self):
+        """
+        simply clears trunk - this will probably only be called before pickling to 
+        minimize duplication and reduce filesize
+        """
+        self.trunk = []
+        
     def _make_twig(self, path):
         """
         compile a twig for an ordered list of strings that makeup the path
@@ -196,23 +206,41 @@ class Container(object):
             path.remove(None)
         return '@'.join(path)
         
-    def _search_twigs(self, twigglet, trunk=None):
+    def _search_twigs(self, twigglet, trunk=None, **kwargs):
         """
         return a list of twigs where twigglet is a substring
         """
-        if trunk is None:
-            trunk = self.trunk
+        trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
+            
         twigs = [t['twig_full'] for t in trunk]
         return [twig for twig in twigs if twigglet in twig]
         
-    def _match_twigs(self, twigglet, trunk=None):
+    def _filter_twigs_by_kwargs(self, trunk=None, **kwargs):
+        """
+        returns a list of twigs after filtering the trunk by any other
+        information stored in the dictionaries
+        """
+        trunk = self.trunk if trunk is None else trunk
+        
+        if 'hidden' not in kwargs:
+            kwargs['hidden'] = False
+        for key in kwargs.keys():
+            #~ print "*** Container._filter_twigs_by_kwargs", key, kwargs[key]
+            if len(trunk) and key in trunk[0].keys() and kwargs[key] is not None:
+                trunk = [ti for ti in trunk if ti[key] is not None and 
+                    (ti[key]==kwargs[key] or (isinstance(kwargs[key],str) and fnmatch(ti[key],kwargs[key])))]
+                
+        return trunk
+        
+        
+    def _match_twigs(self, twigglet, trunk=None, **kwargs):
         """
         return a list of twigs that match the input
         the first item is required to be first, but any other item
         must simply occur left to right
         """
-        if trunk is None:
-            trunk = self.trunk
+        trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
+        
         twig_split = twigglet.split('@')
         
         matching_twigs_orig = [t['twig_full'] for t in trunk]
@@ -222,7 +250,8 @@ class Container(object):
         for tsp_i,tsp in enumerate(twig_split):
             remove = []
             for mtwig_i, mtwig in enumerate(matching_twigs):
-                if (tsp_i != 0 and tsp in mtwig) or tsp==mtwig[0]:
+                if (tsp_i != 0 and tsp in mtwig) or mtwig[0]==tsp:
+                #~ if (tsp_i != 0 and [fnmatch(mtwig_spi,tsp) for mtwig_spi in mtwig]) or fnmatch(mtwig[0],tsp):
                     # then find where we are, and then only keep stuff to the right
                     ind = mtwig.index(tsp)
                     mtwig = mtwig[ind+1:]
@@ -256,18 +285,14 @@ class Container(object):
         
         # can take kwargs for searching by any other key stored in the trunk dictionary
         
-        # first let's search through the trunk by section
-        trunk = self.trunk
-        for key in kwargs.keys():
-            if len(trunk) and key in trunk[0].keys():
-                trunk = [ti for ti in trunk if ti[key]==kwargs[key]]
-        
         if twig is not None:
+            trunk = self.trunk
             if use_search:
-                matched_twigs = self._search_twigs(twig, trunk)
+                matched_twigs = self._search_twigs(twig, **kwargs)
             else:
-                matched_twigs = self._match_twigs(twig, trunk)
+                matched_twigs = self._match_twigs(twig, **kwargs)
         else:
+            trunk = self._filter_twigs_by_kwargs(**kwargs)
             matched_twigs = [ti['twig_full'] for ti in trunk]
         
         if len(matched_twigs) == 0:
@@ -305,7 +330,46 @@ class Container(object):
                         return_trunk_item=True)
                         
         return {ti['label']:ti['item'] for ti in all_ti} if all_ti is not None else {}
-                
+        
+        
+    def _save_ascii(self, filename):
+        """
+        TESTING
+        """
+        f = open(filename, 'w')
+        
+        # first we need to save the system hierarchy
+        
+        
+        # now let's loop through and dump everything in the trunk
+        this_container = self.__class__.__name__
+        for ti in self.trunk:
+            # let's restrict to those stored in this constainer (or overriden to appear that way)
+            if ti['container'] == this_container:
+                if ti['kind'] == 'Parameter':
+                    f.write('{:<70}={}\n'.format(ti['twig'], ti['item'].get_value()))
+        f.close()
+        
+    def _load_ascii(self, filename):
+        """
+        TESTING
+        """
+        f = open(filename, 'r')
+        
+        # first we need to load the system hierarchy
+        
+        
+        # and then loop through and call commands for everything in the trunk
+        for line in f:
+            info = line.strip().split('=')
+            twig, value = info[0].strip(), info[1].strip()
+            
+            print "self.set_value('{}', '{}')".format(twig, value)
+            self.get(twig, hidden=None).set_value(value)
+        
+        
+        f.close()
+        
     ## generic functions to get non-system parametersets
     def _return_from_dict(self, dictionary, all=False, ignore_errors=False):
         """
@@ -353,13 +417,14 @@ class Container(object):
             self.sections[section] = []
         self.sections[section].append(ps)
         
-    def list_twigs(self):
+    def list_twigs(self, **kwargs):
         """
         return a list of all available twigs
         """
-        return [t['twig_full'] for t in self.trunk]
+        trunk = self._filter_twigs_by_kwargs(**kwargs)
+        return [t['twig_full'] for t in trunk]
 
-    def search(self, twig):
+    def search(self, twig, **kwargs):
         """
         return a list of twigs matching a substring search
         
@@ -368,9 +433,9 @@ class Container(object):
         @return: list of twigs
         @rtype: list of strings
         """
-        return self._search_twigs(twig)
+        return self._search_twigs(twig, **kwargs)
         
-    def match(self, twig):
+    def match(self, twig, **kwargs):
         """
         return a list of matching twigs (with same method as used in
         get_value, get_parameter, get_prior, etc)
@@ -380,9 +445,9 @@ class Container(object):
         @return: list of twigs
         @rtype: list of strings
         """
-        return self._match_twigs(twig)
+        return self._match_twigs(twig, **kwargs)
     
-    def get(self, twig):
+    def get(self, twig, **kwargs):
         """
         search and retrieve any item without specifying its type
         
@@ -391,7 +456,7 @@ class Container(object):
         @return: matching item
         @rtype: varies
         """
-        return self._get_by_search(twig)
+        return self._get_by_search(twig, **kwargs)
         
     def get_all(self, twig):
         """

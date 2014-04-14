@@ -927,7 +927,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             self.bundle.attach_signal(self.bundle, 'set_select_time', self.on_select_time_changed, i, canvas)
             self.bundle.attach_signal(self.bundle, 'set_system', self.plot_redraw, i, canvas) #will also be called for get_version(set_system=True)
             self.bundle.attach_signal(self.bundle, 'reload_obs', self.plot_redraw, i, canvas)
-            self.bundle.attach_signal(axes.settings['axes'], 'set_value', self.plot_redraw, i, canvas)
+            self.bundle.attach_signal(axes.sections['axes'][0], 'set_value', self.plot_redraw, i, canvas)
             #~ self.bundle.attach_signal(axes, 'set_value', self.plot_redraw, i, canvas)
             self.bundle.attach_signal(axes, 'add_plot', self.attach_plot_signals, i, canvas, True) # so that we can add the new parameter options
             self.bundle.attach_signal(axes, 'add_plot', self.plot_redraw, i, canvas)
@@ -1131,7 +1131,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if len(self.bundle.get_obs(all=True))==0:
             # load data tutorial
             self.mp_stackedWidget.setCurrentIndex(5)
-        elif len(self.bundle.get_axes(all=True))==0:
+        elif len(self.bundle._get_dict_of_section('axes'))==0:
             # create plot tutorial
             self.mp_stackedWidget.setCurrentIndex(6)
         elif force_grid:
@@ -1687,7 +1687,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
                     
     def on_axes_goto(self,plotname=None):
         # signal receive from dataset treeview to goto a plot (axes) by name
-        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle._get_dict_of_section('axes').keys().index('{}@axes'.format(plotname))+1)        
+        self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(self.bundle._get_dict_of_section('axes', kind='Container').keys().index(plotname)+1)        
         # expand plot? or leave as is?
 
     def on_plots_add(self,*args):
@@ -1708,7 +1708,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         currentText = self.datasetswidget_main.ds_plotComboBox.currentText()
         self.datasetswidget_main.ds_plotComboBox.setEnabled(False) # so we can ignore the signal
         self.datasetswidget_main.ds_plotComboBox.clear()
-        items = ['all plots']+[pl.split('@')[0] for pl in self.bundle._get_dict_of_section('axes').keys()]
+        items = ['all plots']+self.bundle._get_dict_of_section('axes').keys()
         self.datasetswidget_main.ds_plotComboBox.addItems(items)
         if currentText in items:
             self.datasetswidget_main.ds_plotComboBox.setCurrentIndex(items.index(currentText))
@@ -1727,7 +1727,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.on_plots_rename() # to update selection combo
         
         #redraw all plots
-        for i,axes in enumerate(self.bundle._get_dict_of_section('axes').values()):
+        for i,axes in enumerate(self.bundle._get_dict_of_section('axes', kind='Container').values()):
                 
             new_plot_widget, canvas = self.create_plot_widget(thumb=True)
             canvas.info['axes_i'] = i
