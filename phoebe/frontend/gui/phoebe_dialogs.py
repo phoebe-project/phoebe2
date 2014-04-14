@@ -640,9 +640,9 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         filterset,filterband = pbdep['passband'].split('.')[:]
         
         if filterset in self.filtertypes.keys():
-            self.pfe_filtersetComboBox.setCurrentIndex(self.filtertypes.keys().index(filterset)+1)
+            self.pfe_filtersetComboBox.setCurrentIndex(sorted(self.filtertypes.keys()).index(filterset)+1)
             if filterband in self.filtertypes[filterset]:
-                self.pfe_filterbandComboBox.setCurrentIndex(self.filtertypes[filterset].index(filterband)+1)
+                self.pfe_filterbandComboBox.setCurrentIndex(sorted(self.filtertypes[filterset]).index(filterband)+1)
         
         # if no name has been provided, try to guess
         if self.name.text()=='':
@@ -738,11 +738,15 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
             compcombo.setVisible(True)
             colcombo.setVisible(False)
 
-        if selection != 'time' and selection != 'wavelength' and selection!="--Data Type--" and selection!='ignore': # x-axis types
+        if selection != 'time' and selection != 'phase' and selection != 'wavelength' and selection!="--Data Type--" and selection!='ignore': # x-axis types
             compcombo.setEnabled(True)
+            if self.category=='lc':
+                compcombo.setCurrentIndex(1)
         else:
             compcombo.setCurrentIndex(0)
             compcombo.setEnabled(False)
+            
+
         
     def on_category_changed(self,category):
         """
@@ -773,6 +777,8 @@ class CreatePopFileEntry(QDialog, gui.Ui_popFileEntry_Dialog):
         for colwidget in self.colwidgets:
             colwidget.type_comboBox.clear()
             colwidget.type_comboBox.addItems(self.datatypes)
+            
+            colwidget.comp_comboBox.setCurrentIndex(1)
             
         self.on_syn_set_default_component_checks()
 
