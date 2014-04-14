@@ -206,7 +206,14 @@ def get_response(passband):
 def read_standard_response(filename):
     """
     Read standardized format of passbands.
+    
+    :param filename: absolute filepath of the passband file
+    :type filename: str
+    :return: (wavelength (angstrom), transmission), meta-data
+    :rtype: (array, array), dict
     """
+    
+    # Predefined meta-data fields
     fields = ['PASS_SET', 'PASSBAND', 'EFFWL', 'WLFACTOR', 'REFERENCE']
     header = dict()
     
@@ -220,11 +227,12 @@ def read_standard_response(filename):
                 break
             
             # read the header information
-            field, entry = line[0].split(None,1)
+            field, entry = line[1:].split(None,1)
             if field in fields:
                 header[field] = entry
                 fields.remove(field)
         
+    # Every response file needs to have all fields.    
     if len(fields):
         raise ValueError("Not a standard response file")
     
@@ -234,7 +242,10 @@ def read_standard_response(filename):
 
 def set_standard_response():
     """
-    Collect info on passbands
+    Collect info on passbands.
+    
+
+    
     """
     files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ptf', '*')))
     

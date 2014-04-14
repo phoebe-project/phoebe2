@@ -328,7 +328,7 @@ class DataSet(parameters.ParameterSet):
         result = self.copy()
         columns = result.get_value('columns')
         for col in columns:
-            if col in ['time','weights','flag','wavelength','samprate']:
+            if col in ['time','weights','flag','wavelength','samprate','used_samprate']:
                 continue
             this_col = np.array(result[col])
             other_col = np.array(other[col])
@@ -520,25 +520,35 @@ class LCDataSet(DataSet):
         new_flux = []
         new_time = []
         new_samprate = []
+        used_samprate = []
+        #used_exptime = []
         
         old_flux = np.array(self['flux'])
         old_time = np.array(self['time'])
         old_samprate = np.array(self['samprate'])
+        #old_exptime = np.array(self['used_exptime'])
         sa = np.argsort(old_time)
         old_flux = old_flux[sa]
         old_time = old_time[sa]
         old_samprate = old_samprate[sa]
+        #old_exptime = old_exptime[sa]
+        
         
         seek = 0
         while seek<len(old_flux):
             samprate = old_samprate[seek]
+            #exptime = old_exptime[seek]
             new_flux.append(np.mean(old_flux[seek:seek+samprate]))
             new_time.append(np.mean(old_time[seek:seek+samprate]))
+            used_samprate.append(samprate)
+            #used_exptime.append(exptime)
             new_samprate.append(1)
             seek += samprate
         self['flux'] = new_flux
         self['time'] = new_time
         self['samprate'] = new_samprate
+        self['used_samprate'] = used_samprate
+        #self['used_exptime'] = used_exptime
         #logger.info("Binned data according to oversampling rate")
     
         

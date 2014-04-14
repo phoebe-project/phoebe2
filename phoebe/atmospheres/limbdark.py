@@ -2081,6 +2081,7 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
         #-- some columns are transformed to log for interpolation, because the
         #   data behaves more or less linearly in log scale.
         log_columns = ['imu1']#,'Teff']
+    
     if nointerp_columns is None:
         #-- not all columns hold data that needs to be interpolated
         nointerp_columns = data_columns + ['alpha_b', 'res','dflux']
