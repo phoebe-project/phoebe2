@@ -1173,9 +1173,14 @@ class Bundle(Container):
         # single numbers, we need to convert them in arraya as long as as the
         # times
         for expand_key in ['samprate', 'exptime']:
-            if expand_key in ds and not hasattr(ds[expand_key],'__len__'):
+            if expand_key in ds and not ds[expand_key].shape:
                 ds[expand_key] = len(ds) * [ds[expand_key]]
         
+        # check if all columns have the same length as time
+        reference_length = len(ds['time']) if 'time' in ds['columns'] else len(ds['phase'])
+        for col in ds['columns']:
+            if not (len(ds[col])==0 or len(ds[col])==reference_length):
+                raise ValueError("Length of column {} in dataset {} does not equal length of time/phase column".format(col, dataref))
         
         output = {}
         skip_defaults_from_body = pbkwargs.keys()
