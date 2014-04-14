@@ -93,19 +93,15 @@ class Axes(Container):
         """
         Return a given plot by index
         
-        @param ident: index of plot or objref:dataref:type
+        @param ident: index of plot or twig
         @type ident: int or str
         @return: the desired plotoptions
         @rtype: ParameterSet        
         """
-        plots = OrderedDict([('{}@{}@{}'.format(pl.get_value('dataref'),pl.get_value('type'),pl.get_value('objref')), pl) for pl in self.sections['plots']])
+        if isinstance(ident,int): 
+            return self._get_dict_of_section('plots', kind='ParameterSet').values()[ident]
         
-        if ident is None:
-            return plots
-        elif isinstance(ident,str):
-            return plots[ident]
-        else:
-            return plots.values()[ident]
+        return self._get_by_section(section='Plots', kind='ParameterSet', label=ident)
             
     def get_selector(self):
         """
@@ -189,9 +185,9 @@ class Axes(Container):
         
         # get options for axes
         ao = {}
-        for key in self.sections['axes'].keys():
+        for key in self.sections['axes'][0].keys():
             if key not in ['location', 'active', 'category', 'xaxis', 'yaxis']:
-                ao[key] = self.sections['axes'].get_value(key)
+                ao[key] = self.sections['axes'][0].get_value(key)
                 
         # override anything set from kwargs
         for key in kwargs:
@@ -199,17 +195,17 @@ class Axes(Container):
 
             
         # control auto options
-        xaxis, yaxis = self.sections['axes']['xaxis'], self.sections['axes']['yaxis']
+        xaxis, yaxis = self.sections['axes'][0]['xaxis'], self.sections['axes'][0]['yaxis']
         if xaxis == 'auto':
             xaxis = 'time'
         if yaxis == 'auto':
-            if self.sections['axes']['category'] == 'lc':
+            if self.sections['axes'][0]['category'] == 'lc':
                 yaxis = 'flux'
-            elif self.sections['axes']['category'] == 'rv':
+            elif self.sections['axes'][0]['category'] == 'rv':
                 yaxis = 'rv'
-            elif self.sections['axes']['category'] == 'sp':
+            elif self.sections['axes'][0]['category'] == 'sp':
                 yaxis = 'wavelength'
-            elif self.sections['axes']['category'] == 'etv':
+            elif self.sections['axes'][0]['category'] == 'etv':
                 yaxis = 'ETV'
         if ao['xlabel'] == 'auto':
             ao['xlabel'] = xaxis
@@ -230,7 +226,7 @@ class Axes(Container):
             
         # add the axes to the figure
         if location is None:
-            location = self.sections['axes']['location'] # location not added in ao
+            location = self.sections['axes'][0]['location'] # location not added in ao
             
         # of course we may be trying to plot to a different figure
         # so we'll override this later if that is the case 
@@ -253,7 +249,7 @@ class Axes(Container):
                 axes = mplfig.add_subplot(111,**ao)
         
         # get phasing information
-        xaxis = self.sections['axes'].get_value('xaxis')
+        xaxis = self.sections['axes'][0].get_value('xaxis')
         phased = xaxis.split(':')[0]=='phase'
         
         # now loop through individual plot commands
