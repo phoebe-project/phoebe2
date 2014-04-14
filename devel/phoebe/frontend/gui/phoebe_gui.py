@@ -239,6 +239,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         QObject.connect(self.mpgl_gridPushButton, SIGNAL("clicked()"), self.on_plot_expand_toggle)
         QObject.connect(self.datasetswidget_main.datasetTreeView, SIGNAL("axes_add"), self.on_axes_add)
         QObject.connect(self.datasetswidget_main.datasetTreeView, SIGNAL("axes_goto"), self.on_axes_goto)
+        #~ QObject.connect(self.datasetswidget_main.datasetTreeView, SIGNAL("parameterCommand"), self.on_param_command) # done in loop below
         QObject.connect(self.mp_splash_binaryPushButton, SIGNAL("clicked()"), self.splash_binary)
         QObject.connect(self.mp_splash_triplePushButton, SIGNAL("clicked()"), self.splash_triple)
         QObject.connect(expanded_plot.popPlot_gridPushButton, SIGNAL("clicked()"), self.on_plot_expand_toggle) 

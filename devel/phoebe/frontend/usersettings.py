@@ -7,6 +7,8 @@ import copy
 from server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
+from phoebe.backend import universe
+
 
 class Container(object):
     """
@@ -16,6 +18,7 @@ class Container(object):
     """
     
     def __init__(self):
+        self.trunk = []
         self.sections = OrderedDict()
         
     ## act like a dictionary
@@ -27,19 +30,202 @@ class Container(object):
         
     def items(self):
         return self.sections.items()
-    
-    def __iter__(self):
-        for param in self.sections.keys():
-            yield self.sections[param]
-        for param in self.get_usersettings().sections.keys():
-            yield self.get_usersettings().sections[param]
         
+    def __getitem__(self, twig):
+        return self.get_value(twig)
+    
+    def __setitem__(self, twig, value):
+        self.set_value(twig, value)
+    
+    #~ def __iter__(self):
+        #~ for _yield in self._loop_through_container(return_type='item'):
+            #~ yield _yield
+    
+    def _loop_through_container(self):
+        return_items = []
+        for section_name,section in self.sections.items():
+            for item in section:
+                ri = self._get_info_from_item(item,section=section_name)
+                return_items.append(ri)
+                    
+                if ri['kind']=='BodyBag':
+                    return_items += self._loop_through_system(item, section_name=section_name)
+                elif ri['kind']=='ParameterSet': # these should be coming from the sections
+                    return_items += self._loop_through_ps(item, section_name=section_name, label=ri['label'])
+        
+        return return_items
+        
+    def _loop_through_ps(self, ps, section_name, label):
+        return_items = []
+        
+        for qualifier in ps:
+            item = ps.get_parameter(qualifier)
+            ri = self._get_info_from_item(item, section=section_name, context=ps.get_context(), label=label)
+            if ri['qualifier'] not in ['ref','label']:
+                return_items.append(ri)
+            
+        return return_items
+        
+    def _loop_through_system(self, system, section_name):
+        return_items = []
+        
+        for path, item in system.walk_all(path_as_string=False):
+            ri = self._get_info_from_item(item, path=path, section=section_name)
+            
+            #~ print path, ri['twig_full'] if ri is not None else None #, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
+            #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
+            
+            # ignore parameters that are synthetics and make sure this is not a duplicate
+            if ri is not None and ri['context']!='syn' and ri['qualifier'] not in ['ref','label'] and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]):
+                return_items.append(ri)
+            
+        return return_items
+        
+    def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None):
+        container = self.__class__.__name__
+        kind = item.__class__.__name__
+
+        if isinstance(item, parameters.ParameterSet):
+            labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
+            component = labels[-1] if len(labels) else None
+            context = item.get_context()
+            label = item.get_value('label') if 'label' in item else None
+            unique_label = None
+            qualifier = None
+        elif isinstance(item, parameters.Parameter):
+            labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
+            component = labels[-1] if len(labels) else None
+            if path:
+                #then coming from the system and we need to build the context from the path
+                #~ context = path[-2] if isinstance(path[-2],str) else path[-2].get_context()
+                context = item.get_context()
+            else:
+                #then we're coming from a section and already know the context
+                context = context
+            if path:
+                #~ if len(labels)>3 and labels[-3][-3:] in ['obs','dep']:
+                if context[-3:] in ['obs','dep']:
+                    # then we need to get the ref of the obs or dep, which is placed differently in the path
+                    # do to bad design by Pieter, this needs a hack to make sure we get the right label
+                    label = path[-2]
+            else:
+                label = label
+            unique_label = item.get_unique_label()
+            qualifier = item.get_qualifier()
+        elif isinstance(item, universe.Body):
+            component = item.get_label()
+            context = None
+            label = None
+            unique_label = None
+            qualifier = None
+        else:
+            return None
+            #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))
+            
+        # now let's do specific overrides
+        if context == 'orbit':
+            component = None
+        
+        if context == section:
+            section_twig = None
+        elif section == 'system' and component != self.get_system().get_label():
+            section_twig = self.get_system().get_label()
+        else:
+            section_twig = section
+            
+        # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
+        twig = self._make_twig([qualifier,label,context,component,section_twig])
+        twig_full = self._make_twig([qualifier,label,context,component,section_twig,container])
+        
+        return dict(qualifier=qualifier, component=component,
+            container=container, section=section, kind=kind, 
+            context=context, label=label, unique_label=unique_label, 
+            twig=twig, twig_full=twig_full, item=item)
+            
+    def _build_trunk(self):
+        self.trunk = self._loop_through_container()
+        
+    def _make_twig(self, path):
+        """
+        compile a twig for an ordered list of strings that makeup the path
+        this list should be [qualifier,label,context,component,section,container]        
+        """
+        # path should be an ordered list (bottom up) of strings
+        while None in path:
+            path.remove(None)
+        return '@'.join(path)
+        
+    def _search_twigs(self, twigglet, trunk=None):
+        """
+        return a list of twigs where twigglet is a substring
+        """
+        if trunk is None:
+            trunk = self.trunk
+        twigs = [t['twig_full'] for t in trunk]
+        return [twig for twig in twigs if twigglet in twig]
+        
+    def _match_twigs(self, twigglet, trunk=None):
+        """
+        return a list of twigs that match the input (from left to right)
+        """
+        if trunk is None:
+            trunk = self.trunk
+        twig_split = twigglet.split('@')
+        
+        matching_twigs_orig = [t['twig_full'] for t in trunk]
+        matching_twigs = [t['twig_full'].split('@') for t in trunk]
+        matching_indices = range(len(matching_twigs))
+        
+        for tsp in twig_split:
+            remove = []
+            for mtwig_i, mtwig in enumerate(matching_twigs):
+                if tsp in mtwig:
+                    # then find where are only keep stuff to the right
+                    ind = mtwig.index(tsp)
+                    mtwig = mtwig[ind+1:]
+                else:
+                    # then remove from list of matching twigs
+                    remove.append(mtwig_i)
+            
+            for remove_i in sorted(remove,reverse=True):
+                matching_twigs.pop(remove_i)
+                matching_indices.pop(remove_i)
+                
+        return [matching_twigs_orig[i] for i in matching_indices] 
+        
+    def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, **kwargs):
+        # can take kwargs for searching by any other key stored in the trunk dictionary
+        
+        # first let's search through the trunk by section
+        trunk = self.trunk
+        for key in kwargs.keys():
+            if len(trunk) and key in trunk[0].keys():
+                trunk = [ti for ti in trunk if ti[key]==kwargs[key]]
+        
+        if twig is not None:
+            matched_twigs = self._match_twigs(twig, trunk)
+        else:
+            matched_twigs = [ti['twig_full'] for ti in trunk]
+        
+        if len(matched_twigs) == 0:
+            if ignore_errors:
+                return None
+            raise ValueError("no parameter found matching the criteria")
+        elif all == False and ignore_errors == False and len(matched_twigs) > 1:
+            results = ', '.join(matched_twigs)
+            raise ValueError("more than one parameter was found matching the criteria: {}".format(results))
+        else:
+            items = [ti if return_trunk_item else ti['item'] for ti in trunk if ti['twig_full'] in matched_twigs]
+            if all:
+                return items
+            else:
+                return items[0]
+                
     ## generic functions to get non-system parametersets
     def _return_from_dict(self, dictionary, all=False, ignore_errors=False):
         """
         this functin takes a dictionary of results from a searching function
         ie. _get_from_section and returns either a single item or the dictionary
-        
         @param dictionary: the dictionary of results
         @type dictionary: dict or OrderedDict
         @param all: whether to return a single item or all in a dictionary
@@ -54,132 +240,26 @@ class Container(object):
                 if ignore_errors:
                     return None
                 raise ValueError("no parameter found matching the criteria")
+                
             elif len(dictionary) > 1:
                 if ignore_errors:
                     return dictionary.values()[0]
                 # build a string representation of the results
                 #~ results = ", ".join(["{} ({})".format(twig, dictionary[twig].get_value()) for twig in dictionary])
                 # but this function is called for more than just get_value, so for now we won't show this info
-                
                 results = ", ".join(["{}".format(twig) for twig in dictionary])
-                raise ValueError("more than one parameter was found matching the criteria: {}".format(results))    
+                raise ValueError("more than one parameter was found matching the criteria: {}".format(results))
+            
             else:
-                return dictionary.values()[0]
-        
-    def _get_from_section_single(self,section):
-        """
-        retrieve a parameterset by section when only one is expected
-        ie. system, gui, logger
-        """
-        items = self._get_from_section(section, search=None, search_by=None,
-                                all=True, ignore_usersettings=True).values()
-        # NOTE: usersettings will always be ignored since search_by == None
-        if len(items) == 0:
-            raise ValueError("ERROR: no {} attached".format(section))
-            return None
-        if len(items) > 1:
-            raise ValueError("ERROR: more than 1 {} attached".format(section))
-        return items[0]
-
+                return dictionary.values()[0] 
                 
-    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_usersettings=False,ignore_errors=False):
-        """
-        retrieve a parameterset (or similar object) by section and label (optional)
-        if the section is also in the defaults set by usersettings, 
-        then those results will be included but overridden by those
-        in the bundle
+    def _get_by_section(self, label=None, section=None, all=False, ignore_errors=False, return_trunk_item=False):
+        twig = section if label is None else "{}@{}".format(label,section) 
+        #~ twig = section if label is None else label
+        return self._get_by_search(twig,section=section,kind='ParameterSet',
+                        all=all, ignore_errors=ignore_errors, 
+                        return_trunk_item=return_trunk_item)
         
-        this function should be called by any get_* function that gets an item 
-        from one of the lists in self.sections
-        
-        @param section: name of the section (key of self.sections)
-        @type section: str
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        @param all: whether to return a single item or all in a dictionary
-        @type all: bool
-        @param ignore_usersettings: whether to ignore defaults in usersettings (default: False)
-        @type ignore_usersettings: bool
-        """
-        # We'll start with an empty dictionary, fill it, and then convert
-        # to the requested format
-        items = OrderedDict()
-        
-        #~ print "***", section, section in self.sections.keys(), ignore_usersettings, search_by
-        
-        # First we'll get the items from the bundle
-        # If a duplicate is found in usersettings, the bundle version will trump it
-        if section in self.sections.keys():
-            for ps in self.sections[section]:
-                #~ if search is None or ps.get_value(search_by)==search:
-                if search is None or fnmatch(ps.get_value(search_by), search):
-                    # if search_by is None then we want to return everything
-                    # NOTE: in this case usersettings will be ignored
-                    if search_by is not None:
-                        try:
-                            key = ps.get_value(search_by)
-                        except AttributeError:
-                            key = len(items)
-                    else:
-                        key = len(items)
-                        
-                    twig = '{}@{}'.format(key, section)
-                    items[twig] = ps
-
-        if not ignore_usersettings and search_by is not None:
-            # Now let's check the defaults in usersettings
-            usersettings = self.get_usersettings().sections
-            if section in usersettings.keys():
-                for ps in usersettings[section]:
-                    #~ if (search is None or ps.get_value(search_by)==search) and ps.get_value(search_by) not in items.keys():
-                    if (search is None or fnmatch(ps.get_value(search_by), search)) and ps.get_value(search_by) not in items.keys():
-                        # Then these defaults exist in the usersettings but 
-                        # are not (yet) overridden by the bundle.
-                        #
-                        # In this case, we need to make a deepcopy and save it
-                        # to the bundle (since it could be edited here).
-                        # This is the version that will be returned in this 
-                        # and any future retrieval attempts.
-                        #
-                        # In order to return to the usersettings default,
-                        # the user needs to remove the bundle version, or 
-                        # access directly from usersettings (bundle.get_usersettings().get_...).
-                        #
-                        # NOTE: in the case of things that have defaults in
-                        # usersettings but not in bundle by default (ie logger, servers, etc)
-                        # this will still create a new copy (for consistency)
-
-                        psc = copy.deepcopy(ps)
-                        key = psc.get_value(search_by)
-                        twig = '{}@{}'.format(key, section)
-                        items[twig] = psc
-                        # now we add the copy to the bundle
-                        self._add_to_section(section,psc)
-                    
-        # and now return in the requested format
-        return self._return_from_dict(items,all,ignore_errors)
-
-    def _remove_from_section(self,section,search,search_by='label'):
-        """
-        remove a parameterset from by section and label
-        
-        this will not affect any defaults set in usersettings - so this
-        function can be called to 'reset to user defaults'
-        
-        this function should be called by any remove_* function that gets an item 
-        from one of the lists in self.sections
-        
-        @param section: name of the section (key of self.sections)
-        @type section: str
-        @param search: value to search by (depending on search_by)
-        @type search: str or None
-        @param search_by: key to search by (defaults to label)
-        @type search_by: str
-        """
-        if search is None:    return None
-        return self.sections[section].remove(self._get_from_section(section,search,search_by))
         
     def _add_to_section(self,section,ps):
         """
@@ -195,6 +275,78 @@ class Container(object):
             self.sections[section] = []
         self.sections[section].append(ps)
         
+    def list_twigs(self):
+        return [t['twig_full'] for t in self.trunk]
+
+    def search(self, twig):
+        return self._search_twigs(twig)
+        
+    def match(self, twig):
+        return self._match_twigs(twig)
+    
+    def get(self, twig):
+        return self._get_by_search(twig, kind=None)
+        
+    def get_all(self, twig):
+        return self._get_by_search(twig, kind=None, all=True)
+        
+    def get_ps(self, twig):
+        return self._get_by_search(twig, kind='ParameterSet')
+
+    def get_parameter(self, twig):
+        return self._get_by_search(twig, kind='Parameter')
+        
+    def info(self, twig):
+        return str(self.get_parameter(twig))
+                
+    def get_value(self, twig):
+        return self.get_parameter(twig).get_value()
+        
+    def set_value(self, twig, value, unit=None):
+        param = self.get_parameter(twig)
+        
+        if unit is None:
+            param.set_value(value)
+        else:
+            param.set_value(value, unit)
+            
+    def set_value_all(self, twig, value, unit=None):
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for param in params:
+            if unit is None:
+                param.set_value(value)
+            else:
+                param.set_value(value, unit)
+                
+    def get_adjust(self, twig):
+        return self.get_parameter(twig).get_adjust()
+        
+    def set_adjust(self, twig, value):
+        param = self.get_parameter(twig)
+        
+        if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
+            lims = param.get_limits()
+            param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
+        param.set_adjust(value)
+        
+    def set_adjust_all(self, twig, value):
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for param in params:
+            if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
+                lims = param.get_limits()
+                param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
+            param.set_adjust(value)
+    
+    def get_prior(self, twig):
+        return self.get_parameter(twig).get_prior()
+        
+    def set_prior(self, twig, **dist_kwargs):
+        param = self.get_parameter(twig)
+        param.set_prior(**dist_kwargs)
+        
+
 
 class Settings(Container):
     """
@@ -242,6 +394,8 @@ class Settings(Container):
         @param basedir: base directory where config files are located
         @type basedir: str
         """
+        super(Settings, self).__init__()
+        
         self.basedir = os.path.expanduser(basedir)
         
         # now let's load the settings from the .cfg files
@@ -260,7 +414,8 @@ class Settings(Container):
         txt = ""
         for section in self.sections.keys():
             if isinstance(self.sections[section],list):
-                for label,ps in self._get_from_section(section, all=True).items():
+                for ps in self._get_by_section(section=section, all=True):
+                    label = ps.get_value('label')
                     if ps is not None:
                         txt += "\n============ {}:{} ============\n".format(section,label)
                         txt += ps.to_string()
@@ -272,10 +427,6 @@ class Settings(Container):
                 
         return txt
         
-    def _get_from_section(self,section,search=None,search_by='label',all=False,ignore_errors=False,ignore_usersettings=False):
-        return super(Settings, self)._get_from_section(section=section, search=search,
-                            search_by=search_by, all=all, ignore_errors=ignore_errors,
-                            ignore_usersettings=True)
                 
     #{ General Parameters
     
@@ -286,7 +437,7 @@ class Settings(Container):
         @return: logger ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section_single('logger')
+        return self._get_by_search('logger', section='logger', ignore_errors=True)
         
     def apply_logger(self):
         """
@@ -312,7 +463,7 @@ class Settings(Container):
         @return: gui ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section_single('gui')
+        return self._get_by_section('default_gui',"gui")
         
     #}
         
@@ -329,7 +480,7 @@ class Settings(Container):
         """
         self.sections['server'].append(Server(label,mpi,**kwargs))
         
-    def get_server(self,label=None,all=False,ignore_errors=False):
+    def get_server(self,label=None):
         """
         get a server by name
         
@@ -338,7 +489,7 @@ class Settings(Container):
         @return: server
         @rtype: Server
         """
-        return self._get_from_section('server',label,all=all,ignore_errors=ignore_errors)
+        return self._get_by_section(label,"server")
         
     def remove_server(self,label):
         """
@@ -377,8 +528,8 @@ class Settings(Container):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label,all=all,ignore_errors=ignore_errors)
-
+        return self._get_by_section(lablel,"compute")
+        
     def remove_compute(self,label):
         """
         Remove a given compute ParameterSet
@@ -412,7 +563,7 @@ class Settings(Container):
             
         self.sections['fitting'].append(fitting)
 
-    def get_fitting(self,label=None,all=False,ignore_errors=False):
+    def get_fitting(self,label=None):
         """
         Get a fitting ParameterSet by name
         
@@ -421,7 +572,7 @@ class Settings(Container):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label,all=all,ignore_errors=ignore_errors)
+        return self._get_by_section(label,"fitting")
         
     def remove_fitting(self,label):
         """
@@ -464,8 +615,8 @@ class Settings(Container):
             
         config = ConfigParser.ConfigParser()
         
-        #~ print "***", section
-        for label,ps in self._get_from_section(section, all=True).items():
+        for ps in self._get_by_section(section=section, all=True):
+            label = ps.get_value('label')
             # here label is the ConfigParser 'section'
             if section == 'server':
                 for subsection in ['server','mpi']:
@@ -548,6 +699,8 @@ class Settings(Container):
         # if logger settings are changed, either reload the usersettings
         # or call apply_logger()
         self.apply_logger()
+        
+        self._build_trunk()
     
     def load_cfg(self, section, basedir=None):
         """

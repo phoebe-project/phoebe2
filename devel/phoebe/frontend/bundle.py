@@ -63,9 +63,6 @@ import phcompleter
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
 
-# delimiter for twigs, some people prefer '@', others '->'
-delim = '@|->'
-
 def run_on_server(fctn):
     """
     Parse usersettings to determine whether to run a function locally
@@ -159,69 +156,19 @@ def run_on_server(fctn):
         return fctn(bundle, *args, **kwargs)
     
     return parse
-
-def build_twig_from_path(thing, path):
-    """
-    Build the twig for a parameter in a system.
     
-    @param thing: some object from a Bundle (Parameter, ParameterSet, Body...)
-    @type thing: some type
-    @param path: all levels of the hieararchy of the thing (as a list of objects)
-    @type path: list of objects
+def rebuild_trunk(fctn):
     """
-    twig = None
-    
-    # We have different behaviour for twigs representing Parameters and
-    # ParameterSets
-    if isinstance(thing, parameters.Parameter): 
+    Parse usersettings to determine whether to run a function locally
+    or submit it to a server
+    """
+    @functools.wraps(fctn)
+    def rebuild(bundle,*args,**kwargs):
+        return_ = fctn(bundle, *args, **kwargs)
+        bundle._build_trunk()
+        return return_
+    return rebuild
         
-        # A twig for a parameterSet is built as:
-        # <qualifier>@[<label>@]<context>[@<component>]
-        
-        # what's the component:
-        labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
-        component = labels[-1] if len(labels) else None
-        qualifier = thing.get_qualifier()
-        
-        # Get the data label or parameter context
-        if isinstance(path[-2],str):
-            context = path[-2] # perhaps add path[-3] as well to get lcdep if there are clashes
-        else:
-            context = ''
-            if 'label' in path[-2]:
-                context += path[-2]['label'] + '@'
-            context += path[-2].get_context()
-            
-        if component is not None:
-            twig = '@'.join([qualifier,context,component])
-        else:
-            twig = '@'.join([qualifier,context])
-    
-    
-    elif isinstance(thing, parameters.ParameterSet):
-        # what's the component:
-        labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')]
-        component = labels[-1] if len(labels) else None
-        context = thing.get_context()
-        if component is not None:
-            twig = '@'.join([context,component])
-        else:
-            twig = '@'.join([context])
-
-    return twig
-    
-
-def generate_twigs(bundle):
-    """
-    Build a list of twigs available in the system.
-    """
-    twigs = []
-    for path, val in walk(bundle):
-        this_twig = build_twig_from_path(val, path)
-        if this_twig is not None and this_twig not in twigs:
-            twigs.append(this_twig)
-    return twigs
-
 
 def walk(mybundle):
     
@@ -335,10 +282,8 @@ class Bundle(Container):
         
         # self.sections is an ordered dictionary containing lists of 
         # ParameterSets (or ParameterSet-like objects)
-        # Each of these lists is searchable via self._get_from_section
-        # and can contain defaults in usersettings which will be used
-        # if there are no overrides in the bundle
-        self.sections = OrderedDict()
+
+        super(Bundle, self).__init__()
         
         self.sections['system'] = [None] # only 1
         self.sections['compute'] = []
@@ -390,7 +335,40 @@ class Bundle(Container):
         readline.set_completer(phcompleter.Completer().complete)
         readline.set_completer_delims(' \t\n`~!#$%^&*)-=+[{]}\\|;:,<>/?')
         readline.parse_and_bind("tab: complete")
+
+    def _loop_through_container(self, return_type='twigs'):
         
+        # we need to override the Container._loop_through_container to 
+        # also search through usersettings and copy any items that do 
+        # not exist here yet
+        
+        # first get items from bundle
+        return_items = super(Bundle, self)._loop_through_container()
+        bundle_twigs = [ri['twig'] for ri in return_items]
+        #~ bundle_unique_labels = [ri['twig'] for ri in return_items]
+        
+        # then get items from usersettings, checking each twig to see if there is a duplicate
+        # with those found from the bundle.  If so - the bundle version trumps.  If not - 
+        # we need to make a copy to the bundle and return that version
+        
+        for ri in self.get_usersettings()._loop_through_container():
+            if ri['twig'] not in bundle_twigs:
+                # then we need to make the copy
+                
+                if ri['section'] in ['compute','fitting']:
+                    item_copy = ri['item'].copy()
+                    
+                    ri['item'] = item_copy
+                    ri['container'] = self.__class__.__name__
+                    ri['twig_full'] = "{}@{}".format(ri['twig'],ri['container'])
+                    
+                    # now we need to attach to the correct place in the bundle
+                    if isinstance(item_copy, parameters.ParameterSet):
+                        self.sections[ri['section']].append(item_copy)
+                    
+                return_items.append(ri) 
+        
+        return return_items
         
     ## string representation
     def __str__(self):
@@ -404,7 +382,7 @@ class Bundle(Container):
         # TODO: expand this to be generic across all sections (with ignore_usersettings?)
         txt = ""
         txt += "============ Compute ============\n"
-        computes = self.get_compute(all=True).values()
+        computes = self._get_by_section(section='compute',all=True)
         for icomp in computes:
             mystring = []
             for par in icomp:
@@ -415,7 +393,7 @@ class Bundle(Container):
             txt += "\n".join(textwrap.wrap(mystring, initial_indent='', subsequent_indent=7*' ', width=79))
             txt += "\n"
         txt += "============ Other ============\n"
-        txt += "{} fitting options\n".format(len(self.get_fitting(all=True).values()))
+        txt += "{} fitting options\n".format(len(self._get_by_section(section='compute',all=True)))
         #txt += "{} axes\n".format(len(self.get_axes(all=True).values()))
         txt += "============ System ============\n"
         txt += self.list(summary='full')
@@ -423,12 +401,6 @@ class Bundle(Container):
         # Default printoption
         np.set_printoptions(threshold=old_threshold)
         return txt
-    
-    def __getitem__(self, twig):
-        return self.get_value(twig)
-    
-    def __setitem__(self, twig, value):
-        self.set_value(twig, value)
     
     #{ Settings
     def set_setting(self,key,value):
@@ -478,18 +450,18 @@ class Bundle(Container):
         """
         return self.usersettings
             
-    def get_server(self,label=None,all=False,ignore_errors=False):
+    def get_server(self,label=None):
         """
         Return a server by name
         
         @param servername: name of the server
         @type servername: string
         """
-        return self._get_from_section('servers',label,all=all,ignore_errors=ignore_errors)
+        return self._get_by_section(label,"server")
         
     #}    
     #{ System
-    
+    @rebuild_trunk
     def set_system(self, system=None, remove_dataref=False):
         """
         Change or set the system.
@@ -555,6 +527,9 @@ class Bundle(Container):
             
             self.sections['system'] = [system]
          
+        # we must build the trunk before attempting to retrieve anything
+        self._build_trunk()
+        
         # got me an error 
         system = self.get_system()
         if system is None:
@@ -582,7 +557,8 @@ class Bundle(Container):
         #else:
         #    i = None
         #self.versions_curr_i = i
-        self.twigs = generate_twigs(self)
+        
+        
         
     def get_system(self):
         """
@@ -591,15 +567,10 @@ class Bundle(Container):
         @return: the attached system
         @rtype: Body or BodyBag
         """
-        # NOTE: since we're passing search_by=None, usersettings will be ignored
-        # so you cannot set a default system in usersettings
-        return self._get_from_section_single('system')
-    
-    def search(self, substring):
-        """
-        Search for substring in the list of twigs.
-        """
-        return [twig for twig in self.twigs if substring in twig]
+        # we have to handle system slightly differently since building
+        # the trunk requires calling this function
+        return self.sections['system'][0]
+        #~ return self._get_by_search(section='system', ignore_errors=True)
     
     def summary(self):
         """
@@ -681,642 +652,6 @@ class Bundle(Container):
             
     #}
     #{ Parameters/ParameterSets
-    
-    def get_ps(self, qualifier, all=False, ignore_errors=False):
-        """
-        Retrieve a ParameterSet(s) from the system
-        
-        Undocumented
-        """
-        # Put the hierarchical structure in a list, that's easier to reference
-        structure_info = []
-        
-        # Extract the info on the name and structure info. The name is always
-        # first
-        qualifier = re.split(delim, qualifier)
-        if len(qualifier)>1:
-            structure_info = qualifier[1:]
-        qualifier = qualifier[0]
-                 
-        # Reverse the structure info, that's easier to handle
-        structure_info = structure_info[::-1]
-        
-        # First we'll loop through matching parametersets and gather all
-        # parameters that match the qualifier
-        found = []
-        
-        # You can always give top level system information if you desire
-        if structure_info and structure_info[0] == self.get_system().get_label():
-            start_index = 1
-        else:
-            start_index = 0
-        
-        # Now walk recursively over all parameters in the system, keeping track
-        # of the history
-        for path, val in self.get_system().walk_all(path_as_string=False):
-            
-            # Only if structure info is given, we need to do some work
-            if structure_info:
-                
-                # We should look for the first structure information before
-                # advancing to deeper levels; as long as we don't encounter
-                # that reference/label/context, we can't look for the next one
-                index = start_index
-                
-                # Look down the tree structure
-                for level in path:
-                    # but only if we still have structure information
-                    if index < len(structure_info):
-                        
-                        # We don't now the name of this level yet, but we'll
-                        # figure it out
-                        name_of_this_level = None
-                        
-                        # If this level is a Body, we check it's label
-                        if isinstance(level, universe.Body):
-                            name_of_this_level = level.get_label()
-                            
-                        # If it is a ParameterSet, we'll try to match the label,
-                        # reference or context
-                        elif isinstance(level, parameters.ParameterSet):
-                            if 'ref' in level:
-                                name_of_this_level = level['ref']
-                            elif 'label' in level:
-                                name_of_this_level = level['label']
-                            if name_of_this_level != structure_info[index]:
-                                name_of_this_level = level.get_context()
-                            
-                            context = level.get_context()
-                            ref = level['ref'] if 'ref' in level else None
-                            label = level['label'] if 'label' in level else None
-                            
-                        # The walk iterator could also give us 'lcsyn' or something
-                        # the like, it apparently doesn't walk over these PSsets
-                        # themselves -- but no problem, this works
-                        elif isinstance(level, str):
-                            name_of_this_level = level
-                            
-                        # We're on the right track and can advance to find the
-                        # next label in the structure!
-                        #~ if name_of_this_level == structure_info[index]:
-                        if isinstance(name_of_this_level,str) and fnmatch(name_of_this_level, structure_info[index]):
-                            index += 1
-                
-                # Keep looking if we didn't exhaust all specifications yet.
-                # If we're at the end already, this will avoid finding a
-                # variable at all (which is what we want)
-                if index < len(structure_info):
-                    continue
-            
-            # Now did we find it?
-            if isinstance(val, parameters.ParameterSet):
-                context = val.get_context()
-                ref = val['ref'] if 'ref' in val else None
-                label = val['label'] if 'label' in val else None
-                #~ if qualifier in [context, ref, label] and not val in found:
-                if True in [isinstance(thing, str) and fnmatch(thing, qualifier) for thing in [context, ref, label]] and not val in found:
-                    found.append(val)
-                    
-        # for now, we'll only search the bundle sections if no other match 
-        # has been found within the system
-        if len(found) == 0:
-            # we should look into subsections here
-            index = 0
-            sections = self.sections.keys()[1:]
-            # now we want the qualifier included as well
-            structure_info = structure_info + [qualifier]
-            if len(structure_info) == 2:
-                mylist = self._get_from_section(structure_info[0],
-                                                search=structure_info[1],
-                                                all=all)
-            elif len(structure_info) == 1:
-                # structure_info[0] may be the section
-                mylist = self._get_from_section(structure_info[0],
-                                                all=all)
-                
-                # or structure_info[0] may be the label
-                for section in sections:
-                    mylist += self._get_from_section(section,
-                                                     search=structure_info[0],
-                                                     all=all)
-            found = found + mylist
-            
-        found = {build_twig_from_path(par, path):par for par in found}
-        return self._return_from_dict(found,all,ignore_errors)
-                
-                    
-        #~ if len(found) == 0:
-            #~ raise ValueError('parameterSet {} with constraints "{}" nowhere found in system'.format(qualifier,"@".join(structure_info)))
-        #~ elif return_type == 'single' and len(found)>1:
-            #~ raise ValueError("more than one parameterSet was returned from the search: either constrain search or set return_type='all'")
-        #~ elif return_type in ['single']:
-            #~ return found[0]
-        #~ else:
-            #~ return found
-            
-            
-    def get_parameter(self, qualifier, all=False, ignore_errors=False):
-        """
-        Smart retrieval of a Parameter(s) from the system.
-
-        If :envvar:`qualifier` is the sole occurrence of a parameter in this
-        Bundle, there is no confusion and that parameter will be returned.
-        If there is another occurrence, then the behaviour depends on the value
-        of :envvar:`all`:
-        
-            - :envvar:`return_type=False`: a ValueError is raised if multiple occurrences exit
-            - :envvar:`return_type=True`: a dictionary with the (flattened) structure.
-       
-        You can specify which qualifier you want with the :envvar:`@` operator.
-        This operator allows you to hierarchically specify which parameter you
-        mean. The general syntax is::
-        
-            <qualifier>@<label/ref/context>@<label/ref/context>
-        
-        You can repeat as many :envvar:`@` operators as you want, as long as
-        it they are hierarchically ordered, with the top level label of the
-        system **last**.
-        
-        Examples::
-        
-            bundle.get_parameter('teff')
-            bundle.get_parameter('teff@star') # star context
-            bundle.get_parameter('teff@Vega') # name of the Star
-            
-            bundle.get_parameter('teff@primary') # if there is Body named primary
-            bundle.get_parameter('teff@primary@V380_Cyg')
-            
-            bundle.get_parameter('time@lcsyn') # no confusion if there is only one lc
-            bundle.get_parameter('flux@my_hipparcos_lightcurve')
-        
-        @param qualifier: qualifier of the parameter, or None to search all
-        @type qualifier: str or None
-        @param all: flag to return all occurences or just one
-        @type all: bool
-        @return: Parameter or list
-        @rtype: Parameter or list
-        """
-        # Put the hierarchical structure in a list, that's easier to reference
-        structure_info = []
-        
-        # Extract the info on the qualifier and structure info. The qualifier
-        # is always first
-        qualifier = re.split(delim, qualifier)
-        if len(qualifier)>1:
-            structure_info = qualifier[1:]
-        qualifier = qualifier[0]
-                 
-        # Reverse the structure info, that's easier to handle
-        structure_info = structure_info[::-1]
-        
-        # First we'll loop through matching parametersets and gather all
-        # parameters that match the qualifier
-        found = {}
-        found_labels = []
-        
-        system = self.get_system()
-        
-        # You can always give top level system information if you desire
-        if structure_info and structure_info[0] == system.get_label():
-            start_index = 1
-        else:
-            start_index = 0
-        
-        # Now walk recursively over all parameters in the system, keeping track
-        # of the history
-        for path, val in system.walk_all(path_as_string=False):
-            
-            # Only if structure info is given, we need to do some work
-            if structure_info:
-                
-                # We should look for the first structure information before
-                # advancing to deeper levels; as long as we don't encounter
-                # that reference/label/context, we can't look for the next one
-                index = start_index
-                
-                # Look down the tree structure
-                for jlevel, level in enumerate(path):
-                    
-                    # but only if we still have structure information
-                    if index < len(structure_info):
-                        
-                        # We don't now the name of this level yet, but we'll
-                        # figure it out
-                        name_of_this_level = None
-                        
-                        # If this level is a Body, we check it's label
-                        if isinstance(level, universe.Body):
-                            name_of_this_level = level.get_label()
-                            
-                        # If it is a ParameterSet, we'll try to match the label,
-                        # reference or context
-                        elif isinstance(level, parameters.ParameterSet):
-                            # Otherwise, check the reference, label or context
-                            if 'ref' in level:
-                                name_of_this_level = level['ref']
-                            elif 'label' in level:
-                                name_of_this_level = level['label']
-                            if name_of_this_level != structure_info[index]:
-                                name_of_this_level = level.get_context()
-                        
-                        # The walk iterator could also give us 'lcsyn' or something
-                        # the like, it apparently doesn't walk over these PSsets
-                        # themselves -- but no problem, this works
-                        elif isinstance(level, str):
-                            name_of_this_level = level
-                            
-                        # We're on the right track and can advance to find the
-                        # next label in the structure!
-                        #~ if name_of_this_level == structure_info[index]:
-                        if isinstance(name_of_this_level,str) and fnmatch(name_of_this_level, structure_info[index]):
-                            index += 1
-                        
-                # Keep looking if we didn't exhaust all specifications yet.
-                # If we're at the end already, this will avoid finding a
-                # variable at all (which is what we want)
-                if index < len(structure_info):
-                    continue
-            
-            # Now did we find it? We also need to check if the found parameter
-            # hasn't already been found (e.g. when two identical  parameterSets
-            # are added).
-            if isinstance(val, parameters.Parameter):
-                #~ if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
-                if fnmatch(val.get_qualifier(), qualifier) and not val.get_unique_label() in found_labels:
-                    
-                    # Special handling of orbits: you can't request orbital
-                    # information of a component, only of the BodyBag.
-                    if 'orbit' in val.get_context() and structure_info:
-                        if not 'orbit' in structure_info[-1] and not (structure_info[-1] == path[-2]['label']):
-                            continue
-                    
-                    # Ignore parameters that are synthetics
-                    if val.get_context()[-3:] == 'syn':
-                        continue
-        
-                    found[build_twig_from_path(val,path)] = val          
-                    found_labels.append(val.get_unique_label())
-        
-        # for now, we'll only search the bundle sections if no other match 
-        # has been found within the system
-        if len(found) == 0:
-            # we should look into subsections here
-            index = 0
-            sections = self.sections.keys()[1:]
-            if len(structure_info) == 2:
-                new = self._get_from_section(structure_info[0],
-                                                search=structure_info[1],
-                                                all=True)
-                for k,v in new.items():
-                    for qualifier,param in v.items():
-                        if qualifier in v.get_label():
-                            found['{}@{}'.format(qualifier,k)] = v
-                    
-            elif len(structure_info) == 1:
-                # structure_info[0] may be the section
-                new = self._get_from_section(structure_info[0],
-                                                all=True)
-                                                
-                for k,v in new.items():
-                    for qualifier,param in v.items():
-                        if qualifier in v.get_label():
-                            found['{}@{}'.format(qualifier,k)] = v
-                
-                # or structure_info[0] may be the label
-                for section in sections:
-                    new = self._get_from_section(section,
-                                                     search=structure_info[0],
-                                                     all=True)
-                    for k,v in new.items():
-                        for qualifier,param in v.items():
-                            if qualifier in v.get_label():
-                                found['{}@{}'.format(qualifier,k)] = v
-            else:
-                mylist = []
-                for section in sections:
-                    new = self._get_from_section(section,
-                                           all=True)
-                    for k,v in new.items():
-                        for qualifier,param in v.items():
-                            if qualifier in v.get_label():
-                                found['{}@{}'.format(qualifier,k)] = v
-                        
-        
-        # We want special handling of some stuff:
-        # 1. passbands need to be the same for every pbdep belonging to a certain
-        #    ref
-        # 2. obs should be really tied to a component or bodybag, we shouldn't
-        #    look deeper if we already found a match
-        # 3. syn should be freely asked of any level if possible, using get_synthetic
-        
-        return self._return_from_dict(found,all,ignore_errors)
-        
-    def get_parameter2(self, qualifier, all=False, ignore_errors=False):
-        """
-        Smart retrieval of a Parameter(s) from the system.
-
-        If :envvar:`qualifier` is the sole occurrence of a parameter in this
-        Bundle, there is no confusion and that parameter will be returned.
-        If there is another occurrence, then the behaviour depends on the value
-        of :envvar:`all`:
-        
-            - :envvar:`return_type=False`: a ValueError is raised if multiple occurrences exit
-            - :envvar:`return_type=True`: a dictionary with the (flattened) structure.
-       
-        You can specify which qualifier you want with the :envvar:`@` operator.
-        This operator allows you to hierarchically specify which parameter you
-        mean. The general syntax is::
-        
-            <qualifier>@<label/ref/context>@<label/ref/context>
-        
-        You can repeat as many :envvar:`@` operators as you want, as long as
-        it they are hierarchically ordered, with the top level label of the
-        system **last**.
-        
-        Examples::
-        
-            bundle.get_parameter('teff')
-            bundle.get_parameter('teff@star') # star context
-            bundle.get_parameter('teff@Vega') # name of the Star
-            
-            bundle.get_parameter('teff@primary') # if there is Body named primary
-            bundle.get_parameter('teff@primary@V380_Cyg')
-            
-            bundle.get_parameter('time@lcsyn') # no confusion if there is only one lc
-            bundle.get_parameter('flux@my_hipparcos_lightcurve')
-        
-        @param qualifier: qualifier of the parameter, or None to search all
-        @type qualifier: str or None
-        @param all: flag to return all occurences or just one
-        @type all: bool
-        @return: Parameter or list
-        @rtype: Parameter or list
-        """
-        # Put the hierarchical structure in a list, that's easier to reference
-        structure_info = []
-        
-        # Extract the info on the qualifier and structure info. The qualifier
-        # is always first
-        qualifier = re.split(delim, qualifier)
-        if len(qualifier)>1:
-            structure_info = qualifier[1:]
-        qualifier = qualifier[0]
-                 
-        # Reverse the structure info, that's easier to handle
-        structure_info = structure_info[::-1]
-        
-        # First we'll loop through matching parametersets and gather all
-        # parameters that match the qualifier
-        found = {}
-        found_labels = []
-        
-        system = self.get_system()
-        
-        # You can always give top level system information if you desire
-        if structure_info and structure_info[0] == system.get_label():
-            start_index = 1
-        else:
-            start_index = 0
-        
-        # Now walk recursively over all parameters in the system, keeping track
-        # of the history
-        for path, val in walk(self):
-            
-            # Only if structure info is given, we need to do some work
-            if structure_info:
-                
-                # We should look for the first structure information before
-                # advancing to deeper levels; as long as we don't encounter
-                # that reference/label/context, we can't look for the next one
-                index = start_index
-                
-                # Look down the tree structure
-                for jlevel, level in enumerate(path):
-                    
-                    # but only if we still have structure information
-                    if index < len(structure_info):
-                        
-                        # We don't now the name of this level yet, but we'll
-                        # figure it out
-                        name_of_this_level = None
-                        
-                        # If this level is a Body, we check it's label
-                        if isinstance(level, universe.Body):
-                            name_of_this_level = level.get_label()
-                            
-                        # If it is a ParameterSet, we'll try to match the label,
-                        # reference or context
-                        elif isinstance(level, parameters.ParameterSet):
-                            # Otherwise, check the reference, label or context
-                            if 'ref' in level:
-                                name_of_this_level = level['ref']
-                            elif 'label' in level:
-                                name_of_this_level = level['label']
-                            if name_of_this_level != structure_info[index]:
-                                name_of_this_level = level.get_context()
-                        
-                        # The walk iterator could also give us 'lcsyn' or something
-                        # the like, it apparently doesn't walk over these PSsets
-                        # themselves -- but no problem, this works
-                        elif isinstance(level, str):
-                            name_of_this_level = level
-                            
-                        # We're on the right track and can advance to find the
-                        # next label in the structure!
-                        #~ if name_of_this_level == structure_info[index]:
-                        if isinstance(name_of_this_level,str) and fnmatch(name_of_this_level, structure_info[index]):
-                            index += 1
-                        
-                # Keep looking if we didn't exhaust all specifications yet.
-                # If we're at the end already, this will avoid finding a
-                # variable at all (which is what we want)
-                if index < len(structure_info):
-                    continue
-            
-            # Now did we find it? We also need to check if the found parameter
-            # hasn't already been found (e.g. when two identical  parameterSets
-            # are added).
-            if isinstance(val, parameters.Parameter):
-                #~ if val.get_qualifier() == qualifier and not val.get_unique_label() in found_labels:
-                if fnmatch(val.get_qualifier(), qualifier) and not val.get_unique_label() in found_labels:
-                    
-                    # Special handling of orbits: you can't request orbital
-                    # information of a component, only of the BodyBag.
-                    if 'orbit' in val.get_context() and structure_info:
-                        if not 'orbit' in structure_info[-1] and not (structure_info[-1] == path[-2]['label']):
-                            continue
-                    
-                    # Ignore parameters that are synthetics
-                    if val.get_context()[-3:] == 'syn':
-                        continue
-        
-                    found[build_twig_from_path(val,path)] = val          
-                    found_labels.append(val.get_unique_label())        
-                        
-        
-        # We want special handling of some stuff:
-        # 1. passbands need to be the same for every pbdep belonging to a certain
-        #    ref
-        # 2. obs should be really tied to a component or bodybag, we shouldn't
-        #    look deeper if we already found a match
-        # 3. syn should be freely asked of any level if possible, using get_synthetic
-        
-        return self._return_from_dict(found,all,ignore_errors)    
-        
-    def info(self, twig):
-        return self.get_parameter(twig).__repr__
-        
-    def get_value(self, twig):
-        """
-        Get the value from a Parameter(s) in the system.
-        
-        For more information on the syntax, see :py:func:`get_parameter <Bundle.get_parameter>`.
-        
-        @param twig: twig of the parameter
-        @type twig: str
-        @return: value of the parameter
-        @rtype: depends on parameter type
-        """
-        par = self.get_parameter(twig, all=False, ignore_errors=False)
-        # at this point there should be only one
-        return par.get_value()
-            
-    
-        
-    def set_value(self, twig, value, unit=None):
-        """
-        Set the value of a Parameter(s) in the system
-        
-        For more information on the syntax, see :py:func:`get_parameter <Bundle.get_parameter>`.
-                
-        @param twig: twig of the parameter
-        @type twig: str
-        @param value: new value of the parameter
-        @type value: depends on parameter type
-        @param unit: unit of the parameter (if there is any)
-        @type unit: str or None
-        """
-        param = self.get_parameter(twig, all=False, ignore_errors=False)
-        if unit is None:
-            param.set_value(value)
-        else:
-            param.set_value(value, unit)
-        
-        # be sure to update the constraints
-        for path, val in self.get_system().walk_all():
-            if isinstance(val, parameters.ParameterSet):
-                val.run_constraints()
-    
-    def set_value_all(self, twig, value, unit=None):
-        """
-        Set the value of any Parameter that matches the twig.
-        """
-        params = self.get_parameter(twig, all=True, ignore_errors=False)
-        for key in params:
-            if unit is None:
-                params[key].set_value(value)
-            else:
-                params[key].set_value(value, unit)
-        
-        # be sure to update the constraints
-        for path, val in self.get_system().walk_all():
-            if isinstance(val, parameters.ParameterSet):
-                val.run_constraints()
-    
-    
-    
-    def get_adjust(self, qualifier, all=False, ignore_errors=False):
-        """
-        Get whether a Parameter(s) in the system is set for adjustment/fitting
-        
-        @param qualifier: qualifier of the parameter, or None to search all
-        @type qualifier: str or None
-        @param all: flag to adjust all occurrences of a parameter, or just one
-        @type all: bool
-        @return: adjust
-        @rtype: bool
-        """
-        par = self.get_parameter(qualifier, all=all, ignore_errors=ignore_errors)
-        return par.get_adjust()
-            
-    def set_adjust(self, qualifier, value, *args, **kwargs):
-        """
-        Set whether a Parameter(s) in the system is set for adjustment/fitting
-        
-        Extra args should not be given.
-        
-        @param qualifier: qualifier of the parameter
-        @type qualifier: str
-        @param value: new value for adjust
-        @type value: bool
-        @param all:
-        @type all: bool
-        """
-        all = kwargs.pop('all', False)
-        if kwargs:
-            raise SyntaxError("set_adjust does not take extra keyword arguments")
-        
-        params = self.get_parameter(qualifier, all=all)
-        
-        if all == False:
-            # check if need to add prior
-            if not params.has_prior() and params.get_qualifier() not in ['l3','pblum']:
-                lims = params.get_limits()
-                params.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
-            params.set_adjust(value, *args)
-        else:
-            for param in params:
-                if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
-                    lims = param.get_limits()
-                    param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
-                param.set_adjust(value, *args)
-        
-    
-    def set_adjust_all(self, value):
-        """
-        Lock or release all parameters.
-        """
-        nr = 0
-        for path, val in self.get_system().walk_all():
-            if isinstance(val, parameters.Parameter):
-                val.set_adjust(value)
-                nr += 1
-                
-        logger.info("Disabled {} parameters from fitting".format(nr))
-                
-            
-    
-    def get_prior(self, qualifier, all=False, ignore_errors=False):
-        """
-        Get a prior.
-        """
-        pars = self.get_parameter(qualifier, all=all, ignore_errors=ignore_errors)
-        return pars.get_prior()
-    
-    
-    def set_prior(self, qualifier, all=False, **dist_kwargs):
-        """
-        Set properties of a prior.
-        
-        Examples initiating, overriding or resetting priors completely:
-        
-        >>> mybundle.set_prior('teff@primary', distribution='uniform', lower=10000, upper=20000)
-        >>> mybundle.set_prior('sma', distribution='normal', mu=10., sigma=1.0)
-        
-        Examples updating existing properties:
-        
-        >>> mybundle.set_prior('teff@primary', lower=15000)
-        
-        See :py:func:`phoebe.parameters.parameters.Parameter.set_prior` and
-        :py:class:`phoebe.parameters.distributions.Distribution`.
-        """
-        pars = self.get_parameter(qualifier, all=all)
-        
-        if all == True and len(pars) != 1:
-            raise ValueError('more than one found')
-        
-        for par in pars:
-            par.set_prior(**dist_kwargs)
             
     def get_logp(self, dataset=None):
         """
@@ -1380,7 +715,7 @@ class Bundle(Container):
         # return the parent of self.get_object(objref)
         return self.get_object(objref).get_parent()
         
-    def get_orbitps(self, objref=None, all=False, ignore_errors=False):
+    def get_orbitps(self, objref=None):
         """
         retrieve the orbit ParameterSet that belongs to a given object
         
@@ -1391,10 +726,10 @@ class Bundle(Container):
         """
         qualifier = 'orbit'
         if objref is not None:
-            qualifier += '{}{}'.format(delim[0],objref)
-        return self.get_ps(qualifier, all=all, ignore_errors=ignore_errors)
+            qualifier += '{}{}'.format("@",objref)
+        return self.get_ps(qualifier)
         
-    def get_meshps(self, objref=None, all=False, ignore_errors=False):
+    def get_meshps(self, objref=None):
         """
         retrieve the mesh ParameterSet that belongs to a given object
         
@@ -1405,11 +740,12 @@ class Bundle(Container):
         """
         qualifier = 'mesh*'
         if objref is not None:
-            qualifier += '{}{}'.format(delim[0],objref)
-        return self.get_ps(qualifier, all=all, ignore_errors=ignore_errors)
+            qualifier += '{}{}'.format("@",objref)
+        return self.get_ps(qualifier)
         
     #}  
     #{ Versions
+    @rebuild_trunk
     def add_version(self,name=None):
         """
         Add the current snapshot of the system as a new version entry
@@ -1473,7 +809,8 @@ class Bundle(Container):
         # set the current system
         # set_system attempts to find the version and reset versions_curr_i
         self.set_system(system)
-        
+    
+    @rebuild_trunk
     def remove_version(self,search,search_by='name'):
         """
         Permanently delete a stored version.
@@ -1508,6 +845,7 @@ class Bundle(Container):
         
     #}
     #{ Datasets
+    @rebuild_trunk
     def _attach_datasets(self, output, skip_defaults_from_body=True):
         """
         attach datasets and pbdeps from parsing file or creating synthetic datasets
@@ -1583,10 +921,9 @@ class Bundle(Container):
 
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
         self.get_system().init_mesh()
-        self.twigs = generate_twigs(self)
         
     
-    
+    #rebuild_trunk done by _attach_datasets
     def load_data(self, category, filename, passband=None, columns=None,
                   objref=None, units={}, dataref=None, scale=False, offset=False):
         """
@@ -1651,7 +988,7 @@ class Bundle(Container):
         if output is not None:
             self._attach_datasets(output, skip_defaults_from_body=dict())
                        
-        
+    #rebuild_trunk done by _attach_datasets
     def create_data(self, category='lc', objref=None, dataref=None, **kwargs):
         """
         Create and attach empty data templates to compute the model.
@@ -1878,7 +1215,7 @@ class Bundle(Container):
                     and (category is None or ds.context[:-3]==category)\
                     and not (objref_orig is None and category is None and ds.context[:-3]=='lc' and this_objref != system.get_label()):
                     
-                    dss['{}{}{}'.format(ds['ref'],delim[0],this_objref)] = ds
+                    dss['{}{}{}'.format(ds['ref'],"@",this_objref)] = ds
                 
                 
         return self._return_from_dict(dss,all,ignore_errors)
@@ -1907,7 +1244,7 @@ class Bundle(Container):
                     for this_dataref in body.params['obs'][obstype]:
                         if dataref is None or dataref==this_dataref:
                             ds = body.params['obs'][obstype][this_dataref]
-                            dss['{}{}{}{}{}'.format(this_dataref,delim[0],obstype,delim[0],this_objref)] = ds
+                            dss['{}{}{}{}{}'.format(this_dataref,"@",obstype,"@",this_objref)] = ds
                             
         return self._return_from_dict(dss,all,ignore_errors)
         
@@ -1963,12 +1300,12 @@ class Bundle(Container):
                         logger.info("Disabled {} '{}'".format(obstype, dataref))
 
 
-    def adjust_obs(self, dataref=None, l3=None, pblum=None):
-        for obs in self.get_obs(dataref=dataref,all=True).values():
-            if l3 is not None:
-                obs.set_adjust('l3',l3)
-            if pblum is not None:
-                obs.set_adjust('pblum',pblum)
+    #~ def adjust_obs(self, dataref=None, l3=None, pblum=None):
+        #~ for obs in self.get_obs(dataref=dataref,all=True).values():
+            #~ if l3 is not None:
+                #~ obs.set_adjust('l3',l3)
+            #~ if pblum is not None:
+                #~ obs.set_adjust('pblum',pblum)
                 
     def reload_obs(self, dataref=None):
         """
@@ -1981,7 +1318,8 @@ class Bundle(Container):
         dss = self.get_obs(dataref=dataref,all=True).values()
         for ds in dss:
             ds.load()
-
+    
+    @rebuild_trunk
     def remove_data(self, dataref):
         """
         @param ref: ref (name) of the dataset
@@ -2005,6 +1343,7 @@ class Bundle(Container):
     #}
     
     #{ Compute
+    @rebuild_trunk
     def add_compute(self,ps=None,**kwargs):
         """
         Add a new compute ParameterSet
@@ -2032,8 +1371,9 @@ class Bundle(Container):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('compute',label,all=all,ignore_errors=ignore_errors)
-        
+        return self._get_by_section(label,"compute")
+    
+    @rebuild_trunk
     def remove_compute(self,label):
         """
         Remove a given compute ParameterSet
@@ -2124,6 +1464,7 @@ class Bundle(Container):
     #}
             
     #{ Fitting
+    @rebuild_trunk
     def add_fitting(self,ps=None,**kwargs):
         """
         Add a new fitting ParameterSet
@@ -2142,7 +1483,7 @@ class Bundle(Container):
         self._add_to_section('fitting',fitting)
         self._attach_set_value_signals(fitting)
             
-    def get_fitting(self,label=None,all=False,ignore_errors=False):
+    def get_fitting(self,label=None):
         """
         Get a fitting ParameterSet by name
         
@@ -2151,8 +1492,9 @@ class Bundle(Container):
         @return: fitting ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_from_section('fitting',label,all=all,ignore_errors=ignore_errors)
+        return self._get_by_section(label,"fitting")
 
+    @rebuild_trunk
     def remove_fitting(self,label):
         """
         Remove a given fitting ParameterSet
@@ -2232,6 +1574,7 @@ class Bundle(Container):
             
         return feedback
     
+    @rebuild_trunk
     def add_feedback(self,ps,alias=None):
         """
         Add fitting results to the bundle.
@@ -2261,6 +1604,7 @@ class Bundle(Container):
         """
         return self._get_from_section('feedback',search,search_by,all=all,ignore_errors=ignore_errors)
         
+    @rebuild_trunk
     def remove_feedback(self,search,search_by='label'):
         """
         Permanently delete a stored feedback.
@@ -2366,8 +1710,8 @@ class Bundle(Container):
         
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        #obj = self.get_object(dss.keys()[0].split(delim)[2])
-        obj = self.get_object(re.split(delim, dss.keys()[0])[2])
+        #obj = self.get_object(dss.keys()[0].split('@')[2])
+        obj = self.get_object(re.split('@', dss.keys()[0])[2])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2418,8 +1762,8 @@ class Bundle(Container):
             raise ValueError("dataref '{}' not found for plotting".format(dataref))
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        #obj = self.get_object(dss.keys()[0].split(delim)[-1])
-        obj = self.get_object(re.split(delim, dss.keys()[0])[-1])
+        #obj = self.get_object(dss.keys()[0].split('@')[-1])
+        obj = self.get_object(re.split('@', dss.keys()[0])[-1])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2444,8 +1788,8 @@ class Bundle(Container):
         
         # Get the obs DataSet and retrieve its context
         ds = dss.values()[0]
-        #obj = self.get_object(dss.keys()[0].split(delim)[2])
-        obj = self.get_object(re.split(delim, dss.keys()[0])[2])
+        #obj = self.get_object(dss.keys()[0].split('@')[2])
+        obj = self.get_object(re.split('@', dss.keys()[0])[2])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
@@ -2479,6 +1823,7 @@ class Bundle(Container):
         
         return self._get_from_section('axes',ident,'title',all=all,ignore_errors=ignore_errors)
         
+    @rebuild_trunk
     def add_axes(self,axes=None,**kwargs):
         """
         Add a new axes with a set of plotoptions
@@ -2499,7 +1844,8 @@ class Bundle(Container):
             axes.set_value(key, kwargs[key])
             
         self._add_to_section('axes',axes)
-        
+    
+    @rebuild_trunk
     def remove_axes(self,ident):
         """
         Removes all axes with a given index or title
@@ -2626,11 +1972,11 @@ class Bundle(Container):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self,label='default',all=False,ignore_errors=False):
+    def get_meshview(self,label=None):
         """
         
         """
-        return self._get_from_section('meshview',search=label,all=all,ignore_errors=ignore_errors)
+        return self._get_by_section(label,"meshview")
       
         
     def _get_meshview_limits(self,times):
@@ -2709,13 +2055,13 @@ class Bundle(Container):
             axes.set_xlim(lims[0],lims[1])
             axes.set_ylim(lims[2],lims[3])
         
-    def get_orbitview(self,label='default',all=False,ignore_errors=False):
+    def get_orbitview(self,label=None):
         """
         
         """
         # TODO: fix this so we can set defaults in usersettings
         # (currently can't with search_by = None)
-        return self._get_from_section('orbitview',search=label,all=all,ignore_errors=ignore_errors)
+        return self._get_by_section(label,'orbitview')
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
@@ -2932,7 +2278,7 @@ class Bundle(Container):
         self.attach_signal(self,'remove_data',self._on_param_changed)
         self.attach_signal(self,'enable_obs',self._on_param_changed)
         self.attach_signal(self,'disable_obs',self._on_param_changed)
-        self.attach_signal(self,'adjust_obs',self._on_param_changed)
+        #~ self.attach_signal(self,'adjust_obs',self._on_param_changed)
         #~ self.attach_signal(self,'restore_version',self._on_param_changed)
         
     def _attach_set_value_signals(self,ps):
@@ -2941,9 +2287,9 @@ class Bundle(Container):
             self.attach_signal(param,'set_value',self._on_param_changed,ps)
             self.attached_signals_system.append(param)
     
+    @rebuild_trunk
     def _add_to_section(self, *args, **kwargs):
         super(Bundle, self)._add_to_section(*args, **kwargs)
-        self.twigs = generate_twigs(self)
     
     def _on_param_changed(self,param,ps=None):
         """
