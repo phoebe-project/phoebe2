@@ -23,8 +23,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
                            limb_zero=False, \
-                           filetag='kurucz', debug_plot=False,
-                           check_passband_coverage=True):
+                           filetag=None, debug_plot=False,
+                           check_passband_coverage=True,
+                           blackbody_wavelength_range=None,
+                           blackbody_teff_range=None):
     r"""
     Create an interpolatable grid of limb darkening coefficients.
     
@@ -73,11 +75,12 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
     **Black body examples**
     
-    Note: due to a strange twist of faith, there is no parameter to set the
-    effective temperature range for blackbodies. If you want to expand the
-    parameter space from the default 10 - 100kK in 200 steps, log-space sampled,
-    you need to change the code in :py:func:`iter_grid_dimensions`. Sorry!
+    The wavelength range for blackbody can be set via :envvar:`blackbody_wavelength_range`. It needs to be an array of wavelength
+    points. It defaults to :envvar:`np.logspace(1,7,10000)`.
     
+    The temperature range for blackbody can be set via :envvar:`blackbody_teff_range`.
+    It defaults to :envvar:`np.logspace(1, 5, 200) (10-100kK in 200 steps).
+        
     Case 0: plain black body
     
         >>> compute_grid_ld_coeffs('blackbody')
@@ -217,8 +220,11 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         atm_files = ['blackbody']
         law = 'uniform'
         atm_pars = ('teff',)
-        filetag = 'blackbody'
+        if filetag is None:
+            filetag = 'blackbody'
         fitmethod = 'none'
+    elif filetag is None:
+        filetag = 'kurucz'
     
     # Let's prepare the list of passbands:
     #  - make sure 'OPEN.BOL' is always in there, this is used for bolometric
@@ -373,8 +379,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     for atm_file in atm_files:
         do_close = False
         # Special case if blackbody: we need to build our atmosphere model
-        if atm_file == 'blackbody':
-            wave_ = np.logspace(1, 6, 10000)
+        if atm_file == 'blackbody' and blackbody_wavelength_range is None:
+            wave_ = np.logspace(1, 7, 10000)
+        elif atm_file == 'blackbody':
+            wave_ = blackbody_wavelength_range
         
         # Check if the file exists
         elif not os.path.isfile(atm_file):
@@ -447,8 +455,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     for atm_file in atm_files:                
         
         # Special case if blackbody: we need to build our atmosphere model
-        if atm_file == 'blackbody':
+        if atm_file == 'blackbody' and blackbody_wavelength_range is None:
             wave_ = np.logspace(1, 7, 10000)
+        elif atm_file == 'blackbody':
+            wave_ = blackbody_wavelength_range
         
         # Check if the file exists
         elif not os.path.isfile(atm_file):
@@ -459,7 +469,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         else:
             open_atm_file = pyfits.open(atm_file)
         
-        iterator = limbdark.iter_grid_dimensions(atm_file, atm_par_names, other_pars)
+        iterator = limbdark.iter_grid_dimensions(atm_file, atm_par_names, other_pars, blackbody_teff_range=blackbody_teff_range)
         for nval, val in enumerate(iterator):
             
             logger.info("{}: {}".format(atm_file, val))
