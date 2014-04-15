@@ -34,7 +34,7 @@ Classes representing meshes and functions to handle them.
    keep_only_results
    merge_results
    init_mesh
-   compute_pblum_or_l3
+   compute_scale_or_offset
     
 Section 1. Basic meshing
 ========================
@@ -346,8 +346,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
     
         1. Correction for distance to the source
         2. Correction for interstellar reddening if the passband is not bolometric
-        3. Correction for manually set passband luminosity
-        4. Scattering phase functions
+        3. Scattering phase functions
     
     @param system: object to compute temperature of
     @type system: Body or derivative class
@@ -365,8 +364,6 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
     # and passband luminosity
     body = system.params.values()[0]
     idep, ref = system.get_parset(ref=ref, type='pbdep')
-    l3 = idep.get('l3',0.)
-    pblum = idep.get('pblum',-1.0)
     
     # Numerical computation (as opposed to analytical)
     if method == 'numerical':
@@ -499,7 +496,8 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         
     # Scale the projected intensity with the distance
     globals_parset = system.get_globals()
-    if globals_parset is not None and pblum < 0:
+    if globals_parset is not None:
+        # distance in solar radii
         distance = globals_parset.get_value('distance') * 3.085677581503e+16 / constants.Rsol
     else:
         distance = 1.0 
@@ -510,33 +508,25 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
     # Take reddening into account (if given), but only for non-bolometric
     # passbands and nonzero extinction
     if ref != '__bol':
+        
+        # if there is a global reddening law
         red_parset = system.get_globals('reddening')
         if (red_parset is not None) and (red_parset['extinction'] > 0):
             ebv = red_parset['extinction'] / red_parset['Rv']
             proj_intens = reddening.redden(proj_intens,
                          passbands=[idep['passband']], ebv=ebv, rtype='flux',
                          law=red_parset['law'])[0]
-            logger.info("Projected intensity is reddening with E(B-V)={} following {}".format(ebv, red_parset['law']))
-    
-    
-    # Passband luminosity
-    if pblum >= 0.0:
-        # This definition of passband luminosity should mimic the definition
-        # of WD
-        #passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2
-        if not 'pblum' in system._clear_when_reset:
-            passband_lum = system.luminosity(ref=ref)/ (100*constants.Rsol)**2    
-            system._clear_when_reset['pblum'] = passband_lum
-        else:
-            passband_lum = system._clear_when_reset['pblum']
-        #passband_lum = 1.00185*passband_lum
-            
+            logger.info("Projected intensity is reddened with E(B-V)={} following {}".format(ebv, red_parset['law']))
         
-        proj_intens = proj_intens * pblum / passband_lum
-       
+        # if there is passband reddening
+        elif 'extinction' in idep and (idep['extinction'] > 0):
+            extinction = idep['extinction']
+            proj_intens = proj_intens / 10**(extinction/2.5)
+            logger.info("Projected intensity is reddened with extinction={} (passband reddening)".format(extinction))
+    
     
     # That's all folks!
-    return proj_intens + l3    
+    return proj_intens
     
     
 def load(filename):
@@ -761,7 +751,7 @@ def check_input_ps(self, ps, contexts, narg, is_list=False):
 
 
 
-def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
+def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
                         type='nnls'):
     r"""
     Rescale the observations to match a model.
@@ -837,21 +827,24 @@ def compute_pblum_or_l3(model, obs, sigma=None, pblum=False, l3=False,
         sigma = np.ones_like(obs)
         
     #   only scaling factor
-    if pblum and not l3:
-        pblum = np.average(obs / model, weights=model**2/sigma**2)
+    if scale and not offset:
+        scale = np.average(obs / model, weights=model**2/sigma**2)
     
     #   only offset
-    elif not pblum and l3:
-        l3 = np.average(obs - model, weights=1.0/sigma**2)
+    elif not scale and offset:
+        offset = np.average(obs - model, weights=1.0/sigma**2)
     
     #   scaling factor and offset
-    elif pblum and l3:
+    elif scale and offset:
         #~ print model.ravel().shape, obs.ravel().shape
         A = np.column_stack([model.ravel(), np.ones(len(model.ravel()))])
         #~ print A.shape
-        pblum, l3 = algorithm(A, obs.ravel())[0]
+        scale, offset = algorithm(A, obs.ravel())[0]
     
-    return pblum, l3
+    return scale, offset
+
+
+
                     
                     
 def _parse_pbdeps(body, pbdep, take_defaults=None):
@@ -1223,7 +1216,7 @@ class Body(object):
         rotate
         translate
         compute
-        compute_pblum_or_l3
+        compute_scale_or_offset
         detect_eclipse_horizon
         compute_centers
         compute_sizes
@@ -1592,14 +1585,28 @@ class Body(object):
         """
         if type in self.params:
             for param in list(self.params[type].values()):
-                for key in param.values():
-                    yield key
+                for value in param.values():
+                    yield value
     
     def walk_dataset(self, type='syn'):
         for val,path in utils.traverse_memory(self,
                                      list_types=(Body, list,tuple),
                                      dict_types=(dict, )):
             if not isinstance(val, datasets.DataSet):
+                continue
+            # Only remember bodies
+            path = [entry for entry in path if isinstance(entry, Body)]
+                        
+            # All is left is to return it
+            yield path, val
+    
+    def walk_pbdep(self):
+        for val,path in utils.traverse_memory(self,
+                                     list_types=(Body, list,tuple),
+                                     dict_types=(dict, )):
+            if not isinstance(val, parameters.ParameterSet):
+                continue
+            elif val.get_context()[-3:]!='dep':
                 continue
             # Only remember bodies
             path = [entry for entry in path if isinstance(entry, Body)]
@@ -1753,6 +1760,118 @@ class Body(object):
     
     
     def compute_pblum_or_l3(self):
+        # Run over all pbdeps and see for which stars the pblum needs to be
+        # computed
+        reference_plum = None
+        do_continue=False
+        for path, pbdep in self.walk_pbdep():
+            
+            if 'computed_pblum' in pbdep:
+                pbdep.remove_constraint('computed_pblum')
+            if 'computed_scaling' in pbdep:
+                pbdep.remove_constraint('computed_scaling')
+                        
+            # Compute pblum here if needed
+            if not do_continue and 'pblum' in pbdep and len(path):
+                this_body = path[-1]
+                this_ref = pbdep['ref']
+            
+                # The first passband luminosity needs to be the reference one,
+                # if any others need to be scaled according to it
+                if reference_plum is None and pbdep['pblum'] > -1:
+                    passband_lum = this_body.luminosity(ref=this_ref) / (100*constants.Rsol)**2
+                    reference_plum = pbdep['pblum'] / passband_lum
+                # if the first one is -1, nothing needs to be computed at all
+                elif reference_plum is None:
+                    do_continue = True
+                    continue
+                # otherwise we need to rescale the current one
+                else:
+                    passband_lum = this_body.luminosity(ref=this_ref) / (100*constants.Rsol)**2
+                    
+                # Now we need the synthetics so that we can scale them.
+                syn = this_body.get_synthetic(ref=this_ref)
+                
+                # Each synthetic needs a difference scaling
+                if syn.context in ['spsyn','plsyn'] and 'flux' in syn:
+                    scale_column = 'flux'
+                elif syn.context == 'lcsyn' and 'flux' in syn:
+                    scale_column = 'flux'
+                elif syn.context == 'rvsyn' and 'rv' in syn:
+                    scale_column = 'rv'
+                else:
+                    logger.error('PBLUM/L3: skipping {}'.format(syn.context))
+                    continue
+                
+                # Take the column to scale and scale it
+                model = np.array(syn[scale_column])
+
+                if pbdep['pblum'] >= 0:
+                    model = model * pbdep['pblum'] / passband_lum
+                    logger.info("Pblum of {} is forced to {}".format(this_ref, pbdep['pblum']))
+                    pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(pbdep['pblum']))
+                    pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(pbdep['pblum'] / passband_lum))
+                else:
+                    model = model * reference_plum
+                    logger.info("Pblum of {} is computed to {}".format(this_ref, reference_plum*passband_lum))
+                    pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(reference_plum*passband_lum))
+                    pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(reference_plum))
+
+                
+    
+    def set_pblum_or_l3(self):
+        do_continue = False
+        for path, pbdep in self.walk_pbdep():
+            
+            if not path:
+                continue
+            
+            this_body = path[-1]
+            this_ref = pbdep['ref']
+            
+            has_computed_pblum = 'computed_pblum' in pbdep.constraints
+            has_nonzero_l3 = 'l3' in pbdep and pbdep['l3'] > 0
+            
+            # Correct for pblum/l3 here if needed
+            if not do_continue and (has_computed_pblum or has_nonzero_l3):
+                
+                if has_computed_pblum:
+                    scale = pbdep.request_value('computed_scaling')
+                else:
+                    scale = None
+                  
+                # Now we need the synthetics so that we can scale them.
+                syn = this_body.get_synthetic(ref=this_ref)
+                
+                # Each synthetic needs a difference scaling
+                if syn.context in ['spsyn','plsyn'] and 'flux' in syn:
+                    scale_column = 'flux'
+                elif syn.context == 'lcsyn' and 'flux' in syn:
+                    scale_column = 'flux'
+                elif syn.context == 'rvsyn' and 'rv' in syn:
+                    scale_column = 'rv'
+                else:
+                    logger.error('PBLUM/L3: skipping {}'.format(syn.context))
+                    continue
+                
+                # and remember the value
+                the_scale_column = np.array(syn[scale_column])
+                if scale is not None:
+                    the_scale_column = scale * the_scale_column
+            
+                # correct for l3. l3 is in units of whatever pblum is (i.e. if
+                # there is no rescaling, it is in absolute fluxes, otherwise it
+                # is in units of *this* pblum)
+                if has_nonzero_l3:
+                    the_scale_column = pbdep['l3'] + the_scale_column
+                
+                # Convert back to a list
+                syn[scale_column] = list(the_scale_column)            
+            
+    
+    
+                
+    def compute_scale_or_offset(self):
         """
         Compute and set passband luminosity and third light if required.
         
@@ -1767,12 +1886,12 @@ class Body(object):
         example for light curves, there is no "one" synthetic light curve,
         every component has its own from which the total one is built.
         
-        See :py:func:`compute_pblum_or_l3` for more information.
+        See :py:func:`compute_scale_or_offset` for more information.
         """
         link = None
         # We need observations of course
         if not 'obs' in self.params:
-            logger.info('Cannot compute pblum or l3, no observations defined')
+            logger.info('Cannot compute scale or offset, no observations defined')
             return None
         
         # We'll collect the complete model first (i.e. all the observations in
@@ -1821,7 +1940,7 @@ class Body(object):
                 sigma = np.array(obs['sigma']/constants.Rsol*(24*3.6e6))
             
             else:
-                logger.error('PBLUM/L3: skipping {}'.format(obs.context))
+                logger.error('SCALE/OFFSET: skipping {}'.format(obs.context))
                 continue
             
             # It is possible that the pblum and l3 are linked to other
@@ -1847,22 +1966,22 @@ class Body(object):
             # should have been computed before when computing the model.
             # Only fit the pblum and l3 here if these parameters are
             # available in the dataset, and they are set to be adjustable
-            do_pblum = False
-            do_l3 = False
-            preset_pblum = 1.0 if not 'pblum' in obs else obs['pblum']
-            preset_l3 = 0.0 if not 'l3' in obs else obs['l3']
+            do_scale = False
+            do_offset = False
+            preset_scale = 1.0 if not 'scale' in obs else obs['scale']
+            preset_offset = 0.0 if not 'offset' in obs else obs['offset']
             
-            if 'pblum' in obs and obs.get_adjust('pblum') and not obs.has_prior('pblum'):
-                do_pblum = True
+            if 'scale' in obs and obs.get_adjust('scale') and not obs.has_prior('scale'):
+                do_scale = True
                 preset_pblum = 1.0
             
-            if 'l3' in obs and obs.get_adjust('l3') and not obs.has_prior('l3'):
-                do_l3 = True
-                preset_l3 = 0.0
+            if 'offset' in obs and obs.get_adjust('offset') and not obs.has_prior('offset'):
+                do_offset = True
+                preset_offset = 0.0
             
             
             # Do the computations
-            if do_pblum or do_l3:
+            if do_scale or do_offset:
                 
                 # We allow for negative coefficients in spectra
                 if obs.context in ['plobs','spobs', 'rvobs']:
@@ -1872,34 +1991,34 @@ class Body(object):
                 else:
                     alg = 'nnls'
                     
-                pblum,l3 = compute_pblum_or_l3(model,
-                               (obser - preset_l3)/preset_pblum,
-                               (sigma/preset_pblum), pblum=do_pblum, l3=do_l3, type=alg)
+                scale, offset = compute_scale_or_offset(model,
+                               (obser - preset_offset)/preset_scale,
+                               (sigma/preset_scale), scale=do_scale, offset=do_offset, type=alg)
             
             #   perhaps we don't need to fit, but we still need to
             #   take it into account
-            if not do_pblum and 'pblum' in obs:
-                pblum = obs['pblum']
-            elif not do_pblum:
-                pblum = 1.0
-            if not do_l3 and 'l3' in obs:
-                l3 = obs['l3']
-            elif not do_l3:
-                l3 = 0.0
+            if not do_scale and 'scale' in obs:
+                scale = obs['scale']
+            elif not do_scale:
+                scale = 1.0
+            if not do_offset and 'offset' in obs:
+                offset = obs['offset']
+            elif not do_offset:
+                offset = 0.0
             #-- set the values and add them to the posteriors
-            if do_pblum:
-                obs['pblum'] = pblum
-            if do_l3:
-                obs['l3'] = l3
+            if do_scale:
+                obs['scale'] = scale
+            if do_offset:
+                obs['offset'] = offset
             if loaded:
                 obs.unload()
             
-            msg = '{}: pblum={:.6g} ({}), l3={:.6g} ({})'
-            logger.info(msg.format(obs['ref'], pblum,\
-                        do_pblum and 'computed' or 'fixed', l3, do_l3 \
+            msg = '{}: scale={:.6g} ({}), offset={:.6g} ({})'
+            logger.info(msg.format(obs['ref'], scale,\
+                        do_scale and 'computed' or 'fixed', offset, do_offset \
                         and 'computed' or 'fixed'))
         
-        # Now we can compute the pblum and l3's for all groups
+        # Now we can compute the scale and offset's for all groups
         if groups:
             for group in groups:
                 
@@ -1910,17 +2029,17 @@ class Body(object):
                 obs = groups[group][3][0]
                 
                 # Only first obs is checked, but they should all be the same
-                do_pblum = False
-                do_l3 = False
+                do_scale = False
+                do_offset = False
                 
-                if 'pblum' in obs and obs.get_adjust('pblum'):
-                    do_pblum = True
+                if 'scale' in obs and obs.get_adjust('scale'):
+                    do_scale = True
                 
-                if 'l3' in obs and obs.get_adjust('l3'):
-                    do_l3 = True
+                if 'offset' in obs and obs.get_adjust('offset'):
+                    do_offset = True
                 
                 # Do the computations
-                if do_pblum or do_l3:
+                if do_scale or do_offset:
                     
                     # We allow for negative coefficients in spectra
                     if obs.context in ['plobs','spobs']:
@@ -1929,28 +2048,28 @@ class Body(object):
                     # But not in other stuff
                     else:
                         alg = 'nnls'
-                    pblum, l3 = compute_pblum_or_l3(model, obser, sigma, 
-                                   pblum=do_pblum, l3=do_l3, type=alg)
+                    scale, offset = compute_scale_or_offset(model, obser, sigma, 
+                                   scale=do_scale, offset=do_offset, type=alg)
                 
                 # perhaps we don't need to fit, but we still need to take it
                 # into account
-                if not do_pblum and 'pblum' in obs:
-                    pblum = obs['pblum']
-                elif not do_pblum:
-                    pblum = 1.0
-                if not do_l3 and 'l3' in obs:
-                    l3 = obs['l3']
-                elif not do_l3:
-                    l3 = 0.0
+                if not do_scale and 'scale' in obs:
+                    scale = obs['scale']
+                elif not do_scale:
+                    scale = 1.0
+                if not do_offset and 'offset' in obs:
+                    offset = obs['offset']
+                elif not do_offset:
+                    offset = 0.0
                 # Set the values for all observations
                 for obs in groups[group][3]:
-                    if do_pblum:
-                        obs['pblum'] = pblum
-                    if do_l3:
-                        obs['l3'] = l3
-                msg = 'Group {} ({:d} members): pblum={:.6g} ({}), l3={:.6g} ({})'
-                logger.info(msg.format(group, len(groups[group][3]),pblum,\
-                            do_pblum and 'computed' or 'fixed', l3, do_l3 \
+                    if do_scale:
+                        obs['scale'] = scale
+                    if do_offset:
+                        obs['offset'] = offset
+                msg = 'Group {} ({:d} members): scale={:.6g} ({}), offset={:.6g} ({})'
+                logger.info(msg.format(group, len(groups[group][3]),scale,\
+                            do_scale and 'computed' or 'fixed', offset, do_offset \
                             and 'computed' or 'fixed'))
     
     def luminosity(self, ref='__bol', numerical=False):
@@ -3586,6 +3705,7 @@ class Body(object):
         @rtype: ParameterSet
         """
         base, ref = self.get_parset(ref=ref, type='syn', category=category)
+        
         return base
 
     
@@ -4468,7 +4588,7 @@ class PhysicalBody(Body):
         
         .. math::
         
-            y = \frac{\Delta \ln I}{(\Delta\ln T_\mathrm{eff})^2 + (\Delta\ln g)^2}
+            y = \frac{\Delta \ln I}{\sqrt{(\Delta\ln T_\mathrm{eff})^2 + (\Delta\ln g)^2}}
             
         """
         parset, ref = self.get_parset(ref=ref)
@@ -4800,8 +4920,9 @@ class PhysicalBody(Body):
                 base['time'].append(time)
                 base['flux'].append(proj_intens)
                 base['samprate'].append(correct_oversampling)
-                
-                
+    
+
+    
     @decorators.parse_ref
     def rv(self,correct_oversampling=1,ref='allrvdep', time=None, beaming_alg='none'):
         """
@@ -4891,7 +5012,7 @@ class BodyBag(Body):
        Body.compute_centers
        Body.compute_normals
        Body.compute_sizes
-       Body.compute_pblum_or_l3
+       Body.compute_scale_or_offset
        Body.detect_eclipse_horizon
     
     **Input/output**
@@ -7349,7 +7470,7 @@ class BinaryRocheStar(PhysicalBody):
         
     def volume(self):
         """
-        Compute volume of a convex mesh.
+        Compute volume of a BinaryRocheStar.
         """
         norm = coordinates.norm(self.mesh['_o_center'],axis=1)
         return np.sum(self.mesh['_o_size']*norm/3.)

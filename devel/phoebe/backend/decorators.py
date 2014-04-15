@@ -253,6 +253,9 @@ def mpirun(fctn):
                 else:
                     system.init_mesh()
                 
+                # Prepare computations of pblum and l3
+                #system.compute_pblum_or_l3()
+                
                 # If we don't add empty orbsyns, we can't merge them in the end
                 if kwargs.get('ltt', False):
                     prepare_ltt(system)
@@ -390,7 +393,10 @@ def mpirun(fctn):
             
             # And compute pblum or l3 and postprocess
             system.bin_oversampling()
+            system.set_time(0)
             system.compute_pblum_or_l3()
+            system.set_pblum_or_l3()
+            system.compute_scale_or_offset()
             system.postprocess(time=None)
             
     return do_run

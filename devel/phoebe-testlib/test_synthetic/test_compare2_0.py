@@ -27,17 +27,16 @@ logger = phoebe.get_basic_logger()
 DELTA = 0.25
 
 basedir = os.path.dirname(os.path.abspath(__file__))
-basedir = os.sep.join(basedir.split(os.sep)[:-1])
-basedir = os.path.join(basedir, 'synthetic')
+#basedir = os.sep.join(basedir.split(os.sep)[:-1])
+#basedir = os.path.join(basedir, 'synthetic')
 
 
 def compare(name, mpi=True):
     # Parse the Legacy file
-    filename = os.path.join(basedir, "{}.phoebe".format(name))
+    filename = name+'.phoebe'#os.path.join(basedir, "{}.phoebe".format(name))
     system, compute = parsers.legacy_to_phoebe(filename, mesh='marching',
                                     create_body=True, root=basedir)
-    print(system.list(summary='long'))
-    print(system.list(summary='physical'))
+    print(system.list(summary='full'))
     
     # Override the mesh density, we don't want to wait forever
     if DELTA is not None:
@@ -51,9 +50,9 @@ def compare(name, mpi=True):
             system[1].params['pbdep']['lcdep'].values()[0]['pblum']
                                 
         system.bodies = system.bodies[:1]
-        phoebe.compute(system, eclipse_alg='full', mpi=mpi)
+        phoebe.compute(system, eclipse_alg='full', mpi=None)
     else:    
-        phoebe.compute(system, eclipse_alg='binary', mpi=mpi,
+        phoebe.compute(system, eclipse_alg='binary', mpi=None,
                        refl=False)
 
 
@@ -90,7 +89,18 @@ def compare(name, mpi=True):
     for result in results:
         print(("{:20.8f}"*4).format(*result))
     
-    return np.array(results)
+    diffs = np.array(results) 
+    
+    calibration = read_lib()
+    name = os.path.basename(name)
+    print(np.abs(diffs-calibration[name])<=1e-3)
+    print(np.abs(diffs)<np.abs(calibration[name]))
+    print(np.abs( (diffs-calibration[name])<=1e-3) | (np.abs(diffs)<np.abs(calibration[name])))
+    print(diffs)
+    print(calibration[name])
+    
+    
+    return diffs
 
 
 def snapshot(name, time):
@@ -218,6 +228,7 @@ def plot_rv(system, comp, ref_rv):
     diffs = (synrv-obs['rv'])[keep]
     plt.plot(obs['time'][keep], diffs, 'b-', lw=2)
     
+
     return diffs
     
 
@@ -229,14 +240,14 @@ def as_test():
     DELTA = 0.25
     calibration = read_lib()
     
-    for name in ['detached_1', 'detached_2', 'reflection_1'][1:2]:
-        diffs = compare(name, mpi=True)
+    for name in ['detached_1', 'detached_2', 'reflection_1'][:2]:
+        name_ = os.path.join(basedir, 'testfiles',name)
+        diffs = compare(name_, mpi=True)
         print(np.abs(diffs-calibration[name])<=1e-3)
         print(np.abs(diffs)<np.abs(calibration[name]))
         print(np.abs( (diffs-calibration[name])<=1e-3) | (np.abs(diffs)<np.abs(calibration[name])))
         print(diffs)
         print(calibration[name])
-        
         assert(np.all(np.abs( (diffs-calibration[name])<=1e-3) | (np.abs(diffs)<np.abs(calibration[name]))))
 
 

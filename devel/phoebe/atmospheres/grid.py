@@ -514,7 +514,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                     flux = table[:,0]
             
             else:
-                wave, flux = wave_*10, Imu_blackbody                                
+                wave, flux = wave_*10, Imu_blackbody*np.pi                                
             
             # Compute disk-integrated fluxes
             disk_integrateds = sed.synthetic_flux(wave, flux, passbands)

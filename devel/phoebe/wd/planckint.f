@@ -1,4 +1,8 @@
       subroutine planckint(t,ifil,ylog,y)
+Cf2py intent(in) t
+Cf2py intent(in) ifil
+Cf2py intent(out) ylog
+Cf2py intent(out) y
       implicit real*8 (a-h,o-z)
 c  Version of January 9, 2002
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

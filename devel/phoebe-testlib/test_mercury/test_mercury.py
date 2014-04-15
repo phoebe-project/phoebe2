@@ -32,8 +32,7 @@ def do_mercury(redist):
     mesh2 = phoebe.PS('mesh:marching', delta=0.04, maxpoints=22000)
 
     globals = phoebe.PS('position', distance=(1,'au')) 
-
-
+    
     sun = phoebe.BinaryStar(sun, mesh=mesh1, orbit=orbit, pbdep=[lcdep1])
     mercury = phoebe.BinaryStar(mercury, mesh=mesh2, orbit=orbit, pbdep=[lcdep2])
 

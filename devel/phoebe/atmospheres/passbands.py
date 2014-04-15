@@ -201,7 +201,7 @@ import logging
 from phoebe.utils import decorators
 
 # Allow for on-the-fly addition of photometric passbands.
-custom_passbands = {'_prefer_file': True}
+custom_passbands = {'_prefer_file': False}
 
 logger = logging.getLogger('ATM.PB')
 
@@ -542,7 +542,7 @@ def add_response(wave, response, passband='CUSTOM.PTF', force=False,
     
     # Check if the passband already exists:
     photfile = os.path.join(os.path.dirname(__file__), 'ptf', passband)
-    if os.path.isfile(photfile) and not kwargs['force']:
+    if os.path.isfile(photfile) and not force:
         raise ValueError('bandpass {0} already exists'.format(photfile))
     elif passband in custom_passbands:
         logger.debug('Overwriting previous definition of {0}'.format(passband))
