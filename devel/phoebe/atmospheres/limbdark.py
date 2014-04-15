@@ -3036,6 +3036,17 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
     else:
         log_msg += " (Prsa law and intensities)"
     
+    # Overwrite intensities if passband gravity darkening is used (testing
+    # feature)
+    if 'pbgravb' in parset_pbdep:
+        pbgravb = parset_pbdep['pbgravb']
+        # we need a reference point for scaling the intensities, we choose the
+        # point with maximum surface gravity (likely the pole)
+        g = 10**system.mesh['logg']
+        index = np.argmax(g)
+        Imax = system.mesh[tag][index,-1]
+        system.mesh[tag][index,-1] = (g/g[index])**pbgravb * Imax
+    
     # 5. Take care of boosting option
     if beaming_alg == 'simple':
         alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
