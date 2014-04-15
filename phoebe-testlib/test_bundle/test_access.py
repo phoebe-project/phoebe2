@@ -26,8 +26,8 @@ def test_access():
     assert(mybundle.get_value('delta@mesh:marching@secondary')==0.5)
     mybundle.set_value('atm@lcdep@secondary', 'blackbody')
     assert(mybundle.get_value('atm@lcdep@secondary')=='blackbody')
-    mybundle.set_value('atm@component@secondary','something')
-    assert(mybundle.get_value('atm@component@secondary')=='something')
+    mybundle.set_value('atm@component@secondary','kurucz')
+    assert(mybundle.get_value('atm@component@secondary')=='kurucz')
     
     
     

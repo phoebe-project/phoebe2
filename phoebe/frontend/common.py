@@ -6,6 +6,7 @@ import copy
 import json
 from phoebe.parameters import parameters
 from phoebe.backend import universe
+from phoebe.atmospheres import limbdark
 
 def rebuild_trunk(fctn):
     """
@@ -594,6 +595,10 @@ class Container(object):
         else:
             param.set_value(value, unit)
             
+        # if atm or ld_coeffs was set, make sure that the table is registered:
+        if param.get_qualifier() in ['atm', 'ld_coeffs']:
+            limbdark.register_atm_table(value)
+            
     def set_value_all(self, twig, value, unit=None):
         """
         set the value of all matching Parameters
@@ -612,6 +617,10 @@ class Container(object):
                 param.set_value(value)
             else:
                 param.set_value(value, unit)
+                
+            # if atm or ld_coeffs was set, make sure that the table is registered:
+            if param.get_qualifier() in ['atm', 'ld_coeffs']:
+                limbdark.register_atm_table(value)
                 
     def get_adjust(self, twig):
         """

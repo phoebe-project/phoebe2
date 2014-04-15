@@ -3736,14 +3736,26 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
 
 #{ System administration
 
-def register_atm_table(atm):
+def register_atm_table(atm, force=False):
     """
     Register an atmosphere table.
-    
-    Sadly, this won't work over MPI.
-    
-    Rethink this whole thing.
     """
+    # If atm is not a string, we can't register it, but we probably don't
+    # need to either (must come from an automated tool)
+    if not isinstance(atm, str):
+        return None
+    
+    # If it's already registered, don't bother except if we want to
+    # override existing results
+    if not force and atm in config.atm_props:
+        return None
+    
+    # if it's not a file, something went wrong
+    if not os.path.isfile(atm):
+        raise IOError("Atmosphere file {} does not exist so it cannot be used. Create the table or use a built-in value for any 'atm' and 'ld_coeffs' (one of {})".format(atm, ", ".join(config.atm_props.keys())))
+    
+    # Otherwise see which parameters need to be interpolated, and remember
+    # those values
     pars = []
     # Read in which parameters need to be interpolated
     with pyfits.open(atm) as open_file:
