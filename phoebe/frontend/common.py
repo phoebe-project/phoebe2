@@ -3,6 +3,7 @@ import functools
 from collections import OrderedDict
 from fnmatch import fnmatch
 import copy
+import json
 from phoebe.parameters import parameters
 from phoebe.backend import universe
 
@@ -171,14 +172,18 @@ class Container(object):
         hidden = qualifier in ['ref','label']
             
         # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
-        #~ print [qualifier,label,context,component,section_twig,container]
         twig = self._make_twig([qualifier,label,context,component,section_twig])
+        #~ twig_reverse = self._make_twig([qualifier,label,context,component,section_twig], invert=True)
         twig_full = self._make_twig([qualifier,label,context,component,section_twig,container])
+        #~ twig_full_reverse = self._make_twig([qualifier,label,context,component,section_twig,container], invert=True)
+        
         
         return dict(qualifier=qualifier, component=component,
             container=container, section=section, kind=kind, 
             context=context, label=label, unique_label=unique_label, 
-            twig=twig, twig_full=twig_full, item=item,
+            twig=twig, twig_full=twig_full, 
+            #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+            item=item,
             hidden=hidden)
             
     def _build_trunk(self):
@@ -197,14 +202,16 @@ class Container(object):
         """
         self.trunk = []
         
-    def _make_twig(self, path):
+    def _make_twig(self, path, invert=False):
         """
         compile a twig for an ordered list of strings that makeup the path
         this list should be [qualifier,label,context,component,section,container]        
         """
+        if invert:
+            path.reverse()
         while None in path:
             path.remove(None)
-        return '@'.join(path)
+        return '{}'.format('/' if invert else '@').join(path)
         
     def _search_twigs(self, twigglet, trunk=None, **kwargs):
         """
@@ -265,7 +272,7 @@ class Container(object):
                 
         return [matching_twigs_orig[i] for i in matching_indices] 
         
-    def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, use_search=False, **kwargs):
+    def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, return_key='item', use_search=False, **kwargs):
         """
         this function searches the cached trunk
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
@@ -303,7 +310,7 @@ class Container(object):
             results = ', '.join(matched_twigs)
             raise ValueError("more than one result was found matching the criteria: {}".format(results))
         else:
-            items = [ti if return_trunk_item else ti['item'] for ti in trunk if ti['twig_full'] in matched_twigs]
+            items = [ti if return_trunk_item else ti[return_key] for ti in trunk if ti['twig_full'] in matched_twigs]
             if all:
                 return items
             else:
@@ -347,7 +354,7 @@ class Container(object):
             # let's restrict to those stored in this constainer (or overriden to appear that way)
             if ti['container'] == this_container:
                 if ti['kind'] == 'Parameter':
-                    f.write('{:<70}={}\n'.format(ti['twig'], ti['item'].get_value()))
+                    f.write('{:<70}= {}\n'.format(ti['twig'], ti['item'].get_value()))
         f.close()
         
     def _load_ascii(self, filename):
@@ -364,11 +371,67 @@ class Container(object):
             info = line.strip().split('=')
             twig, value = info[0].strip(), info[1].strip()
             
-            print "self.set_value('{}', '{}')".format(twig, value)
+            #~ print "self.set_value('{}', '{}')".format(twig, value)
             self.get(twig, hidden=None).set_value(value)
         
-        
         f.close()
+
+    def _save_json(self, filename):
+        """
+        TESTING
+        """
+        
+        this_container = self.__class__.__name__
+        #~ dump_dict = {ti['twig']: 'value': ti['item'].get_value() for ti in self.trunk if ti['container']==this_container and ti['kind']=='Parameter'}
+
+        dump_dict = {}
+        
+        dump_dict['_system_hiearchy'] = 'only binaries currently supported'
+        # TODO will need to include 'hidden' information like refs and labels here as well
+        
+        for ti in self.trunk:
+            if ti['container']==this_container and ti['kind']=='Parameter':
+                item = ti['item']
+                info = {}
+                
+                info['value'] = item.to_str()
+                
+                #~ if hasattr(item, 'get_unit') and item.has_unit():
+                    #~ info['_unit (read-only)'] = item.get_unit()
+                
+                if hasattr(item, 'adjust') and item.adjust:
+                    info['adjust'] = item.adjust
+                    
+                if item.has_prior():
+                    info['prior'] = 'has prior, but export not yet supported'
+                    
+                dump_dict[ti['twig']] = info
+
+        f = open(filename, 'w')
+        f.write(json.dumps(dump_dict, sort_keys=True, indent=4, separators=(',', ': ')))
+        f.close()
+
+    def _load_json(self, filename):
+        """
+        TESTING
+        """
+        f = open(filename, 'r')
+        load_dict = json.load(f)
+        f.close()
+        
+        for twig,info in load_dict.items():
+            if twig[0]!='_':
+                #~ print "self.set_value('{}', '{}')".format(twig, value)
+                item = self.get(twig, hidden=None)
+                
+                if 'value' in info:
+                    item.set_value(info['value'])
+                if 'adjust' in info:
+                    print "HERE", twig, info['adjust']
+                    item.set_adjust(info['adjust'])
+                #~ if 'prior' in info:
+                    #~ item.set_prior(info['prior'])
+            
         
     ## generic functions to get non-system parametersets
     def _return_from_dict(self, dictionary, all=False, ignore_errors=False):
@@ -417,12 +480,12 @@ class Container(object):
             self.sections[section] = []
         self.sections[section].append(ps)
         
-    def list_twigs(self, **kwargs):
+    def list_twigs(self, full=True, **kwargs):
         """
         return a list of all available twigs
         """
         trunk = self._filter_twigs_by_kwargs(**kwargs)
-        return [t['twig_full'] for t in trunk]
+        return [t['twig_full' if full else 'twig'] for t in trunk]
 
     def search(self, twig, **kwargs):
         """
@@ -447,7 +510,7 @@ class Container(object):
         """
         return self._match_twigs(twig, **kwargs)
     
-    def get(self, twig, **kwargs):
+    def get(self, twig=None, **kwargs):
         """
         search and retrieve any item without specifying its type
         
@@ -561,7 +624,7 @@ class Container(object):
         """
         return self.get_parameter(twig).get_adjust()
         
-    def set_adjust(self, twig, value):
+    def set_adjust(self, twig, value=True):
         """
         set whether a Parameter is marked to be adjusted
         
