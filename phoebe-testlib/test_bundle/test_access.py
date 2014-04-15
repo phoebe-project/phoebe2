@@ -10,7 +10,7 @@ def test_access():
     mybundle = phoebe.Bundle(os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe'))
     
     # test get value
-    assert(mybundle.get_value('distance')==10)
+    assert(mybundle.get_value('vgamma')==-12.5)
     assert(mybundle.get_value('teff@primary')==8350)
     #assert(mybundle.get_value('teff->primary')==8350)
     assert(mybundle.get_value('delta@mesh:marching@secondary')==0.0527721121857703257)

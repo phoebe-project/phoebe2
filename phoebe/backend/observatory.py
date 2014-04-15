@@ -2163,6 +2163,10 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     elif (not circular) or (beaming == 'full'):
         system.intensity(ref=ref, beaming_alg=beaming)
     
+    # Compute pblum
+    if i == 0:
+        system.compute_pblum_or_l3()
+    
     # Compute reflection effect (maybe just once, maybe always). If this is done
     # we need to update the intensities
     update_intensity = False
@@ -2177,8 +2181,6 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # reflection)
     if update_intensity:
         system.intensity(ref=ref, beaming_alg=beaming)
-        if i == 0:
-            system[0].clear_from_reset('pblum')
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
@@ -2206,7 +2208,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Call extra funcs if necessary
     for ef, kw in zip(extra_func, extra_func_kwargs):
         ef(system, time, i, **kw)
-    
+        
     # Execute some post-processing steps if necessary
     system.postprocess(time)
     
@@ -2645,12 +2647,12 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         # is called for different parts of the datasets. So no thread has all the
         # information. This is solved in the MPI decorator, which calls the
         # function after everything is merged.
+        system.set_pblum_or_l3()
         try:
-            system.compute_pblum_or_l3()
-            system.postprocess(time=None)
-            
+            system.compute_scale_or_offset()
+            system.postprocess(time=None)            
         except:
-            logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
+           logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
     
         # Scale mesh density
         if mesh_scale != 1:

@@ -1721,6 +1721,14 @@ def interp_ld_coeffs_new(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
+        if False:
+            if interpolate.__doc__ is not None:
+                pars = interpolate(values, axis_values, pixelgrid)
+                print 'result', values[:5],pars[:5]
+            else:
+                pars = interpolate(values.T, axis_values, pixelgrid)
+                pars = pars.reshape((1,-1))
+                print 'result', values.T[:5],pars[:,:5]
         if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     
@@ -1766,7 +1774,7 @@ def interp_boosting(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     @type order: integer
     """
     # Retrieve structured information on the grid (memoized)
-    nointerp_columns = ['a{:d}'.format(i) for i in range(1,10)]+['res','dflux','alpha_b'] + ['imu1']
+    nointerp_columns = ['a{:d}'.format(i) for i in range(1,10)]+['res','dflux','alpha_b','idisk'] + ['imu1']
     
     axis_values, pixelgrid, labels, header = _prepare_grid(passband, atm,
                    nointerp_columns=nointerp_columns, data_columns=['alpha_b'],
@@ -3728,13 +3736,21 @@ def projected_velocity(system,los=[0,0,+1],method='numerical',ld_func='claret',r
 
 #{ System administration
 
-def register_atm_table(atm, pars=('teff', 'logg')):
+def register_atm_table(atm):
     """
     Register an atmosphere table.
     
     Sadly, this won't work over MPI.
+    
+    Rethink this whole thing.
     """
-    config.atm_props[atm] = pars
+    pars = []
+    # Read in which parameters need to be interpolated
+    with pyfits.open(atm) as open_file:
+        for key in open_file[0].header.keys():
+            if key[:6] == 'C__AI_':
+                pars.append(open_file[0].header[key])
+    config.atm_props[atm] = tuple(pars)
     logger.info("Registered atm table {} to interpolate in {}".format(atm, pars))
 
 def get_paths():

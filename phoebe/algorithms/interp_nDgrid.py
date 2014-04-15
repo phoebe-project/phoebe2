@@ -3,6 +3,7 @@ Non-standard interpolation methods.
 """
 import time
 import itertools
+import interp
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage import _nd_image, _ni_support
@@ -84,7 +85,11 @@ def interpolate(p, axis_values, pixelgrid, order=1, mode='constant', cval=0.0):
     return [ndimage.map_coordinates(pixelgrid[...,i],p_coord, order=order,
                                     prefilter=prefilter, mode=mode, cval=cval) \
                 for i in range(np.shape(pixelgrid)[-1])]
-    
+
+def interpolate_andrej(p, axis_values, pixelgrid):    
+    #req  = np.array(zip(reqT, reqL, reqM))
+    res = interp.interpIntensity(p, axis_values, pixelgrid)
+    return res
 
 
 if __name__ == "__main__":

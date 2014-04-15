@@ -27,6 +27,21 @@ import os.path
 logger = logging.getLogger('PARSER')
 logger.addHandler(logging.NullHandler())
 
+def try_to_locate_file(filename, rootfile=None):
+    found = False
+    if os.path.isfile(filename):
+        found = filename
+    elif os.path.isfile(os.path.basename(filename)):
+        found = os.path.basename(filename)
+    else:
+        rootdir = os.path.dirname(os.path.abspath(rootfile))
+        if os.path.isfile(os.path.join(rootdir, filename)):
+            found = os.path.join(rootdir, filename)
+    
+    return found
+            
+    
+
 def legacy_to_phoebe(inputfile, create_body=False,
                      mesh='wd', root=None):
     """
@@ -82,7 +97,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
                                     add_constraints=True)
     comp2 = parameters.ParameterSet(frame='phoebe',context='component',label='secondary',
                                     add_constraints=True)
-    globals = parameters.ParameterSet('position')
+    position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
                                       heating=True, label='from_legacy',
                                       eclipse_alg='binary', subdiv_num=3)
@@ -281,18 +296,18 @@ def legacy_to_phoebe(inputfile, create_body=False,
             orbit.get_parameter('rm').set_adjust(int(val))
                        
         elif key == 'phoebe_vga.VAL':
-            globals['vgamma'] = (val,'km/s')  
+            position['vgamma'] = (val,'km/s')  
         elif key == 'phoebe_vga.MAX':
-            globals.get_parameter('vgamma').set_limits(ulim=float(val))
-            lower, upper = globals.get_parameter('vgamma').get_limits()
-            globals.get_parameter('vgamma').set_prior(distribution='uniform',
+            position.get_parameter('vgamma').set_limits(ulim=float(val))
+            lower, upper = position.get_parameter('vgamma').get_limits()
+            position.get_parameter('vgamma').set_prior(distribution='uniform',
                                                   lower=lower, upper=upper)
         elif key == 'phoebe_vga.MIN':
-            globals.get_parameter('vgamma').set_limits(llim=float(val))
+            position.get_parameter('vgamma').set_limits(llim=float(val))
         elif key == 'phoebe_vga.STEP':
-            globals.get_parameter('vgamma').set_step(step=float(val))                     
+            position.get_parameter('vgamma').set_step(step=float(val))                     
         elif key == 'phoebe_vga.ADJ':
-            globals.get_parameter('vgamma').set_adjust(int(val))
+            position.get_parameter('vgamma').set_adjust(int(val))
                      
         elif key == 'phoebe_sma.VAL':
             orbit['sma'] = (val,'Rsol')    
@@ -613,16 +628,16 @@ def legacy_to_phoebe(inputfile, create_body=False,
             filename = val[2:-2]
             # If a root directory is given, set the filepath to be relative
             # from there (but store absolute path name)
-            if root is not None:
-                filename = os.path.join(root, os.path.basename(filename))
+            #if root is not None:
+            #    filename = os.path.join(root, os.path.basename(filename))
             rv_file.append(filename)
             
         if key == 'phoebe_lc_filename':
             filename = val[2:-2]
             # If a root directory is given, set the filepath to be relative
             # from there (but store absolute path name)
-            if root is not None:
-                filename = os.path.join(root, os.path.basename(filename))
+            #if root is not None:
+            #    filename = os.path.join(root, os.path.basename(filename))
             lc_file.append(filename)        
             
         if key == 'phoebe_rv_id':
@@ -665,6 +680,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             adjust_cla = int(val)
         if key == 'phoebe_el3.ADJ':
             adjust_l3 = int(val)
+        
+        if key == 'phoebe_usecla_switch':
+            use_cla = int(val)
                 
     orbit['long_an'] = 0.
  
@@ -687,7 +705,10 @@ def legacy_to_phoebe(inputfile, create_body=False,
         lcdep2[i]['ld_func'] = comp2['ld_func']
         #-- make sure lables are the same
         lcdep2[i]['ref'] = lcdep1[i]['ref']
-
+        
+        if not use_cla:
+            lcdep2[i]['pblum'] = -1
+            
         lcdep1[i].get_parameter('pblum').set_adjust(adjust_hla)
         lcdep2[i].get_parameter('pblum').set_adjust(adjust_cla)
         lcdep1[i].get_parameter('l3').set_adjust(adjust_l3)
@@ -696,50 +717,54 @@ def legacy_to_phoebe(inputfile, create_body=False,
         if lc_file[i] != "Undefined":
             if lcsigma[i] == 'undefined': 
                 if lctime[i]=='time':
-                    if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
-                        col1lc,col2lc = np.loadtxt(lc_file[i], unpack=True)
+                    found_file = try_to_locate_file(lc_file[i], inputfile)
+                    if found_file:
+                        col1lc,col2lc = np.loadtxt(found_file, unpack=True)
                         obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                     else:
-                        logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
+                        logger.warning("The (time) light curve file {} cannot be located.".format(lc_file[i]))                    
                 else:
-                    if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
-                        col1lc,col2lc = np.loadtxt(lc_file[i], unpack=True)
+                    found_file = try_to_locate_file(lc_file[i], inputfile)
+                    if found_file:
+                        col1lc,col2lc = np.loadtxt(found_file, unpack=True)
                         obslc.append(datasets.LCDataSet(phase=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                     else:
-                        logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
+                        logger.warning("The (phase) light curve file {} cannot be located.".format(lc_file[i]))                    
             else:
                 if lctime[i]=='time':
                     if lcsigma[i]=='sigma': 
-                        if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
-                            col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
+                        found_file = try_to_locate_file(lc_file[i], inputfile)
+                        if found_file:
+                            col1lc,col2lc,col3lc = np.loadtxt(found_file, unpack=True)
                             obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
-                            logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
+                            logger.warning("The light curve (1) file {} cannot be located.".format(lc_file[i]))                    
                     else:
-                        if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
-                            col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
+                        found_file = try_to_locate_file(lc_file[i], inputfile)
+                        if found_file:
+                            col1lc,col2lc,col3lc = np.loadtxt(found_file, unpack=True)
                             obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
-                            logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
+                            logger.warning("The light curve (2) file {} cannot be located.".format(lc_file[i]))                    
                 else:
                     if lcsigma[i]=='sigma': 
                         if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
-                            logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
+                            logger.warning("The light curve file (3) {} cannot be located.".format(lc_file[i]))                    
                     else:
                         if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            ref="lightcurve_"+str(j), filename=str(lc_file[i]), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
-                            logger.warning("The light curve file {} cannot be located.".format(lc_file[i]))                    
+                            logger.warning("The light curve file (4) {} cannot be located.".format(lc_file[i]))                    
  
                 l+=1#counts the number of the observations for component 1
             j+=1#counts the number of observations and synthetic rv curves for component 1
@@ -925,9 +950,9 @@ def legacy_to_phoebe(inputfile, create_body=False,
             star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2) 
                    
         if lcno !=0:
-            bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=globals,obs=obslc)
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=position,obs=obslc)
         else:
-            bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=globals)
+            bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=position)
         
         # Set the name of the thing
         bodybag.set_label(system_label)
@@ -945,8 +970,372 @@ def legacy_to_phoebe(inputfile, create_body=False,
     body2 = comp2, mesh2, lcdep2, rvdep2, obsrv2
     logger.info("Successfully parsed Phoebe Legacy file {}".format(inputfile))
     
-    return body1, body2, orbit, globals, obslc, compute 
+    return body1, body2, orbit, position, obslc, compute 
 
+
+def _to_legacy_atm(component, ref, category='lc'):
+    """
+    Parse ld_coeffs, ld_func, atm
+    """
+    warnings = []
+    if not isinstance(component, parameters.ParameterSet):
+        if ref != '__bol':
+            pbdep = component.params['pbdep'][category+'dep'][ref]
+        else:
+            pbdep = component.params['component']
+    else:
+        pbdep = component
+    
+    # ld_model
+    ld_model = pbdep['ld_func']
+    if ld_model == 'logarithmic':
+        ld_model = 'Logarithmic law'
+    elif ld_model == 'linear':
+        ld_model = 'Linear cosine law'
+    elif ld_model == 'square_root':
+        ld_model = 'Square root law'
+    else:
+        ld_model = 'Linear cosine law'
+        pbdep['ld_coeffs'] = [0.5, 0.0]
+        warnings.append('Cannot translate ld_func={} to legacy: set linear cosine law with coefficient 0.5'.format(pbdep['ld_func']))
+        
+    # if the ld_coeffs are taken from a grid, get the average ones from the mesh
+    ld_coeffs = pbdep['ld_coeffs']
+    if isinstance(ld_coeffs, str):
+        ld_coeffs = component.mesh['ld_{}'.format(ref)]
+        ld_coeffs = ld_coeffs.mean(axis=1)[:2]
+        warnings.append("Cannot translate ld_coeffs={} to legacy: taking mean value over the surface".format(pbdep['ld_coeffs']))
+    else:
+        ld_coeffs = ld_coeffs[:2]
+    
+    if len(ld_coeffs) == 1:
+        ld_coeffs = ld_coeffs + [0.0]
+    elif not len(ld_coeffs) == 2:
+        raise ValueError("Cannot translate ld_coefffs={} to legacy at all".format(pbdep['ld_coeffs']))
+    
+    # atmosphere file
+    atm = pbdep['atm']
+    if atm == 'blackbody':
+        atm = 0
+    elif atm == 'kurucz':
+        atm = 1
+    else:
+        warnings.append("Cannot translate atm={} to legacy: falling back to blackbody".format(pbdep['atm']))
+        atm = 0
+        
+    return atm, ld_model, ld_coeffs, warnings
+
+
+def _to_legacy_lc(lcobs, lcdep1, lcdep2, phoebe_ld_model, phoebe_atm1_switch,
+                  phoebe_atm2_switch):
+    """
+    Parse ld_coeffs, ld_func, atm
+    """
+    warnings = []
+    parameters = dict()
+    
+    atm1, ld_model1, ld_coeffs1, warnings1 = _to_legacy_atm(lcdep1, lcdep1['ref'], category='lc')
+    atm2, ld_model2, ld_coeffs2, warnings2 = _to_legacy_atm(lcdep2, lcdep1['ref'], category='lc')
+    
+    warnings += warnings1
+    warnings += warnings2
+    
+    # ld models need to be the same and equal to the bolometric one
+    if lcdep1['ld_func'] != phoebe_ld_model:
+        warnings.append('Primary passband ld_model of {} forced to bolometric one, also copying coefficients'.format(lcobs['ref']))
+    
+    if lcdep1['passband'] != lcdep2['passband']:
+        raise ValueError("Passband incompatibility!")
+   
+    parameters['phoebe_lc_id'] = lcobs['ref']
+    parameters['phoebe_lc_filename'] = lcobs['filename']
+    parameters['phoebe_lc_dep'] = "Time (HJD)" if 'time' in lcobs['columns'] else "Phase"
+    parameters['phoebe_lc_indep'] = "Flux" if 'flux' in lcobs['columns'] else "Magnitude"
+    parameters['phoebe_lc_filter'] = lcdep1['passband']
+    parameters['phoebe_ld_lcx1'] = ld_coeffs1[0]
+    parameters['phoebe_ld_lcy1'] = ld_coeffs1[1]
+    parameters['phoebe_ld_lcx2'] = ld_coeffs2[0]
+    parameters['phoebe_ld_lcy2'] = ld_coeffs2[1]
+        
+    parameters['phoebe_ld_lcx1_adj'] = 0
+    parameters['phoebe_ld_lcx2_adj'] = 0
+    parameters['phoebe_ld_lcx1_min'] = 0
+    parameters['phoebe_ld_lcx2_min'] = 0
+    parameters['phoebe_ld_lcx1_max'] = 1
+    parameters['phoebe_ld_lcx2_max'] = 1
+    parameters['phoebe_ld_lcx1_step'] = 1e-6
+    parameters['phoebe_ld_lcx2_step'] = 1e-6
+    
+    if not 'extinction' in lcdep1:
+        parameters['phoebe_extinction'] = 0.0
+        parameters['phoebe_extinction_adj'] = 0
+        parameters['phoebe_extinction_min'] = 0.0
+        parameters['phoebe_extinction_max'] = 100.0
+        parameters['phoebe_extinction_step'] = 1e-6
+        
+    
+    parameters['phoebe_el3'] = lcdep1['l3']
+    par_p1 = 'el3'
+    par_p2 = 'l3'
+    out = _to_legacy_parameter(lcdep1.get_parameter(par_p2))
+    parameters['phoebe_{}_val'.format(par_p1)] = out[0]
+    parameters['phoebe_{}_adj'.format(par_p1)] = out[1]
+    parameters['phoebe_{}_step'.format(par_p1)] = out[4]
+    parameters['phoebe_{}_min'.format(par_p1)] = out[2]
+    parameters['phoebe_{}_max'.format(par_p1)] = out[3]
+    
+    parameters['phoebe_lc_active'] = lcobs.get_enabled()
+    
+    # Passband luminosities
+    pblum1 = lcdep1['pblum']
+    pblum2 = lcdep2['pblum']
+    
+    par_p1 = 'hla'
+    par_p2 = 'pblum'
+    out = _to_legacy_parameter(lcdep1.get_parameter('pblum'))
+    parameters['phoebe_{}_val'.format(par_p1)] = out[0]
+    parameters['phoebe_{}_adj'.format(par_p1)] = out[1]
+    parameters['phoebe_{}_step'.format(par_p1)] = out[4]
+    parameters['phoebe_{}_min'.format(par_p1)] = out[2]
+    parameters['phoebe_{}_max'.format(par_p1)] = out[3]
+    
+    par_p1 = 'cla'
+    par_p2 = 'pblum'
+    out = _to_legacy_parameter(lcdep2.get_parameter('pblum'))
+    parameters['phoebe_{}_val'.format(par_p1)] = out[0]
+    parameters['phoebe_{}_adj'.format(par_p1)] = out[1]
+    parameters['phoebe_{}_step'.format(par_p1)] = out[4]
+    parameters['phoebe_{}_min'.format(par_p1)] = out[2]
+    parameters['phoebe_{}_max'.format(par_p1)] = out[3]
+    
+    if lcobs.get_adjust('scale'):
+        parameters['phoebe_compute_hla_switch'] = 1
+    else:
+        parameters['phoebe_compute_hla_switch'] = 0
+        
+    parameters['phoebe_usecla_switch'] = 1
+    
+    if pblum1 == -1:
+        pblum1 = 4*np.pi
+    if pblum2 == -1:
+        pblum2 = 0.0
+        parameters['phoebe_usecla_switch'] = 0        
+        
+    parameters['phoebe_hla'] = pblum1
+    parameters['phoebe_cla'] = pblum2
+
+    # Cadence
+    parameters['phoebe_cadence_switch'] = len(lcobs['samprate']) if 'samprate' in lcobs else 0
+    if parameters['phoebe_cadence_switch']:
+        parameters['phoebe_cadence_rate'] =  lcobs['samprate'][0] if 'samprate' in lcobs else 10
+        parameters['phoebe_cadence'] = lcobs['exptime'][0] if 'exptime' in lcobs else 0
+    else:
+        parameters['phoebe_cadence_rate'] = 0
+        parameters['phoebe_cadence'] = 0
+        
+    return parameters, warnings
+
+
+
+
+def _to_legacy_parameter(parameter, units=None):
+    value = parameter.get_value()
+    adj = 1 if parameter.get_adjust() else 0
+    if parameter.has_limits():
+        minim = parameter.get_limits()[0]
+        maxim = parameter.get_limits()[1]
+        step = (maxim-minim)*1e-6
+    else:
+        minim = -1000000
+        maxim = +1000000
+        step = (maxim-minim)*1e-6
+    
+    # Some special cases:
+    if parameter.get_qualifier()=='alb':
+        value = 1-value
+        minim = 1-minim
+        maxim = 1-maxim
+        
+    return value, adj, minim, maxim, step
+    
+
+
+def phoebe_to_legacy(bundle, outfile):
+    """
+    Parse Phoebe2 to legacy.
+    """
+    system = bundle.get_system()
+    refs = system.get_refs(per_category=True)
+    warnings = []
+    
+    if not (hasattr(system, 'bodies') and len(system)==2 and isinstance(system[0], universe.BinaryRocheStar) and isinstance(system[1], universe.BinaryRocheStar)):
+        raise ValueError("System is not a normal binary, cannot parse to Phoebe legacy file")
+    
+    # number of light curves and radial velocity curves:
+    if 'lc' in refs:
+        phoebe_lcno = len(refs['lc'])
+    else:
+        phoebe_lcno = 0
+    if 'rv' in refs:
+        phoebe_rvno = len(refs['rv'])
+    else:
+        phoebe_rvno = 0
+    
+    phoebe_name = system.get_label()
+    
+    # Compute stuff
+    #==================
+    compute = bundle.get_compute(label='detailed')
+    phoebe_reffect_switch = 0 if compute['irradiation_alg']=='point_source' else 1
+    phoebe_reffect_reflections = compute['refl_num']
+    
+    # Orbital stuff
+    #==================
+    orbit = system[0].params['orbit']
+    par_p2s = ['dpdt', 'sma', 't0', 'dperdt', 'phshift', 'q', 'ecc', 'per0', 'period']
+    par_p1s = ['dpdt', 'sma', 'hjd0', 'dperdt','pshift', 'rm', 'ecc', 'perr0', 'period']
+    for par_p2, par_p1 in zip(par_p2s, par_p1s):
+        out = _to_legacy_parameter(orbit.get_parameter(par_p2))
+        locals()['phoebe_{}_val'.format(par_p1)] = out[0]
+        locals()['phoebe_{}_adj'.format(par_p1)] = out[1]
+        locals()['phoebe_{}_step'.format(par_p1)] = out[4]
+        locals()['phoebe_{}_min'.format(par_p1)] = out[2]
+        locals()['phoebe_{}_max'.format(par_p1)] = out[3]
+        
+    # Position stuff
+    #==================
+    position = system.params['position']
+    par_p2s = ['vgamma']
+    par_p1s = ['vga']
+    for par_p2, par_p1 in zip(par_p2s, par_p1s):
+        out = _to_legacy_parameter(position.get_parameter(par_p2))
+        locals()['phoebe_{}_val'.format(par_p1)] = out[0]
+        locals()['phoebe_{}_adj'.format(par_p1)] = out[1]
+        locals()['phoebe_{}_step'.format(par_p1)] = out[4]
+        locals()['phoebe_{}_min'.format(par_p1)] = out[2]
+        locals()['phoebe_{}_max'.format(par_p1)] = out[3]
+            
+    # Component stuff
+    #==================
+    comp1 = system[0].params['component']
+    comp2 = system[1].params['component']
+    
+    try:
+        #'X-ray binary'
+        #'Overcontact binary of the W Uma type'
+        #'Overcontact binary not in thermal contact'
+        #'Semi-detached binary, primary star fills Roche lobe'
+        #'Semi-detached binary, secondary star fills Roche lobe'
+        #'Double contact binary'
+        phoebe_model = dict(detached='Detached binary', unconstrained='Unconstrained binary system')[comp1['morphology']]
+    except KeyError:
+        raise KeyError("Model {} not implemented yet in parser".format(comp1['morphology']))
+    
+    par_p2s = ['syncpar', 'gravb', 'abun','pot','teff','alb']
+    par_p1s = ['f','grb','met','pot','teff','alb']
+    for i,comp in zip(range(1,3),[comp1,comp2]):
+        for par_p2, par_p1 in zip(par_p2s, par_p1s):
+            out = _to_legacy_parameter(comp.get_parameter(par_p2))
+            locals()['phoebe_{}{}_val'.format(par_p1,i)] = out[0]
+            locals()['phoebe_{}{}_adj'.format(par_p1,i)] = out[1]
+            locals()['phoebe_{}{}_step'.format(par_p1,i)] = out[4]
+            locals()['phoebe_{}{}_min'.format(par_p1,i)] = out[2]
+            locals()['phoebe_{}{}_max'.format(par_p1,i)] = out[3]
+    
+    phoebe_grid_finesize1 = marching.delta_to_gridsize(system[0].params['mesh']['delta'])
+    phoebe_grid_finesize2 = marching.delta_to_gridsize(system[1].params['mesh']['delta'])
+    
+    # Atmosphere stuff
+    #==================
+    phoebe_atm1_switch, phoebe_ld_model, ld_coeffs1_bol, warnings1 = _to_legacy_atm(system[0], '__bol')
+    phoebe_atm2_switch, ld_model2_bol, ld_coeffs2_bol, warnings2 = _to_legacy_atm(system[1], '__bol')
+    
+    warnings += warnings1
+    warnings += warnings2
+    phoebe_ld_xbol1, phoebe_ld_ybol1 = ld_coeffs1_bol
+    
+    if ld_model2_bol != phoebe_ld_model:
+        warnings.append("Two components have different limb darkening law: copying bolometric ld info from primary")
+        phoebe_ld_xbol2, phoebe_ld_ybol2 = ld_coeffs1_bol
+    else:
+        phoebe_ld_xbol2, phoebe_ld_ybol2 = ld_coeffs2_bol
+    
+    # Light curve stuff
+    #===================
+    addendum = ''
+    light_curve_template = """
+phoebe_lc_id[{nr}] = "{phoebe_lc_id}"    
+phoebe_lc_dep[{nr}] = "{phoebe_lc_dep}"
+phoebe_lc_indep[{nr}] = "{phoebe_lc_indep}"
+phoebe_lc_filter[{nr}] = "{phoebe_lc_filter}"
+phoebe_lc_filename[{nr}] = "{phoebe_lc_filename}"
+phoebe_lc_indweight[{nr}] = "Standard deviation"
+phoebe_lc_sigma[{nr}] = 1.0
+phoebe_ld_lcx1[{nr}].VAL = {phoebe_ld_lcx1}
+phoebe_ld_lcy1[{nr}].VAL = {phoebe_ld_lcy1}
+phoebe_ld_lcx2[{nr}].VAL = {phoebe_ld_lcx2}
+phoebe_ld_lcy2[{nr}].VAL = {phoebe_ld_lcy2}
+phoebe_hla[{nr}].VAL = {phoebe_hla}
+phoebe_cla[{nr}].VAL = {phoebe_cla}
+phoebe_extinction[{nr}].VAL = {phoebe_extinction}
+phoebe_el3[{nr}].VAL = {phoebe_el3}
+phoebe_lc_active[{nr}] = {phoebe_lc_active}
+"""
+    if 'lc' in refs:
+        for i,ref in enumerate(refs['lc']):
+            lcobs = system.get_obs(ref=ref, category='lc')
+            lcdep1 = system.get_parset(ref=ref, category='lc')[0]
+            lcdep2 = system.get_parset(ref=ref, category='lc')[0]
+            lcvals, warnings = _to_legacy_lc(lcobs, lcdep1, lcdep2,
+                                phoebe_ld_model, phoebe_atm1_switch,
+                                phoebe_atm2_switch)
+            lcvals['nr'] = i+1
+            light_curve_template.format(**lcvals)
+        # Common parameters for all light curves
+        for key in lcvals:
+            locals()[key] = lcvals[key]
+    
+    
+    common_light_curve_template = """
+phoebe_ld_lcx1.ADJ  = {phoebe_ld_lcx1_adj}
+phoebe_ld_lcx1.STEP = {phoebe_ld_lcx1_step}
+phoebe_ld_lcx1.MIN  = {phoebe_ld_lcx1_min}
+phoebe_ld_lcx1.MAX  = {phoebe_ld_lcx1_max}
+phoebe_ld_lcx2.ADJ  = {phoebe_ld_lcx2_adj}
+phoebe_ld_lcx2.STEP = {phoebe_ld_lcx2_step}
+phoebe_ld_lcx2.MIN  = {phoebe_ld_lcx2_min}
+phoebe_ld_lcx2.MAX  = {phoebe_ld_lcx2_max}
+phoebe_hla.ADJ  = {phoebe_hla_adj}
+phoebe_hla.STEP = {phoebe_hla_step}
+phoebe_hla.MIN  = {phoebe_hla_min}
+phoebe_hla.MAX  = {phoebe_hla_max}
+phoebe_cla.ADJ  = {phoebe_cla_adj}
+phoebe_cla.STEP = {phoebe_cla_step}
+phoebe_cla.MIN  = {phoebe_cla_min}
+phoebe_cla.MAX  = {phoebe_cla_max}
+phoebe_extinction.ADJ  = {phoebe_extinction_adj}
+phoebe_extinction.STEP = {phoebe_extinction_step}
+phoebe_extinction.MIN  = {phoebe_extinction_min}
+phoebe_extinction.MAX  = {phoebe_extinction_max}
+phoebe_el3.ADJ  = {phoebe_el3_adj}
+phoebe_el3.STEP = {phoebe_el3_step}
+phoebe_el3.MIN  = {phoebe_el3_min}
+phoebe_el3.MAX  = {phoebe_el3_max}
+phoebe_compute_hla_switch = {phoebe_compute_hla_switch}
+phoebe_usecla_switch = {phoebe_usecla_switch}
+"""
+    if 'lc' in refs:
+        addendum += common_light_curve_template.format(**locals())
+    
+    
+    
+    template_filename =  os.path.join(os.path.dirname(os.path.abspath(__file__)),'legacy_template.phoebe')
+    with open(template_filename) as template_file:
+        with open(outfile,'w') as out_file:
+            out_file.write('#' + '\n#'.join(warnings))
+            out_file.write(template_file.read().format(**locals()))
+            out_file.write(addendum)
+            
 
 
 def wd_to_phoebe(filename, mesh='marching', create_body=True):
@@ -956,7 +1345,8 @@ def wd_to_phoebe(filename, mesh='marching', create_body=True):
         raise NotImplementedError("mesh!='marching'")
     
     ps, lc, rv = wd.lcin_to_ps(filename, version='wd2003')
-    comp1, comp2, orbit, globals = wd.wd_to_phoebe(ps, lc, rv)
+    comp1, comp2, orbit, position = wd.wd_to_phoebe(ps, lc, rv)
+    position['distance'] = 1.,'Rsol'
     star1, lcdep1, rvdep1 = comp1
     star2, lcdep2, rvdep2 = comp2
     lcdep1['pblum'] = lc['hla']
@@ -979,7 +1369,7 @@ def wd_to_phoebe(filename, mesh='marching', create_body=True):
 
     star1 = phoebe.BinaryRocheStar(star1, orbit, mesh1, pbdep=[lcdep1, rvdep1], obs=[rvobs1])
     star2 = phoebe.BinaryRocheStar(star2, orbit, mesh2, pbdep=[lcdep2, rvdep2], obs=[rvobs2])
-    system = phoebe.BodyBag([star1, star2], obs=[lcobs], label='system')
+    system = phoebe.BodyBag([star1, star2], position=position, obs=[lcobs], label='system')
     logger.info("Successfully parsed WD lcin file {}".format(filename))
     return system
 
@@ -1011,7 +1401,7 @@ def phoebe_to_wd(system, create_body=False):
         body2 = system[1]
     
     
-    globals = system.params['position']
+    position = system.params['position']
     mesh1 = system[0].params['mesh']
     
     ps['name'] = orbit['label']
@@ -1071,7 +1461,7 @@ def phoebe_to_wd(system, create_body=False):
             ps['ld_ybol1'] = ldbol1[1]
             ps['ld_ybol2'] = ldbol2[1]
     
-    ps['vga'] = globals.request_value('vgamma', 'km/s')/100., 'km/s'
+    ps['vga'] = position.request_value('vgamma', 'km/s')/100., 'km/s'
     
     # Light curve
     params = parameters.ParameterSet('compute')
@@ -1140,5 +1530,6 @@ def from_supconj_to_perpass(orbit):
     phshift = orbit['phshift']
     P = orbit['period']
     per0 = orbit.get_value('per0','rad')
-    t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P
+    t0 = t_supconj + (phshift - 0.25 + per0/(2*np.pi))*P1203
+    
     orbit['t0'] = t0

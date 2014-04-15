@@ -26,8 +26,8 @@ Section 1. Package structure
 Section 2. Operation details
 ============================
 
-Section 2.1 Limb darkening & local intensities
------------------------------------------------
+Section 2.1 Limb darkening, local intensities and absolute fluxes
+------------------------------------------------------------------
 
 Three parameters are important for setting limbdarkening options and local intensity values:
     
@@ -68,6 +68,34 @@ for more info on how to compute limb darkening tables.
 See the section on :ref:`file formats <limbdark-atmospheres-fileformats>` for
 more information on the file structure of limb darkening tables.
 
+The absolute scaling of the intensity calculations is in real physical units
+(erg/s/cm2/angstrom). It takes into account the distance to the target,
+interstellar reddening effects and reflection/heating effects. There are two
+ways of scaling the model fluxes to observed fluxes:
+
+   - **physical scaling**: each passband dependent parameterSet (lcdep...)
+     contains a ``pblum`` parameter. When ``pblum=-1``, the parameter is
+     ignored. Otherwise, the computed fluxes will be normalised to the passband
+     luminosity of the component it belongs to: a spherical star at unit
+     distance (1 Rsol) without extra effects (reddening, reflection...) with
+     ``pblum=1`` will have observed fluxes of :math:`(4\pi)^{-1}`. Extra
+     effects can decrease (reddening, distance) or increase (reflection) it.
+     If only the first component has a specified ``pblum``, all other fluxes
+     will be scaled **relative to the primary component in the system** (which
+     is the first target in the system). In WD terms, this is dubbed "coupling
+     of the luminosities". If you want to decouple the luminosity computations
+     from the local atmospheric quantities for a target, then set ``pblum`` for
+     that target.
+   - **observational scaling**: many observable parameterSet (lcobs...) have
+     two parameters ``scale`` and ``offset``. When you set them to be adjustable
+     but do not specify any prior, a linear fitting will be performed to match
+     the observations with the model computations. This is useful for normalised
+     data, or for data for which the scaling can then be interpreted as a
+     distance scaling. The offset factor can then be interpreted as
+     contributions from third light. You are free to fit for only one of
+     ``scale`` and ``offset``, or both. Note that in this case the model fluxes
+     are not altered in situ, but only rescaled when needed (e.g. when fitting
+     or plotting).
 
 Section 2.2 Reflection and heating
 -----------------------------------

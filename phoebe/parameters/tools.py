@@ -1648,8 +1648,6 @@ def group(observations, name, scale=True, offset=True):
     @param offset: fit third light contribution or systemic velocity (constant term)
     @type offset: bool
     """
-    pblum = scale
-    l3 = offset
     
     for obs in observations:
         if not 'group' in obs:
@@ -1657,12 +1655,12 @@ def group(observations, name, scale=True, offset=True):
                                          context=obs.context,
                                          adjust=False, frame='phoebe',
                                          cast_type=str, repr='%s',
-                                         description='Group name for simultaneous pblum and l3 fitting'))
-            if 'pblum' in obs:
-                obs.set_adjust('pblum', pblum)
-            elif pblum:
+                                         description='Group name for simultaneous scale and offset fitting'))
+            if 'scale' in obs:
+                obs.set_adjust('scale', scale)
+            elif scale:
                 raise ValueError('Observations of context {} have no scaling factor, set it to False when grouping'.format(obs.context))
-            obs.set_adjust('l3', l3)
+            obs.set_adjust('offset', offset)
 
 
 def scale_binary(system, factor):
@@ -1708,6 +1706,63 @@ def scale_binary(system, factor):
                 # Still satisfy Kepler's third law if we're in a non
                 # roche system:
             raise NotImplementedError
+    
+
+
+def role_reverse(system):
+    """
+    Switch roles of primary and secondary.
+    
+    For simplicity and to avoid confusion, we assume the
+    primary to be the first body in the system, and the
+    secondary to be the second.
+    
+    Reverses the roles of primary and secondary in place.
+    
+    :param system: BodyBag containing two BinaryRocheStars (primary, secondary)
+    :type system: BodyBag
+    """
+    primary = system[0]
+    secondary = system[1]
+    
+    if not (primary.get_component() == 0 or secondary.get_component==1):
+        raise IndexError("Primary is not the first star in the system, I refuse reversing the roles before you swap them, because otherwise confusion will be total.")
+    
+    comp1 = primary.params['component']
+    comp2 = secondary.params['component']
+    orbit = primary.params['orbit']
+    
+    pot1_orig = comp1['pot']
+    pot2_orig = comp2['pot']
+    q_orig = orbit['q']
+    phshift_orig = orbit['phshift']
+    per0_orig = orbit['per0']
+    
+    # Compute the transformed potentials
+    comp2['pot'] = pot2_orig/q_orig + (q_orig-1)/(2*q_orig)
+    comp1['pot'] = pot1_orig/q_orig + (q_orig-1)/(2*q_orig)
+    
+    # Reverse the mass ratio
+    orbit['q'] = 1./q_orig
+    
+    # Shift phase by 0.5
+    orbit['phshift'] = phshift_orig + 0.5
+    
+    # Shift argument of periastron by pi
+    orbit['per0'] = per0_orig - np.pi
+    
+    # Interchange the labels in the orbit
+    c1label = orbit['c1label']
+    c2label = orbit['c2label']
+    orbit['c1label'] = c2label
+    orbit['c2label'] = c1label
+    
+    #pblum1 = primary.params['pbdep']['lcdep'].values()[0]['pblum']
+    #pblum2 = secondary.params['pbdep']['lcdep'].values()[0]['pblum']
+    #primary.params['pbdep']['lcdep'].values()[0]['pblum'] = pblum2
+    #secondary.params['pbdep']['lcdep'].values()[0]['pblum'] = pblum1
+    
+    system.bodies = [secondary, primary]
     
 
 

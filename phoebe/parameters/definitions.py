@@ -264,8 +264,8 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          #dict(qualifier='used_exptime',   description='Applied exposure time',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='filename', description='Name of the file containing the data',repr='%s',cast_type=str,value='',adjust=False,frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs','amobs','siobs','lcsyn','ifsyn','rvsyn','spsyn','ifobs','ifsyn','plsyn','etvsyn','amsyn','sisyn']),
          dict(qualifier='ref',    description='Name of the data structure',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcobs','rvobs','spobs','ifobs','etvobs','psdep','lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','plobs','etvsyn','amobs','orbsyn']),
-         dict(qualifier='scale',    description='Linear scaling constant',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context=['lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','etvsyn','orbsyn']),
-         dict(qualifier='offset',    description='Offset constant',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context=['lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','etvsyn','orbsyn']),
+         #dict(qualifier='scale',    description='Linear scaling constant',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context=['lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','etvsyn','orbsyn']),
+         #dict(qualifier='offset',    description='Offset constant',repr='%f',cast_type=float,value=0.0,frame=["phoebe"],context=['lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','etvsyn','orbsyn']),
          dict(qualifier='time',     description='Timepoints of the data',repr='%s',cast_type=np.array,value=[],unit='JD',frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs','amobs','siobs']),
          dict(qualifier='phase',     description='Phasepoints of the data',repr='%s',cast_type=np.array,value=[],unit='cy',frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs']),
          dict(qualifier='flux',   description='Observed signal',repr='%s',cast_type=np.array,value=[],unit='erg/s/cm2/AA',frame=["phoebe"],context='lcobs'),
@@ -305,9 +305,9 @@ defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spec
          dict(qualifier='continuum',  description='Continuum intensity of the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='flux',  description='Flux of the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='sigma',  description='Noise in the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
-         dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
-         dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
-         dict(qualifier='vgamma_offset',       description='Offset in systemic velocity',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['rvobs'],alias=['l3']),
+         dict(qualifier='offset',       description='Linear scaling constant to match obs with syn',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
+         dict(qualifier='scale',    description='Linear scaling factor to match obs with syn',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
+         dict(qualifier='vgamma_offset',       description='Offset in systemic velocity',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['rvobs'],alias=['offset']),
          dict(qualifier='statweight',    description='Statistical weight in overall fitting',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs','rvobs']),
          ]        
 
@@ -762,8 +762,14 @@ defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.
 defs += [dict(qualifier='tdyn',   description='Dynamical timescale',repr='%f',cast_type=float,value=0,frame=['phoebe'],context='derived'),
          dict(qualifier='ttherm', description='Thermal timescale',  repr='%f',cast_type=float,value=0,frame=['phoebe'],context='derived'),
         ]
-        
 
+# "complicated" relations and constraints
+
+rels = [dict(qualifier='asini', description='Projected system semi-major axis', repr='%f', value=10., unit='Rsol', cast_type=float, connections=['sma', 'incl'], frame=['phoebe'], context='orbit'),
+        dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=['period@orbit', 'q@orbit', 'sma@orbit'], frame=['phoebe'], context='component'),
+        dict(qualifier='teff_ratio', description='Effective temperature ratio between components', repr='%f', value=1., cast_type=float, connections=['teff@primary','teff@secondary'], frame=['phoebe'], context='BinaryBag')]
+
+# simple constraints
 constraints = {'phoebe':{}}        
 constraints['phoebe']['orbit'] = ['{sma1} = {sma} / (1.0 + 1.0/{q})',
                          '{sma2} = {sma} / (1.0 + {q})',
@@ -779,3 +785,4 @@ constraints['phoebe']['orbit'] = ['{sma1} = {sma} / (1.0 + 1.0/{q})',
 constraints['phoebe']['star'] = ['{surfgrav} = constants.GG*{mass}/{radius}**2',
 #                                 '{angdiam} = 2*{radius}/{distance}',
                         ]
+

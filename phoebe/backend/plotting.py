@@ -94,32 +94,27 @@ def plot_lcsyn(system, *args, **kwargs):
     # Try to get the observations. They don't need to be loaded, we just need
     # the pblum and l3 values.
     # We can scale the synthetic light curve using the observations
-    pblum = 1.0
-    l3 = 0.0
+    this_scale = 1.0
+    this_offset = 0.0
     if scale == 'obs':
         try:
             obs = system.get_obs(category='lc', ref=ref)
-            pblum = obs['pblum']
-            l3 = obs['l3']
+            this_scale = obs['scale']
+            this_offset = obs['offset']
         except ValueError:
             pass
         except TypeError:
             pass
         #    raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
-    # or using the synthetic computations    
-    elif scale=='syn':
-        pblum = syn['pblum']
-        l3 = syn['l3']
     # else we don't scale
-    
     if y_unit is not None:
-        l3 = l3*pblum
-        pblum = 1
+        this_offset = this_offset*this_scale
+        this_scale = 1
 
     # Now take third light and passband luminosity contributions into account
     time = np.array(syn['time'])
     flux = np.array(syn['flux'])
-    flux = flux * pblum + l3
+    flux = flux * this_scale + this_offset
     
     if y_unit is not None:
         if y_unit == 'pph':
@@ -162,7 +157,7 @@ def plot_lcsyn(system, *args, **kwargs):
         syn.unload()
     
     # That's it!
-    return artists, ret_syn, pblum, l3
+    return artists, ret_syn, this_scale, this_offset
 
 
 def plot_lcobs(system, **kwargs):
@@ -385,9 +380,9 @@ def plot_rvsyn(system,*args,**kwargs):
     #   the pblum and l3 values.
     if scale=='obs':
         obs = system.get_obs(category='rv',ref=ref)
-        l3 = obs['l3']
+        l3 = obs['offset']
     elif scale=='syn':
-        l3 = syn['l3']
+        l3 = syn['offset']
     else:
         l3 = 0.
     

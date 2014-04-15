@@ -326,7 +326,16 @@ def synthetic_flux(wave, flux, passbands, units=None):
             elif filter_info['type'][i]=='BOL':
                 energys[i] = np.trapz(flux_*transr,x=wave_)/np.trapz(transr,x=wave_)
             elif filter_info['type'][i]=='CCD':
+                # trapezoidal
+                #import matplotlib.pyplot as plt
+                #plt.figure()
+                #plt.plot(wave_, flux_, 'k-')
+                #plt.twinx(plt.gca())
+                #plt.plot(wave_, transr, 'r-')
+                ##plt.show()
                 energys[i] = np.trapz(flux_*transr*wave_,x=wave_)/np.trapz(transr*wave_,x=wave_)
+                # box
+                #energys[i] = sum((flux_*transr*wave_)[1:]*np.diff(wave_)) / sum((transr*wave_)[1:]*np.diff(wave_))
         
         #-- we work in FNU
         elif units[i].upper()=='FNU':

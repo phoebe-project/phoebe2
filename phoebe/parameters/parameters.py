@@ -882,6 +882,28 @@ class Parameter(object):
         if hasattr(self,'context'):
             return self.context
     
+    
+    def is_write_protected(self):
+        """
+        Check if a parameter is write protected.
+        
+        A parameter is write protected if it has a boolean state "write_protected"
+        and it is set to True. If it has no such boolean state or the boolean is
+        set to False, it is not write protected.
+        """
+        if hasattr(self, 'write_protected') and self.write_protected:
+            return True
+        else:
+            return False
+    
+    
+    def set_write_protected(self, write_protected=True):
+        """
+        Set a parameter to be write protected.
+        """
+        self.write_protected = write_protected
+    
+    
     def set_context(self, context):
         """
         Set the context.
@@ -1057,6 +1079,11 @@ class Parameter(object):
         @parameter value: whatever value
         @type value: whatever value
         """
+        if self.is_write_protected():
+            if hasattr(self, 'why_protected'):
+                raise ValueError("Variable {} is write-protected ({})".format(self.qualifier, self.why_protected))
+            else:
+                raise ValueError("Variable {} is write-protected".format(self.qualifier))
         #clear_memoization(self)
         old_value = self.value
         if args:
