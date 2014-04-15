@@ -53,6 +53,7 @@ from phoebe.parameters import datasets
 from phoebe.parameters import create
 from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
+from phoebe.atmospheres import limbdark
 from phoebe.io import parsers
 from phoebe.dynamics import keplerorbit
 from phoebe.frontend.usersettings import Settings
@@ -317,9 +318,17 @@ class Bundle(Container):
         self.settings['add_feedback_on_fitting'] = False
         self.settings['update_mesh_on_select_time'] = False
         
-        # Lastly we'll set the system, which will parse the string sent
+        # Next we'll set the system, which will parse the string sent
         # to init and will handle attaching all necessary signals
         self.set_system(system, remove_dataref=remove_dataref)
+        
+        # Lastly, make sure all atmosphere tables are registered
+        atms = self._get_by_search('atm', kind='Parameter', all=True)
+        ldcoeffs = self._get_by_search('ld_coeffs', kind='Parameter', all=True)
+        for atm in atms:
+            limbdark.register_atm_table(atm.get_value())
+        for ldcoeff in ldcoeffs:
+            limbdark.register_atm_table(ldcoeff.get_value())
         
         # set tab completer
         readline.set_completer(phcompleter.Completer().complete)
