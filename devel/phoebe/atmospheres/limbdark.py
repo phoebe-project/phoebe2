@@ -938,7 +938,7 @@ def get_passbands(atm, atm_pars=('teff', 'logg', 'abun'),
 
 
 
-def iter_grid_dimensions(atm,atm_pars,other_pars):
+def iter_grid_dimensions(atm, atm_pars, other_pars, blackbody_teff_range=None):
     """
     Generate grid values.
     
@@ -953,7 +953,12 @@ def iter_grid_dimensions(atm,atm_pars,other_pars):
     """
     # Special treatment for blackbodies
     if atm == 'blackbody':
-        teffs = np.logspace(1, np.log10(100000.), 200)
+        
+        if blackbody_teff_range is None:
+            teffs = np.logspace(1, np.log10(100000.), 200)
+        else:
+            teffs = blackbody_teff_range
+            
         for pars in itertools.product(*[teffs] + list(other_pars)):
             yield pars
     
