@@ -53,8 +53,8 @@ class Completer:
 
         """
         tb_compl_commands = ['.get_value(', '.set_value(', 
-                        '.get_parameter(',
-                        '.get_adjust(', '.set_adjust('
+                        '.get_parameter(', '.get(',
+                        '.get_adjust(', '.set_adjust(',
                         '.get_prior(', '.set_prior(']
         
         for cmd in tb_compl_commands:
