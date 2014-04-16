@@ -662,11 +662,58 @@ class Container(object):
     
     def set_ps(self, twig, value):
         """
-        Set a new or replace an existing ParameterSet.
+        Replace an existing ParameterSet.
         """
+        # get all the info we can get
         this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
-        print this_trunk
-
+        
+        # Make sure it is a ParameterSet
+        if this_trunk['kind'] != 'ParameterSet':
+           raise ValueError("Twig '{}' does not refer to a ParameterSet (it is a {})".format(twig, this_trunk['kind']))
+        
+        # actually, we're mainly interested in the path. And in that path, we
+        # are only interested in the last Body
+        bodies = [self.get_system()] + [thing for thing in this_trunk['path'] if isinstance(thing, universe.Body)]
+        
+        if not bodies:
+            raise ValueError('Cannot assign ParameterSet to {} (did not find any Body)'.format(twig))
+        
+        # last check: we need to make sure that whatever we're setting already
+        # exists. We cannot assign a new nonexistent PS to the Body (well, we
+        # could, but we don't want to -- that's attach_ps responsibility)
+        current_context = this_trunk['item'].get_context()
+        given_context = value.get_context()
+        if current_context == given_context:
+            bodies[-1].set_params(value)
+        else:
+            raise ValueError("Twig '{}' refers to a ParameterSet of context '{}', but '{}' is given".format(twig, current_context, given_context))
+        
+        # And rebuild the trunk
+        self._build_trunk()
+        
+    def attach_ps(self, twig, value):
+        """
+        Add a new ParameterSet.
+        """
+        # get all the info we can get
+        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+        
+        # Make sure it is a Body
+        if not isinstance(this_trunk['item'], universe.Body):
+           raise ValueError("You can only attach ParameterSets to a Body ('{}' refers to a {})".format(twig, this_trunk['kind']))
+        
+        # last check: we need to make sure that whatever we're setting already
+        # exists. We cannot assign a new nonexistent PS to the Body (well, we
+        # could, but we don't want to -- that's attach_ps responsibility)
+        given_context = value.get_context()
+        try:
+            this_trunk['item'].set_params(value, force=False)
+        except ValueError:
+            raise ValueError("ParameterSet '{}' at Body already exists. Please use set_ps to override it.".format(given_context))
+        
+        
+        # And rebuild the trunk
+        self._build_trunk()
     
     def get_adjust(self, twig):
         """

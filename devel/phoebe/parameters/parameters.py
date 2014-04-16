@@ -1111,7 +1111,17 @@ class Parameter(object):
                 if default_unit in loau:
                     loau.remove(default_unit)
                 raise ValueError("Given unit type '{0}' is {1}: {2} must be '{3}' (default) or one of {4} or equivalent. Or perpaps there was not enough information.".format(args[0],given_type,utype,default_unit,loau))
+        
         self.value = value
+        #-- check for casting rules
+        try:
+            return_value = self.get_value()
+        # if something doesn't work out, revert to original value
+        except:
+            self.value = old_value
+            raise
+        
+        
         
         #-- check for inside limits
         has_limits = self.has_limits()
