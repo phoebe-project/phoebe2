@@ -61,24 +61,35 @@ class Container(object):
         #~ for _yield in self._loop_through_container(return_type='item'):
             #~ yield _yield
     
-    def _loop_through_container(self,container=None,label=None):
+    def _loop_through_container(self,container=None,label=None,ref=None,do_sectionlevel=True,do_pslevel=True):
         """
         loop through the current container to compile all items for the trunk
         this will then be called recursively if it hits another Container/PS/BodyBag
         """
         return_items = []
+        
+        # add the container's sections
+        if do_sectionlevel:
+            ri = self._get_info_from_item(self.sections,section=None,container=container,label=None)
+            return_items.append(ri)
+        
         for section_name,section in self.sections.items():
-            for item in section:
-                ri = self._get_info_from_item(item,section=section_name,container=container,label=label)
-                if ri is not None:
-                    return_items.append(ri)
-                    
-                    if ri['kind']=='Container':
-                        return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'])
-                    elif ri['kind']=='BodyBag':
-                        return_items += self._loop_through_system(item, section_name=section_name)
-                    elif ri['kind']=='ParameterSet': # these should be coming from the sections
-                        return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'])
+            if do_sectionlevel and section_name not in ['system']:
+                #~ print "***", section_name, OrderedDict((item.get_value('label'),item) for item in section)
+                ri = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=label)
+                return_items.append(ri)
+            if do_pslevel:
+                for item in section:
+                    ri = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
+                    if ri is not None:
+                        return_items.append(ri)
+                        
+                        if ri['kind']=='Container':
+                            return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
+                        elif ri['kind']=='BodyBag':
+                            return_items += self._loop_through_system(item, section_name=section_name)
+                        elif ri['kind']=='ParameterSet': # these should be coming from the sections
+                            return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'])
         
         return return_items
         
@@ -130,14 +141,9 @@ class Container(object):
                         and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
                     return_items.append(ri)
                 
-                
-
-            
-                    
-        
         return return_items
         
-    def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None):
+    def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None, ref=None):
         """
         general function to pull all information we need from any item we may come across
     
@@ -150,7 +156,7 @@ class Container(object):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             label = labels[-1] if len(labels) else label
             context = item.get_context()
-            ref = item.get_value('ref') if 'ref' in item else None
+            ref = item.get_value('ref') if 'ref' in item else ref
             unique_label = None
             qualifier = None
             
@@ -166,7 +172,7 @@ class Container(object):
             else:
                 #then we're coming from a section and already know the context
                 context = context
-            ref = None
+            ref = ref
             if path:
                 if context[-3:] in ['obs','dep']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
@@ -188,14 +194,14 @@ class Container(object):
             ref = item.get_label() if hasattr(item, 'get_label') else None
             unique_label = None
             qualifier = None
-        elif isinstance(item, OrderedDict):
+        elif isinstance(item, OrderedDict) or isinstance(item, dict):
             kind = 'OrderedDict'
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             label = labels[-1] if len(labels) else label
             context = None
             ref = None
             unique_label = None
-            qualifier = path[-1]
+            qualifier = path[-1] if path else None
         else:
             return None
             #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))
@@ -206,8 +212,10 @@ class Container(object):
             ref = None
         
         if context == section:
-            section_twig = None
-        elif section == 'system' and label != self.get_system().get_label():
+            context_twig = None
+        else:
+            context_twig = context
+        if section == 'system' and label != self.get_system().get_label():
             section_twig = self.get_system().get_label()
         else:
             section_twig = section
@@ -217,9 +225,9 @@ class Container(object):
         #hidden = False
             
         # twig = <qualifier>@<ref>@<context>@<label>@<section>@<container>
-        twig = self._make_twig([qualifier,ref,context,label,section_twig])
+        twig = self._make_twig([qualifier,ref,context_twig,label,section_twig])
         #~ twig_reverse = self._make_twig([qualifier,ref,context,label,section_twig,container], invert=True)
-        twig_full = self._make_twig([qualifier,ref,context,label,section_twig,container])
+        twig_full = self._make_twig([qualifier,ref,context_twig,label,section_twig,container])
         #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section_twig,container], invert=True)
         
         
