@@ -775,7 +775,7 @@ class Bundle(Container):
             #~ qualifier += '{}{}'.format("@",objref)
         #~ return self.get_ps(qualifier)
         
-        return self._get_by_search(component=objref, kind='ParameterSet', context='mesh*')
+        return self._get_by_search(label=objref, kind='ParameterSet', context='mesh*')
         
     #}  
     #{ Datasets
