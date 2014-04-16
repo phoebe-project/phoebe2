@@ -624,7 +624,7 @@ class Bundle(Container):
         #if len(axes):
         #    bund_str+= "Axes: " + ", ".join(axes.keys()) + '\n'
         system_str = self.get_object(objref).list(summary='cursory')
-        return bund_str + '\n' +system_str
+        return system_str + '\n' + bund_str
         
     def tree(self, objref=None):
         """
