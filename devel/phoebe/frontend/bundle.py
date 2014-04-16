@@ -188,7 +188,7 @@ class Bundle(Container):
     
     You can initiate a bundle in different ways:
     
-        1. Via a PHOEBE 2.0 file
+        1. Via a PHOEBE 2.0 file::
         
             mybundle = Bundle('mybundle.phoebe')
     
@@ -286,7 +286,7 @@ class Bundle(Container):
         get_obs
         get_syn
         
-    **Plotting results
+    **Plotting results**
         
     .. autosummary::
     
@@ -350,6 +350,10 @@ class Bundle(Container):
         
         # Next we'll set the system, which will parse the string sent
         # to init and will handle attaching all necessary signals
+        if system is not None:
+            # then for now (even though its hacky), we'll initialize
+            # everything by setting the default first
+            self.set_system()
         self.set_system(system, remove_dataref=remove_dataref)
         
         # Lastly, make sure all atmosphere tables are registered
@@ -528,7 +532,6 @@ class Bundle(Container):
         if isinstance(system, universe.Body):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
-            print system
             self.sections['system'] = [create.system(system)]
         
         # Or we could've given a filename
@@ -541,27 +544,31 @@ class Bundle(Container):
             
             # Try to guess the file type (if it is a file)
             if os.path.isfile(system):
-                file_type, contents = guess_filetype(system)
-            
-                if file_type in ['wd', 'pickle_body']:
-                    system = contents
-                elif file_type == 'phoebe_legacy':
-                    system = contents[0]
-                    self.sections['compute'].append(contents[1])
-                elif file_type == 'pickle_bundle':
-                    system = contents.get_system()
+                try:
+                    self._load_json(system)
+                    file_type = 'json'
+                except ValueError:
+                
+                    file_type, contents = guess_filetype(system)
+                
+                    if file_type in ['wd', 'pickle_body']:
+                        system = contents
+                    elif file_type == 'phoebe_legacy':
+                        system = contents[0]
+                        self.sections['compute'].append(contents[1])
+                    elif file_type == 'pickle_bundle':
+                        system = contents.get_system()
+
         
             # As a last resort, we pass it on to 'body_from_string' in the
             # create module:
             else:
                 system = create.body_from_string(system)
             
-            self.sections['system'] = [system]
+            if file_type is not 'json': 
+                # if it was json, then we've already attached the system
+                self.sections['system'] = [system]
          
-        # we must build the trunk before attempting to retrieve anything
-        self._build_trunk()
-        
-        # got me an error 
         system = self.get_system()
         if system is None:
             raise IOError('Initalisation failed: file/system not found')
@@ -572,9 +579,8 @@ class Bundle(Container):
                 remove_dataref = None
             system.remove_ref(remove_dataref)
             
-               
-        
         # initialize uptodate
+        #~ print system.get_label()
         system.uptodate = False
         
         # connect signals
@@ -2059,7 +2065,10 @@ class Bundle(Container):
         """
         return copy.deepcopy(self)
     
-    def save(self,filename=None,purge_signals=True,save_usersettings=False):
+    def save(filename):
+        self._save_json(filename)
+    
+    def save_pickle(self,filename=None,purge_signals=True,save_usersettings=False):
         """
         Save a class to an file.
         Will automatically purge all signals attached through bundle
@@ -2308,8 +2317,8 @@ def guess_filetype(filename):
             logger.info("Probably old pickle file")
         except:
             pass
-        
-        # If the file is not a pickle file, it could be a Phoebe legacy file?
+            
+        # If the file is not a pickle file or json, it could be a Phoebe legacy file?
         if contents is None:
             
             try:
