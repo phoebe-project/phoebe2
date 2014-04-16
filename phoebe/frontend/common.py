@@ -106,7 +106,7 @@ class Container(object):
                 return_items.append(ri)
             
             # make sure to catch the obs and pbdep
-            elif isinstance(item, str) and item[-3:] in ['obs', 'dep']:
+            elif isinstance(item, str) and item[-3:] in ['obs', 'dep', 'syn']:
                 for itype in path[-2]:
                     for isubtype in path[-2][itype].values():
                         ri = self._get_info_from_item(isubtype, path=path, section=section_name)
@@ -184,7 +184,8 @@ class Container(object):
         else:
             section_twig = section
             
-        hidden = qualifier in ['ref','label', 'c1label', 'c2label']
+        #hidden = qualifier in ['ref','label', 'c1label', 'c2label']
+        hidden = False
             
         # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
         twig = self._make_twig([qualifier,label,context,component,section_twig])
