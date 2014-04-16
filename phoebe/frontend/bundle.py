@@ -598,17 +598,17 @@ class Bundle(Container):
         return self.sections['system'][0]
         #~ return self._get_by_search(section='system', ignore_errors=True)
     
-    def summary(self):
+    def summary(self, objref=None):
         """
-        Make a summary of the system
+        Make a summary of the system, or any object in the system
         """
-        return self.get_system().list(summary='cursory')
+        return self.get_object(objref).list(summary='cursory')
         
-    def tree(self):
+    def tree(self, objref):
         """
         Make a summary of the system
         """
-        return self.get_system().list(summary='full')
+        return self.get_object(objref).list(summary='full')
     
     def list(self, summary=None, *args):
         """
@@ -714,6 +714,8 @@ class Bundle(Container):
     #}
     #{ Objects
     def get_object(self, objref=None):
+        # handle objref if twig was given instead
+        objref = objref.split('@')[0]
         # return the Body/BodyBag from the system hierarchy
         system = self.get_system()
         if objref is None or system.get_label() == objref or objref == '__nolabel__':
@@ -729,6 +731,8 @@ class Bundle(Container):
             
         
     def get_children(self, objref=None):
+        # handle objref if twig was given instead
+        objref = objref.split('@')[0]
         # return list of children for self.get_object(objref)
         obj = self.get_object(objref)
         if hasattr(obj,'bodies'):
