@@ -1325,7 +1325,7 @@ class Bundle(Container):
         """
         system = self.get_system()
         obj = self.get_object(objref)
-        
+        add_version = None
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
             
