@@ -162,6 +162,7 @@ def run_on_server(fctn):
         
 
 def walk(mybundle):
+    # do we still use this???
     
     for val,path in utils.traverse_memory(mybundle,
                                      list_types=(Bundle, universe.Body, list,tuple),
@@ -187,28 +188,32 @@ class Bundle(Container):
     
     You can initiate a bundle in different ways:
     
-        1. Via a Body or BodyBag::
+        1. Via a PHOEBE 2.0 file
+        
+            mybundle = Bundle('mybundle.phoebe')
+    
+        2. Via a Body or BodyBag::
         
             mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
             mybundle = Bundle(mysystem)
         
-        2. Via the library::
+        3. Via the library::
         
             mybundle = Bundle('V380_Cyg')
             
-        3. Via a pickled system::
+        4. Via a pickled system::
         
             mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
             mysystem.save('mysystem.pck')
             mybundle = Bundle('mysystem.pck')
         
-        4. Via a pickled Bundle::
+        5. Via a pickled Bundle::
         
             mybundle = Bundle('V380_Cyg')
             mybundle.save('V380_Cyg.bpck')
             mybundle = Bundle('V380_Cyg.bpck')
         
-        5. Via a Phoebe Legacy ASCII parameter file::
+        6. Via a Phoebe Legacy ASCII parameter file::
         
             mybundle = Bundle('legacy.phoebe')
     
@@ -218,10 +223,11 @@ class Bundle(Container):
     
     .. autosummary::
     
-        set_value
-        get_value
+        phoebe.frontend.common.Container.set_value
+        phoebe.frontend.common.Container.get_value
         load_data
         create_data
+        plot_obs
         plot_syn
         
     **What is the Bundle?**
@@ -237,8 +243,8 @@ class Bundle(Container):
     A Bundle contains:
     
         - a Body (or BodyBag), called :envvar:`system` in this context.
-        - ...
-        - ...
+        - a list of compute options which can be stored and used to compute observables.
+        - a list of figure axes options which can be used to recreate plots with the same options.
         
     **Outline of methods**
     
@@ -247,21 +253,45 @@ class Bundle(Container):
     .. autosummary::
         
         to_string
-        
+        load
+        save
     
-    **Setting and getting system parameters**
+    **Getting system parameters**
     
-        get_ps
-        get_parameter
+    .. autosummary::
+    
+        phoebe.frontend.common.Container.get_ps
+        phoebe.frontend.common.Container.get_parameter
+        phoebe.frontend.common.Container.get_value
+    
+    **Attaching data**
+    
+    .. autosummary::
+    
+        load_data
+        create_data
     
     **Setting and getting computational parameters**
     
-    **Setting and getting fit parameters**
+    .. autosummary::
     
+        phoebe.frontend.common.Container.get_compute
+        phoebe.frontend.common.Container.add_compute
+        phoebe.frontend.common.Container.remove_compute
+        
     **Getting results**
     
-    **History and GUI functionality**
+    .. autosummary::
     
+        get_obs
+        get_syn
+        
+    **Plotting results
+        
+    .. autosummary::
+    
+        plot_obs
+        plot_syn
     
     """        
     def __init__(self, system=None, remove_dataref=False):
