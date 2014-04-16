@@ -105,6 +105,16 @@ class Container(object):
                     and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
                 return_items.append(ri)
             
+            # make sure to catch the obs and pbdep
+            elif isinstance(item, str) and item[-3:] in ['obs', 'dep']:
+                for itype in path[-2]:
+                    for isubtype in path[-2][itype].values():
+                        ri = self._get_info_from_item(isubtype, path=path, section=section_name)
+                        return_items.append(ri)
+
+            
+                    
+        
         return return_items
         
     def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None):
