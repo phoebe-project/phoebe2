@@ -414,7 +414,7 @@ class Container(object):
         all_ti = self._get_by_search(twig=None, section=section, kind=kind,
                         all=True, ignore_errors=True,
                         return_trunk_item=True)
-                        
+                 
         return {ti['label']:ti['item'] for ti in all_ti} if all_ti is not None else {}
         
     def _save_json(self, filename):

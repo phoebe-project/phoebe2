@@ -3382,7 +3382,7 @@ class Body(object):
                 for ptype in ['pbdep','obs']:
                     ns = 0 
                     lbl = (category+ptype[-3:])
-                    mystring = ['{}: '.format(lbl)]
+                    mystring = [italicize('{}: '.format(lbl))]
                     if ptype in thing.params and lbl in thing.params[ptype]:
                         for ref in thing.params[ptype][lbl]:
                             mystring.append(ref)
@@ -3596,9 +3596,12 @@ class Body(object):
         
         if emphasize:
             def emphasize(text):
-                return '\033[1m\033[4m' + text + '\033[m'    
+                return '\033[1m\033[4m' + text + '\033[m'
+            def italicize(text):
+                return '\x1B[3m' + text + '\033[m'
         else:
             emphasize = lambda x: x
+            italicize = lambda x: x
         
         if summary:
             add_summary = locals()['add_summary_'+summary]

@@ -539,6 +539,8 @@ class Bundle(Container):
             return
             
         # Or a real system
+        file_type = None
+        
         if isinstance(system, universe.Body):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
@@ -553,7 +555,6 @@ class Bundle(Container):
                     system = os.path.join(library_dir, system)
             
             # Try to guess the file type (if it is a file)
-            filetype = None
             if os.path.isfile(system):
                 try:
                     self._load_json(system)
@@ -615,6 +616,7 @@ class Bundle(Container):
         """
         bund_str = ""
         computes = self._get_dict_of_section('compute')
+        print computes
         if len(computes):
             bund_str+= "* Compute: " + ", ".join(computes.keys()) + '\n'
         #fittings = self._get_dict_of_section("fitting")
@@ -624,7 +626,7 @@ class Bundle(Container):
         #if len(axes):
         #    bund_str+= "Axes: " + ", ".join(axes.keys()) + '\n'
         system_str = self.get_object(objref).list(summary='cursory')
-        return system_str + '\n' + bund_str
+        return system_str + '\n\n' + bund_str
         
     def tree(self, objref=None):
         """
