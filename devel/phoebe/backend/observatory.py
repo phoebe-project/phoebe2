@@ -2185,7 +2185,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
     ecl, found_partial = choose_eclipse_algorithm(system, algorithm=eclipse_alg)
-    
+
     # If necessary, subdivide and redetect eclipses/horizon
     for k in range(subdiv_num):
         if found_partial is False:
