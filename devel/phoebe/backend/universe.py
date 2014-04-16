@@ -3667,6 +3667,9 @@ class Body(object):
     def summary(self):
         return self.list(summary='cursory')
     
+    def tree(self):
+        return self.list(summary='full')
+    
     def clear_synthetic(self):
         """
         Clear the body from all calculated results.
