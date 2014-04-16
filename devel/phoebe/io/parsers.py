@@ -955,7 +955,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
             bodybag = universe.BodyBag([star1,star2],solve_problems=True, position=position)
         
         # Set the name of the thing
-        bodybag.set_label(system_label)
+        bodybag.set_label(orbit['label'])
         
     #if create_bundle:
     #
