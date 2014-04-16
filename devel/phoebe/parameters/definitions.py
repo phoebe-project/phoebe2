@@ -169,7 +169,7 @@ defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='
          dict(qualifier='t0',     description='Zeropoint date',unit='JD',repr='%f',llim=-2e10,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context='orbit'),
          dict(qualifier='t0type', description='Interpretation of zeropoint date', repr='%s', cast_type='choose', choices=['periastron passage','superior conjunction'], value='periastron passage',frame=["phoebe"],context='orbit'),
          dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='orbit'),
-         dict(qualifier='label',  description='Name of the system',repr='%s',cast_type=str,value='',frame=["phoebe","wd"],context=['orbit','root']),
+         dict(qualifier='label',  description='Name of the system',repr='%s',cast_type='make_label',value='',frame=["phoebe","wd"],context=['orbit','root']),
          dict(qualifier='period', description='Period of the system',repr='%f',unit='d',llim=0,ulim=1e10,step=0.01,adjust=False,cast_type=float,value=3.,frame=["phoebe"],context='orbit'),
          dict(qualifier='per0',   description='Periastron',repr='%f',unit='deg',llim=-360,ulim=360,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='orbit'),
          dict(qualifier='phshift',description='Phase shift',repr='%f',llim=-1,ulim=+1,step=0.001,adjust=False,cast_type=float,value=0,frame=["phoebe"],context='orbit'),
@@ -201,7 +201,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (1-alb heating,
          #dict(qualifier='distance',description='Distance to the binary system',repr='%f',cast_type=float,value=10.,unit='pc',adjust=False,frame=['phoebe'],context='orbit'),
          dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=True,frame=['phoebe'],context=['component','star','accretion_disk']),
          dict(qualifier='abun',description='Metallicity',repr='%f',cast_type=float,value=0.,frame=['phoebe'],context=['component','star']),
-         dict(qualifier='label',  description='Name of the body',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['component','star','accretion_disk']),
+         dict(qualifier='label',  description='Name of the body',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context=['component','star','accretion_disk']),
         ]
 
 #    INTERSTELLAR REDDENING
@@ -252,7 +252,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),
          dict(qualifier='alb',      description="Passband Bond's albedo , alb=0 is no reflection",          repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep']),
          dict(qualifier='method',   description='Method for calculation of total intensity',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context='lcdep'),
-         dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['puls','circ_orbit']),
+         dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context=['puls','circ_orbit']),
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep','etvdep','sidep']),
          dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
@@ -507,7 +507,7 @@ defs += [dict(qualifier='iters',     description='Number of iterations',repr='%d
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='incremental',description='Store results in a pickle file and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:pymc'),
-         dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:pymc'),
+         dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:pymc'),
         ]
 
 defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d',cast_type=int,value=1000,frame=["phoebe"],context='fitting:emcee'),
@@ -525,13 +525,13 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
          dict(qualifier='threads',  description='Number of threads',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='incremental',description='Store results in a file emcee_chain.label and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:emcee'),
-         dict(qualifier='label',    description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:emcee'),
+         dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:emcee'),
         ]
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
          dict(qualifier='iters',     description='Number of iterations',long_description='If iters=n, then n number of iterations will be done. With `init_from_prior=True`, you can randomize the starting point for the fit.',repr='%d',cast_type=int,value=1,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='init_from_prior', description='Randomly draw the initial position from the priors', repr='%s',cast_type='make_bool', value=False, frame=['phoebe'], context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
-         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='compute_ci',description='Compute detailed confidence intervals',long_description="The F-test is used to compare the null model, which is the best fit we have found, with an alternate model, where one of the parameters is fixed to a specific value. The value is changed until the difference between chi2_start and chi2_final can't be explained by the loss of a degree of freedom within a certain confidence.",repr='',cast_type='make_bool',value=False,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='bounded',   description='Include boundaries in fit',
                                      long_description=('This float allows you to constrain the fit '
@@ -584,12 +584,12 @@ defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr
         
 
 defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:minuit'),
-         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:minuit'),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:minuit'),
          dict(qualifier='bounded',   description='Include boundaries in fit',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:minuit'),
         ]
         
 defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
-         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type=str,value='',frame=["phoebe"],context='fitting:grid'),
+         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:grid'),
          dict(qualifier='sampling',  description='Number of points to sample per parameter for non-bin priors',repr='%d',cast_type=int,value=5,frame=["phoebe"],context='fitting:grid'),
          dict(qualifier='iterate',   description='Type of iteration: list or product of priors',repr='%s',cast_type='choose',
                                      long_description=("Determines the type of iterations. Suppose the prior on parameter 'a' is [0,1,2] and "
@@ -657,7 +657,7 @@ defs += [dict(qualifier='dataref',          description='Name of the data struct
          dict(qualifier='zorder',    description='see matplotlib.axes.Axes.plot',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='plotting:plot'),
         ]
         
-defs += [dict(qualifier='label', description='label of thie parameterset',repr='%s',cast_type=str,value='default',frame=["phoebe"],context='plotting:mesh'),
+defs += [dict(qualifier='label', description='label of this parameterset',repr='%s',cast_type='make_label',value='default',frame=["phoebe"],context='plotting:mesh'),
          dict(qualifier='ref', description='ref of the dataset to get intensities, or __bol for bolometric',repr='%s',cast_type=str,value='__bol',frame=["phoebe"],context='plotting:mesh'),
          dict(qualifier='context', description='context of the dataset to get intensities',repr='%s',cast_type=str,value='lcdep',frame=["phoebe"],context='plotting:mesh'),
          dict(qualifier='select', description='what quantity is mapped to color',repr='%s',cast_type='choose',choices=['proj','teff','logg','rv','mu','B','Bx','By','Bz'],value='proj',frame=["phoebe"],context='plotting:mesh'),
@@ -666,7 +666,7 @@ defs += [dict(qualifier='label', description='label of thie parameterset',repr='
          #~ dict(qualifier='contours',description='whether to draw contours',repr='',cast_type='make_bool',value=0,frame=["phoebe"],context='plotting:mesh'),
          ]
          
-defs += [dict(qualifier='label', description='label of thie parameterset',repr='%s',cast_type=str,value='default',frame=["phoebe"],context='plotting:orbit'),
+defs += [dict(qualifier='label', description='label of this parameterset',repr='%s',cast_type='make_label',value='default',frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='data_times', description='whether to show the times of the enabled datasets',repr='',cast_type='make_bool',value=1,frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='times', description='time step to sample the orbit, or auto',repr='%s',cast_type='return_string_or_list',value='auto',frame=["phoebe"],context='plotting:orbit'),
          dict(qualifier='xaxis', description='value to plot on the x axis',repr='%s',cast_type='choose',choices=['time','x','y','z','vx','vy','vz'],value='x',frame=["phoebe"],context='plotting:orbit'),
@@ -681,7 +681,7 @@ defs += [dict(qualifier='type', description='type of selector',repr='',cast_type
          ]
          
 # Server context
-defs += [dict(qualifier='label', description='label for the server',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
+defs += [dict(qualifier='label', description='label for the server',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='server'),
          dict(qualifier='username', description='(optional) username for the server (ssh [-i identity_file] [username@]host)',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          dict(qualifier='host', description='hostname for the server (ssh [-i identity_file] [username@]host), or None if local',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
          dict(qualifier='identity_file', description='(optional) identity file for the server (ssh [-i identity_file] [username@]host)',repr='%s',cast_type=str,value='',frame=["phoebe"],context='server'),
@@ -691,7 +691,7 @@ defs += [dict(qualifier='label', description='label for the server',repr='%s',ca
          ]
          
 # Logger context
-defs += [dict(qualifier='label', description='label',repr='%s',cast_type=str,value='default_logger',frame=["phoebe"],context='logger'),
+defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_label',value='default_logger',frame=["phoebe"],context='logger'),
          dict(qualifier='style',    description='logger style',repr='%s',cast_type='choose',value='default',choices=['default','grandpa','minimal','trace'],frame=["phoebe"],context='logger'),
          dict(qualifier='clevel',   description='print to consolve this level and above',repr='%s',cast_type='choose',value='WARNING',choices=['INFO','DEBUG','WARNING'],frame=["phoebe"],context='logger'),
          dict(qualifier='flevel',   description='print to file this level and above',repr='%s',cast_type='choose',value='DEBUG',choices=['INFO','DEBUG','WARNING'],frame=["phoebe"],context='logger'),
@@ -700,7 +700,7 @@ defs += [dict(qualifier='label', description='label',repr='%s',cast_type=str,val
          ]
 
 # GUI context
-defs += [dict(qualifier='label', description='label',repr='%s',cast_type=str,value='default_gui',frame=["phoebe"],context='gui'),
+defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_label',value='default_gui',frame=["phoebe"],context='gui'),
          dict(qualifier='panel_system', description='show system panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_params', description='show parameters panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
          dict(qualifier='panel_fitting', description='show fitting panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
@@ -716,7 +716,7 @@ defs += [dict(qualifier='label', description='label',repr='%s',cast_type=str,val
          
          
 # Compute context
-defs += [dict(qualifier='label',                description='label for the comute options',repr='%s',cast_type=str,value='compute',frame=["phoebe"],context='compute'),
+defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context='compute'),
          dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),

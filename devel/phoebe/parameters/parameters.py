@@ -3119,6 +3119,25 @@ def make_bool(value):
     #-- everything else is always true (all nonempty strings are true)
     return bool(value)
 
+def make_label(value):
+    """
+    Cast a value to a string, but check for illegal characters.
+    
+    Illegal characters in a label are currently: '@','__bol', and a label cannot
+    be empty.
+    """
+    illegal_chars = set(['@'])
+    illegal_labels = ['__bol']
+    value = str(value)
+    if not value:
+        raise ValueError("Illegal label: label cannot be an empty string")
+    if any((char in illegal_chars) for char in value):
+        raise ValueError("Illegal character in label '{}' (cannot contain any of '{}')".format(value, "".join(list(illegal_chars))))
+    if any((value==word) for word in illegal_labels):
+        raise ValueError("Illegal label '{}' (cannot be any of '{}')".format(value, "', '".join(illegal_labels)))
+    return value
+    
+
 def return_equatorial_ra(value):
     """
     Parse equatorial coordinates in whatever value
