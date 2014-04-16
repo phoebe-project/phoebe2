@@ -376,7 +376,7 @@ class Bundle(Container):
         # not exist here yet
         
         # first get items from bundle
-        return_items = super(Bundle, self)._loop_through_container()
+        return_items = super(Bundle, self)._loop_through_container(do_sectionlevel=False)
         bundle_twigs = [ri['twig'] for ri in return_items]
         #~ bundle_unique_labels = [ri['twig'] for ri in return_items]
         
@@ -389,17 +389,27 @@ class Bundle(Container):
                 # then we need to make the copy
                 
                 if ri['section'] in ['compute','fitting']:
-                    item_copy = ri['item'].copy()
-                    
-                    ri['item'] = item_copy
-                    ri['container'] = self.__class__.__name__
-                    ri['twig_full'] = "{}@{}".format(ri['twig'],ri['container'])
-                    
-                    # now we need to attach to the correct place in the bundle
-                    if isinstance(item_copy, parameters.ParameterSet):
-                        self.sections[ri['section']].append(item_copy)
-                    
-                return_items.append(ri) 
+                    if ri['kind']=='OrderedDict':
+                        # then this is at the section-level, and these
+                        # will be rebuilt for the bundle later, so let's
+                        # ignore for now
+                        ri = None
+                    else:
+                        item_copy = ri['item'].copy()
+                        ri['item'] = item_copy
+
+                        ri['container'] = self.__class__.__name__
+                        ri['twig_full'] = "{}@{}".format(ri['twig'],ri['container'])
+                        
+                        # now we need to attach to the correct place in the bundle
+                        if isinstance(item_copy, parameters.ParameterSet):
+                            self.sections[ri['section']].append(item_copy)
+                
+                if ri is not None:
+                    return_items.append(ri) 
+        
+        # now that new items have been copied, we need to redo things at the section level
+        return_items += super(Bundle, self)._loop_through_container(do_pslevel=False)
         
         return return_items
         
