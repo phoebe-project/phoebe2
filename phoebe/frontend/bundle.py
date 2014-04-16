@@ -1978,10 +1978,6 @@ class Bundle(Container):
     
     #}
         
-        
-    #{ Pool
-    #}
-    
     #{ Attached Signals
     def attach_signal(self,param,funcname,callbackfunc,*args):
         """
@@ -2052,10 +2048,6 @@ class Bundle(Container):
             param = ps.get_parameter(key)
             self.attach_signal(param,'set_value',self._on_param_changed,ps)
             self.attached_signals_system.append(param)
-    
-    @rebuild_trunk
-    def _add_to_section(self, *args, **kwargs):
-        super(Bundle, self)._add_to_section(*args, **kwargs)
     
     def _on_param_changed(self,param,ps=None):
         """
@@ -2228,45 +2220,6 @@ class Bundle(Container):
         else:
             system.remove_preprocess('gray_scattering')
             
-    
-    
-class Version(object):
-    """ 
-    this class is essentially a glorified dictionary set to act like
-    a parameterset that can hold a system and multiple keywords that can
-    be used to search for it
-    """
-    def __init__(self,system):
-        self.sections = {}
-        self.sections['system'] = system
-        
-    def get_system(self):
-        return self.sections['system']
-        
-    def get_value(self,key):
-        return self.sections[key]
-        
-    def set_value(self,key,value):
-        self.sections[key] = value
-    
-class Feedback(object):
-    """ 
-    this class is essentially a glorified dictionary set to act like
-    a parameterset that can hold a feedback PS and multiple keywords that can
-    be used to search for it
-    """
-    def __init__(self,ps):
-        self.sections = {}
-        self.sections['ps'] = ps
-        
-    def get_ps(self):
-        return self.sections['ps']
-        
-    def get_value(self,key):
-        return self.sections[key]
-        
-    def set_value(self,key,value):
-        self.sections[key] = value
     
 def load(filename, load_usersettings=True):
     """
