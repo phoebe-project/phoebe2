@@ -630,7 +630,8 @@ class Bundle(Container):
         """
         Make a summary of the system
         """
-        return self.get_object(objref).list(summary='full')
+        return self.to_string()
+        #return self.get_object(objref).list(summary='full')
     
     def list(self, summary=None, *args):
         """
