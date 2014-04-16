@@ -12,10 +12,9 @@ def test_json():
     mybundle.set_value('period',200)
     mybundle.set_adjust('period',True)
 
-    mybundle._save_json('test_io.json')
+    mybundle.save('test_io.json')
 
-    mybundle = phoebe.Bundle()
-    mybundle._load_json('test_io.json')
+    mybundle = phoebe.Bundle('test_io.json')
     
     assert(mybundle.get_value('period')==200)
     assert(mybundle.get_adjust('period')==True)
