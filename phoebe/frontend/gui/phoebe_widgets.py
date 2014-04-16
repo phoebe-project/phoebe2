@@ -813,7 +813,8 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         self.style = 'data' #default
         if plots!='all plots' or types!='all categories':
             if plots!='all plots':
-                axes_incl = bundle._get_by_search(plots, kind='Container', section='axes', all=True, ignore_errors=True)
+                #~ axes_incl = bundle._get_by_search(plots, kind='Container', section='axes', all=True, ignore_errors=True)
+                axes_incl = [bundle.get_axes(plots)]
                 typ = axes_incl[0].get_value('category') # will be rv, lc, etc 
                 self.style = 'plot'
             elif types!='all categories': #plot will automatically handle filtering by type
@@ -829,7 +830,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
         plotted_obs_ps = [] # hold the plotoptions in axes_incl
         plotted_syn_ps = []
         for ax in axes_incl:
-            for p in ax.get_plot().values():
+            for p in ax._get_dict_of_section('plot').values():
                 if p['type'][-3:]=='obs':
                     plotted_obs.append(bundle.get_obs(objref=p['objref'],dataref=p['dataref']))
                     plotted_obs_ps.append(p)
@@ -977,7 +978,7 @@ class DatasetTreeWidget(GeneralParameterTreeWidget):
                 # we want to know the names of all the plots that this dataset appears in
                 plotted_names = []
                 for ax in axes_incl:
-                    for p in ax.get_plot().values():
+                    for p in ax._get_dict_of_section('plot').values():
                         if ax.get_value('title') not in plotted_names and p['dataref']==dataset['ref']:
                             plotted_names.append(ax.get_value('title'))
                 

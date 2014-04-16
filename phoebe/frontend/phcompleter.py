@@ -52,9 +52,9 @@ class Completer:
         with a __getattr__ hook is evaluated.
 
         """
-        tb_compl_commands = ['.get_value(', '.set_value(', 
-                        '.get_parameter(', '.get(',
-                        '.get_adjust(', '.set_adjust(',
+        tb_compl_commands = ['.get_parameter(', '.get(',
+                        '.get_value(', '.set_value(', '.set_value_all(', 
+                        '.get_adjust(', '.set_adjust(', '.set_adjust_all(',
                         '.get_prior(', '.set_prior(']
         
         for cmd in tb_compl_commands:

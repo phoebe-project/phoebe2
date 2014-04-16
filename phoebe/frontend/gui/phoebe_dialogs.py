@@ -94,6 +94,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         super(CreatePopPrefs, self).__init__(parent)
         self.setupUi(self)
         self.prefs = prefs
+        self.devel_version = devel_version
         
         self.pref_bools = self.findChildren(QCheckBox)
         self.pref_bools += self.findChildren(QRadioButton)
@@ -125,19 +126,10 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         self.connect(self.lo_psedit, SIGNAL("parameterChanged"), self.on_loparam_changed)
         
         self.set_gui_from_prefs(prefs,init=True)
+        if not self.devel_version:
+            self.tabWidget.removeTab(2)
         
-        if not devel_version:
-            # then disable certain items
-            self.p_panel_fitting.setEnabled(False)
-            self.p_panel_versions.setEnabled(False)
-            self.p_panel_system.setEnabled(False) # maybe enable for release if ready?
-            
-            # fitting options
-            self.label_13.setVisible(False)
-            self.fo_edit_combo.setVisible(False)
-            self.fo_delete.setVisible(False)
-            self.fo_add.setVisible(False)
-            self.fo_psedit.setVisible(False)
+
         
     def set_gui_from_prefs(self,prefs=None,init=False):
         if prefs is None:
@@ -247,6 +239,19 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         # logger stuff
         self.lo_psedit.set_data([self.prefs.get_logger()],style=['nofit'])
         
+        if not self.devel_version:
+            # then disable certain items
+            self.p_panel_fitting.setEnabled(False)
+            self.p_panel_versions.setEnabled(False)
+            self.p_panel_system.setEnabled(False) # maybe enable for release if ready?
+            
+            # fitting options
+            self.label_13.setVisible(False)
+            self.fo_edit_combo.setVisible(False)
+            self.fo_delete.setVisible(False)
+            self.fo_add.setVisible(False)
+            self.fo_psedit.setVisible(False)
+        
     def get_button_for_textbox(self,textedit):
         button_name = 'save_' + '_'.join(str(textedit.objectName()).split('_')[1:])
         buttons = self.findChildren(QPushButton,QString(button_name))
@@ -281,10 +286,7 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
         
         old_value = w.current_value
         
-        do_command = "settings.get_gui().set_value('%s',%s)" % (prefname,"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.get_gui().set_value('%s',%s)" % (prefname,"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
-        description = "change setting: %s" % prefname
-        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        self.on_setting_changed(prefname, 'default_gui', 'gui', old_value, new_value)
         
     def serveredit_changed(self,servername):
         if servername == 'None' or servername == '':
@@ -315,37 +317,36 @@ class CreatePopPrefs(QDialog, gui.Ui_popPrefs_Dialog):
     def on_serverparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
         
         label = str(self.sx_serveredit_combo.currentText())
+        section = 'server'
         
-        do_command = "settings.get_server('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.get_server('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
-        description = "change setting: %s" % param.get_qualifier()
-        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        self.on_setting_changed(param, label, section, old_value, new_value)
         
     def on_coparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
         
         label = str(self.co_edit_combo.currentText())
+        section = 'compute'
         
-        do_command = "settings.get_compute('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.get_compute('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
-        description = "change compute %s: %s" % (label,param.get_qualifier())
-        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        self.on_setting_changed(param, label, section, old_value, new_value)
         
     def on_foparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
         
         label = str(self.fo_edit_combo.currentText())
-        
-        do_command = "settings.get_fitting('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.get_fitting('%s').set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
-        description = "change fitting %s: %s" % (label,param.get_qualifier())
-        self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
+        section = 'fitting' 
+        self.on_setting_changed(param, label, section, old_value, new_value)
         
     def on_loparam_changed(self,treeview,label,param,old_value,new_value,oldunit=None,newunit=None,is_adjust=False,is_constraint=False):
         
-        label = 'logger'
+        label = 'default_logger'
+        section = 'logger'
 
-        do_command = "settings.get_%s().set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
-        undo_command = "settings.get_%s().set_value('%s',%s)" % (label,param.get_qualifier(),"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
-        description = "change logger %s" % (param.get_qualifier())
+        self.on_setting_changed(param, label, section, old_value, new_value)
+        
+    def on_setting_changed(self,param,label,section,old_value,new_value):
+        twig = '@'.join([param if isinstance(param,str) else param.get_qualifier(),label,section])
+        
+        do_command = "settings.set_value('%s', %s)" % (twig,"%s" % new_value if isinstance(new_value,bool) else "\"%s\"" % new_value)
+        undo_command = "settings.set_value('%s', %s)" % (twig,"%s" % old_value if isinstance(old_value,bool) else "\"%s\"" % old_value)
+        description = "change setting: %s" % twig
         self.emit(SIGNAL("parameterCommand"),do_command,undo_command,description,False,'settings')
         
     def on_add_ps_clicked(self):

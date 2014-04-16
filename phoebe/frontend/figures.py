@@ -101,12 +101,12 @@ class Axes(Container):
         if isinstance(ident,int): 
             return self._get_dict_of_section('plots', kind='ParameterSet').values()[ident]
         
-        return self._get_by_section(section='Plots', kind='ParameterSet', label=ident)
+        return self._get_by_section(section='plots', kind='ParameterSet', label=ident)
             
     def get_selector(self):
         """
         """
-        return self.sections['selector']
+        return self._get_by_search(section='selector', ignore_errors=True)
             
     def get_dataset(self,plot,bundle):
         """
