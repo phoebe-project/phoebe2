@@ -1309,20 +1309,22 @@ class Bundle(Container):
     #{ Compute
     
     @run_on_server
-    def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
+    def run_compute(self, label=None, objref=None, anim=False, server=None, **kwargs):
+    #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Convenience function to run observatory.observe
         
         @param label: name of one of the compute ParameterSets stored in bundle
         @type label: str
+        @param objref: name of the top-level object used when observing
+        @type objref: str
         @param anim: basename for animation, or False - will use settings in bundle.get_meshview()
         @type anim: False or str
-        @param add_version: whether to save a snapshot of the system after compute is complete
-        @type add_version: bool or str (which will become the version's name if provided)
         @param server: name of server to run on, or False to run locally (will override usersettings)
         @type server: string
         """
         system = self.get_system()
+        obj = self.get_object(objref)
         
         if add_version is None:
             add_version = self.settings['add_version_on_compute']
@@ -1366,10 +1368,10 @@ class Bundle(Container):
         
         if options['time'] == 'auto' and anim == False:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            system.compute(mpi=mpi, **options)
+            obj.compute(mpi=mpi, **options)
         else:
             im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
-            observatory.observe(system,options['time'],lc=True,rv=True,sp=True,pl=True,
+            observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
                 extra_func=[observatory.ef_binary_image] if anim!=False else [],
                 extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
                 mpi=mpi,**options
@@ -1381,8 +1383,8 @@ class Bundle(Container):
             
         system.uptodate = label
         
-        if add_version is not False:
-            self.add_version(name=None if add_version==True else add_version)
+        #~ if add_version is not False:
+            #~ self.add_version(name=None if add_version==True else add_version)
 
         self.attach_system_signals()
 
