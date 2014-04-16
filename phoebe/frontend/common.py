@@ -128,15 +128,15 @@ class Container(object):
 
         if isinstance(item, parameters.ParameterSet):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
-            component = labels[-1] if len(labels) else None
+            label = labels[-1] if len(labels) else label
             context = item.get_context()
-            label = item.get_value('label') if 'label' in item else label
+            ref = item.get_value('ref') if 'ref' in item else None
             unique_label = None
             qualifier = None
             
         elif isinstance(item, parameters.Parameter):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
-            component = labels[-1] if len(labels) else None
+            label = labels[-1] if len(labels) else label
             if path:
                 #then coming from the system and we need to build the context from the path
                 #~ context = path[-2] if isinstance(path[-2],str) else path[-2].get_context()
@@ -146,26 +146,26 @@ class Container(object):
             else:
                 #then we're coming from a section and already know the context
                 context = context
+            ref = None
             if path:
                 if context[-3:] in ['obs','dep']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
                     # do to bad design by Pieter, this needs a hack to make sure we get the right label
-                    label = path[-2]
-            else:
-                label = label
+                    ref = path[-2]
+                
             unique_label = item.get_unique_label()
             qualifier = item.get_qualifier()
         elif isinstance(item, universe.Body):
-            component = item.get_label()
+            label = item.get_label()
             context = None
-            label = None
+            ref = None
             unique_label = None
             qualifier = None
         elif isinstance(item, Container):
             kind = 'Container'
-            component = None
+            label = None
             context = None
-            label = item.get_label() if hasattr(item, 'get_label') else label
+            ref = item.get_label() if hasattr(item, 'get_label') else None
             unique_label = None
             qualifier = None
         else:
@@ -174,29 +174,29 @@ class Container(object):
             
         # now let's do specific overrides
         if context == 'orbit':
-            component = None
             label = None
+            ref = None
         
         if context == section:
             section_twig = None
-        elif section == 'system' and component != self.get_system().get_label():
+        elif section == 'system' and label != self.get_system().get_label():
             section_twig = self.get_system().get_label()
         else:
             section_twig = section
             
-        #hidden = qualifier in ['ref','label', 'c1label', 'c2label']
+        #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         hidden = False
             
-        # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
-        twig = self._make_twig([qualifier,label,context,component,section_twig])
-        #~ twig_reverse = self._make_twig([qualifier,label,context,component,section_twig], invert=True)
-        twig_full = self._make_twig([qualifier,label,context,component,section_twig,container])
-        #~ twig_full_reverse = self._make_twig([qualifier,label,context,component,section_twig,container], invert=True)
+        # twig = <qualifier>@<ref>@<context>@<label>@<section>@<container>
+        twig = self._make_twig([qualifier,ref,context,label,section_twig])
+        #~ twig_reverse = self._make_twig([qualifier,ref,context,label,section_twig,container], invert=True)
+        twig_full = self._make_twig([qualifier,ref,context,label,section_twig,container])
+        #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section_twig,container], invert=True)
         
         
-        return dict(qualifier=qualifier, component=component,
+        return dict(qualifier=qualifier, label=label,
             container=container, section=section, kind=kind, 
-            context=context, label=label, unique_label=unique_label, 
+            context=context, ref=ref, unique_label=unique_label, 
             twig=twig, twig_full=twig_full, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
             item=item,
@@ -407,11 +407,11 @@ class Container(object):
         
         for twig,info in load_dict.items():
             if twig[0]!='_':
-                #~ print "self.set_value('{}', '{}')".format(twig, info['value'])
+                #~ print "self.set_value('{}', '{}')".format(twig, str(info['value']))
                 item = self.get(twig, hidden=None)
                 
                 if 'value' in info:
-                    item.set_value(info['value'])
+                    item.set_value(str(info['value']))
                 if 'adjust' in info:
                     #~ print "HERE", twig, info['adjust']
                     item.set_adjust(info['adjust'])
