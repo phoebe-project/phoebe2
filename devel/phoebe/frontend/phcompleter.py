@@ -55,7 +55,7 @@ class Completer:
         tb_compl_commands = ['.get_parameter(', '.get(', '.match(', '.search(',
                         '.get_value(', '.set_value(', '.set_value_all(', 
                         '.get_adjust(', '.set_adjust(', '.set_adjust_all(',
-                        '.get_prior(', '.set_prior(']
+                        '.get_prior(', '.set_prior(','[']
         
         for cmd in tb_compl_commands:
             if cmd in text:
