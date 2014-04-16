@@ -1571,13 +1571,12 @@ class Bundle(Container):
         @type ident: int or str
         """
         if isinstance(ident,int): 
-            #then we need to return all in list and take index
-            raise NotImplementedError
-            return
-            # TODO - this won't work - we need to make _remove_from_section take an index
+            self.sections['axes'].pop(ident)
+
+        else:
+            axes = self.get_axes(ident)
+            self.sections['axes'].remove(axes)
         
-        return self._remove_from_section('axes',ident,'title')
-                                
     def plot_axes(self,ident,mplfig=None,mplaxes=None,location=None):
         """
         Create a defined axes

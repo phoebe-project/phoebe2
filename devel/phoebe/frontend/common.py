@@ -170,7 +170,7 @@ class Container(object):
         else:
             section_twig = section
             
-        hidden = qualifier in ['ref','label']
+        hidden = qualifier in ['ref','label', 'c1label', 'c2label']
             
         # twig = <qualifier>@<label>@<context>@<component>@<section>@<container>
         twig = self._make_twig([qualifier,label,context,component,section_twig])
@@ -339,44 +339,6 @@ class Container(object):
                         
         return {ti['label']:ti['item'] for ti in all_ti} if all_ti is not None else {}
         
-        
-    def _save_ascii(self, filename):
-        """
-        TESTING
-        """
-        f = open(filename, 'w')
-        
-        # first we need to save the system hierarchy
-        
-        
-        # now let's loop through and dump everything in the trunk
-        this_container = self.__class__.__name__
-        for ti in self.trunk:
-            # let's restrict to those stored in this constainer (or overriden to appear that way)
-            if ti['container'] == this_container:
-                if ti['kind'] == 'Parameter':
-                    f.write('{:<70}= {}\n'.format(ti['twig'], ti['item'].get_value()))
-        f.close()
-        
-    def _load_ascii(self, filename):
-        """
-        TESTING
-        """
-        f = open(filename, 'r')
-        
-        # first we need to load the system hierarchy
-        
-        
-        # and then loop through and call commands for everything in the trunk
-        for line in f:
-            info = line.strip().split('=')
-            twig, value = info[0].strip(), info[1].strip()
-            
-            #~ print "self.set_value('{}', '{}')".format(twig, value)
-            self.get(twig, hidden=None).set_value(value)
-        
-        f.close()
-
     def _save_json(self, filename):
         """
         TESTING
@@ -387,11 +349,16 @@ class Container(object):
 
         dump_dict = {}
         
-        dump_dict['_system_hiearchy'] = 'only binaries currently supported'
+        #~ dump_dict['_system_hierarchy'] = 'only binaries currently supported'
+        #~ dump_dict['_system_hierarchy'] = {'kind': 'BodyBag', 'children': [{'kind': 'BinaryRocheStar', 'label': 'primary'}, {'kind': 'BinaryRocheStar', 'label': 'secondary'}], 'label': 'new system'}
+
+        if hasattr(self, 'get_system'):
+            dump_dict['_system_structure'] = _dumps_system_structure(self.get_system())
+
         # TODO will need to include 'hidden' information like refs and labels here as well
         
         for ti in self.trunk:
-            if ti['container']==this_container and ti['kind']=='Parameter':
+            if not ti['hidden'] and ti['container']==this_container and ti['kind']=='Parameter':
                 item = ti['item']
                 info = {}
                 
@@ -412,6 +379,7 @@ class Container(object):
         f.write(json.dumps(dump_dict, sort_keys=True, indent=4, separators=(',', ': ')))
         f.close()
 
+    @rebuild_trunk
     def _load_json(self, filename):
         """
         TESTING
@@ -420,15 +388,19 @@ class Container(object):
         load_dict = json.load(f)
         f.close()
         
+        if hasattr(self, 'get_system'):
+            self.set_system(_loads_system_structure(load_dict['_system_structure']))
+            #print self.get_system().list(summary='full')
+        
         for twig,info in load_dict.items():
             if twig[0]!='_':
-                #~ print "self.set_value('{}', '{}')".format(twig, value)
+                #~ print "self.set_value('{}', '{}')".format(twig, info['value'])
                 item = self.get(twig, hidden=None)
                 
                 if 'value' in info:
                     item.set_value(info['value'])
                 if 'adjust' in info:
-                    print "HERE", twig, info['adjust']
+                    #~ print "HERE", twig, info['adjust']
                     item.set_adjust(info['adjust'])
                 #~ if 'prior' in info:
                     #~ item.set_prior(info['prior'])
@@ -467,7 +439,7 @@ class Container(object):
                 return dictionary.values()[0] 
     
     @rebuild_trunk
-    def _add_to_section(self,section,ps):
+    def _add_to_section(self, section, ps):
         """
         add a new parameterset to section - the label of the parameterset
         will be used as the key to retrieve it using _get_from_section
@@ -480,7 +452,7 @@ class Container(object):
         if section not in self.sections.keys():
             self.sections[section] = []
         self.sections[section].append(ps)
-        
+    
     def list_twigs(self, full=True, **kwargs):
         """
         return a list of all available twigs
@@ -689,6 +661,20 @@ class Container(object):
         param = self.get_parameter(twig)
         param.set_prior(**dist_kwargs)
         
+    def set_prior_all(self, twig, **dist_kwags):
+        """
+        set the prior on all matching Parameters
+        
+        @param twig: the search twig
+        @type twig: str
+        @param **kwargs: necessary parameters for distribution
+        @type **kwargs: varies
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for param in params:
+            param.set_prior(**dist_kwargs)
+        
     @rebuild_trunk
     def add_compute(self,ps=None,**kwargs):
         """
@@ -727,7 +713,8 @@ class Container(object):
         @param label: name of compute ParameterSet
         @type label: str
         """
-        return self._remove_from_section('compute',label)
+        compute = self.get_compute(label)
+        self.sections['compute'].remove(compute)
         
     @rebuild_trunk
     def add_fitting(self,ps=None,**kwargs):
@@ -767,5 +754,55 @@ class Container(object):
         @param label: name of fitting ParameterSet
         @type label: str
         """
-        self._remove_from_section('fitting',label)
+        fitting = self.get_fitting(label)
+        self.sections['fitting'].remove(fitting)
         
+def _dumps_system_structure(current_item):
+    """
+    dumps the system hierarchy into a dictionary that is json compatible
+    """
+    struc_this_level = {}
+
+    struc_this_level['label'] = current_item.get_label()
+    struc_this_level['kind'] = current_item.__class__.__name__
+
+    # now let's find if this current item has any children and if so,
+    # create an entry for children and make a recursive call to this func
+    children = current_item.bodies if hasattr(current_item, 'bodies') else []
+    # if there are children, then we need to create the entry and 
+    # intialize an empty list
+    if len(children):
+        struc_this_level['children'] = []
+    # now let's iterate through each child, recursively create its own
+    # dictionary and then attach
+    for i,child in enumerate(children):
+        struc_child = _dumps_system_structure(child)
+        struc_this_level['children'].append(struc_child)
+
+    return struc_this_level
+
+def _loads_system_structure(struc, c1label=None, c2label=None, top_level=True):
+    """
+    loads the system hierarchy from a json compatible dictionary
+    """
+
+    # if we're dealing with a Bag of some sort, then we need to create
+    # the item while also building and attaching its children
+    if 'children' in struc.keys(): # BodyBag, etc
+        list_of_bodies = [_loads_system_structure(child_struc, c1label=struc['children'][0]['label'], c2label=struc['children'][1]['label'], top_level=False) for child_struc in struc['children']]
+        this_item = getattr(universe, struc['kind'])(list_of_bodies, label=struc['label'])
+    
+    # if we're a component, then we can create the item and attach orbits from
+    # the passed labels for c1label and c2label
+    else: # BinaryRocheStar, etc
+        this_item = getattr(universe, struc['kind'])(parameters.ParameterSet(context='component', label=struc['label']), orbit=parameters.ParameterSet(context='orbit', label=struc['label'], c1label=c1label, c2label=c2label))
+
+    # top_level should only be True when this function is initially called
+    # (any recursive calls will set it to False).  For the top-level item,
+    # we need to create and attach a 'position' PS
+    if top_level:
+        this_item.params['position'] = parameters.ParameterSet(context='position')
+
+    # and finally return the item, which should be the system for any
+    # non-recursive calls
+    return this_item

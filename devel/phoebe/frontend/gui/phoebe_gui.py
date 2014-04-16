@@ -493,7 +493,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         self.undoStack.redo()
 
     def on_new_clicked(self,file_to_open=None):
-        self.PyInterp_run("bundle = Bundle('%s')" % file_to_open if file_to_open is not None else "bundle=Bundle()",kind='sys',thread=False) # this will call on_new_bundle and reset to home/splash screen
+        self.PyInterp_run("bundle = Bundle('%s')" % file_to_open if file_to_open is not None else "bundle = Bundle()",kind='sys',thread=False) # this will call on_new_bundle and reset to home/splash screen
 
     @PyInterp_selfdebug
     def on_new_bundle(self):
@@ -915,7 +915,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
         if canvas is None:
             canvas = self.plot_canvases[i]
            
-        for po in axes.get_plot().values():
+        for po in axes._get_dict_of_section('plot').values():
             if (po, canvas) not in self.attached_plot_signals:
                 for paramname in po.keys():
                     param = po.get_parameter(paramname)
