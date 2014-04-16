@@ -553,9 +553,9 @@ class Bundle(Container):
                 library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'../parameters/library/')
                 if os.path.isfile(os.path.join(library_dir, system)):
                     system = os.path.join(library_dir, system)
-            
             # Try to guess the file type (if it is a file)
             if os.path.isfile(system):
+                #self._load_json(system)
                 try:
                     self._load_json(system)
                     file_type = 'json'
@@ -1387,6 +1387,9 @@ class Bundle(Container):
             #~ self.add_version(name=None if add_version==True else add_version)
 
         self.attach_system_signals()
+        
+        # and update trunk to contain perhaps the syn
+        self._build_trunk()
 
     #}
             

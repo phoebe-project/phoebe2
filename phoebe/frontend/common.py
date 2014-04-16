@@ -83,11 +83,12 @@ class Container(object):
                     ri = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
                     if ri is not None:
                         return_items.append(ri)
-                        
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
+                                
                         elif ri['kind']=='BodyBag':
                             return_items += self._loop_through_system(item, section_name=section_name)
+                            
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'])
         
@@ -112,16 +113,31 @@ class Container(object):
         called when _loop_through_container hits the system
         """
         return_items = []
-        
+        ri = None
         for path, item in system.walk_all(path_as_string=False):
+            
             # make sure to catch the obs and pbdep
-            if isinstance(item, str) and item[-3:] in ['obs', 'dep', 'syn']:
+            if isinstance(item, str) and item[-3:] in ['obs', 'dep','syn']:
+                
+                # we completely ignore existing syns, we build them on the same
+                # level as obs are available
+                if item[-3:] == 'syn':
+                    continue
+                
                 for itype in path[-2]:
                     for isubtype in path[-2][itype].values():
                         ri = self._get_info_from_item(isubtype, path=path, section=section_name)
                         return_items.append(ri)
                     
-                    # but also add the dep/obs
+                        # we want to see if there any syns associated with the obs
+                        if itype[-3:] == 'obs':
+                            bodies = [self.get_system()] + [thing for thing in path if isinstance(thing, universe.Body)]
+                            syn = bodies[-1].get_synthetic(category=item[:-3], ref=isubtype['ref'])
+                            if syn is not None: 
+                                ri = self._get_info_from_item(syn, path=path, section=section_name)
+                                return_items.append(ri)                                                
+                    
+                    # but also add the collection of dep/obs
                     ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
                     return_items.append(ri)
             
@@ -129,9 +145,7 @@ class Container(object):
                 continue
                 
             else:    
-                
                 ri = self._get_info_from_item(item, path=path, section=section_name)
-            
                 #~ print path, ri['twig_full'] if ri is not None else None #, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
                 #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
                 
@@ -139,8 +153,8 @@ class Container(object):
                 if ri is not None and ri['context']!='syn' \
                         and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
                         and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
-                    return_items.append(ri)
-                
+                    return_items.append(ri)                            
+                            
         return return_items
         
     def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None, ref=None):
@@ -184,7 +198,7 @@ class Container(object):
                 context = context
             ref = ref
             if path:
-                if context[-3:] in ['obs','dep']:
+                if context[-3:] in ['obs','dep','syn']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
                     # do to bad design by Pieter, this needs a hack to make sure we get the right label
                     ref = path[-2]
@@ -445,7 +459,7 @@ class Container(object):
                 item = ti['item']
                 info = {}
                 
-                info['value'] = item.to_str()
+                info['value'] = item.get_value()#to_str()
                 
                 #~ if hasattr(item, 'get_unit') and item.has_unit():
                     #~ info['_unit (read-only)'] = item.get_unit()
@@ -481,7 +495,7 @@ class Container(object):
                 item = self.get(twig, hidden=None)
                 
                 if 'value' in info:
-                    item.set_value(str(info['value']))
+                    item.set_value(info['value'])
                 if 'adjust' in info:
                     #~ print "HERE", twig, info['adjust']
                     item.set_adjust(info['adjust'])
