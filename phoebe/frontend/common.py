@@ -154,7 +154,12 @@ class Container(object):
 
         if isinstance(item, parameters.ParameterSet):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
-            label = labels[-1] if len(labels) else label
+            if len(labels):
+                label = labels[-1]
+            elif hasattr(self, 'get_system'):
+                label = self.get_system().get_label()
+            else:
+                label = label
             context = item.get_context()
             ref = item.get_value('ref') if 'ref' in item else ref
             unique_label = None
@@ -162,7 +167,12 @@ class Container(object):
             
         elif isinstance(item, parameters.Parameter):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
-            label = labels[-1] if len(labels) else label
+            if len(labels):
+                label = labels[-1]
+            elif hasattr(self, 'get_system'):
+                label = self.get_system().get_label()
+            else:
+                label = label
             if path:
                 #then coming from the system and we need to build the context from the path
                 #~ context = path[-2] if isinstance(path[-2],str) else path[-2].get_context()
@@ -219,6 +229,8 @@ class Container(object):
             section_twig = self.get_system().get_label()
         else:
             section_twig = section
+            
+        section_twig = section
          
         hidden = qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
