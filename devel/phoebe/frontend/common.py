@@ -156,7 +156,7 @@ class Container(object):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             if len(labels):
                 label = labels[-1]
-            elif hasattr(self, 'get_system'):
+            elif hasattr(self, 'get_system') and label is None:
                 label = self.get_system().get_label()
             else:
                 label = label
@@ -169,7 +169,7 @@ class Container(object):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             if len(labels):
                 label = labels[-1]
-            elif hasattr(self, 'get_system'):
+            elif hasattr(self, 'get_system') and label is None:
                 label = self.get_system().get_label()
             else:
                 label = label
@@ -207,11 +207,16 @@ class Container(object):
         elif isinstance(item, OrderedDict) or isinstance(item, dict):
             kind = 'OrderedDict'
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
-            label = labels[-1] if len(labels) else label
-            context = None
+            if len(labels):
+                label = labels[-1]
+            elif hasattr(self, 'get_system') and label is None:
+                label = self.get_system().get_label()
+            else:
+                label = label
+            context = path[-1] if path else None
             ref = None
             unique_label = None
-            qualifier = path[-1] if path else None
+            qualifier = None
         else:
             return None
             #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))
