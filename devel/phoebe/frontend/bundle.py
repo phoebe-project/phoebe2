@@ -1040,7 +1040,7 @@ class Bundle(Container):
             if category in ['lc','if','sp']:
                 # then top-level
                 components = [self.get_system()]
-                logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
+                #logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
             else:
                 logger.error('create_data failed: components need to be provided')
                 return
