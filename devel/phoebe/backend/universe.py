@@ -5625,7 +5625,7 @@ class BodyBag(Body):
             elif comp==1:
                 self.params['orbit']['c2label'] = label
         except Exception as msg:
-            logger.info(str(msg))
+            logger.debug(str(msg))
         
         self.label = label
             
