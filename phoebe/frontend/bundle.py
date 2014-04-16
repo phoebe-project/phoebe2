@@ -715,7 +715,7 @@ class Bundle(Container):
     #{ Objects
     def get_object(self, objref=None):
         # handle objref if twig was given instead
-        objref = objref.split('@')[0]
+        objref = objref.split('@')[0] if objref is not None else None
         # return the Body/BodyBag from the system hierarchy
         system = self.get_system()
         if objref is None or system.get_label() == objref or objref == '__nolabel__':
@@ -732,7 +732,7 @@ class Bundle(Container):
         
     def get_children(self, objref=None):
         # handle objref if twig was given instead
-        objref = objref.split('@')[0]
+        objref = objref.split('@')[0] if objref is not None else None
         # return list of children for self.get_object(objref)
         obj = self.get_object(objref)
         if hasattr(obj,'bodies'):
