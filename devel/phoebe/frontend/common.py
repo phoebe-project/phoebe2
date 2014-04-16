@@ -594,6 +594,17 @@ class Container(object):
         @rtype: ParameterSet
         """
         return self._get_by_search(twig, kind='ParameterSet')
+        
+    def get_ps_dict(self, twig):
+        """
+        retrieve a dictionary of ParameterSets in a list
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: dictionary of ParameterSets
+        @rtype: dict
+        """
+        return self._get_by_search(twig, kind="OrderedDict")
 
     def get_parameter(self, twig):
         """
