@@ -40,13 +40,22 @@ class Container(object):
         return self.sections.items()
         
     def __getitem__(self, twig):
+        """
+        Define dictionary style access.
+        
+        Returns Bodies, ParameterSets or Parameter values (never Parameters).
+        """
         ret_value = self._get_by_search(twig)
         if isinstance(ret_value, parameters.Parameter):
             ret_value = ret_value.get_value()
         return ret_value
     
     def __setitem__(self, twig, value):
+        #if isinstance(value, parameter.ParameterSet):
+        #    ret_value = self._get_by_search(twig)
+        #elif isinstance(value, parameter.ParameterSet):
         self.set_value(twig, value)
+        
     
     #~ def __iter__(self):
         #~ for _yield in self._loop_through_container(return_type='item'):
@@ -94,23 +103,34 @@ class Container(object):
         return_items = []
         
         for path, item in system.walk_all(path_as_string=False):
-            ri = self._get_info_from_item(item, path=path, section=section_name)
-            
-            #~ print path, ri['twig_full'] if ri is not None else None #, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
-            #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
-            
-            # ignore parameters that are synthetics and make sure this is not a duplicate
-            if ri is not None and ri['context']!='syn' \
-                    and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
-                    and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
-                return_items.append(ri)
-            
             # make sure to catch the obs and pbdep
-            elif isinstance(item, str) and item[-3:] in ['obs', 'dep', 'syn']:
+            if isinstance(item, str) and item[-3:] in ['obs', 'dep', 'syn']:
                 for itype in path[-2]:
                     for isubtype in path[-2][itype].values():
                         ri = self._get_info_from_item(isubtype, path=path, section=section_name)
                         return_items.append(ri)
+                    
+                    # but also add the dep/obs
+                    ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
+                    return_items.append(ri)
+            
+            elif isinstance(item, OrderedDict):
+                continue
+                
+            else:    
+                
+                ri = self._get_info_from_item(item, path=path, section=section_name)
+            
+                #~ print path, ri['twig_full'] if ri is not None else None #, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
+                #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
+                
+                # ignore parameters that are synthetics and make sure this is not a duplicate
+                if ri is not None and ri['context']!='syn' \
+                        and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
+                        and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
+                    return_items.append(ri)
+                
+                
 
             
                     
@@ -168,6 +188,14 @@ class Container(object):
             ref = item.get_label() if hasattr(item, 'get_label') else None
             unique_label = None
             qualifier = None
+        elif isinstance(item, OrderedDict):
+            kind = 'OrderedDict'
+            labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
+            label = labels[-1] if len(labels) else label
+            context = None
+            ref = None
+            unique_label = None
+            qualifier = path[-1]
         else:
             return None
             #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))
@@ -607,7 +635,15 @@ class Container(object):
                 param.set_value(value)
             else:
                 param.set_value(value, unit)
-                
+    
+    def set_ps(self, twig, value):
+        """
+        Set a new or replace an existing ParameterSet.
+        """
+        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+        print this_trunk
+
+    
     def get_adjust(self, twig):
         """
         retrieve whether a Parameter is marked to be adjusted
