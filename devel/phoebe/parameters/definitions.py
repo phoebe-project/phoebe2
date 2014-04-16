@@ -767,7 +767,8 @@ defs += [dict(qualifier='tdyn',   description='Dynamical timescale',repr='%f',ca
 
 rels = [dict(qualifier='asini', description='Projected system semi-major axis', repr='%f', value=10., unit='Rsol', cast_type=float, connections=['sma', 'incl'], frame=['phoebe'], context='orbit'),
         dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=['period@orbit', 'q@orbit', 'sma@orbit'], frame=['phoebe'], context='component'),
-        dict(qualifier='teff_ratio', description='Effective temperature ratio between components', repr='%f', value=1., cast_type=float, connections=['teff@primary','teff@secondary'], frame=['phoebe'], context='BinaryBag')]
+        dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=[], frame=['phoebe'], context='component'),
+        dict(qualifier='teff_ratio', description='Effective temperature ratio between components', repr='%f', value=1., cast_type=float, connections=['teff@primary','teff@secondary'], frame=['phoebe'], context='binarybag')]
 
 # simple constraints
 constraints = {'phoebe':{}}        
