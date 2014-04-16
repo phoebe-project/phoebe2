@@ -41,10 +41,13 @@ class Container(object):
         return self.sections.items()
         
     def __getitem__(self, twig):
-        return self.get_value(twig)
+        ret_value = self._get_by_search(twig)
+        if isinstance(ret_value, parameters.Parameter):
+            ret_value = ret_value.get_value()
+        return ret_value
     
-    def __setitem__(self, twig, value):
-        self.set_value(twig, value)
+    #def __setitem__(self, twig, value):
+    #    self.set_value(twig, value)
     
     #~ def __iter__(self):
         #~ for _yield in self._loop_through_container(return_type='item'):
@@ -289,8 +292,6 @@ class Container(object):
         @param use_search: whether to use substring search instead of match
         @type use_search: bool
         """
-        
-        
         # can take kwargs for searching by any other key stored in the trunk dictionary
         
         if twig is not None:
