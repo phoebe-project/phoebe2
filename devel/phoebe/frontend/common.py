@@ -226,7 +226,7 @@ class Container(object):
         return dict(qualifier=qualifier, label=label,
             container=container, section=section, kind=kind, 
             context=context, ref=ref, unique_label=unique_label, 
-            twig=twig, twig_full=twig_full, 
+            twig=twig, twig_full=twig_full, path=path, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
             item=item,
             hidden=hidden)
@@ -299,23 +299,39 @@ class Container(object):
         matching_twigs = [t['twig_full'].split('@') for t in trunk]
         matching_indices = range(len(matching_twigs))
         
-        for tsp_i,tsp in enumerate(twig_split):
-            remove = []
-            for mtwig_i, mtwig in enumerate(matching_twigs):
-                if (tsp_i != 0 and tsp in mtwig) or mtwig[0]==tsp:
-                #~ if (tsp_i != 0 and [fnmatch(mtwig_spi,tsp) for mtwig_spi in mtwig]) or fnmatch(mtwig[0],tsp):
-                    # then find where we are, and then only keep stuff to the right
-                    ind = mtwig.index(tsp)
-                    mtwig = mtwig[ind+1:]
-                else:
-                    # then remove from list of matching twigs
-                    remove.append(mtwig_i)
+        # We attempt to match a twig twice; once with colons describing
+        # subcontext, once without
+        
+        for attempt in (0,1):
             
-            for remove_i in sorted(remove,reverse=True):
-                matching_twigs.pop(remove_i)
-                matching_indices.pop(remove_i)
+            # second attempt is without colons denoting subcontexts
+            if attempt == 1:
+                matching_twigs = [[st.split(':')[0] for st in t['twig_full'].split('@')] for t in trunk]
+                matching_indices = range(len(matching_twigs))
                 
-        return [matching_twigs_orig[i] for i in matching_indices] 
+            for tsp_i,tsp in enumerate(twig_split):
+                remove = []
+                for mtwig_i, mtwig in enumerate(matching_twigs):
+                    if (tsp_i != 0 and tsp in mtwig) or mtwig[0]==tsp:
+                    #~ if (tsp_i != 0 and [fnmatch(mtwig_spi,tsp) for mtwig_spi in mtwig]) or fnmatch(mtwig[0],tsp):
+                        # then find where we are, and then only keep stuff to the right
+                        ind = mtwig.index(tsp)
+                        mtwig = mtwig[ind+1:]
+                    else:
+                        # then remove from list of matching twigs
+                        remove.append(mtwig_i)
+                
+                for remove_i in sorted(remove,reverse=True):
+                    matching_twigs.pop(remove_i)
+                    matching_indices.pop(remove_i)
+            
+            ret_value = [matching_twigs_orig[i] for i in matching_indices] 
+            
+            # If we found a match, no need to search through subcontexts
+            if len(ret_value):
+                break
+                    
+        return ret_value
         
     def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, return_key='item', use_search=False, **kwargs):
         """
