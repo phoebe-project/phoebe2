@@ -3129,6 +3129,10 @@ def make_label(value):
     illegal_chars = set(['@'])
     illegal_labels = ['__bol']
     value = str(value)
+    
+    # replace whitespace with _
+    value = "_".join(value.split())
+    
     if not value:
         raise ValueError("Illegal label: label cannot be an empty string")
     if any((char in illegal_chars) for char in value):
