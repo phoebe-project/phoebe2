@@ -3664,6 +3664,8 @@ class Body(object):
             
         return "\n".join(text)
     
+    def summary(self):
+        return self.list(summary='cursory')
     
     def clear_synthetic(self):
         """

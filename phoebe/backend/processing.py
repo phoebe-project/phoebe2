@@ -191,4 +191,52 @@ def sed_scale_to_distance(self, time, group):
     globals['derived_distance'] = globals['distance'] / pblum
                 
             
+def binary_custom_variables(self, time):
+    """
+    Runs over all parameters and solves for the values of custom parameters and their relations.
+    
+    Given the complexity and customizibility of this job, the relations are
+    hardcoded.
+    """
+    
+    comp1 = self[0].params['component']
+    comp2 = self[1].params['component']
+    orbit = self[0].params['orbit']
+    
+    for loc, param in self.walk_all(path_as_string=False):
+        
+        # if this thing has connections, it must be a Parameter for which
+        # relations hold
+        if hasattr(param, 'connections'):
+            
+            qualifier = param.get_qualifier()
+            dependable = param.get_dependable()
+            this_component = 0
+            
+            # Projected semi-major axis: asini = sma * sin(incl)
+            if qualifier == 'asini':
                 
+                sma = orbit.request_value('sma','SI')
+                incl = orbit.request_value('incl','SI')
+                asini = orbit.request_value('asini','SI')
+                
+                if dependable == 'sma':
+                    sma = asini / np.sin(incl)
+                    orbit['sma'] = sma, 'SI'
+                elif dependable == 'incl':
+                    incl = np.arcsin(asini / sma)
+                    orbit['incl'] = incl, 'SI'
+                else:
+                    asini = sma * np.sin(incl)
+                    orbit['asini'] = asini, 'SI'
+            
+            # Add mass as a parameter
+            elif qualifier == 'mass':
+                
+                sma = orbit.request_value('sma','SI')
+                period = orbit.request_value('period', 'SI')
+                q = orbit['q']
+                mass = orbit.request_value('mass', 'SI')
+                
+                #if dependable == 'mass' and :
+                    

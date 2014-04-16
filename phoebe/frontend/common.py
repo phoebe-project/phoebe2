@@ -45,8 +45,8 @@ class Container(object):
             ret_value = ret_value.get_value()
         return ret_value
     
-    #def __setitem__(self, twig, value):
-    #    self.set_value(twig, value)
+    def __setitem__(self, twig, value):
+        self.set_value(twig, value)
     
     #~ def __iter__(self):
         #~ for _yield in self._loop_through_container(return_type='item'):
@@ -183,9 +183,10 @@ class Container(object):
             section_twig = self.get_system().get_label()
         else:
             section_twig = section
-            
+         
+        hidden = qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
-        hidden = False
+        #hidden = False
             
         # twig = <qualifier>@<ref>@<context>@<label>@<section>@<container>
         twig = self._make_twig([qualifier,ref,context,label,section_twig])
@@ -564,7 +565,7 @@ class Container(object):
         
     def set_value(self, twig, value, unit=None):
         """
-        set the value of a Parameter
+        Set the value of a Parameter
         
         @param twig: the search twig
         @type twig: str
@@ -574,6 +575,14 @@ class Container(object):
         @type unit: str or None
         """
         param = self.get_parameter(twig)
+        
+        # special care needs to be taken when setting labels and refs
+        qualifier = param.get_qualifier()
+        if qualifier == 'label':
+            this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+            component = self._get_by_search(this_trunk['label'])
+            component.set_label(value)
+            self._build_trunk()
         
         if unit is None:
             param.set_value(value)
