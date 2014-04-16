@@ -1535,6 +1535,31 @@ class Body(object):
         self._clear_when_reset = dict()
     
     
+    def set_params(self, params, force=True):
+        """
+        Assign a parameterSet to a Body
+        
+        :param params: new ParameterSet to assign
+        :type params: 
+        """
+        # We don't store subcontexts in the main root
+        this_context = params.get_context().split(':')[0]
+        
+        if this_context[-3:] not in ['obs', 'dep', 'syn']:
+            if force or not (this_context in self.params):
+                self.params[this_context] = params
+            else:
+                raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
+        else:
+            category = this_context[:-3]
+            this_type = this_context[-3:]
+            ref = params['ref']
+            if force or not (this_context in self.params[this_type][this_context]):
+                self.params[this_type][this_context][ref] = params
+            else:
+                raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
+        
+        
     def reset_and_clear(self):
         """
         Reset the Body and clear the synthetic calculations.
