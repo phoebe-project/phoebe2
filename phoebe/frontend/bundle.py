@@ -553,6 +553,7 @@ class Bundle(Container):
                     system = os.path.join(library_dir, system)
             
             # Try to guess the file type (if it is a file)
+            filetype = None
             if os.path.isfile(system):
                 try:
                     self._load_json(system)
@@ -1790,6 +1791,8 @@ class Bundle(Container):
         """
         if self.select_time is not None:
             self.set_time(self.select_time)
+        else:
+            self.set_time(0)
         
         po = self.get_meshview() if meshviewoptions is None else meshviewoptions
 
@@ -1851,8 +1854,10 @@ class Bundle(Container):
         else:
             times_data = []
         
-        top_orbit = self.get_orbit(self.get_system_structure(flat=True)[0])
-        bottom_orbit = self.get_orbit(self.get_system_structure()[-1][0])
+        orbits = self._get_by_search(context='orbit', kind='ParameterSet', all=True)
+        periods = np.array([o.get_value('period') for o in orbits])
+        top_orbit = orbits[periods.argmax()]
+        bottom_orbit = orbits[periods.argmin()]
         if po['times'] == 'auto':
             times_full = np.arange(top_orbit.get_value('t0'),top_orbit.get_value('t0')+top_orbit.get_value('period'),bottom_orbit.get_value('period')/20.)
         else:
@@ -2071,7 +2076,7 @@ class Bundle(Container):
         """
         return copy.deepcopy(self)
     
-    def save(filename):
+    def save(self, filename):
         self._save_json(filename)
     
     def save_pickle(self,filename=None,purge_signals=True,save_usersettings=False):
@@ -2319,9 +2324,3 @@ def guess_filetype(filename):
                       "it does not exist").format(filename))
     
     return file_type, contents
-
-
-
-
-
-
