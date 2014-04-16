@@ -678,7 +678,7 @@ class Parameter(object):
             #   Remove nonalphanumeric characters and check for minimal correspondence
             #   (i.e. if 'X-ray binary' is a choice, 'xra' should be enough to
             #   identify it).
-            if isinstance(self.cast_type,str) and ('index' in self.cast_type or 'choose' in self.cast_type) and isinstance(self.value,str):
+            if isinstance(self.cast_type,basestring) and ('index' in self.cast_type or 'choose' in self.cast_type) and isinstance(self.value,basestring):
                 index = match_string(self.value,self.choices)
                 if args: raise TypeError('conversion not possible for this type')
                 #-- if not found, be desparate: maybe the string is the index?
