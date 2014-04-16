@@ -616,15 +616,15 @@ class Bundle(Container):
         bund_str = ""
         computes = self._get_dict_of_section('compute')
         if len(computes):
-            bund_str+= "Compute: " + ", ".join(computes.keys()) + '\n'
-        fittings = self._get_dict_of_section("fitting")
-        if len(fittings):
-            bund_str+= "Fitting: " + ", ".join(fittings.keys()) + '\n'
-        axes = self._get_dict_of_section("axes")
-        if len(axes):
-            bund_str+= "Axes: " + ", ".join(axes.keys()) + '\n'
+            bund_str+= "* Compute: " + ", ".join(computes.keys()) + '\n'
+        #fittings = self._get_dict_of_section("fitting")
+        #if len(fittings):
+        #    bund_str+= "Fitting: " + ", ".join(fittings.keys()) + '\n'
+        #axes = self._get_dict_of_section("axes")
+        #if len(axes):
+        #    bund_str+= "Axes: " + ", ".join(axes.keys()) + '\n'
         system_str = self.get_object(objref).list(summary='cursory')
-        return bund_str + system_str
+        return bund_str + '\n' +system_str
         
     def tree(self, objref=None):
         """
