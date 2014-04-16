@@ -2855,7 +2855,7 @@ class ParameterSet(object):
         col_width_qualf = max([len(str(self.container[par].qualifier)) for par in self] +\
                               [len(str(cnt)) for cnt in self.constraints])
         col_width_unit = max([hasattr(self.container[par],'unit') and len(str(self.container[par].unit)) or 2 for par in self]+[3])
-        col_width_frame = max([len(self.frame),len('constr')])
+        col_width_frame = 0#max([len(self.frame),len('constr')])
         #-- build the string representation, cycling over all parameters
         mystr = []
         for par in self:
@@ -2870,23 +2870,24 @@ class ParameterSet(object):
             value = '{0:<{1}}'.format(shortstr(par.get_value()),col_width_value)
             str_qual = '{0:>{1}}'.format(qualifier,col_width_qualf)
             str_unit = '{0:>{1}}'.format(unit,col_width_unit)
-            str_frame = '{0:>{1}}'.format(frame,col_width_frame)
+            #str_frame = '{0:>{1}}'.format(frame,col_width_frame)
             if '\n' in value:
                 value = ('\n'+(col_width_qualf+1)*' ').join(['{0:<{1}}'.format(line,col_width_value) for line in value.split('\n')])
-            mystr.append(" ".join([str_qual,value,str_unit,adjust,str_frame,str(description)]))    
+            mystr.append(" ".join([str_qual,value,str_unit,adjust,str(description)]))    
         #--- add the constraints
-        for constraint in self.constraints:
-            if only_adjustable: continue
-            str_qual = '{0:>{1}}'.format(constraint,col_width_qualf)
-            str_valu = '{0:<{1}}'.format(shortstr(self.get_constraint(constraint)),col_width_value)
-            str_frame = '{0:>{1}}'.format('constr',col_width_frame)
-            str_unit = '{0:>{1}}'.format('n/a',col_width_unit)
-            str_descr = str(self.constraints[constraint]).strip()
-            initial_indent = ' '.join([str_qual,str_valu,str_unit,' ',str_frame,''])
-            subs_indent = (len(initial_indent))*' '
-            str_descr = textwrap.fill(str_descr,initial_indent=initial_indent,
-                                      subsequent_indent=subs_indent,width=width)
-            mystr.append(str_descr)
+        if False:
+            for constraint in self.constraints:
+                if only_adjustable: continue
+                str_qual = '{0:>{1}}'.format(constraint,col_width_qualf)
+                str_valu = '{0:<{1}}'.format(shortstr(self.get_constraint(constraint)),col_width_value)
+                str_frame = '{0:>{1}}'.format('constr',col_width_frame)
+                str_unit = '{0:>{1}}'.format('n/a',col_width_unit)
+                str_descr = str(self.constraints[constraint]).strip()
+                initial_indent = ' '.join([str_qual,str_valu,str_unit,' ',str_frame,''])
+                subs_indent = (len(initial_indent))*' '
+                str_descr = textwrap.fill(str_descr,initial_indent=initial_indent,
+                                        subsequent_indent=subs_indent,width=width)
+                mystr.append(str_descr)
         return '\n'.join(mystr)
     
     def __config__(self):
