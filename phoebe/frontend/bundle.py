@@ -614,7 +614,7 @@ class Bundle(Container):
         """
         return self.get_object(objref).list(summary='cursory')
         
-    def tree(self, objref):
+    def tree(self, objref=None):
         """
         Make a summary of the system
         """
