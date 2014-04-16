@@ -3,13 +3,13 @@ atm = blackbody         #  Bolometric Atmosphere model
 alb = 1.0               #  Bolometric albedo (alb*flux used for heating, 1-alb for reflection)
 redist = 0.0           #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
 syncpar = 1             #  Synchronicity parameter
-gravb = 1.0             #  Bolometric gravity brightening
+gravb = 1.295             #  Bolometric gravity brightening
 pot = 12.32426489021733 #  Roche potential value
-teff = 34500            # (K) Mean effective temperature
+teff = 34422            # (K) Mean effective temperature
 irradiator = False      #  Treat body as irradiator of other objects
 label = sdB_primary     #  Name of the body
-ld_func = linear        #  Bolometric limb darkening model
-ld_coeffs = [0.5]       #  Bolometric limb darkening coefficients
+ld_func = claret        #  Bolometric limb darkening model
+ld_coeffs = [0.818, -0.908, 0.755, -0.252]       #  Bolometric limb darkening coefficients
 
 
 [phoebe--component--WD_secondary]
@@ -17,27 +17,28 @@ atm = blackbody         #  Bolometric Atmosphere model
 alb = 1.0               #  Bolometric albedo (alb*flux used for heating, 1-alb for reflection)
 redist = 0.0           #  Global redistribution parameter: (1-redistr)*flux is used for local heating, redistr for global heating
 syncpar = 1             #  Synchronicity parameter
-gravb = 1.0             #  Bolometric gravity brightening
+gravb = 0.             #  Bolometric gravity brightening
 pot = 218.210937382     #  Roche potential value
-teff = 15900            # (K) Mean effective temperature
-irradiator = False      #  Treat body as irradiator of other objects
+teff = 15800            # (K) Mean effective temperature
+irradiator = True      #  Treat body as irradiator of other objects
 label = WD_secondary    #  Name of the body
-ld_func = linear        #  Bolometric limb darkening model
-ld_coeffs = [0.5]       #  Bolometric limb darkening coefficients
+ld_func = claret        #  Bolometric limb darkening model
+ld_coeffs = [0.818, -0.669, 0.612, -0.236]       #  Bolometric limb darkening coefficients
 
 [phoebe--orbit--KPD1946+4340]
 dpdt = 0.0           # (s/yr) Period change
 dperdt = 0.0         # (deg/yr) Periastron change
 ecc = 0.0            #  Eccentricity
-t0 = 2454000.0       # (JD) Zeropoint date
-incl = 87.14         # (deg) Inclination angle
+t0 = 0       # (JD) Zeropoint date
+t0type = superior_conjunction
+incl = 87.13         # (deg) Inclination angle
 label = KPD1946+4340 #  Name of the system
 period = 0.40375026  # (d) Period of the system
 per0 = 141.48        # (deg) Periastron
-phshift = 0.0        #  Phase shift
-q = 1.27             #  Mass ratio
+phshift = 0.5        #  Phase shift
+q = 1.26             #  Mass ratio
 vgamma = 0.0         # (km/s) Systemic velocity
-sma = 2.34459809134  # (Rsol) semi major axis
+sma = 2.339  # (Rsol) semi major axis
 long_an = 0.0           # (deg) Longitude of ascending node
 distance = 10.0      # (pc) Distance to the binary system
 c1label = sdB_primary # primary label
