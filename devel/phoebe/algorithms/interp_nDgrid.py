@@ -3,7 +3,7 @@ Non-standard interpolation methods.
 """
 import time
 import itertools
-import interp
+#import interp
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage import _nd_image, _ni_support
