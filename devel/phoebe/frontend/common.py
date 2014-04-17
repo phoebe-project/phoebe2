@@ -60,6 +60,8 @@ class Container(object):
                 value['c1label'] = oldorbit['c1label']
                 value['c2label'] = oldorbit['c2label']                
             self.set_ps(twig, value)            
+        elif isinstance(value, tuple) and len(value)==2 and isinstance(value[1],str):
+            self.set_value(twig, *value)
         else:
             self.set_value(twig, value)
         
@@ -154,12 +156,19 @@ class Container(object):
                                 
                                 subpath = list(path[:-1]) + [syn['ref']]
                                 subpath[-3] = syn.get_context()
+                                
+                                # add phase to synthetic
+                                if 'time' in syn and len(syn['time']) and not 'phase' in syn:
+                                    period = self.get_value('period@orbit')
+                                    par = parameters.Parameter('phase', value=np.mod(syn['time'], period), unit='cy', context=syn.get_context())
+                                    syn.add(par)
+                                
                                 for par in syn:
                                     mypar = syn.get_parameter(par)
                                     ri = self._get_info_from_item(mypar, path=subpath+[mypar], section=section_name)
                                     return_items.append(ri)
-                                                                
-                    
+                                    
+                                                                                    
                     # but also add the collection of dep/obs
                     
                     ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)

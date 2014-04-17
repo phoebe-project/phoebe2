@@ -2665,7 +2665,7 @@ class ParameterSet(object):
         elif isinstance(value,tuple) and len(value)==2 and isinstance(value[1],str):
             self.container[qualifier].set_value(*value)
         else:
-            self.container[qualifier].set_value(value)\
+            self.container[qualifier].set_value(value)
         
         self.run_constraints()
         #-- update the value in the dot-styled access

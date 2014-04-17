@@ -536,7 +536,6 @@ class Bundle(Container):
             #~ return None
             library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'../parameters/library/')
             system = os.path.join(library_dir, 'defaults.phoebe')
-            
         elif system is False:
             self.system = None
             return
@@ -565,14 +564,13 @@ class Bundle(Container):
                 
                 except ValueError:
                     file_type, contents = guess_filetype(system)
-                
                     if file_type in ['wd', 'pickle_body']:
                         system = contents
                     elif file_type == 'phoebe_legacy':
                         system = contents[0]
                         if contents[1].get_value('label') in [c.get_value('label') for c in self.sections['compute']]:
                             self.remove_compute(contents[1].get_value('label'))
-                        self.section['compute'].append(contents[1])
+                        self.sections['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
                
@@ -2318,10 +2316,11 @@ def guess_filetype(filename):
         if contents is None:
             
             try:
-                contents = parsers.legacy_to_phoebe(filename, create_body=True,
-                                                mesh='marching')
+                contents = parsers.legacy_to_phoebe2(filename)
                 file_type = 'phoebe_legacy'
             except IOError:
+                pass
+            except TypeError:
                 pass
         
         # If it's not a pickle file nor a legacy file, is it a WD lcin file?
