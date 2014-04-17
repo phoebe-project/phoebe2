@@ -46,6 +46,7 @@ class Container(object):
         Returns Bodies, ParameterSets or Parameter values (never Parameters).
         """
         ret_value = self._get_by_search(twig)
+        print ret_value
         if isinstance(ret_value, parameters.Parameter):
             ret_value = ret_value.get_value()
         return ret_value
@@ -122,6 +123,10 @@ class Container(object):
         """
         return_items = []
         ri = None
+        
+        # we need to hide synthetics that have no corresponding obs for the user:
+        legal_syn_twigs = []
+        
         for path, item in system.walk_all(path_as_string=False):
             
             # make sure to catch the obs and pbdep
@@ -143,25 +148,44 @@ class Container(object):
                             syn = bodies[-1].get_synthetic(category=item[:-3], ref=isubtype['ref'])
                             if syn is not None: 
                                 ri = self._get_info_from_item(syn, path=path, section=section_name)
-                                return_items.append(ri)                                                
+                                return_items.append(ri)
+                                
+                                subpath = list(path[:-1]) + [syn['ref']]
+                                subpath[-3] = syn.get_context()
+                                for par in syn:
+                                    mypar = syn.get_parameter(par)
+                                    ri = self._get_info_from_item(mypar, path=subpath+[mypar], section=section_name)
+                                    return_items.append(ri)
+                                                                
                     
                     # but also add the collection of dep/obs
+                    
                     ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
                     return_items.append(ri)
             
             elif isinstance(item, OrderedDict):
                 continue
                 
-            else:    
+            else:
+                #if 'lcobs' in [p for p in path if isinstance(p,str) and 'lcobs' in p] and isinstance(item, parameters.Parameter):
+                    #print path
+                    #raise SystemExit
+                
                 ri = self._get_info_from_item(item, path=path, section=section_name)
                 #~ print path, ri['twig_full'] if ri is not None else None #, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
                 #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
+                if ri is None:
+                    continue
                 
+                # do not add any syn parameter here
+                if ri['context'] is not None and 'syn' in ri['context']:
+                    continue
                 # ignore parameters that are synthetics and make sure this is not a duplicate
-                if ri is not None and ri['context']!='syn' \
-                        and (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
+                if (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
                         and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
-                    return_items.append(ri)                            
+                    return_items.append(ri)
+
+                    
                             
         return return_items
         
