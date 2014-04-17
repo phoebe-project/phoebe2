@@ -40,6 +40,55 @@ def try_to_locate_file(filename, rootfile=None):
     
     return found
             
+
+def legacy_to_phoebe2(inputfile):
+    
+    #-- initialise the orbital and component parameter sets. 
+    orbit = parameters.ParameterSet('orbit')
+    comp1 = parameters.ParameterSet('component', label='primary')
+    comp2 = parameters.ParameterSet('component', label='secondary')
+    position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
+    compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
+                                      heating=True, label='from_legacy',
+                                      eclipse_alg='binary', subdiv_num=3)
+    
+    # Open the parameter file and read each line
+    with open(inputfile,'r') as ff:
+        while True:
+            l = ff.readline()
+            if not l:
+                break
+            
+            # Strip whitespace
+            l = l.strip()
+            
+            # Empty line
+            if not l:
+                continue
+            
+            #-- ignore initial comment
+            if l[0]=='#':
+                continue
+            
+            # try splitting the parameter name and value
+            try: 
+                key, val = l.split('=')
+            except:
+                logger.error("line " + l[:-1] + " could not be parsed ('{}' probably not Phoebe legacy file)".format(inputfile))
+                raise IOError("Cannot parse phoebe file '{}': line '{}'".format(inputfile, l[:-1]))
+                    
+            #-- if this is an rvdep or lcdep, check which index it has
+            # and remove it from the string:
+            pattern = re.search('\[(\d)\]',key)
+            separate = re.search('\:',val)
+            if pattern:
+                index = int(pattern.group(1))-1
+                key = "".join(key.split(pattern.group(0)))
+                
+            print index
+            print key
+    
+    
     
 
 def legacy_to_phoebe(inputfile, create_body=False,
@@ -573,7 +622,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
             if val[2:-2] != "Undefined":
                 lcdep1[index]['ref'] = val[2:-2]
                 lcdep2[index]['ref'] = val[2:-2]
-
+        
         if key == 'phoebe_ld_lcy1':
             ld_lcy1 = float(val[1:-2])
         if key == 'phoebe_ld_lcy2':
@@ -644,7 +693,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
             rvname.append(val)
             
         if key == 'phoebe_lc_id':
-            lcname.append(val)       
+            lcname.append(val)      
                      
         if key == 'phoebe_rv_indep':
             if val[2:6] == 'Time':
@@ -720,16 +769,18 @@ def legacy_to_phoebe(inputfile, create_body=False,
                     found_file = try_to_locate_file(lc_file[i], inputfile)
                     if found_file:
                         col1lc,col2lc = np.loadtxt(found_file, unpack=True)
+                        #obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
+                        #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                     else:
                         logger.warning("The (time) light curve file {} cannot be located.".format(lc_file[i]))                    
                 else:
                     found_file = try_to_locate_file(lc_file[i], inputfile)
                     if found_file:
                         col1lc,col2lc = np.loadtxt(found_file, unpack=True)
-                        obslc.append(datasets.LCDataSet(phase=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
+                        ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                     else:
                         logger.warning("The (phase) light curve file {} cannot be located.".format(lc_file[i]))                    
             else:
@@ -738,31 +789,39 @@ def legacy_to_phoebe(inputfile, create_body=False,
                         found_file = try_to_locate_file(lc_file[i], inputfile)
                         if found_file:
                             col1lc,col2lc,col3lc = np.loadtxt(found_file, unpack=True)
+                            #obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                             obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve (1) file {} cannot be located.".format(lc_file[i]))                    
                     else:
                         found_file = try_to_locate_file(lc_file[i], inputfile)
                         if found_file:
                             col1lc,col2lc,col3lc = np.loadtxt(found_file, unpack=True)
-                            obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            #obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
+                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve (2) file {} cannot be located.".format(lc_file[i]))                    
                 else:
                     if lcsigma[i]=='sigma': 
                         if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
+                            #obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
+                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve file (3) {} cannot be located.".format(lc_file[i]))                    
                     else:
                         if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
+                            #obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
+                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve file (4) {} cannot be located.".format(lc_file[i]))                    
  

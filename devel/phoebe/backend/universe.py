@@ -1313,6 +1313,8 @@ class Body(object):
     
     ]include figure]]images/universe_body_0004.png]
     """
+    _params_tree = dict()
+    
     def __init__(self, data=None, dim=3, orientation=None,
                  eclipse_detection='hierarchical',
                  compute_centers=False, compute_normals=False,
@@ -1545,11 +1547,23 @@ class Body(object):
         # We don't store subcontexts in the main root
         this_context = params.get_context().split(':')[0]
         
+        # Some parameterSets are stored in lists, other ones are unique
+        if this_context in self._params_tree and self._params_tree[this_context] == 'list':
+            i_am_list = True
+            params = [params]
+        else:
+            i_am_list = False
+        
+        # normal ParameterSet
         if this_context[-3:] not in ['obs', 'dep', 'syn']:
             if force or not (this_context in self.params):
-                self.params[this_context] = params
+                if i_am_list and this_context in self.params:
+                    self.params[this_context] += params
+                else:
+                    self.params[this_context] = params
             else:
                 raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
+        # data-related stuff
         else:
             category = this_context[:-3]
             this_type = this_context[-3:]
@@ -1582,7 +1596,21 @@ class Body(object):
                             continue
                         self.params[dtype][pbdeptype].pop(iref)
                     
-    
+    def change_ref(self, from_, to_):
+        """
+        Change ref from something to something else.
+        """
+        for dtype in ['syn', 'pbdep', 'obs']:
+            if hasattr(self,'params') and dtype in self.params:
+                for pbdeptype in self.params[dtype]:
+                    for iref in self.params[dtype][pbdeptype]:
+                        if from_ != iref:
+                            continue
+                        # this looses dictionary order. otherwise you have to
+                        # build it anew (which is possibly but I have no time
+                        # at the moment)
+                        self.params[dtype][pbdeptype][to_] = self.params[dtype][pbdeptype].pop(from_)
+                        self.params[dtype][pbdeptype][to_]['ref'] = to_
     
     def walk(self):
         """
@@ -5602,8 +5630,22 @@ class BodyBag(Body):
         """
         We need to reimplement remove_ref here.
         """
+        # remove here
+        super(BodyBag, self).remove_ref(ref=ref)
+        # remove down
         for body in self.bodies:
             body.remove_ref(ref=ref)
+
+    
+    def change_ref(self, from_, to_):
+        """
+        We need to reimplement change_ref here.
+        """
+        # change here
+        super(BodyBag, self).change_ref(from_, to_)
+        for body in self.bodies:
+            body.change_ref(from_, to_)
+
     
     def append(self,other):
         """
@@ -6366,13 +6408,15 @@ class Star(PhysicalBody):
     ]include figure]]images/universe_star_0004.png]
     
     """
-    def __init__(self, star, mesh=None, reddening=None, circ_spot=None,
-                 puls=None, magnetic_field=None, velocity_field=None,
-                 pbdep=None, obs=None,
-                 position=None, label=None,
-                 **kwargs):
+    _params_tree = dict(star=None, mesh=None, reddening=None,
+                        puls='list', circ_spot='list', magnetic_field=None,
+                        velocity_field='list', position=None)
+    
+    def __init__(self, star=None, mesh=None, reddening=None, puls=None,
+                 circ_spot=None, magnetic_field=None, velocity_field=None,
+                 position=None, pbdep=None, obs=None, label=None, **kwargs):
         """
-        Initialize a star.
+        Initialize a Star.
         
         What needs to be done? Well, sit down and let me explain. Are you
         sitting down? Yes, then let's begin our journey through the birth
@@ -6388,6 +6432,10 @@ class Star(PhysicalBody):
         """
         # Basic initialisation
         super(Star, self).__init__(dim=3)
+        
+        # If there is no star, create default one
+        if star is None:
+            star = parameters.ParameterSet('star')
         
         # If there is no mesh, create default one
         if mesh is None:
@@ -7125,7 +7173,12 @@ class BinaryRocheStar(PhysicalBody):
         get_mass
     """
     
-    def __init__(self, component, orbit=None, mesh=None, reddening=None,
+    _params_tree = dict(component=None, orbit=None, mesh=None, reddening=None,
+                        puls='list', circ_spot='list', magnetic_field=None,
+                        velocity_field='list', position=None)
+    
+    
+    def __init__(self, component=None, orbit=None, mesh=None, reddening=None,
                  puls=None, circ_spot=None, magnetic_field=None, 
                  velocity_field=None, position=None, pbdep=None, obs=None, **kwargs):
         """
@@ -7142,6 +7195,13 @@ class BinaryRocheStar(PhysicalBody):
         
         # Initialize the base body.
         super(BinaryRocheStar,self).__init__(dim=3)
+        
+        # Create default component and orbit if user doesn't want to do it
+        if component is None:
+            component = parameters.ParameterSet('component')
+        
+        if orbit is None:
+            orbit = parameters.ParameterSet('orbit')
         
         # Perform some checks on "component", "orbit", and "mesh"
         check_input_ps(self, component, ['component'], 1)
