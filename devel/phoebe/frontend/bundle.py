@@ -570,7 +570,9 @@ class Bundle(Container):
                         system = contents
                     elif file_type == 'phoebe_legacy':
                         system = contents[0]
-                        self.sections['compute'].append(contents[1])
+                        if contents[1].get_value('label') not in [c.get_value('label') for c in self.sections['compute']]:
+                            # let's just make sure its not already attached
+                            self.sections['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
                
@@ -1270,14 +1272,6 @@ class Bundle(Container):
                         body.params['obs'][obstype][dataref].set_enabled(False)
                         logger.info("Disabled {} '{}'".format(obstype, dataref))
 
-
-    #~ def adjust_obs(self, dataref=None, l3=None, pblum=None):
-        #~ for obs in self.get_obs(dataref=dataref,all=True).values():
-            #~ if l3 is not None:
-                #~ obs.set_adjust('l3',l3)
-            #~ if pblum is not None:
-                #~ obs.set_adjust('pblum',pblum)
-                
     def reload_obs(self, dataref=None):
         """
         reload a dataset from its source file
@@ -1315,6 +1309,7 @@ class Bundle(Container):
     
     #{ Compute
     
+    @rebuild_trunk
     @run_on_server
     def run_compute(self, label=None, objref=None, anim=False, server=None, **kwargs):
     #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
@@ -1332,9 +1327,8 @@ class Bundle(Container):
         """
         system = self.get_system()
         obj = self.get_object(objref)
-        add_version = None
-        if add_version is None:
-            add_version = self.settings['add_version_on_compute']
+        #~ if add_version is None:
+            #~ add_version = self.settings['add_version_on_compute']
             
         self.purge_signals(self.attached_signals_system)
         
@@ -1402,13 +1396,10 @@ class Bundle(Container):
 
         self.attach_system_signals()
         
-        # and update trunk to contain perhaps the syn
-        self._build_trunk()
-
     #}
             
     #{ Fitting
-
+    @rebuild_trunk
     @run_on_server
     def run_fitting(self,computelabel=None,fittinglabel=None,add_feedback=None,accept_feedback=False,server=None,**kwargs):
         """
