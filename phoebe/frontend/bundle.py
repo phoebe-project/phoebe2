@@ -408,11 +408,9 @@ class Bundle(Container):
                 
                 if ri is not None:
                     return_items.append(ri) 
-                    #~ bundle_twigs.append(ri['twig'])
                     
         # now that new items have been copied, we need to redo things at the section level
         return_items += super(Bundle, self)._loop_through_container(do_pslevel=False)
-        #~ return_items += [ri for ri in super(Bundle, self)._loop_through_container(do_pslevel=False) if ri['twig'] not in bundle_twigs]
         
         return return_items
         
