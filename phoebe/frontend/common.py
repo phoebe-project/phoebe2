@@ -46,7 +46,7 @@ class Container(object):
         Returns Bodies, ParameterSets or Parameter values (never Parameters).
         """
         ret_value = self._get_by_search(twig)
-        print ret_value
+        #~ print ret_value
         if isinstance(ret_value, parameters.Parameter):
             ret_value = ret_value.get_value()
         return ret_value
