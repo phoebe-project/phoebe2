@@ -571,7 +571,7 @@ class Bundle(Container):
                     elif file_type == 'phoebe_legacy':
                         system = contents[0]
                         if contents[1].get_value('label') in [c.get_value('label') for c in self.sections['compute']]:
-                            self.remove_compute(contents[1].get_value('label')
+                            self.remove_compute(contents[1].get_value('label'))
                         self.section['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
