@@ -66,7 +66,8 @@ class Completer:
                         '.get_ps_dict(': 'OrderedDict',
                         '.get(': None,
                         '.twigs(': None,
-                        '.search(': None
+                        '.search(': None,
+                        '[': None,
                         }
         
         this_kind = None

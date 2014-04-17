@@ -76,7 +76,7 @@ class Container(object):
         this will then be called recursively if it hits another Container/PS/BodyBag
         """
         return_items = []
-        
+
         # add the container's sections
         if do_sectionlevel:
             ri = self._get_info_from_item(self.sections,section=None,container=container,label=-1)
@@ -92,15 +92,16 @@ class Container(object):
                     ri = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
                     if ri is not None:
                         return_items.append(ri)
+                        
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
-                                
+                        
                         elif ri['kind']=='BodyBag':
                             return_items += self._loop_through_system(item, section_name=section_name)
-                            
+                       
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'])
-        
+
         return return_items
         
     def _loop_through_ps(self, ps, section_name, container, label):
@@ -728,6 +729,7 @@ class Container(object):
             from_ = param.get_value()
             system = self.get_system()
             system.change_ref(from_, value)
+            self._build_trunk()
             return None
         
         if unit is None:
