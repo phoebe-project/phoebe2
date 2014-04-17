@@ -285,13 +285,13 @@ def synthetic_flux(wave, flux, passbands, units=None):
     energys = np.zeros(len(passbands))
     
     #-- only keep relevant information on filters:
-    filter_info = pbs.get_info()
-    keep = np.searchsorted(filter_info['passband'],passbands)
-    filter_info = filter_info[keep]
+    #filter_info = pbs.get_info()
+    #keep = np.searchsorted(filter_info['passband'],passbands)
+    #filter_info = filter_info[keep]
     
     for i,passband in enumerate(passbands):
         #if filters.is_color
-        waver,transr = pbs.get_response(passband)
+        waver,transr,info = pbs.get_response(passband, full_output=True)
         #-- make wavelength range a bit bigger, otherwise F25 from IRAS has only
         #   one Kurucz model point in its wavelength range... this is a bit
         #   'ad hoc' but seems to work.
@@ -299,7 +299,7 @@ def synthetic_flux(wave, flux, passbands, units=None):
         #-- if we're working in infrared (>4e4A) and the model is not of high
         #   enough resolution (100000 points over wavelength range), interpolate
         #   the model in logscale on to a denser grid (in logscale!)
-        if filter_info['eff_wave'][i]>=4e4 and sum(region)<1e5 and sum(region)>1:
+        if info['WAVLEFF']>=4e4 and sum(region)<1e5 and sum(region)>1:
             logger.debug('%10s: Interpolating model to integrate over response curve'%(passband))
             wave_ = np.logspace(np.log10(wave[region][0]),np.log10(wave[region][-1]),1e5)
             flux_ = 10**np.interp(np.log10(wave_),np.log10(wave[region]),np.log10(flux[region]),)
@@ -323,9 +323,9 @@ def synthetic_flux(wave, flux, passbands, units=None):
         if units is None or ((units is not None) and (units[i].upper()=='FLAMBDA')):
             if passband=='OPEN.BOL':
                 energys[i] = np.trapz(flux_,x=wave_)
-            elif filter_info['type'][i]=='BOL':
+            elif info['DETTYPE']=='ENERGY':
                 energys[i] = np.trapz(flux_*transr,x=wave_)/np.trapz(transr,x=wave_)
-            elif filter_info['type'][i]=='CCD':
+            elif info['DETTYPE']=='FLUX':
                 # trapezoidal
                 #import matplotlib.pyplot as plt
                 #plt.figure()
@@ -347,9 +347,9 @@ def synthetic_flux(wave, flux, passbands, units=None):
             transr = transr[sa]
             freq_ = freq_[sa]
             flux_f = flux_f[sa]
-            if filter_info['type'][i]=='BOL':
+            if info['DETTYPE'][i]=='ENERGY':
                 energys[i] = np.trapz(flux_f*transr,x=freq_)/np.trapz(transr,x=freq_)
-            elif filter_info['type'][i]=='CCD':
+            elif info['DETTYPE']=='FLUX':
                 energys[i] = np.trapz(flux_f*transr/freq_,x=wave_)/np.trapz(transr/freq_,x=wave_)
         else:
             raise ValueError('units %s not understood'%(units))

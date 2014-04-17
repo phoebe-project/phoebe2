@@ -198,6 +198,7 @@ import numpy as np
 import os
 import glob
 import logging
+import pyfits as pf
 from phoebe.utils import decorators
 
 # Allow for on-the-fly addition of photometric passbands.
@@ -205,8 +206,100 @@ custom_passbands = {'_prefer_file': False}
 
 logger = logging.getLogger('ATM.PB')
 
+#    files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ptf', '*.fits')))
+    
+#    for filename in files:
+#        fitsf = pf.open(filename)
+#        for response in fitsf[0:]:
+#            wavl = response.data['WAVELENGTH']
+#            resp = response.data['RESPONSE']
+#            tag = response.header['EXTNAME']
+#            add_response(wavl, resp, passband=tag, force=True)
+#        fitsf.close()
+
 @decorators.memoized
-def get_response(passband):
+def get_response(passband,full_output=False):
+    """
+    Retrieve the response curve of a photometric system 'SYSTEM.FILTER'
+    
+    OPEN.BOL represents a bolometric open filter.
+    
+    Example usage:
+    
+    >>> from pylab import plot,show
+    >>> for band in ['J','H','KS']:
+    ...    p = plot(*get_response('2MASS.%s'%(band)))
+    >>> p = show()
+    
+    @param passband: photometric passband
+    @type passband: str ('SYSTEM.FILTER')
+    @return: (wavelength [A], response) or (wavelength [A], response, header)
+    @rtype: (array, array) or (array, array, dict)
+    """
+    passband = passband.upper()
+    prefer_file = custom_passbands['_prefer_file']
+
+    avail = list_response(passband,files_only=True)
+    
+    # It's easy for a bolometric filter: totally open
+    if passband == 'OPEN.BOL':
+        outp = np.array([1, 1e10]), np.array([1 / (1e10-1), 1 / (1e10-1)]), dict(dettype='flux', WAVLEFF=1000)
+    
+    # Either get the passband from a file or get it from the dictionary of
+    # custom passbands
+    
+    # If in files files have preference over custom passbands:
+    elif len(avail)==1 and prefer_file:
+        outp = get_response_from_files(avail[0])
+    # Else, if the custom filter exists and is preferred
+    elif passband in custom_passbands:
+        outp = custom_passbands[passband]['response']
+    # Else, if the file is not preferred but a custom one does not exist:
+    elif len(avail)==1:
+        outp = get_response_from_files(avail[0])
+    # Else, if custom is not preffered and there are more than one matching filters in the file(s):
+    elif len(avail)>1:
+        # If there is an exact match discarding the version number, we take that one.
+        # This allows to, e.g., request geneva.b and not get confusion with geneva.b1_v1.0
+        avail_ = list_response(passband,files_only=True,perfect_name_match=True)
+        if len(avail_)==1:
+            outp = get_response_from_files(avail_[0],)        
+        else:
+            raise IOError('{0} exists in multiple versions: {1}'.format(passband,avail)) 
+    # Else we don't know what to do
+    else:
+        raise IOError('{0} does not exist {1}'.format(passband,custom_filters.keys())) 
+
+    
+    # make sure the contents are sorted according to wavelength
+    sort_array = np.argsort(outp[0])
+    
+    if full_output:
+        return outp
+    else:
+        return outp[0:2]
+    
+
+
+def get_response_from_files(passband):
+    """Get wave and resp and header for a passband from the fits files. Only one passband with the given name
+    should exist!"""
+    # File based responses
+    files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ptf', '*.fits')))
+    for filename in files:
+        try: 
+            fitsf = pf.open(filename)
+            ext = fitsf[passband]
+            wave = ext.data['wavelength']
+            resp = ext.data['response']
+            head = ext.header
+        finally:
+            fitsf.close()
+    
+    return wave, resp, head
+
+@decorators.memoized
+def get_response_OLD(passband):
     """
     Retrieve the response curve of a photometric system 'SYSTEM.FILTER'
     
@@ -229,7 +322,8 @@ def get_response(passband):
     
     # It's easy for a bolometric filter: totally open
     if passband == 'OPEN.BOL':
-        return np.array([1, 1e10]), np.array([1 / (1e10-1), 1 / (1e10-1)])
+        wave, response = np.array([1, 1e10]), np.array([1 / (1e10-1), 1 / (1e10-1)])
+        
     
     # Either get the passband from a file or get it from the dictionary of
     # custom passbands
@@ -294,9 +388,11 @@ def read_standard_response(filename):
     
     return data, header
 
+
+
 def set_standard_response():
     """
-    Collect info on passbands.
+    Collect info on passbands (old deprecated ASCII version).
     
 
     
@@ -313,31 +409,14 @@ def set_standard_response():
         add_response(data[0], data[1], passband=tag, force=True)
     
     custom_passbands['_prefer_file'] = False
-    
-        
-            
-        
-    
-
 
 
 def eff_wave(passband, model=None, det_type=None):
     r"""
     Return the effective wavelength of a photometric passband.
     
-    The effective wavelength is defined as the pivot wavelength [Tokunaga2005]_
-    of the passband :math:`P` (for photon counting devices):
-    
-    .. math::
-    
-        \lambda_\mathrm{pivot} = \sqrt{ \frac{\int_\lambda \lambda P(\lambda) d\lambda}{ \int_\lambda P(\lambda)/\lambda d\lambda}}
-    
-    >>> eff_wave('2MASS.J')
-    12393.093155655277
-    
-    If you give model fluxes as an extra argument, the wavelengths will take
-    these into account to calculate the true effective wavelength (e.g., 
-    [VanDerBliek1996]_, Eq 2.)
+    The effective wavelength is defined as the pivot wavelength [Tokunaga2005].
+    See eff_wave_arrays() for the definition.
     
     @param passband: photometric passband
     @type passband: str ('SYSTEM.FILTER') or array/list of str
@@ -362,9 +441,6 @@ def eff_wave(passband, model=None, det_type=None):
     # Then run over each passband and compute the effective wavelength   
     my_eff_wave = []
     for ipassband in passband:
-        
-        # If the passband is not defined, set it to nan, otherwise compute the
-        # effective wavelength.
         try:
             wave, response = get_response(ipassband)
             
@@ -373,32 +449,14 @@ def eff_wave(passband, model=None, det_type=None):
                 det_type = get_info([ipassband])['type'][0]
             elif det_type is None:
                 det_type = 'CCD'
-                
-            # If a model is given take it into account
-            if model is None:
-                if det_type == 'BOL':
-                    this_eff_wave = np.sqrt(np.trapz(response,x=wave)/np.trapz(response/wave**2,x=wave))
-                else:
-                    this_eff_wave = np.sqrt(np.trapz(wave*response,x=wave)/np.trapz(response/wave,x=wave))
 
-            else:
-                # Interpolate response curve onto higher resolution model and
-                # take weighted average
-                #is_response = response > 1e-10
-                #start_response = wave[is_response].min()
-                #end_response = wave[is_response].max()
-                fluxm = np.sqrt(10**np.interp(np.log10(wave),np.log10(model[0]),np.log10(model[1])))
-                
-                if det_type=='CCD':
-                    this_eff_wave = np.sqrt(np.trapz(wave*fluxm*response,x=wave) / np.trapz(fluxm*response/wave,x=wave))
-                elif det_type=='BOL':
-                    this_eff_wave = np.sqrt(np.trapz(fluxm*response,x=wave) / np.trapz(fluxm*response/wave**2,x=wave))     
-
-        
         # If the passband is not defined, set the effective wavelength to nan
         except IOError:
             this_eff_wave = np.nan
-            
+
+        # Call the function that computes the effwavelength from arrays
+        this_eff_wave = eff_wave_arrays(resparray=(wave,response),model=model,det_type=det_type)
+        
         # Remember the result    
         my_eff_wave.append(this_eff_wave)
     
@@ -411,31 +469,112 @@ def eff_wave(passband, model=None, det_type=None):
     
     return my_eff_wave
 
+def eff_wave_arrays(resparray, model=None, det_type=None):
+    r"""
+    Return the effective wavelength of a photometric passband given the wavelength and response
+    arrays. This is called by eff_wave() which works starting from a filter name.
+    
+    The effective wavelength is defined as the pivot wavelength [Tokunaga2005]_
+    of the passband :math:`P` (for photon counting devices):
+    
+    .. math::
+    
+        \lambda_\mathrm{pivot} = \sqrt{ \frac{\int_\lambda \lambda P(\lambda) d\lambda}{ \int_\lambda P(\lambda)/\lambda d\lambda}}
+    
+    >>> eff_wave('2MASS.J')
+    12393.093155655277
+    
+    If you give model fluxes as an extra argument, the wavelengths will take
+    these into account to calculate the true effective wavelength (e.g., 
+    [VanDerBliek1996]_, Eq 2.)
+    
+    @param resparray: passband defition (arrays)
+    @type resparray: type of 1D arrays (wave, response)
+    @param model: model wavelength and fluxes
+    @type model: tuple of 1D arrays (wave,flux)
+    @param det_type: detector type
+    @type det_type: ``BOL`` or ``CCD``
+    @return: effective wavelength [A]
+    @rtype: float
+    """
 
-def list_response(name='*'):
+    # If the passband is not defined, set it to nan, otherwise compute the
+    # effective wavelength.
+    try:
+        wave, response = resparray
+        
+        #-- bolometric or ccd?
+        if det_type is None:
+            det_type = 'CCD'
+            
+        # If a model is given take it into account
+        if model is None:
+            if det_type == 'BOL':
+                this_eff_wave = np.sqrt(np.trapz(response,x=wave)/np.trapz(response/wave**2,x=wave))
+            else:
+                this_eff_wave = np.sqrt(np.trapz(wave*response,x=wave)/np.trapz(response/wave,x=wave))
+
+        else:
+            # Interpolate response curve onto higher resolution model and
+            # take weighted average
+            #is_response = response > 1e-10
+            #start_response = wave[is_response].min()
+            #end_response = wave[is_response].max()
+            fluxm = np.sqrt(10**np.interp(np.log10(wave),np.log10(model[0]),np.log10(model[1])))
+            
+            if det_type=='CCD':
+                this_eff_wave = np.sqrt(np.trapz(wave*fluxm*response,x=wave) / np.trapz(fluxm*response/wave,x=wave))
+            elif det_type=='BOL':
+                this_eff_wave = np.sqrt(np.trapz(fluxm*response,x=wave) / np.trapz(fluxm*response/wave**2,x=wave))     
+    
+    # If the passband is not defined, set the effective wavelength to nan
+    except IOError:
+        this_eff_wave = np.nan
+    return this_eff_wave
+
+
+def list_response(name='',files_only=False, perfect_name_match=False):
     """
     List available response curves matching C{name}.
     
+    Files_only allows to only use the filters defined in files.
+    Perfect_name_match allows to search for perfect matches of filter name, only leaving version
+    numbers free.
+    
     Example usage:
     
-    >>> print(list_response('GENEVA.*'))
+    >>> print(list_response('GENEVA.'))
     ['GENEVA.B', 'GENEVA.B1', 'GENEVA.B2', 'GENEVA.G', 'GENEVA.U', 'GENEVA.V', 'GENEVA.V1']
     
     @param name: string matching response curve name.
     @type name: str
+    @param files_only: only use files or also custom passbands
+    @type files_only: boolean
     @return: list of responses
     @rtype: list of str
+
     """
     # File based responses
-    responses = sorted(glob.glob(os.path.join(os.path.dirname(__file__),
-                                 'ptf', name)))
+    files = sorted(glob.glob(os.path.join(os.path.dirname(__file__), 'ptf', '*.fits')))
+    responses = []
+    for filename in files:
+        fitsf = pf.open(filename)
+        for response in fitsf[1:]:
+            responses.append(response.header['EXTNAME'])
+        fitsf.close()
+    
+    responses = sorted(responses)
     
     # Custom responses
-    responses = sorted(responses + \
+    if not files_only:
+        responses = sorted(responses + \
                [key for key in custom_passbands.keys() \
                           if ((name in key) and not (key=='_prefer_file'))])
     
-    return [os.path.basename(resp) for resp in responses]
+    if perfect_name_match:
+        return [resp_ for resp_ in responses if name.lower() == resp_.lower().split('_v')[0]]
+    else:
+        return [resp_ for resp_ in responses if name.lower() in resp_.lower()]
 
     
 @decorators.memoized
@@ -625,6 +764,11 @@ def subdivide_response(passband, parts=10, sampling=100, add=True):
                          force=True, copy_from=passband)
         
     return responses, names
+    
+
+def create_passbands_fitsfile(filelist):
+    None
+    
     
     
     
