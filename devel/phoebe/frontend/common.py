@@ -84,12 +84,12 @@ class Container(object):
         if do_sectionlevel:
             ri = self._get_info_from_item(self.sections,section=None,container=container,label=-1)
             return_items.append(ri)
-        
+            
         for section_name,section in self.sections.items():
             if do_sectionlevel and section_name not in ['system']:
-                #~ print "***", section_name, OrderedDict((item.get_value('label'),item) for item in section)
                 ri = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
                 return_items.append(ri)
+                
             if do_pslevel:
                 for item in section:
                     ri = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
@@ -98,7 +98,7 @@ class Container(object):
                         
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
-                        
+
                         elif ri['kind']=='BodyBag':
                             return_items += self._loop_through_system(item, section_name=section_name)
                        
@@ -143,8 +143,9 @@ class Container(object):
                 
                 for itype in path[-2]:
                     for isubtype in path[-2][itype].values():
-                        ri = self._get_info_from_item(isubtype, path=path, section=section_name)
-                        return_items.append(ri)
+                        if item==itype:
+                            ri = self._get_info_from_item(isubtype, path=path, section=section_name)
+                            return_items.append(ri)
                     
                         # we want to see if there any syns associated with the obs
                         if itype[-3:] == 'obs':
@@ -153,6 +154,7 @@ class Container(object):
                             if syn is not None: 
                                 ri = self._get_info_from_item(syn, path=path, section=section_name)
                                 return_items.append(ri)
+                                
                                 
                                 subpath = list(path[:-1]) + [syn['ref']]
                                 subpath[-3] = syn.get_context()
@@ -170,9 +172,10 @@ class Container(object):
                                     
                                                                                     
                     # but also add the collection of dep/obs
-                    
-                    ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
-                    return_items.append(ri)
+                    if item==itype:
+                        ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
+                        #~ if ri['twig_full'] not in [r['twig_full'] for r in return_items]:
+                        return_items.append(ri)
             
             elif isinstance(item, OrderedDict):
                 continue
