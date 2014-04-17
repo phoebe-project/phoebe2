@@ -1,4 +1,4 @@
-# http://ulisse.pd.astro.it/Astro/ADPS/Systems/Sys_148/index_148.html
+# SOURCE http://ulisse.pd.astro.it/Astro/ADPS/Systems/Sys_148/index_148.html
 # DENIS J
 10200.0   0.0   
 10570.0   0.012   
