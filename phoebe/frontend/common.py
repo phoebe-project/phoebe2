@@ -239,7 +239,8 @@ class Container(object):
             
         # now let's do specific overrides
         if context == 'orbit':
-            label = None
+            #~ label = None
+            label = self.get_parent(label).get_label()
             ref = None
         
         if context == section:
