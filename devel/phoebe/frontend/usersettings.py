@@ -103,7 +103,7 @@ class Settings(Container):
         @return: logger ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_by_search('default_logger', section='logger', ignore_errors=True)
+        return self._get_by_search('default_logger', section='logger', kind='ParameterSet', ignore_errors=True)
         
     def apply_logger(self):
         """

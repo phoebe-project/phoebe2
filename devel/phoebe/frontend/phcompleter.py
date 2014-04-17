@@ -52,15 +52,28 @@ class Completer:
         with a __getattr__ hook is evaluated.
 
         """
-        tb_compl_commands = ['.get_parameter(', '.get(', '.twigs(', 
-                        '.search(', '.info(',
-                        '.get_value(', '.set_value(', '.set_value_all(', 
-                        '.get_adjust(', '.set_adjust(', '.set_adjust_all(',
-                        '.get_prior(', '.set_prior(','[']
+        tb_compl_commands = {'.get_parameter(': 'Parameter',
+                        '.info(': 'Parameter',
+                        '.get_value(': 'Parameter',
+                        '.set_value(': 'Parameter',
+                        '.set_value_all(': 'Parameter',
+                        '.get_adjust(': 'Parameter',
+                        '.set_adjust(': 'Parameter',
+                        '.set_adjust_all(': 'Parameter',
+                        '.get_prior(': 'Parameter',
+                        '.set_prior(': 'Parameter',
+                        '.get_ps(': 'ParameterSet',
+                        '.get_ps_dict(': 'OrderedDict',
+                        '.get(': None,
+                        '.twigs(': None,
+                        '.search(': None
+                        }
         
-        for cmd in tb_compl_commands:
+        this_kind = None
+        for cmd,kind in tb_compl_commands.items():
             if cmd in text:
                 expr, attr = text.rsplit(cmd, 1)
+                this_kind = kind
                 if len(attr)==0:
                     return []
                 elif attr[0] not in ["'",'"']:
@@ -69,6 +82,8 @@ class Completer:
                     stringchar = attr[0]
                     attr = attr[1:]
                     break
+                    
+                
         else:
             return []
         
@@ -78,12 +93,10 @@ class Completer:
             return []
 
         # get the content of the object, except __builtins__
-        words = thisobject.twigs()
+        words = thisobject.twigs(attr,kind=this_kind)
         matches = []
         n = len(attr)
         for word in words:
-            
-            if word[:n] == attr:
-                matches.append('{}{}{}{}'.format(expr,cmd,stringchar,word))
+            matches.append('{}{}{}{}'.format(expr,cmd,stringchar,word))
         return matches
 
