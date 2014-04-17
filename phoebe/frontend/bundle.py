@@ -565,9 +565,12 @@ class Bundle(Container):
             # Try to guess the file type (if it is a file)
             if os.path.isfile(system):
                 #self._load_json(system)
+                #if False:
+                
                 try:
                     self._load_json(system)
                     file_type = 'json'
+                
                 except ValueError:
                 
                     file_type, contents = guess_filetype(system)
@@ -1343,7 +1346,7 @@ class Bundle(Container):
         # clear all previous models and create new model
         system.clear_synthetic()
 
-        # <pieterdegroote> I uncomment the following line, I don't think
+        # <pieterdegroote> I comment the following line, I don't think
         # it is necessary?
         #system.set_time(0)
         

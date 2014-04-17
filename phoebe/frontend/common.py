@@ -51,10 +51,18 @@ class Container(object):
         return ret_value
     
     def __setitem__(self, twig, value):
-        #if isinstance(value, parameter.ParameterSet):
-        #    ret_value = self._get_by_search(twig)
-        #elif isinstance(value, parameter.ParameterSet):
-        self.set_value(twig, value)
+        if isinstance(value, parameters.ParameterSet):
+            # special case for orbits, we need to keep c1label and c2label
+            if value.get_context() == 'orbit':
+                oldorbit = self.get_ps('orbit@'+twig)
+                value['c1label'] = oldorbit['c1label']
+                value['c2label'] = oldorbit['c2label']                
+            self.set_ps(twig, value)            
+        else:
+            self.set_value(twig, value)
+        
+        self._build_trunk()
+        
         
     
     #~ def __iter__(self):
@@ -165,7 +173,8 @@ class Container(object):
         """
         container = self.__class__.__name__ if container is None else container
         kind = item.__class__.__name__
-
+        body = False
+    
         if isinstance(item, parameters.ParameterSet):
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             if len(labels):
@@ -211,6 +220,7 @@ class Container(object):
             ref = None
             unique_label = None
             qualifier = None
+            body = True
         elif isinstance(item, Container):
             kind = 'Container'
             label = None
@@ -264,7 +274,7 @@ class Container(object):
             context=context, ref=ref, unique_label=unique_label, 
             twig=twig, twig_full=twig_full, path=path, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
-            item=item,
+            item=item, body=body,
             hidden=hidden)
             
     def _build_trunk(self):
@@ -369,7 +379,9 @@ class Container(object):
                     
         return ret_value
         
-    def _get_by_search(self, twig=None, all=False, ignore_errors=False, return_trunk_item=False, return_key='item', use_search=False, **kwargs):
+    def _get_by_search(self, twig=None, all=False, ignore_errors=False,
+                       return_trunk_item=False, return_key='item',
+                       use_search=False, **kwargs):
         """
         this function searches the cached trunk
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
@@ -666,11 +678,22 @@ class Container(object):
         
         # special care needs to be taken when setting labels and refs
         qualifier = param.get_qualifier()
+        
+        # Setting a label means not only changing that particular Parameter,
+        # but also the property of the Body
         if qualifier == 'label':
             this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
             component = self._get_by_search(this_trunk['label'])
             component.set_label(value)
             self._build_trunk()
+        
+        # Changing a ref needs to change all occurrences
+        elif qualifier == 'ref':
+            # get the system
+            from_ = param.get_value()
+            system = self.get_system()
+            system.change_ref(from_, value)
+            return None
         
         if unit is None:
             param.set_value(value)
@@ -730,8 +753,8 @@ class Container(object):
         """
         Add a new ParameterSet.
         """
-        # get all the info we can get
-        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+        # Get all the info we can get
+        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True, body=True)
         
         # Make sure it is a Body
         if not isinstance(this_trunk['item'], universe.Body):
