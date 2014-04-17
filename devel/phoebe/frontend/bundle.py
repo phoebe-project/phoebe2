@@ -308,12 +308,12 @@ class Bundle(Container):
         
         self.sections['system'] = [None] # only 1
         self.sections['compute'] = []
-        self.sections['fitting'] = []
-        self.sections['feedback'] = []
-        self.sections['version'] = []
-        self.sections['axes'] = []
-        self.sections['meshview'] = [parameters.ParameterSet(context='plotting:mesh')] # only 1
-        self.sections['orbitview'] = [parameters.ParameterSet(context='plotting:orbit')] # only 1
+        #~ self.sections['fitting'] = []
+        #~ self.sections['feedback'] = []
+        #~ self.sections['version'] = []
+        #~ self.sections['axes'] = []
+        #~ self.sections['meshview'] = [parameters.ParameterSet(context='plotting:mesh')] # only 1
+        #~ self.sections['orbitview'] = [parameters.ParameterSet(context='plotting:orbit')] # only 1
         
         # self.select_time controls at which time to draw the meshview and
         # the 'selector' on axes (if enabled)

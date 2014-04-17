@@ -70,13 +70,13 @@ class Container(object):
         
         # add the container's sections
         if do_sectionlevel:
-            ri = self._get_info_from_item(self.sections,section=None,container=container,label=None)
+            ri = self._get_info_from_item(self.sections,section=None,container=container,label=-1)
             return_items.append(ri)
         
         for section_name,section in self.sections.items():
             if do_sectionlevel and section_name not in ['system']:
                 #~ print "***", section_name, OrderedDict((item.get_value('label'),item) for item in section)
-                ri = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=label)
+                ri = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
                 return_items.append(ri)
             if do_pslevel:
                 for item in section:
@@ -225,6 +225,8 @@ class Container(object):
                 label = labels[-1]
             elif hasattr(self, 'get_system') and label is None:
                 label = self.get_system().get_label()
+            elif label == -1:
+                label = None
             else:
                 label = label
             context = path[-1] if path else None
@@ -244,23 +246,16 @@ class Container(object):
             context_twig = None
         else:
             context_twig = context
-        if section == 'system' and label != self.get_system().get_label():
-            section_twig = self.get_system().get_label()
-        else:
-            section_twig = section
-            
-        section_twig = section
          
         hidden = qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
             
         # twig = <qualifier>@<ref>@<context>@<label>@<section>@<container>
-        twig = self._make_twig([qualifier,ref,context_twig,label,section_twig])
-        #~ twig_reverse = self._make_twig([qualifier,ref,context,label,section_twig,container], invert=True)
-        twig_full = self._make_twig([qualifier,ref,context_twig,label,section_twig,container])
-        #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section_twig,container], invert=True)
-        
+        twig = self._make_twig([qualifier,ref,context_twig,label,section])
+        #~ twig_reverse = self._make_twig([qualifier,ref,context,label,section,container], invert=True)
+        twig_full = self._make_twig([qualifier,ref,context_twig,label,section,container])
+        #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section,container], invert=True)
         
         return dict(qualifier=qualifier, label=label,
             container=container, section=section, kind=kind, 
@@ -702,6 +697,7 @@ class Container(object):
             else:
                 param.set_value(value, unit)
     
+    @rebuild_trunk
     def set_ps(self, twig, value):
         """
         Replace an existing ParameterSet.
@@ -730,9 +726,7 @@ class Container(object):
         else:
             raise ValueError("Twig '{}' refers to a ParameterSet of context '{}', but '{}' is given".format(twig, current_context, given_context))
         
-        # And rebuild the trunk
-        self._build_trunk()
-        
+    @rebuild_trunk
     def attach_ps(self, twig, value):
         """
         Add a new ParameterSet.
@@ -753,10 +747,6 @@ class Container(object):
         except ValueError:
             raise ValueError("ParameterSet '{}' at Body already exists. Please use set_ps to override it.".format(given_context))
         
-        
-        # And rebuild the trunk
-        self._build_trunk()
-    
     def get_adjust(self, twig):
         """
         retrieve whether a Parameter is marked to be adjusted
