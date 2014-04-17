@@ -45,16 +45,28 @@ def legacy_to_phoebe2(inputfile):
     
     #-- initialise the orbital and component parameter sets. 
     orbit = parameters.ParameterSet('orbit')
-    comp1 = parameters.ParameterSet('component', label='primary')
-    comp2 = parameters.ParameterSet('component', label='secondary')
+    comps = [parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='primary'),
+             parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='secondary')]
     position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
                                       heating=True, label='from_legacy',
                                       eclipse_alg='binary', subdiv_num=3)
     
+    all_rvobs = [[],[]]
+    all_lcobs = []
+    all_lcdeps = [[],[]]
+    all_rvdeps = [[],[]]
+    
+    translation = dict(dpdt='dpdt', filename='filename', grb='gravb', sma='sma',
+                       ecc='ecc', period='period', incl='incl', pshift='phshift',
+                       rm='q', perr0='per0', met='abun', pot='pot', teff='teff',
+                       alb='alb')
+    
     # Open the parameter file and read each line
     with open(inputfile,'r') as ff:
         while True:
+            this_set = None
+            
             l = ff.readline()
             if not l:
                 break
@@ -76,17 +88,240 @@ def legacy_to_phoebe2(inputfile):
             except:
                 logger.error("line " + l[:-1] + " could not be parsed ('{}' probably not Phoebe legacy file)".format(inputfile))
                 raise IOError("Cannot parse phoebe file '{}': line '{}'".format(inputfile, l[:-1]))
-                    
+             
+            key = key.strip()
+             
+            if key == 'phoebe_rvno':
+                all_rvobs[0] = [datasets.RVDataSet() for i in range(int(val))]
+                all_rvobs[1] = [datasets.RVDataSet() for i in range(int(val))]
+                all_rvdeps[0] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                all_rvdeps[1] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                continue
+            elif key == 'phoebe_lcno':
+                all_lcobs = [datasets.LCDataSet() for i in range(int(val))]
+                all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                all_lcdeps[1] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                continue            
+                
             #-- if this is an rvdep or lcdep, check which index it has
             # and remove it from the string:
             pattern = re.search('\[(\d)\]',key)
             separate = re.search('\:',val)
+            
+            # this is a light or radial velocity file?
             if pattern:
                 index = int(pattern.group(1))-1
                 key = "".join(key.split(pattern.group(0)))
+            else:
+                index = None
+            
+            key_split = key.split('_')
+            
+            # ignore gui settings
+            if key_split[0] in ['gui', 'wd', 'dc']:
+                continue
+                        
+            # get the true qualifier, split in qualifier and postfix (if any)
+            leg_qualifier_splitted = "_".join(key_split[1:]).split('.')
+            leg_qualifier = leg_qualifier_splitted[0]
+            if len(leg_qualifier_splitted) == 2:
+                postfix = leg_qualifier_splitted[1]
+            elif len(leg_qualifier_splitted) == 1:
+                postfix = None
+            else:
+                raise ValueError("Shouldn't happen")
+            
+            # check if this is a component or a system parameter
+            if leg_qualifier[-1].isdigit() and int(leg_qualifier[-1])>0 and int(leg_qualifier[-1])<3:
+                compno = int(leg_qualifier[-1])-1
+                leg_qualifier = leg_qualifier[:-1]
+            else:
+                compno = None
+            
+            
+            
+            # ignore certain other things
+            if leg_qualifier in ['opsf', 'spots_no', 'spno', 'logg', 'sbr','mass','radius']:
+                continue
+            if 'spots' in leg_qualifier:
+                continue
+            if leg_qualifier[:3] == 'dc_':
+                continue
+            if 'synscatter' in leg_qualifier:
+                continue
+            
+            # special cases
+            if leg_qualifier == 'name':
+                orbit['label'] = leg_qualifier
+                continue
+            if leg_qualifier == 'reffect_switch':
+                compute['irradiation_alg'] == 'full' if int(val) else 'point_source'
+                continue
+                        
+            # passband luminosities
+            if leg_qualifier in 'cla':
+                if postfix == 'VAL':
+                    all_lcdeps[1][index]['pblum'] = val
+                    continue
+                else:
+                    for ii in all_lcdeps[1]:
+                        this_param = ii.get_parameter('pblum')
+                        if postfix == 'ADJ':
+                            this_param.set_adjust(int(val))
+                        elif postfix == 'STEP':
+                            this_param.set_step(float(val))
+                        elif postfix == 'MIN':
+                            this_param.set_limits(llim=float(val))
+                        elif postfix == 'MAX':
+                            this_param.set_limits(ulim=float(val))
+                    continue
+            
+            if leg_qualifier[:5] == 'ld_lc':
+                if leg_qualifier[-1] == 'x':
+                    ldindex = 0
+                else:
+                    ldindex = 1
+                    
+                if postfix == 'VAL':
+                    all_lcdeps[compno][index]['ld_coeffs'][ldindex] = val
+                    continue
+                else:
+                    for ii in all_lcdeps[compno]:
+                        this_param = ii.get_parameter('pblum')
+                        if postfix == 'ADJ':
+                            this_param.set_adjust(int(val))
+                        elif postfix == 'STEP':
+                            this_param.set_step(float(val))
+                        elif postfix == 'MIN':
+                            this_param.set_limits(llim=float(val))
+                        elif postfix == 'MAX':
+                            this_param.set_limits(ulim=float(val))
+                    continue
+            
+            if leg_qualifier[:5] == 'ld_rv':
+                if leg_qualifier[-1] == 'x':
+                    ldindex = 0
+                else:
+                    ldindex = 1
+                    
+                if postfix == 'VAL':
+                    all_rvdeps[compno][index]['ld_coeffs'][ldindex] = val
+                    continue
+                else:
+                    for ii in all_rvdeps[compno]:
+                        this_param = ii.get_parameter('pblum')
+                        if postfix == 'ADJ':
+                            this_param.set_adjust(int(val))
+                        elif postfix == 'STEP':
+                            this_param.set_step(float(val))
+                        elif postfix == 'MIN':
+                            this_param.set_limits(llim=float(val))
+                        elif postfix == 'MAX':
+                            this_param.set_limits(ulim=float(val))
+                    continue
+            
+            if leg_qualifier[:5] == 'el3':
+                index = 0
+                if postfix == 'VAL':
+                    all_lcdeps[0][index]['l3'] = val
+                    continue
+                else:
+                    for ii in all_lcdeps[0]:
+                        this_param = ii.get_parameter('l3')
+                        if postfix == 'ADJ':
+                            this_param.set_adjust(int(val))
+                        elif postfix == 'STEP':
+                            this_param.set_step(float(val))
+                        elif postfix == 'MIN':
+                            this_param.set_limits(llim=float(val))
+                        elif postfix == 'MAX':
+                            this_param.set_limits(ulim=float(val))
+                    continue
+
+            
+            
+            
+            if compno is not None:
+                if leg_qualifier == 'ld_xbol':
+                    comps[compno]['ld_coeffs'][0] = val
+                    continue
+                elif leg_qualifier == 'ld_ybol':
+                    comps[compno]['ld_coeffs'][1] = val
+                    continue
                 
-            print index
-            print key
+                # otherwise remember
+                this_set = comps[compno]
+            
+            # For datasets and pbdeps
+            if index is not None:
+                if '_lc_' in leg_qualifier:
+                    this_obs = all_lcobs[index]
+                    this_dep = all_lcdeps[0][index]
+                    ll = leg_qualifier.split('_')
+                    datatype, leg_qualifier = ll[0], '_'.join(ll[1:])
+                
+                elif '_rv_' in leg_qualifier:
+                    this_obs = all_rvobs[0][index]
+                    this_dep = all_rvdeps[0][index]
+                    ll = leg_qualifier.split('_')
+                    datatype, leg_qualifier = ll[0], '_'.join(ll[1:])
+                
+                    
+
+            else:
+                this_obs = []
+                this_dep = []
+            
+            # translation:
+            if leg_qualifier in translation:
+                qualifier = translation[leg_qualifier]
+                
+                if this_set is not None:
+                    pass
+                elif qualifier in orbit:
+                    this_set = orbit
+                elif qualifier in this_obs:
+                    this_set = this_obs
+                elif qualifier in this_dep:
+                    this_set = this_dep
+                else:
+                    print 'error',qualifier, leg_qualifier, index, compno, val
+                
+                this_param = this_set.get_parameter(qualifier)
+                    
+                if postfix == 'VAL':
+                    this_param.set_value(val)
+                    continue
+                elif postfix == 'ADJ':
+                    this_param.set_adjust(int(val))
+                    continue
+                elif postfix == 'STEP':
+                    this_param.set_step(float(val))
+                    continue
+                elif postfix == 'MIN':
+                    this_param.set_limits(llim=float(val))
+                    continue
+                elif postfix == 'MAX':
+                    this_param.set_limits(ulim=float(val))
+                    continue
+            else:
+                if leg_qualifier == 'lc_filter':
+                    all_lcdeps[0][index]['passband'] = 'bla'
+                    all_lcdeps[1][index]['passband'] = 'bla'
+                    continue
+                
+                if leg_qualifier == 'rv_active':
+                    all_rvobs[0][index].set_enabled(int(val))
+                    continue
+                
+                if leg_qualifier == 'lc_id':
+                    all_lcobs[0][index] = val[1:-1]
+                
+                print 'error2', leg_qualifier, index, compno, val
+            continue
+            
+            print ':system:',leg_qualifier, index, postfix, val
+            
     
     
     
