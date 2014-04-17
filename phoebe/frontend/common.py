@@ -358,12 +358,23 @@ class Container(object):
             for tsp_i,tsp in enumerate(twig_split):
                 remove = []
                 for mtwig_i, mtwig in enumerate(matching_twigs):
-                    if (tsp_i != 0 and tsp in mtwig) or mtwig[0]==tsp:
-                    #~ if (tsp_i != 0 and [fnmatch(mtwig_spi,tsp) for mtwig_spi in mtwig]) or fnmatch(mtwig[0],tsp):
-                        # then find where we are, and then only keep stuff to the right
-                        ind = mtwig.index(tsp)
-                        mtwig = mtwig[ind+1:]
+                    # mtwig is a split list of a remaining full twig
+                    ind = None
+                    if tsp_i==len(twig_split)-1:
+                        # let the item furthest to the right be incomplete (e.g te matches teff)
+                        mtwigglets = [mtwigglet[:len(tsp)] for mtwigglet in mtwig] if tsp_i!=0 else [mtwig[0][:len(tsp)]]
+                        if tsp in mtwigglets:
+                            ind = mtwigglets.index(tsp)
+                            mtwig = mtwig[ind+1:]
+                    
                     else:
+                        if (tsp_i != 0 and tsp in mtwig) or mtwig[0]==tsp:
+                        #~ if (tsp_i != 0 and [fnmatch(mtwig_spi,tsp) for mtwig_spi in mtwig]) or fnmatch(mtwig[0],tsp):
+                            # then find where we are, and then only keep stuff to the right
+                            ind = mtwig.index(tsp)
+                            mtwig = mtwig[ind+1:]
+                    
+                    if ind is None:
                         # then remove from list of matching twigs
                         remove.append(mtwig_i)
                 
