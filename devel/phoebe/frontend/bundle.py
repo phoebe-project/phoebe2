@@ -616,7 +616,7 @@ class Bundle(Container):
         """
         bund_str = ""
         computes = self._get_dict_of_section('compute')
-        print computes
+        #~ print computes
         if len(computes):
             bund_str+= "* Compute: " + ", ".join(computes.keys()) + '\n'
         #fittings = self._get_dict_of_section("fitting")
