@@ -253,7 +253,7 @@ def get_response(passband,full_output=False):
         outp = get_response_from_files(avail[0])
     # Else, if the custom filter exists and is preferred
     elif passband in custom_passbands:
-        outp = custom_passbands[passband]['response']
+        outp = custom_passbands[passband]
     # Else, if the file is not preferred but a custom one does not exist:
     elif len(avail)==1:
         outp = get_response_from_files(avail[0])
@@ -392,7 +392,7 @@ def read_standard_response(filename):
 
 def set_standard_response():
     """
-    Collect info on passbands (old deprecated ASCII version).
+    Collect info on passbands.
     
 
     
@@ -685,28 +685,28 @@ def add_response(wave, response, passband='CUSTOM.PTF', force=False,
         raise ValueError('bandpass {0} already exists'.format(photfile))
     elif passband in custom_passbands:
         logger.debug('Overwriting previous definition of {0}'.format(passband))
-    custom_passbands[passband] = dict(response=(wave, response))
     
     # Set effective wavelength
-    kwargs.setdefault('type', 'CCD')
-    kwargs.setdefault('eff_wave', eff_wave(passband, det_type=kwargs['type']))
-    kwargs.setdefault('transmission', np.trapz(response, x=wave))
+    kwargs.setdefault('dettype', 'flux')
+    kwargs.setdefault('WAVLEFF', eff_wave_arrays((wave,response), det_type=kwargs['dettype']))
     
     # Add info for zeropoints.dat file: make sure wherever "lit" is part of the
     # name, we replace it with "0". Then, we overwrite any existing information
     # with info given
-    myrow = get_info([copy_from])
-    for name in myrow.dtype.names:
-        if 'lit' in name:
-            myrow[name] = 0
-        myrow[name] = kwargs.pop(name, myrow[name])
+    myrow = get_response(copy_from, full_output=True)[2]
+    for kwarg in kwargs.keys():
+        myrow[kwarg] = kwargs[kwarg]
+    #for name in myrow.dtype.names:
+    #    if 'lit' in name:
+    #        myrow[name] = 0
+    #    myrow[name] = kwargs.pop(name, myrow[name])
     myrow['passband'] = passband
         
     # Remove memoized things to be sure to have the most up-to-date info
     del decorators.memory[__name__]
     
     # Finally add the info:
-    custom_passbands[passband]['zp'] = myrow
+    custom_passbands[passband] = wave, response, myrow
     logger.info('Added passband {0} to the predefined set'.format(passband))
 
 
