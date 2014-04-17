@@ -7,15 +7,19 @@ def test_access():
     """
     Testing bundle setters and getters
     """
-    mybundle = phoebe.Bundle(os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe'))
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
+    mybundle = phoebe.Bundle(filename)
+    # set a new parameterSet
+    mybundle.attach_ps('Detached_1', phoebe.PS('reddening:interstellar'))
     
     # test get value
     assert(mybundle.get_value('vgamma')==-12.5)
     assert(mybundle.get_value('teff@primary')==8350)
-    #assert(mybundle.get_value('teff->primary')==8350)
+    assert(mybundle.get_value('label@primary')=='primary')
     assert(mybundle.get_value('delta@mesh:marching@secondary')==0.0527721121857703257)
     assert(mybundle.get_value('atm@lcdep@secondary')=='kurucz')
     assert(mybundle.get_value('atm@component@secondary')=='kurucz')
+    assert(mybundle.get_value('passband@reddening')=='JOHNSON.V')
     
     # test set value
     mybundle.set_value('teff@primary',9000)
