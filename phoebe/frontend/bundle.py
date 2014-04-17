@@ -380,6 +380,9 @@ class Bundle(Container):
         bundle_twigs = [ri['twig'] for ri in return_items]
         #~ bundle_unique_labels = [ri['twig'] for ri in return_items]
         
+        
+        #~ print "*** A", self.twigs('time@from_legacy@compute@Bundle')
+        
         # then get items from usersettings, checking each twig to see if there is a duplicate
         # with those found from the bundle.  If so - the bundle version trumps.  If not - 
         # we need to make a copy to the bundle and return that version
@@ -407,9 +410,15 @@ class Bundle(Container):
                 
                 if ri is not None:
                     return_items.append(ri) 
+                    #~ bundle_twigs.append(ri['twig'])
+                    
+        #~ print "*** B", self.twigs('time@from_legacy@compute@Bundle')
         
         # now that new items have been copied, we need to redo things at the section level
         return_items += super(Bundle, self)._loop_through_container(do_pslevel=False)
+        #~ return_items += [ri for ri in super(Bundle, self)._loop_through_container(do_pslevel=False) if ri['twig'] not in bundle_twigs]
+        
+        #~ print "*** C", self.twigs('time@from_legacy@compute@Bundle')
         
         return return_items
         

@@ -31,10 +31,10 @@ class Container(object):
         
     ## act like a dictionary
     def keys(self):
-        return self.list_twigs()
+        return self.twigs()
         
     def values(self):
-        return [self.get_value(twig) for twig in self.list_twigs()]
+        return [self.get_value(twig) for twig in self.twigs()]
         
     def items(self):
         return self.sections.items()
@@ -239,7 +239,8 @@ class Container(object):
             
         # now let's do specific overrides
         if context == 'orbit':
-            #~ label = None
+            # we want to hide the fact to the user that these exist at the component level
+            # and instead fake its label to be that of its parent BodyBag
             label = self.get_parent(label).get_label()
             ref = None
         
@@ -546,13 +547,6 @@ class Container(object):
             self.sections[section] = []
         self.sections[section].append(ps)
     
-    def list_twigs(self, full=True, **kwargs):
-        """
-        return a list of all available twigs
-        """
-        trunk = self._filter_twigs_by_kwargs(**kwargs)
-        return [t['twig_full' if full else 'twig'] for t in trunk]
-
     def search(self, twig, **kwargs):
         """
         return a list of twigs matching a substring search
@@ -564,7 +558,7 @@ class Container(object):
         """
         return self._search_twigs(twig, **kwargs)
         
-    def match(self, twig, **kwargs):
+    def twigs(self, twig=None, **kwargs):
         """
         return a list of matching twigs (with same method as used in
         get_value, get_parameter, get_prior, etc)
@@ -574,6 +568,10 @@ class Container(object):
         @return: list of twigs
         @rtype: list of strings
         """
+    
+        if twig is None:
+            trunk = self._filter_twigs_by_kwargs(**kwargs)
+            return [t['twig_full'] for t in trunk] 
         return self._match_twigs(twig, **kwargs)
     
     def get(self, twig=None, **kwargs):
