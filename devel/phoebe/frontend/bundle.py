@@ -570,9 +570,9 @@ class Bundle(Container):
                         system = contents
                     elif file_type == 'phoebe_legacy':
                         system = contents[0]
-                        if contents[1].get_value('label') not in [c.get_value('label') for c in self.sections['compute']]:
-                            # let's just make sure its not already attached
-                            self.sections['compute'].append(contents[1])
+                        if contents[1].get_value('label') in [c.get_value('label') for c in self.sections['compute']]:
+                            self.remove_compute(contents[1].get_value('label')
+                        self.section['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
                
