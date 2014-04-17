@@ -47,6 +47,7 @@ import copy
 import os
 import re
 import readline
+import json
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
@@ -380,9 +381,6 @@ class Bundle(Container):
         bundle_twigs = [ri['twig'] for ri in return_items]
         #~ bundle_unique_labels = [ri['twig'] for ri in return_items]
         
-        
-        #~ print "*** A", self.twigs('time@from_legacy@compute@Bundle')
-        
         # then get items from usersettings, checking each twig to see if there is a duplicate
         # with those found from the bundle.  If so - the bundle version trumps.  If not - 
         # we need to make a copy to the bundle and return that version
@@ -412,13 +410,9 @@ class Bundle(Container):
                     return_items.append(ri) 
                     #~ bundle_twigs.append(ri['twig'])
                     
-        #~ print "*** B", self.twigs('time@from_legacy@compute@Bundle')
-        
         # now that new items have been copied, we need to redo things at the section level
         return_items += super(Bundle, self)._loop_through_container(do_pslevel=False)
         #~ return_items += [ri for ri in super(Bundle, self)._loop_through_container(do_pslevel=False) if ri['twig'] not in bundle_twigs]
-        
-        #~ print "*** C", self.twigs('time@from_legacy@compute@Bundle')
         
         return return_items
         
@@ -564,15 +558,12 @@ class Bundle(Container):
                     system = os.path.join(library_dir, system)
             # Try to guess the file type (if it is a file)
             if os.path.isfile(system):
-                #self._load_json(system)
-                #if False:
-                
                 try:
-                    self._load_json(system)
-                    file_type = 'json'
+                    f = open(system, 'r')
+                    load_dict = json.load(f)
+                    f.close()
                 
                 except ValueError:
-                
                     file_type, contents = guess_filetype(system)
                 
                     if file_type in ['wd', 'pickle_body']:
@@ -582,6 +573,10 @@ class Bundle(Container):
                         self.sections['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
+               
+                else:
+                    self._load_json(system)
+                    file_type = 'json'                    
 
         
             # As a last resort, we pass it on to 'body_from_string' in the
@@ -1352,7 +1347,14 @@ class Bundle(Container):
         
         # get compute options
         if label is None:
-            options = parameters.ParameterSet(context='compute')
+            # then see if the compute options 'default' is available
+            if 'default' not in self._get_dict_of_section('compute').keys():
+                # then create a new compute options from the backend
+                # and attach it to the bundle with label 'default
+                self.add_compute(label='default')
+            # now we definitely have one attached, so retrieve it
+            options = self.get_compute('default')
+            label = 'default'
         else:
             options_orig = self.get_compute(label)
             if options_orig is None:
