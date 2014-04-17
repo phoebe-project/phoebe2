@@ -78,7 +78,7 @@ class Completer:
             return []
 
         # get the content of the object, except __builtins__
-        words = thisobject.list_twigs()
+        words = thisobject.twigs()
         matches = []
         n = len(attr)
         for word in words:
