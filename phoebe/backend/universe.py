@@ -1567,7 +1567,13 @@ class Body(object):
         else:
             category = this_context[:-3]
             this_type = this_context[-3:]
+            if this_type == 'dep':
+                this_type = 'pbdep'
             ref = params['ref']
+            
+            if not this_context in self.params[this_type]:
+                self.params[this_type][this_context] = OrderedDict()
+
             if force or not (this_context in self.params[this_type][this_context]):
                 self.params[this_type][this_context][ref] = params
             else:

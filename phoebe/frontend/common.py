@@ -4,6 +4,7 @@ from collections import OrderedDict
 from fnmatch import fnmatch
 import copy
 import json
+import numpy as np
 from phoebe.parameters import parameters
 from phoebe.backend import universe
 
@@ -491,32 +492,46 @@ class Container(object):
 
         dump_dict = {}
         
-        #~ dump_dict['_system_hierarchy'] = 'only binaries currently supported'
-        #~ dump_dict['_system_hierarchy'] = {'kind': 'BodyBag', 'children': [{'kind': 'BinaryRocheStar', 'label': 'primary'}, {'kind': 'BinaryRocheStar', 'label': 'secondary'}], 'label': 'new system'}
-
         if hasattr(self, 'get_system'):
-            dump_dict['_system_structure'] = _dumps_system_structure(self.get_system())
+            dump_dict['Hierarchy'] = _dumps_system_structure(self.get_system())
 
-        # TODO will need to include 'hidden' information like refs and labels here as well
-        
-        for ti in self.trunk:
-            if not ti['hidden'] and ti['container']==this_container and ti['kind']=='Parameter':
-                item = ti['item']
+        dump_dict['ParameterSets'] = {}
+        for ti in self.get(kind='*Set',container=this_container,all=True,return_trunk_item=True):
+            # we use "*Set" so that we also get LCDataSet, etc
+            item = ti['item']
+            
+            if ti['context'] not in ['orbit','component','mesh:marching']:
                 info = {}
                 
-                info['value'] = item.get_value()#to_str()
+                if ti['context'][-3:]=='obs':
+                    # then unload the data first
+                    item.unload()
                 
-                #~ if hasattr(item, 'get_unit') and item.has_unit():
-                    #~ info['_unit (read-only)'] = item.get_unit()
+                info['context'] = ti['context']
+                #~ info['parent'] = self._make_twig([qualifier,ref,context,label,section,container])
+                dump_dict['ParameterSets'][ti['twig']] = info
+        
+        dump_dict['Parameters'] = {}
+        for ti in self.get(kind='Parameter',container=this_container,all=True,return_trunk_item=True):
+            item = ti['item']
+            info = {}
+            
+            info['value'] = item.get_value()#to_str()
+            
+            if isinstance(info['value'],np.ndarray):
+                info['value'] = list(info['value'])
+            
+            #~ if hasattr(item, 'get_unit') and item.has_unit():
+                #~ info['_unit (read-only)'] = item.get_unit()
+            
+            if hasattr(item, 'adjust') and item.adjust:
+                info['adjust'] = item.adjust
                 
-                if hasattr(item, 'adjust') and item.adjust:
-                    info['adjust'] = item.adjust
-                    
-                if item.has_prior():
-                    info['prior'] = 'has prior, but export not yet supported'
-                    
-                dump_dict[ti['twig']] = info
-
+            #~ if item.has_prior():
+                #~ info['prior'] = 'has prior, but export not yet supported'
+                
+            dump_dict['Parameters'][ti['twig']] = info
+            
         f = open(filename, 'w')
         f.write(json.dumps(dump_dict, sort_keys=True, indent=4, separators=(',', ': ')))
         f.close()
@@ -531,21 +546,34 @@ class Container(object):
         f.close()
         
         if hasattr(self, 'get_system'):
-            self.set_system(_loads_system_structure(load_dict['_system_structure']))
+            self.set_system(_loads_system_structure(load_dict['Hierarchy']))
             #print self.get_system().list(summary='full')
+            
+        for twig,info in load_dict['ParameterSets'].items():
+            label = str(twig.split('@')[0])
+            where = twig.split('@').index(info['context'])
+            if info['context'] not in self.sections.keys(): where+=1
+            parent_twig = '@'.join(twig.split('@')[where:])
+            ps = parameters.ParameterSet(context=str(info['context']))
+            if 'label' in ps.keys():
+                ps.set_value('label',label)
+            elif 'ref' in ps.keys():
+                ps.set_value('ref', label)
+            print "self.attach_ps('{}', PS(context='{}', label/ref='{}'))".format(parent_twig, info['context'], label)
+            self.attach_ps(parent_twig, ps)
+            
+        self._build_trunk()
         
-        for twig,info in load_dict.items():
-            if twig[0]!='_':
-                #~ print "self.set_value('{}', '{}')".format(twig, str(info['value']))
-                item = self.get(twig, hidden=None)
-                
-                if 'value' in info:
-                    item.set_value(info['value'])
-                if 'adjust' in info:
-                    #~ print "HERE", twig, info['adjust']
-                    item.set_adjust(info['adjust'])
-                #~ if 'prior' in info:
-                    #~ item.set_prior(info['prior'])
+        for twig,info in load_dict['Parameters'].items():
+            print "self.set_value('{}', '{}')".format(twig, str(info['value']))
+            item = self.get(twig, hidden=None)
+            if 'value' in info:
+                item.set_value(info['value'])
+            if 'adjust' in info:
+                #~ print "HERE", twig, info['adjust']
+                item.set_adjust(info['adjust'])
+            #~ if 'prior' in info:
+                #~ item.set_prior(info['prior'])
             
         
     ## generic functions to get non-system parametersets
@@ -791,20 +819,25 @@ class Container(object):
         Add a new ParameterSet.
         """
         # Get all the info we can get
-        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True, body=True)
+        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
         
-        # Make sure it is a Body
-        if not isinstance(this_trunk['item'], universe.Body):
-           raise ValueError("You can only attach ParameterSets to a Body ('{}' refers to a {})".format(twig, this_trunk['kind']))
+        if isinstance(this_trunk['item'], universe.Body):
+            # last check: we need to make sure that whatever we're setting already
+            # exists. We cannot assign a new nonexistent PS to the Body (well, we
+            # could, but we don't want to -- that's attach_ps responsibility)
+            given_context = value.get_context()
+            try:
+                this_trunk['item'].set_params(value, force=False)
+            except ValueError:
+                raise ValueError("ParameterSet '{}' at Body already exists. Please use set_ps to override it.".format(given_context))
         
-        # last check: we need to make sure that whatever we're setting already
-        # exists. We cannot assign a new nonexistent PS to the Body (well, we
-        # could, but we don't want to -- that's attach_ps responsibility)
-        given_context = value.get_context()
-        try:
-            this_trunk['item'].set_params(value, force=False)
-        except ValueError:
-            raise ValueError("ParameterSet '{}' at Body already exists. Please use set_ps to override it.".format(given_context))
+        elif isinstance(this_trunk['item'], dict): #then this should be a section
+            section = twig.split('@')[0]
+            if value.get_value('label') not in [c.get_value('label') for c in self.sections[section]]:
+                self._add_to_section(section, value)
+                
+        else:
+            raise ValueError("You can only attach ParameterSets to a Body or Section ('{}' refers to a {})".format(twig, this_trunk['kind']))
         
     def get_adjust(self, twig):
         """
@@ -991,6 +1024,17 @@ def _dumps_system_structure(current_item):
         struc_child = _dumps_system_structure(child)
         struc_this_level['children'].append(struc_child)
 
+    #~ struc_this_level['params'] = []
+    #~ for ps_cat,ps_set in current_item.params.items():
+        #~ if ps_cat not in ['orbit','component','mesh']:
+            #~ if not isinstance(ps_set, OrderedDict):
+                #~ # then we're already at the PS-level, so let's fake a dict
+                #~ ps_set = {0 :ps_set}
+            #~ for ps_name,ps in ps_set.items():
+                #~ struc_this_level['params'].append({})
+                
+                
+
     return struc_this_level
 
 def _loads_system_structure(struc, c1label=None, c2label=None, top_level=True):
@@ -1012,8 +1056,8 @@ def _loads_system_structure(struc, c1label=None, c2label=None, top_level=True):
     # top_level should only be True when this function is initially called
     # (any recursive calls will set it to False).  For the top-level item,
     # we need to create and attach a 'position' PS
-    if top_level:
-        this_item.params['position'] = parameters.ParameterSet(context='position')
+    #~ if top_level:
+        #~ this_item.params['position'] = parameters.ParameterSet(context='position')
 
     # and finally return the item, which should be the system for any
     # non-recursive calls
