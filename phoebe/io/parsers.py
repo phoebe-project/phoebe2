@@ -39,20 +39,53 @@ def try_to_locate_file(filename, rootfile=None):
             found = os.path.join(rootdir, filename)
     
     return found
-            
+
+def translate_filter(val, separate):
+    if val[2:5] == 'Bes':
+        val = val[2:-2].upper()
+        val = ".".join(val.split('L IR:'))
+        if val[0:8] == 'BESSEL.L':
+            val = 'BESSEL.LPRIME'
+    elif separate:
+        val = ".".join(val.split(separate.group(0)))
+        val = val[2:-1].upper()
+        if val == 'COROT.SISMO':
+            val = 'COROT.SIS'
+        elif val == 'KEPLER.MEAN':
+            val = 'KEPLER.V'
+        elif val == 'IRAC.CH1':
+            val = 'IRAC.36'
+        elif val == 'MOST.DEFAULT':
+            val = 'MOST.V'
+        elif val == 'STROMGREN.HBETA_NARROW':
+            val = 'STROMGREN.HBN'
+        elif val == 'STROMGREN.HBETA_WIDE':
+            val = 'STROMGREN.HBW'
+        elif val == 'BOLOMETRIC.3000A-10000A':
+            val = 'OPEN.BOL'
+        elif val == 'HIPPARCOS.BT':
+            val = 'TYCHO.BT'
+        elif val == 'HIPPARCOS.VT':
+            val = 'TYCHO.VT'
+        elif val[0:5] == 'SLOAN':
+            val = "SDSS".join(val.split('SLOAN'))
+            val = val[:-1]
+    return val
 
 def legacy_to_phoebe2(inputfile):
     
     #-- initialise the orbital and component parameter sets. 
-    orbit = parameters.ParameterSet('orbit')
+    orbit = parameters.ParameterSet('orbit', c1label='primary', c2label='secondary',
+                                    label='new_system', t0type='superior_conjunction')
     comps = [parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='primary'),
              parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='secondary')]
     position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
                                       heating=True, label='from_legacy',
                                       eclipse_alg='binary', subdiv_num=3)
-    
-    all_rvobs = [[],[]]
+    meshes = [parameters.ParameterSet('mesh:marching'),
+              parameters.ParameterSet('mesh:marching')]
+    all_rvobs = []
     all_lcobs = []
     all_lcdeps = [[],[]]
     all_rvdeps = [[],[]]
@@ -60,7 +93,12 @@ def legacy_to_phoebe2(inputfile):
     translation = dict(dpdt='dpdt', filename='filename', grb='gravb', sma='sma',
                        ecc='ecc', period='period', incl='incl', pshift='phshift',
                        rm='q', perr0='per0', met='abun', pot='pot', teff='teff',
-                       alb='alb')
+                       alb='alb', f='syncpar', vga='vgamma', hjd0='t0',
+                       dperdt='dperdt', extinction='extinction')
+    
+    computehla = False
+    usecla = False
+    computevga = False
     
     # Open the parameter file and read each line
     with open(inputfile,'r') as ff:
@@ -92,15 +130,21 @@ def legacy_to_phoebe2(inputfile):
             key = key.strip()
              
             if key == 'phoebe_rvno':
-                all_rvobs[0] = [datasets.RVDataSet() for i in range(int(val))]
-                all_rvobs[1] = [datasets.RVDataSet() for i in range(int(val))]
+                all_rvobs = [datasets.RVDataSet(user_columns=['time','rv','sigma'], user_units=['JD','km/s','km/s']) for i in range(int(val))]
+                rv_component_spec = [None for i in range(int(val))]
                 all_rvdeps[0] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_rvdeps[1] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 continue
             elif key == 'phoebe_lcno':
-                all_lcobs = [datasets.LCDataSet() for i in range(int(val))]
+                all_lcobs = [datasets.LCDataSet(user_columns=['time','rv','sigma'], user_units=['JD','erg/s/cm2/AA','erg/s/cm2/AA']) for i in range(int(val))]
                 all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_lcdeps[1] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                
+                # We need to add extinction parameters to all lcdeps
+                ext_par = parameters.Parameter('extinction', context='lcdep', cast_type=float)
+                for i in range(int(val)):
+                    all_lcdeps[0][i].add(ext_par.copy())
+                    all_lcdeps[1][i].add(ext_par.copy())
                 continue            
                 
             #-- if this is an rvdep or lcdep, check which index it has
@@ -141,23 +185,49 @@ def legacy_to_phoebe2(inputfile):
             
             
             # ignore certain other things
-            if leg_qualifier in ['opsf', 'spots_no', 'spno', 'logg', 'sbr','mass','radius']:
-                continue
-            if 'spots' in leg_qualifier:
+            if leg_qualifier in ['opsf', 'spots_no', 'spno', 'logg', 'sbr','mass',
+                                 'radius','plum','mbol']:
                 continue
             if leg_qualifier[:3] == 'dc_':
                 continue
-            if 'synscatter' in leg_qualifier:
+            ignore_list = 'spots', 'synscatter', 'proximity', 'levweight',\
+                          'indweight', 'nms_', 'el3_units', 'grid_coarsesize',\
+                          'passband_mode','ie_switch','ie_excess','spectra_disptype',\
+                          'mnorm', 'ie_factor', 'bins',  'bins_switch',\
+                          'indep','cadence','logg'
+            do_continue = False
+            for ignore in ignore_list:
+                if ignore in leg_qualifier:
+                    do_continue = True
+                    break
+            if do_continue:
                 continue
             
             # special cases
             if leg_qualifier == 'name':
-                orbit['label'] = leg_qualifier
+                val = val.strip()[1:-1]
+                if val:
+                    orbit['label'] = val
                 continue
             if leg_qualifier == 'reffect_switch':
                 compute['irradiation_alg'] == 'full' if int(val) else 'point_source'
                 continue
-                        
+            if leg_qualifier == 'reffect_reflections':
+                compute['refl_num'] = 1#val
+                continue
+            if leg_qualifier == 'grid_finesize':
+                meshes[compno]['delta'] = marching.gridsize_to_delta(int(val))
+                continue
+            if leg_qualifier == 'usecla_switch':
+                usecla = int(val)
+                continue
+            if leg_qualifier == 'compute_vga_switch':
+                computevga = int(val)
+                continue
+            if leg_qualifier == 'compute_hla_switch':
+                computehla = int(val)
+                continue
+            
             # passband luminosities
             if leg_qualifier in 'cla':
                 if postfix == 'VAL':
@@ -175,6 +245,22 @@ def legacy_to_phoebe2(inputfile):
                         elif postfix == 'MAX':
                             this_param.set_limits(ulim=float(val))
                     continue
+            if leg_qualifier in 'hla':
+                if postfix == 'VAL':
+                    all_lcdeps[0][index]['pblum'] = val
+                    continue
+                else:
+                    for ii in all_lcdeps[0]:
+                        this_param = ii.get_parameter('pblum')
+                        if postfix == 'ADJ':
+                            this_param.set_adjust(int(val))
+                        elif postfix == 'STEP':
+                            this_param.set_step(float(val))
+                        elif postfix == 'MIN':
+                            this_param.set_limits(llim=float(val))
+                        elif postfix == 'MAX':
+                            this_param.set_limits(ulim=float(val))
+                    continue
             
             if leg_qualifier[:5] == 'ld_lc':
                 if leg_qualifier[-1] == 'x':
@@ -182,8 +268,9 @@ def legacy_to_phoebe2(inputfile):
                 else:
                     ldindex = 1
                     
+                    
                 if postfix == 'VAL':
-                    all_lcdeps[compno][index]['ld_coeffs'][ldindex] = val
+                    all_lcdeps[compno][index]['ld_coeffs'][ldindex] = float(val)
                     continue
                 else:
                     for ii in all_lcdeps[compno]:
@@ -205,7 +292,7 @@ def legacy_to_phoebe2(inputfile):
                     ldindex = 1
                     
                 if postfix == 'VAL':
-                    all_rvdeps[compno][index]['ld_coeffs'][ldindex] = val
+                    all_rvdeps[compno][index]['ld_coeffs'][ldindex] = float(val)
                     continue
                 else:
                     for ii in all_rvdeps[compno]:
@@ -220,7 +307,8 @@ def legacy_to_phoebe2(inputfile):
                             this_param.set_limits(ulim=float(val))
                     continue
             
-            if leg_qualifier[:5] == 'el3':
+            
+            if leg_qualifier == 'el3':
                 index = 0
                 if postfix == 'VAL':
                     all_lcdeps[0][index]['l3'] = val
@@ -238,15 +326,31 @@ def legacy_to_phoebe2(inputfile):
                             this_param.set_limits(ulim=float(val))
                     continue
 
-            
+            if leg_qualifier == 'extinction':
+                index = 0
+                if postfix == 'VAL':
+                    all_lcdeps[0][index]['extinction'] = val
+                    continue
+                else:
+                    for ii in all_lcdeps[0]:
+                        this_param = ii.get_parameter('extinction')
+                        if postfix == 'ADJ':
+                            this_param.set_adjust(int(val))
+                        elif postfix == 'STEP':
+                            this_param.set_step(float(val))
+                        elif postfix == 'MIN':
+                            this_param.set_limits(llim=float(val))
+                        elif postfix == 'MAX':
+                            this_param.set_limits(ulim=float(val))
+                    continue
             
             
             if compno is not None:
                 if leg_qualifier == 'ld_xbol':
-                    comps[compno]['ld_coeffs'][0] = val
+                    comps[compno]['ld_coeffs'][0] = float(val)
                     continue
                 elif leg_qualifier == 'ld_ybol':
-                    comps[compno]['ld_coeffs'][1] = val
+                    comps[compno]['ld_coeffs'][1] = float(val)
                     continue
                 
                 # otherwise remember
@@ -261,7 +365,7 @@ def legacy_to_phoebe2(inputfile):
                     datatype, leg_qualifier = ll[0], '_'.join(ll[1:])
                 
                 elif '_rv_' in leg_qualifier:
-                    this_obs = all_rvobs[0][index]
+                    this_obs = all_rvobs[index]
                     this_dep = all_rvdeps[0][index]
                     ll = leg_qualifier.split('_')
                     datatype, leg_qualifier = ll[0], '_'.join(ll[1:])
@@ -272,6 +376,7 @@ def legacy_to_phoebe2(inputfile):
                 this_obs = []
                 this_dep = []
             
+            
             # translation:
             if leg_qualifier in translation:
                 qualifier = translation[leg_qualifier]
@@ -280,6 +385,8 @@ def legacy_to_phoebe2(inputfile):
                     pass
                 elif qualifier in orbit:
                     this_set = orbit
+                elif qualifier in position:
+                    this_set = position
                 elif qualifier in this_obs:
                     this_set = this_obs
                 elif qualifier in this_dep:
@@ -290,6 +397,8 @@ def legacy_to_phoebe2(inputfile):
                 this_param = this_set.get_parameter(qualifier)
                     
                 if postfix == 'VAL':
+                    if qualifier == 'alb':
+                        val = 1-float(val)
                     this_param.set_value(val)
                     continue
                 elif postfix == 'ADJ':
@@ -306,22 +415,195 @@ def legacy_to_phoebe2(inputfile):
                     continue
             else:
                 if leg_qualifier == 'lc_filter':
-                    all_lcdeps[0][index]['passband'] = 'bla'
-                    all_lcdeps[1][index]['passband'] = 'bla'
+                    all_lcdeps[0][index]['passband'] = translate_filter(val, separate)
+                    all_lcdeps[1][index]['passband'] = translate_filter(val, separate)
+                    continue
+                
+                if leg_qualifier == 'rv_filter':
+                    all_rvdeps[0][index]['passband'] = translate_filter(val, separate)
+                    all_rvdeps[1][index]['passband'] = translate_filter(val, separate)
+                    continue
+                
+                if leg_qualifier == 'ld_model':
+                    ld_model = val.strip()[1:-1].split()[0].lower()
+                    comps[0]['ld_func'] = ld_model
+                    comps[1]['ld_func'] = ld_model
+                    for dep in all_lcdeps[0]:
+                        dep['ld_func'] = ld_model
+                    for dep in all_lcdeps[1]:
+                        dep['ld_func'] = ld_model
+                    for dep in all_rvdeps[0]:
+                        dep['ld_func'] = ld_model
+                    for dep in all_rvdeps[1]:
+                        dep['ld_func'] = ld_model
                     continue
                 
                 if leg_qualifier == 'rv_active':
-                    all_rvobs[0][index].set_enabled(int(val))
+                    all_rvobs[index].set_enabled(int(val))
+                    continue
+                
+                if leg_qualifier == 'lc_active':
+                    all_lcobs[index].set_enabled(int(val))
+                    continue
+                
+                if leg_qualifier == 'lc_dep':
+                    val = val.strip()
+                    if val[1:-1] == 'Magnitude':
+                        all_lcobs[index]['user_units'][1] = 'mag'
+                        all_lcobs[index]['user_columns'][1] = 'mag'
+                    elif val[1:-1] == 'Flux':
+                        all_lcobs[index]['user_units'][1] = 'erg/s/cm2/AA'
+                        all_lcobs[index]['user_columns'][1] = 'flux'
+                    else:
+                        raise ValueError("Flux unit not recognised")
+                    continue
+                
+                if leg_qualifier == 'rv_dep':
+                    rv_component_spec[index] = leg_qualifier
+                    continue
+                
+                if leg_qualifier == 'lc_indep':
+                    val = val.strip()
+                    if val[1:-1] == 'Time (HJD)':
+                        all_lcobs[index]['user_units'][0] = 'JD'
+                        all_lcobs[index]['user_columns'][0] = 'time'
+                    elif val[1:-1] == 'Phase':
+                        all_lcobs[index]['user_units'][0] = 'cy'
+                        all_lcobs[index]['user_columns'][0] = 'phase'
+                    else:
+                        raise ValueError("Time unit not recognised")
+                    continue
+                
+                if leg_qualifier == 'rv_indep':
+                    val = val.strip()
+                    if val[1:-1] == 'Time (HJD)':
+                        all_rvobs[index]['user_units'][0] = 'JD'
+                        all_rvobs[index]['user_columns'][0] = 'time'
+                    elif val[1:-1] == 'Phase':
+                        all_rvobs[index]['user_units'][0] = 'cy'
+                        all_rvobs[index]['user_columns'][0] = 'phase'
+                    else:
+                        raise ValueError("Time unit not recognised")
                     continue
                 
                 if leg_qualifier == 'lc_id':
-                    all_lcobs[0][index] = val[1:-1]
+                    val = val.strip().replace(' ','_')
+                    all_lcobs[index]['ref'] = val[1:-1]
+                    all_lcdeps[0][index]['ref'] = val[1:-1]
+                    all_lcdeps[1][index]['ref'] = val[1:-1]
+                    continue
                 
-                print 'error2', leg_qualifier, index, compno, val
-            continue
+                if leg_qualifier == 'rv_id':
+                    val = val.strip().replace(' ','_')
+                    all_rvobs[index]['ref'] = val[1:-1]
+                    all_rvdeps[0][index]['ref'] = val[1:-1]
+                    all_rvdeps[1][index]['ref'] = val[1:-1]
+                    continue
+                
+                if leg_qualifier == 'lc_sigma':
+                    all_lcobs[index]['sigma'] = float(val)
+                    continue
+                
+                if leg_qualifier == 'rv_sigma':
+                    all_rvobs[index]['sigma'] = float(val)
+                    continue
+                
+                
+                if leg_qualifier == 'rv_filename':
+                    all_rvobs[index]['filename'] = val.strip()[1:-1]
+                    continue
+                
+                if leg_qualifier == 'lc_filename':
+                    all_lcobs[index]['filename'] = val.strip()[1:-1]
+                    continue
+                
+                if leg_qualifier == 'atm1_switch':
+                    atm = 'blackbody' if int(val) == 0 else 'kurucz'
+                    comps[0]['atm'] = atm
+                    for dep in all_lcdeps[0]:
+                        dep['atm'] = atm
+                    continue
+                
+                if leg_qualifier == 'atm2_switch':
+                    atm = 'blackbody' if int(val) == 0 else 'kurucz'
+                    comps[1]['atm'] = atm
+                    for dep in all_lcdeps[1]:
+                        dep['atm'] = atm
+                    continue
+                
+                #print 'error2', leg_qualifier, index, compno, val
+                continue
             
-            print ':system:',leg_qualifier, index, postfix, val
             
+    # now check usecla
+    # now check compute_vga
+        
+    # Create basic stars
+    star1 = universe.BinaryRocheStar(comps[0],orbit,meshes[0])
+    star2 = universe.BinaryRocheStar(comps[1],orbit,meshes[1])
+    
+    # add RV curves
+    for i in range(len(all_rvobs)):
+        # set data
+        found = try_to_locate_file(all_rvobs[i]['filename'], rootfile=inputfile)
+        if found:
+            out = np.loadtxt(found, unpack=True)
+            for col_in, col_file in zip(all_rvobs[i]['columns'], out):
+                all_rvobs[i][col_in] = col_file
+        all_rvobs[i]['filename'] = ""#all_rvobs[i]['ref'] + '_phoebe2.lc'
+            
+        if not all_rvobs[i]['sigma'].shape:
+            all_rvobs[i]['sigma'] = len(all_rvobs[i])*[float(all_rvobs[i]['sigma'])]
+        
+        if computevga:
+            all_rvobs[i].set_adjust('offset', True)
+        
+        if rv_component_spec == 'Primary RV':
+            star1.add_pbdeps(all_rvdeps[0][i])
+            star1.add_obs(all_rvobs[i])
+        else:
+            star2.add_pbdeps(all_rvdeps[1][i])
+            star2.add_obs(all_rvobs[i])
+            
+    
+    # Add LC deps
+    for i in range(len(all_lcobs)):
+        found = try_to_locate_file(all_lcobs[i]['filename'], rootfile=inputfile)
+        if found:
+            out = np.loadtxt(found, unpack=True)
+            for col_in, col_file in zip(all_lcobs[i]['columns'], out):
+                all_lcobs[i][col_in] = col_file
+            
+            if not all_lcobs[i]['sigma'].shape:
+                all_lcobs[i]['sigma'] = len(all_lcobs[i])*[float(all_lcobs[i]['sigma'])]
+            
+            if all_lcobs[i]['user_columns'][1] == 'mag':
+                all_lcobs[i]['flux'] = 10**(all_lcobs[i]['flux']/(-2.5))
+        all_lcobs[i]['filename'] = ""#all_lcobs[i]['ref'] + '_phoebe2.lc'
+        
+        
+        if computehla:
+            all_lcdeps[0][i]['pblum'] = -1
+            all_lcobs[i].set_adjust('scale', True)
+        
+        if not usecla:
+            all_lcdeps[1][i]['pblum'] = -1
+        star1.add_pbdeps(all_lcdeps[0][i])
+        star2.add_pbdeps(all_lcdeps[1][i])
+    
+    bodybag = universe.BodyBag([star1, star2], position=position)
+    
+    # Add data
+    for i in range(len(all_lcobs)):
+        bodybag.add_obs(all_lcobs[i])
+    
+    # Set the name of the thing
+    bodybag.set_label(orbit['label'])
+    
+    
+    
+    
+    return bodybag, compute
     
     
     
@@ -1004,10 +1286,8 @@ def legacy_to_phoebe(inputfile, create_body=False,
                     found_file = try_to_locate_file(lc_file[i], inputfile)
                     if found_file:
                         col1lc,col2lc = np.loadtxt(found_file, unpack=True)
-                        #obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                     else:
                         logger.warning("The (time) light curve file {} cannot be located.".format(lc_file[i]))                    
                 else:
@@ -1015,7 +1295,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
                     if found_file:
                         col1lc,col2lc = np.loadtxt(found_file, unpack=True)
                         obslc.append(datasets.LCDataSet(time=col1lc, flux=col2lc,columns=[lctime[i],'flux'], 
-                        ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                        ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                     else:
                         logger.warning("The (phase) light curve file {} cannot be located.".format(lc_file[i]))                    
             else:
@@ -1024,39 +1304,31 @@ def legacy_to_phoebe(inputfile, create_body=False,
                         found_file = try_to_locate_file(lc_file[i], inputfile)
                         if found_file:
                             col1lc,col2lc,col3lc = np.loadtxt(found_file, unpack=True)
-                            #obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                             obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve (1) file {} cannot be located.".format(lc_file[i]))                    
                     else:
                         found_file = try_to_locate_file(lc_file[i], inputfile)
                         if found_file:
                             col1lc,col2lc,col3lc = np.loadtxt(found_file, unpack=True)
-                            #obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
-                            obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            obslc.append(datasets.LCDataSet(time=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve (2) file {} cannot be located.".format(lc_file[i]))                    
                 else:
                     if lcsigma[i]=='sigma': 
                         if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
-                            #obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=col3lc,columns=[lctime[i],'flux',lcsigma[i]], 
-                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve file (3) {} cannot be located.".format(lc_file[i]))                    
                     else:
                         if os.path.isfile(lc_file[i]) or os.path.isfile(os.path.basename(lc_file[i])):
                             col1lc,col2lc,col3lc = np.loadtxt(lc_file[i], unpack=True)
-                            #obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            #ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                             obslc.append(datasets.LCDataSet(phase=col1lc,flux=col2lc,sigma=1./col3lc**2,columns=[lctime[i],'flux','sigma'], 
-                            ref=lcname[i], filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
+                            ref="lightcurve_"+str(j), filename=str(found_file), statweight=lc_pbweight[i], user_components=lcname[i]))
                         else:
                             logger.warning("The light curve file (4) {} cannot be located.".format(lc_file[i]))                    
  
@@ -1229,7 +1501,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
     
     if create_body:
         
-        ##need an if statement here incase no obs
+        #need an if statement here incase no obs
         if prim_rv !=0 and sec_rv !=0:
             star1 = universe.BinaryRocheStar(comp1,orbit,mesh1,pbdep=lcdep1+rvdep1,obs=obsrv1)
             star2 = universe.BinaryRocheStar(comp2,orbit,mesh2,pbdep=lcdep2+rvdep2,obs=obsrv2)

@@ -13,7 +13,7 @@ def test_access():
     mybundle.attach_ps('Detached_1', phoebe.PS('reddening:interstellar'))
     
     # test get value
-    assert(mybundle.get_value('vgamma')==-12.5)
+    assert(mybundle.get_value('vgamma@position')==-12.5)
     assert(mybundle.get_value('teff@primary')==8350)
     assert(mybundle.get_value('label@primary')=='primary')
     assert(mybundle.get_value('delta@mesh:marching@secondary')==0.0527721121857703257)
