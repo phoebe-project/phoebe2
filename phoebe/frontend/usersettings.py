@@ -22,6 +22,7 @@ class Settings(Container):
     Included in these settings are:
     
         1. servers::
+            (not yet supported)
             parameters that define options for running computations, either
             locally or on a remote server, and with or without mpi
             
@@ -31,6 +32,7 @@ class Settings(Container):
             overridden at the bundle level.
             
         3. fitting::
+            (not yet supported)
             default options for different fitting options.  These fitting
             options will be available from any bundle you load and can be
             overridden at the bundle level.
@@ -42,6 +44,7 @@ class Settings(Container):
             settings and calling settings.apply_logger().
             
         4. gui::
+            (not yet supported)
             options for the default layout of the gui.
             
     Each of these 'sections' of the usersettings will be stored in its
@@ -320,6 +323,8 @@ class Settings(Container):
         @param basedir: base directory, or None to save to initialized basedir
         @type basedir: str or None
         """
+        devel = False
+        
         if basedir is None:
             basedir = self.basedir
         else:
@@ -336,28 +341,31 @@ class Settings(Container):
         # If you want to roll back any of your preferences to defaults,
         # simply delete the .cfg file and reload usersettings
         
-        self.sections['server'] = []
-        if not self.load_cfg('server', basedir):
-            pass
+        if devel:
+            self.sections['server'] = []
+            if not self.load_cfg('server', basedir):
+                pass
         
         self.sections['compute'] = []
         if not self.load_cfg('compute', basedir):
             self.add_compute(label='preview',refl=False,heating=False,eclipse_alg='binary',subdiv_num=1)
             self.add_compute(label='detailed',ltt=True,eclipse_alg='binary',beaming_alg='local')
-            
-        self.sections['fitting'] = []
-        if not self.load_cfg('fitting', basedir):
-            self.add_fitting(context='fitting:grid',label='grid')
-            self.add_fitting(context='fitting:minuit',label='minuit')
-            self.add_fitting(context='fitting:lmfit',label='lmfit')
-            self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
-            self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
-            self.add_fitting(context='fitting:emcee',label='emcee')
-            self.add_fitting(context='fitting:pymc',label='pymc')
         
-        self.sections['gui'] = [] # currently assumes only 1 entry
-        if not self.load_cfg('gui', basedir):
-            self._add_to_section('gui', parameters.ParameterSet(context='gui'))
+        if devel:
+            self.sections['fitting'] = []
+            if not self.load_cfg('fitting', basedir):
+                self.add_fitting(context='fitting:grid',label='grid')
+                self.add_fitting(context='fitting:minuit',label='minuit')
+                self.add_fitting(context='fitting:lmfit',label='lmfit')
+                self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
+                self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
+                self.add_fitting(context='fitting:emcee',label='emcee')
+                self.add_fitting(context='fitting:pymc',label='pymc')
+
+        if devel:
+            self.sections['gui'] = [] # currently assumes only 1 entry
+            if not self.load_cfg('gui', basedir):
+                self._add_to_section('gui', parameters.ParameterSet(context='gui'))
             
         self.sections['logger'] = [] # currently assumes only 1 entry
         if not self.load_cfg('logger', basedir):
