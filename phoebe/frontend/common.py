@@ -6,7 +6,9 @@ import copy
 import json
 import numpy as np
 from phoebe.parameters import parameters
+from phoebe.parameters import datasets
 from phoebe.backend import universe
+from phoebe.utils import config
 
 def rebuild_trunk(fctn):
     """
@@ -67,7 +69,15 @@ class Container(object):
         
         self._build_trunk()
         
-        
+    def __contains__(self, twig):
+        """
+        Check if a twig is in the Container.
+        """
+        try:
+            ret_value = self._get_by_search(twig, all=True)
+            return True
+        except ValueError:
+            return False
     
     #~ def __iter__(self):
         #~ for _yield in self._loop_through_container(return_type='item'):
@@ -151,7 +161,9 @@ class Container(object):
                         if itype[-3:] == 'obs':
                             bodies = [self.get_system()] + [thing for thing in path if isinstance(thing, universe.Body)]
                             syn = bodies[-1].get_synthetic(category=item[:-3], ref=isubtype['ref'])
+                            
                             if syn is not None: 
+                                syn = syn.asarray()
                                 ri = self._get_info_from_item(syn, path=path, section=section_name)
                                 return_items.append(ri)
                                 
@@ -160,10 +172,10 @@ class Container(object):
                                 subpath[-3] = syn.get_context()
                                 
                                 # add phase to synthetic
-                                if 'time' in syn and len(syn['time']) and not 'phase' in syn:
-                                    period = self.get_value('period@orbit')
-                                    par = parameters.Parameter('phase', value=np.mod(syn['time'], period), unit='cy', context=syn.get_context())
-                                    syn.add(par)
+                                #if 'time' in syn and len(syn['time']) and not 'phase' in syn:
+                                    #period = self.get_value('period@orbit')
+                                    #par = parameters.Parameter('phase', value=np.mod(syn['time'], period), unit='cy', context=syn.get_context())
+                                    #syn.add(par)
                                 
                                 for par in syn:
                                     mypar = syn.get_parameter(par)
@@ -498,17 +510,20 @@ class Container(object):
         """
         TESTING
         """
+        # We're changing stuff here, so we need to make a copy first
+        this_bundle = self.copy()
         
-        this_container = self.__class__.__name__
+        this_container = this_bundle.__class__.__name__
         #~ dump_dict = {ti['twig']: 'value': ti['item'].get_value() for ti in self.trunk if ti['container']==this_container and ti['kind']=='Parameter'}
 
         dump_dict = {}
         
-        if hasattr(self, 'get_system'):
-            dump_dict['Hierarchy'] = _dumps_system_structure(self.get_system())
+        
+        if hasattr(this_bundle, 'get_system'):
+            dump_dict['Hierarchy'] = _dumps_system_structure(this_bundle.get_system())
 
         dump_dict['ParameterSets'] = {}
-        for ti in self.get(kind='*Set',container=this_container,all=True,return_trunk_item=True):
+        for ti in this_bundle.get(kind='*Set',container=this_container,all=True,return_trunk_item=True):
             # we use "*Set" so that we also get LCDataSet, etc
             item = ti['item']
             
@@ -524,7 +539,7 @@ class Container(object):
                 dump_dict['ParameterSets'][ti['twig']] = info
         
         dump_dict['Parameters'] = {}
-        for ti in self.get(kind='Parameter',container=this_container,all=True,return_trunk_item=True):
+        for ti in this_bundle.get(kind='Parameter',container=this_container,all=True,return_trunk_item=True):
             item = ti['item']
             info = {}
             
@@ -548,6 +563,7 @@ class Container(object):
         f.write(json.dumps(dump_dict, sort_keys=True, indent=4, separators=(',', ': ')))
         f.close()
 
+
     @rebuild_trunk
     def _load_json(self, filename):
         """
@@ -566,7 +582,15 @@ class Container(object):
             where = twig.split('@').index(info['context'])
             if info['context'] not in self.sections.keys(): where+=1
             parent_twig = '@'.join(twig.split('@')[where:])
-            ps = parameters.ParameterSet(context=str(info['context']))
+            
+            # lcdeps etc are ParameterSets, lcobs/lcsyn are DataSets (which are
+            # a sublcass of ParameterSets but with extra functionality)
+            context = str(info['context'])
+            if context[-3:] in ['obs', 'syn']:
+                ps = getattr(datasets, config.dataset_class[context[:-3]])(context=context)
+            else:
+                ps = parameters.ParameterSet(context)
+                
             if 'label' in ps.keys():
                 ps.set_value('label',label)
             elif 'ref' in ps.keys():
@@ -795,6 +819,18 @@ class Container(object):
                 param.set_value(value)
             else:
                 param.set_value(value, unit)
+    
+    def get_value_all(self, twig):
+        """
+        Return the values of all matching Parameters
+        
+        @param twig: the search twig
+        @type twig: str
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        return [param.get_value() for param in params]
+        
     
     @rebuild_trunk
     def set_ps(self, twig, value):

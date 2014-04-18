@@ -1563,21 +1563,28 @@ class Body(object):
                     self.params[this_context] = params
             else:
                 raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
-        # data-related stuff
+        
+        # data-related stuff (not lists!)
         else:
             category = this_context[:-3]
             this_type = this_context[-3:]
-            if this_type == 'dep':
-                this_type = 'pbdep'
-            ref = params['ref']
             
-            if not this_context in self.params[this_type]:
-                self.params[this_type][this_context] = OrderedDict()
+            if this_type == 'dep':
+                self.add_pbdeps(params)
+            elif this_type == 'obs':
+                self.add_obs(params)
+            # special case for synthetics    
+            else:    
+                ref = params['ref']
+            
+                if not this_context in self.params[this_type]:
+                    self.params[this_type][this_context] = OrderedDict()
 
-            if force or not (this_context in self.params[this_type][this_context]):
-                self.params[this_type][this_context][ref] = params
-            else:
-                raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
+                if force or not (this_context in self.params[this_type][this_context]):
+                    self.params[this_type][this_context][ref] = params
+                else:
+                    raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
+                return None
         
         
     def reset_and_clear(self):
@@ -3143,7 +3150,9 @@ class Body(object):
             
             for icat in categories:
                 if not icat in self.params[type]:
-                    raise ValueError('No {} defined: looking in type={}, available={}'.format(icat,type,list(self.params[type].keys())))
+                    # should we throw error here or return None, None?
+                    return None, None
+                    #raise ValueError('No {} defined: looking in type={}, available={}'.format(icat,type,list(self.params[type].keys())))
                 counter = 0
                 for ips in self.params[type][icat]:
                     ps = self.params[type][icat][ips]
@@ -5816,8 +5825,10 @@ class BodyBag(Body):
         # transform is not the sum of the component Fourier transforms.
         #   .... euhh... it kind of is! Anyway...
         if kwargs.get('category', 'lc') == 'if':
-            total_results = super(BodyBag, self).get_synthetic(*args, **kwargs)
-            if total_results:
+            total_results = self.get_parset(ref=kwargs.get('ref',0), type='syn',
+                                        category=kwargs.get('category', None))[0]
+        
+            if total_results is not None:
                 return total_results
         
         # Prepare to return all the results
@@ -5835,7 +5846,11 @@ class BodyBag(Body):
                 total_results = sum(total_results)
             except TypeError:
                 total_results = None
-                
+        
+        # If no results at all, replace with None for consistency with Body
+        if total_results == []:
+            total_results = None
+        
         return total_results
     
     def get_obs(self,category='lc',ref=0):

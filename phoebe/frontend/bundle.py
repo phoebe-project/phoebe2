@@ -1140,9 +1140,11 @@ class Bundle(Container):
             if expand_key in ds and not ds[expand_key].shape:
                 ds[expand_key] = len(ds) * [ds[expand_key]]
         
-        # check if all columns have the same length as time
+        # check if all columns have the same length as time (or phase). There
+        # a few exceptions: wavelength can be the same for all times for example
         reference_length = len(ds['time']) if 'time' in ds['columns'] else len(ds['phase'])
-        for col in ds['columns']:
+        ignore_columns = set(['wavelength'])
+        for col in (set(ds['columns']) - ignore_columns):
             if not (len(ds[col])==0 or len(ds[col])==reference_length):
                 raise ValueError("Length of column {} in dataset {} does not equal length of time/phase column".format(col, dataref))
         
