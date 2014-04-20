@@ -358,8 +358,8 @@ class Bundle(Container):
         self.set_system(system, remove_dataref=remove_dataref)
         
         # Lastly, make sure all atmosphere tables are registered
-        atms = self._get_by_search('atm', kind='Parameter', all=True)
-        ldcoeffs = self._get_by_search('ld_coeffs', kind='Parameter', all=True)
+        atms = self._get_by_search('atm', kind='Parameter', all=True, ignore_errors=True)
+        ldcoeffs = self._get_by_search('ld_coeffs', kind='Parameter', all=True, ignore_errors=True)
         for atm in atms:
             limbdark.register_atm_table(atm.get_value())
         for ldcoeff in ldcoeffs:

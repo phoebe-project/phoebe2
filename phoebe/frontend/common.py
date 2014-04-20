@@ -5,7 +5,7 @@ from fnmatch import fnmatch
 import copy
 import json
 import numpy as np
-from phoebe.parameters import parameters
+from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
 from phoebe.backend import universe
 from phoebe.utils import config
@@ -109,7 +109,7 @@ class Container(object):
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
 
-                        elif ri['kind']=='BodyBag':
+                        elif ri['class_name']=='BodyBag':
                             return_items += self._loop_through_system(item, section_name=section_name)
                        
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
@@ -148,13 +148,19 @@ class Container(object):
                 
                 # we completely ignore existing syns, we build them on the same
                 # level as obs are available
-                if item[-3:] == 'syn':
-                    continue
+                #~ if item[-3:] == 'syn':
+                    #~ continue
                 
                 for itype in path[-2]:
                     for isubtype in path[-2][itype].values():
                         if item==itype:
                             ri = self._get_info_from_item(isubtype, path=path, section=section_name)
+                            
+                            if item[-3:]=='syn':
+                                #~ # then this is the true syn, which we need to keep available
+                                #~ # for saving and loading, but will hide from the user in twig access
+                                ri['hidden']=True
+                            
                             return_items.append(ri)
                     
                         # we want to see if there any syns associated with the obs
@@ -222,10 +228,11 @@ class Container(object):
         providing other information (section, container, context, label) may be necessary if we don't know where we are
         """
         container = self.__class__.__name__ if container is None else container
-        kind = item.__class__.__name__
+        class_name = item.__class__.__name__
         body = False
     
         if isinstance(item, parameters.ParameterSet):
+            kind = 'ParameterSet'
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             if len(labels):
                 label = labels[-1]
@@ -239,6 +246,7 @@ class Container(object):
             qualifier = None
             
         elif isinstance(item, parameters.Parameter):
+            kind = 'Parameter'
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
             if len(labels):
                 label = labels[-1]
@@ -259,12 +267,13 @@ class Container(object):
             if path:
                 if context[-3:] in ['obs','dep','syn']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
-                    # do to bad design by Pieter, this needs a hack to make sure we get the right label
+                    # due to bad design by Pieter, this needs a hack to make sure we get the right label
                     ref = path[-2]
                 
             unique_label = item.get_unique_label()
             qualifier = item.get_qualifier()
         elif isinstance(item, universe.Body):
+            kind = 'Body'
             label = item.get_label()
             context = None
             ref = None
@@ -320,7 +329,7 @@ class Container(object):
         #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section,container], invert=True)
         
         return dict(qualifier=qualifier, label=label,
-            container=container, section=section, kind=kind, 
+            container=container, section=section, kind=kind, class_name=class_name,
             context=context, ref=ref, unique_label=unique_label, 
             twig=twig, twig_full=twig_full, path=path, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
@@ -472,7 +481,10 @@ class Container(object):
         
         if len(matched_twigs) == 0:
             if ignore_errors:
-                return None
+                if all:
+                    return []
+                else:
+                    return None
             raise ValueError("no match found matching the criteria")
         elif all == False and ignore_errors == False and len(matched_twigs) > 1:
             results = ', '.join(matched_twigs)
@@ -514,32 +526,34 @@ class Container(object):
         this_bundle = self.copy()
         
         this_container = this_bundle.__class__.__name__
-        #~ dump_dict = {ti['twig']: 'value': ti['item'].get_value() for ti in self.trunk if ti['container']==this_container and ti['kind']=='Parameter'}
 
         dump_dict = {}
         
+        dump_dict['PHOEBE Version'] = '2.0alpha'
         
-        if hasattr(this_bundle, 'get_system'):
+        if hasattr(self, 'get_system'):
             dump_dict['Hierarchy'] = _dumps_system_structure(this_bundle.get_system())
 
         dump_dict['ParameterSets'] = {}
-        for ti in this_bundle.get(kind='*Set',container=this_container,all=True,return_trunk_item=True):
-            # we use "*Set" so that we also get LCDataSet, etc
+
+        for ti in this_bundle.get(kind='ParameterSet',container=this_container,all=True,hidden=None,return_trunk_item=True):
             item = ti['item']
             
             if ti['context'] not in ['orbit','component','mesh:marching']:
                 info = {}
                 
-                if ti['context'][-3:]=='obs':
+                if ti['context'][-3:] in ['obs','syn']:
                     # then unload the data first
                     item.unload()
-                
-                info['context'] = ti['context']
-                #~ info['parent'] = self._make_twig([qualifier,ref,context,label,section,container])
-                dump_dict['ParameterSets'][ti['twig']] = info
+                    
+                if not (ti['context'][-3:]=='syn' and not ti['hidden']):
+                    info['context'] = ti['context']
+                    #~ info['class_name'] = ti['class_name']
+                    #~ info['parent'] = self._make_twig([qualifier,ref,context,label,section,container])
+                    dump_dict['ParameterSets'][ti['twig']] = info
         
         dump_dict['Parameters'] = {}
-        for ti in this_bundle.get(kind='Parameter',container=this_container,all=True,return_trunk_item=True):
+        for ti in this_bundle.get(kind='Parameter',container=this_container,all=True,hidden=None,return_trunk_item=True):
             item = ti['item']
             info = {}
             
@@ -556,8 +570,11 @@ class Container(object):
                 
             #~ if item.has_prior():
                 #~ info['prior'] = 'has prior, but export not yet supported'
-                
-            dump_dict['Parameters'][ti['twig']] = info
+            
+            if not (ti['context'][-3:]=='syn' and not ti['hidden']):
+                # the real syns are marked as hidden, whereas the fake
+                # ones forced to match the obs are not hidden
+                dump_dict['Parameters'][ti['twig']] = info
             
         f = open(filename, 'w')
         f.write(json.dumps(dump_dict, sort_keys=True, indent=4, separators=(',', ': ')))
@@ -595,13 +612,13 @@ class Container(object):
                 ps.set_value('label',label)
             elif 'ref' in ps.keys():
                 ps.set_value('ref', label)
-            print "self.attach_ps('{}', PS(context='{}', label/ref='{}'))".format(parent_twig, info['context'], label)
+            #~ print "self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label)
             self.attach_ps(parent_twig, ps)
             
         self._build_trunk()
         
         for twig,info in load_dict['Parameters'].items():
-            print "self.set_value('{}', '{}')".format(twig, str(info['value']))
+            #~ print "self.set_value('{}', '{}')".format(twig, str(info['value']))
             item = self.get(twig, hidden=None)
             if 'value' in info:
                 item.set_value(info['value'])

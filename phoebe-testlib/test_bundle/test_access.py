@@ -9,6 +9,7 @@ def test_access():
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
     mybundle = phoebe.Bundle(filename)
+    
     # set a new parameterSet
     mybundle.attach_ps('Detached_1', phoebe.PS('reddening:interstellar'))
     
@@ -40,6 +41,18 @@ def test_access():
     mybundle.create_data(category='rv', dataref='myprimrv', objref='primary', time=np.linspace(0,1,100), rv=np.ones(100))
     mybundle.create_data(category='rv', dataref='mysecrv', objref='secondary', time=np.linspace(0.2,0.3,109), rv=-np.ones(109))
     #print mybundle.get_value('time@mylc')
+    
+    # make sure the data can be found
+    assert(len(mybundle.get('rvobs@primary'))==2) # currently RV1 is attaching to secondary, but this is likely the fault of the legacy parser
+    assert(len(mybundle.get('rvobs@secondary'))==2)
+    assert(len(mybundle.get('lcobs@Detached_1'))==2)
+    
+    # make sure each twig is a unique twigs for itself
+    for t in mybundle.twigs():
+        if len(mybundle.twigs(t))!=1: print t, mybundle.twigs(t)    
+        assert(len(mybundle.twigs(t))==1)
+
+
     
 @nose.tools.raises(ValueError)    
 def test_error():
