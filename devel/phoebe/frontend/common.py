@@ -37,10 +37,10 @@ class Container(object):
         return self.twigs()
         
     def values(self):
-        return [self.get_value(twig) for twig in self.twigs()]
+        return [ti['item'] for ti in self.trunk if not ti['hidden']]
         
     def items(self):
-        return self.sections.items()
+        return {ti['twig_full']:ti['item'] for ti in self.trunk if not ti['hidden']}
         
     def __getitem__(self, twig):
         """
@@ -48,26 +48,14 @@ class Container(object):
         
         Returns Bodies, ParameterSets or Parameter values (never Parameters).
         """
-        ret_value = self._get_by_search(twig)
-        #~ print ret_value
-        if isinstance(ret_value, parameters.Parameter):
-            ret_value = ret_value.get_value()
-        return ret_value
+        return self.get(twig)
+        
     
     def __setitem__(self, twig, value):
-        if isinstance(value, parameters.ParameterSet):
-            # special case for orbits, we need to keep c1label and c2label
-            if value.get_context() == 'orbit':
-                oldorbit = self.get_ps('orbit@'+twig)
-                value['c1label'] = oldorbit['c1label']
-                value['c2label'] = oldorbit['c2label']                
-            self.set_ps(twig, value)            
-        elif isinstance(value, tuple) and len(value)==2 and isinstance(value[1],str):
-            self.set_value(twig, *value)
-        else:
-            self.set_value(twig, value)
+        """
         
-        self._build_trunk()
+        """
+        self.set(twig, value)
         
     def __contains__(self, twig):
         """
@@ -92,19 +80,19 @@ class Container(object):
 
         # add the container's sections
         if do_sectionlevel:
-            ri = self._get_info_from_item(self.sections,section=None,container=container,label=-1)
-            return_items.append(ri)
+            ris= self._get_info_from_item(self.sections,section=None,container=container,label=-1)
+            return_items += ris
             
         for section_name,section in self.sections.items():
             if do_sectionlevel and section_name not in ['system']:
-                ri = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
-                return_items.append(ri)
+                ris = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
+                return_items += ris
                 
             if do_pslevel:
                 for item in section:
-                    ri = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
-                    if ri is not None:
-                        return_items.append(ri)
+                    ris = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
+                    for ri in ris:
+                        return_items += [ri]
                         
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
@@ -125,9 +113,10 @@ class Container(object):
         
         for qualifier in ps:
             item = ps.get_parameter(qualifier)
-            ri = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label)
-            if ri['qualifier'] not in ['ref','label']:
-                return_items.append(ri)
+            ris = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label)
+            for ri in ris:
+                if ri['qualifier'] not in ['ref','label']:
+                    return_items += [ri]
             
         return return_items
         
@@ -154,14 +143,14 @@ class Container(object):
                 for itype in path[-2]:
                     for isubtype in path[-2][itype].values():
                         if item==itype:
-                            ri = self._get_info_from_item(isubtype, path=path, section=section_name)
-                            
-                            if item[-3:]=='syn':
-                                #~ # then this is the true syn, which we need to keep available
-                                #~ # for saving and loading, but will hide from the user in twig access
-                                ri['hidden']=True
-                            
-                            return_items.append(ri)
+                            ris = self._get_info_from_item(isubtype, path=path, section=section_name)
+                            for ri in ris:
+                                if item[-3:]=='syn':
+                                    #~ # then this is the true syn, which we need to keep available
+                                    #~ # for saving and loading, but will hide from the user in twig access
+                                    ri['hidden']=True
+                                
+                                return_items += [ri]
                     
                         # we want to see if there any syns associated with the obs
                         if itype[-3:] == 'obs':
@@ -170,8 +159,8 @@ class Container(object):
                             
                             if syn is not None: 
                                 syn = syn.asarray()
-                                ri = self._get_info_from_item(syn, path=path, section=section_name)
-                                return_items.append(ri)
+                                ris = self._get_info_from_item(syn, path=path, section=section_name)
+                                return_items += ris
                                 
                                 
                                 subpath = list(path[:-1]) + [syn['ref']]
@@ -185,15 +174,15 @@ class Container(object):
                                 
                                 for par in syn:
                                     mypar = syn.get_parameter(par)
-                                    ri = self._get_info_from_item(mypar, path=subpath+[mypar], section=section_name)
-                                    return_items.append(ri)
+                                    ris = self._get_info_from_item(mypar, path=subpath+[mypar], section=section_name)
+                                    return_items += ris
                                     
                                                                                     
                     # but also add the collection of dep/obs
                     if item==itype:
-                        ri = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
+                        ris = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
                         #~ if ri['twig_full'] not in [r['twig_full'] for r in return_items]:
-                        return_items.append(ri)
+                        return_items += ris
             
             elif isinstance(item, OrderedDict):
                 continue
@@ -203,21 +192,20 @@ class Container(object):
                     #print path
                     #raise SystemExit
                 
-                ri = self._get_info_from_item(item, path=path, section=section_name)
+                ris = self._get_info_from_item(item, path=path, section=section_name)
                 #~ print path, ri['twig_full'] if ri is not None else None #, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
                 #~ print path[-1:], ri['twig_full'] if ri is not None else None, ri['context']!='syn' if ri is not None else None, (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) if ri is not None else None
-                if ri is None:
+                if len(ris)==0:
                     continue
                 
+                ri = ris[0] # for these checks, all items will be identical and may only have different kinds
                 # do not add any syn parameter here
                 if ri['context'] is not None and 'syn' in ri['context']:
                     continue
                 # ignore parameters that are synthetics and make sure this is not a duplicate
                 if (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
                         and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
-                    return_items.append(ri)
-
-                    
+                    return_items += ris
                             
         return return_items
         
@@ -227,6 +215,8 @@ class Container(object):
     
         providing other information (section, container, context, label) may be necessary if we don't know where we are
         """
+        info_items = [] # we might decide to return more than one item
+        
         container = self.__class__.__name__ if container is None else container
         class_name = item.__class__.__name__
         body = False
@@ -272,6 +262,7 @@ class Container(object):
                 
             unique_label = item.get_unique_label()
             qualifier = item.get_qualifier()
+            
         elif isinstance(item, universe.Body):
             kind = 'Body'
             label = item.get_label()
@@ -303,7 +294,7 @@ class Container(object):
             unique_label = None
             qualifier = None
         else:
-            return None
+            return []
             #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))
             
         # now let's do specific overrides
@@ -321,6 +312,53 @@ class Container(object):
         hidden = qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
+        
+        if kind=='Parameter':
+            # now let's check to see what other request types we should add
+            if hasattr(item, 'get_value'):
+                twig = self._make_twig(['value',qualifier,ref,context_twig,label,section])
+                twig_full = self._make_twig(['value',qualifier,ref,context_twig,label,section,container])
+                info_items.append(dict(qualifier=qualifier, label=label,
+                    container=container, section=section, kind='Parameter:value', class_name=class_name,
+                    context=context, ref=ref, unique_label=unique_label, 
+                    twig=twig, twig_full=twig_full, path=path, 
+                    #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+                    item=item, body=body,
+                    hidden=hidden))
+                
+            if hasattr(item, 'adjust'):
+                twig = self._make_twig(['adjust',qualifier,ref,context_twig,label,section])
+                twig_full = self._make_twig(['adjust',qualifier,ref,context_twig,label,section,container])
+                info_items.append(dict(qualifier=qualifier, label=label,
+                    container=container, section=section, kind='Parameter:adjust', class_name=class_name,
+                    context=context, ref=ref, unique_label=unique_label, 
+                    twig=twig, twig_full=twig_full, path=path, 
+                    #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+                    item=item, body=body,
+                    hidden=hidden))
+                            
+            if hasattr(item, 'get_prior') and item.has_prior():
+                twig = self._make_twig(['prior',qualifier,ref,context_twig,label,section])
+                twig_full = self._make_twig(['prior',qualifier,ref,context_twig,label,section,container])
+                info_items.append(dict(qualifier=qualifier, label=label,
+                    container=container, section=section, kind='Parameter:prior', class_name=class_name,
+                    context=context, ref=ref, unique_label=unique_label, 
+                    twig=twig, twig_full=twig_full, path=path, 
+                    #twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+                    item=item, body=body,
+                    hidden=hidden))
+                            
+            if hasattr(item, 'get_posterior') and item.has_posterior():
+                twig = self._make_twig(['posterior',qualifier,ref,context_twig,label,section])
+                twig_full = self._make_twig(['posterior',qualifier,ref,context_twig,label,section,container])
+                info_items.append(dict(qualifier=qualifier, label=label,
+                    container=container, section=section, kind='Parameter:posterior', class_name=class_name,
+                    context=context, ref=ref, unique_label=unique_label, 
+                    twig=twig, twig_full=twig_full, path=path, 
+                    #twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+                    item=item, body=body,
+                    hidden=hidden))
+                            
             
         # twig = <qualifier>@<ref>@<context>@<label>@<section>@<container>
         twig = self._make_twig([qualifier,ref,context_twig,label,section])
@@ -328,13 +366,15 @@ class Container(object):
         twig_full = self._make_twig([qualifier,ref,context_twig,label,section,container])
         #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section,container], invert=True)
         
-        return dict(qualifier=qualifier, label=label,
+        info_items.append(dict(qualifier=qualifier, label=label,
             container=container, section=section, kind=kind, class_name=class_name,
             context=context, ref=ref, unique_label=unique_label, 
             twig=twig, twig_full=twig_full, path=path, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
             item=item, body=body,
-            hidden=hidden)
+            hidden=hidden))
+        
+        return info_items
             
     def _build_trunk(self):
         """
@@ -385,7 +425,9 @@ class Container(object):
             #~ print "*** Container._filter_twigs_by_kwargs", key, kwargs[key]
             if len(trunk) and key in trunk[0].keys() and kwargs[key] is not None:
                 trunk = [ti for ti in trunk if ti[key] is not None and 
-                    (ti[key]==kwargs[key] or (isinstance(kwargs[key],str) and fnmatch(ti[key],kwargs[key])))]
+                    (ti[key]==kwargs[key] or 
+                    (isinstance(kwargs[key],list) and ti[key] in kwargs[key]) or
+                    (isinstance(kwargs[key],str) and fnmatch(ti[key],kwargs[key])))]
                 
         return trunk
         
@@ -712,19 +754,53 @@ class Container(object):
         @return: matching item
         @rtype: varies
         """
-        return self._get_by_search(twig, **kwargs)
+        ti = self._get_by_search(twig,return_trunk_item=True,**kwargs)
+        item = ti['item']
         
-    def get_all(self, twig):
+        if ti['kind']=='Parameter:adjust':
+            return item.get_adjust()
+        elif ti['kind']=='Parameter:prior':
+            return item.get_prior()
+        else:
+            # either 'value' or None
+            if isinstance(item, parameters.Parameter):
+                return item.get_value()
+            return item
+
+    @rebuild_trunk
+    def set(self, twig, value, **kwargs):
         """
-        same as get except will return a list of items instead of throwing
-        and error if more than one are found
         
         @param twig: the search twig
         @type twig: str
-        @return: all matching items
-        @rtype: list
+        @param value: the new value
+        @type value: varies        
         """
-        return self._get_by_search(twig, all=True)
+        ti = self._get_by_search(twig,return_trunk_item=True)
+        item = ti['item']
+        
+        if ti['kind']=='Parameter:adjust':
+            # we call self.set_adjust instead of item.set_adjust
+            # because self.set_adjust handles auto prior creation
+            self.set_adjust(twig, value)
+        elif ti['kind']=='Parameter:prior':
+            self.set_prior(twig, value)
+        else:
+            # either 'value' or None
+        
+            if isinstance(value, parameters.ParameterSet):
+                # special case for orbits, we need to keep c1label and c2label
+                if value.get_context() == 'orbit':
+                    oldorbit = self.get_ps('orbit@'+twig)
+                    value['c1label'] = oldorbit['c1label']
+                    value['c2label'] = oldorbit['c2label']                
+                self.set_ps(twig, value)            
+            elif isinstance(value, tuple) and len(value)==2 and isinstance(value[1],str):
+                # ability to set units
+                self.set_value(twig, *value)
+            else:
+                self.set_value(twig, value)
+        
         
     def get_ps(self, twig):
         """
@@ -757,7 +833,7 @@ class Container(object):
         @return: Parameter
         @rtype: Parameter
         """
-        return self._get_by_search(twig, kind='Parameter')
+        return self._get_by_search(twig, kind='Parameter*')
         
     def info(self, twig):
         """
