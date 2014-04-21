@@ -36,6 +36,6 @@ def test_json():
     #assert(mybundle.get_adjust('period')==True)
 
 if __name__ == "__main__":
-    #test_json()
-    test_json2()
+    test_json()
+    #test_json2()
     
