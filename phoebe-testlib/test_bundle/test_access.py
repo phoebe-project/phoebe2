@@ -43,7 +43,7 @@ def test_access():
     #print mybundle.get_value('time@mylc')
     
     # make sure the data can be found
-    assert(len(mybundle.get('rvobs@primary'))==2) # currently RV1 is attaching to secondary, but this is likely the fault of the legacy parser
+    assert(len(mybundle.get('rvobs@primary'))==2)
     assert(len(mybundle.get('rvobs@secondary'))==2)
     assert(len(mybundle.get('lcobs@Detached_1'))==2)
     
