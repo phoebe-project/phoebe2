@@ -97,7 +97,8 @@ def legacy_to_phoebe2(inputfile):
                        alb='alb', f='syncpar', vga='vgamma', hjd0='t0',
                        dperdt='dperdt', extinction='extinction')
     
-    legacy_units = dict(per0='rad')
+    legacy_units = dict(per0='rad', period='d', incl='deg', dpdt='d/d',
+                        dperdt='rad/d', sma='Rsun', vgamma='km/s', teff='K')
     
     computehla = False
     usecla = False
