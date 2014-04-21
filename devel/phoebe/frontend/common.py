@@ -578,7 +578,7 @@ class Container(object):
 
         dump_dict['ParameterSets'] = {}
 
-        for ti in this_bundle.get(kind='ParameterSet',container=this_container,all=True,hidden=None,return_trunk_item=True):
+        for ti in this_bundle._get_by_search(kind='ParameterSet',container=this_container,all=True,hidden=None,return_trunk_item=True):
             item = ti['item']
             
             if ti['context'] not in ['orbit','component','mesh:marching']:
@@ -595,7 +595,7 @@ class Container(object):
                     dump_dict['ParameterSets'][ti['twig']] = info
         
         dump_dict['Parameters'] = {}
-        for ti in this_bundle.get(kind='Parameter',container=this_container,all=True,hidden=None,return_trunk_item=True):
+        for ti in this_bundle._get_by_search(kind='Parameter',container=this_container,all=True,hidden=None,return_trunk_item=True):
             item = ti['item']
             info = {}
             
@@ -661,7 +661,7 @@ class Container(object):
         
         for twig,info in load_dict['Parameters'].items():
             #~ print "self.set_value('{}', '{}')".format(twig, str(info['value']))
-            item = self.get(twig, hidden=None)
+            item = self._get_by_search(twig, hidden=None)
             if 'value' in info:
                 item.set_value(info['value'])
             if 'adjust' in info:
@@ -754,7 +754,10 @@ class Container(object):
         @return: matching item
         @rtype: varies
         """
-        ti = self._get_by_search(twig,return_trunk_item=True,**kwargs)
+        kwargs['return_trunk_item']=True
+        kwargs['all']=False
+        kwargs['ignore_errors']=False
+        ti = self._get_by_search(twig,**kwargs)
         item = ti['item']
         
         if ti['kind']=='Parameter:adjust':
@@ -776,7 +779,10 @@ class Container(object):
         @param value: the new value
         @type value: varies        
         """
-        ti = self._get_by_search(twig,return_trunk_item=True)
+        kwargs['return_trunk_item']=True
+        kwargs['all']=False
+        kwargs['ignore_errors']=False
+        ti = self._get_by_search(twig,**kwargs)
         item = ti['item']
         
         if ti['kind']=='Parameter:adjust':
