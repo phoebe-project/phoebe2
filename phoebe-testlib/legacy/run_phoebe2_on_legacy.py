@@ -31,6 +31,11 @@ def do_test(filename):
     # To make sure we are using the same settings, open the same parameter file:
     print("Running Phoebe Legacy")
     phb.open(filename)
+    
+    # Change time to phase and use only black body atmospheres:
+    phb.setpar("phoebe_indep", "Phase")
+    phb.setpar("phoebe_atm1_switch", False)
+    phb.setpar("phoebe_atm2_switch", False)
 
     lc_ph1 = np.array(phb.lc(tuple(list(ph)), 0))
     
