@@ -64,6 +64,7 @@ from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.algorithms import eclipse
 from phoebe.algorithms import reflection
+from phoebe.algorithms import marching
 from phoebe.atmospheres import tools
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
