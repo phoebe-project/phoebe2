@@ -9,7 +9,7 @@ import subprocess
 import signal
 import os
 import cProfile
-from ivs.io import plotting
+#~ from ivs.io import plotting
 
 # use this script as:
 # $:> python run_phoebe2_on_legacy.py lc01.phoebe
