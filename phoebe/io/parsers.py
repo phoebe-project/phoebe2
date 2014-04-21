@@ -21,6 +21,7 @@ from phoebe.backend import observatory
 from phoebe.algorithms import marching
 from phoebe.wd import wd
 from phoebe.parameters import datasets
+from phoebe.units import conversions
 import matplotlib.pyplot as plt
 import os.path
 
@@ -95,6 +96,8 @@ def legacy_to_phoebe2(inputfile):
                        rm='q', perr0='per0', met='abun', pot='pot', teff='teff',
                        alb='alb', f='syncpar', vga='vgamma', hjd0='t0',
                        dperdt='dperdt', extinction='extinction')
+    
+    legacy_units = dict(per0='rad')
     
     computehla = False
     usecla = False
@@ -395,10 +398,18 @@ def legacy_to_phoebe2(inputfile):
                     print 'error',qualifier, leg_qualifier, index, compno, val
                 
                 this_param = this_set.get_parameter(qualifier)
+                
+                # Convert Legacy to Phoebe2 units if possible
+                if qualifier in legacy_units:
+                    val = float(val)
+                    val = conversions.convert(legacy_units[qualifier],
+                                              this_param.get_unit(),
+                                              val)
                     
                 if postfix == 'VAL':
                     if qualifier == 'alb':
                         val = 1-float(val)
+                    
                     this_param.set_value(val)
                     continue
                 elif postfix == 'ADJ':
