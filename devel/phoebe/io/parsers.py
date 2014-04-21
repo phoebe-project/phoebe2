@@ -459,7 +459,7 @@ def legacy_to_phoebe2(inputfile):
                     continue
                 
                 if leg_qualifier == 'rv_dep':
-                    rv_component_spec[index] = leg_qualifier
+                    rv_component_spec[index] = str(val.strip()[1:-1])
                     continue
                 
                 if leg_qualifier == 'lc_indep':
@@ -558,7 +558,7 @@ def legacy_to_phoebe2(inputfile):
         if computevga:
             all_rvobs[i].set_adjust('offset', True)
         
-        if rv_component_spec == 'Primary RV':
+        if rv_component_spec[i] == 'Primary RV':
             star1.add_pbdeps(all_rvdeps[0][i])
             star1.add_obs(all_rvobs[i])
         else:
