@@ -146,6 +146,7 @@ from scipy.spatial import Delaunay
 from phoebe.utils import Ylm
 from phoebe.utils import coordinates
 from phoebe.units import constants
+from phoebe.atmospheres import limbdark
 
 logger = logging.getLogger("PULS")
 logger.addHandler(logging.NullHandler())
@@ -470,6 +471,34 @@ def wignerD(ell, mu, m, alpha, beta, gamma):
     
     return exp(1j*mu*alpha) * small_d * exp(1j*m*gamma)
 
+
+def visibility(ell, m, angle, passband, atm, atm_kwargs, red_kwargs={},
+               vgamma=0.0, ld_func='claret', fitmethod='equidist_r_leastsq'):
+    """
+    Compute the visibility of a mode.
+    
+    Here, visibility refers to the amount of geometric cancellation of a
+    pulsation mode due to its own geometry and the stellar inclination axis.
+    """        
+    # Coefficients
+    acoeff = wignerD(ell, 0, m, 0.0, angle, 0.0).real
+    Nlm = norm_N(ell, m)
+    Plmi = legendre_(ell, m, np.cos(angle))
+    
+    # Retrieve filename of atmosphere table
+    atm = limbdark.choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
+                        red_kwargs=red_kwargs, vgamma=vgamma, ld_func=ld_func,
+                        fitmethod=fitmethod)
+    # Retrieve limb darkening coefficients
+    coeffs, header = limbdark.interp_ld_coeffs(atm, passband,
+                         atm_kwargs=atm_kwargs, red_kwargs=red_kwargs, 
+                         vgamma=vgamma, return_header=True)
+    coeffs = coeffs[:-1]
+    mu = np.linspace(0,1,100)
+    Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mu, coeffs)
+    vis_factor = Plmi * np.trapz(mu*Imu, x=mu)
+    return np.abs(vis_factor)
+    
 
 def rotate_sph_harm(theta, phi, l=2, m=1, alpha=0.0, beta=0.0, gamma=0.0):
     r"""

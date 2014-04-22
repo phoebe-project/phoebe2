@@ -1482,18 +1482,12 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
             values[i] = red_kwargs['extinction'] / red_kwargs['Rv']
         else:
             raise ValueError(("Somethin' wrong with the atmo table: cannot "
-                              "interpret label {}").format(label))
+                              "interpret label {} (perhaps not given in "
+                              "function, perhaps not available in table").format(label))
     # Try to interpolate
     try:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
-        if False:
-            if interpolate.__doc__ is not None:
-                pars = interpolate(values, axis_values, pixelgrid)
-                print 'result', values[:5],pars[:5]
-            else:
-                pars = interpolate(values.T, axis_values, pixelgrid)
-                pars = pars.reshape((1,-1))
-                print 'result', values.T[:5],pars[:,:5]
+        #pars = interp_nDgrid.cinterpolate(values.T, axis_values, pixelgrid).T
         if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     
@@ -1507,7 +1501,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         raise ValueError(msg)
         #logger.error(msg)
         
-        pars = np.zeros((pixelgrid.shape[-1], len(values[0])))
+        pars = np.zeros((pixelgrid.shape[-1], values.shape[1]))
     
     # The intensities were interpolated in log, but we want them in linear scale
     pars[-1] = 10**pars[-1]
