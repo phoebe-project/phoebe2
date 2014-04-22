@@ -38,8 +38,17 @@ def create_pixeltypegrid(grid_pars, grid_data):
 
     uniques = [np.unique(column, return_inverse=True) for column in grid_pars]
     #[0] are the unique values, [1] the indices for these to recreate the original array
-
-    axis_values = [uniques_[0] for uniques_ in uniques]
+    
+    # we need to copy the values of the unique axes explicitly into new arrays
+    # otherwise we can get issues with the interpolator
+    axis_values = []
+    for uniques_ in uniques:
+        this_axes = np.zeros(len(uniques_[0]))
+        this_axes[:] = uniques_[0]
+        axis_values.append(this_axes)
+    #axis_values = [uniques_[0] for uniques_ in uniques]
+    #axis_values = [np.require(uniques_[0],requirements=['A','O','W','F']) for uniques_ in uniques]
+    
     unique_val_indices = [uniques_[1] for uniques_ in uniques]
     
     data_dim = np.shape(grid_data)[0]
@@ -89,7 +98,7 @@ def interpolate(p, axis_values, pixelgrid, order=1, mode='constant', cval=0.0):
 
 def cinterpolate(p, axis_values, pixelgrid):
     """
-    Interpolates in a grid.
+    Interpolates in a grid prepared by create_pixeltypegrid().
     
     Does a similar thing as :py:func:`interpolate`, but does everything in C.
     
