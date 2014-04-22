@@ -3,7 +3,7 @@ Non-standard interpolation methods.
 """
 import time
 import itertools
-#import interp
+import interp
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage import _nd_image, _ni_support
@@ -86,9 +86,24 @@ def interpolate(p, axis_values, pixelgrid, order=1, mode='constant', cval=0.0):
                                     prefilter=prefilter, mode=mode, cval=cval) \
                 for i in range(np.shape(pixelgrid)[-1])]
 
-def interpolate_andrej(p, axis_values, pixelgrid):    
-    #req  = np.array(zip(reqT, reqL, reqM))
-    res = interp.interpIntensity(p, axis_values, pixelgrid)
+
+def cinterpolate(p, axis_values, pixelgrid):
+    """
+    Interpolates in a grid.
+    
+    Does a similar thing as :py:func:`interpolate`, but does everything in C.
+    
+    p is an array of parameter arrays.
+    
+    Careful, the shape of input :envvar:`p` and output is the transpose of
+    :py:func:`interpolate`.
+    
+    @param p: Ninterpolate X Npar array
+    @type p: array
+    @return: Ninterpolate X Ndata array
+    @rtype: array
+    """
+    res = interp.interp(p, axis_values, pixelgrid)
     return res
 
 
