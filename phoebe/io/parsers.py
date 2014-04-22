@@ -172,6 +172,7 @@ def legacy_to_phoebe2(inputfile):
             # get the true qualifier, split in qualifier and postfix (if any)
             leg_qualifier_splitted = "_".join(key_split[1:]).split('.')
             leg_qualifier = leg_qualifier_splitted[0]
+            
             if len(leg_qualifier_splitted) == 2:
                 postfix = leg_qualifier_splitted[1]
             elif len(leg_qualifier_splitted) == 1:
@@ -272,8 +273,7 @@ def legacy_to_phoebe2(inputfile):
                 else:
                     ldindex = 1
                     
-                    
-                if postfix == 'VAL':
+                if postfix == 'VAL' or postfix is None:
                     all_lcdeps[compno][index]['ld_coeffs'][ldindex] = float(val)
                     continue
                 else:
@@ -295,7 +295,7 @@ def legacy_to_phoebe2(inputfile):
                 else:
                     ldindex = 1
                     
-                if postfix == 'VAL':
+                if postfix == 'VAL' or postfix is None:
                     all_rvdeps[compno][index]['ld_coeffs'][ldindex] = float(val)
                     continue
                 else:

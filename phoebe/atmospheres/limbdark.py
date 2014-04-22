@@ -1486,8 +1486,8 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
                               "function, perhaps not available in table").format(label))
     # Try to interpolate
     try:
-        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
-        #pars = interp_nDgrid.cinterpolate(values.T, axis_values, pixelgrid).T
+        #pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
+        pars = interp_nDgrid.cinterpolate(values.T, axis_values, pixelgrid).T
         if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     

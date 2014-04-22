@@ -34,6 +34,12 @@ class Container(object):
         
     ## act like a dictionary
     def keys(self):
+        """
+        Return a list of the Bundle's keys (aka twigs)
+        
+        :return: a list of twigs
+        :rtype: list of str
+        """
         return self.twigs()
         
     def values(self):
@@ -52,21 +58,116 @@ class Container(object):
         :return: list of pairs (key, value)
         :rtype: list of 2-tuples
         """
-        return [(ti['twig_full'], ti['item']) for ti in self.trunk if not ti['hidden']]
+        return [(ti['twig_full'], ti['item']) \
+                        for ti in self.trunk if not ti['hidden']]
         #return {ti['twig_full']:ti['item'] for ti in self.trunk if not ti['hidden']}
+    
+    
+    def get(self, twig=None, default=None, **kwargs):
+        """
+        Search and retrieve any item without specifying its type.
         
+        By default, raises KeyError when no match for the twig is found.
+        
+        @param twig: the search twig
+        @type twig: str
+        @param default: return value if twig is not in Bundle
+        @type default: any Python object (defaults to None)
+        @return: matching item
+        @rtype: varies
+        """
+        # Set some overridable defaults
+        kwargs.setdefault('return_trunk_item', True)
+        kwargs.setdefault('all', False)
+        kwargs.setdefault('ignore_errors', True)
+        
+        # Look for the twig
+        try:
+            ti = self._get_by_search(twig,**kwargs)
+        except KeyError:
+            # If we can't ignore this error, raise it anyway
+            if not kwargs['ignore_errors']:
+                raise
+        
+        # make sure to return the default value if the key does not exist
+        if ti is None:
+            return default
+        
+        #else, retrieve the item and return it
+        item = ti['item']
+        
+        if ti['kind'] == 'Parameter:adjust':
+            return item.get_adjust()
+        elif ti['kind'] == 'Parameter:prior':
+            return item.get_prior()
+        else:
+            # either 'value' or item itself
+            if isinstance(item, parameters.Parameter):
+                return item.get_value()
+            return item
+
+    @rebuild_trunk
+    def set(self, twig, value, **kwargs):
+        """
+        Set a value in the Bundle.
+        
+        @param twig: the search twig
+        @type twig: str
+        @param value: the new value
+        @type value: varies        
+        """
+        kwargs['return_trunk_item']=True
+        kwargs['all']=False
+        kwargs['ignore_errors']=False
+        ti = self._get_by_search(twig,**kwargs)
+        item = ti['item']
+        
+        if ti['kind']=='Parameter:adjust':
+            # we call self.set_adjust instead of item.set_adjust
+            # because self.set_adjust handles auto prior creation
+            self.set_adjust(twig, value)
+        elif ti['kind']=='Parameter:prior':
+            self.set_prior(twig, value)
+        else:
+            # either 'value' or None
+        
+            if isinstance(value, parameters.ParameterSet):
+                # special case for orbits, we need to keep c1label and c2label
+                if value.get_context() == 'orbit':
+                    oldorbit = self.get_ps('orbit@'+twig)
+                    value['c1label'] = oldorbit['c1label']
+                    value['c2label'] = oldorbit['c2label']                
+                self.set_ps(twig, value)            
+            elif isinstance(value, tuple) and len(value)==2 and isinstance(value[1],str):
+                # ability to set units
+                self.set_value(twig, *value)
+            else:
+                self.set_value(twig, value)
+    
     def __getitem__(self, twig):
         """
         Define dictionary style access.
         
         Returns Bodies, ParameterSets or Parameter values (never Parameters).
+        
+        :param twig: twig name
+        :type twig: str
+        :return: the value corresponding to the twig
+        :rtype: whatever value the twig corresponds to
         """
-        return self.get(twig)
+        # dictionary-style access cannot return None ad a default value if the
+        # key does not exist
+        return self.get(twig, ignore_errors=False)
         
     
     def __setitem__(self, twig, value):
         """
+        Set an item in the Bundle.
         
+        :param twig: twig name
+        :type twig: str
+        :param value: new value for the twig's value
+        :type value: whatever value the twig accepts
         """
         self.set(twig, value)
         
@@ -77,7 +178,7 @@ class Container(object):
         try:
             ret_value = self._get_by_search(twig, all=True)
             return True
-        except ValueError:
+        except KeyError:
             return False
     
     #~ def __iter__(self):
@@ -540,12 +641,14 @@ class Container(object):
                     return []
                 else:
                     return None
-            raise ValueError("no match found matching the criteria")
+            raise KeyError("no match found matching the criteria")
         elif all == False and ignore_errors == False and len(matched_twigs) > 1:
             results = ', '.join(matched_twigs)
-            raise ValueError("more than one result was found matching the criteria: {}".format(results))
+            raise KeyError(("more than one result was found matching the "
+                            "criteria: {}").format(results))
         else:
-            items = [ti if return_trunk_item else ti[return_key] for ti in trunk if ti['twig_full'] in matched_twigs]
+            items = [ti if return_trunk_item else ti[return_key] \
+                            for ti in trunk if ti['twig_full'] in matched_twigs]
             if all:
                 return items
             else:
@@ -758,67 +861,7 @@ class Container(object):
             return [t['twig_full'] for t in trunk] 
         return self._match_twigs(twig, **kwargs)
     
-    def get(self, twig=None, **kwargs):
-        """
-        search and retrieve any item without specifying its type
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: matching item
-        @rtype: varies
-        """
-        kwargs['return_trunk_item']=True
-        kwargs['all']=False
-        kwargs['ignore_errors']=False
-        ti = self._get_by_search(twig,**kwargs)
-        item = ti['item']
-        
-        if ti['kind']=='Parameter:adjust':
-            return item.get_adjust()
-        elif ti['kind']=='Parameter:prior':
-            return item.get_prior()
-        else:
-            # either 'value' or None
-            if isinstance(item, parameters.Parameter):
-                return item.get_value()
-            return item
-
-    @rebuild_trunk
-    def set(self, twig, value, **kwargs):
-        """
-        
-        @param twig: the search twig
-        @type twig: str
-        @param value: the new value
-        @type value: varies        
-        """
-        kwargs['return_trunk_item']=True
-        kwargs['all']=False
-        kwargs['ignore_errors']=False
-        ti = self._get_by_search(twig,**kwargs)
-        item = ti['item']
-        
-        if ti['kind']=='Parameter:adjust':
-            # we call self.set_adjust instead of item.set_adjust
-            # because self.set_adjust handles auto prior creation
-            self.set_adjust(twig, value)
-        elif ti['kind']=='Parameter:prior':
-            self.set_prior(twig, value)
-        else:
-            # either 'value' or None
-        
-            if isinstance(value, parameters.ParameterSet):
-                # special case for orbits, we need to keep c1label and c2label
-                if value.get_context() == 'orbit':
-                    oldorbit = self.get_ps('orbit@'+twig)
-                    value['c1label'] = oldorbit['c1label']
-                    value['c2label'] = oldorbit['c2label']                
-                self.set_ps(twig, value)            
-            elif isinstance(value, tuple) and len(value)==2 and isinstance(value[1],str):
-                # ability to set units
-                self.set_value(twig, *value)
-            else:
-                self.set_value(twig, value)
+    
         
         
     def get_ps(self, twig):
