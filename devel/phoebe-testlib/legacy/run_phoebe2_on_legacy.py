@@ -38,6 +38,7 @@ def do_test(filename):
     phb.setpar("phoebe_atm2_switch", False)
 
     lc_ph1 = np.array(phb.lc(tuple(list(ph)), 0))
+    print("PHOEBE 1: HLA = %f, CLA = %f" % (phb.getpar("phoebe_plum1"), phb.getpar("phoebe_plum2")))
     
     if interactive:
         answer = raw_input('Save phoebe1 output file? [y/N] ')
@@ -74,7 +75,8 @@ def do_test(filename):
             passband_twig = 'passband@{}'.format("@".join(atm.split('@')[1:]))
             if passband_twig in mybundle and mybundle[passband_twig] == 'JOHNSON.V':
                 mybundle[passband_twig] = 'johnson_v.ptf'
-                
+
+    mybundle['pblum@secondary'] = phb.getpar('phoebe_plum2')
     mybundle.run_compute(label='from_legacy', irradiation_alg='point_source')
     #mybundle.get_system().compute(animate=True)
     lc_ph2 = mybundle['flux@{}@lcsyn'.format(dataref)]
