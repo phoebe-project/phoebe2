@@ -23,7 +23,7 @@ phb.configure()
 phb2.atmospheres.limbdark.register_atm_table('blackbody_uniform_none_teff.fits')
 
 # Template phases
-ph = np.linspace(-0.6, 0.6, 201)
+ph = np.linspace(-0.6, 0.6, 2)
 
 
 def do_test(filename):
@@ -36,6 +36,7 @@ def do_test(filename):
     phb.setpar("phoebe_indep", "Phase")
     phb.setpar("phoebe_atm1_switch", False)
     phb.setpar("phoebe_atm2_switch", False)
+    #phb.setpar("phoebe_usecla_switch", False)
 
     lc_ph1 = np.array(phb.lc(tuple(list(ph)), 0))
     print("PHOEBE 1: HLA = %f, CLA = %f" % (phb.getpar("phoebe_plum1"), phb.getpar("phoebe_plum2")))
@@ -67,7 +68,6 @@ def do_test(filename):
 
     # set custom passband and atmosphere if blackbodies are requested. Else
     # we stick to Phoebe2 default atmosphere/passbands
-    twigs_passbands = mybundle.search('passband')
     twigs_atm = mybundle.search('atm')
     for atm in twigs_atm:
         if mybundle[atm] == 'blackbody':
@@ -75,11 +75,26 @@ def do_test(filename):
             passband_twig = 'passband@{}'.format("@".join(atm.split('@')[1:]))
             if passband_twig in mybundle and mybundle[passband_twig] == 'JOHNSON.V':
                 mybundle[passband_twig] = 'johnson_v.ptf'
-
-    mybundle['pblum@secondary'] = phb.getpar('phoebe_plum2')
+    
+    #mybundle['pblum@secondary'] = phb.getpar('phoebe_plum2')
     mybundle.run_compute(label='from_legacy', irradiation_alg='point_source')
     #mybundle.get_system().compute(animate=True)
     lc_ph2 = mybundle['flux@{}@lcsyn'.format(dataref)]
+    
+    U = phb2.units.conversions.Unit
+    R1 = U(mybundle.get_system()[0].params['component'].request_value('r_pole'), 'm')
+    T1 = U(mybundle['teff@primary'], 'K')
+    R2 = U(mybundle.get_system()[1].params['component'].request_value('r_pole'), 'm')
+    T2 = U(mybundle['teff@secondary'], 'K')
+    sigma = U('sigma')
+    L1 = (4*np.pi*R1**2*sigma*T1**4).convert('Lsol')
+    L2 = (4*np.pi*R2**2*sigma*T2**4).convert('Lsol')
+    print("Numerical bolometric luminosity (primary) = {} Lsol".format(phb2.convert('erg/s', 'Lsol',mybundle['primary'].luminosity())))
+    print("Numerical bolometric luminosity (secondary) = {} Lsol".format(phb2.convert('erg/s', 'Lsol',mybundle['secondary'].luminosity())))
+    print("Eq. sphere bolometric luminosity (primary) = {}".format(L1))
+    print("Eq. sphere bolometric luminosity (secondary) = {}".format(L2))
+    print("Numerical passband luminosity (primary) = {} Lsol".format(phb2.convert('erg/s', 'Lsol',mybundle['primary'].luminosity(ref='LC'))))
+    print("Numerical passband luminosity (secondary) = {} Lsol".format(phb2.convert('erg/s', 'Lsol',mybundle['secondary'].luminosity(ref='LC'))))
     
     # Passband luminosities:
     plum1, plum2 = phb.getpar('phoebe_plum1'), phb.getpar('phoebe_plum2')

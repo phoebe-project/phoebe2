@@ -222,6 +222,17 @@ class Bundle(Container):
     
     For more details, see :py:func:`set_system`.
     
+    The interaction with a Bundle is much alike interaction with a Python
+    dictionary. The following functionality is implemented and behaves as
+    expected::
+            
+            period = mybundle['period'] # returns the value of the period if it exists, raises error if 'period' does not exist
+            period = mybundle.get('period') # returns the value of the period if it exists, else returns None
+            period = mybundle.get('period', default_value) # returns the value of the period if it exists, else returns default_value (whatever it is)
+            keys = mybundle.keys() # returns a list of available keys
+            values = mybundle.values() # returns a list of values
+            
+    
     **Interface**
     
     .. autosummary::

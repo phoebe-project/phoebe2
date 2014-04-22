@@ -5,7 +5,7 @@ import nose.tools
 
 def test_access():
     """
-    Testing bundle setters and getters
+    Testing Bundle's setters and getters
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
     mybundle = phoebe.Bundle(filename)
@@ -34,8 +34,6 @@ def test_access():
     mybundle.set_value('atm@component@secondary','kurucz')
     assert(mybundle.get_value('atm@component@secondary')=='kurucz')
     
-    
-    
     # add some data and do similar stuff
     mybundle.create_data(category='lc', dataref='mylc', time=np.linspace(0,1,100), flux=np.ones(100))
     mybundle.create_data(category='rv', dataref='myprimrv', objref='primary', time=np.linspace(0,1,100), rv=np.ones(100))
@@ -52,12 +50,44 @@ def test_access():
         if len(mybundle.twigs(t))!=1: print t, mybundle.twigs(t)    
         assert(len(mybundle.twigs(t))==1)
 
+def test_dictionary():
+    """
+    Testing Bundle's dictionary behaviour
+    """
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
+    mybundle = phoebe.Bundle(filename)
+    
+    # this should just work, I'm not gonna test for explicit values here:
+    assert(isinstance(mybundle.keys(), list))
+    assert(isinstance(mybundle.keys()[0], str))
+    assert(isinstance(mybundle.values(), list))
+    assert(isinstance(mybundle.items(), list))
+    assert(isinstance(mybundle.items()[0], tuple))
+    
+    # test for explicit values
+    assert(mybundle.get('period')==1)
+    assert(mybundle.get('non-existing-key') == None)
+    assert(mybundle.get('non-existing-key', None) == None)
+    assert(mybundle.get('non-existing-key', 'my_default') == 'my_default')
+    
+    assert(mybundle['period']==1)
+    
+    
+@nose.tools.raises(KeyError)        
+def test_dictionary():
+    """
+    Testing Bundle's dictionary behaviour (error raising)
+    """
+    filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
+    mybundle = phoebe.Bundle(filename)
+    
+    mybundle['non-existing-key']
 
     
-@nose.tools.raises(ValueError)    
+@nose.tools.raises(KeyError)    
 def test_error():
     """
-    Testing error raise 
+    Testing Bundle's setter and getters (error raising)
     """
     mybundle = phoebe.Bundle(os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe'))
     mybundle.get_value('teff')
