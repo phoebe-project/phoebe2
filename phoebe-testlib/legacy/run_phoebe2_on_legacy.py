@@ -23,7 +23,7 @@ phb.configure()
 phb2.atmospheres.limbdark.register_atm_table('blackbody_uniform_none_teff.fits')
 
 # Template phases
-ph = np.linspace(-0.6, 0.6, 2)
+ph = np.linspace(-0.6, 0.6, 201)
 
 
 def do_test(filename):
@@ -36,7 +36,7 @@ def do_test(filename):
     phb.setpar("phoebe_indep", "Phase")
     phb.setpar("phoebe_atm1_switch", False)
     phb.setpar("phoebe_atm2_switch", False)
-    #phb.setpar("phoebe_usecla_switch", False)
+    #phb.setpar("phoebe_usecla_switch", True)
 
     lc_ph1 = np.array(phb.lc(tuple(list(ph)), 0))
     print("PHOEBE 1: HLA = %f, CLA = %f" % (phb.getpar("phoebe_plum1"), phb.getpar("phoebe_plum2")))
