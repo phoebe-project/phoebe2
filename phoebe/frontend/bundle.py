@@ -189,9 +189,11 @@ class Bundle(Container):
     
     You can initiate a bundle in different ways:
     
-        1. Via a PHOEBE 2.0 file::
+        1. Via a PHOEBE 2.0 file in JSON format::
         
-            mybundle = Bundle('mybundle.phoebe')
+            mybundle = Bundle()
+            mybundle.save('newbundle.phoebe')
+            mybundle = Bundle('newbundle.phoebe')
     
         2. Via a Body or BodyBag::
         

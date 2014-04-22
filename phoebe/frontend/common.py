@@ -37,10 +37,23 @@ class Container(object):
         return self.twigs()
         
     def values(self):
+        """
+        Return the values of all items in the Bundle as a list
+        
+        :return: list of all items
+        :rtype: list
+        """
         return [ti['item'] for ti in self.trunk if not ti['hidden']]
         
     def items(self):
-        return {ti['twig_full']:ti['item'] for ti in self.trunk if not ti['hidden']}
+        """
+        Return a list of the Bundle's (key, value) pairs, as 2-tuples.
+        
+        :return: list of pairs (key, value)
+        :rtype: list of 2-tuples
+        """
+        return [(ti['twig_full'], ti['item']) for ti in self.trunk if not ti['hidden']]
+        #return {ti['twig_full']:ti['item'] for ti in self.trunk if not ti['hidden']}
         
     def __getitem__(self, twig):
         """
