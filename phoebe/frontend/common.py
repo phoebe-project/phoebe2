@@ -1142,15 +1142,25 @@ class Container(object):
 
         self._attach_set_value_signals(ps)
             
-    def get_compute(self,label=None):
+    def get_compute(self,label=None,create_default=False):
         """
         Get a compute ParameterSet by name
         
         @param label: name of ParameterSet
         @type label: str
+        @param create_default: whether to create and attach defaults if label is None
+        @type create_default: bool
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
+        if label is None:
+            # then see if the compute options 'default' is available
+            if 'default' not in self._get_dict_of_section('compute').keys():
+                # then create a new compute options from the backend
+                # and attach it to the bundle with label 'default
+                self.add_compute(label='default')
+            label = 'default'
+
         return self._get_by_section(label,"compute")
     
     @rebuild_trunk
