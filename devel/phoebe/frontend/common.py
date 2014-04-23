@@ -1153,7 +1153,7 @@ class Container(object):
         @return: compute ParameterSet
         @rtype: ParameterSet
         """
-        if label is None:
+        if label is None and create_default:
             # then see if the compute options 'default' is available
             if 'default' not in self._get_dict_of_section('compute').keys():
                 # then create a new compute options from the backend
