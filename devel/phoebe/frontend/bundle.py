@@ -683,11 +683,8 @@ class Bundle(Container):
         # <pieterdegroote> Necessary?
         system.set_time(0)
         
-        # get compute options
-        if label is None:
-            options = parameters.ParameterSet(context='compute')
-        else:
-            options = self.get_compute(label).copy() # we don't want to override later
+        # get compute options, handling 'default' if label==None
+        options = self.get_compute(label, create_default=True).copy()
         
         # get server options
         # <kyle> this is dangerous and won't always work (if server is not local)
@@ -1350,23 +1347,9 @@ class Bundle(Container):
         # it is necessary?
         #system.set_time(0)
         
-        # get compute options
-        if label is None:
-            # then see if the compute options 'default' is available
-            if 'default' not in self._get_dict_of_section('compute').keys():
-                # then create a new compute options from the backend
-                # and attach it to the bundle with label 'default
-                self.add_compute(label='default')
-            # now we definitely have one attached, so retrieve it
-            options = self.get_compute('default')
-            label = 'default'
-        else:
-            options_orig = self.get_compute(label)
-            if options_orig is None:
-                raise ValueError("compute options with name '{}' were not found".format(label))
-            else:
-                options = options_orig.copy()
-        
+        # get compute options, handling 'default' if label==None
+        options = self.get_compute(label, create_default=True).copy()
+
         mpi = kwargs.pop('mpi', None)
         
         # get server options
