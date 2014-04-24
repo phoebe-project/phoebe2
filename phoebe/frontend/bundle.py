@@ -954,8 +954,8 @@ class Bundle(Container):
         
     
     #rebuild_trunk done by _attach_datasets
-    def data_fromfile(self, filename, category='lc', passband=None, columns=None,
-                  objref=None, units=None, dataref=None, scale=False, offset=False):
+    def data_fromfile(self, filename, category='lc', objref=None, dataref=None,
+                      columns=None, units=None, **kwargs):
         """
         Add data from a file.
         
@@ -982,20 +982,37 @@ class Bundle(Container):
         if units is None:
             units = {}
             
+        # We need a reference to link the pb and ds together.
+        if dataref is None:
+            # If the reference is None, suggest one. We'll add it as "lc01"
+            # if no "lc01" exist, otherwise "lc02" etc (unless "lc02" already exists)
+            existing_refs = self.get_system().get_refs(category=category)
+            id_number = len(existing_refs)+1
+            dataref = category + '{:02d}'.format(id_number)
+            while dataref in existing_refs:
+                id_number += 1
+                dataref = category + '{:02d}'.format(len(existing_refs)+1)            
+        
+        # Individual cases
         if category == 'rv':
             output = datasets.parse_rv(filename, columns=columns,
                                        components=objref, units=units, 
-                                       full_output=True,
-                                       **{'passband':passband, 'ref': dataref})
+                                       full_output=True, **kwargs)
         elif category == 'lc':
-            output = datasets.parse_lc(filename, columns=columns,
+            output = datasets.parse_lc(filename, columns=columns, units=units,
                                        components=objref, full_output=True,
-                                       **{'passband':passband, 'ref': dataref})
+                                       ref=dataref, **kwargs)
+            
+            # if no componets (objref) was given, then we assume it's the system!
+            for lbl in output:
+                if lbl == '__nolabel__':
+                    output[self.get_system().get_label()] = output.pop('__nolabel__')
+                    
+            
         elif category == 'etv':
             output = datasets.parse_etv(filename, columns=columns,
                                         components=objref, units=units,
-                                        full_output=True,
-                                        **{'passband':passband, 'ref': dataref})
+                                        full_output=True, **kwargs)
         
         elif category == 'sp':
             output = datasets.parse_sp(filename, columns=columns,
@@ -1004,10 +1021,11 @@ class Bundle(Container):
                                        **{'passband':passband, 'ref': dataref})
         
         elif category == 'sed':
+            scale, offset = kwargs.pop('scale', True), kwargs.pop('offset', False)
             output = datasets.parse_phot(filename, columns=columns,
-                  units=units,
-                  group=filename, group_kwargs=dict(scale=scale, offset=offset),
-                  full_output=True)
+                  units=units, group=filename,
+                  group_kwargs=dict(scale=scale, offset=offset),
+                  full_output=True, **kwargs)
         #elif category == 'pl':
         #    output = datasets.parse_plprof(filename, columns=columns,
         #                               components=objref, full_output=True,
@@ -1017,7 +1035,7 @@ class Bundle(Container):
             print("only lc, rv, etv, sed, and sp currently implemented")
         
         if output is not None:
-            self._attach_datasets(output, skip_defaults_from_body=dict())
+            self._attach_datasets(output, skip_defaults_from_body=kwargs.keys())
                        
     #rebuild_trunk done by _attach_datasets
     def data_fromarrays(self, category='lc', objref=None, dataref=None,
@@ -1304,6 +1322,64 @@ class Bundle(Container):
         
         # We can pass everything now to the main function
         self.data_fromarrays(category='lc', **set_kwargs)
+    
+    def lc_fromfile(self, filename, objref=None, dataref=None, columns=None,
+                      units=None, offset=None, scale=None, atm=None,
+                      ld_func=None, ld_coeffs=None, passband=None, pblum=None,
+                      l3=None, alb=None, beaming=None, scattering=None):
+        """
+        Add a lightcurve from a file.
+        
+        The data contained in :envvar:`filename` will be loaded to the object
+        with object reference :envvar:`objref` (if ``None``, defaults to the whole
+        system), and will have data reference :envvar:`dataref`. If no
+        :envvar:`dataref` is is given, a unique one is generated: the first 
+        light curve that is added is named 'lc01', and if that one already
+        exists, 'lc02' is tried and so on.
+        
+        For any parameter that is not explicitly set (i.e. not left equal to
+        ``None``), the defaults from each component in the system are used
+        instead of the Phoebe2 defaults. For example, the :envvar:`atm`,
+        :envvar:`ld_func` and :envvar:`ld_coeffs` arguments are taken from the
+        component (which reflect the bolometric properties) unless explicitly
+        overriden.
+        
+        See :py:func:`phoebe.parameters.datasets.parse_lc` for more information
+        on file formats.
+        
+        **Example usage**
+        
+        A plain file can loaded via::
+        
+        >>> bundle.lc_fromarrays('myfile.lc')
+        
+        Note that extra parameters can be given in the file itself, but can
+        also be overriden in the function call:
+        
+        >>> bundle.lc_fromarrays('myfile.lc', atm='kurucz')
+        
+        For a list of acceptable values for each parameter, see
+        :ref:`lcdep <parlabel-phoebe-lcdep>` and
+        :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        
+        [FUTURE]
+        
+        :param objref: component for each column in file
+        :type objref: None, str, list of str or list of bodies
+        :param dataref: name for ref for all returned datasets
+        :type dataref: str
+        :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
+        """
+        # retrieve the arguments with which this function is called
+        set_kwargs, posargs = utils.arguments()
+        
+        # filter the arguments according to not being "None" nor being "self"
+        set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
+                  if set_kwargs[key] is not None and key != 'self'}
+        
+        # We can pass everything now to the main function
+        self.data_fromfile(category='lc', **set_kwargs)
+        
     
     def get_syn(self, twig=None):
         """
