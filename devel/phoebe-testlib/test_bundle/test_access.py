@@ -34,6 +34,10 @@ def test_access():
     mybundle.set_value('atm@component@secondary','kurucz')
     assert(mybundle.get_value('atm@component@secondary')=='kurucz')
     
+    # test unit support:
+    mybundle.set_value('teff@primary', 20000, 'Far')
+    assert(np.abs(mybundle['teff@primary']-11366.4833333)<0.01)
+    
     # add some data and do similar stuff
     mybundle.create_data(category='lc', dataref='mylc', time=np.linspace(0,1,100), flux=np.ones(100))
     mybundle.create_data(category='rv', dataref='myprimrv', objref='primary', time=np.linspace(0,1,100), rv=np.ones(100))
@@ -96,4 +100,5 @@ def test_error():
 if __name__ == "__main__":
     test_access()
     test_error()
+    test_dictionary
     

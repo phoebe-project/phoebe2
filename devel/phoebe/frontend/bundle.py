@@ -676,14 +676,14 @@ class Bundle(Container):
         system_str = self.get_object(objref).list(summary='cursory')
         return system_str + '\n\n' + bund_str
         
-    def tree(self, objref=None):
+    def tree(self):
         """
-        Make a summary of the system
+        Return a summary of the system.
         
-        [FUTURE]
+        :return: string representation of the system
+        :rtype: str
         """
         return self.to_string()
-        #return self.get_object(objref).list(summary='full')
     
     def list(self, summary=None, *args):
         """
@@ -795,7 +795,13 @@ class Bundle(Container):
     #{ Objects
     def get_object(self, objref=None):
         """
-        [FUTURE]
+        Return an object (Body) from the system.
+        
+        :param objref: Body's label or twig
+        :type objref: str
+        :return: the Body corresponding to the label
+        :rtype: Body
+        :raises ValueError: when objref is not present
         """
         # handle objref if twig was given instead
         objref = objref.split('@')[0] if objref is not None else None

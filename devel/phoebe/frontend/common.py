@@ -288,8 +288,6 @@ class Container(object):
         """
         Retrieve the ParameterSet corresponding to the twig.
         
-        [FUTURE]
-        
         :param twig: the search twig
         :type twig: str
         :return: ParameterSet
@@ -344,8 +342,6 @@ class Container(object):
     def get_value(self, twig):
         """
         Retrieve the value of a Parameter
-        
-        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
