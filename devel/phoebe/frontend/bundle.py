@@ -1467,8 +1467,7 @@ class Bundle(Container):
         system.clear_synthetic()
 
         # get compute options, handling 'default' if label==None
-        options_orig = self.get_compute(label, create_default=True)
-        options = options_orig.copy()
+        options = self.get_compute(label, create_default=True).copy()
         
         mpi = kwargs.pop('mpi', None)
         
@@ -1481,7 +1480,9 @@ class Bundle(Container):
         for k,v in kwargs.items():
             #if k in options.keys(): # otherwise nonexisting kwargs can be given
             options.set_value(k,v)
-
+            
+        #~ print "***", options.get_value('mesh_rescale'), options_orig.get_value('mesh_rescale')
+            
         # Q <pieterdegroote>: should we first set system.uptodate to False and
         # then try/except the computations? Though we should keep track of
         # why things don't work out.. how to deal with out-of-grid interpolation
