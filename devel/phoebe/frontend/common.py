@@ -103,6 +103,8 @@ class Container(object):
             return item.get_adjust()
         elif ti['kind'] == 'Parameter:prior':
             return item.get_prior()
+        elif ti['kind'] == 'Parameter:posterior':
+            return item.get_posterior()
         else:
             # either 'value' or item itself
             if isinstance(item, parameters.Parameter):
@@ -614,7 +616,7 @@ class Container(object):
             # then see if the compute options 'default' is available
             if 'default' not in self._get_dict_of_section('compute').keys():
                 # then create a new compute options from the backend
-                # and attach it to the bundle with label 'default
+                # and attach it to the bundle with label 'default'
                 self.add_compute(label='default')
             label = 'default'
 
@@ -945,7 +947,8 @@ class Container(object):
         if context == 'orbit':
             # we want to hide the fact to the user that these exist at the component level
             # and instead fake its label to be that of its parent BodyBag
-            label = self.get_parent(label).get_label()
+            #~ label = self.get_parent(label).get_label()
+            label = self._get_object(label).get_parent().get_label()
             ref = None
         
         if context == section:
@@ -957,8 +960,10 @@ class Container(object):
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
         
-        if kind=='Parameter' and False:
-            # now let's check to see what other request types we should add
+        if kind=='Parameter' and False:  ### DEFER this functionality 
+            # defer until we support fitting and discuss desired behavior
+            # in theory, removing the and False should create these additional twigs
+            # and their set/get behavior is defined in Container.get and set
             if hasattr(item, 'get_value'):
                 twig = self._make_twig(['value',qualifier,ref,context_twig,label,section])
                 twig_full = self._make_twig(['value',qualifier,ref,context_twig,label,section,container])
@@ -1053,16 +1058,16 @@ class Container(object):
             path.remove(None)
         return '{}'.format('/' if invert else '@').join(path)
         
-    def _search_twigs(self, twigglet, trunk=None, **kwargs):
+    def _search_twigs(self, twiglet, trunk=None, **kwargs):
         """
-        return a list of twigs where twigglet is a substring
+        return a list of twigs where twiglet is a substring
         
         [FUTURE]
         """
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
             
         twigs = [t['twig_full'] for t in trunk]
-        return [twig for twig in twigs if twigglet in twig]
+        return [twig for twig in twigs if twiglet in twig]
         
     def _filter_twigs_by_kwargs(self, trunk=None, **kwargs):
         """
@@ -1086,7 +1091,7 @@ class Container(object):
         return trunk
         
         
-    def _match_twigs(self, twigglet, trunk=None, **kwargs):
+    def _match_twigs(self, twiglet, trunk=None, **kwargs):
         """
         return a list of twigs that match the input
         the first item is required to be first, but any other item
@@ -1096,7 +1101,7 @@ class Container(object):
         """
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
         
-        twig_split = twigglet.split('@')
+        twig_split = twiglet.split('@')
         
         matching_twigs_orig = [t['twig_full'] for t in trunk]
         matching_twigs = [t['twig_full'].split('@') for t in trunk]
@@ -1119,9 +1124,9 @@ class Container(object):
                     ind = None
                     if tsp_i==len(twig_split)-1:
                         # let the item furthest to the right be incomplete (e.g te matches teff)
-                        mtwigglets = [mtwigglet[:len(tsp)] for mtwigglet in mtwig] if tsp_i!=0 else [mtwig[0][:len(tsp)]]
-                        if tsp in mtwigglets:
-                            ind = mtwigglets.index(tsp)
+                        mtwiglets = [mtwiglet[:len(tsp)] for mtwiglet in mtwig] if tsp_i!=0 else [mtwig[0][:len(tsp)]]
+                        if tsp in mtwiglets:
+                            ind = mtwiglets.index(tsp)
                             mtwig = mtwig[ind+1:]
                     
                     else:
@@ -1153,10 +1158,11 @@ class Container(object):
         """
         this function searches the cached trunk
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
-        
+
         [FUTURE]
+
         
-        @param twig: the twig/twigglet to use when searching
+        @param twig: the twig/twiglet to use when searching
         @type twig: str
         @param all: whether to return a list or a single item
         @type all: bool
