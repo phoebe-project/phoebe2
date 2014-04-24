@@ -1336,8 +1336,9 @@ class Bundle(Container):
         #system.set_time(0)
         
         # get compute options, handling 'default' if label==None
-        options = self.get_compute(label, create_default=True).copy()
-
+        options = self.get_compute(label, create_default=True)
+        #options = self.get_compute(label, create_default=True).copy()
+        
         mpi = kwargs.pop('mpi', None)
         
         # get server options
@@ -1349,13 +1350,11 @@ class Bundle(Container):
         for k,v in kwargs.items():
             #if k in options.keys(): # otherwise nonexisting kwargs can be given
             options.set_value(k,v)
-        
-        
+
         # Q <pieterdegroote>: should we first set system.uptodate to False and
         # then try/except the computations? Though we should keep track of
         # why things don't work out.. how to deal with out-of-grid interpolation
         # etc...
-        
         if options['time'] == 'auto' and anim == False:
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
             obj.compute(mpi=mpi, **options)

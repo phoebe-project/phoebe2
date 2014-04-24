@@ -562,7 +562,28 @@ class Container(object):
         
         for param in params:
             param.set_prior(**dist_kwargs)
+    
+    def get_compute(self,label=None,create_default=False):
+        """
+        Get a compute ParameterSet by name
         
+        @param label: name of ParameterSet
+        @type label: str
+        @param create_default: whether to create and attach defaults if label is None
+        @type create_default: bool
+        @return: compute ParameterSet
+        @rtype: ParameterSet
+        """
+        if label is None and create_default:
+            # then see if the compute options 'default' is available
+            if 'default' not in self._get_dict_of_section('compute').keys():
+                # then create a new compute options from the backend
+                # and attach it to the bundle with label 'default
+                self.add_compute(label='default')
+            label = 'default'
+
+        return self._get_by_section(label,"compute")    
+    
     @rebuild_trunk
     def add_compute(self,ps=None,**kwargs):
         """
