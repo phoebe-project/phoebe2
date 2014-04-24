@@ -258,39 +258,39 @@ class Bundle(Container):
         
             >>> mybundle['atm@primary'] = 'kurucz'
             >>> mybundle['atm@secondary'] = 'blackbody'
-             
-    
+                 
     .. autosummary::
     
-        Bundle.get_value
-        Bundle.get_value_all
-        Bundle.get_ps
-        Bundle.get_parameter
-        Bundle.get_adjust
-        Bundle.get_prior
-        Bundle.get_compute
-        Bundle.get_fitting
-        Bundle.set_value
-        Bundle.set_value_all
-        Bundle.set_ps
-        Bundle.set_adjust
-        Bundle.set_adjust_all
-        Bundle.set_prior
-        Bundle.set_prior_all
-        Bundle.attach_ps
+        get_value
+        get_value_all
+        get_ps
+        get_ps_dict
+        get_parameter
+        get_adjust
+        get_prior
+        get_compute
+        get_fitting
+        set_value
+        set_value_all
+        set_ps
+        set_adjust
+        set_adjust_all
+        set_prior
+        set_prior_all
+        attach_ps
         
-        Bundle.add_compute
-        Bundle.add_fitting
-        Bundle.remove_compute
-        Bundle.remove_fitting
+        add_compute
+        add_fitting
+        remove_compute
+        remove_fitting
         
-        Bundle.search        
+        search        
         
-        Bundle.load_data
-        Bundle.create_data
+        load_data
+        create_data
         
-        Bundle.plot_obs
-        Bundle.plot_syn
+        plot_obs
+        plot_syn
     
     
     **Printing information**
@@ -305,8 +305,9 @@ class Bundle(Container):
     
     .. autosummary::
     
-        Bundle.summary
-        Bundle.info
+        tree
+        summary
+        info
         
     **Structure of the Bundle**
         
@@ -1127,12 +1128,16 @@ class Bundle(Container):
         
         [FUTURE]
         
-        @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
-        @type category: str
-        @param objref: component for each column in file
-        @type objref: None, str, list of str or list of bodies
-        @param ref: name for ref for all returned datasets
-        @type ref: str    
+        :param category: one of 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
+        :type category: str
+        :param objref: component for each column in file
+        :type objref: None, str, list of str or list of bodies
+        :param ref: name for ref for all returned datasets
+        :type ref: str    
+        :raises ValueError: if :envvar:`category` is not recognised.
+        :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
+        :raises KeyError: if any keyword argument is not recognised as obs/dep Parameter
+        :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
         """
         # create pbdeps and attach to the necessary object
         # this function will be used for creating pbdeps without loading an
@@ -1143,11 +1148,12 @@ class Bundle(Container):
         
         # What DataSet subclass do we need? We can derive it from the category.
         # This can be LCDataSet, RVDataSet etc.. If the category is not
-        # recognised, we'll add the generic "DataSet".
-        if not category in config.dataset_class:
-            dataset_class = DataSet
-        else:
+        # recognised, we'll add the generic "DataSet" ---> no! raise an Error!.
+        if category in config.dataset_class:
             dataset_class = getattr(datasets, config.dataset_class[category])
+        else:
+            raise ValueError(("Category '{}' not recognised. It is not any of "
+                "{}.").format(category, ", ".join(config.dataset_class.keys())))
     
         # Suppose the user did not specifiy the object to attach anything to
         if objref is None:
@@ -1206,7 +1212,7 @@ class Bundle(Container):
                 ds[key] = kwargs[key]
                 
             else:
-                raise ValueError("Parameter '{}' not found in obs/dep".format(key))        
+                raise KeyError("Parameter '{}' not found in obs/dep".format(key))        
         
         # Special treatment of oversampling rate and exposure time: if they are
         # single numbers, we need to convert them in arraya as long as as the
