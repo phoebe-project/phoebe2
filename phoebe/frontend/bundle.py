@@ -454,7 +454,10 @@ class Bundle(Container):
         
     def to_string(self):
         """
-        returns the string representation of the bundle
+        Returns the string representation of the bundle
+        
+        :return: string representation
+        :rtype: str
         """
         # Make sure to not print out all array variables
         old_threshold = np.get_printoptions()['threshold']
@@ -546,9 +549,16 @@ class Bundle(Container):
               a system
             - the string represents a system from the library (or spectral type),
               then the library will create the system
-
-        @param system: the new system
-        @type system: Body or str
+        
+        With :envvar:`remove_dataref`, you can either choose to remove a
+        specific dataset (if it is a string with the datareference), remove all
+        data (if it is ``True``) or keep them as they are (if ``False``, the
+        default).
+        
+        :param system: the new system
+        :type system: Body or str
+        :param remove_dataref: remove any/all datasets or keep them
+        :type remove_dataref: ``False``, ``None`` or a string
         """
         # Possibly we initialized an empty Bundle
         if system is None:
@@ -629,8 +639,8 @@ class Bundle(Container):
         """
         Return the system.
         
-        @return: the attached system
-        @rtype: Body or BodyBag
+        :return: the attached system
+        :rtype: Body or BodyBag
         """
         # we have to handle system slightly differently since building
         # the trunk requires calling this function
@@ -639,7 +649,12 @@ class Bundle(Container):
     
     def summary(self, objref=None):
         """
-        Make a summary of the hierarchy of the system (or any object in it)
+        Make a summary of the hierarchy of the system (or any object in it).
+        
+        :param objref: object reference
+        :type objref: str or None (defaults to the whole system)
+        :return: summary string
+        :rtype: str
         """
         bund_str = ""
         computes = self._get_dict_of_section('compute')
@@ -668,15 +683,17 @@ class Bundle(Container):
         List with indices all the ParameterSets that are available.
         
         Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.universe.Body.list>`.
+        See that function for more info on the arguments.
         """
         return self.get_system().list(summary,*args)
         
     def clear_synthetic(self):
         """
-        Clear all synthetic datasets
-        Simply a shortcut to bundle.get_system().clear_synthetic()
+        Clear all synthetic datasets.
+        
+        Simply a shortcut to :py:func:`bundle.get_system().clear_synthetic() <phoebe.universe.Body.clear_synthetic>`
         """
-        return self.get_system().clear_synthetic()
+        self.get_system().clear_synthetic()
         
     def set_time(self, time, label=None, server=None, **kwargs):
         """
@@ -771,7 +788,9 @@ class Bundle(Container):
     #{ Objects
     def _get_object(self, objref=None):
         """
-        version of get_object that does not use twigs... this must remain
+        Twig-free version of get_object.
+        
+        This version of get_object that does not use twigs... this must remain
         so that we can call it while building the trunk
 
         :param objref: Body's label or twig
@@ -780,7 +799,6 @@ class Bundle(Container):
         :rtype: Body
         :raises ValueError: when objref is not present
         """
-
         # handle objref if twig was given instead
         objref = objref.split('@')[0] if objref is not None else None
         # return the Body/BodyBag from the system hierarchy
@@ -798,27 +816,26 @@ class Bundle(Container):
     
     def get_object(self, twig=None):
         """
-        retrieve a Body/BodyBag from the system
+        Retrieve a Body or BodyBag from the system
         
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        @return: the object
-        @rtype: Body
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :return: the object
+        :rtype: Body
         """
         return self._get_by_search(twig, kind='Body')
         
     def get_children(self, twig=None):
         """
-        retrieve the direct children of a Body/BodyBag from the system
+        Retrieve the direct children of a Body or BodyBag from the system
         
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        @return: the children
-        @rtype: list of bodies
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :return: the children
+        :rtype: list of bodies
         """
-        
         obj = self.get_object(twig)
-        if hasattr(obj,'bodies'):
+        if hasattr(obj, 'bodies'):
             #return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
             return obj.bodies
         else:
@@ -826,12 +843,12 @@ class Bundle(Container):
         
     def get_parent(self, twig=None):
         """
-        retrieve the direct parent of a Body/BodyBag from the system
+        Retrieve the direct parent of a Body or BodyBag from the system
         
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        @return: the children
-        @rtype: Body
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :return: the children
+        :rtype: Body
         """
         return self.get_object(twig).get_parent()
         
@@ -945,15 +962,14 @@ class Bundle(Container):
     
     #rebuild_trunk done by _attach_datasets
     def data_fromfile(self, filename, category='lc', passband=None, columns=None,
-                  objref=None, units={}, dataref=None, scale=False, offset=False):
+                  objref=None, units=None, dataref=None, scale=False, offset=False):
         """
         Add data from a file.
         
-        Create multiple DataSets, load data,
-        and add to corresponding bodies
+        Create multiple DataSets, load data, and add to corresponding bodies
         
         Special case here is "sed", which parses a list of snapshot multicolour
-        photometry to different lcs. The will be grouped by ``filename``.
+        photometry to different lcs. They will be grouped by ``filename``.
         
         @param category: category (lc, rv, sp, sed, etv)
         @type category: str
@@ -970,7 +986,9 @@ class Bundle(Container):
         @param dataref: name for ref for all returned datasets
         @type dataref: str    
         """
-        
+        if units is None:
+            units = {}
+            
         if category == 'rv':
             output = datasets.parse_rv(filename, columns=columns,
                                        components=objref, units=units, 
@@ -1274,6 +1292,8 @@ class Bundle(Container):
         :envvar:`sigma`, :envvar:`flag`, :envvar:`weight, :envvar:`exptime` and
         :envvar:`samprate` should all be arrays of equal length (unless left to
         ``None``).
+        
+        [FUTURE]
         
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
