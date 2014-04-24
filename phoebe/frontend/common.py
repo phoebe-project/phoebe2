@@ -600,6 +600,7 @@ class Container(object):
                 # then create a new compute options from the backend
                 # and attach it to the bundle with label 'default'
                 self.add_compute(label='default')
+                self._build_trunk()
             label = 'default'
 
         return self._get_by_section(label,"compute")    
@@ -621,7 +622,10 @@ class Container(object):
             
         self._add_to_section('compute',ps)
 
-        self._attach_set_value_signals(ps)
+        # had to remove this to make the deepcopy in run_compute work 
+        # correctly.  Also - this shouldn't ever be called from within
+        # the Container class but only within Bundle
+        #~ self._attach_set_value_signals(ps)
     
     @rebuild_trunk
     def remove_compute(self,label):
