@@ -4,6 +4,7 @@ from collections import OrderedDict
 from fnmatch import fnmatch
 import copy
 import json
+import uuid
 import numpy as np
 from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
@@ -12,20 +13,21 @@ from phoebe.utils import config
 
 def rebuild_trunk(fctn):
     """
-    rebuild the cached trunk *after* running the original function
+    Rebuild the cached trunk *after* running the original function
     """
     @functools.wraps(fctn)
-    def rebuild(container,*args,**kwargs):
+    def rebuild(container, *args, **kwargs):
         return_ = fctn(container, *args, **kwargs)
         container._build_trunk()
         return return_
     return rebuild
 
+
 class Container(object):
     """
-    Class that controlls accessing sections and parametersets
+    Control accessing sections and ParameterSets
     
-    This class in inherited by both the bundle and usersettings
+    This class in inherited by both the Bundle and Usersettings
     """
     
     def __init__(self):
@@ -60,21 +62,19 @@ class Container(object):
         """
         return [(ti['twig_full'], ti['item']) \
                         for ti in self.trunk if not ti['hidden']]
-        #return {ti['twig_full']:ti['item'] for ti in self.trunk if not ti['hidden']}
     
     
     def get(self, twig=None, default=None, **kwargs):
         """
         Search and retrieve any item without specifying its type.
         
-        By default, raises KeyError when no match for the twig is found.
-        
-        @param twig: the search twig
-        @type twig: str
-        @param default: return value if twig is not in Bundle
-        @type default: any Python object (defaults to None)
-        @return: matching item
-        @rtype: varies
+        :param twig: the search twig
+        :type twig: str
+        :param default: return value if twig is not in Bundle
+        :type default: any Python object (defaults to None)
+        :return: matching item
+        :rtype: varies
+        :raises KeyError: when twig is not present
         """
         # Set some overridable defaults
         kwargs.setdefault('return_trunk_item', True)
@@ -83,7 +83,7 @@ class Container(object):
         
         # Look for the twig
         try:
-            ti = self._get_by_search(twig,**kwargs)
+            ti = self._get_by_search(twig, **kwargs)
         except KeyError:
             # If we can't ignore this error, raise it anyway
             if not kwargs['ignore_errors']:
@@ -93,7 +93,8 @@ class Container(object):
         if ti is None:
             return default
         
-        #else, retrieve the item and return it
+        # else, retrieve the item and return it. We need to treat Parameters as
+        # values, and have special treatments for their adjustables and priors
         item = ti['item']
         
         if ti['kind'] == 'Parameter:adjust':
@@ -111,36 +112,92 @@ class Container(object):
         """
         Set a value in the Bundle.
         
-        @param twig: the search twig
-        @type twig: str
-        @param value: the new value
-        @type value: varies        
+        Value can be anything.
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: the new value
+        :type value: varies
+        :raises KeyError: when twig is not present
+        :raises TypeError: when value cannot be cast into the right type
         """
-        kwargs['return_trunk_item']=True
-        kwargs['all']=False
-        kwargs['ignore_errors']=False
-        ti = self._get_by_search(twig,**kwargs)
+        kwargs['return_trunk_item'] = True
+        kwargs['all'] = False
+        kwargs['ignore_errors'] = False
+        ti = self._get_by_search(twig, **kwargs)
         item = ti['item']
         
-        if ti['kind']=='Parameter:adjust':
+        if ti['kind'] == 'Parameter:adjust':
             # we call self.set_adjust instead of item.set_adjust
             # because self.set_adjust handles auto prior creation
             self.set_adjust(twig, value)
-        elif ti['kind']=='Parameter:prior':
+        
+        elif ti['kind'] == 'Parameter:prior':
             self.set_prior(twig, value)
+        
+        # replace this Body with the given one
+        elif ti['kind'] == 'Body':
+            
+            # Retrieve the current Body so that we can call it's Parent, and
+            # override this child's place in the Bag
+            current = self.get(twig)
+            parent = current.get_parent()
+            
+            # If the current Body has not Parent, then it is probably a single
+            # Star (or other Body). Then replace the whole system:
+            if parent is None:
+                self.set_system(value)
+            
+            # Else, we need take care of *a lot* of stuff:
+            else:
+                # 1. Make sure the new Body has the same orbit properties as
+                #    the original one:
+                current_orbit = current.get_orbit()
+                if current_orbit is not None:
+                    value.set_params(current_orbit)
+                # 2. Make sure that the new Body has the same label as the 
+                #    original Body
+                value.set_label(current.get_label())
+                # 3. Make sure all the labels of the Bodies are still unique
+                #    If not give those a unique identifier
+                labels = [body.get_label() for body in self.get_system().get_bodies()]
+                for new_body in value.get_bodies():
+                    if new_body.get_label() in labels:
+                        new_body.set_label(uuid.uuid4())
+                # 4. Make sure the mass ratio is correct and the semi-major axis
+                #    satisfies Kepler's third law
+                if current_orbit is not None:
+                    print("Old mass = {}, old q = {}, old sma = {}".format(current.get_mass(), current_orbit['q'], current_orbit['sma']))
+                    mold_over_mnew = current.get_mass()/value.get_mass()
+                    if current.get_component() == 0:
+                        current_orbit['q'] = current_orbit['q'] * mold_over_mnew
+                    else:
+                        current_orbit['q'] = current_orbit['q'] / mold_over_mnew
+                    totalmass = parent.get_mass() - current.get_mass() + value.get_mass()
+                    period = current_orbit['period']
+                    current_orbit['sma'] = universe.keplerorbit.third_law(totalmass=totalmass,
+                                                                          period=period), 'au'
+                    print("New mass = {}, new q = {}, new sma = {}".format(value.get_mass(), current_orbit['q'], current_orbit['sma']))
+                # 5. Set the Parent of the new value to be the same as the old
+                value.set_parent(current.get_parent())
+                # Finally, we can replace the Body
+                parent.bodies[parent.bodies.index(current)] = value
+            
         else:
             # either 'value' or None
-        
             if isinstance(value, parameters.ParameterSet):
                 # special case for orbits, we need to keep c1label and c2label
                 if value.get_context() == 'orbit':
-                    oldorbit = self.get_ps('orbit@'+twig)
+                    oldorbit = self.get_ps('orbit@' + twig)
                     value['c1label'] = oldorbit['c1label']
                     value['c2label'] = oldorbit['c2label']                
-                self.set_ps(twig, value)            
-            elif isinstance(value, tuple) and len(value)==2 and isinstance(value[1],str):
+                self.set_ps(twig, value)        
+            
+            elif isinstance(value, tuple) and len(value) == 2 and \
+                                                    isinstance(value[1], str):
                 # ability to set units
                 self.set_value(twig, *value)
+
             else:
                 self.set_value(twig, value)
     
@@ -154,6 +211,7 @@ class Container(object):
         :type twig: str
         :return: the value corresponding to the twig
         :rtype: whatever value the twig corresponds to
+        :raises KeyError: when twig is not available
         """
         # dictionary-style access cannot return None ad a default value if the
         # key does not exist
@@ -168,6 +226,8 @@ class Container(object):
         :type twig: str
         :param value: new value for the twig's value
         :type value: whatever value the twig accepts
+        :raises KeyError: when twig is not available
+        :raises TypeError: when value cannot be cast to the right type
         """
         self.set(twig, value)
         
@@ -181,14 +241,409 @@ class Container(object):
         except KeyError:
             return False
     
-    #~ def __iter__(self):
-        #~ for _yield in self._loop_through_container(return_type='item'):
-            #~ yield _yield
-    
-    def _loop_through_container(self,container=None,label=None,ref=None,do_sectionlevel=True,do_pslevel=True):
+    def __iter__(self):
         """
-        loop through the current container to compile all items for the trunk
-        this will then be called recursively if it hits another Container/PS/BodyBag
+        Make the class iterable.
+        
+        Iterating a Bundle means iterating over its keys (like a dictionary).
+        """
+        return iter(self.keys())
+    
+    ## General interface
+    
+    def search(self, twig, **kwargs):
+        """
+        Return a list of twigs matching a substring search
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: list of twigs
+        :rtype: list of strings
+        """
+        return self._search_twigs(twig, **kwargs)
+        
+    def twigs(self, twig=None, **kwargs):
+        """
+        return a list of matching twigs (with same method as used in
+        get_value, get_parameter, get_prior, etc)
+        
+        @param twig: the search twig
+        @type twig: str
+        @return: list of twigs
+        @rtype: list of strings
+        """
+    
+        if twig is None:
+            trunk = self._filter_twigs_by_kwargs(**kwargs)
+            return [t['twig_full'] for t in trunk] 
+        return self._match_twigs(twig, **kwargs)
+    
+    def get_ps(self, twig):
+        """
+        Retrieve the ParameterSet corresponding to the twig.
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: ParameterSet
+        :rtype: ParameterSet
+        :raises KeyError: when the twig does not represent a ParameterSet
+        """
+        return self._get_by_search(twig, kind='ParameterSet')
+        
+    def get_ps_dict(self, twig):
+        """
+        Retrieve a dictionary of ParameterSets in a list
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: dictionary of ParameterSets
+        :rtype: dict
+        """
+        return self._get_by_search(twig, kind="OrderedDict")
+
+    def get_parameter(self, twig):
+        """
+        Retrieve a Parameter
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: Parameter
+        :rtype: Parameter
+        :raises KeyError: if twig not available or not representing a Parameter
+        """
+        return self._get_by_search(twig, kind='Parameter') # was 'Parameter*'
+        
+    def info(self, twig):
+        """
+        Retrieve info on a Parameter.
+        
+        This is just a shortcut to str(get_parameter(twig))
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: info
+        :rtype: str
+        """
+        return str(self.get_parameter(twig))
+           
+           
+    def get_value(self, twig):
+        """
+        Retrieve the value of a Parameter
+        
+        :param twig: the search twig
+        :type twig: str
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        return self.get_parameter(twig).get_value()
+        
+    def set_value(self, twig, value, unit=None):
+        """
+        Set the value of a Parameter
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: the value
+        :type value: depends on Parameter
+        :param unit: unit of value (if not default)
+        :type unit: str or None
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        param = self.get_parameter(twig)
+        
+        # special care needs to be taken when setting labels and refs
+        qualifier = param.get_qualifier()
+        
+        # Setting a label means not only changing that particular Parameter,
+        # but also the property of the Body
+        if qualifier == 'label':
+            this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+            component = self._get_by_search(this_trunk['label'])
+            component.set_label(value)
+            self._build_trunk()
+        
+        # Changing a ref needs to change all occurrences
+        elif qualifier == 'ref':
+            # get the system
+            from_ = param.get_value()
+            system = self.get_system()
+            system.change_ref(from_, value)
+            self._build_trunk()
+            return None
+        
+        if unit is None:
+            param.set_value(value)
+        else:
+            param.set_value(value, unit)
+            
+    def set_value_all(self, twig, value, unit=None):
+        """
+        Set the value of all matching Parameters
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: the value
+        :type value: depends on Parameter
+        :param unit: unit of value (if not default)
+        :type unit: str or None
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for param in params:
+            if unit is None:
+                param.set_value(value)
+            else:
+                param.set_value(value, unit)
+    
+    def get_value_all(self, twig):
+        """
+        Return the values of all matching Parameters
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: list of all values matching the Parameter twig
+        :rtype: list of values
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        return [param.get_value() for param in params]
+        
+    
+    @rebuild_trunk
+    def set_ps(self, twig, value):
+        """
+        Replace an existing ParameterSet.
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: the value
+        :type value: ParameterSet
+        """
+        # get all the info we can get
+        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+        
+        # Make sure it is a ParameterSet
+        if this_trunk['kind'] != 'ParameterSet':
+           raise ValueError(("Twig '{}' does not refer to a ParameterSet "
+                             "(it is a {})").format(twig, this_trunk['kind']))
+        
+        # actually, we're mainly interested in the path. And in that path, we
+        # are only interested in the last Body
+        bodies = [self.get_system()] + [thing for thing in this_trunk['path'] \
+                                            if isinstance(thing, universe.Body)]
+        
+        if not bodies:
+            raise ValueError(('Cannot assign ParameterSet to {} (did not find '
+                              'any Body)').format(twig))
+        
+        # last check: we need to make sure that whatever we're setting already
+        # exists. We cannot assign a new nonexistent PS to the Body (well, we
+        # could, but we don't want to -- that's attach_ps responsibility)
+        current_context = this_trunk['item'].get_context()
+        given_context = value.get_context()
+        if current_context == given_context:
+            bodies[-1].set_params(value)
+        else:
+            raise ValueError(("Twig '{}' refers to a ParameterSet of context "
+                              "'{}', but '{}' is given").format(twig,\
+                                                current_context, given_context))
+        
+    @rebuild_trunk
+    def attach_ps(self, twig, value):
+        """
+        Add a new ParameterSet.
+        """
+        # Get all the info we can get
+        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+        
+        if isinstance(this_trunk['item'], universe.Body):
+            # last check: we need to make sure that whatever we're setting
+            # already exists. We cannot assign a new nonexistent PS to the Body
+            # (well, we could, but we don't want to -- that's attach_ps
+            # responsibility)
+            given_context = value.get_context()
+            try:
+                this_trunk['item'].set_params(value, force=False)
+            except ValueError:
+                raise ValueError(("ParameterSet '{}' at Body already exists. "
+                                 "Please use set_ps to override "
+                                 "it.").format(given_context))
+        
+        elif isinstance(this_trunk['item'], dict): #then this should be a sect.
+            section = twig.split('@')[0]
+            if value.get_value('label') not in [c.get_value('label') \
+                                               for c in self.sections[section]]:
+                self._add_to_section(section, value)
+                
+        else:
+            raise ValueError(("You can only attach ParameterSets to a Body or "
+                              "Section ('{}' refers to a "
+                              "{})").format(twig, this_trunk['kind']))
+        
+    def get_adjust(self, twig):
+        """
+        Retrieve whether a Parameter is marked to be adjusted
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: adjust
+        :rtype: bool
+        """
+        return self.get_parameter(twig).get_adjust()
+        
+    def set_adjust(self, twig, value=True):
+        """
+        Set whether a Parameter is marked to be adjusted
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: adjust
+        :type value: bool
+        """
+        par = self.get_parameter(twig)
+        
+        if not par.has_prior() and par.get_qualifier() not in ['l3', 'pblum']:
+            lims = par.get_limits()
+            par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
+        par.set_adjust(value)
+        
+    def set_adjust_all(self, twig, value):
+        """
+        Set whether all matching Parameters are marked to be adjusted
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: adjust
+        :type value: bool
+        """
+        pars = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for par in pars:
+            if not par.has_prior() and par.get_qualifier() not in ['l3','pblum']:
+                lims = par.get_limits()
+                par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
+            par.set_adjust(value)
+    
+    def get_prior(self, twig):
+        """
+        Retrieve the prior on a Parameter
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: prior
+        :rtype: ParameterSet
+        """
+        return self.get_parameter(twig).get_prior()
+        
+    def set_prior(self, twig, **dist_kwargs):
+        """
+        Set the prior on a Parameter
+        
+        :param twig: the search twig
+        :type twig: str
+        :param **kwargs: necessary parameters for distribution
+        :type **kwargs: varies
+        """
+        param = self.get_parameter(twig)
+        param.set_prior(**dist_kwargs)
+        
+    def set_prior_all(self, twig, **dist_kwags):
+        """
+        Set the prior on all matching Parameters
+        
+        :param twig: the search twig
+        :type twig: str
+        :param **kwargs: necessary parameters for distribution
+        :type **kwargs: varies
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for param in params:
+            param.set_prior(**dist_kwargs)
+        
+    @rebuild_trunk
+    def add_compute(self,ps=None,**kwargs):
+        """
+        Add a new compute ParameterSet
+        
+        @param ps: compute ParameterSet (or None)
+        @type ps:  None or ParameterSet
+        @param label: label of the compute options (will override label in ps)
+        @type label: str
+        """
+        if ps is None:
+            ps = parameters.ParameterSet(context='compute')
+        for k,v in kwargs.items():
+            ps.set_value(k,v)
+            
+        self._add_to_section('compute',ps)
+
+        self._attach_set_value_signals(ps)
+    
+    @rebuild_trunk
+    def remove_compute(self,label):
+        """
+        Remove a given compute ParameterSet
+        
+        @param label: name of compute ParameterSet
+        @type label: str
+        """
+        compute = self.get_compute(label)
+        self.sections['compute'].remove(compute)
+        
+    @rebuild_trunk
+    def add_fitting(self,ps=None,**kwargs):
+        """
+        Add a new fitting ParameterSet
+        
+        @param ps: fitting ParameterSet
+        @type ps:  None, or ParameterSet
+        @param label: name of the fitting options (will override label in ps)
+        @type label: str
+        """
+        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
+        if fitting is None:
+            fitting = parameters.ParameterSet(context=context)
+        for k,v in kwargs.items():
+            fitting.set_value(k,v)
+            
+        self._add_to_section('fitting',fitting)
+        self._attach_set_value_signals(fitting)
+            
+    def get_fitting(self,label=None):
+        """
+        Get a fitting ParameterSet by name
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: fitting ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label,"fitting")
+
+    @rebuild_trunk
+    def remove_fitting(self,label):
+        """
+        Remove a given fitting ParameterSet
+        
+        @param label: name of fitting ParameterSet
+        @type label: str
+        """
+        fitting = self.get_fitting(label)
+        self.sections['fitting'].remove(fitting)
+    
+    ## internal methods
+    
+    def _loop_through_container(self, container=None, label=None, ref=None,
+                                do_sectionlevel=True, do_pslevel=True):
+        """
+        Loop through containere.
+        
+        Loop through the current container to compile all items for the trunk
+        this will then be called recursively if it hits another
+        Container/PS/BodyBag
         """
         return_items = []
 
@@ -623,8 +1078,8 @@ class Container(object):
         @param use_search: whether to use substring search instead of match
         @type use_search: bool
         """
-        # can take kwargs for searching by any other key stored in the trunk dictionary
         
+        # can take kwargs for searching by any other key stored in the trunk dictionary        
         if twig is not None:
             trunk = self.trunk
             if use_search:
@@ -834,387 +1289,9 @@ class Container(object):
             self.sections[section] = []
         self.sections[section].append(ps)
     
-    def search(self, twig, **kwargs):
-        """
-        return a list of twigs matching a substring search
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: list of twigs
-        @rtype: list of strings
-        """
-        return self._search_twigs(twig, **kwargs)
-        
-    def twigs(self, twig=None, **kwargs):
-        """
-        return a list of matching twigs (with same method as used in
-        get_value, get_parameter, get_prior, etc)
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: list of twigs
-        @rtype: list of strings
-        """
-    
-        if twig is None:
-            trunk = self._filter_twigs_by_kwargs(**kwargs)
-            return [t['twig_full'] for t in trunk] 
-        return self._match_twigs(twig, **kwargs)
-    
     
         
-        
-    def get_ps(self, twig):
-        """
-        retrieve a ParameterSet
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: ParameterSet
-        @rtype: ParameterSet
-        """
-        return self._get_by_search(twig, kind='ParameterSet')
-        
-    def get_ps_dict(self, twig):
-        """
-        retrieve a dictionary of ParameterSets in a list
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: dictionary of ParameterSets
-        @rtype: dict
-        """
-        return self._get_by_search(twig, kind="OrderedDict")
 
-    def get_parameter(self, twig):
-        """
-        retrieve a Parameter
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: Parameter
-        @rtype: Parameter
-        """
-        return self._get_by_search(twig, kind='Parameter*')
-        
-    def info(self, twig):
-        """
-        retrieve info on a Parameter.
-        this is just a shortcut to str(get_parameter(twig))
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: info
-        @rtype: str
-        """
-        return str(self.get_parameter(twig))
-                
-    def get_value(self, twig):
-        """
-        retrieve the value of a Parameter
-        
-        @param twig: the search twig
-        @type twig: str
-        """
-        return self.get_parameter(twig).get_value()
-        
-    def set_value(self, twig, value, unit=None):
-        """
-        Set the value of a Parameter
-        
-        @param twig: the search twig
-        @type twig: str
-        @param value: the value
-        @type value: depends on Parameter
-        @param unit: unit of value (if not default)
-        @type unit: str or None
-        """
-        param = self.get_parameter(twig)
-        
-        # special care needs to be taken when setting labels and refs
-        qualifier = param.get_qualifier()
-        
-        # Setting a label means not only changing that particular Parameter,
-        # but also the property of the Body
-        if qualifier == 'label':
-            this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
-            component = self._get_by_search(this_trunk['label'])
-            component.set_label(value)
-            self._build_trunk()
-        
-        # Changing a ref needs to change all occurrences
-        elif qualifier == 'ref':
-            # get the system
-            from_ = param.get_value()
-            system = self.get_system()
-            system.change_ref(from_, value)
-            self._build_trunk()
-            return None
-        
-        if unit is None:
-            param.set_value(value)
-        else:
-            param.set_value(value, unit)
-            
-    def set_value_all(self, twig, value, unit=None):
-        """
-        set the value of all matching Parameters
-        
-        @param twig: the search twig
-        @type twig: str
-        @param value: the value
-        @type value: depends on Parameter
-        @param unit: unit of value (if not default)
-        @type unit: str or None
-        """
-        params = self._get_by_search(twig, kind='Parameter', all=True)
-        
-        for param in params:
-            if unit is None:
-                param.set_value(value)
-            else:
-                param.set_value(value, unit)
-    
-    def get_value_all(self, twig):
-        """
-        Return the values of all matching Parameters
-        
-        @param twig: the search twig
-        @type twig: str
-        """
-        params = self._get_by_search(twig, kind='Parameter', all=True)
-        
-        return [param.get_value() for param in params]
-        
-    
-    @rebuild_trunk
-    def set_ps(self, twig, value):
-        """
-        Replace an existing ParameterSet.
-        """
-        # get all the info we can get
-        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
-        
-        # Make sure it is a ParameterSet
-        if this_trunk['kind'] != 'ParameterSet':
-           raise ValueError("Twig '{}' does not refer to a ParameterSet (it is a {})".format(twig, this_trunk['kind']))
-        
-        # actually, we're mainly interested in the path. And in that path, we
-        # are only interested in the last Body
-        bodies = [self.get_system()] + [thing for thing in this_trunk['path'] if isinstance(thing, universe.Body)]
-        
-        if not bodies:
-            raise ValueError('Cannot assign ParameterSet to {} (did not find any Body)'.format(twig))
-        
-        # last check: we need to make sure that whatever we're setting already
-        # exists. We cannot assign a new nonexistent PS to the Body (well, we
-        # could, but we don't want to -- that's attach_ps responsibility)
-        current_context = this_trunk['item'].get_context()
-        given_context = value.get_context()
-        if current_context == given_context:
-            bodies[-1].set_params(value)
-        else:
-            raise ValueError("Twig '{}' refers to a ParameterSet of context '{}', but '{}' is given".format(twig, current_context, given_context))
-        
-    @rebuild_trunk
-    def attach_ps(self, twig, value):
-        """
-        Add a new ParameterSet.
-        """
-        # Get all the info we can get
-        this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
-        
-        if isinstance(this_trunk['item'], universe.Body):
-            # last check: we need to make sure that whatever we're setting already
-            # exists. We cannot assign a new nonexistent PS to the Body (well, we
-            # could, but we don't want to -- that's attach_ps responsibility)
-            given_context = value.get_context()
-            try:
-                this_trunk['item'].set_params(value, force=False)
-            except ValueError:
-                raise ValueError("ParameterSet '{}' at Body already exists. Please use set_ps to override it.".format(given_context))
-        
-        elif isinstance(this_trunk['item'], dict): #then this should be a section
-            section = twig.split('@')[0]
-            if value.get_value('label') not in [c.get_value('label') for c in self.sections[section]]:
-                self._add_to_section(section, value)
-                
-        else:
-            raise ValueError("You can only attach ParameterSets to a Body or Section ('{}' refers to a {})".format(twig, this_trunk['kind']))
-        
-    def get_adjust(self, twig):
-        """
-        retrieve whether a Parameter is marked to be adjusted
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: adjust
-        @rtype: bool
-        """
-        return self.get_parameter(twig).get_adjust()
-        
-    def set_adjust(self, twig, value=True):
-        """
-        set whether a Parameter is marked to be adjusted
-        
-        @param twig: the search twig
-        @type twig: str
-        @param value: adjust
-        @type value: bool
-        """
-        param = self.get_parameter(twig)
-        
-        if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
-            lims = param.get_limits()
-            param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
-        param.set_adjust(value)
-        
-    def set_adjust_all(self, twig, value):
-        """
-        set whether all matching Parameters are marked to be adjusted
-        
-        @param twig: the search twig
-        @type twig: str
-        @param value: adjust
-        @type value: bool
-        """
-        params = self._get_by_search(twig, kind='Parameter', all=True)
-        
-        for param in params:
-            if not param.has_prior() and param.get_qualifier() not in ['l3','pblum']:
-                lims = param.get_limits()
-                param.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
-            param.set_adjust(value)
-    
-    def get_prior(self, twig):
-        """
-        retrieve the prior on a Parameter
-        
-        @param twig: the search twig
-        @type twig: str
-        @return: prior
-        @rtype: ParameterSet
-        """
-        return self.get_parameter(twig).get_prior()
-        
-    def set_prior(self, twig, **dist_kwargs):
-        """
-        set the prior on a Parameter
-        
-        @param twig: the search twig
-        @type twig: str
-        @param **kwargs: necessary parameters for distribution
-        @type **kwargs: varies
-        """
-        param = self.get_parameter(twig)
-        param.set_prior(**dist_kwargs)
-        
-    def set_prior_all(self, twig, **dist_kwags):
-        """
-        set the prior on all matching Parameters
-        
-        @param twig: the search twig
-        @type twig: str
-        @param **kwargs: necessary parameters for distribution
-        @type **kwargs: varies
-        """
-        params = self._get_by_search(twig, kind='Parameter', all=True)
-        
-        for param in params:
-            param.set_prior(**dist_kwargs)
-        
-    @rebuild_trunk
-    def add_compute(self,ps=None,**kwargs):
-        """
-        Add a new compute ParameterSet
-        
-        @param ps: compute ParameterSet (or None)
-        @type ps:  None or ParameterSet
-        @param label: label of the compute options (will override label in ps)
-        @type label: str
-        """
-        if ps is None:
-            ps = parameters.ParameterSet(context='compute')
-        for k,v in kwargs.items():
-            ps.set_value(k,v)
-            
-        self._add_to_section('compute',ps)
-
-        self._attach_set_value_signals(ps)
-            
-    def get_compute(self,label=None,create_default=False):
-        """
-        Get a compute ParameterSet by name
-        
-        @param label: name of ParameterSet
-        @type label: str
-        @param create_default: whether to create and attach defaults if label is None
-        @type create_default: bool
-        @return: compute ParameterSet
-        @rtype: ParameterSet
-        """
-        if label is None and create_default:
-            # then see if the compute options 'default' is available
-            if 'default' not in self._get_dict_of_section('compute').keys():
-                # then create a new compute options from the backend
-                # and attach it to the bundle with label 'default
-                self.add_compute(label='default')
-            label = 'default'
-
-        return self._get_by_section(label,"compute")
-    
-    @rebuild_trunk
-    def remove_compute(self,label):
-        """
-        Remove a given compute ParameterSet
-        
-        @param label: name of compute ParameterSet
-        @type label: str
-        """
-        compute = self.get_compute(label)
-        self.sections['compute'].remove(compute)
-        
-    @rebuild_trunk
-    def add_fitting(self,ps=None,**kwargs):
-        """
-        Add a new fitting ParameterSet
-        
-        @param ps: fitting ParameterSet
-        @type ps:  None, or ParameterSet
-        @param label: name of the fitting options (will override label in ps)
-        @type label: str
-        """
-        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
-        if fitting is None:
-            fitting = parameters.ParameterSet(context=context)
-        for k,v in kwargs.items():
-            fitting.set_value(k,v)
-            
-        self._add_to_section('fitting',fitting)
-        self._attach_set_value_signals(fitting)
-            
-    def get_fitting(self,label=None):
-        """
-        Get a fitting ParameterSet by name
-        
-        @param label: name of ParameterSet
-        @type label: str
-        @return: fitting ParameterSet
-        @rtype: ParameterSet
-        """
-        return self._get_by_section(label,"fitting")
-
-    @rebuild_trunk
-    def remove_fitting(self,label):
-        """
-        Remove a given fitting ParameterSet
-        
-        @param label: name of fitting ParameterSet
-        @type label: str
-        """
-        fitting = self.get_fitting(label)
-        self.sections['fitting'].remove(fitting)
-        
 def _dumps_system_structure(current_item):
     """
     dumps the system hierarchy into a dictionary that is json compatible
