@@ -75,7 +75,7 @@ class Container(object):
         :param default: return value if twig is not in Bundle
         :type default: any Python object (defaults to None)
         :return: matching item
-        :rtype: varies
+        :rtype: undefined
         :raises KeyError: when twig is not present
         """
         # Set some overridable defaults
@@ -114,7 +114,7 @@ class Container(object):
         """
         Set a value in the Bundle.
         
-        Value can be anything.
+        Value can be anything the twig's target can handle.
         
         :param twig: the search twig
         :type twig: str
