@@ -772,12 +772,12 @@ class Container(object):
                             ris = self._get_info_from_item(isubtype, path=path, section=section_name)
                             for ri in ris:
                                 if item[-3:]=='syn':
-                                    #~ # then this is the true syn, which we need to keep available
-                                    #~ # for saving and loading, but will hide from the user in twig access
+                                    # then this is the true syn, which we need to keep available
+                                    # for saving and loading, but will hide from the user in twig access
                                     ri['hidden']=True
                                 
                                 return_items += [ri]
-                    
+                                
                         # we want to see if there any syns associated with the obs
                         if itype[-3:] == 'obs':
                             bodies = [self.get_system()] + [thing for thing in path if isinstance(thing, universe.Body)]
@@ -787,7 +787,6 @@ class Container(object):
                                 syn = syn.asarray()
                                 ris = self._get_info_from_item(syn, path=path, section=section_name)
                                 return_items += ris
-                                
                                 
                                 subpath = list(path[:-1]) + [syn['ref']]
                                 subpath[-3] = syn.get_context()
@@ -1155,15 +1154,18 @@ class Container(object):
         @type use_search: bool
         """
         
-        # can take kwargs for searching by any other key stored in the trunk dictionary        
+        # can take kwargs for searching by any other key stored in the trunk dictionary       
+        kwargs.setdefault('trunk', None)
+        kwargs.setdefault('hidden', False)
+        trunk = kwargs.pop('trunk')
+        trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
+
         if twig is not None:
-            trunk = self.trunk
             if use_search:
                 matched_twigs = self._search_twigs(twig, **kwargs)
             else:
                 matched_twigs = self._match_twigs(twig, **kwargs)
         else:
-            trunk = self._filter_twigs_by_kwargs(**kwargs)
             matched_twigs = [ti['twig_full'] for ti in trunk]
         
         if len(matched_twigs) == 0:
