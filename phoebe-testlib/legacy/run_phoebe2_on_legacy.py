@@ -37,7 +37,7 @@ def do_test(filename):
     phb.setpar("phoebe_atm1_switch", False)
     phb.setpar("phoebe_atm2_switch", False)
     #phb.setpar("phoebe_usecla_switch", True)
-
+    
     lc_ph1 = np.array(phb.lc(tuple(list(ph)), 0))
     print("PHOEBE 1: HLA = %f, CLA = %f" % (phb.getpar("phoebe_plum1"), phb.getpar("phoebe_plum2")))
     
@@ -70,7 +70,9 @@ def do_test(filename):
     # we stick to Phoebe2 default atmosphere/passbands
     twigs_atm = mybundle.search('atm')
     for atm in twigs_atm:
-        if mybundle[atm] == 'blackbody':
+        if atm.split('@')[0] == 'value':
+            continue
+        if mybundle[atm] in ['blackbody','kurucz']:
             mybundle[atm] = 'blackbody_uniform_none_teff.fits'
             passband_twig = 'passband@{}'.format("@".join(atm.split('@')[1:]))
             if passband_twig in mybundle and mybundle[passband_twig] == 'JOHNSON.V':
@@ -95,6 +97,27 @@ def do_test(filename):
     print("Eq. sphere bolometric luminosity (secondary) = {}".format(L2))
     print("Numerical passband luminosity (primary) = {} Lsol".format(phb2.convert('erg/s', 'Lsol',mybundle['primary'].luminosity(ref='LC'))))
     print("Numerical passband luminosity (secondary) = {} Lsol".format(phb2.convert('erg/s', 'Lsol',mybundle['secondary'].luminosity(ref='LC'))))
+    
+    plt.figure()
+    system = mybundle.get_system()
+    r0 = system[0].get_coords()[0]
+    r1 = system[1].get_coords()[0]
+    plt.subplot(221)
+    plt.title('fluxes')
+    plt.plot(np.sort(system[0].mesh['ld_LC'][:,-1]),'ko')
+    plt.plot(np.sort(system[1].mesh['ld_LC'][:,-1]),'ro',mec='r')
+    plt.subplot(222)
+    plt.title('radius')
+    plt.plot(np.sort(r0),'ko')
+    plt.plot(np.sort(r1),'ro',mec='r')
+    plt.subplot(223)
+    plt.title('total')
+    plt.plot(np.sort(r0**2*system[0].mesh['ld_LC'][:,-1]),'ko')
+    plt.plot(np.sort(r1**2*system[1].mesh['ld_LC'][:,-1]),'ro',mec='r')
+    plt.subplot(224)
+    plt.title('temp')
+    plt.plot(np.sort(system[0].mesh['teff']),'ko')
+    plt.plot(np.sort(system[1].mesh['teff']),'ro',mec='r')
     
     # Passband luminosities:
     plum1, plum2 = phb.getpar('phoebe_plum1'), phb.getpar('phoebe_plum2')
