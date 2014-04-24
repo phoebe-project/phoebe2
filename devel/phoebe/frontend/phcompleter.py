@@ -1,6 +1,9 @@
 import __main__
 
 class Completer:
+    """
+    [FUTURE]
+    """
     def __init__(self, namespace = None):
         """Create a new completer for the command line.
 

@@ -14,6 +14,8 @@ class Settings(Container):
     """
     Class representing settings for phoebe on a particular machine.
     
+    [FUTURE]
+    
     These settings are loaded each time a bundle is loaded or initialized.
     Anything stored here is machine/user dependent so that you can load
     a bundle sent to you by someone else and still have access to your
