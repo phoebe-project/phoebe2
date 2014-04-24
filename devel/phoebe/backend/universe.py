@@ -4515,7 +4515,17 @@ class PhysicalBody(Body):
         
         return np.average(self.mesh['center'][:,2],weights=self.mesh['size'])
     
-    
+    def get_orbit(self):
+        """
+        Get the orbit for this Body.
+        
+        Implemented by "get_orbits"
+        """
+        if 'orbit' in self.params:
+            return self.params['orbit']
+        else:
+            return None
+        
     def add_pbdeps(self, pbdep, take_defaults=None):
         """
         Add a list of dependable ParameterSets to the Body.
@@ -4783,7 +4793,6 @@ class PhysicalBody(Body):
         """
         Update the mesh for a subset of triangles or the whole mesh
         """
-
         if subset is None:
             subset = np.ones(len(self.mesh),bool)
         #-- cut out the part that needs to be updated
@@ -5732,13 +5741,7 @@ class BodyBag(Body):
             mesh['velo___bol_'] = mesh['velo___bol_'] + velo
             self.mesh = mesh
     
-    def get_orbit(self, times):
-        """
-        Get the orbit for all Bodies.
-        
-        Implemented by "get_orbits"
-        """
-        raise NotImplementedError
+
     
     def get_mass(self):
         """
