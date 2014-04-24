@@ -187,62 +187,97 @@ class Bundle(Container):
     """
     Class representing a collection of systems and stuff related to it.
     
+    **Initialization**
+    
     You can initiate a bundle in different ways:
     
-        1. Via a PHOEBE 2.0 file in JSON format::
+        1. Using the default binary parameters:
         
             mybundle = Bundle()
-            mybundle.save('newbundle.phoebe')
-            mybundle = Bundle('newbundle.phoebe')
+            
+        2. Via a PHOEBE 2.0 file in JSON format::
+        
+            mybundle = Bundle('newbundle.json')
     
-        2. Via a Body or BodyBag::
+        3. Via a Phoebe Legacy ASCII parameter file::
+        
+            mybundle = Bundle('legacy.phoebe')
+    
+        4. Via a Body or BodyBag::
         
             mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
             mybundle = Bundle(mysystem)
         
-        3. Via the library::
+        5. Via the predefined systems in the library::
         
-            mybundle = Bundle('V380_Cyg')
-            
-        4. Via a pickled system::
+            mybundle = Bundle('V380_Cyg')            
         
-            mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
-            mysystem.save('mysystem.pck')
-            mybundle = Bundle('mysystem.pck')
-        
-        5. Via a pickled Bundle::
-        
-            mybundle = Bundle('V380_Cyg')
-            mybundle.save('V380_Cyg.bpck')
-            mybundle = Bundle('V380_Cyg.bpck')
-        
-        6. Via a Phoebe Legacy ASCII parameter file::
-        
-            mybundle = Bundle('legacy.phoebe')
-    
     For more details, see :py:func:`set_system`.
+    
+    **Interface**
     
     The interaction with a Bundle is much alike interaction with a Python
     dictionary. The following functionality is implemented and behaves as
     expected::
             
-            period = mybundle['period'] # returns the value of the period if it exists, raises error if 'period' does not exist
-            period = mybundle.get('period') # returns the value of the period if it exists, else returns None
-            period = mybundle.get('period', default_value) # returns the value of the period if it exists, else returns default_value (whatever it is)
-            keys = mybundle.keys() # returns a list of available keys
-            values = mybundle.values() # returns a list of values
+            # return the value of the period if it exists, raises error if 'period' does not exist
+            period = mybundle['period']
             
-    
-    **Interface**
+            # return the value of the period if it exists, else returns None
+            period = mybundle.get('period')
+            
+            # return the value of the period if it exists, else returns default_value (whatever it is)
+            period = mybundle.get('period', default_value)
+            
+            # returns a list of available keys
+            keys = mybundle.keys()
+            
+            # returns a list of values
+            values = mybundle.values()
+            
+            # iterate over the keys in the Bundle
+            for key in mybundle:
+                print(key, mybundle[key])
+            
     
     .. autosummary::
     
-        phoebe.frontend.common.Container.set_value
-        phoebe.frontend.common.Container.get_value
-        load_data
-        create_data
-        plot_obs
-        plot_syn
+        Bundle.get_value
+        Bundle.get_value_all
+        Bundle.get_ps
+        Bundle.get_parameter
+        Bundle.get_adjust
+        Bundle.get_prior
+        Bundle.get_compute
+        Bundle.get_fitting
+        Bundle.set_value
+        Bundle.set_value_all
+        Bundle.set_ps
+        Bundle.set_adjust
+        Bundle.set_adjust_all
+        Bundle.set_prior
+        Bundle.set_prior_all
+        Bundle.attach_ps
+        
+        Bundle.add_compute
+        Bundle.add_fitting
+        Bundle.remove_compute
+        Bundle.remove_fitting
+        
+        Bundle.search        
+        
+        Bundle.load_data
+        Bundle.create_data
+        
+        Bundle.plot_obs
+        Bundle.plot_syn
+    
+    
+    **Printing information**
+    
+    .. autosummary::
+    
+        Bundle.info
         
     **What is the Bundle?**
     
@@ -252,61 +287,14 @@ class Bundle(Container):
     physics; that is all done at the Body level.
     
     **Structure of the Bundle**
-    
-    
+        
     A Bundle contains:
     
         - a Body (or BodyBag), called :envvar:`system` in this context.
         - a list of compute options which can be stored and used to compute observables.
         - a list of figure axes options which can be used to recreate plots with the same options.
         
-    **Outline of methods**
-    
-    **Input/output**
-    
-    .. autosummary::
         
-        to_string
-        load
-        save
-    
-    **Getting system parameters**
-    
-    .. autosummary::
-    
-        phoebe.frontend.common.Container.get_ps
-        phoebe.frontend.common.Container.get_parameter
-        phoebe.frontend.common.Container.get_value
-    
-    **Attaching data**
-    
-    .. autosummary::
-    
-        load_data
-        create_data
-    
-    **Setting and getting computational parameters**
-    
-    .. autosummary::
-    
-        phoebe.frontend.common.Container.get_compute
-        phoebe.frontend.common.Container.add_compute
-        phoebe.frontend.common.Container.remove_compute
-        
-    **Getting results**
-    
-    .. autosummary::
-    
-        get_obs
-        get_syn
-        
-    **Plotting results**
-        
-    .. autosummary::
-    
-        plot_obs
-        plot_syn
-    
     """        
     def __init__(self, system=None, remove_dataref=False):
         """
