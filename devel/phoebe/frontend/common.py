@@ -259,8 +259,6 @@ class Container(object):
         """
         Return a list of twigs matching a substring search
         
-        [FUTURE]
-        
         :param twig: the search twig
         :type twig: str
         :return: list of twigs
@@ -272,8 +270,6 @@ class Container(object):
         """
         return a list of matching twigs (with same method as used in
         get_value, get_parameter, get_prior, etc)
-        
-        [FUTURE]
         
         @param twig: the search twig
         @type twig: str
@@ -302,8 +298,6 @@ class Container(object):
         """
         Retrieve a dictionary of ParameterSets in a list
         
-        [FUTURE]
-        
         :param twig: the search twig
         :type twig: str
         :return: dictionary of ParameterSets
@@ -314,8 +308,6 @@ class Container(object):
     def get_parameter(self, twig):
         """
         Retrieve a Parameter
-        
-        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -330,8 +322,6 @@ class Container(object):
         Retrieve info on a Parameter.
         
         This is just a shortcut to str(get_parameter(twig))
-        
-        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -354,8 +344,6 @@ class Container(object):
     def set_value(self, twig, value, unit=None):
         """
         Set the value of a Parameter
-        
-        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -396,8 +384,6 @@ class Container(object):
         """
         Set the value of all matching Parameters
         
-        [FUTURE]
-        
         :param twig: the search twig
         :type twig: str
         :param value: the value
@@ -417,8 +403,6 @@ class Container(object):
     def get_value_all(self, twig):
         """
         Return the values of all matching Parameters
-        
-        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -603,8 +587,6 @@ class Container(object):
         """
         Get a compute ParameterSet by name
         
-        [FUTURE]
-        
         @param label: name of ParameterSet
         @type label: str
         @param create_default: whether to create and attach defaults if label is None
@@ -627,8 +609,6 @@ class Container(object):
         """
         Add a new compute ParameterSet
         
-        [FUTURE]
-        
         @param ps: compute ParameterSet (or None)
         @type ps:  None or ParameterSet
         @param label: label of the compute options (will override label in ps)
@@ -647,8 +627,6 @@ class Container(object):
     def remove_compute(self,label):
         """
         Remove a given compute ParameterSet
-        
-        [FUTURE]
         
         @param label: name of compute ParameterSet
         @type label: str
@@ -1160,7 +1138,6 @@ class Container(object):
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
 
         [FUTURE]
-
         
         @param twig: the twig/twiglet to use when searching
         @type twig: str
@@ -1396,9 +1373,6 @@ class Container(object):
             self.sections[section] = []
         self.sections[section].append(ps)
     
-    
-        
-
 def _dumps_system_structure(current_item):
     """
     dumps the system hierarchy into a dictionary that is json compatible
@@ -1423,20 +1397,9 @@ def _dumps_system_structure(current_item):
         struc_child = _dumps_system_structure(child)
         struc_this_level['children'].append(struc_child)
 
-    #~ struc_this_level['params'] = []
-    #~ for ps_cat,ps_set in current_item.params.items():
-        #~ if ps_cat not in ['orbit','component','mesh']:
-            #~ if not isinstance(ps_set, OrderedDict):
-                #~ # then we're already at the PS-level, so let's fake a dict
-                #~ ps_set = {0 :ps_set}
-            #~ for ps_name,ps in ps_set.items():
-                #~ struc_this_level['params'].append({})
-                
-                
-
     return struc_this_level
 
-def _loads_system_structure(struc, c1label=None, c2label=None, top_level=True):
+def _loads_system_structure(struc, c1label=None, c2label=None):
     """
     loads the system hierarchy from a json compatible dictionary
     
@@ -1446,19 +1409,13 @@ def _loads_system_structure(struc, c1label=None, c2label=None, top_level=True):
     # if we're dealing with a Bag of some sort, then we need to create
     # the item while also building and attaching its children
     if 'children' in struc.keys(): # BodyBag, etc
-        list_of_bodies = [_loads_system_structure(child_struc, c1label=struc['children'][0]['label'], c2label=struc['children'][1]['label'], top_level=False) for child_struc in struc['children']]
+        list_of_bodies = [_loads_system_structure(child_struc, c1label=struc['children'][0]['label'], c2label=struc['children'][1]['label']) for child_struc in struc['children']]
         this_item = getattr(universe, struc['kind'])(list_of_bodies, label=struc['label'])
     
     # if we're a component, then we can create the item and attach orbits from
     # the passed labels for c1label and c2label
     else: # BinaryRocheStar, etc
         this_item = getattr(universe, struc['kind'])(parameters.ParameterSet(context='component', label=struc['label']), orbit=parameters.ParameterSet(context='orbit', label=struc['label'], c1label=c1label, c2label=c2label))
-
-    # top_level should only be True when this function is initially called
-    # (any recursive calls will set it to False).  For the top-level item,
-    # we need to create and attach a 'position' PS
-    #~ if top_level:
-        #~ this_item.params['position'] = parameters.ParameterSet(context='position')
 
     # and finally return the item, which should be the system for any
     # non-recursive calls
