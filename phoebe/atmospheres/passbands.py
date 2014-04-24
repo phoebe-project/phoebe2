@@ -268,7 +268,7 @@ def get_response(passband,full_output=False):
             raise IOError('{0} exists in multiple versions: {1}'.format(passband,avail)) 
     # Else we don't know what to do
     else:
-        raise IOError('{0} does not exist {1}'.format(passband,custom_filters.keys())) 
+        raise IOError('{0} does not exist {1}'.format(passband,custom_passbands.keys())) 
 
     
     # make sure the contents are sorted according to wavelength

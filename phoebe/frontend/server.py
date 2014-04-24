@@ -8,6 +8,9 @@ from phoebe.parameters import parameters
 from phoebe.frontend.common import Container, rebuild_trunk
 
 class Server(Container):
+    """
+    [FUTURE]
+    """
     def __init__(self,label=None,mpi=None,**kwargs):
         """
         @param mpi: the mpi options to use for this server

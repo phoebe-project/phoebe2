@@ -1,5 +1,6 @@
 """
 Frontend plotting functionality
+
 """
 from collections import OrderedDict
 from phoebe.parameters import parameters
@@ -12,6 +13,8 @@ from phoebe.frontend.common import Container, rebuild_trunk
 class Axes(Container):
     """
     Class representing a collection of plot commands for a single axes
+    
+    [FUTURE]
     """
     @rebuild_trunk
     def __init__(self,**kwargs):

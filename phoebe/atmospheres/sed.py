@@ -323,9 +323,9 @@ def synthetic_flux(wave, flux, passbands, units=None):
         if units is None or ((units is not None) and (units[i].upper()=='FLAMBDA')):
             if passband=='OPEN.BOL':
                 energys[i] = np.trapz(flux_,x=wave_)
-            elif info['DETTYPE']=='ENERGY':
+            elif info['DETTYPE'].strip().upper() == 'ENERGY':
                 energys[i] = np.trapz(flux_*transr,x=wave_)/np.trapz(transr,x=wave_)
-            elif info['DETTYPE']=='FLUX':
+            elif info['DETTYPE'].strip().upper() == 'FLUX':
                 # trapezoidal
                 #import matplotlib.pyplot as plt
                 #plt.figure()
@@ -336,6 +336,8 @@ def synthetic_flux(wave, flux, passbands, units=None):
                 energys[i] = np.trapz(flux_*transr*wave_,x=wave_)/np.trapz(transr*wave_,x=wave_)
                 # box
                 #energys[i] = sum((flux_*transr*wave_)[1:]*np.diff(wave_)) / sum((transr*wave_)[1:]*np.diff(wave_))
+            else:
+                raise ValueError
         
         #-- we work in FNU
         elif units[i].upper()=='FNU':

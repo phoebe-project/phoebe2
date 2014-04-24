@@ -22,16 +22,6 @@ Basic class:
 
     Bundle
     
-Helper functions and classes:
-
-.. autosummary::
-
-    Version
-    Feedback
-    run_on_server
-    load
-    guess_filetype
-    
 """
 import pickle
 import logging
@@ -69,6 +59,8 @@ def run_on_server(fctn):
     """
     Parse usersettings to determine whether to run a function locally
     or submit it to a server
+    
+    [FUTURE]
     """
     @functools.wraps(fctn)
     def parse(bundle,*args,**kwargs):
@@ -163,6 +155,9 @@ def run_on_server(fctn):
         
 
 def walk(mybundle):
+    """
+    [FUTURE]
+    """
     # do we still use this???
     
     for val,path in utils.traverse_memory(mybundle,
@@ -191,26 +186,26 @@ class Bundle(Container):
     
     You can initiate a bundle in different ways:
     
-        1. Using the default binary parameters:
-        
-            mybundle = Bundle()
-            
-        2. Via a PHOEBE 2.0 file in JSON format::
-        
-            mybundle = Bundle('newbundle.json')
+      1. Using the default binary parameters:
+      
+          mybundle = Bundle()
+          
+      2. Via a PHOEBE 2.0 file in JSON format::
+      
+          mybundle = Bundle('newbundle.json')
     
-        3. Via a Phoebe Legacy ASCII parameter file::
-        
-            mybundle = Bundle('legacy.phoebe')
+      3. Via a Phoebe Legacy ASCII parameter file::
+      
+          mybundle = Bundle('legacy.phoebe')
     
-        4. Via a Body or BodyBag::
-        
-            mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
-            mybundle = Bundle(mysystem)
-        
-        5. Via the predefined systems in the library::
-        
-            mybundle = Bundle('V380_Cyg')            
+      4. Via a Body or BodyBag::
+      
+          mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
+          mybundle = Bundle(mysystem)
+      
+      5. Via the predefined systems in the library::
+      
+          mybundle = Bundle('V380_Cyg')            
         
     For more details, see :py:func:`set_system`.
     
@@ -372,7 +367,9 @@ class Bundle(Container):
         readline.parse_and_bind("tab: complete")
 
     def _loop_through_container(self, return_type='twigs'):
-        
+        """
+        [FUTURE]
+        """
         # we need to override the Container._loop_through_container to 
         # also search through usersettings and copy any items that do 
         # not exist here yet
@@ -420,7 +417,9 @@ class Bundle(Container):
         return self.to_string()
         
     def to_string(self):
-        
+        """
+        [FUTURE]
+        """
         # Make sure to not print out all array variables
         old_threshold = np.get_printoptions()['threshold']
         np.set_printoptions(threshold=8)
@@ -454,6 +453,8 @@ class Bundle(Container):
         """
         Set a bundle-level setting
         
+        [FUTURE]
+        
         @param key: the name of the setting
         @type key: string
         @param value: the value of the setting
@@ -464,6 +465,8 @@ class Bundle(Container):
     def get_setting(self,key):
         """
         Get the value for a bundle-level setting by name
+        
+        [FUTURE]
         
         @param key: the name of the setting
         @type key: string
@@ -476,6 +479,8 @@ class Bundle(Container):
         
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or this function is called.
+        
+        [FUTURE]
         
         @param basedir: location of cfg files (or none to load from default location)
         @type basedir: string
@@ -492,6 +497,8 @@ class Bundle(Container):
         """
         Return the user settings class
         
+        [FUTURE]
+        
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or set_usersettings is called.
         """
@@ -500,6 +507,8 @@ class Bundle(Container):
     def get_server(self,label=None):
         """
         Return a server by name
+        
+        [FUTURE]
         
         @param servername: name of the server
         @type servername: string
@@ -512,6 +521,8 @@ class Bundle(Container):
     def set_system(self, system=None, remove_dataref=False):
         """
         Change or set the system.
+        
+        [FUTURE]
         
         Possibilities:
         
@@ -608,6 +619,8 @@ class Bundle(Container):
         """
         Return the system.
         
+        [FUTURE]
+        
         @return: the attached system
         @rtype: Body or BodyBag
         """
@@ -619,6 +632,8 @@ class Bundle(Container):
     def summary(self, objref=None):
         """
         Make a summary of the system, or any object in the system
+        
+        [FUTURE]
         """
         bund_str = ""
         computes = self._get_dict_of_section('compute')
@@ -637,6 +652,8 @@ class Bundle(Container):
     def tree(self, objref=None):
         """
         Make a summary of the system
+        
+        [FUTURE]
         """
         return self.to_string()
         #return self.get_object(objref).list(summary='full')
@@ -646,6 +663,7 @@ class Bundle(Container):
         List with indices all the ParameterSets that are available.
         
         Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.universe.Body.list>`.
+        [FUTURE]
         """
         return self.get_system().list(summary,*args)
         
@@ -653,6 +671,7 @@ class Bundle(Container):
         """
         Clear all synthetic datasets
         Simply a shortcut to bundle.get_system().clear_synthetic()
+        [FUTURE]
         """
         return self.get_system().clear_synthetic()
         
@@ -660,6 +679,8 @@ class Bundle(Container):
         """
         Set the time of a system, taking compute options into account.
                 
+        [FUTURE]
+        
         @param time: time
         @type time: float
         """
@@ -698,7 +719,9 @@ class Bundle(Container):
         If any parameters in the system have changed since the latest
         run_compute this will return False.
         If not, this will return the label of the latest compute options
-
+        
+        [FUTURE]
+        
         @return: uptodate
         @rtype: bool or str
         """
@@ -710,6 +733,8 @@ class Bundle(Container):
     def get_logp(self, dataset=None):
         """
         Retrieve the log probability of a collection of (or all) datasets.
+        
+        [FUTURE]
         """
         
         # Q <pieterdegroote>: should we check first for system.uptodate?
@@ -742,6 +767,9 @@ class Bundle(Container):
     #}
     #{ Objects
     def get_object(self, objref=None):
+        """
+        [FUTURE]
+        """
         # handle objref if twig was given instead
         objref = objref.split('@')[0] if objref is not None else None
         # return the Body/BodyBag from the system hierarchy
@@ -759,6 +787,9 @@ class Bundle(Container):
             
         
     def get_children(self, objref=None):
+        """
+        [FUTURE]
+        """
         # handle objref if twig was given instead
         objref = objref.split('@')[0] if objref is not None else None
         # return list of children for self.get_object(objref)
@@ -770,12 +801,17 @@ class Bundle(Container):
             return []
         
     def get_parent(self, objref):
+        """
+        [FUTURE]
+        """
         # return the parent of self.get_object(objref)
         return self.get_object(objref).get_parent()
         
     def get_orbitps(self, objref=None):
         """
         retrieve the orbit ParameterSet that belongs to a given object
+        
+        [FUTURE]
         
         @param objref: name of the object the mesh is attached to
         @type objref: str or None
@@ -792,6 +828,8 @@ class Bundle(Container):
     def get_meshps(self, objref=None):
         """
         retrieve the mesh ParameterSet that belongs to a given object
+        
+        [FUTURE]
         
         @param objref: name of the object the mesh is attached to
         @type objref: str or None
@@ -825,6 +863,8 @@ class Bundle(Container):
         main body parameterSet (e.g. atm, ld_coeffs...) but not in the
         ``skip_defaults_from_body`` list, will have the value taken from the main
         body. This, way, defaults from the body can be easily transferred.
+        
+        [FUTURE]
         """
         
         for objectlabel in output.keys():      
@@ -896,6 +936,8 @@ class Bundle(Container):
         
         Special case here is "sed", which parses a list of snapshot multicolour
         photometry to different lcs. The will be grouped by ``filename``.
+        
+        [FUTURE]
         
         @param category: category (lc, rv, sp, sed, etv)
         @type category: str
@@ -1050,6 +1092,8 @@ class Bundle(Container):
         - :py:func:`Bundle.run_compute`
         - :py:func:`Bundle.plot_syn`
         
+        [FUTURE]
+        
         @param category: 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
         @type category: str
         @param objref: component for each column in file
@@ -1158,6 +1202,7 @@ class Bundle(Container):
         """
         Get synthetic
         
+        [FUTURE]
         """
         dss = OrderedDict()
         system = self.get_system()
@@ -1191,12 +1236,16 @@ class Bundle(Container):
                     
 
     def get_dep(self, objref=None, dataref=None, return_type='single'):
+        """
+        [FUTURE]
+        """
         pass
         
     def get_obs(self, objref=None, dataref=None, all=False, ignore_errors=False):
         """
         Get observations
         
+        [FUTURE]
         """
         dss = OrderedDict()
         system = self.get_system()
@@ -1222,6 +1271,8 @@ class Bundle(Container):
         Enable observations from being included in the fitting procedure.
         
         If you set :envvar:`dataref=None`, then all datasets will be disabled.
+        
+        [FUTURE]
         """
         system = self.get_system()
         
@@ -1248,6 +1299,8 @@ class Bundle(Container):
         Disable observations from being included in the fitting procedure.
         
         If you set :envvar:`dataref=None`, then all datasets will be disabled.
+        
+        [FUTURE]
         """
         system = self.get_system()
         
@@ -1272,6 +1325,8 @@ class Bundle(Container):
         """
         reload a dataset from its source file
         
+        [FUTURE]
+        
         @param dataref: ref (name) of the dataset (or None for all)
         @type dataref: str or None
         """
@@ -1283,6 +1338,8 @@ class Bundle(Container):
     @rebuild_trunk
     def remove_data(self, dataref):
         """
+        [FUTURE]
+        
         @param ref: ref (name) of the dataset
         @type ref: str
         """
@@ -1311,6 +1368,8 @@ class Bundle(Container):
     #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Convenience function to run observatory.observe
+        
+        [FUTURE]
         
         @param label: name of one of the compute ParameterSets stored in bundle
         @type label: str
@@ -1386,6 +1445,8 @@ class Bundle(Container):
         """
         Run fitting for a given fitting ParameterSet
         and store the feedback
+        
+        [FUTURE]
         
         @param computelabel: name of compute ParameterSet
         @param computelabel: str
@@ -1466,6 +1527,8 @@ class Bundle(Container):
             bundle.plot_obs('mylc', fmt='ko-', objref='secondary')
             bundle.plot_obs('mylc', fmt='ko-', label='my legend label', objref='secondary')
         
+        [FUTURE]
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
@@ -1519,6 +1582,8 @@ class Bundle(Container):
         - :py:func:`phoebe.backend.plotting.plot_spsyn_as_profile`
         - :py:func:`phoebe.backend.plotting.plot_ifsyn`
         
+        [FUTURE]
+        
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
@@ -1544,6 +1609,7 @@ class Bundle(Container):
             
     def plot_residuals(self,dataref,objref=None,**kwargs):
         """
+        [FUTURE]
         @param dataref: ref (name) of the dataset
         @type dataref: str
         @param objref: label of the object
@@ -1568,6 +1634,9 @@ class Bundle(Container):
         getattr(plotting, 'plot_{}res'.format(context))(obj, *args, **kwargs)
     
     def write_syn(self, dataref, output_file, objref=None):
+        """
+        [FUTURE]
+        """
         dss = self.get_syn(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
@@ -1581,6 +1650,8 @@ class Bundle(Container):
     def get_axes(self,ident=None):
         """
         Return an axes or list of axes that matches index OR title
+        
+        [FUTURE]
         
         @param ident: index or title of the desired axes
         @type ident: int or str
@@ -1599,6 +1670,8 @@ class Bundle(Container):
         
         kwargs will be applied to axesoptions ParameterSet
         it is suggested to at least intialize with kwargs for category and title
+        
+        [FUTURE]
         
         @param axes: a axes to be plotted on a single axis
         @type axes: frontend.figures.Axes()
@@ -1623,6 +1696,8 @@ class Bundle(Container):
         """
         Removes all axes with a given index or title
         
+        [FUTURE]
+        
         @param ident: index or title of the axes to be removed
         @type ident: int or str
         """
@@ -1638,6 +1713,8 @@ class Bundle(Container):
         Create a defined axes
         
         essentially a shortcut to bundle.get_axes(label).plot(...)
+        
+        [FUTURE]
         
         @param ident: index or title of the axes
         @type ident: int or str
@@ -1655,6 +1732,8 @@ class Bundle(Container):
         """
         Save an axes to an image
         
+        [FUTURE]
+        
         @param ident: index or title of the axes
         @type ident: int or str
         @param filename: name of desired output image
@@ -1668,6 +1747,8 @@ class Bundle(Container):
     def anim_axes(self,ident,nframes=100,fps=24,outfile='anim',**kwargs):
         """
         Animate an axes on top of a meshplot
+        
+        [FUTURE]
         
         @param ident: index or title of the axes
         @type ident: int or str
@@ -1738,6 +1819,8 @@ class Bundle(Container):
         
         set to None to not draw a highlighted time
         
+        [FUTURE]
+        
         @param time: the time to highlight
         @type time: float or None
         """
@@ -1746,12 +1829,15 @@ class Bundle(Container):
         
     def get_meshview(self,label=None):
         """
-        
+        [FUTURE]
         """
         return self._get_by_section(label,"meshview")
       
         
     def _get_meshview_limits(self,times):
+        """
+        [FUTURE]
+        """
         # get size of system during these times for scaling image
         system = self.get_system()
         if hasattr(system, '__len__'):
@@ -1786,6 +1872,8 @@ class Bundle(Container):
     def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None,lims=None):
         """
         Creates a mesh plot using the saved options if not overridden
+        
+        [FUTURE]
         
         @param mplfig: the matplotlib figure to add the axes to, if none is given one will be created
         @type mplfig: plt.Figure()
@@ -1831,7 +1919,7 @@ class Bundle(Container):
         
     def get_orbitview(self,label=None):
         """
-        
+        [FUTURE]
         """
         # TODO: fix this so we can set defaults in usersettings
         # (currently can't with search_by = None)
@@ -1839,7 +1927,7 @@ class Bundle(Container):
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
-        
+        [FUTURE]
         """
         if mplfig is None:
             if mplaxes is None: # no axes provided
@@ -1901,6 +1989,8 @@ class Bundle(Container):
         """
         check whether the job is finished on the server and ready for 
         the new bundle to be reloaded
+        
+        [FUTURE]
         """
         server = self.get_server(self.lock['server'])
         script = self.lock['script']
@@ -1914,6 +2004,8 @@ class Bundle(Container):
         """
         unlock the bundle and remove information about the running job
         NOTE: this will not actually kill the job on the server, but will remove files that have already been created
+        
+        [FUTURE]
         """
         server = self.get_server(self.lock['server'])
         script = self.lock['script']
@@ -1937,6 +2029,8 @@ class Bundle(Container):
         the results when finished.
         
         You can always kill this loop and reenter (even after saving and loading the bundle)        
+        
+        [FUTURE]
         """
         server = self.get_server(self.lock['server'])
         script = self.lock['script']
@@ -1953,6 +2047,8 @@ class Bundle(Container):
     def server_get_results(self):
         """
         reload the bundle from a finished job on the server
+        
+        [FUTURE]
         """
         
         server = self.get_server(self.lock['server'])
@@ -1993,6 +2089,8 @@ class Bundle(Container):
         """
         Attaches a callback signal and keeps list of attached signals
         
+        [FUTURE]
+        
         @param param: the object to attach something to
         @type param: some class
         @param funcname: name of the class's method to add a callback to
@@ -2014,6 +2112,8 @@ class Bundle(Container):
     def purge_signals(self,signals=None):
         """
         Purges all signals created through Bundle.attach_signal()
+        
+        [FUTURE]
         
         @param signals: a list of signals to purge
         @type signals: list
@@ -2040,6 +2140,8 @@ class Bundle(Container):
             - enable_obs/disable_obs/adjust_obs
             
         when any of these signals are emitted, _on_param_changed will be called
+        
+        [FUTURE]
         """
 
         self.purge_signals(self.attached_signals_system) # this will also clear the list
@@ -2054,6 +2156,9 @@ class Bundle(Container):
         #~ self.attach_signal(self,'restore_version',self._on_param_changed)
         
     def _attach_set_value_signals(self,ps):
+        """
+        [FUTURE]
+        """
         for key in ps.keys():
             param = ps.get_parameter(key)
             self.attach_signal(param,'set_value',self._on_param_changed,ps)
@@ -2063,6 +2168,8 @@ class Bundle(Container):
         """
         this function is called whenever a signal is emitted that was attached
         in attach_system_signals
+        
+        [FUTURE]
         """
         system = self.get_system()
         
@@ -2078,16 +2185,23 @@ class Bundle(Container):
     def copy(self):
         """
         Copy this instance.
+        
+        [FUTURE]
         """
         return copy.deepcopy(self)
     
     def save(self, filename):
+        """
+        [FUTURE]
+        """
         self._save_json(filename)
     
     def save_pickle(self,filename=None,purge_signals=True,save_usersettings=False):
         """
         Save a class to an file.
         Will automatically purge all signals attached through bundle
+        
+        [FUTURE]
         
         @param filename: path to save the bundle (or None to use same as last save)
         @type filename: str
@@ -2142,6 +2256,8 @@ class Bundle(Container):
         outside of their priors and/or limits, ``True`` is returned.
         
         We preprocess the system first.
+        
+        [FUTURE]
         """
         
         self.get_system().preprocess()
@@ -2190,6 +2306,8 @@ class Bundle(Container):
     def updateLD(self):
         """
         Update limbdarkening coefficients according to local quantities.
+        
+        [FUTURE]
         """
         atm_types = self.get_parameter('atm', all=True).values()
         ld_coeffs = self.get_parameter('ld_coeffs', all=True).values()
@@ -2199,30 +2317,40 @@ class Bundle(Container):
     def set_beaming(self, on=True):
         """
         Include/exclude the boosting effect.
+        
+        [FUTURE]
         """
         self.set_value('beaming', on, apply_to='all')
         
     def set_ltt(self, on=True):
         """
         Include/exclude light-time travel effects.
+        
+        [FUTURE]
         """
         self.set_value('ltt', on, apply_to='all')
     
     def set_heating(self, on=True):
         """
         Include/exclude heating effects.
+        
+        [FUTURE]
         """
         self.set_value('heating', on, apply_to='all')
         
     def set_reflection(self, on=True):
         """
         Include/exclude reflection effects.
+        
+        [FUTURE]
         """
         self.set_value('refl', on, apply_to='all')
     
     def set_gray_scattering(self, on=True):
         """
         Force gray scattering.
+        
+        [FUTURE]
         """
         system = self.get_system()
         if on:
@@ -2234,6 +2362,8 @@ class Bundle(Container):
 def load(filename, load_usersettings=True):
     """
     Load a class from a file.
+    
+    [FUTURE]
     
     @param filename: filename of a Body or Bundle pickle file
     @type filename: str
@@ -2278,6 +2408,7 @@ def guess_filetype(filename):
     6. Other existing file: envvar:`file_type='unknown', contents=None`
     7. Nonexisting file: IOError
     
+    [FUTURE]
     """
     file_type = 'unknown'
     contents = None

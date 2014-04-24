@@ -14,6 +14,8 @@ from phoebe.utils import config
 def rebuild_trunk(fctn):
     """
     Rebuild the cached trunk *after* running the original function
+    
+    [FUTURE]
     """
     @functools.wraps(fctn)
     def rebuild(container, *args, **kwargs):
@@ -255,6 +257,8 @@ class Container(object):
         """
         Return a list of twigs matching a substring search
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: list of twigs
@@ -266,6 +270,8 @@ class Container(object):
         """
         return a list of matching twigs (with same method as used in
         get_value, get_parameter, get_prior, etc)
+        
+        [FUTURE]
         
         @param twig: the search twig
         @type twig: str
@@ -282,6 +288,8 @@ class Container(object):
         """
         Retrieve the ParameterSet corresponding to the twig.
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: ParameterSet
@@ -294,6 +302,8 @@ class Container(object):
         """
         Retrieve a dictionary of ParameterSets in a list
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: dictionary of ParameterSets
@@ -304,6 +314,8 @@ class Container(object):
     def get_parameter(self, twig):
         """
         Retrieve a Parameter
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -319,6 +331,8 @@ class Container(object):
         
         This is just a shortcut to str(get_parameter(twig))
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: info
@@ -331,6 +345,8 @@ class Container(object):
         """
         Retrieve the value of a Parameter
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :raises KeyError: when twig is not available or is not a Parameter
@@ -340,6 +356,8 @@ class Container(object):
     def set_value(self, twig, value, unit=None):
         """
         Set the value of a Parameter
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -380,6 +398,8 @@ class Container(object):
         """
         Set the value of all matching Parameters
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :param value: the value
@@ -400,6 +420,8 @@ class Container(object):
         """
         Return the values of all matching Parameters
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: list of all values matching the Parameter twig
@@ -415,6 +437,8 @@ class Container(object):
     def set_ps(self, twig, value):
         """
         Replace an existing ParameterSet.
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -454,6 +478,8 @@ class Container(object):
     def attach_ps(self, twig, value):
         """
         Add a new ParameterSet.
+        
+        [FUTURE]
         """
         # Get all the info we can get
         this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
@@ -486,6 +512,8 @@ class Container(object):
         """
         Retrieve whether a Parameter is marked to be adjusted
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: adjust
@@ -496,6 +524,8 @@ class Container(object):
     def set_adjust(self, twig, value=True):
         """
         Set whether a Parameter is marked to be adjusted
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -512,6 +542,8 @@ class Container(object):
     def set_adjust_all(self, twig, value):
         """
         Set whether all matching Parameters are marked to be adjusted
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -530,6 +562,8 @@ class Container(object):
         """
         Retrieve the prior on a Parameter
         
+        [FUTURE]
+        
         :param twig: the search twig
         :type twig: str
         :return: prior
@@ -540,6 +574,8 @@ class Container(object):
     def set_prior(self, twig, **dist_kwargs):
         """
         Set the prior on a Parameter
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -552,6 +588,8 @@ class Container(object):
     def set_prior_all(self, twig, **dist_kwags):
         """
         Set the prior on all matching Parameters
+        
+        [FUTURE]
         
         :param twig: the search twig
         :type twig: str
@@ -566,6 +604,8 @@ class Container(object):
     def get_compute(self,label=None,create_default=False):
         """
         Get a compute ParameterSet by name
+        
+        [FUTURE]
         
         @param label: name of ParameterSet
         @type label: str
@@ -589,6 +629,8 @@ class Container(object):
         """
         Add a new compute ParameterSet
         
+        [FUTURE]
+        
         @param ps: compute ParameterSet (or None)
         @type ps:  None or ParameterSet
         @param label: label of the compute options (will override label in ps)
@@ -608,6 +650,8 @@ class Container(object):
         """
         Remove a given compute ParameterSet
         
+        [FUTURE]
+        
         @param label: name of compute ParameterSet
         @type label: str
         """
@@ -618,6 +662,8 @@ class Container(object):
     def add_fitting(self,ps=None,**kwargs):
         """
         Add a new fitting ParameterSet
+        
+        [FUTURE]
         
         @param ps: fitting ParameterSet
         @type ps:  None, or ParameterSet
@@ -637,6 +683,8 @@ class Container(object):
         """
         Get a fitting ParameterSet by name
         
+        [FUTURE]
+        
         @param label: name of ParameterSet
         @type label: str
         @return: fitting ParameterSet
@@ -648,6 +696,8 @@ class Container(object):
     def remove_fitting(self,label):
         """
         Remove a given fitting ParameterSet
+        
+        [FUTURE]
         
         @param label: name of fitting ParameterSet
         @type label: str
@@ -665,6 +715,8 @@ class Container(object):
         Loop through the current container to compile all items for the trunk
         this will then be called recursively if it hits another
         Container/PS/BodyBag
+        
+        [FUTURE]
         """
         return_items = []
 
@@ -698,6 +750,8 @@ class Container(object):
     def _loop_through_ps(self, ps, section_name, container, label):
         """
         called when _loop_through_container hits a PS
+        
+        [FUTURE]
         """
         return_items = []
         
@@ -713,6 +767,8 @@ class Container(object):
     def _loop_through_system(self, system, section_name):
         """
         called when _loop_through_container hits the system
+        
+        [FUTURE]
         """
         return_items = []
         ri = None
@@ -804,6 +860,8 @@ class Container(object):
         general function to pull all information we need from any item we may come across
     
         providing other information (section, container, context, label) may be necessary if we don't know where we are
+        
+        [FUTURE]
         """
         info_items = [] # we might decide to return more than one item
         
@@ -972,6 +1030,8 @@ class Container(object):
         whenever anything is changed (besides changing values, etc)
         
         this sets self.trunk which is then used whenever the container is searched for an item
+        
+        [FUTURE]
         """
         self.trunk = self._loop_through_container()
         
@@ -979,6 +1039,8 @@ class Container(object):
         """
         simply clears trunk - this will probably only be called before pickling to 
         minimize duplication and reduce filesize
+        
+        [FUTURE]
         """
         self.trunk = []
         
@@ -986,6 +1048,8 @@ class Container(object):
         """
         compile a twig for an ordered list of strings that makeup the path
         this list should be [qualifier,label,context,component,section,container]        
+        
+        [FUTURE]
         """
         if invert:
             path.reverse()
@@ -996,6 +1060,8 @@ class Container(object):
     def _search_twigs(self, twigglet, trunk=None, **kwargs):
         """
         return a list of twigs where twigglet is a substring
+        
+        [FUTURE]
         """
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
             
@@ -1006,6 +1072,8 @@ class Container(object):
         """
         returns a list of twigs after filtering the trunk by any other
         information stored in the dictionaries
+        
+        [FUTURE]
         """
         trunk = self.trunk if trunk is None else trunk
         
@@ -1027,6 +1095,8 @@ class Container(object):
         return a list of twigs that match the input
         the first item is required to be first, but any other item
         must simply occur left to right
+        
+        [FUTURE]
         """
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
         
@@ -1088,6 +1158,8 @@ class Container(object):
         this function searches the cached trunk
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
         
+        [FUTURE]
+        
         @param twig: the twig/twigglet to use when searching
         @type twig: str
         @param all: whether to return a list or a single item
@@ -1134,6 +1206,8 @@ class Container(object):
         """
         shortcut to _get_by_search which automatically builds a searching twig from the label
         and has defaults for kind (ParameterSet)        
+        
+        [FUTURE]
         """
         twig = "{}@{}".format(label,section) if label is not None and section is not None else None
         #~ twig = section if label is None else label
@@ -1145,6 +1219,8 @@ class Container(object):
         """
         shortcut to _get_by_search that takes the name of a section and will always
         return a dictionary with label as the keys and item as the values
+        
+        [FUTURE]
         """
         all_ti = self._get_by_search(twig=None, section=section, kind=kind,
                         all=True, ignore_errors=True,
@@ -1155,6 +1231,7 @@ class Container(object):
     def _save_json(self, filename):
         """
         TESTING
+        [FUTURE]
         """
         # We're changing stuff here, so we need to make a copy first
         this_bundle = self.copy()
@@ -1219,6 +1296,8 @@ class Container(object):
     def _load_json(self, filename):
         """
         TESTING
+        
+        [FUTURE]
         """
         f = open(filename, 'r')
         load_dict = json.load(f)
@@ -1268,6 +1347,9 @@ class Container(object):
         """
         this functin takes a dictionary of results from a searching function
         ie. _get_from_section and returns either a single item or the dictionary
+        
+        [FUTURE]
+        
         @param dictionary: the dictionary of results
         @type dictionary: dict or OrderedDict
         @param all: whether to return a single item or all in a dictionary
@@ -1301,6 +1383,8 @@ class Container(object):
         add a new parameterset to section - the label of the parameterset
         will be used as the key to retrieve it using _get_from_section
         
+        [FUTURE]
+        
         @param section: name of the section (key of self.sections)
         @type section: str
         @param ps: the new parameterset with label set
@@ -1316,6 +1400,8 @@ class Container(object):
 def _dumps_system_structure(current_item):
     """
     dumps the system hierarchy into a dictionary that is json compatible
+    
+    [FUTURE]
     """
     struc_this_level = {}
 
@@ -1351,6 +1437,8 @@ def _dumps_system_structure(current_item):
 def _loads_system_structure(struc, c1label=None, c2label=None, top_level=True):
     """
     loads the system hierarchy from a json compatible dictionary
+    
+    [FUTURE]
     """
 
     # if we're dealing with a Bag of some sort, then we need to create
