@@ -258,39 +258,40 @@ class Bundle(Container):
         
             >>> mybundle['atm@primary'] = 'kurucz'
             >>> mybundle['atm@secondary'] = 'blackbody'
-                 
+             
+    
     .. autosummary::
     
-        get_value
-        get_value_all
-        get_ps
-        get_ps_dict
-        get_parameter
-        get_adjust
-        get_prior
-        get_compute
-        get_fitting
-        set_value
-        set_value_all
-        set_ps
-        set_adjust
-        set_adjust_all
-        set_prior
-        set_prior_all
-        attach_ps
+        Bundle.get_value
+        Bundle.get_value_all
+        Bundle.get_ps
+        Bundle.get_parameter
+        Bundle.get_adjust
+        Bundle.get_prior
+        Bundle.get_compute
+        Bundle.get_fitting
+        Bundle.set_value
+        Bundle.set_value_all
+        Bundle.set_ps
+        Bundle.set_adjust
+        Bundle.set_adjust_all
+        Bundle.set_prior
+        Bundle.set_prior_all
+        Bundle.attach_ps
         
-        add_compute
-        add_fitting
-        remove_compute
-        remove_fitting
+        Bundle.add_compute
+        Bundle.add_fitting
+        Bundle.remove_compute
+        Bundle.remove_fitting
         
-        search        
+        Bundle.twigs
+        Bundle.search        
         
-        load_data
-        create_data
+        Bundle.load_data
+        Bundle.create_data
         
-        plot_obs
-        plot_syn
+        Bundle.plot_obs
+        Bundle.plot_syn
     
     
     **Printing information**
@@ -305,9 +306,8 @@ class Bundle(Container):
     
     .. autosummary::
     
-        tree
-        summary
-        info
+        Bundle.summary
+        Bundle.info
         
     **Structure of the Bundle**
         
@@ -315,7 +315,6 @@ class Bundle(Container):
     
         - a Body (or BodyBag), called :envvar:`system` in this context.
         - a list of compute options which can be stored and used to compute observables.
-        - a list of figure axes options which can be used to recreate plots with the same options.
         
         
     """        
@@ -394,10 +393,20 @@ class Bundle(Container):
         readline.set_completer_delims(' \t\n`~!#$%^&*)-=+]{}\\|;:,<>/?')
         readline.parse_and_bind("tab: complete")
 
-    def _loop_through_container(self, return_type='twigs'):
+    def _loop_through_container(self):
         """
         [FUTURE]
+
+        override container defaults to also loop through the usersettings
+        and copy as necessary
+
+        This function loops through the container and returns a list of dictionaries
+        (called the "trunk").
+        
+        This function is called by _build_trunk and the rebuild_trunk decorator,
+        and shouldn't need to be called elsewhere        
         """
+        
         # we need to override the Container._loop_through_container to 
         # also search through usersettings and copy any items that do 
         # not exist here yet
@@ -405,7 +414,6 @@ class Bundle(Container):
         # first get items from bundle
         return_items = super(Bundle, self)._loop_through_container(do_sectionlevel=False)
         bundle_twigs = [ri['twig'] for ri in return_items]
-        #~ bundle_unique_labels = [ri['twig'] for ri in return_items]
         
         # then get items from usersettings, checking each twig to see if there is a duplicate
         # with those found from the bundle.  If so - the bundle version trumps.  If not - 
@@ -446,7 +454,7 @@ class Bundle(Container):
         
     def to_string(self):
         """
-        [FUTURE]
+        returns the string representation of the bundle
         """
         # Make sure to not print out all array variables
         old_threshold = np.get_printoptions()['threshold']
@@ -477,30 +485,6 @@ class Bundle(Container):
         return txt
     
     #{ Settings
-    def set_setting(self,key,value):
-        """
-        Set a bundle-level setting
-        
-        [FUTURE]
-        
-        @param key: the name of the setting
-        @type key: string
-        @param value: the value of the setting
-        @type value: string, float, boolean
-        """
-        self.settings[key] = value
-        
-    def get_setting(self,key):
-        """
-        Get the value for a bundle-level setting by name
-        
-        [FUTURE]
-        
-        @param key: the name of the setting
-        @type key: string
-        """
-        return self.settings[key]
-        
     def set_usersettings(self,basedir=None):
         """
         Load user settings into the bundle
@@ -549,8 +533,6 @@ class Bundle(Container):
     def set_system(self, system=None, remove_dataref=False):
         """
         Change or set the system.
-        
-        [FUTURE]
         
         Possibilities:
         
@@ -647,8 +629,6 @@ class Bundle(Container):
         """
         Return the system.
         
-        [FUTURE]
-        
         @return: the attached system
         @rtype: Body or BodyBag
         """
@@ -660,12 +640,9 @@ class Bundle(Container):
     def summary(self, objref=None):
         """
         Make a summary of the hierarchy of the system (or any object in it)
-        
-        [FUTURE]
         """
         bund_str = ""
         computes = self._get_dict_of_section('compute')
-        #~ print computes
         if len(computes):
             bund_str+= "* Compute: " + ", ".join(computes.keys()) + '\n'
         #fittings = self._get_dict_of_section("fitting")
@@ -691,7 +668,6 @@ class Bundle(Container):
         List with indices all the ParameterSets that are available.
         
         Simply a shortcut to :py:func:`bundle.get_system().list(...) <phoebe.backend.universe.Body.list>`.
-        [FUTURE]
         """
         return self.get_system().list(summary,*args)
         
@@ -699,7 +675,6 @@ class Bundle(Container):
         """
         Clear all synthetic datasets
         Simply a shortcut to bundle.get_system().clear_synthetic()
-        [FUTURE]
         """
         return self.get_system().clear_synthetic()
         
@@ -794,16 +769,18 @@ class Bundle(Container):
     
     #}
     #{ Objects
-    def get_object(self, objref=None):
+    def _get_object(self, objref=None):
         """
-        Return an object (Body) from the system.
-        
+        version of get_object that does not use twigs... this must remain
+        so that we can call it while building the trunk
+
         :param objref: Body's label or twig
         :type objref: str
         :return: the Body corresponding to the label
         :rtype: Body
         :raises ValueError: when objref is not present
         """
+
         # handle objref if twig was given instead
         objref = objref.split('@')[0] if objref is not None else None
         # return the Body/BodyBag from the system hierarchy
@@ -818,64 +795,71 @@ class Bundle(Container):
             else:
                 raise ValueError("Object {} not found".format(objref))
         return this_child
-            
+    
+    def get_object(self, twig=None):
+        """
+        retrieve a Body/BodyBag from the system
         
-    def get_children(self, objref=None):
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the object
+        @rtype: Body
         """
-        [FUTURE]
+        return self._get_by_search(twig, kind='Body')
+        
+    def get_children(self, twig=None):
         """
-        # handle objref if twig was given instead
-        objref = objref.split('@')[0] if objref is not None else None
-        # return list of children for self.get_object(objref)
-        obj = self.get_object(objref)
+        retrieve the direct children of a Body/BodyBag from the system
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the children
+        @rtype: list of bodies
+        """
+        
+        obj = self.get_object(twig)
         if hasattr(obj,'bodies'):
             #return [b.bodies[0] if hasattr(b,'bodies') else b for b in obj.bodies]
             return obj.bodies
         else:
             return []
         
-    def get_parent(self, objref):
+    def get_parent(self, twig=None):
+        """
+        retrieve the direct parent of a Body/BodyBag from the system
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the children
+        @rtype: Body
+        """
+        return self.get_object(twig).get_parent()
+        
+    def get_orbitps(self, twig=None):
         """
         [FUTURE]
-        """
-        # return the parent of self.get_object(objref)
-        return self.get_object(objref).get_parent()
         
-    def get_orbitps(self, objref=None):
-        """
-        retrieve the orbit ParameterSet that belongs to a given object
+        retrieve the orbit ParameterSet that belongs to a given BodyBag
         
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the orbit PS
+        @rtype: ParameterSet
+        """
+        return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
+        
+    def get_meshps(self, twig=None):
+        """
         [FUTURE]
+
+        retrieve the mesh ParameterSet that belongs to a given component
         
-        @param objref: name of the object the mesh is attached to
-        @type objref: str or None
-        @param return_type: 'single','all'
-        @type return_type: str
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the mesh PS
+        @rtype: ParameterSet
         """
-        #~ qualifier = 'orbit'
-        #~ if objref is not None:
-            #~ qualifier += '{}{}'.format("@",objref)
-        #~ return self.get_ps(qualifier)
-        
-        return self._get_by_search(label=objref, kind='ParameterSet', context='orbit')
-        
-    def get_meshps(self, objref=None):
-        """
-        retrieve the mesh ParameterSet that belongs to a given object
-        
-        [FUTURE]
-        
-        @param objref: name of the object the mesh is attached to
-        @type objref: str or None
-        @param return_type: 'single','all'
-        @type return_type: str
-        """
-        #~ qualifier = 'mesh*'
-        #~ if objref is not None:
-            #~ qualifier += '{}{}'.format("@",objref)
-        #~ return self.get_ps(qualifier)
-        
-        return self._get_by_search(label=objref, kind='ParameterSet', context='mesh*')
+        return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
         
     #}  
     #{ Datasets
@@ -970,8 +954,6 @@ class Bundle(Container):
         
         Special case here is "sed", which parses a list of snapshot multicolour
         photometry to different lcs. The will be grouped by ``filename``.
-        
-        [FUTURE]
         
         @param category: category (lc, rv, sp, sed, etv)
         @type category: str
@@ -1127,8 +1109,6 @@ class Bundle(Container):
         - :py:func:`Bundle.run_compute`
         - :py:func:`Bundle.plot_syn`
         
-        [FUTURE]
-        
         :param category: one of 'lc', 'rv', 'sp', 'etv', 'if', 'pl'
         :type category: str
         :param objref: component for each column in file
@@ -1149,12 +1129,11 @@ class Bundle(Container):
         
         # What DataSet subclass do we need? We can derive it from the category.
         # This can be LCDataSet, RVDataSet etc.. If the category is not
-        # recognised, we'll add the generic "DataSet" ---> no! raise an Error!.
-        if category in config.dataset_class:
-            dataset_class = getattr(datasets, config.dataset_class[category])
+        # recognised, we'll add the generic "DataSet".
+        if not category in config.dataset_class:
+            dataset_class = DataSet
         else:
-            raise ValueError(("Category '{}' not recognised. It is not any of "
-                "{}.").format(category, ", ".join(config.dataset_class.keys())))
+            dataset_class = getattr(datasets, config.dataset_class[category])
     
         # Suppose the user did not specifiy the object to attach anything to
         if objref is None:
@@ -1213,7 +1192,7 @@ class Bundle(Container):
                 ds[key] = kwargs[key]
                 
             else:
-                raise KeyError("Parameter '{}' not found in obs/dep".format(key))        
+                raise ValueError("Parameter '{}' not found in obs/dep".format(key))        
         
         # Special treatment of oversampling rate and exposure time: if they are
         # single numbers, we need to convert them in arraya as long as as the
@@ -1236,7 +1215,6 @@ class Bundle(Container):
             pb = parameters.ParameterSet(context=category+'dep', ref=dataref, **pbkwargs)
             output[component.get_label()] = [[ds],[pb]]
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
-    
     
     def lc_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       flux=None, sigma=None, flag=None, weight=None,
@@ -1314,74 +1292,38 @@ class Bundle(Container):
         # We can pass everything now to the main function
         self.data_fromarrays(category='lc', **set_kwargs)
     
-    
-    def get_syn(self, dataref=0, category=None, objref=None, all=False, ignore_errors=False):
+    def get_syn(self, twig=None):
         """
-        Get synthetic
+        Get the synthetic parameterset for an observation
         
-        [FUTURE]
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the observations DataSet
+        @rtype: DataSet
         """
-        dss = OrderedDict()
-        system = self.get_system()
-        
-        # Smart defaults:
-        objref_orig = objref
-        # For a light curve, it makes most sense to ask for the top level by
-        # default
-        if category == 'lc' and objref is None:
-            objref = system.get_label()
-            
-        try:
-            iterate_all_my_bodies = system.walk_bodies()
-        except AttributeError:
-            iterate_all_my_bodies = [system]
-        
-        for body in iterate_all_my_bodies:
-            this_objref = body.get_label()
-            
-            if objref is None or this_objref == objref:
-                ds = body.get_synthetic(ref=dataref, cumulative=True)
-                
-                if ds is not None and ds != []\
-                    and (category is None or ds.context[:-3]==category)\
-                    and not (objref_orig is None and category is None and ds.context[:-3]=='lc' and this_objref != system.get_label()):
-                    
-                    dss['{}{}{}'.format(ds['ref'],"@",this_objref)] = ds
-                
-                
-        return self._return_from_dict(dss,all,ignore_errors)
-                    
+        return self._get_by_search(twig, context='*syn', class_name='*DataSet')
 
-    def get_dep(self, objref=None, dataref=None, return_type='single'):
+    def get_dep(self, twig=None):
         """
-        [FUTURE]
-        """
-        pass
+        Get observations dependables
         
-    def get_obs(self, objref=None, dataref=None, all=False, ignore_errors=False):
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the observations dependables ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_search(twig, context='*dep', class_name='ParameterSet')
+        
+    def get_obs(self, twig=None):
         """
         Get observations
         
-        [FUTURE]
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: the observations DataSet
+        @rtype: DataSet
         """
-        dss = OrderedDict()
-        system = self.get_system()
-        
-        try:
-            iterate_all_my_bodies = system.walk_bodies()
-        except AttributeError:
-            iterate_all_my_bodies = [system]
-        
-        for body in iterate_all_my_bodies:
-            this_objref = body.get_label()
-            if objref is None or this_objref == objref:
-                for obstype in body.params['obs']:
-                    for this_dataref in body.params['obs'][obstype]:
-                        if dataref is None or dataref==this_dataref:
-                            ds = body.params['obs'][obstype][this_dataref]
-                            dss['{}{}{}{}{}'.format(this_dataref,"@",obstype,"@",this_objref)] = ds
-                            
-        return self._return_from_dict(dss,all,ignore_errors)
+        return self._get_by_search(twig, context='*obs', class_name='*DataSet')
         
     def enable_obs(self, dataref=None, objref=None):
         """
@@ -1391,6 +1333,9 @@ class Bundle(Container):
         
         [FUTURE]
         """
+        ## TODO - rewrite this to use twig access
+        
+        
         system = self.get_system()
         
         try:
@@ -1419,6 +1364,8 @@ class Bundle(Container):
         
         [FUTURE]
         """
+        ## TODO - rewrite this to use twig access
+        
         system = self.get_system()
         
         try:
@@ -1438,19 +1385,20 @@ class Bundle(Container):
                         body.params['obs'][obstype][dataref].set_enabled(False)
                         logger.info("Disabled {} '{}'".format(obstype, dataref))
 
-    def reload_obs(self, dataref=None):
+    def reload_obs(self, twig=None):
         """
+        [FUTURE]
+
         reload a dataset from its source file
         
-        [FUTURE]
-        
-        @param dataref: ref (name) of the dataset (or None for all)
-        @type dataref: str or None
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
         """
+        self.get_obs(twig).load()
         
-        dss = self.get_obs(dataref=dataref,all=True).values()
-        for ds in dss:
-            ds.load()
+        #~ dss = self.get_obs(dataref=dataref,all=True).values()
+        #~ for ds in dss:
+            #~ ds.load()
     
     @rebuild_trunk
     def remove_data(self, dataref):
@@ -1460,6 +1408,7 @@ class Bundle(Container):
         @param ref: ref (name) of the dataset
         @type ref: str
         """
+        ## TODO - rewrite to use twig access??
 
         # disable any plotoptions that use this dataset
         for axes in self.get_axes(all=True).values():
@@ -1476,7 +1425,6 @@ class Bundle(Container):
         return
         
     #}
-    
     #{ Compute
     
     @rebuild_trunk
@@ -1485,8 +1433,6 @@ class Bundle(Container):
     #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Convenience function to run observatory.observe
-        
-        [FUTURE]
         
         @param label: name of one of the compute ParameterSets stored in bundle
         @type label: str
@@ -1498,7 +1444,7 @@ class Bundle(Container):
         @type server: string
         """
         system = self.get_system()
-        obj = self.get_object(objref)
+        obj = self.get_object(objref) if objref is not None else system
         #~ if add_version is None:
             #~ add_version = self.settings['add_version_on_compute']
             
@@ -1507,13 +1453,9 @@ class Bundle(Container):
         # clear all previous models and create new model
         system.clear_synthetic()
 
-        # <pieterdegroote> I comment the following line, I don't think
-        # it is necessary?
-        #system.set_time(0)
-        
         # get compute options, handling 'default' if label==None
-        options = self.get_compute(label, create_default=True)
-        #options = self.get_compute(label, create_default=True).copy()
+        options_orig = self.get_compute(label, create_default=True)
+        options = options_orig.copy()
         
         mpi = kwargs.pop('mpi', None)
         
@@ -1631,7 +1573,7 @@ class Bundle(Container):
     #}
 
     #{ Figures
-    def plot_obs(self, dataref, *args, **kwargs):
+    def plot_obs(self, twig=None, *args, **kwargs):
         """
         Make a plot of the attached observations.
         
@@ -1640,38 +1582,25 @@ class Bundle(Container):
         Example usage::
             
             bundle.plot_obs('mylc')
-            bundle.plot_obs('mylc', objref='secondary')
-            bundle.plot_obs('mylc', fmt='ko-', objref='secondary')
-            bundle.plot_obs('mylc', fmt='ko-', label='my legend label', objref='secondary')
+            bundle.plot_obs('myrv@secondary')
+            bundle.plot_obs('myrv@secondary', fmt='ko-')
+            bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
         
-        [FUTURE]
-        
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @param objref: label of the object
-        @type objref: str
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
         """
-        objref = kwargs.pop('objref', None)
-        
-        dss = self.get_obs(dataref=dataref, objref=objref, all=True)
-        if len(dss) > 1:
-            logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
-        elif not len(dss):
-            raise ValueError("dataref '{}' not found for plotting".format(dataref))
-        
-        # Get the obs DataSet and retrieve its context
-        ds = dss.values()[0]
-        #obj = self.get_object(dss.keys()[0].split('@')[2])
-        obj = self.get_object(re.split('@', dss.keys()[0])[2])
+        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet', return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
-        kwargs['ref'] = dataref
+        kwargs['ref'] = ds['ref']
         getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
         
 
         
-    def plot_syn(self, dataref, *args, **kwargs):
+    def plot_syn(self, twig=None, *args, **kwargs):
         """
         Plot simulated/computed observations.
         
@@ -1687,7 +1616,7 @@ class Bundle(Container):
         Example usage:
         
         >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'create_data'
-        >>> mybundle.plot_syn('lc01', 'r-', lw=2, scale=None)
+        >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
         
         >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'create_data'
         >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'create_data'
@@ -1699,61 +1628,45 @@ class Bundle(Container):
         - :py:func:`phoebe.backend.plotting.plot_spsyn_as_profile`
         - :py:func:`phoebe.backend.plotting.plot_ifsyn`
         
-        [FUTURE]
-        
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @param objref: label of the object
-        @type objref: str
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
         """
-        objref = kwargs.pop('objref', None)
-        
-        dss = self.get_syn(dataref=dataref, objref=objref, all=True)
-        if len(dss) > 1:
-            logger.info('Retrieving synthetic computations with objref={}'.format(dss.keys()[0]))
-        elif not len(dss):
-            raise ValueError("dataref '{}' not found for plotting".format(dataref))
-        # Get the obs DataSet and retrieve its context
-        ds = dss.values()[0]
-        #obj = self.get_object(dss.keys()[0].split('@')[-1])
-        obj = self.get_object(re.split('@', dss.keys()[0])[-1])
-        context = ds.get_context()
-        
-        # Now pass everything to the correct plotting function
-        kwargs['ref'] = dataref
-        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
 
-            
-    def plot_residuals(self,dataref,objref=None,**kwargs):
-        """
-        [FUTURE]
-        @param dataref: ref (name) of the dataset
-        @type dataref: str
-        @param objref: label of the object
-        @type objref: str
-        """
-        objref = kwargs.pop('objref', None)
-        
-        dss = self.get_obs(dataref=dataref, objref=objref, all=True)
-        if len(dss) > 1:
-            logger.warning('more than one obs exists with this dataref, provide objref to ensure correct obs is used')
-        elif not len(dss):
-            raise ValueError("dataref '{}' not found for plotting".format(dataref))
-        
-        # Get the obs DataSet and retrieve its context
-        ds = dss.values()[0]
-        #obj = self.get_object(dss.keys()[0].split('@')[2])
-        obj = self.get_object(re.split('@', dss.keys()[0])[2])
+        ## TODO - update to use twig access (waiting on get_syn to work)
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet', return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
         context = ds.get_context()
         
         # Now pass everything to the correct plotting function
-        kwargs['ref'] = dataref
+        kwargs['ref'] = ds['ref']
+        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        
+    def plot_residuals(self,twig=None,**kwargs):
+        """
+        Plot the residuals between computed and observed for a given dataset
+
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        """
+        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet', return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
+        context = ds.get_context()
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = ds['ref']
         getattr(plotting, 'plot_{}res'.format(context))(obj, *args, **kwargs)
     
     def write_syn(self, dataref, output_file, objref=None):
         """
         [FUTURE]
         """
+        
+        ## TODO - update to use twig access
+        #~ ds = self.get_syn(twig)
+        #~ ds.save(output_file)
+        
         dss = self.get_syn(dataref=dataref, objref=objref, all=True)
         if len(dss) > 1:
             logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
@@ -2309,7 +2222,10 @@ class Bundle(Container):
     
     def save(self, filename):
         """
-        [FUTURE]
+        Save the bundle into a json-formatted ascii file
+        
+        @param filename: path to save the bundle
+        @type filename: str
         """
         self._save_json(filename)
     
