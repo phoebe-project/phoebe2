@@ -269,26 +269,19 @@ class Bundle(Container):
         Bundle.get_adjust
         Bundle.get_prior
         Bundle.get_compute
-        Bundle.get_fitting
         Bundle.set_value
         Bundle.set_value_all
         Bundle.set_ps
-        Bundle.set_adjust
-        Bundle.set_adjust_all
-        Bundle.set_prior
-        Bundle.set_prior_all
         Bundle.attach_ps
         
         Bundle.add_compute
-        Bundle.add_fitting
         Bundle.remove_compute
-        Bundle.remove_fitting
         
         Bundle.twigs
         Bundle.search        
         
-        Bundle.load_data
-        Bundle.create_data
+        Bundle.data_fromfile
+        Bundle.data_fromarrays
         
         Bundle.plot_obs
         Bundle.plot_syn
