@@ -957,7 +957,7 @@ class Container(object):
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
         
-        if kind=='Parameter':
+        if kind=='Parameter' and False:
             # now let's check to see what other request types we should add
             if hasattr(item, 'get_value'):
                 twig = self._make_twig(['value',qualifier,ref,context_twig,label,section])
