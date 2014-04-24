@@ -811,11 +811,15 @@ class Bundle(Container):
         """
         Retrieve a Body or BodyBag from the system
         
+        if twig is None, will return the system itself
+        
         :param twig: the twig/twiglet to use when searching
         :type twig: str
         :return: the object
         :rtype: Body
         """
+        if twig is None:
+            return self.get_system()
         return self._get_by_search(twig, kind='Body')
         
     def get_children(self, twig=None):
