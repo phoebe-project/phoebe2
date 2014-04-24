@@ -1,10 +1,42 @@
 """
 Top level interface to Phoebe2.
 
-You can run Phoebe2 in Phoebe1 compatibility mode ('legacy' mode), if you start
-from a legacy parameter file.
+The Bundle aims at providing a user-friendly interface to a Body or BodyBag,
+such that parameters can easily be queried or changed, data added, results
+plotted and observations computed. It does not contain any implementation of
+physics; that is the responsibility of the backend and the associated
+library.
 
->>> mybundle = Bundle('legacy.phoebe')
+**Phoebe1 compatibility**
+    
+You can use Phoebe2 in some kind of Phoebe1 compatibility mode ('legacy' mode),
+most easily when you start from a legacy parameter file:
+    
+    >>> mybundle = Bundle('legacy.phoebe')
+
+When you load a Bundle this way, computational options are added automatically
+to the Bundle to mimick the physics that is available in Phoebe1. These options
+are collected in a ParameterSet of context 'compute' with label ``from_legacy``.
+The most important parameters are listed below (some unimportant ones have been
+excluded so if you try this, you'll see more parameters)
+
+    >>> print(mybundle['from_legacy'])
+              label from_legacy   --   label for the compute options               
+            heating True          --   Allow irradiators to heat other Bodies      
+               refl False         --   Allow irradiated Bodies to reflect light    
+           refl_num 1             --   Number of reflections                       
+                ltt False         --   Correct for light time travel effects       
+         subdiv_num 3             --   Number of subdivisions                      
+        eclipse_alg binary        --   Type of eclipse algorithm                   
+        beaming_alg none          --   Type of beaming algorithm                   
+    irradiation_alg point_source  --   Type of irradiation algorithm
+
+The irradiation algorithm and reflection iterations will be adjust to match the
+value in the loaded parameter file.
+
+Once data is added, you could run Phoebe2 while mimicking the physics in Phoebe1
+via::
+
 >>> mybundle.run_compute(label='from_legacy')
 >>> print(mybundle.get_logp())
 
@@ -151,30 +183,7 @@ def run_on_server(fctn):
     
     return parse
     
-
-        
-
-def walk(mybundle):
-    """
-    [FUTURE]
-    """
-    # do we still use this???
-    
-    for val,path in utils.traverse_memory(mybundle,
-                                     list_types=(Bundle, universe.Body, list,tuple),
-                                     dict_types=(dict, ),
-                                     parset_types=(parameters.ParameterSet, ),
-                                     get_label=(universe.Body, ),
-                                     get_context=(parameters.ParameterSet, ),
-                                     skip=()):
-            
-            # First one is always root
-            path[0] = str(mybundle.__class__.__name__)
-            
-            
-            # All is left is to return it
-            
-            yield path, val
+     
     
     
 
@@ -218,6 +227,9 @@ class Bundle(Container):
             # return the value of the period if it exists, raises error if 'period' does not exist
             period = mybundle['period']
             
+            # set the value of the period if it exists, raises error otherwise
+            mybundle['period'] = 5.0
+            
             # return the value of the period if it exists, else returns None
             period = mybundle.get('period')
             
@@ -239,7 +251,13 @@ class Bundle(Container):
         *keys* are referred to as *twigs* in the context of Bundles. They behave
         much like dictionary keys, but are much more flexible to account for the
         plethora of available parameters (and possible duplicates!) in the
-        Bundle. 
+        Bundle. For example, both stars in a binary need atmosphere tables in
+        order to compute their bolometric luminosities. This is done via the
+        parameter named ``atm``, but since it is present in both components,
+        you need to ``@`` operator to be more specific:
+        
+            >>> mybundle['atm@primary'] = 'kurucz'
+            >>> mybundle['atm@secondary'] = 'blackbody'
              
     
     .. autosummary::
@@ -290,13 +308,6 @@ class Bundle(Container):
         Bundle.summary
         Bundle.info
         
-    **What is the Bundle?**
-    
-    The Bundle aims at providing a user-friendly interface to a Body or BodyBag,
-    such that parameters can easily be queried or changed, data added, results
-    plotted and observations computed. It does not contain any implementation of
-    physics; that is all done at the Body level.
-    
     **Structure of the Bundle**
         
     A Bundle contains:
