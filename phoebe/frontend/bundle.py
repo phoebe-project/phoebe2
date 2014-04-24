@@ -1073,13 +1073,13 @@ class Bundle(Container):
         and :ref:`lcobs <parlabel-phoebe-lcobs>`.
         
         >>> time = np.linspace(0, 10.33, 101)
-        >>> bundle.create_data(time=time, passband='GENEVA.V')
+        >>> bundle.data_fromarrays(time=time, passband='GENEVA.V')
         
         or in phase space (phase space will probably not work for anything but
         light curves and radial velocities):
         
         >>> phase = np.linspace(-0.5, 0.5, 101)
-        >>> bundle.create_data(phase=phase, passband='GENEVA.V')
+        >>> bundle.data_fromarrays(phase=phase, passband='GENEVA.V')
         
         **Radial velocity curves**
         
@@ -1090,8 +1090,8 @@ class Bundle(Container):
         and :ref:`rvobs <parlabel-phoebe-rvobs>`.
         
         >>> time = np.linspace(0, 10.33, 101)
-        >>> bundle.create_data(category='rv', objref='primary', time=time)
-        >>> bundle.create_data(category='rv', objref='secondary', time=time)
+        >>> bundle.data_fromarrays(category='rv', objref='primary', time=time)
+        >>> bundle.data_fromarrays(category='rv', objref='secondary', time=time)
         
         **Spectra**
         
@@ -1103,11 +1103,11 @@ class Bundle(Container):
         
         >>> time = np.linspace(-0.5, 0.5, 11)
         >>> wavelength = np.linspace(454.8, 455.2, 500)
-        >>> bundle.create_data(category='sp', objref='primary', time=time, wavelength=wavelength)
+        >>> bundle.data_fromarrays(category='sp', objref='primary', time=time, wavelength=wavelength)
         
         or to add to the entire system:
         
-        >>> bundle.create_data(time=time, wavelength=wavelength)
+        >>> bundle.data_fromarrays(time=time, wavelength=wavelength)
         
         **Interferometry**
         
@@ -1119,12 +1119,12 @@ class Bundle(Container):
         >>> time = 0.1 * np.ones(101)
         >>> ucoord = np.linspace(0, 200, 101)
         >>> vcoord = np.zeros(101)
-        >>> bundle.create_data(category='if', time=time, ucoord=ucoord, vcoord=vcoord)
+        >>> bundle.data_fromarrays(category='if', time=time, ucoord=ucoord, vcoord=vcoord)
         
         One extra option for interferometry is to set the keyword :envvar:`images`
         to a string, e.g.:
         
-        >>> bundle.create_data(category='if', images='debug', time=time, ucoord=ucoord, vcoord=vcoord)
+        >>> bundle.data_fromarrays(category='if', images='debug', time=time, ucoord=ucoord, vcoord=vcoord)
         
         This will generate plots of the system on the sky with the projected
         baseline orientation (as well as some other info), but will also
