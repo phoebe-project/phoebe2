@@ -204,6 +204,11 @@ def test_parse_lc_01():
     
     
 if __name__=="__main__":
+    
+    test_parse_lc_01()
+    test_parse_phased_data_mag()
+    
+    
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
     
