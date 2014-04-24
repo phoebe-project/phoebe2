@@ -55,30 +55,41 @@ class Completer:
         with a __getattr__ hook is evaluated.
 
         """
-        tb_compl_commands = {'.get_parameter(': 'Parameter',
-                        '.info(': 'Parameter',
-                        '.get_value(': ['Parameter','Parameter:value'],
-                        '.get_value_all(': ['Parameter','Parameter:value'],
-                        '.set_value(': ['Parameter','Parameter:value'],
-                        '.set_value_all(': ['Parameter','Parameter:value'],
-                        '.get_adjust(': ['Parameter','Parameter:adjust'],
-                        '.set_adjust(': ['Parameter','Parameter:adjust'],
-                        '.set_adjust_all(': ['Parameter','Parameter:adjust'],
-                        '.get_prior(': ['Parameter','Parameter:prior'],
-                        '.set_prior(': ['Parameter','Parameter:prior'],
-                        '.get_ps(': 'ParameterSet',
-                        '.get_ps_dict(': 'OrderedDict',
-                        '.get(': None,
-                        '.twigs(': None,
-                        '.search(': None,
-                        '[': None,
+        tb_compl_commands = {'.get_parameter(': {'kind': 'Parameter'},
+                        '.info(': {'kind': 'Parameter'},
+                        '.get_value(': {'kind': ['Parameter','Parameter:value']},
+                        '.get_value_all(': {'kind': ['Parameter','Parameter:value']},
+                        '.set_value(': {'kind': ['Parameter','Parameter:value']},
+                        '.set_value_all(': {'kind': ['Parameter','Parameter:value']},
+                        '.get_adjust(': {'kind': ['Parameter','Parameter:adjust']},
+                        '.set_adjust(': {'kind': ['Parameter','Parameter:adjust']},
+                        '.set_adjust_all(': {'kind': ['Parameter','Parameter:adjust']},
+                        '.get_prior(': {'kind': ['Parameter','Parameter:prior']},
+                        '.set_prior(': {'kind': ['Parameter','Parameter:prior']},
+                        '.get_ps(': {'kind': 'ParameterSet'},
+                        '.get_ps_dict(': {'kind': 'OrderedDict'},
+                        '.get(': {},
+                        '.twigs(': {},
+                        '.search(': {},
+                        '[': {},
+                        '.get_object(': {'kind': 'Body'},
+                        '.get_children(': {'kind': 'Body'},
+                        '.get_parent(': {'kind': 'Body'},
+                        '.get_obs(': {'context': '*obs', 'class_name': '*DataSet'},
+                        '.reload_obs(': {'context': '*obs', 'class_name': '*DataSet'},
+                        '.plot_obs(': {'context': '*obs', 'class_name': '*DataSet'},
+                        '.plot_residuals(': {'context': '*obs', 'class_name': '*DataSet'},
+                        '.get_syn(': {'context': '*syn', 'class_name': '*DataSet'},
+                        '.plot_syn(': {'context': '*syn', 'class_name': '*DataSet'},
+                        '.get_dep(': {'context': '*dep', 'kind': 'ParameterSet'},
+                        
                         }
         
-        this_kind = None
-        for cmd,kind in tb_compl_commands.items():
+        search_kwargs = None
+        for cmd,kwargs in tb_compl_commands.items():
             if cmd in text:
                 expr, attr = text.rsplit(cmd, 1)
-                this_kind = kind
+                search_kwargs = kwargs
                 if len(attr)==0:
                     return []
                 elif attr[0] not in ["'",'"']:
@@ -98,7 +109,7 @@ class Completer:
             return []
 
         # get the content of the object, except __builtins__
-        words = thisobject.twigs(attr,kind=this_kind)
+        words = thisobject.twigs(attr,**search_kwargs)
         matches = []
         n = len(attr)
         for word in words:
