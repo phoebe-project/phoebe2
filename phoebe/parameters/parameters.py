@@ -2831,7 +2831,7 @@ class ParameterSet(object):
         """
         return self.to_string()
     
-    def to_string(self,only_adjustable=False,width=160):
+    def to_string(self,only_adjustable=False,width=79):
         """
         String representation of the class instance with extra options.
         
@@ -2881,9 +2881,32 @@ class ParameterSet(object):
             str_qual = '{0:>{1}}'.format(qualifier,col_width_qualf)
             str_unit = '{0:>{1}}'.format(unit,col_width_unit)
             #str_frame = '{0:>{1}}'.format(frame,col_width_frame)
-            if '\n' in value:
-                value = ('\n'+(col_width_qualf+1)*' ').join(['{0:<{1}}'.format(line,col_width_value) for line in value.split('\n')])
-            mystr.append(" ".join([str_qual,value,str_unit,adjust,str(description)]))    
+            #if '\n' in value:
+            #    value = ('\n'+(col_width_qualf+1)*' ').join(['{0:<{1}}'.format(line,col_width_value) for line in value.split('\n')])
+            
+            # textwrap all columns seperatly, but we require the qualifier and
+            # units columns to be full length. The remaining space needs to
+            # divided equally between the values and the descriptions
+            minimum_width = col_width_qualf + col_width_unit + 4 + 1
+            value_width = min(col_width_value, (width-minimum_width)/2)
+            descr_width = width - value_width - minimum_width
+            
+            str_value = textwrap.wrap(value, width=value_width)
+            str_descr = textwrap.wrap(str(description), width=descr_width)
+            
+            rows = max(len(str_value), len(str_descr))
+            str_qual = [str_qual] + [' '*col_width_qualf]*(rows-1)
+            adjust = [adjust] + [' ']*(rows-1)
+            str_unit = [str_unit] + [' '*col_width_unit]*(rows-1)
+            str_value = str_value + [' '*value_width]*(rows-len(str_value))
+            str_descr = str_descr + [' '*descr_width]*(rows-len(str_descr))
+            
+            for i in range(rows):
+                str_value[i] = '{{:<{}}}'.format(value_width).format(str_value[i])
+                str_descr[i] = '{{:<{}}}'.format(descr_width).format(str_descr[i])
+                mystr.append(" ".join([str_qual[i], str_value[i], str_unit[i], adjust[i], str_descr[i]]))
+            
+            #mystr.append(" ".join([str_qual,value,str_unit,adjust,str(description)]))    
         #--- add the constraints
         if False:
             for constraint in self.constraints:

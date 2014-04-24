@@ -1,5 +1,5 @@
 """
-Top level class of Phoebe.
+Top level interface to Phoebe2.
 
 You can run Phoebe2 in Phoebe1 compatibility mode ('legacy' mode), if you start
 from a legacy parameter file.
@@ -186,7 +186,7 @@ class Bundle(Container):
     
     You can initiate a bundle in different ways:
     
-      1. Using the default binary parameters:
+      1. Using the default binary parameters::
       
           mybundle = Bundle()
           
@@ -233,7 +233,14 @@ class Bundle(Container):
             # iterate over the keys in the Bundle
             for key in mybundle:
                 print(key, mybundle[key])
-            
+    
+    .. important::
+    
+        *keys* are referred to as *twigs* in the context of Bundles. They behave
+        much like dictionary keys, but are much more flexible to account for the
+        plethora of available parameters (and possible duplicates!) in the
+        Bundle. 
+             
     
     .. autosummary::
     
@@ -270,8 +277,17 @@ class Bundle(Container):
     
     **Printing information**
     
+    An overview of all the Parameters and observations loaded in a Bundle can
+    be printed to the screen easily using::
+    
+        mybundle = phoebe.Bundle()
+        print(mybundle)
+        
+    Extra functions are available that return informational strings
+    
     .. autosummary::
     
+        Bundle.summary
         Bundle.info
         
     **What is the Bundle?**
@@ -631,7 +647,7 @@ class Bundle(Container):
     
     def summary(self, objref=None):
         """
-        Make a summary of the system, or any object in the system
+        Make a summary of the hierarchy of the system (or any object in it)
         
         [FUTURE]
         """
