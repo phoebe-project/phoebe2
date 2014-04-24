@@ -782,11 +782,11 @@ class Container(object):
                         if itype[-3:] == 'obs':
                             bodies = [self.get_system()] + [thing for thing in path if isinstance(thing, universe.Body)]
                             syn = bodies[-1].get_synthetic(category=item[:-3], ref=isubtype['ref'])
-                            
                             if syn is not None: 
                                 syn = syn.asarray()
                                 ris = self._get_info_from_item(syn, path=path, section=section_name)
                                 return_items += ris
+                                
                                 
                                 subpath = list(path[:-1]) + [syn['ref']]
                                 subpath[-3] = syn.get_context()

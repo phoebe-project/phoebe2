@@ -8,6 +8,7 @@ import inspect
 import webbrowser
 import numpy as np
 
+
 #{ Loggers
 
 class MyFormatter(logging.Formatter):
@@ -21,6 +22,18 @@ class MyFormatter(logging.Formatter):
         a = "%s:%s" % (filename, record.lineno)
         return "[%s] %s" % (a.ljust(self.width), record.msg)
 
+
+def arguments():
+    """
+    Return arguments from the current function.
+    
+    Returns tuple containing dictionary of calling function's named arguments
+    and a list of calling function's unnamed positional arguments.
+    """
+    posname, kwname, args = inspect.getargvalues(inspect.stack()[1][0])[-3:]
+    posargs = args.pop(posname, [])
+    args.update(args.pop(kwname, []))
+    return args, posargs
 
 def which(cmd):
     """

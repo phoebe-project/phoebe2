@@ -1396,6 +1396,7 @@ def process_file(filename, default_column_order, ext, columns, components,\
         if label.lower() == 'none':
             continue
         output[label] = [[ds.copy()], [pb.copy()]]
+    
     for col, coldat, label in zip(columns_in_file, columns_in_data, components):
         if label.lower() == 'none':
             # Add each column
@@ -1412,6 +1413,16 @@ def process_file(filename, default_column_order, ext, columns, components,\
                 output[label][0][-1][key] = kwargs[key]
             if key in output[label][1][-1]:
                 output[label][1][-1][key] = kwargs[key]
+    
+    # lastly, loop over all data columns with units, and convert them
+    for unit in units:
+        if units[unit].lower() in ['none','mag']:
+            continue
+        for label in output:
+            from_units = units[unit]
+            to_units = output[label][0][-1].get_parameter(unit).get_unit()
+            output[label][0][-1][unit] = conversions.convert(from_units,
+                                  to_units, output[label][0][-1][unit])
     
     return output, (columns_in_file, columns_specs, units), (pb, ds)
 
