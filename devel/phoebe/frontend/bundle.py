@@ -960,7 +960,7 @@ class Bundle(Container):
         
     
     #rebuild_trunk done by _attach_datasets
-    def load_data(self, category, filename, passband=None, columns=None,
+    def data_fromfile(self, filename, category='lc', passband=None, columns=None,
                   objref=None, units={}, dataref=None, scale=False, offset=False):
         """
         Add data from a file.
@@ -1027,26 +1027,27 @@ class Bundle(Container):
             self._attach_datasets(output, skip_defaults_from_body=dict())
                        
     #rebuild_trunk done by _attach_datasets
-    def create_data(self, category='lc', objref=None, dataref=None, **kwargs):
+    def data_fromarrays(self, category='lc', objref=None, dataref=None,
+                        **kwargs):
         """
-        Create and attach empty data templates to compute the model.
+        Create and attach data templates to compute the model.
 
         Additional keyword arguments contain information for the actual data
         template (cf. the "columns" in a data file) as well as for the passband
-        dependable (pbdep) description of the dataset (optional, e.g. ``passband``,
-        ``atm``, ``ld_func``, ``ld_coeffs``, etc). For any parameter that is not
-        explicitly set, the defaults from each component are used, instead of the
-        Phoebe2 defaults. For example when adding a light curve, pbdeps are added
-        to each component, and the ``atm``, ``ld_func`` and ``ld_coeffs`` are
-        taken from the component (i.e. the bolometric parameters) unless explicitly
-        overriden.
+        dependable (pbdep) description of the dataset (optional, e.g.
+        ``passband``, ``atm``, ``ld_func``, ``ld_coeffs``, etc). For any
+        parameter that is not explicitly set, the defaults from each component
+        are used, instead of the Phoebe2 defaults. For example when adding a
+        light curve, pbdeps are added to each component, and the ``atm``,
+        ``ld_func`` and ``ld_coeffs`` are taken from the component (i.e. the
+        bolometric parameters) unless explicitly overriden.
         
         Unique references are added automatically if none are provided by the
-        user (via :envvar:`dataref`). Instead of the backend-popular UUID system,
-        the bundle implements a more readable system of unique references: the
-        first light curve that is added is named 'lc01', and similarly for other
-        categories. If the dataset with the reference already exists, 'lc02' is
-        tried and so on.
+        user (via :envvar:`dataref`). Instead of the backend-popular UUID
+        system, the bundle implements a more readable system of unique
+        references: the first light curve that is added is named 'lc01', and
+        similarly for other categories. If the dataset with the reference
+        already exists, 'lc02' is tried and so on.
         
         **Light curves (default)**
         
@@ -1132,8 +1133,8 @@ class Bundle(Container):
         :type category: str
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
-        :param ref: name for ref for all returned datasets
-        :type ref: str    
+        :param dataref: name for ref for all returned datasets
+        :type dataref: str    
         :raises ValueError: if :envvar:`category` is not recognised.
         :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
         :raises KeyError: if any keyword argument is not recognised as obs/dep Parameter
@@ -1235,6 +1236,83 @@ class Bundle(Container):
             pb = parameters.ParameterSet(context=category+'dep', ref=dataref, **pbkwargs)
             output[component.get_label()] = [[ds],[pb]]
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
+    
+    
+    def lc_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
+                      flux=None, sigma=None, flag=None, weight=None,
+                      exptime=None, samprate=None, offset=None, scale=None,
+                      atm=None, ld_func=None, ld_coeffs=None, passband=None,
+                      pblum=None, l3=None, alb=None, beaming=None,
+                      scattering=None):
+        """
+        Create and attach light curve templates to compute the model.
+        
+        For any parameter that is not explicitly set (i.e. not left equal to
+        ``None``), the defaults from each component in the system are used
+        instead of the Phoebe2 defaults. For example, the :envvar:`atm`,
+        :envvar:`ld_func` and :envvar:`ld_coeffs` arguments are taken from the
+        component (which reflect the bolometric properties) unless explicitly
+        overriden.
+        
+        A unique data reference (:envvar:`dataref`) is added automatically if
+        none is provided by the user. A readable system of unique references is
+        applied: the first light curve that is added is named ``lc01`` unless
+        that reference already exists, in which case ``lc02`` is tried and so
+        on. On the other hand, if a :envvar:`dataref` is given at it already
+        exists, it's settings are overwritten.
+        
+        If no :envvar:`objref` is given, the light curve is added to the total
+        system, and not to a separate component. That is probably fine in almost
+        all cases, since you observe the whole system simultaneously and not the
+        components separately.
+        
+        Note that you cannot add :envvar:`times` and `phases` simultaneously.
+        
+        **Example usage**
+        
+        It doesn't make much sense to leave the time array empty, since then
+        nothing will be computed. Thus, the minimal function call that makes
+        sense is something like:
+        
+        >>> bundle.lc_fromarrays(time=np.linspace(0, 10.33, 101))
+        
+        or in phase space (phase space will probably not work for anything but
+        light curves and radial velocities):
+        
+        >>> phase = np.linspace(-0.5, 0.5, 101)
+        >>> bundle.lc_fromarrays(phase=phase, passband='GENEVA.V')
+        
+        With many more details:
+        
+        >>> bundle.lc_fromarrays(phase=phase, samprate=5, exptime=20.,
+        ...     passband='GENEVA.V', atm='kurucz', ld_func='claret', 
+        ...     ld_coeffs='kurucz')
+        
+        For a list of acceptable values for each parameter, see
+        :ref:`lcdep <parlabel-phoebe-lcdep>` and
+        :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        
+        In general, :envvar:`time`, :envvar:`flux`, :envvar:`phase`,
+        :envvar:`sigma`, :envvar:`flag`, :envvar:`weight, :envvar:`exptime` and
+        :envvar:`samprate` should all be arrays of equal length (unless left to
+        ``None``).
+        
+        :param objref: component for each column in file
+        :type objref: None, str, list of str or list of bodies
+        :param dataref: name for ref for all returned datasets
+        :type dataref: str
+        :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
+        :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
+        """
+        # retrieve the arguments with which this function is called
+        set_kwargs, posargs = utils.arguments()
+        
+        # filter the arguments according to not being "None" nor being "self"
+        set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
+                  if set_kwargs[key] is not None and key != 'self'}
+        
+        # We can pass everything now to the main function
+        self.data_fromarrays(category='lc', **set_kwargs)
     
     
     def get_syn(self, dataref=0, category=None, objref=None, all=False, ignore_errors=False):
@@ -2187,7 +2265,7 @@ class Bundle(Container):
         # get_system_structure is not implemented yet
         
         # these might already be attached?
-        self.attach_signal(self,'load_data',self._on_param_changed)
+        self.attach_signal(self,'data_fromfile',self._on_param_changed)
         self.attach_signal(self,'remove_data',self._on_param_changed)
         self.attach_signal(self,'enable_obs',self._on_param_changed)
         self.attach_signal(self,'disable_obs',self._on_param_changed)
