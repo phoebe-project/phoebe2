@@ -56,15 +56,15 @@ def do_test(filename):
     # use the settings of the first lc in Phoebe Legacy for Phoebe2
     existing_refs = mybundle.get_value_all('ref@lcdep')
     if existing_refs:
-        dataref = existing_refs[0]
+        dataref = existing_refs.values()[0]
     else:
         dataref = 'mylightcurve'
     
-    mybundle.create_data(category='lc', phase=ph, dataref=dataref)
+    mybundle.data_fromarrays(category='lc', phase=ph, dataref=dataref)
         
     # Atmospheres:
-    atms = sorted(list(set(mybundle.get_value_all('atm'))))
-    ld_funcs = sorted(list(set(mybundle.get_value_all('ld_func'))))
+    atms = sorted(list(set(mybundle.get_value_all('atm').values())))
+    ld_funcs = sorted(list(set(mybundle.get_value_all('ld_func').values())))
 
     # set custom passband and atmosphere if blackbodies are requested. Else
     # we stick to Phoebe2 default atmosphere/passbands

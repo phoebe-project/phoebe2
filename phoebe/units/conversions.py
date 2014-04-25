@@ -2691,7 +2691,7 @@ class VegaMag(NonLinearConverter):
                 raise ValueError("No calibrations for %s"%(passband))
             
             if not np.isnan(zp['Flam0'][match][0]) and not np.isnan(float(zp['vegamag'][match][0])):
-                F0 = convert(zp['Flam0_units'][match][0],'W/m3',zp['Flam0'][match][0])    
+                F0 = convert(zp['Flam0_units'][match][0],'W/m2/AA',zp['Flam0'][match][0])    
                 mag0 = float(zp['vegamag'][match][0])
                 
         if not inv: return 10**(-(meas-mag0)/2.5)*F0

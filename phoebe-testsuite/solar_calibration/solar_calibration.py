@@ -152,20 +152,21 @@ print("\nProjected flux:")
 nflux = the_sun.params['syn']['lcsyn']['Bolometric (numerical)']['flux'][0]
 aflux = the_sun.params['syn']['lcsyn']['Bolometric (analytical)']['flux'][0]
 mupos = the_sun.mesh['mu']>0
-print("Analytical = %.6e erg/s/cm2"%(aflux))
-print("Numerical  = %.6e erg/s/cm2"%(nflux))
-print("Real       = %.6e erg/s/cm2"%(1368000.))
+
+print("Analytical = %.6e W/m2"%(aflux))
+print("Numerical  = %.6e W/m2"%(nflux))
+print("Real       = %.6e W/m2"%(1368.000))
 print("Numerical error on projected area: %.6f%%"%(np.abs(np.pi-((the_sun.mesh['size']*the_sun.mesh['mu'])[mupos]).sum())/np.pi*100))
 print("Numerical error on projected flux: %.6f%%"%(np.abs(nflux-aflux)/aflux*100))
-print("Error on real projected flux (measure for accuracy): %.6f%%"%(np.abs(1368000.-aflux)/aflux*100))
+print("Error on real projected flux (measure for accuracy): %.6f%%"%(np.abs(1368.000-aflux)/aflux*100))
 
 print("\nTotal flux:")
 lumi1 = limbdark.sphere_intensity(the_sun.params['star'],the_sun.params['pbdep']['lcdep'].values()[0])[0]
-lumi2 = params.get_value('luminosity','cgs')
-lumsn = phoebe.constants.Lsol_cgs
-print("Analytical = %.6e erg/s"%(lumi1))
-print("Numerical  = %.6e erg/s"%(lumi2))
-print("Real       = %.6e erg/s"%(lumsn))
+lumi2 = params.get_value('luminosity','W')
+lumsn = phoebe.constants.Lsol#_cgs
+print("Analytical = %.6e W"%(lumi1))
+print("Numerical  = %.6e W"%(lumi2))
+print("Real       = %.6e W"%(lumsn))
 print("Numerical error on total area: %.6f%%"%(np.abs(4*np.pi-the_sun.area())/4*np.pi*100))
 print("Numerical error on total flux: %.6f%%"%(np.abs(lumi1-lumi2)/lumi1*100))
 print("Error on real total flux (measure for accuracy): %.6f%%"%(np.abs(lumi1-lumsn)/lumsn*100))

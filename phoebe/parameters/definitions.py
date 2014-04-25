@@ -258,7 +258,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='scattering',  description='Scattering phase function',repr='',value='isotropic',cast_type='choose',choices=['isotropic','henyey','henyey2', 'rayleigh','hapke'], frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
-         dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context='lcsyn'),
+         dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='W/m3',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='samprate',   description='Sampling rate to apply',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='used_samprate',   description='Applied sampling rate',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          #dict(qualifier='used_exptime',   description='Applied exposure time',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
@@ -268,8 +268,8 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          #dict(qualifier='offset',    description='Offset constant',repr='%f',cast_type=float,value=0.0,frame=["phoebe"],context=['lcsyn','spsyn','amsyn','rvsyn','ifsyn','plsyn','etvsyn','orbsyn']),
          dict(qualifier='time',     description='Timepoints of the data',repr='%s',cast_type=np.array,value=[],unit='JD',frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs','amobs','siobs']),
          dict(qualifier='phase',     description='Phasepoints of the data',repr='%s',cast_type=np.array,value=[],unit='cy',frame=['phoebe'],context=['lcobs','spobs','rvobs','ifobs','plobs','etvobs']),
-         dict(qualifier='flux',   description='Observed signal',repr='%s',cast_type=np.array,value=[],unit='erg/s/cm2/AA',frame=["phoebe"],context='lcobs'),
-         dict(qualifier='sigma',  description='Data sigma',repr='%s',cast_type=np.array,value=[],unit='erg/s/cm2/AA',frame=['phoebe'],context=['lcobs','lcsyn']),
+         dict(qualifier='flux',   description='Observed signal',repr='%s',cast_type=np.array,value=[],unit='W/m3',frame=["phoebe"],context='lcobs'),
+         dict(qualifier='sigma',  description='Data sigma',repr='%s',cast_type=np.array,value=[],unit='W/m3',frame=['phoebe'],context=['lcobs','lcsyn']),
          dict(qualifier='sigma',  description='Data sigma',repr='%s',cast_type=np.array,value=[],unit='km/s',frame=['phoebe'],context=['rvobs','rvsyn','etvobs','etvsyn']),
          dict(qualifier='flag',    description='Signal flag',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
          dict(qualifier='weight',    description='Signal weight',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
@@ -347,8 +347,8 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='profile',  description='Line profile source (gridname or "gauss")',repr='%s',cast_type=str,value='gauss',frame=["phoebe"],context=['spdep','pldep']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['spsyn','plsyn']),
          dict(qualifier='wavelength',description='Wavelengths of calculated spectrum',repr='%s',value=[],unit='nm',frame=["phoebe"],context=['spsyn','plsyn']),
-         dict(qualifier='flux',      description='Intensity of calculated spectrum',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context=['spsyn','plsyn']),
-         dict(qualifier='continuum', description='Continuum of calculated spectrum',repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context=['spsyn','plsyn']),
+         dict(qualifier='flux',      description='Intensity of calculated spectrum',repr='%s',value=[],unit='W/m3',frame=["phoebe"],context=['spsyn','plsyn']),
+         dict(qualifier='continuum', description='Continuum of calculated spectrum',repr='%s',value=[],unit='W/m3',frame=["phoebe"],context=['spsyn','plsyn']),
          dict(qualifier='stokesV',   description='Stokes V profile',repr='%s',value=[],frame=["phoebe"],context=['plsyn']),
         ]
 
@@ -399,7 +399,7 @@ defs += [dict(qualifier='coordinates',description="Location of geometrical baryc
          dict(qualifier='mass',       description="Mass of the body as a point source",repr='%g',value=0.,unit='Msol',frame=["phoebe"],context=['point_source']),
          dict(qualifier='teff',       description="passband mean temperature",repr='%g',value=0.,unit='K',frame=["phoebe"],context=['point_source']),
          dict(qualifier='surfgrav', description="passband mean surface gravity",repr='%g',value=0.,unit='[cm/s2]',frame=["phoebe"],context=['point_source']),
-         dict(qualifier='intensity', description="passband mean intensity",repr='%g',value=0.,unit='erg/s/cm2',frame=["phoebe"],context=['point_source']),
+         dict(qualifier='intensity', description="passband mean intensity",repr='%g',value=0.,unit='W/m3',frame=["phoebe"],context=['point_source']),
         ]
         
 defs += [dict(qualifier='coordinates',description="Location of the body's geometrical barycenter",repr='%s',value=[],unit='Rsol',frame=["phoebe"],context=['psdep']),
@@ -408,7 +408,7 @@ defs += [dict(qualifier='coordinates',description="Location of the body's geomet
          dict(qualifier='mass',       description="Mass of the body as a point source",repr='%s',value=[],unit='Msol',frame=["phoebe"],context=['psdep']),
          dict(qualifier='teff',       description="passband mean temperature",repr='%s',value=[],unit='K',frame=["phoebe"],context=['psdep']),
          dict(qualifier='surfgrav', description="passband mean surface gravity",repr='%s',value=[],unit='m/s2',frame=["phoebe"],context=['psdep']),
-         dict(qualifier='intensity', description="passband mean intensity",repr='%s',value=[],unit='erg/s/cm2',frame=["phoebe"],context=['psdep']),
+         dict(qualifier='intensity', description="passband mean intensity",repr='%s',value=[],unit='W/m3',frame=["phoebe"],context=['psdep']),
         ]
 
 #    PULSATION contexts
