@@ -406,8 +406,8 @@ class Container(object):
         
         :param twig: the search twig
         :type twig: str
-        :return: list of all values matching the Parameter twig
-        :rtype: list of values
+        :return: dict of all values matching the Parameter twig
+        :rtype: dict of twig/values
         :raises KeyError: when twig is not available or is not a Parameter
         """
         params = self._get_by_search(twig, kind='Parameter', all=True)
