@@ -1293,7 +1293,7 @@ class Bundle(Container):
         # if no dataref is given, just take the only reference we have. If there
         # is more than one, this is ambiguous so we raise a KeyError
         if from_dataref is None:
-            existing_refs = self.get_system().get_refs()
+            existing_refs = self.get_system().get_refs(category=category)
             if len(existing_refs) != 1:
                 # build custom message depending on what is available
                 if len(existing_refs) == 0:
@@ -1530,7 +1530,7 @@ class Bundle(Container):
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key != 'self'}
         
-        self.data_fromexisting(to_dataref, **set_kwargs)
+        self.data_fromexisting(to_dataref, category='lc', **set_kwargs)
         
     def rv_fromarrays(self, objref, dataref=None, time=None, phase=None,
                       rv=None, sigma=None, flag=None, weight=None,
@@ -1573,13 +1573,13 @@ class Bundle(Container):
         
         With many more details:
         
-        >>> bundle.lc_fromarrays(phase=phase, samprate=5, exptime=20.,
+        >>> bundle.rv_fromarrays(phase=phase, samprate=5, exptime=20.,
         ...     passband='GENEVA.V', atm='kurucz', ld_func='claret', 
         ...     ld_coeffs='kurucz')
         
         For a list of acceptable values for each parameter, see
-        :ref:`lcdep <parlabel-phoebe-lcdep>` and
-        :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        :ref:`rvdep <parlabel-phoebe-rvdep>` and
+        :ref:`rvobs <parlabel-phoebe-rvobs>`.
         
         In general, :envvar:`time`, :envvar:`flux`, :envvar:`phase`,
         :envvar:`sigma`, :envvar:`flag`, :envvar:`weight, :envvar:`exptime` and
@@ -1616,11 +1616,10 @@ class Bundle(Container):
         Add a radial velocity curve from a file.
         
         The data contained in :envvar:`filename` will be loaded to the object
-        with object reference :envvar:`objref` (if ``None``, defaults to the whole
-        system), and will have data reference :envvar:`dataref`. If no
-        :envvar:`dataref` is is given, a unique one is generated: the first 
-        light curve that is added is named 'lc01', and if that one already
-        exists, 'lc02' is tried and so on.
+        with object reference :envvar:`objref`, and will have data reference
+        :envvar:`dataref`. If no :envvar:`dataref` is is given, a unique one is
+        generated: the first radial velocity curve that is added is named 'rv01',
+        and if that one already exists, 'rv02' is tried and so on.
         
         For any parameter that is not explicitly set (i.e. not left equal to
         ``None``), the defaults from each component in the system are used
@@ -1629,23 +1628,23 @@ class Bundle(Container):
         component (which reflect the bolometric properties) unless explicitly
         overriden.
         
-        See :py:func:`phoebe.parameters.datasets.parse_lc` for more information
+        See :py:func:`phoebe.parameters.datasets.parse_rv` for more information
         on file formats.
         
         **Example usage**
         
         A plain file can loaded via::
         
-        >>> bundle.lc_fromarrays('myfile.lc')
+        >>> bundle.rv_fromarrays('myfile.rv')
         
         Note that extra parameters can be given in the file itself, but can
         also be overriden in the function call:
         
-        >>> bundle.lc_fromarrays('myfile.lc', atm='kurucz')
+        >>> bundle.rv_fromarrays('myfile.rv', atm='kurucz')
         
         For a list of acceptable values for each parameter, see
-        :ref:`lcdep <parlabel-phoebe-lcdep>` and
-        :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        :ref:`rvdep <parlabel-phoebe-rvdep>` and
+        :ref:`rvobs <parlabel-phoebe-rvobs>`.
         
         [FUTURE]
         
@@ -1665,7 +1664,7 @@ class Bundle(Container):
                   if set_kwargs[key] is not None and key != 'self'}
         
         # We can pass everything now to the main function
-        return self.data_fromfile(category='lc', **set_kwargs)
+        return self.data_fromfile(category='rv', **set_kwargs)
     
     
     def rv_fromexisting(to_dataref, from_dataref=None, time=None, phase=None,
@@ -1679,20 +1678,20 @@ class Bundle(Container):
         
         This can be useful if you want to change little things and want to
         examine the difference between computing options easily, or if you
-        want to compute an existing light curve onto a higher time resolution
-        etc.
+        want to compute an existing radial velocity curve onto a higher time
+        resolution etc.
         
-        Any extra kwargs are copied to any lcdep or lcobs where the key is
+        Any extra kwargs are copied to any rvdep or rvobs where the key is
         present.
         
-        All *lcdeps* and *lcobs* with dataref :envvar:`from_dataref` will be
-        duplicated into an *lcdep* with dataref :envvar:`to_dataref`.
+        All *rvdeps* and *rvobs* with dataref :envvar:`from_dataref` will be
+        duplicated into an *rvdep* with dataref :envvar:`to_dataref`.
         
         [FUTURE]
         
         :raises KeyError: if :envvar:`to_dataref` already exists
         :raises KeyError: if :envvar:`from_dataref` is not given and there is
-        either no or more than one light curve present.
+        either no or more than one radial velocity curve present.
         :raises ValueError: if keyword arguments are set that could not be
         processed.
         """
@@ -1703,7 +1702,7 @@ class Bundle(Container):
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key != 'self'}
         
-        self.data_fromexisting(to_dataref, **set_kwargs)
+        self.data_fromexisting(to_dataref,  category='lc', **set_kwargs)
     
     def get_syn(self, twig=None):
         """
