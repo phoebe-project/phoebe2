@@ -1605,7 +1605,7 @@ class Bundle(Container):
                   if set_kwargs[key] is not None and key not in ['self','objref']}
         
         # We can pass everything now to the main function
-        return self.data_fromarrays(category='lc', **set_kwargs)
+        return self.data_fromarrays(category='rv', **set_kwargs)
     
     
     def rv_fromfile(self, filename, objref=None, dataref=None, columns=None,
@@ -1702,7 +1702,7 @@ class Bundle(Container):
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key != 'self'}
         
-        self.data_fromexisting(to_dataref,  category='lc', **set_kwargs)
+        self.data_fromexisting(to_dataref,  category='rv', **set_kwargs)
     
     def get_syn(self, twig=None):
         """
