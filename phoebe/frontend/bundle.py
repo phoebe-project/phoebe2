@@ -1602,7 +1602,7 @@ class Bundle(Container):
         
         # filter the arguments according to not being "None" nor being "self"
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
-                  if set_kwargs[key] is not None and key in ['self','objref']}
+                  if set_kwargs[key] is not None and key not in ['self','objref']}
         
         # We can pass everything now to the main function
         return self.data_fromarrays(category='lc', **set_kwargs)
@@ -2016,13 +2016,23 @@ class Bundle(Container):
         kwargs['ref'] = ds['ref']
         output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
         
-        # now take care of figure decoratios
+        fig_decs = output[2]
+        # now take care of figure decorations
+        # The x-label
         if xlabel == '_auto_':
-            plt.xlabel('xunit')
-            
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[0][1]))
         elif xlabel:
             plt.xlabel(xlabel)
-        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[1][0], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        # The plot title
+        if title == '_auto_':
+            plt.title(twig)
+        elif title:
+            plt.title(title)        
 
         
     def plot_syn(self, twig=None, *args, **kwargs):
