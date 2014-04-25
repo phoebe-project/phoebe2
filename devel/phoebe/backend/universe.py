@@ -4167,6 +4167,30 @@ class Body(object):
                 pass
     
     @decorators.parse_ref
+    def rv(self,correct_oversampling=1,ref='allrvdep', time=None, beaming_alg='none'):
+        """
+        Compute integrated radial velocity and add results to the pbdep ParameterSet.
+        """
+        #-- compute the projected intensities for all light curves.
+        for lbl in ref:
+            obs, lbl = self.get_parset(type='obs', ref=lbl)
+            
+            # If there are no obs here, traverse
+            if obs is None:
+                if hasattr(self,'bodies'):
+                    for body in self.bodies:
+                        body.rv(correct_oversampling=correct_oversampling,
+                                ref=ref, time=time, beaming_alg=beaming_alg)
+                continue
+                
+            base,lbl = self.get_parset(ref=lbl,type='syn')
+            #proj_velo = self.projected_velocity(ref=lbl)
+            proj_velo = observatory.radial_velocity(self, obs)
+            base['time'].append(time)
+            base['rv'].append(proj_velo)
+                
+    
+    @decorators.parse_ref
     def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1, beaming_alg='none'):
         """
         Compute Stokes profiles and add results to the pbdep ParameterSet.
@@ -5074,20 +5098,7 @@ class PhysicalBody(Body):
     
 
     
-    @decorators.parse_ref
-    def rv(self,correct_oversampling=1,ref='allrvdep', time=None, beaming_alg='none'):
-        """
-        Compute integrated radial velocity and add results to the pbdep ParameterSet.
-        """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'pbdep' in self.params:
-            if not ('rvdep' in self.params['pbdep']): return None
-            #-- compute the projected intensities for all light curves.
-            for lbl in ref:
-                base,lbl = self.get_parset(ref=lbl,type='syn')
-                proj_velo = self.projected_velocity(ref=lbl)
-                base['time'].append(time)
-                base['rv'].append(proj_velo)
+
     
     @decorators.parse_ref
     def ps(self,correct_oversampling=1, ref='alllcdep',time=None, beaming_alg='none'):
@@ -5827,7 +5838,7 @@ class BodyBag(Body):
         # only be computed of the whole system, since the total Fourier
         # transform is not the sum of the component Fourier transforms.
         #   .... euhh... it kind of is! Anyway...
-        if kwargs.get('category', 'lc') == 'if':
+        if kwargs.get('category', 'lc') in ['if', 'rv']:
             total_results = self.get_parset(ref=kwargs.get('ref',0), type='syn',
                                         category=kwargs.get('category', None))[0]
         

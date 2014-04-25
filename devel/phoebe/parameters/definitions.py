@@ -299,6 +299,8 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
 # Orbsyn context
 defs += [dict(qualifier='bary_time', description='Barycentric times', repr='%s', value=[], context='orbsyn', frame='phoebe'),
          dict(qualifier='prop_time', description='Proper times', repr='%s', value=[], context='orbsyn', frame='phoebe'),
+         dict(qualifier='position', description='Position of the object in the orbit', repr='%s', value=[], context='orbsyn', frame='phoebe'),
+         dict(qualifier='velocity', description='Velocity of the object in the orbit', repr='%s', value=[], context='orbsyn', frame='phoebe'),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['bary_time', 'prop_time'],cast_type='return_list_of_strings',frame=["phoebe"],context=['orbsyn']),
         ]
 

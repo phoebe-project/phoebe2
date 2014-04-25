@@ -74,12 +74,13 @@ def plot_lcsyn(system, *args, **kwargs):
     """
     # Get some default parameters
     ref = kwargs.pop('ref', 0)
+    x_unit = kwargs.pop('x_unit')
+    y_unit = kwargs.pop('y_unit')
     scale = kwargs.pop('scale', 'obs')
     repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
     phased = kwargs.pop('phased', False)
     t0 = kwargs.pop('t0', 0.0)
-    y_unit = kwargs.pop('y_unit', None)
     
     # Get parameterSets and set a default label if none is given
     syn = system.get_synthetic(category='lc', ref=ref)
@@ -116,31 +117,64 @@ def plot_lcsyn(system, *args, **kwargs):
     flux = np.array(syn['flux'])
     flux = flux * this_scale + this_offset
     
-    if y_unit is not None:
-        if y_unit == 'pph':
-            flux = (flux / np.median(flux) - 1 )*100
-        elif y_unit == 'ppt':
-            flux = (flux / np.median(flux) - 1 )*1000
-        elif y_unit == 'ppm':
-            flux = (flux / np.median(flux) - 1 )*1e6
-        elif y_unit == 'relative':
-            flux = flux / np.median(flux)
-        else:
-            lcdep,ref = system.get_parset(category='lc', ref=ref)
-            flux = conversions.convert('erg/s/cm2/AA', y_unit, flux, passband=lcdep['passband'])
+    lcdep, ref = system.get_parset(category='lc', ref=ref)
+    
+    #if y_unit is not None:
+        #if y_unit == 'pph':
+            #flux = (flux / np.median(flux) - 1 )*100
+        #elif y_unit == 'ppt':
+            #flux = (flux / np.median(flux) - 1 )*1000
+        #elif y_unit == 'ppm':
+            #flux = (flux / np.median(flux) - 1 )*1e6
+        #elif y_unit == 'relative':
+            #flux = flux / np.median(flux)
+        #else:
+            #flux = conversions.convert('erg/s/cm2/AA', y_unit, flux, passband=lcdep['passband'])
     
     # Get the period to repeat the LC with
     if period is None:
         period = max(time)
     
+    # remember what axes we've plotted
+    axes_labels = ['', '']
+    axes_units = ['','']
+    
+    # convert to the correct unit
+    # YAXIS
+    from_unit = obs.get_parameter('flux').get_unit()
+    if y_unit is not None:
+        flux = conversions.convert(from_unit, y_unit, flux, passband=lcdep['passband'])
+        from_unit = y_unit
+    axes_units[1] = conversions.unit2texlabel(from_unit)
+    axes_labels[1] = 'Flux'
+    
+    
     # Plot model: either in phase or in time.
     artists = []
     if not phased:
+        # XAXIS
+        from_unit = obs.get_parameter('time').get_unit()
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Time'
+        
         for n in range(repeat+1):
             p, = ax.plot(time+n*period, flux, *args, **kwargs)
             artists.append(p)
     else:
         time = ((time-t0) % period) / period
+        
+        # XAXIS
+        from_unit = 'cy'
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Phase'
+        
         sa = np.argsort(time)
         time, flux = time[sa], flux[sa]
         for n in range(repeat+1):
@@ -157,7 +191,8 @@ def plot_lcsyn(system, *args, **kwargs):
         syn.unload()
     
     # That's it!
-    return artists, ret_syn, this_scale, this_offset
+    return artists, ret_syn, (this_scale, this_offset),\
+            (axes_labels, axes_units)
 
 
 def plot_lcobs(system, **kwargs):
@@ -192,12 +227,15 @@ def plot_lcobs(system, **kwargs):
     repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
     phased = kwargs.pop('phased', False)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
     t0 = kwargs.pop('t0', 0.0)
     ax = kwargs.pop('ax',plt.gca())
     errorbars = kwargs.pop('errorbars', True)
 
     # Get parameterSets
     obs = system.get_obs(category='lc', ref=ref)
+    dep = system.get_parset(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
     #-- load observations: they need to be here
@@ -227,9 +265,32 @@ def plot_lcobs(system, **kwargs):
     if period is None:
         period = max(time)
     
+    # remember what axes we've plotted
+    axes_labels = ['', '']
+    axes_units = ['','']
+    
+    # convert to the correct unit
+    # YAXIS
+    from_unit = obs.get_parameter('flux').get_unit()
+    if y_unit is not None:
+        flux, sigm = conversions.convert(from_unit, y_unit, flux, sigma,
+                                         passband=dep['passband'])
+        from_unit = y_unit
+    axes_units[1] = conversions.unit2texlabel(from_unit)
+    axes_labels[1] = 'Flux'
+    
     #-- plot model
     artists = []
     if not phased:
+        # XAXIS
+        from_unit = obs.get_parameter('time').get_unit()
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Time'
+        
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
@@ -240,6 +301,14 @@ def plot_lcobs(system, **kwargs):
             artists.append(p)
     else:
         time = ((time-t0) % period) / period
+        # XAXIS
+        from_unit = 'cy'
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Phase'
+        
         # need to sort by time (if using lines)
         o = time.argsort()
         time, flux = time[o], flux[o]
@@ -254,11 +323,8 @@ def plot_lcobs(system, **kwargs):
     if loaded:
         obs.unload()
     
-    # remember what axes we've plotted
-    axes = ['time', 'flux']
-    #axes_units = [,]
     
-    return artists, obs
+    return artists, obs, (axes_labels, axes_units)
 
 
 def plot_lcres(system,*args,**kwargs):

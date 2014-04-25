@@ -2020,17 +2020,17 @@ class Bundle(Container):
         # now take care of figure decorations
         # The x-label
         if xlabel == '_auto_':
-            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[0][1]))
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
         elif xlabel:
             plt.xlabel(xlabel)
         # The y-label
         if ylabel == '_auto_':
-            plt.xlabel(r'{} ({})'.format(fig_decs[1][0], fig_decs[1][1]))
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
         elif ylabel:
             plt.ylabel(ylabel)
         # The plot title
         if title == '_auto_':
-            plt.title(twig)
+            plt.title('{} ({})'.format(config.nice_names[context[:-3]], ds['ref']))
         elif title:
             plt.title(title)        
 
