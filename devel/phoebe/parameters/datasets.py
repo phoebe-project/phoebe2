@@ -162,7 +162,12 @@ class DataSet(parameters.ParameterSet):
                 if not columns[i] in self:
                     self.add(dict(qualifier=columns[i],value=col,description='<loaded from file {}>'.format(filename)))
                 else:
-                    self[columns[i]] = col
+                    if 'user_units' in self and columns[i] in self['user_units']:
+                        to_unit = self.get_parameter(columns[i]).get_unit()
+                        from_unit = self['user_units'][columns[i]]
+                        self[columns[i]] = conversions.convert(from_unit, to_unit, col)
+                    else:
+                        self[columns[i]] = col
            
             # Then try to load header:
             with open(filename, 'r') as ff:
@@ -215,7 +220,8 @@ class DataSet(parameters.ParameterSet):
             filename = self.get_value('filename')
             columns = self.get_value('columns')
             for col in columns:
-                if col in self: self.remove(col)
+                if col in self:
+                    self[col] = []
     
     def save(self, filename=None, pretty_header=False):
         """

@@ -1581,7 +1581,11 @@ class Parameter(object):
         except ValueError:
             unit0 = None
             unit1 = None
-            
+        # if anything else goes wrong then other is not a Parameter
+        except:
+            return False
+        
+        
         #-- if there are units, get the value in SI units
         if unit0 is not None and unit1 is not None:
             try:
@@ -1590,7 +1594,12 @@ class Parameter(object):
                 return np.all(self.get_value()==other.get_value())
         #-- otherwise retrieve raw values
         else:
-            return np.all(self.get_value()==other.get_value())
+            # get the value, unless other is not a parameter, then other *is*
+            # the value
+            try:
+                return np.all(self.get_value()==other.get_value())
+            except AttributeError:
+                return np.all(self.get_value() == other)
     
     def __hash__(self):
         """
