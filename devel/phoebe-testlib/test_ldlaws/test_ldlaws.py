@@ -22,9 +22,12 @@ def do_ldlaw(atm='kurucz', ld_func='linear', ld_coeffs=None):
     
     sun.set_time(0.)
     
-    lum = phoebe.convert('cgs',"Lsol",phoebe.universe.luminosity(sun))
-    proj1 = phoebe.convert('cgs','W/m2',sun.projected_intensity(ref='bol'))
-    proj2 = phoebe.convert('erg/s/cm2/AA','mag',sun.projected_intensity(ref='visual'),passband='JOHNSON.V')
+    #lum = phoebe.convert('cgs',"Lsol",phoebe.universe.luminosity(sun))
+    lum = phoebe.convert('SI',"Lsol",phoebe.universe.luminosity(sun))
+    proj1 = sun.projected_intensity(ref='bol')
+    proj2 = phoebe.convert('W/m3','mag',sun.projected_intensity(ref='visual'),passband='JOHNSON.V')
+    #proj1 = phoebe.convert('cgs','W/m2',sun.projected_intensity(ref='bol'))
+    #proj2 = phoebe.convert('erg/s/cm2/AA','mag',sun.projected_intensity(ref='visual'),passband='JOHNSON.V')
     print atm, ld_func, ld_coeffs, lum, proj1, proj2
     assert(np.abs(lum-1)<0.01)
     assert(np.abs(proj1-1360)<10.)

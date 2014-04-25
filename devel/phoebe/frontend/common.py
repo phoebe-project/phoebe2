@@ -415,9 +415,14 @@ class Container(object):
         # if we decide upon a list
         #return [param.get_value() for param in params]
     
-        # if we decide upon a dictionary
+        # if we decide upon a dictionary (I want ordered because that sometimes
+        # makes sense)
         matched_twigs = self._match_twigs(twig, hidden=False)
-        return {twig:param.get_value() for twig, param in zip(matched_twigs, params)}
+        od = OrderedDict()
+        for twig, param in zip(matched_twigs, params):
+            od[twig] = param.get_value()
+        return od
+        #return {twig:param.get_value() for twig, param in zip(matched_twigs, params)}
         
         
     

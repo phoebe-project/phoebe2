@@ -251,7 +251,12 @@ def plot_lcobs(system, **kwargs):
             else:
                 p = ax.plot(time+n,flux,**kwargs)
 
-    if loaded: obs.unload()
+    if loaded:
+        obs.unload()
+    
+    # remember what axes we've plotted
+    axes = ['time', 'flux']
+    #axes_units = [,]
     
     return artists, obs
 

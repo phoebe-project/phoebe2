@@ -35,22 +35,25 @@ def main():
     the_sun.set_time(0)
 
     the_sun.lc()
+    
     params = the_sun.get_parameters()
     nflux = the_sun.params['syn']['lcsyn']['Bolometric (numerical)']['flux'][0]
     aflux = the_sun.params['syn']['lcsyn']['Bolometric (analytical)']['flux'][0]
+    
     mupos = the_sun.mesh['mu']>0
     
     num_error_area = np.abs(np.pi-((the_sun.mesh['size']*the_sun.mesh['mu'])[mupos]).sum())/np.pi*100
     num_error_flux = np.abs(nflux-aflux)/aflux*100
-    real_error_flux = np.abs(1368000.-aflux)/aflux*100
+    print aflux, nflux, the_sun.projected_intensity()
+    real_error_flux = np.abs(1368.000-aflux)/aflux*100
     
     assert(num_error_area<=0.048)
     assert(num_error_flux<=0.049)
     assert(real_error_flux<=0.25)
     
     lumi1 = limbdark.sphere_intensity(the_sun.params['star'],the_sun.params['pbdep']['lcdep'].values()[0])[0]
-    lumi2 = params.get_value('luminosity','cgs')
-    lumsn = phoebe.constants.Lsol_cgs
+    lumi2 = params.get_value('luminosity','W')
+    lumsn = phoebe.constants.Lsol#_cgs
     num_error_area = np.abs(4*np.pi-the_sun.area())/4*np.pi*100
     num_error_flux = np.abs(lumi1-lumi2)/lumi1*100
     real_error_flux = np.abs(lumi1-lumsn)/lumsn*100

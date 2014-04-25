@@ -1889,6 +1889,11 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
             labels.append(par_column)
     grid_pars = grid_pars[keep_columns]
     
+    # convert the imu from erg/s/cm2/AA to W/m3
+    if 'imu1' in data_columns:
+        index = data_columns.index('imu1')
+        grid_data[index] = np.log10(10**grid_data[index]*1e-3)
+    
     # Prepare to cut
     if cuts is not None:
         keep = np.ones(grid_pars.shape[1], bool)
@@ -2781,7 +2786,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
     #   diameter
     teff = body.request_value('teff','K')
     logg = body.request_value('surfgrav','[cm/s2]')
-    radius = body.request_value('radius','cm')
+    radius = body.request_value('radius','m')
     abun = body['abun']
     #vrad += gravitational_redshift(body_parameter_set)
     #-- retrieve the parameters of the data

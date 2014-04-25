@@ -58,7 +58,7 @@ def test_no_redist():
     print('min',teffmin)
     print('max',teffmax)
     
-    assert(np.abs(proj - 6.74991749527e-09)/6.74991749527e-09<1e-2)
+    assert(np.abs(proj - 6.74991749527e-12)/6.74991749527e-12<1e-2)
     assert(np.abs(teffmean-305)<5)
     assert(np.abs(teffmin-100)<0.1)
     assert(np.abs(teffmax-640)<5)
@@ -80,7 +80,7 @@ def test_little_redist():
     print(teffmin)
     print(teffmax)
     
-    assert(np.abs(proj - 6.74991749527e-09)/6.74991749527e-09<1e-2)
+    assert(np.abs(proj - 6.74991749527e-12)/6.74991749527e-12<1e-2)
     assert(np.abs(teffmean - 405)<5)
     assert(np.abs(teffmin - 303)<5)
     assert(np.abs(teffmax - 615)<5)
@@ -101,7 +101,7 @@ def test_total_redist():
     print('min teff', teffmin)
     print('max teff', teffmax)
     
-    assert(np.abs(system[1].projected_intensity(ref='apparent') - 6.74991749527e-09)/6.74991749527e-09<1e-2)
+    assert(np.abs(system[1].projected_intensity(ref='apparent') - 6.74991749527e-12)/6.74991749527e-12<1e-2)
     assert(np.abs(system[1].mesh['teff'].mean()-453)<5)
     assert(np.abs(system[1].mesh['teff'].min()-453)<5)
     assert(np.abs(system[1].mesh['teff'].max()-453)<5)

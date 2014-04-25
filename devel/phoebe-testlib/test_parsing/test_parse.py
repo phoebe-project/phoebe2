@@ -125,7 +125,8 @@ def test_parse_phased_data_mag():
     
     data = np.loadtxt(phasedfile).T
     
-    flux1 = phoebe.convert('mag','erg/s/cm2/AA',data[1], passband=pbdep['passband'])
+    #flux1 = phoebe.convert('mag','erg/s/cm2/AA',data[1], passband=pbdep['passband'])
+    flux1 = phoebe.convert('mag','W/m3',data[1], passband=pbdep['passband'])
     #flux2 = phoebe.convert('W/m3','erg/s/cm2/AA',10**(-data[1]/2.5))
     assert(np.all(flux1 == obs['flux']))
     #assert(np.all(flux2 == obs['flux']))

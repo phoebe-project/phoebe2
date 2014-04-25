@@ -291,7 +291,7 @@ def luminosity(body, ref='__bol', numerical=False):
     Here, :math:`\theta` is the angle between the line of sight and the surface
     normal, i.e. :math:`\theta=0` at the center of the disk.
     
-    @return: luminosity of the object (erg/s)
+    @return: luminosity of the object (W)
     @rtype: float
     """
     parset, ref = body.get_parset(ref=ref)
@@ -305,7 +305,7 @@ def luminosity(body, ref='__bol', numerical=False):
     # Get a reference to the mesh, and get the sizes of the triangles in real
     # units
     mesh = body.mesh
-    sizes = mesh['size'] * (100*constants.Rsol)**2
+    sizes = mesh['size'] * constants.Rsol**2
     
     
     if numerical:
@@ -491,7 +491,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         lcdep, ref = system.get_parset(ref)
         # The projected intensity is normalised with the distance in cm, we need
         # to reconvert that into solar radii.
-        proj_intens = limbdark.sphere_intensity(body,lcdep)[1]/(constants.Rsol*100)**2
+        proj_intens = limbdark.sphere_intensity(body,lcdep)[1]/(constants.Rsol)**2
         
         
     # Scale the projected intensity with the distance
@@ -1845,7 +1845,7 @@ class Body(object):
                 # The first passband luminosity needs to be the reference one,
                 # if any others need to be scaled according to it
                 if reference_plum is None and pbdep['pblum'] > -1:
-                    passband_lum = this_body.luminosity(ref=this_ref) / (100*constants.Rsol)**2
+                    passband_lum = this_body.luminosity(ref=this_ref) / constants.Rsol**2
                     reference_plum = pbdep['pblum'] / passband_lum
                 # if the first one is -1, nothing needs to be computed at all
                 elif reference_plum is None:
@@ -1853,7 +1853,7 @@ class Body(object):
                     continue
                 # otherwise we need to rescale the current one
                 else:
-                    passband_lum = this_body.luminosity(ref=this_ref) / (100*constants.Rsol)**2
+                    passband_lum = this_body.luminosity(ref=this_ref) / constants.Rsol**2
                     
                 # Now we need the synthetics so that we can scale them.
                 syn = this_body.get_synthetic(ref=this_ref)
