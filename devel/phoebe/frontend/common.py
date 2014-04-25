@@ -412,7 +412,13 @@ class Container(object):
         """
         params = self._get_by_search(twig, kind='Parameter', all=True)
         
-        return [param.get_value() for param in params]
+        # if we decide upon a list
+        #return [param.get_value() for param in params]
+    
+        # if we decide upon a dictionary
+        matched_twigs = self._match_twigs(twig, hidden=False)
+        return {twig:param.get_value() for twig, param in zip(matched_twigs, params)}
+        
         
     
     @rebuild_trunk
