@@ -888,7 +888,7 @@ class Bundle(Container):
         output is a dictionary with object names as keys and lists of both
         datasets and pbdeps as the values {objectname: [[ds1,ds2],[ps1,ps2]]}
         
-        this is called from bundle.load_data and bundle.create_data
+        this is called from bundle.load_data and bundle.data_fromarrays
         and should not be called on its own   
         
         If ``skip_defaults_from_body`` is True, none of the parameters in the
@@ -1184,7 +1184,7 @@ class Bundle(Container):
                 components = [self.get_system()]
                 #logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
             else:
-                logger.error('create_data failed: components need to be provided')
+                logger.error('data_fromarrays failed: components need to be provided')
                 return
         # is component just one string?
         elif isinstance(objref, str):
@@ -1258,7 +1258,8 @@ class Bundle(Container):
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
         return dataref
     
-    def data_fromexisting(self, to_dataref, from_dataref=None, **kwargs):
+    def data_fromexisting(self, to_dataref, from_dataref=None, category=None,
+                          **kwargs):
         """
         Duplicate existing data to a new set with a different dataref.
         
@@ -1269,11 +1270,15 @@ class Bundle(Container):
         Any extra kwargs are copied to any pbdep or obs where the key is
         present.
         
-        All *pbeps* and *obs* with dataref :envvar:`from_dataref` will be
+        All *pbdeps* and *obs* with dataref :envvar:`from_dataref` will be
         duplicated into a *pbdep* with dataref :envvar:`to_dataref`.
         
         [FUTURE]
         
+        :param category: category of the data to look for. If none are given,
+        all types of data will be examined. This only has a real influence on
+        the default value of :envvar:`from_dataref`.
+        :type category: str, one of ``lc``, ``rv``...
         :raises KeyError: if :envvar:`to_dataref` already exists
         :raises KeyError: if :envvar:`from_dataref` is not given and there is
         either no or more than one dataset present.
@@ -1488,11 +1493,42 @@ class Bundle(Container):
         return self.data_fromfile(category='lc', **set_kwargs)
     
     
-    def lc_fromexisting():
+    def lc_fromexisting(to_dataref, from_dataref=None, time=None, phase=None,
+                      flux=None, sigma=None, flag=None, weight=None,
+                      exptime=None, samprate=None, offset=None, scale=None,
+                      atm=None, ld_func=None, ld_coeffs=None, passband=None,
+                      pblum=None, l3=None, alb=None, beaming=None,
+                      scattering=None):
         """
-        D
+        Duplicate an existing light curve to a new one with a different dataref.
+        
+        This can be useful if you want to change little things and want to
+        examine the difference between computing options easily, or if you
+        want to compute an existing light curve onto a higher time resolution
+        etc.
+        
+        Any extra kwargs are copied to any lcdep or lcobs where the key is
+        present.
+        
+        All *lcdeps* and *lcobs* with dataref :envvar:`from_dataref` will be
+        duplicated into an *lcdep* with dataref :envvar:`to_dataref`.
+        
+        [FUTURE]
+        
+        :raises KeyError: if :envvar:`to_dataref` already exists
+        :raises KeyError: if :envvar:`from_dataref` is not given and there is
+        either no or more than one light curve present.
+        :raises ValueError: if keyword arguments are set that could not be
+        processed.
         """
-        pass
+        # retrieve the arguments with which this function is called
+        set_kwargs, posargs = utils.arguments()
+        
+        # filter the arguments according to not being "None" nor being "self"
+        set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
+                  if set_kwargs[key] is not None and key != 'self'}
+        
+        self.data_fromexisting(to_dataref, **set_kwargs)
     
     def get_syn(self, twig=None):
         """
@@ -1797,9 +1833,21 @@ class Bundle(Container):
         obj = self.get_object(dsti['label'])
         context = ds.get_context()
         
+        # do we need automatic xlabel, ylabel and/or title?
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
         # Now pass everything to the correct plotting function
         kwargs['ref'] = ds['ref']
-        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        
+        # now take care of figure decoratios
+        if xlabel == '_auto_':
+            plt.xlabel('xunit')
+            
+        elif xlabel:
+            plt.xlabel(xlabel)
         
 
         
@@ -1818,11 +1866,11 @@ class Bundle(Container):
         
         Example usage:
         
-        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'create_data'
+        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
         >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
         
-        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'create_data'
-        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'create_data'
+        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
+        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
         
         More information on arguments and keyword arguments:
         
