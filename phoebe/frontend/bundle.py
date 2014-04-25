@@ -682,7 +682,8 @@ class Bundle(Container):
         See that function for more info on the arguments.
         """
         return self.get_system().list(summary,*args)
-        
+    
+    @rebuild_trunk
     def clear_synthetic(self):
         """
         Clear all synthetic datasets.
