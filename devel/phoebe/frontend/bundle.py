@@ -1605,7 +1605,7 @@ class Bundle(Container):
                   if set_kwargs[key] is not None and key not in ['self','objref']}
         
         # We can pass everything now to the main function
-        return self.data_fromarrays(category='rv', **set_kwargs)
+        return self.data_fromarrays(category='rv', objref=objref, **set_kwargs)
     
     
     def rv_fromfile(self, filename, objref=None, dataref=None, columns=None,
