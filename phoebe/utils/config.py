@@ -15,6 +15,15 @@ indep_var_time = ['lc', 'rv', 'sp', 'pl', 'if', 'am']
 # rather needs to be fitted)
 indep_var_other = ['etv']
 
+# Nice names for the shortcuts
+nice_names = {'lc':'Light curve',
+              'rv':'Radial velocity curve',
+              'sp':'Spectrum',
+              'pl':'Spectrapolarimetry',
+              'if':'Interferometry',
+              'am':'Astrometry',
+              'etv':'Eclipse timing variations'}
+
 # Correspondence between data type and function to compute it
 compute_function = {'lc':'lc',
                     'rv':'rv',

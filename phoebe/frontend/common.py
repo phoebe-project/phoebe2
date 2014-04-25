@@ -1187,6 +1187,15 @@ class Container(object):
                     return None
             raise KeyError("no match found matching the criteria")
         elif all == False and ignore_errors == False and len(matched_twigs) > 1:
+            
+            # perhaps check here if the parameter name matches exactly:
+            #par_name = twig.split('@')[0]
+            #exact_matches = [tw for tw in matched_twigs if tw.split('@')[0] == par_name]
+            #if len(exact_matches) == 1:
+            #    items = [ti if return_trunk_item else ti[return_key] \
+            #                 for ti in trunk if ti['twig_full'] in exact_matches]
+            #    return items[0]
+            
             results = ', '.join(matched_twigs)
             raise KeyError(("more than one result was found matching the "
                             "criteria: {}").format(results))

@@ -1839,6 +1839,41 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     return wavelengths, stokes_I, stokes_V, stokes_Q, stokes_U, total_continum
     
 
+def radial_velocity(the_system, obs):
+    """
+    Compute a Body's radial velocity
+    """
+    ref = obs['ref']
+    mesh = the_system.mesh    
+    keep = the_system.mesh['mu'] >= 0
+    
+    # If we're not seeing the star, we can easily compute the spectrum: it's
+    # zero! Hihihi (hysterical laughter)!
+    if not np.sum(keep):
+        logger.info('Still need to compute (projected) intensity')
+        the_system.intensity(ref=ref)
+    
+    # Check if there is any flux    
+    the_system.projected_intensity(ref=ref, method='numerical')
+    keep = the_system.mesh['proj_'+ref] > 0
+    
+    if not np.sum(keep):
+        logger.info('no radial velocity {} computed, zero flux received'.format(ref))
+        return 0.0
+    
+    # Get limb angles
+    mus = the_system.mesh['mu']
+    keep = (mus > 0) & (the_system.mesh['partial'] | the_system.mesh['visible'])
+    mus = mus[keep]
+    
+    # Negating the next array gives the partially visible things, that is
+    # the only reason for defining it.
+    visible = the_system.mesh['visible'][keep]
+    proj_intens = the_system.mesh['proj_'+ref][keep]
+    rad_velos = -the_system.mesh['velo___bol_'][keep,2]
+    rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
+    return np.average(rad_velos, weights=proj_intens)
+
 def astrometry(system, obs, pbdep, index):
     """
     Compute a body's apparent coordinates on the sky.
@@ -2548,7 +2583,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             
             # Store the results in an "orbsyn" parameterSet
             orbsyn = datasets.DataSet('orbsyn', bary_time=time_per_time,
-                                             prop_time=prop_times, ref='ltt')
+                                             prop_time=prop_times,
+                                             position=objs, velocity=vels,
+                                             ref='ltt')
             
             # We need to keep the same hierarchy as with lcsyns and such
             body.params['syn']['orbsyn'] = OrderedDict()
