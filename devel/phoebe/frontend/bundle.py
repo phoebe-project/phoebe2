@@ -1813,20 +1813,19 @@ class Bundle(Container):
             #~ ds.load()
     
     @rebuild_trunk
-    def remove_data(self, dataref):
+    def data_remove(self, dataref=None):
         """
-        [FUTURE]
+        remove a dataset (and all its obs, syn, dep) from the system
         
-        @param ref: ref (name) of the dataset
-        @type ref: str
+        @param dataref: reference of the dataset
+        @type dataref: str
         """
-        ## TODO - rewrite to use twig access??
-
+        
         # disable any plotoptions that use this dataset
-        for axes in self.get_axes(all=True).values():
-            for pl in axes.get_plot().values():
-                if pl.get_value('dataref')==dataref:
-                    pl.set_value('active',False)
+        #~ for axes in self.get_axes(all=True).values():
+            #~ for pl in axes.get_plot().values():
+                #~ if pl.get_value('dataref')==dataref:
+                    #~ pl.set_value('active',False)
         
         # remove all obs attached to any object in the system
         for obj in self.get_system().walk_bodies():
@@ -1835,6 +1834,58 @@ class Bundle(Container):
                 obj.remove_pbdeps(refs=[dataref]) 
 
         return
+    
+    def _data_remove_category(self, dataref, category):
+        """
+        [FUTURE]
+        """
+        if dataref is None:
+            # then see if there is only one entry with this category
+            # and if so, default to it
+            dss = self._get_by_search(dataref, 
+                context=['{}obs'.format(category),'{}syn'.format(category),'{}dep'.format(category)], 
+                kind='ParameterSet', all=True, ignore_errors=True)
+            datarefs = []
+            for ds in dss:
+                if ds['ref'] not in datarefs:
+                    datarefs.append(ds['ref'])
+            if len(datarefs)==1:
+                dataref = datarefs[0]
+            elif len(datarefs)==0:
+                raise ValueError("no datasets found")
+                return
+            else:
+                raise ValueError("more than one dataset: must provide dataref")
+                return
+        else:
+            # confirm its (always) the correct category
+            # *technically* if it isn't always correct, we should just remove the correct ones
+            dss = self._get_by_search(dataref, context=['*obs','*syn','*dep'], kind='ParameterSet', all=True, ignore_errors=True)
+            for ds in dss:
+                if ds.context[-3:] != category:
+                    raise ValueError("{} not always of category {}".format(dataref, category))
+
+        return self.data_remove(dataref)
+        
+        
+    def lc_remove(self, dataref=None):
+        """
+        remove an LC dataset (and all its obs, syn, dep) from the system
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self._data_remove_category(dataref, 'lc')
+
+
+    def rv_remove(self, dataref=None):
+        """
+        remove an RV dataset (and all its obs, syn, dep) from the system
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self._data_remove_category(dataref, 'rv')
         
     #}
     #{ Compute
