@@ -1758,7 +1758,9 @@ class Bundle(Container):
         """
         Enable a dataset so that it will be considered during run_compute
         
-        If :envvar:`dataref=None` and there is only one dataset attached, 
+        If the category is given and :envvar:`dataref=None`, the dataset to
+        disable must be unique, i.e. there can be only one. Otherwise, a
+        ValueError will be raised.
         
         @param dataref: reference of the dataset
         @type dataref: str
@@ -1766,6 +1768,9 @@ class Bundle(Container):
         @type category: str
         @param enabled: whether to enable (True) or disable (False)
         @type enabled: bool
+        :raises ValueError: when the dataref is ambiguous, or is None
+        :raises ValueEror: if dataref is None and no category is given
+        :raises KeyError: when dataref is not available
         """
         dataref = self._process_dataref(dataref, category)
         
@@ -1794,10 +1799,13 @@ class Bundle(Container):
         """
         Disable a dataset so that it will not be considered during run_compute
         
+        See :py:func:`Bundle.enable_data` for more info
+        
         @param dataref: reference of the dataset
         @type dataref: str
         @param category: the category of the dataset ('lc', 'rv', etc)
         @type category: str
+        :raises ValueError: when the dataref is ambiguous, or is None and no category is given.
         """
         self.enable_data(dataref, category, enabled=False)
         
@@ -1805,8 +1813,12 @@ class Bundle(Container):
         """
         Enable an LC dataset so that it will be considered during run_compute
         
+        If no dataref is given and there is only one light curve added, there
+        is no ambiguity and that one will be enabled.
+        
         @param dataref: reference of the dataset
         @type dataref: str
+        :raises ValueError: when the dataref is ambiguos
         """
         self.enable_data(dataref, 'lc', True)
         
@@ -1887,12 +1899,15 @@ class Bundle(Container):
         else:
             # confirm its (always) the correct category
             # *technically* if it isn't always correct, we should just remove the correct ones
-            dss = self._get_by_search(dataref, context=['*obs','*syn','*dep'], kind='ParameterSet', all=True, ignore_errors=True)
+            #dss = self._get_by_search(dataref, context=['*obs','*syn','*dep'], kind='ParameterSet', all=True, ignore_errors=True)
+            dss = self._get_by_search(dataref, context='*dep', kind='ParameterSet', all=True, ignore_errors=True)
+            if not len(dss):
+                raise KeyError("No dataref found matching {}".format(dataref))
             for ds in dss:
                 if category is None:
                     # then instead we're just making sure that all are of the same type
                     category = ds.context[-3:]
-                if ds.context[-3:] != category:
+                if ds.context[:-3] != category:
                     raise ValueError("{} not always of category {}".format(dataref, category))
                     # forbitd this dataref
                     return None
