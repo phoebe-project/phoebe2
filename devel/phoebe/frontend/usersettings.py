@@ -3,11 +3,13 @@ import pickle
 import ConfigParser
 from collections import OrderedDict
 import copy
+import readline
 from server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
 from phoebe.backend import universe
 from phoebe.frontend.common import Container, rebuild_trunk
+import phcompleter
 
 
 class Settings(Container):
@@ -43,7 +45,7 @@ class Settings(Container):
             options for the error logger.  This logger will be automatically
             setup whenever the settings are loaded.  You can override this
             by initializing your own logger afterwards, or by changing the
-            settings and calling settings.apply_logger().
+            settings and calling settings.restart_logger().
             
         4. gui::
             (not yet supported)
@@ -68,6 +70,11 @@ class Settings(Container):
         
         # now let's load the settings from the .cfg files
         self.load()
+        
+        # set tab completer
+        readline.set_completer(phcompleter.Completer().complete)
+        readline.set_completer_delims(' \t\n`~!#$%^&*)-=+]{}\\|;:,<>/?')
+        readline.parse_and_bind("tab: complete")
 
         
     def __str__(self):
@@ -98,31 +105,39 @@ class Settings(Container):
                 
     #{ General Parameters
     
-    def get_logger(self):
+    def get_logger(self, label='default_logger'):
         """
         retrieve the logger options ParameterSet
         
         @return: logger ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_by_search('default_logger', section='logger', kind='ParameterSet', ignore_errors=True)
+        return self._get_by_search(label, section='logger', kind='ParameterSet', ignore_errors=True)
         
-    def apply_logger(self):
+    def restart_logger(self, label='default_logger', **kwargs):
         """
-        initialize the logger defined by the logger settings.
+        [FUTURE]
         
-        If logger settings were changed since the usersettings were loaded,
-        this must be called to apply them.
+        restart the logger
+        
+        any additional arguments passed will temporarily override the settings
+        in the stored logger.  These can include style, clevel, flevel, filename, filemode
+        
+        @param label: the label of the logger (will default if not provided)
+        @type label: str
         """
-        lps = self.get_logger()
-        if lps is not None:
-            logger = utils.get_basic_logger(style=lps.get_value('style'),
+        lps = self.get_logger(label).copy()
+        
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            #if k in options.keys(): # otherwise nonexisting kwargs can be given
+            lps.set_value(k,v)
+            
+        logger = utils.get_basic_logger(style=lps.get_value('style'),
                                     clevel=lps.get_value('clevel'),
                                     flevel=lps.get_value('flevel'),
                                     filename=None if lps.get_value('filename')=='None' else lps.get_value('filename'),
                                     filemode=lps.get_value('filemode'))
-        else:
-            logger = utils.get_basic_logger()
         
     def get_gui(self):
         """
@@ -375,8 +390,8 @@ class Settings(Container):
             
         # now apply the logger settings
         # if logger settings are changed, either reload the usersettings
-        # or call apply_logger()
-        self.apply_logger()
+        # or call restart_logger()
+        self.restart_logger()
         
         self._build_trunk()
     
