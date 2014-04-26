@@ -1818,13 +1818,16 @@ class Bundle(Container):
         
         @param dataref: reference of the dataset
         @type dataref: str
-        :raises ValueError: when the dataref is ambiguos
+        :raises ValueError: when the dataref is ambiguous
+        :raises KeyError: when dataref does not exist
         """
         self.enable_data(dataref, 'lc', True)
         
     def disable_lc(self, dataref=None):
         """
         Disable an LC dataset so that it will not be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info.
         
         @param dataref: reference of the dataset
         @type dataref: str
@@ -1835,6 +1838,8 @@ class Bundle(Container):
         """
         Enable an RV dataset so that it will be considered during run_compute
         
+        See :py:func:`Bundle.enable_lc` for more info
+        
         @param dataref: reference of the dataset
         @type dataref: str
         """
@@ -1843,6 +1848,8 @@ class Bundle(Container):
     def disable_rv(self, dataref=None):
         """
         Disable an RV dataset so that it will not be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info
         
         @param dataref: reference of the dataset
         @type dataref: str
@@ -1906,7 +1913,7 @@ class Bundle(Container):
             for ds in dss:
                 if category is None:
                     # then instead we're just making sure that all are of the same type
-                    category = ds.context[-3:]
+                    category = ds.context[:-3]
                 if ds.context[:-3] != category:
                     raise ValueError("{} not always of category {}".format(dataref, category))
                     # forbitd this dataref
