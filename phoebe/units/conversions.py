@@ -1671,7 +1671,7 @@ def unit2texlabel(unit,full=False):
     if full:
         label = '{0} [{1}]'.format(get_type(unit).title(),label.strip())
     
-    return label        
+    return label.strip()        
     
 
 def list_sphinx():

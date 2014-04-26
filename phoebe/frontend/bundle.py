@@ -2125,6 +2125,8 @@ class Bundle(Container):
         
         # Now take care of figure decorations
         fig_decs = output[2]
+        artists = output[0]
+        obs = output[1]
         
         # The x-label
         if xlabel == '_auto_':
@@ -2140,12 +2142,14 @@ class Bundle(Container):
         
         # The plot title
         if title == '_auto_':
-            plt.title('{} ({})'.format(config.nice_names[context[:-3]], ds['ref']))
+            plt.title('{}'.format(config.nice_names[context[:-3]]))
         elif title:
             plt.title(title)        
         
         logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
                                    fig_decs[0][1], context, ds['ref']))
+        
+        return artists, fig_decs, obs
 
         
     def plot_syn(self, twig=None, *args, **kwargs):
