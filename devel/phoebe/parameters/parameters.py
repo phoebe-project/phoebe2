@@ -2932,6 +2932,12 @@ class ParameterSet(object):
                 mystr.append(str_descr)
         return '\n'.join(mystr)
     
+    def info(self, qualifier):
+        """
+        Print out information on a parameter.
+        """
+        print(self.get_parameter(qualifier))
+        
     def __config__(self):
         """
         @rtype: str

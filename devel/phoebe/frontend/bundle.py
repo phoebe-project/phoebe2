@@ -9,8 +9,8 @@ library.
 
 **Phoebe1 compatibility**
     
-You can use Phoebe2 in some kind of Phoebe1 compatibility mode ('legacy' mode),
-most easily when you start from a legacy parameter file:
+You can use Phoebe2 in a Phoebe1 compatibility mode ('legacy' mode), which is
+most easily when you start immediately from a legacy parameter file:
     
     >>> mybundle = Bundle('legacy.phoebe')
 
@@ -1758,6 +1758,8 @@ class Bundle(Container):
         """
         Enable a dataset so that it will be considered during run_compute
         
+        If :envvar:`dataref=None` and there is only one dataset attached, 
+        
         @param dataref: reference of the dataset
         @type dataref: str
         @param category: the category of the dataset ('lc', 'rv', etc)
@@ -3163,3 +3165,126 @@ def guess_filetype(filename):
                       "it does not exist").format(filename))
     
     return file_type, contents
+
+
+def info():
+    frames = {}
+    for par in parameters.defs.defs:
+        for frame in par['frame']:
+            if not frame in ['phoebe','wd']: continue
+            if frame not in frames:
+                if isinstance(par['context'],list):
+                    frames[frame]+= par['context']
+                else:
+                    frames[frame] = [par['context']]
+            elif not par['context'] in frames[frame]:
+                if isinstance(par['context'],list):
+                    frames[frame]+= par['context']
+                else:
+                    frames[frame].append(par['context'])
+    contexts = sorted(list(set(frames['phoebe'])))
+    # Remove some experimental stuff
+    ignore = 'analytical:binary', 'derived', 'gui', 'logger', 'plotting:axes',\
+             'plotting:mesh', 'plotting:orbit', 'plotting:plot',\
+             'plotting:selector', 'point_source', 'pssyn', 'server', 'root',\
+             'circ_orbit'
+    for ign in ignore:
+        contexts.remove(ign)
+    
+    # Sort according to category/physical
+    contexts_obs = []
+    contexts_syn = []
+    contexts_dep = []
+    contexts_phy = []
+    contexts_cpt = []
+    
+    for context in contexts:
+        if context[-3:] == 'obs':
+            contexts_obs.append(context)
+        elif context[-3:] == 'syn':
+            contexts_syn.append(context)
+        elif context[-3:] == 'dep':
+            contexts_dep.append(context)
+        elif context.split(':')[0] in ['compute', 'fitting', 'mpi']:
+            contexts_cpt.append(context)
+        else:
+            contexts_phy.append(context)
+    
+    
+    def emphasize(text):
+        return '\033[1m\033[4m' + text + '\033[m'
+    def italicize(text):
+        return '\x1B[3m' + text + '\033[m'
+    
+    summary = ['List of ParameterSets:\n========================\n']
+    summary.append("Create a ParameterSet via:\n   >>> myps = phoebe.ParameterSet('<name>')")
+    summary.append("Print with:\n   >>> print(myps)")
+    summary.append("Info on a parameter:\n   >>> myps.info('<qualifier'>)")
+    summary.append('\n')
+    
+    summary.append(emphasize('Physical contexts:'))
+    
+    # first things with subcontexts
+    current_context = None
+    for context in contexts_phy:
+        if ':' in context:
+            this_context = context.split(':')[0]
+            if this_context != current_context:
+                if current_context is not None:
+                    summary[-1] = "\n".join(textwrap.wrap(summary[-1][:-2], initial_indent='',
+                                                          subsequent_indent=' '*23,
+                                                          width=79))
+                current_context = this_context
+                summary.append('{:25s}'.format(italicize(this_context))+' --> ')
+            summary[-1] += context + ', '
+    
+    # then without
+    summary.append('{:25s}'.format(italicize('other'))+' --> ')
+    for context in contexts_phy:
+        if not ':' in context:
+            summary[-1] += context + ", "
+    summary[-1] = "\n".join(textwrap.wrap(summary[-1][:-2], initial_indent='',
+                                                          subsequent_indent=' '*23,
+                                                          width=79))
+    
+    # Obs, deps and syns
+    summary.append('\n')
+    summary.append(emphasize('Observables:'))
+    summary.append("\n".join(textwrap.wrap(italicize('dep: ')+", ".join(contexts_dep),
+                                                   initial_indent='',
+                                                   subsequent_indent=' '*5,
+                                                   width=79)))
+    summary.append("\n".join(textwrap.wrap(italicize('obs: ')+", ".join(contexts_obs),
+                                                   initial_indent='',
+                                                   subsequent_indent=' '*5,
+                                                   width=79)))
+    summary.append("\n".join(textwrap.wrap(italicize('syn: ')+", ".join(contexts_syn),
+                                                   initial_indent='',
+                                                   subsequent_indent=' '*5,
+                                                   width=79)))
+    
+    # Computables:
+    summary.append('\n')
+    summary.append(emphasize('Computations and numerics:'))
+    summary.append("\n".join(textwrap.wrap(", ".join(contexts_cpt),
+                                                   initial_indent='',
+                                                   subsequent_indent=' ',
+                                                   width=79)))
+    
+    print("\n".join(summary))
+    #frames_contexts = []
+    #for frame in sorted(frames.keys()):
+        #for context in sorted(frames[frame]):
+            #if frame+context in frames_contexts: continue
+            #frames_contexts.append(frame+context)
+            #parset = parameters.ParameterSet(frame=frame,context=context)
+            #if 'label' in parset:
+                #parset['label'] = 'mylbl'
+            #if 'ref' in parset:
+                #parset['ref'] = 'myref'
+            #if 'c1label' in parset:
+                #parset['c1label'] = 'primlbl'
+            #if 'c2label' in parset:
+                #parset['c2label'] = 'secnlbl'
+            
+            #print parset

@@ -3631,7 +3631,7 @@ class Body(object):
                         iterover = thing.params[oparam][ptype_][ref].keys()
                         iiterover = thing.params[oparam][ptype_][ref]
                         
-                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,'lcobs',thing.get_label(),len(iiterover))
+                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,ptype[:-3]+'obs',thing.get_label(),len(iiterover))
                         
                         # First the reference for clarity:
                         if 'ref' in iterover:
@@ -3646,6 +3646,7 @@ class Body(object):
                                 mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
                         
                         mystring = mystring[0] + ', '.join(mystring[1:])
+                        
                         summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
                         
                         # The syn should match the obs
@@ -3656,7 +3657,7 @@ class Body(object):
                         iiterover = thing.get_synthetic(category=ptype[:-3], ref=ref)
                         iterover = iiterover.keys()
                         
-                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,'lcobs',thing.get_label(),len(iiterover))
+                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,ptype_,thing.get_label(),len(iiterover))
                         
                         # First the reference for clarity:
                         if 'ref' in iterover:
@@ -3692,7 +3693,7 @@ class Body(object):
                         if 'ref' in iterover:
                             iterover.remove('ref')
                             iterover = ['ref'] + iterover
-                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,'lcobs',thing.get_label(),len(iiterover))
+                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,ptype[:-3]+'obs',thing.get_label(),len(iiterover))
                         for par in iterover:
                             mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
                             if iiterover.get_parameter(par).has_unit():
@@ -3712,7 +3713,7 @@ class Body(object):
                         if 'ref' in iterover:
                             iterover.remove('ref')
                             iterover = ['ref'] + iterover
-                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,'lcsyn',thing.get_label(),len(iiterover))
+                        mystring[-1] += ' ({}@{}@{}, n={}): '.format(ref,ptype[:-3]+'syn',thing.get_label(),len(iiterover))
                         for par in iterover:
                             mystring.append("{}={}".format(par,iiterover.get_parameter(par).to_str()))
                             if iiterover.get_parameter(par).has_unit():
@@ -3730,6 +3731,8 @@ class Body(object):
                 return '\033[1m\033[4m' + text + '\033[m'
             def italicize(text):
                 return '\x1B[3m' + text + '\033[m'
+            def strikethrough(text):
+                return '\x1b[9m' + text + '\x1b[29m'
         else:
             emphasize = lambda x: x
             italicize = lambda x: x
