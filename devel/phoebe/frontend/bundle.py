@@ -1737,66 +1737,87 @@ class Bundle(Container):
         """
         return self._get_by_search(twig, context='*obs', class_name='*DataSet')
         
-    def enable_obs(self, dataref=None, objref=None):
+    def enable_data(self, dataref=None, category=None, enabled=True):
         """
-        Enable observations from being included in the fitting procedure.
+        Enable a dataset so that it will be considered during run_compute
         
-        If you set :envvar:`dataref=None`, then all datasets will be disabled.
-        
-        [FUTURE]
+        @param dataref: reference of the dataset
+        @type dataref: str
+        @param category: the category of the dataset ('lc', 'rv', etc)
+        @type category: str
+        @param enabled: whether to enable (True) or disable (False)
+        @type enabled: bool
         """
-        ## TODO - rewrite this to use twig access
+        dataref = self._process_dataref(dataref, category)
         
-        
-        system = self.get_system()
-        
-        try:
-            iterate_all_my_bodies = system.walk_bodies()
-        except AttributeError:
-            iterate_all_my_bodies = [system]
-        
-        for body in iterate_all_my_bodies:
-            this_objref = body.get_label()
-            if objref is None or this_objref == objref:
-                for obstype in body.params['obs']:
-                    if dataref is None:
-                        for idataref in body.params['obs'][obstype]:
-                            body.params['obs'][obstype][idataref].set_enabled(True)
-                            logger.info("Enabled {} '{}'".format(obstype, idataref))
-                    elif dataref in body.params['obs'][obstype]:
-                        body.params['obs'][obstype][dataref].set_enabled(True)
-                        logger.info("Enabled {} '{}'".format(obstype, dataref))
+        if dataref is not None:
+            system = self.get_system()
+            try:
+                iterate_all_my_bodies = system.walk_bodies()
+            except AttributeError:
+                iterate_all_my_bodies = [system]
+            
+            for body in iterate_all_my_bodies:
+                this_objref = body.get_label()
+                #~ if objref is None or this_objref == objref:
+                if True:
+                    for obstype in body.params['obs']:
+                        if dataref is None:
+                            for idataref in body.params['obs'][obstype]:
+                                body.params['obs'][obstype][idataref].set_enabled(enabled)
+                                logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
+                        elif dataref in body.params['obs'][obstype]:
+                            body.params['obs'][obstype][dataref].set_enabled(enabled)
+                            logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
 
-
-    def disable_obs(self, dataref=None, objref=None):
+        
+    def disable_data(self, dataref=None, category=None):
         """
-        Disable observations from being included in the fitting procedure.
+        Disable a dataset so that it will not be considered during run_compute
         
-        If you set :envvar:`dataref=None`, then all datasets will be disabled.
-        
-        [FUTURE]
+        @param dataref: reference of the dataset
+        @type dataref: str
+        @param category: the category of the dataset ('lc', 'rv', etc)
+        @type category: str
         """
-        ## TODO - rewrite this to use twig access
+        self.enable_data(dataref, category, enabled=False)
         
-        system = self.get_system()
+    def enable_lc(self, dataref=None):
+        """
+        Enable an LC dataset so that it will be considered during run_compute
         
-        try:
-            iterate_all_my_bodies = system.walk_bodies()
-        except AttributeError:
-            iterate_all_my_bodies = [system]
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'lc', True)
         
-        for body in iterate_all_my_bodies:
-            this_objref = body.get_label()
-            if objref is None or this_objref == objref:
-                for obstype in body.params['obs']:
-                    if dataref is None:
-                        for idataref in body.params['obs'][obstype]:
-                            body.params['obs'][obstype][idataref].set_enabled(False)
-                            logger.info("Disabled {} '{}'".format(obstype, idataref))
-                    elif dataref in body.params['obs'][obstype]:
-                        body.params['obs'][obstype][dataref].set_enabled(False)
-                        logger.info("Disabled {} '{}'".format(obstype, dataref))
-
+    def disable_lc(self, dataref=None):
+        """
+        Disable an LC dataset so that it will not be considered during run_compute
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'lc', False)
+        
+    def enable_rv(self, dataref=None):
+        """
+        Enable an RV dataset so that it will be considered during run_compute
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'rv', True)
+        
+    def disable_rv(self, dataref=None):
+        """
+        Disable an RV dataset so that it will not be considered during run_compute
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'rv', False)
+        
     def reload_obs(self, twig=None):
         """
         [FUTURE]
@@ -1812,80 +1833,104 @@ class Bundle(Container):
         #~ for ds in dss:
             #~ ds.load()
     
-    @rebuild_trunk
-    def data_remove(self, dataref=None):
-        """
-        remove a dataset (and all its obs, syn, dep) from the system
-        
-        @param dataref: reference of the dataset
-        @type dataref: str
-        """
-        
-        # disable any plotoptions that use this dataset
-        #~ for axes in self.get_axes(all=True).values():
-            #~ for pl in axes.get_plot().values():
-                #~ if pl.get_value('dataref')==dataref:
-                    #~ pl.set_value('active',False)
-        
-        # remove all obs attached to any object in the system
-        for obj in self.get_system().walk_bodies():
-            obj.remove_obs(refs=[dataref])
-            if hasattr(obj, 'remove_pbdeps'): #TODO otherwise: warning 'BinaryRocheStar' has no attribute 'remove_pbdeps'
-                obj.remove_pbdeps(refs=[dataref]) 
-
-        return
-    
-    def _data_remove_category(self, dataref, category):
+    def _process_dataref(self, dataref, category=None):
         """
         [FUTURE]
+        
+        this function handles checking if a dataref passed to a function 
+        (eg. remove_data, enable_data, etc) is unique to a single category
+        
+        this function also handles determining a default if dataref is None
         """
         if dataref is None:
             # then see if there is only one entry with this category
             # and if so, default to it
+            if category is None: 
+                category = '*'
             dss = self._get_by_search(dataref, 
-                context=['{}obs'.format(category),'{}syn'.format(category),'{}dep'.format(category)], 
-                kind='ParameterSet', all=True, ignore_errors=True)
+                    context = ['{}obs'.format(category),'{}syn'.format(category),'{}dep'.format(category)], 
+                    kind = 'ParameterSet', all = True, ignore_errors = True)
             datarefs = []
             for ds in dss:
                 if ds['ref'] not in datarefs:
                     datarefs.append(ds['ref'])
             if len(datarefs)==1:
-                dataref = datarefs[0]
+                # this is our default!
+                return datarefs[0]
             elif len(datarefs)==0:
                 raise ValueError("no datasets found")
-                return
+                # no default
+                return None
             else:
                 raise ValueError("more than one dataset: must provide dataref")
-                return
+                # no default
+                return None
         else:
             # confirm its (always) the correct category
             # *technically* if it isn't always correct, we should just remove the correct ones
             dss = self._get_by_search(dataref, context=['*obs','*syn','*dep'], kind='ParameterSet', all=True, ignore_errors=True)
             for ds in dss:
+                if category is None:
+                    # then instead we're just making sure that all are of the same type
+                    category = ds.context[-3:]
                 if ds.context[-3:] != category:
                     raise ValueError("{} not always of category {}".format(dataref, category))
+                    # forbitd this dataref
+                    return None
+            
+            # we've survived, this dataref is allowed
+            return dataref
 
-        return self.data_remove(dataref)
+
+    @rebuild_trunk
+    def remove_data(self, dataref=None, category=None):
+        """
+        remove a dataset (and all its obs, syn, dep) from the system
         
+        @param dataref: reference of the dataset
+        @type dataref: str
+        @param category: the category of the dataset ('lc', 'rv', etc)
+        @type category: str
+        """
         
-    def lc_remove(self, dataref=None):
+        dataref = self._process_dataref(dataref, category)
+        
+        if dataref is not None:
+            # disable any plotoptions that use this dataset
+            #~ for axes in self.get_axes(all=True).values():
+                #~ for pl in axes.get_plot().values():
+                    #~ if pl.get_value('dataref')==dataref:
+                        #~ pl.set_value('active',False)
+            
+            # remove all obs attached to any object in the system
+            for obj in self.get_system().walk_bodies():
+                obj.remove_obs(refs=[dataref])
+                if hasattr(obj, 'remove_pbdeps'): #TODO otherwise: warning 'BinaryRocheStar' has no attribute 'remove_pbdeps'
+                    obj.remove_pbdeps(refs=[dataref]) 
+
+            return
+    
+    def remove_lc(self, dataref=None):
         """
         remove an LC dataset (and all its obs, syn, dep) from the system
         
         @param dataref: reference of the dataset
         @type dataref: str
         """
-        self._data_remove_category(dataref, 'lc')
+        self.remove_data(dataref, 'lc')
 
 
-    def rv_remove(self, dataref=None):
+    def remove_rv(self, dataref=None):
         """
         remove an RV dataset (and all its obs, syn, dep) from the system
         
         @param dataref: reference of the dataset
         @type dataref: str
         """
-        self._data_remove_category(dataref, 'rv')
+        self.remove_data(dataref, 'rv')
+        
+        
+        
         
     #}
     #{ Compute
