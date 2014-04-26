@@ -485,14 +485,13 @@ class Bundle(Container):
         return txt
     
     #{ Settings
+    @rebuild_trunk
     def set_usersettings(self,basedir=None):
         """
         Load user settings into the bundle
         
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or this function is called.
-        
-        [FUTURE]
         
         @param basedir: location of cfg files (or none to load from default location)
         @type basedir: string
@@ -509,12 +508,38 @@ class Bundle(Container):
         """
         Return the user settings class
         
-        [FUTURE]
-        
         These settings are not saved with the bundle, but are removed and
         reloaded everytime the bundle is loaded or set_usersettings is called.
         """
         return self.usersettings
+        
+    def save_usersettings(self, basedir=None):
+        """
+        save all usersettings in to .cfg files in basedir
+        if not provided, basedir will default to ~/.phoebe (recommended)
+        
+        
+        @param basedir: base directory, or None to save to initialized basedir
+        @type basedir: str or None
+        """
+        self.get_usersettings().save()
+        
+    def restart_logger(self, label='default_logger', **kwargs):
+        """
+        [FUTURE]
+        
+        restart the logger
+        
+        any additional arguments passed will temporarily override the settings
+        in the stored logger.  These can include style, clevel, flevel, filename, filemode
+        
+        @param label: the label of the logger (will default if not provided)
+        @type label: str
+        """
+        
+        self.get_usersettings().restart_logger(label, **kwargs)
+        
+        
             
     def get_server(self,label=None):
         """

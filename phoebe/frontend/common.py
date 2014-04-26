@@ -723,6 +723,8 @@ class Container(object):
                 
             if do_pslevel:
                 for item in section:
+                    if item is None:
+                        continue
                     ris = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
                     for ri in ris:
                         return_items += [ri]
