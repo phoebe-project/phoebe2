@@ -268,7 +268,7 @@ def get_binary_orbit(self, time):
     
     # That's it, thank you for your attention
     return list(loc1) + list(velo1), list(loc2) + list(velo1), d
-    
+
     
 def luminosity(body, ref='__bol', numerical=False):
     r"""
@@ -1438,6 +1438,7 @@ class Body(object):
         
         # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()
+        self._main_period = dict()
         
     
     def __eq__(self, other):
@@ -1774,6 +1775,17 @@ class Body(object):
         # Else, for clarity, explicitly return None.
         else:
             return None
+    
+    def get_period(self):
+        """
+        Extract the main period and ephemeris from a Body.
+        
+        This can then be used to convert phases to time and vise versa.
+        """
+        period = self._main_period.get('period', np.inf)
+        shift = self._main_period.get('shift', 0.0)
+        t0 = self._main_period.get('t0', 0.0)
+        return period, t0, shift
     
     def get_orbits(self, orbits=[], components=[]):
         """
@@ -5396,6 +5408,7 @@ class BodyBag(Body):
         
         # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()  
+        self._main_period = dict()
                 
     
     def __getattr__(self, name):
@@ -5639,6 +5652,19 @@ class BodyBag(Body):
         Return the immediate children of this object.
         """
         return self.bodies
+    
+    def get_period(self):
+        """
+        Retrieve the period and ephemeris of the system.
+        """
+        if 'orbit' in self.params:
+            period = self.params['orbit']['period']
+            t0 = self.params['orbit']['t0']
+            shift = self.params['orbit']['phshift']
+            return period, t0, shift
+        elif len(self.bodies):
+            return self.bodies[0].get_period()
+            
     
     def to_string(self,only_adjustable=False):
         """
@@ -6638,6 +6664,22 @@ class Star(PhysicalBody):
         """
         return self.params['star']['mass']
     
+    def get_period(self):
+        """
+        Extract the main period from the system.
+        
+        Overrides default from Body.
+        """
+        if 'puls' in system.params:
+            period = 1.0/system.params['puls'][0]['freq']
+            t0 = system.params['puls'][0]['t0']
+            shift = 0.0
+        else: 
+            period = self.params['star']['rotperiod']
+            t0 = 0.0
+            shift = 0.0
+        return period, t0, shift
+    
     
     def volume(self):
         """
@@ -7420,7 +7462,18 @@ class BinaryRocheStar(PhysicalBody):
         except TypeError:
             raise TypeError("No components (c1label,c2label) in the orbit parameter set")
         
-    
+    def get_period(self):
+        """
+        Extract the main period from the system.
+        
+        Overrides default from Body.
+        """
+        period = self.params['orbit']['period']
+        t0 = self.params['orbit']['t0']
+        shift = self.params['orbit']['phshift']
+        return period, t0, shift
+        
+        
     def compute_mesh(self,time=None,conserve_volume=True):
         """
         Compute the mesh.

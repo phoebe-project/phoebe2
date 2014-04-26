@@ -1597,6 +1597,9 @@ class Bundle(Container):
         :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
         :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
         """
+        if objref == self.get_system().get_label():
+            raise ValueError("Cannot add RV to the system, only to the components")
+        
         # retrieve the arguments with which this function is called
         set_kwargs, posargs = utils.arguments()
         
@@ -2082,11 +2085,9 @@ class Bundle(Container):
     #}
 
     #{ Figures
-    def plot_obs(self, twig=None, *args, **kwargs):
+    def plot_obs(self, twig=None, **kwargs):
         """
-        Make a plot of the attached observations.
-        
-        The arguments are passed to the appropriate functions in :py:mod:`plotting`.
+        Make a plot of the attached observations (wraps pyplot.errorbar).
         
         Example usage::
             
@@ -2095,40 +2096,56 @@ class Bundle(Container):
             bundle.plot_obs('myrv@secondary', fmt='ko-')
             bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
         
+        The arguments are passed to the appropriate functions in
+        :py:mod:`plotting`.
+        
+        For more info on :envvar:`**kwargs`, see the
+        pyplot documentation.
+        
         @param twig: the twig/twiglet to use when searching
         @type twig: str
         """
-        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet', return_trunk_item=True)
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True)
         ds = dsti['item']
         obj = self.get_object(dsti['label'])
         context = ds.get_context()
         
-        # do we need automatic xlabel, ylabel and/or title?
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
         xlabel = kwargs.pop('xlabel', '_auto_')
         ylabel = kwargs.pop('ylabel', '_auto_')
         title = kwargs.pop('title', '_auto_')
         
-        # Now pass everything to the correct plotting function
+        # Now pass everything to the correct plotting function in the backend
         kwargs['ref'] = ds['ref']
-        output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        output = getattr(plotting, 'plot_{}'.format(context))(obj, **kwargs)
         
+        # Now take care of figure decorations
         fig_decs = output[2]
-        # now take care of figure decorations
+        
         # The x-label
         if xlabel == '_auto_':
             plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
         elif xlabel:
             plt.xlabel(xlabel)
+        
         # The y-label
         if ylabel == '_auto_':
             plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
         elif ylabel:
             plt.ylabel(ylabel)
+        
         # The plot title
         if title == '_auto_':
             plt.title('{} ({})'.format(config.nice_names[context[:-3]], ds['ref']))
         elif title:
             plt.title(title)        
+        
+        logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
+                                   fig_decs[0][1], context, ds['ref']))
 
         
     def plot_syn(self, twig=None, *args, **kwargs):
@@ -2711,8 +2728,8 @@ class Bundle(Container):
         # these might already be attached?
         self.attach_signal(self,'data_fromfile',self._on_param_changed)
         self.attach_signal(self,'remove_data',self._on_param_changed)
-        self.attach_signal(self,'enable_obs',self._on_param_changed)
-        self.attach_signal(self,'disable_obs',self._on_param_changed)
+        self.attach_signal(self,'enable_data',self._on_param_changed)
+        self.attach_signal(self,'disable_data',self._on_param_changed)
         #~ self.attach_signal(self,'adjust_obs',self._on_param_changed)
         #~ self.attach_signal(self,'restore_version',self._on_param_changed)
         
