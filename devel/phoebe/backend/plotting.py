@@ -43,52 +43,78 @@ def plot_lcsyn(system, *args, **kwargs):
     """
     Plot lcsyn as a light curve.
     
-    All args and kwargs are passed on to matplotlib's `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_, except:
+    This function is designed to behave like matplotlib's
+    `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
+    function, with additional options.
     
-        - ``ref=0``: the reference of the lc to plot
-        - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
-          the observations
-        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times.
-        - ``period=None``: period of repetition. If not given, the last time point
-          will be used
-        - ``phased=False``: decide whether to phase the data according to
-          ``period`` or not.
+    Thus, all args and kwargs are passed on to matplotlib's
+    `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
+    except:
     
-    Optional keyword :envvar:`y_unit` can be any of ``ppt``, ``ppm``, ``relative``
-    or an actual physical unit.
+        - :envvar:`ref=0`: the reference of the lc to plot
+        - :envvar:`phased=False`: decide whether to phase the data or not. If
+          there are observations corresponding to :envvar:`ref`, the default
+          is ``True`` when those are phased.
+        - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
+          and you want to repeat the phase curve a couple of times.
+        - :envvar:`x_unit=None`: allows you to override the default units for
+          the x-axis. If you plot times, you can set the unit to any time unit
+          (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
+          in phase, you switch from cycle (``cy``) to radians (``rad``)
+        - :envvar:`y_unit=None`: allows you to override the default units for
+          the y-axis. You can plot in different flux units (``W/m3``,
+          ``erg/s/cm2/AA``) or convert to magnitude (``mag``).
+        - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
+          from the observations. If ``obs``, they will effectively be scaled to
+          the level/units of the observations (if that was specified in the
+          computations as least). If you want to plot the synthetics in the
+          model units, set ``scale=None``.
+        - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+          active axes.
+    
+    Some of matplotlib's defaults are overriden. If you do not specify any of
+    the following keywords, they will take the values:
+    
+        - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
+          If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
     
     **Example usage:**
     
-    >>> artists, syn, pblum, l3 = plot_lcsyn(system,'r-',lw=2)
+    >>> artists, syn, (axlbls, axunits), (scale, offset) = plot_lcsyn(system, 'r-', lw=2)
     
-    The plotted data can then be reproduced with:
+    This is similar to:
     
-    >>> p, = plt.plot(syn['time'], syn['flux'] * pblum + l3, 'r-', lw=2)
+    >>> p, = plt.plot(syn['time'], syn['flux'] * scale + offset, 'r-', lw=2)
         
-    Returns the matplotlib objects, the synthetic parameterSet and the used ``pblum``
-    and ``l3`` values
-    
-    The synthetic parameterSet is 'array-ified', which means that all the columns
-    are arrays instead of lists.
+    :param system: the system from which to retrieve the synthetic lc
+    :type system: Body
+    :return: matplotlib artists, syn, axis labels and units, scaling and offset constants
+    :rtype: list of Artists, DataSet, 2-tuple (labels, units) of (x, y) axis, 2-tuple float
     """
-    # Get some default parameters
+    # Get parameterSets
     ref = kwargs.pop('ref', 0)
-    x_unit = kwargs.pop('x_unit', None)
-    y_unit = kwargs.pop('y_unit', None)
-    scale = kwargs.pop('scale', 'obs')
-    repeat = kwargs.pop('repeat', 0)
-    period = kwargs.pop('period', None)
-    phased = kwargs.pop('phased', False)
-    t0 = kwargs.pop('t0', 0.0)
-    
-    # Get parameterSets and set a default label if none is given
-    syn = system.get_synthetic(category='lc', ref=ref)
+    dep, ref = system.get_parset(category='lc', ref=ref)
+    syn = system.get_synthetic(category='lc', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
     
-    # Get axes
-    ax = kwargs.pop('ax',plt.gca())
+    period, t0, shift = system.get_period()
     
+    # Phases are default only when obs are present and given in phase
+    try:
+        obs = system.get_obs(category='lc', ref=ref)
+        default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    except ValueError:
+        obs = None
+        default_phased = False
+    
+    # Retrieve extra information
+    repeat = kwargs.pop('repeat', 0)
+    phased = kwargs.pop('phased', default_phased)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    ax = kwargs.pop('ax',plt.gca())
+    scale = kwargs.pop('scale', 'obs')
+        
     # Load synthetics: they need to be here
     loaded = syn.load(force=False)
     
@@ -97,58 +123,30 @@ def plot_lcsyn(system, *args, **kwargs):
     # We can scale the synthetic light curve using the observations
     this_scale = 1.0
     this_offset = 0.0
-    if scale == 'obs':
-        try:
-            obs = system.get_obs(category='lc', ref=ref)
-            this_scale = obs['scale']
-            this_offset = obs['offset']
-        except ValueError:
-            pass
-        except TypeError:
-            pass
-        #    raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
-    # else we don't scale
-    if y_unit is not None:
-        this_offset = this_offset*this_scale
-        this_scale = 1
-
+    if scale == 'obs' and obs is not None:
+        this_scale = obs['scale']
+        this_offset = obs['offset']
+        
     # Now take third light and passband luminosity contributions into account
-    time = np.array(syn['time'])
-    flux = np.array(syn['flux'])
+    time = syn['time']
+    flux = syn['flux']
     flux = flux * this_scale + this_offset
-    
-    lcdep, ref = system.get_parset(category='lc', ref=ref)
-    
-    #if y_unit is not None:
-        #if y_unit == 'pph':
-            #flux = (flux / np.median(flux) - 1 )*100
-        #elif y_unit == 'ppt':
-            #flux = (flux / np.median(flux) - 1 )*1000
-        #elif y_unit == 'ppm':
-            #flux = (flux / np.median(flux) - 1 )*1e6
-        #elif y_unit == 'relative':
-            #flux = flux / np.median(flux)
-        #else:
-            #flux = conversions.convert('erg/s/cm2/AA', y_unit, flux, passband=lcdep['passband'])
-    
-    # Get the period to repeat the LC with
-    if period is None:
-        period = max(time)
     
     # remember what axes we've plotted
     axes_labels = ['', '']
     axes_units = ['','']
     
-    # convert to the correct unit
-    # YAXIS
-    from_unit = obs.get_parameter('flux').get_unit()
+    from_unit = syn.get_parameter('flux').get_unit()    
     if y_unit is not None:
-        flux = conversions.convert(from_unit, y_unit, flux, passband=lcdep['passband'])
+        if y_unit in ['pph', 'ppt', 'ppm', 'ampl']:
+            flux = flux / np.median(flux) - 1
+            from_unit = 'ampl'
+        flux = conversions.convert(from_unit, y_unit, flux,
+                                   passband=dep['passband'])
         from_unit = y_unit
     axes_units[1] = conversions.unit2texlabel(from_unit)
     axes_labels[1] = 'Flux'
-    
-    
+            
     # Plot model: either in phase or in time.
     artists = []
     if not phased:
@@ -162,11 +160,12 @@ def plot_lcsyn(system, *args, **kwargs):
         axes_labels[0] = 'Time'
         
         for n in range(repeat+1):
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
             p, = ax.plot(time+n*period, flux, *args, **kwargs)
             artists.append(p)
     else:
         time = ((time-t0) % period) / period
-        
         # XAXIS
         from_unit = 'cy'
         if x_unit is not None:
@@ -183,33 +182,28 @@ def plot_lcsyn(system, *args, **kwargs):
             p, = ax.plot(time+n, flux, *args, **kwargs)
             artists.append(p)
     
-    # Return the synthetic computations as an array
-    ret_syn = syn.asarray()
-    
     # Unload if loaded
     if loaded:
         syn.unload()
     
     # That's it!
-    return artists, ret_syn, (this_scale, this_offset),\
-            (axes_labels, axes_units)
+    return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
 
 
 def plot_lcobs(system, **kwargs):
     """
     Plot lcobs as a light curve.
     
-    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+    All kwargs are passed on to matplotlib's
+    `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
     except:
     
         - ``ref=0``: the reference of the lc to plot (index (int) or reference (str))
         - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times in the plot.
-        - ``period=None``: period of repetition. If not given and :envvar:`phased=True`,
-          the last time point will be used for the period.
-        - ``phased=False``: decide whether to phase the data according to
-          ``period`` or not.
-        - ``t0``: arbitrary offset for phase plots (defaults to 0)
+          want to repeat the phase curve a couple of times in the plot. If zero,
+          it means it is not repeated, if one it means you'll see the phase curve
+          twice and so on...
+        - ``phased=False``: decide whether to phase the data or not.
         - ``ax``: axis to plot on. If not given, the plot will be made on the
           current active axis (i.e. the return value of ``plt.gca()``)
     
@@ -224,8 +218,9 @@ def plot_lcobs(system, **kwargs):
     Returns the matplotlib objects and the observed parameterSet
     """
     # Get parameterSets
+    ref = kwargs.pop('ref', 0)
     obs = system.get_obs(category='lc', ref=ref)
-    dep = system.get_parset(category='lc', ref=ref)
+    dep, ref = system.get_parset(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
     period, t0, shift = system.get_period()
@@ -240,7 +235,6 @@ def plot_lcobs(system, **kwargs):
         raise IOError("No times or phases defined")
     
     # Retrieve extra information
-    ref = kwargs.pop('ref', 0)
     repeat = kwargs.pop('repeat', 0)
     phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
@@ -250,33 +244,32 @@ def plot_lcobs(system, **kwargs):
     # Load observations: they need to be here
     loaded = obs.load(force=False)
     flux = obs['flux']
-    
-    if errorbars and 'sigma' in obs and len(obs['sigma']) and not np.all(obs['sigma']==-1):
-        sigm = obs['sigma']
-    else:
-        logger.info("No uncertainties on data found")
-        errorbars = False
-        
-    
-    #-- get the period to repeat the LC with
-    if period is None:
-        period = max(time)
+    sigm = obs['sigma'] if ('sigma' in obs.keys() and np.all(obs['sigma']>0)) else None
+    kwargs.setdefault('yerr', sigm)
+    has_error = kwargs['yerr'] is not None
+    if has_error and np.isscalar(kwargs['yerr']):
+        kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
     
     # remember what axes we've plotted
     axes_labels = ['', '']
     axes_units = ['','']
     
-    # convert to the correct unit
+    # convert to the correct unit and make a nice TeX label of the unit
     # YAXIS
     from_unit = obs.get_parameter('flux').get_unit()
     if y_unit is not None:
-        flux, sigm = conversions.convert(from_unit, y_unit, flux, sigma,
-                                         passband=dep['passband'])
+        if has_error:
+            print kwargs['yerr']
+            flux, kwargs['yerr'] = conversions.convert(from_unit, y_unit, flux,
+                                       kwargs['yerr'], passband=dep['passband'])
+        else:
+            flux = conversions.convert(from_unit, y_unit, flux,
+                                       passband=dep['passband'])
         from_unit = y_unit
     axes_units[1] = conversions.unit2texlabel(from_unit)
     axes_labels[1] = 'Flux'
     
-    #-- plot model
+    # plot observations
     artists = []
     if not phased:
         # XAXIS
@@ -291,10 +284,7 @@ def plot_lcobs(system, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            if errorbars:
-                p = ax.errorbar(time+n*period,flux,yerr=sigm,**kwargs)
-            else:
-                p = ax.plot(time+n*period,flux,**kwargs)
+            p = ax.errorbar(time+n*period, flux, **kwargs)
             artists.append(p)
     else:
         time = ((time-t0) % period) / period
@@ -306,20 +296,20 @@ def plot_lcobs(system, **kwargs):
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
-        # need to sort by time (if using lines)
+        # need to sort by time (otherwise when using lines, it looks ugly)
         o = time.argsort()
         time, flux = time[o], flux[o]
+        if has_error:
+            kwargs['yerr'] = kwargs['yerr'][o]
+            
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            if errorbars:
-                p = ax.errorbar(time+n,flux,yerr=sigm[o],**kwargs)
-            else:
-                p = ax.plot(time+n,flux,**kwargs)
-
+            p = ax.errorbar(time+n, flux, **kwargs)
+            artists.append(p)
+            
     if loaded:
         obs.unload()
-    
     
     return artists, obs, (axes_labels, axes_units)
 
@@ -429,61 +419,100 @@ def plot_rvsyn(system,*args,**kwargs):
     Returns the matplotlib objects, the plotted data and the ``pblum`` and
     ``l3`` values.
     """
+    # Get parameterSets
     ref = kwargs.pop('ref',0)
-    scale = kwargs.pop('scale','obs')
-    repeat = kwargs.pop('repeat',0)
-    period = kwargs.pop('period',None)
-    phased = kwargs.pop('phased',False)
+    dep, ref = system.get_parset(category='rv', ref=ref)
+    syn = system.get_synthetic(category='rv', ref=ref).asarray()
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    
+    period, t0, shift = system.get_period()
+    
+    # Phases are default only when obs are present and given in phase
+    try:
+        obs = system.get_obs(category='rv', ref=ref)
+        default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    except ValueError:
+        obs = None
+        default_phased = False
+    
+    # Retrieve extra information
+    repeat = kwargs.pop('repeat', 0)
+    phased = kwargs.pop('phased', default_phased)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
     ax = kwargs.pop('ax',plt.gca())
-    
-
-    #-- get parameterSets
-    syn = system.get_synthetic(category='rv',ref=ref)
-    kwargs.setdefault('label', syn['ref'])
-    
-    #-- load synthetics: they need to be here
+    #scale = kwargs.pop('scale', 'obs')
+        
+    # Load synthetics: they need to be here
     loaded = syn.load(force=False)
     
-    #-- try to get the observations. They don't need to be loaded, we just need
-    #   the pblum and l3 values.
-    if scale=='obs':
-        obs = system.get_obs(category='rv',ref=ref)
-        l3 = obs['offset']
-    elif scale=='syn':
-        l3 = syn['offset']
-    else:
-        l3 = 0.
+    # Try to get the observations. They don't need to be loaded, we just need
+    # the pblum and l3 values.
+    # We can scale the synthetic light curve using the observations
+    this_scale = 1.0
+    this_offset = 0.0
+    if obs is not None:
+        this_scale = 1.0#obs['scale']
+        this_offset = obs['vgamma_offset']
+        
     
-    #-- take third light and passband luminosity contributions into account
-    time = np.array(syn['time'])
-    rv = np.array(syn['rv'])
-    rv = rv + l3
+    # Now take vgamma offset and amplitude scaling into account
+    time = syn['time']
+    rv = syn['rv']
+    rv = rv * this_scale + this_offset
     
-    #-- get the period to repeat the RV with
-    if period is None:
-        period = max(time)
+    # remember what axes we've plotted
+    axes_labels = ['', '']
+    axes_units = ['','']
     
-    #-- plot model
+    from_unit = syn.get_parameter('rv').get_unit()    
+    if y_unit is not None:
+        rv = conversions.convert(from_unit, y_unit, rv,
+                                   passband=dep['passband'])
+        from_unit = y_unit
+    axes_units[1] = conversions.unit2texlabel(from_unit)
+    axes_labels[1] = 'Radial velocity'
+    
+    # Plot model
     artists = []
     if not phased:
+        # XAXIS
+        from_unit = obs.get_parameter('time').get_unit()
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Time'
+        
         for n in range(repeat+1):
-            p, = ax.plot(time+n*period, rv, *args,**kwargs)
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
+            p, = ax.plot(time+n*period, rv, *args, **kwargs)
             artists.append(p)
     else:
         time = (time % period) / period
+        # XAXIS
+        from_unit = 'cy'
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Phase'
+        
         # need to sort by time (if using lines)
         o = time.argsort()
         time, rv = time[o], rv[o]
         for n in range(repeat+1):
-            p, = ax.plot(time+n,rv, *args,**kwargs)
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
+            p, = ax.plot(time+n, rv, *args, **kwargs)
             artists.append(p)
     
-    # Return the synthetic computations as an array
-    ret_syn = syn.asarray()
+    if loaded:
+        syn.unload()
     
-    if loaded: syn.unload()
-    
-    return artists, ret_syn, l3
+    return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
 
 
 def plot_rvobs(system, errorbars=True, **kwargs):
@@ -504,56 +533,104 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     
     Returns the matplotlib objects and the observed parameterSet
     """
-    ref = kwargs.pop('ref',0)
-    repeat = kwargs.pop('repeat',0)
-    period = kwargs.pop('period',None)
-    phased = kwargs.pop('phased',False)
+    # Get parameterSets
+    ref = kwargs.pop('ref', 0)
+    obs = system.get_obs(category='rv', ref=ref)
+    dep, ref = system.get_parset(category='rv', ref=ref)
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    
+    period, t0, shift = system.get_period()
+    
+    # Phases are default only when obs are given in phase
+    default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    if default_phased:
+        time = obs['phase'] * period + t0 #+ phshift * period    
+    elif 'time' in obs['columns']:
+        time = obs['time']
+    else:
+        raise IOError("No times or phases defined")
+    
+    # Retrieve extra information
+    repeat = kwargs.pop('repeat', 0)
+    phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
-    t0 = kwargs.pop('t0', 0.0)
     ax = kwargs.pop('ax',plt.gca())
-
-    # Get parameterSets
-    obs = system.get_obs(category='rv',ref=ref)
-    dep = system.get_parset(category='lc', ref=ref)
-    kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
     # Load observations: they need to be here
     loaded = obs.load(force=False)
-    
-    # take care of phased data
-    time = obs['time']
     rv = obs['rv']
-    sigm = obs['sigma'] if 'sigma' in obs.keys() else [0]*len(rv) # or can we handle weights instead of sigma?
+    sigm = obs['sigma'] if 'sigma' in obs.keys() else [0]*len(rv)
+    kwargs.setdefault('yerr', sigm)
+    has_error = 'yerr' in kwargs
+    if has_error and np.isscalar(kwargs['yerr']):
+        kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
     
-    #-- get the period to repeat the RV with
-    if period is None:
-        period = max(time)
+    # remember what axes we've plotted
+    axes_labels = ['', '']
+    axes_units = ['','']
     
-    #-- plot model
+    # convert to the correct unit
+    # YAXIS
+    from_unit = obs.get_parameter('rv').get_unit()
+    if y_unit is not None:
+        if has_error:
+            rv, kwargs['yerr'] = conversions.convert(from_unit, y_unit, rv,
+                                       kwargs['yerr'], passband=dep['passband'])
+        else:
+            rv = conversions.convert(from_unit, y_unit, rv,
+                                       passband=dep['passband'])
+        from_unit = y_unit
+    axes_units[1] = conversions.unit2texlabel(from_unit)
+    axes_labels[1] = 'Radial velocity'
+    
+    
+    # plot model
     artists = []
     if not phased:
+        # XAXIS
+        from_unit = obs.get_parameter('time').get_unit()
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Time'
+        
+        # Period for repeating
+        period = max(time)
+        
         for n in range(repeat+1):
-            if errorbars:
-                p = ax.errorbar(time+n*period,rv,yerr=sigm,**kwargs)
-            else:
-                p = ax.plot(time+n*period,rv, **kwargs)
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
+            p = ax.errorbar(time+n*period, rv, **kwargs)
             artists.append(p)
     else:
-        time = (time % period) / period
-        # need to sort by time (if using lines)
+        time = ((time-t0) % period) / period
+        # XAXIS
+        from_unit = 'cy'
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            from_unit = x_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Phase'
+        
+        # need to sort by time (if using lines, it looks ugly)
         o = time.argsort()
         time, rv = time[o], rv[o]
+        if has_error:
+            kwargs['yerr'] = kwargs['yerr'][o]
+        
         for n in range(repeat+1):
-            if errorbars:
-                p = ax.errorbar(time+n,rv,yerr=sigm,**kwargs)
-            else:
-                p = ax.plot(time+n,rv,**kwargs)
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
+            p = ax.errorbar(time+n, rv, **kwargs)
             artists.append(p)
 
-    if loaded: obs.unload()
+    if loaded:
+        obs.unload()
     
-    return artists,obs
+    return artists, obs, (axes_labels, axes_units)
 
 
 def plot_rvres(system,*args,**kwargs):

@@ -66,7 +66,7 @@ modules:
 
 Alternatively, you can download and install PHOEBE 2.0-alpha from PIP:
 
-    sudo pip install phoebe2
+    sudo pip install phoebe
 
 You can also download PHOEBE 2.0-alpha from the subversion repository and
 install by following the generic install procedure for python modules:
@@ -93,10 +93,10 @@ the PHOEBE website.
 3. STRUCTURE
 ------------
 
-PHOEBE 2.0 is written python and C. Its main parts are the backend, the
-frontend, and the Graphical User Interface (GUI). This alpha release includes
-the backend and the frontend. The GUI will be released with the beta release
-on Oct 20 2014.
+PHOEBE 2.0 is written in python, C, C++ and Fortran. Its main parts are the
+backend, the frontend, and the Graphical User Interface (GUI). This alpha
+release includes the backend and the frontend. The GUI will be released with
+the beta release on Oct 20 2014.
 
 3.1. THE BACKEND
 ----------------
