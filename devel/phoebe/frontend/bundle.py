@@ -2183,8 +2183,6 @@ class Bundle(Container):
         @param twig: the twig/twiglet to use when searching
         @type twig: str
         """
-
-        ## TODO - update to use twig access (waiting on get_syn to work)
         dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet', return_trunk_item=True)
         ds = dsti['item']
         obj = self.get_object(dsti['label'])
@@ -2210,25 +2208,20 @@ class Bundle(Container):
         kwargs['ref'] = ds['ref']
         getattr(plotting, 'plot_{}res'.format(context))(obj, *args, **kwargs)
     
-    def write_syn(self, dataref, output_file, objref=None):
+    def write_syn(self, twig, output_file):
         """
         [FUTURE]
+        
+        Export the contents of a synthetic parameterset to a file
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @param output_file: path and filename of the exported file
+        @type output_file: str
         """
-        
-        ## TODO - update to use twig access
-        #~ ds = self.get_syn(twig)
-        #~ ds.save(output_file)
-        
-        dss = self.get_syn(dataref=dataref, objref=objref, all=True)
-        if len(dss) > 1:
-            logger.warning('more than one syn exists with this dataref, provide objref to ensure correct syn is used')
-        elif not len(dss):
-            raise ValueError("dataref '{}' not found for writing".format(dataref))
-        
-        # Get the obs DataSet and write to a file
-        ds = dss[0]
+        ds = self.get_syn(twig)
         ds.save(output_file)
-    
+        
     def get_axes(self,ident=None):
         """
         Return an axes or list of axes that matches index OR title
