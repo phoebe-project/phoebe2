@@ -1916,7 +1916,7 @@ class Bundle(Container):
                     category = ds.context[:-3]
                 if ds.context[:-3] != category:
                     raise ValueError("{} not always of category {}".format(dataref, category))
-                    # forbitd this dataref
+                    # forbid this dataref
                     return None
             
             # we've survived, this dataref is allowed
@@ -3241,7 +3241,7 @@ def info():
     summary = ['List of ParameterSets:\n========================\n']
     summary.append("Create a ParameterSet via:\n   >>> myps = phoebe.ParameterSet('<name>')")
     summary.append("Print with:\n   >>> print(myps)")
-    summary.append("Info on a parameter:\n   >>> myps.info('<qualifier'>)")
+    summary.append("Info on a parameter:\n   >>> myps.info('<qualifier>')")
     summary.append('\n')
     
     summary.append(emphasize('Physical contexts:'))

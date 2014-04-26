@@ -784,6 +784,7 @@ class Container(object):
                         if item==itype:
                             ris = self._get_info_from_item(isubtype, path=path, section=section_name)
                             for ri in ris:
+                                #~ if item in ['lcsyn']:
                                 if item[-3:]=='syn':
                                     # then this is the true syn, which we need to keep available
                                     # for saving and loading, but will hide from the user in twig access
@@ -1260,7 +1261,7 @@ class Container(object):
             if ti['context'] not in ['orbit','component','mesh:marching']:
                 info = {}
                 
-                if ti['context'][-3:] in ['obs','syn']:
+                if ti['context'][-3:]=='syn' or (ti['context'][-3:]=='obs' and item['filename']):
                     # then unload the data first
                     item.unload()
                     
@@ -1307,7 +1308,9 @@ class Container(object):
         [FUTURE]
         """
         f = open(filename, 'r')
-        load_dict = json.load(f)
+        load_dict = json.load(f, object_pairs_hook=OrderedDict)
+        # we use OrderedDict because order does matter for reattaching datasets
+        # luckily alphabetical works perfectly dep, obs, then syn.
         f.close()
         
         if hasattr(self, 'get_system'):
@@ -1333,6 +1336,7 @@ class Container(object):
             elif 'ref' in ps.keys():
                 ps.set_value('ref', label)
             #~ print "self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label)
+            
             self.attach_ps(parent_twig, ps)
             
         self._build_trunk()
