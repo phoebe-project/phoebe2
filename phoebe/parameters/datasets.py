@@ -736,6 +736,7 @@ class SPDataSet(DataSet):
         """
         Estimate the noise by differencing.
         """
+        return None
         if not to_col in self['columns']:
             self['columns'].append(to_col)
         

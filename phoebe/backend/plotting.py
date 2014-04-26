@@ -74,8 +74,8 @@ def plot_lcsyn(system, *args, **kwargs):
     """
     # Get some default parameters
     ref = kwargs.pop('ref', 0)
-    x_unit = kwargs.pop('x_unit')
-    y_unit = kwargs.pop('y_unit')
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
     scale = kwargs.pop('scale', 'obs')
     repeat = kwargs.pop('repeat', 0)
     period = kwargs.pop('period', None)
@@ -223,35 +223,32 @@ def plot_lcobs(system, **kwargs):
     
     Returns the matplotlib objects and the observed parameterSet
     """
-    ref = kwargs.pop('ref', 0)
-    repeat = kwargs.pop('repeat', 0)
-    period = kwargs.pop('period', None)
-    phased = kwargs.pop('phased', False)
-    x_unit = kwargs.pop('x_unit', None)
-    y_unit = kwargs.pop('y_unit', None)
-    t0 = kwargs.pop('t0', 0.0)
-    ax = kwargs.pop('ax',plt.gca())
-    errorbars = kwargs.pop('errorbars', True)
-
     # Get parameterSets
     obs = system.get_obs(category='lc', ref=ref)
     dep = system.get_parset(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
-    #-- load observations: they need to be here
-    loaded = obs.load(force=False)
+    period, t0, shift = system.get_period()
     
-    #-- take care of phased data
-    if not 'time' in obs['columns'] and 'phase' in obs['columns']:
-        myperiod = system[0].params['orbit']['period']
-        myt0 = system[0].params['orbit']['t0']
-        myphshift = system[0].params['orbit']['phshift']
-        time = obs['phase'] * myperiod + myt0 #+ myphshift * myperiod
+    # Phases are default only when obs are given in phase
+    default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    if default_phased:
+        time = obs['phase'] * period + t0 #+ phshift * period    
     elif 'time' in obs['columns']:
         time = obs['time']
     else:
         raise IOError("No times or phases defined")
     
+    # Retrieve extra information
+    ref = kwargs.pop('ref', 0)
+    repeat = kwargs.pop('repeat', 0)
+    phased = kwargs.pop('phased', default_phased)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    ax = kwargs.pop('ax',plt.gca())
+    
+    # Load observations: they need to be here
+    loaded = obs.load(force=False)
     flux = obs['flux']
     
     if errorbars and 'sigma' in obs and len(obs['sigma']) and not np.all(obs['sigma']==-1):
@@ -470,7 +467,7 @@ def plot_rvsyn(system,*args,**kwargs):
     artists = []
     if not phased:
         for n in range(repeat+1):
-            p, = ax.plot(time+n*period, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
+            p, = ax.plot(time+n*period, rv, *args,**kwargs)
             artists.append(p)
     else:
         time = (time % period) / period
@@ -478,7 +475,7 @@ def plot_rvsyn(system,*args,**kwargs):
         o = time.argsort()
         time, rv = time[o], rv[o]
         for n in range(repeat+1):
-            p, = ax.plot(time+n, conversions.convert('Rsol/d','km/s',rv), *args,**kwargs)
+            p, = ax.plot(time+n,rv, *args,**kwargs)
             artists.append(p)
     
     # Return the synthetic computations as an array
@@ -489,7 +486,7 @@ def plot_rvsyn(system,*args,**kwargs):
     return artists, ret_syn, l3
 
 
-def plot_rvobs(system,errorbars=True,**kwargs):
+def plot_rvobs(system, errorbars=True, **kwargs):
     """
     Plot rvobs as a radial velocity curve.
     
@@ -511,15 +508,20 @@ def plot_rvobs(system,errorbars=True,**kwargs):
     repeat = kwargs.pop('repeat',0)
     period = kwargs.pop('period',None)
     phased = kwargs.pop('phased',False)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    t0 = kwargs.pop('t0', 0.0)
     ax = kwargs.pop('ax',plt.gca())
 
-    #-- get parameterSets
+    # Get parameterSets
     obs = system.get_obs(category='rv',ref=ref)
-    kwargs.setdefault('label', obs['ref'])
+    dep = system.get_parset(category='lc', ref=ref)
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
-    #-- load observations: they need to be here
+    # Load observations: they need to be here
     loaded = obs.load(force=False)
     
+    # take care of phased data
     time = obs['time']
     rv = obs['rv']
     sigm = obs['sigma'] if 'sigma' in obs.keys() else [0]*len(rv) # or can we handle weights instead of sigma?
@@ -1053,7 +1055,7 @@ def plot_spsyn_as_profile(system, *args, **kwargs):
             # Shift the synthetic wavelengths if necessary
             #if 'vgamma' in obs and obs['vgamma']!=0:
             #    x = tools.doppler_shift(x, -obs.get_value('vgamma', 'km/s'))    
-        except ValueError:
+        except:
             pass
             #raise ValueError(("No observations in this system or component, "
             #             "so no scalings available: set keyword `scale=None`"))
