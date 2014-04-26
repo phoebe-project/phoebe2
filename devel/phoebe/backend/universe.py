@@ -1079,6 +1079,16 @@ def _parse_obs(body, data):
                               "{context}dep refs: {av}").format(context=context,
                                ref=ref, av=", ".join(pbdep_refs[context])))
         
+        # Check if the ref happens to exist outside of this category. If it
+        # does, something strange is happening.
+        for category in pbdep_refs:
+            if category == context:
+                continue
+            if ref in pbdep_refs[category]:
+                raise ValueError(("You cannot add obs with ref {} of category "
+                                  "{}, there already exists one in category "
+                                  "{}!").format(ref, context, category))
+        
         # If the ref already exist, generate a new one. This should never
         # happen, so send a critical message to the user
         if ref in body.params['obs'][data_context]:
