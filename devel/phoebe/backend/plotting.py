@@ -44,23 +44,27 @@ def plot_lcsyn(system, *args, **kwargs):
     Plot lcsyn as a light curve.
     
     This function is designed to behave like matplotlib's
-    `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
+    `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
     function, with additional options.
     
     Thus, all args and kwargs are passed on to matplotlib's
-    `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
+    `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
     except:
     
         - :envvar:`ref=0`: the reference of the lc to plot
         - :envvar:`phased=False`: decide whether to phase the data or not. If
           there are observations corresponding to :envvar:`ref`, the default
-          is ``True`` when those are phased.
+          is ``True`` when those are phased. The setting is overridden
+          completely by ``x_unit`` (see below).
         - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
           and you want to repeat the phase curve a couple of times.
         - :envvar:`x_unit=None`: allows you to override the default units for
           the x-axis. If you plot times, you can set the unit to any time unit
           (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
-          in phase, you switch from cycle (``cy``) to radians (``rad``)
+          in phase, you switch from cycle (``cy``) to radians (``rad``). The
+          :envvar:`x_unit` setting has preference over the :envvar:`phased`
+          flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
+          the plot will be made in time, not in phase.
         - :envvar:`y_unit=None`: allows you to override the default units for
           the y-axis. You can plot in different flux units (``W/m3``,
           ``erg/s/cm2/AA``) or convert to magnitude (``mag``).
@@ -80,12 +84,22 @@ def plot_lcsyn(system, *args, **kwargs):
     
     **Example usage:**
     
-    >>> artists, syn, (axlbls, axunits), (scale, offset) = plot_lcsyn(system, 'r-', lw=2)
+    >>> artists, syn, (axlbls, axunits), (scale, offset) = plot_lcsyn(system)
     
-    This is similar to:
+    This is equivalent to:
     
-    >>> p, = plt.plot(syn['time'], syn['flux'] * scale + offset, 'r-', lw=2)
-        
+    >>> p, = plt.plot(syn['time'], syn['flux'] * scale + offset)
+    
+    Other examples:
+    
+    >>> plot_lcsyn(system, ref='mylc')
+    >>> plot_lcsyn(system, 'r-', lw=2)
+    >>> plot_lcsyn(system, 'r-', lw=2, phased=True)
+    >>> plot_lcsyn(system, 'r-', lw=2, phased=True, repeat=1, ref='mylc')
+    >>> plot_lcsyn(system, x_unit='s', y_unit='erg/s/cm2/AA')
+    >>> plot_lcsyn(system, phased=True, x_unit='rad', y_unit='erg/s/cm2/AA')
+    >>> plot_lcsyn(system, scale='obs')       
+    
     :param system: the system from which to retrieve the synthetic lc
     :type system: Body
     :return: matplotlib artists, syn, axis labels and units, scaling and offset constants
@@ -109,9 +123,32 @@ def plot_lcsyn(system, *args, **kwargs):
     
     # Retrieve extra information
     repeat = kwargs.pop('repeat', 0)
-    phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
+    
+    # Overwrite phase default by setting of x_unit
+    if x_unit is not None:
+        x_unit_type = conversions.get_type(x_unit)
+        if x_unit_type == 'angle':
+            default_phased = True
+        elif x_unit_type == 'time':
+            default_phased = False
+        else:
+            raise ValueError(("Unallowed x_unit for plotting lc: {} is of type "
+                              "{}, while only phase or time are "
+                              "allowed").format(x_unit, x_unit_type))
+    
+    # Check y_unit type:
+    if y_unit is not None:
+        y_unit_type = conversions.get_type(y_unit)
+        allowed = ['flux density', 'flux', 'ampl_flux', 'ampl_mag']
+        if not y_unit_type in allowed:
+            raise ValueError(("Unallowed y_unit for plotting lc: {} is of type "
+                              "{}, while only {} are allowed").format(y_unit,
+                                   y_unit_type, ", ".join(allowed)))
+                              
+    
+    phased = kwargs.pop('phased', default_phased)
     ax = kwargs.pop('ax',plt.gca())
     scale = kwargs.pop('scale', 'obs')
         
@@ -194,28 +231,61 @@ def plot_lcobs(system, **kwargs):
     """
     Plot lcobs as a light curve.
     
-    All kwargs are passed on to matplotlib's
-    `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+    This function is designed to behave like matplotlib's
+    `plt.errorbar() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_
+    function, with additional options.
+    
+    Thus, all kwargs (there are no args) are passed on to matplotlib's
+    `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
     except:
     
-        - ``ref=0``: the reference of the lc to plot (index (int) or reference (str))
-        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times in the plot. If zero,
-          it means it is not repeated, if one it means you'll see the phase curve
-          twice and so on...
-        - ``phased=False``: decide whether to phase the data or not.
-        - ``ax``: axis to plot on. If not given, the plot will be made on the
-          current active axis (i.e. the return value of ``plt.gca()``)
+        - :envvar:`ref=0`: the reference of the lc to plot
+        - :envvar:`phased=False`: decide whether to phase the data or not. The
+          default is ``True`` when the observations are phased. You can unphase
+          them in that case by setting ``phased=False`` explicitly.
+        - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
+          and you want to repeat the phase curve a couple of times.
+        - :envvar:`x_unit=None`: allows you to override the default units for
+          the x-axis. If you plot times, you can set the unit to any time unit
+          (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
+          in phase, you switch from cycle (``cy``) to radians (``rad``)
+        - :envvar:`y_unit=None`: allows you to override the default units for
+          the y-axis. You can plot in different flux units (``W/m3``,
+          ``erg/s/cm2/AA``) or convert to magnitude (``mag``).
+        - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+          active axes.
     
-    The following behaviour of matplotlib's ``errorbar`` function is overwritten:
-        - ``label``: if you give no label, the default label is ``<ref> (obs)``.
-          If you want no label at all, you need to set this to ``_nolegend_``.
+    Some of matplotlib's defaults are overriden. If you do not specify any of
+    the following keywords, they will take the values:
+    
+        - :envvar:`label`: the label for the legend defaults to ``<ref> (obs)``.
+          If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
+        - :envvar:`yerr`: defaults to the ``sigma`` column from the lcobs if
+          they are available.
     
     **Example usage:**
     
-    >>> artists, obs = plot_lcobs(system, fmt='ko-')
+    >>> artists, obs, (axlbls, axunits) = plot_lcobs(system)
     
-    Returns the matplotlib objects and the observed parameterSet
+    This is equivalent to:
+    
+    >>> p, = plt.errorbar(obs['time'], obs['flux'], yerr=obs['sigma'])
+    
+    Other examples:
+    
+    >>> plot_lcobs(system, ref='mylc')
+    >>> plot_lcobs(system, fmt='ko')
+    >>> plot_lcobs(system, fmt='ko', phased=True)
+    >>> plot_lcobs(system, fmt='ko-', lw=2, phased=True, repeat=1, ref='mylc')
+    >>> plot_lcobs(system, x_unit='s', y_unit='erg/s/cm2/AA')
+    >>> plot_lcobs(system, phased=True, x_unit='rad', y_unit='erg/s/cm2/AA')  
+    
+    :param system: the system from which to retrieve the observed lc
+    :type system: Body
+    :return: matplotlib artists, syn, axis labels and units
+    :rtype: list of Artists, DataSet, 2-tuple (labels, units) of (x, y) axis
+    :raises IOError: when observations are not available
+    :raises ValueError: when x/y unit is not allowed
     """
     # Get parameterSets
     ref = kwargs.pop('ref', 0)
@@ -239,6 +309,28 @@ def plot_lcobs(system, **kwargs):
     phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
+    
+    # Overwrite phase default by setting of x_unit
+    if x_unit is not None:
+        x_unit_type = conversions.get_type(x_unit)
+        if x_unit_type == 'angle':
+            default_phased = True
+        elif x_unit_type == 'time':
+            default_phased = False
+        else:
+            raise ValueError(("Unallowed x_unit for plotting lc: {} is of type "
+                              "{}, while only phase or time are "
+                              "allowed").format(x_unit, x_unit_type))
+    
+    # Check y_unit type:
+    if y_unit is not None:
+        y_unit_type = conversions.get_type(y_unit)
+        allowed = ['flux density', 'flux', 'ampl_flux', 'ampl_mag']
+        if not y_unit_type in allowed:
+            raise ValueError(("Unallowed y_unit for plotting lc: {} is of type "
+                              "{}, while only {} are allowed").format(y_unit,
+                                   y_unit_type, ", ".join(allowed)))
+    
     ax = kwargs.pop('ax',plt.gca())
     
     # Load observations: they need to be here
@@ -401,23 +493,7 @@ def plot_rvsyn(system,*args,**kwargs):
     """
     Plot rvsyn as a radial velocity curve.
     
-    All args and kwargs are passed on to matplotlib's `plot <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_, except:
-    
-        - ``ref=0``: the reference of the lc to plot
-        - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
-          the observations
-        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times.
-        - ``period=None``: period of repetition. If not given, the last time point
-          will be used
-    
-    
-    **Example usage:**
-    
-    >>> artists, syn, pblum, l3 = plot_rvsyn(system,'r-',lw=2)
-        
-    Returns the matplotlib objects, the plotted data and the ``pblum`` and
-    ``l3`` values.
+    For more details, see :py:func:`plot_lcsyn <phoebe.backend.plotting.plot_lcsyn>`.
     """
     # Get parameterSets
     ref = kwargs.pop('ref',0)
@@ -440,6 +516,29 @@ def plot_rvsyn(system,*args,**kwargs):
     phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
+    
+    # Overwrite phase default by setting of x_unit
+    if x_unit is not None:
+        x_unit_type = conversions.get_type(x_unit)
+        if x_unit_type == 'angle':
+            default_phased = True
+        elif x_unit_type == 'time':
+            default_phased = False
+        else:
+            raise ValueError(("Unallowed x_unit for plotting lc: {} is of type "
+                              "{}, while only phase or time are "
+                              "allowed").format(x_unit, x_unit_type))
+    
+    # Check y_unit type:
+    if y_unit is not None:
+        y_unit_type = conversions.get_type(y_unit)
+        allowed = ['velocity']
+        if not y_unit_type in allowed:
+            raise ValueError(("Unallowed y_unit for plotting lc: {} is of type "
+                              "{}, while only {} are allowed").format(y_unit,
+                                   y_unit_type, ", ".join(allowed)))
+    
+    
     ax = kwargs.pop('ax',plt.gca())
     #scale = kwargs.pop('scale', 'obs')
         
@@ -519,19 +618,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     """
     Plot rvobs as a radial velocity curve.
     
-    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
-    
-        - ``ref=0``: the reference of the lc to plot
-        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times.
-        - ``period=None``: period of repetition. If not given, the last time point
-          will be used
-    
-    **Example usage:**
-    
-    >>> artists, obs = plot_rvobs(system,fmt='ko-')
-    
-    Returns the matplotlib objects and the observed parameterSet
+    For more details, see :py:func:`plot_lcsyn <phoebe.backend.plotting.plot_lcobs>`.
     """
     # Get parameterSets
     ref = kwargs.pop('ref', 0)
@@ -555,6 +642,28 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
+    
+    # Overwrite phase default by setting of x_unit
+    if x_unit is not None:
+        x_unit_type = conversions.get_type(x_unit)
+        if x_unit_type == 'angle':
+            default_phased = True
+        elif x_unit_type == 'time':
+            default_phased = False
+        else:
+            raise ValueError(("Unallowed x_unit for plotting lc: {} is of type "
+                              "{}, while only phase or time are "
+                              "allowed").format(x_unit, x_unit_type))
+    
+    # Check y_unit type:
+    if y_unit is not None:
+        y_unit_type = conversions.get_type(y_unit)
+        allowed = ['velocity']
+        if not y_unit_type in allowed:
+            raise ValueError(("Unallowed y_unit for plotting lc: {} is of type "
+                              "{}, while only {} are allowed").format(y_unit,
+                                   y_unit_type, ", ".join(allowed)))
+    
     ax = kwargs.pop('ax',plt.gca())
     
     # Load observations: they need to be here
