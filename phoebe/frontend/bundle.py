@@ -280,11 +280,12 @@ class Bundle(Container):
         Bundle.twigs
         Bundle.search        
         
-        Bundle.data_fromfile
-        Bundle.data_fromarrays
-        
         Bundle.lc_fromfile
         Bundle.lc_fromarrays
+        Bundle.lc_fromexisting
+        Bundle.rv_fromfile
+        Bundle.rv_fromarrays
+        Bundle.rv_fromexisting
         
         Bundle.plot_obs
         Bundle.plot_syn
@@ -1413,8 +1414,6 @@ class Bundle(Container):
         :envvar:`samprate` should all be arrays of equal length (unless left to
         ``None``).
         
-        [FUTURE]
-        
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
         :param dataref: name for ref for all returned datasets
@@ -1474,8 +1473,6 @@ class Bundle(Container):
         :ref:`lcdep <parlabel-phoebe-lcdep>` and
         :ref:`lcobs <parlabel-phoebe-lcobs>`.
         
-        [FUTURE]
-        
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
         :param dataref: name for ref for all returned datasets
@@ -1514,8 +1511,6 @@ class Bundle(Container):
         
         All *lcdeps* and *lcobs* with dataref :envvar:`from_dataref` will be
         duplicated into an *lcdep* with dataref :envvar:`to_dataref`.
-        
-        [FUTURE]
         
         :raises KeyError: if :envvar:`to_dataref` already exists
         :raises KeyError: if :envvar:`from_dataref` is not given and there is
@@ -1586,8 +1581,6 @@ class Bundle(Container):
         :envvar:`samprate` should all be arrays of equal length (unless left to
         ``None``).
         
-        [FUTURE]
-        
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
         :param dataref: name for ref for all returned datasets
@@ -1649,8 +1642,6 @@ class Bundle(Container):
         :ref:`rvdep <parlabel-phoebe-rvdep>` and
         :ref:`rvobs <parlabel-phoebe-rvobs>`.
         
-        [FUTURE]
-        
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
         :param dataref: name for ref for all returned datasets
@@ -1689,8 +1680,6 @@ class Bundle(Container):
         
         All *rvdeps* and *rvobs* with dataref :envvar:`from_dataref` will be
         duplicated into an *rvdep* with dataref :envvar:`to_dataref`.
-        
-        [FUTURE]
         
         :raises KeyError: if :envvar:`to_dataref` already exists
         :raises KeyError: if :envvar:`from_dataref` is not given and there is
@@ -2089,21 +2078,70 @@ class Bundle(Container):
         """
         Make a plot of the attached observations (wraps pyplot.errorbar).
         
-        Example usage::
+        This function is designed to behave like matplotlib's
+        `plt.errorbar() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_
+        function, with additional options.
+        
+        Thus, all kwargs (there are no args) are passed on to matplotlib's
+        `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+        except:
+    
+            - :envvar:`phased=False`: decide whether to phase the data or not.
+              The default is ``True`` when the observations are phased. You can
+              unphase them in that case by setting :envvar:`phased=False`
+              explicitly. This setting is trumped by :envvar:`x_unit` (see
+              below).
+            - :envvar:`repeat=0`: handy if you are actually fitting a phase
+              curve, and you want to repeat the phase curve a couple of times.
+            - :envvar:`x_unit=None`: allows you to override the default units
+              for the x-axis. If you plot times, you can set the unit to any
+              time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
+              you plot in phase, you switch from cycle (``cy``) to radians
+              (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
+              of type phase, the data will be phased and if they are time, they
+              will be in time units.
+            - :envvar:`y_unit=None`: allows you to override the default units
+              for the y-axis. Allowable values depend on the type of
+              observations.
+            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+              active axes.
+    
+        Some of matplotlib's defaults are overriden. If you do not specify any
+        of the following keywords, they will take the values:
+    
+            - :envvar:`label`: the label for the legend defaults to
+              ``<ref> (obs)``. If you don't want a label for this curve, set
+              :envvar:`label='_nolegend_'`.
+            - :envvar:`yerr`: defaults to the uncertainties from the obs if they
+              are available.
+        
+        **Example usage**::
             
             bundle.plot_obs('mylc')
+            bundle.plot_obs('mylc', phased=True)
+            bundle.plot_obs('mylc', phased=True, repeat=1)
             bundle.plot_obs('myrv@secondary')
             bundle.plot_obs('myrv@secondary', fmt='ko-')
             bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
+            bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
+        
+        For more explanations and a list of defaults, see:
+        
+            - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
+            - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
         
         The arguments are passed to the appropriate functions in
         :py:mod:`plotting`.
         
-        For more info on :envvar:`**kwargs`, see the
-        pyplot documentation.
+        For more info on :envvar:`kwargs`, see the
+        pyplot documentation on `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
         
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :return: observations used for plotting
+        :rtype: DataSet
+        :raises IOError: when observations are not available
+        :raises ValueError: when x/y unit is not allowed
         """
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
@@ -2149,22 +2187,52 @@ class Bundle(Container):
         logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
                                    fig_decs[0][1], context, ds['ref']))
         
-        return artists, fig_decs, obs
+        return obs
 
         
     def plot_syn(self, twig=None, *args, **kwargs):
         """
-        Plot simulated/computed observations.
+        Plot simulated/computed observations (wraps pyplot.plot).
         
-        Extra args and kwargs are passed to the corresponding plotting function
-        in :py:mod:`phoebe.backend.plotting` (which passes most on to matplotlib), except
-        the optional keyword argument :envvar:`objref`. The latter allows you to
-        plot the synthetic computations for only one component. Although this is
-        mainly useful for radial velocity computations, it also allows you to
-        plot the light curves or spectra of the individual components, even
-        though the computations are done for the entire system (this will not
-        work for interferometry yet).
+        This function is designed to behave like matplotlib's
+        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
+        function, with additional options.
         
+        Thus, all args and kwargs are passed on to matplotlib's
+        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
+        except:
+        
+            - :envvar:`ref=0`: the reference of the lc to plot
+            - :envvar:`phased=False`: decide whether to phase the data or not. If
+            there are observations corresponding to :envvar:`ref`, the default
+            is ``True`` when those are phased. The setting is overridden
+            completely by ``x_unit`` (see below).
+            - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
+            and you want to repeat the phase curve a couple of times.
+            - :envvar:`x_unit=None`: allows you to override the default units for
+            the x-axis. If you plot times, you can set the unit to any time unit
+            (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
+            in phase, you switch from cycle (``cy``) to radians (``rad``). The
+            :envvar:`x_unit` setting has preference over the :envvar:`phased`
+            flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
+            the plot will be made in time, not in phase.
+            - :envvar:`y_unit=None`: allows you to override the default units for
+            the y-axis.
+            - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
+            from the observations. If ``obs``, they will effectively be scaled to
+            the level/units of the observations (if that was specified in the
+            computations as least). If you want to plot the synthetics in the
+            model units, set ``scale=None``.
+            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+            active axes.
+        
+        Some of matplotlib's defaults are overriden. If you do not specify any of
+        the following keywords, they will take the values:
+        
+            - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
+            If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
+        
+            
         Example usage:
         
         >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
@@ -2183,14 +2251,45 @@ class Bundle(Container):
         @param twig: the twig/twiglet to use when searching
         @type twig: str
         """
-        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet', return_trunk_item=True)
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True)
         ds = dsti['item']
         obj = self.get_object(dsti['label'])
         context = ds.get_context()
         
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
         # Now pass everything to the correct plotting function
         kwargs['ref'] = ds['ref']
-        getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        syn = output[1]
+        fig_decs = output[2]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[context[:-3]]))
+        elif title:
+            plt.title(title)
+            
+        return syn
         
     def plot_residuals(self,twig=None,**kwargs):
         """
