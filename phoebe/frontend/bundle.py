@@ -9,12 +9,12 @@ library.
 
 **Phoebe1 compatibility**
     
-You can use Phoebe2 in a Phoebe1 compatibility mode ('legacy' mode), which is
+Phoebe2 can be used in a Phoebe1 compatibility mode ('legacy' mode), which is
 most easily when you start immediately from a legacy parameter file:
     
     >>> mybundle = Bundle('legacy.phoebe')
 
-When you load a Bundle this way, computational options are added automatically
+When a Bundle is loaded this way, computational options are added automatically
 to the Bundle to mimick the physics that is available in Phoebe1. These options
 are collected in a ParameterSet of context 'compute' with label ``from_legacy``.
 The most important parameters are listed below (some unimportant ones have been
@@ -74,6 +74,7 @@ from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
 from phoebe.parameters import create
+from phoebe.parameters import tools
 from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
 from phoebe.atmospheres import limbdark
@@ -1443,6 +1444,7 @@ class Bundle(Container):
         nothing will be computed. Thus, the minimal function call that makes
         sense is something like:
         
+        >>> bundle = phoebe.Bundle()
         >>> bundle.lc_fromarrays(time=np.linspace(0, 10.33, 101))
         
         or in phase space (phase space will probably not work for anything but
@@ -1747,6 +1749,98 @@ class Bundle(Container):
                   if set_kwargs[key] is not None and key != 'self'}
         
         self.data_fromexisting(to_dataref,  category='rv', **set_kwargs)
+    
+    def sed_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
+                       passband=None, flux=None, sigma=None, unit=None,
+                       scale=False, offset=False, **kwargs):
+        """
+        Create and attach SED templates to compute the model.
+        
+        A spectral energy distribution (SED) is nothing more than a collection
+        of absolutely calibrated lcs in different passbands. The given arrays
+        of times, flux etc.. therefore need to be all arrays of the same lenght,
+        similarly as for :py:func:`Bundle.lc_fromarrays`. One extra array needs
+        to be given, i.e. a list of passbands via :envvar:`passband`.
+        Optionally, a list of units can be added (i.e. the supplied fluxes can
+        have different units, e.g. mag, erg/s/cm2/AA, Jy...).
+        
+        Extra keyword arguments are all passed to :py:func:`Bundle.lc_fromarrays`.
+        That means that each lc attached will have the same set of atmosphere
+        tables, limb darkening coefficients etc. If they need to be different
+        for particular lcs, these need to be changed manually afterwards.
+        
+        Each added light curve will be named ``<dataref>_<passband>``, so they
+        can be accessed using that twig.
+        
+        Note that many SED measurements are not recorded in time. They still
+        need to be given in Phoebe2 anyway, e.g. all zeros.
+        
+        **Example usage**
+        
+        Initiate a Bundle:
+        
+        >>> vega = phoebe.Bundle('Vega')
+        
+        Create the required/optional arrays
+        
+        >>> passbands = ['JOHNSON.V', 'JOHNSON.U', '2MASS.J', '2MASS.H', '2MASS.KS']
+        >>> flux = [0.033, 0.026, -0.177, -0.029, 0.129]
+        >>> sigma = [0.012, 0.014, 0.206, 0.146, 0.186]
+        >>> unit = ['mag', 'mag', 'mag', 'mag', 'mag']
+        >>> time = [0.0, 0.0, 0.0, 0.0, 0.0]
+        
+        And add them to the Bundle.
+        
+        >>> x.sed_fromarrays(dataref='mysed', passband=passbands, time=time, flux=flux,
+                 sigma=sigma, unit=unit)
+        
+        [FUTURE]
+        """
+        # group data per passband:
+        passbands = np.asarray(passband)
+        unique_passbands = np.unique(passbands)
+    
+        # Convert fluxes to the right units
+        if unit is not None:
+            if sigma is None:
+                flux = np.array([conversions.convert(iunit, 'W/m3', iflux,\
+                          passband=ipassband) for iunit, iflux, ipassband \
+                              in zip(unit, flux, passbands)])
+            else:
+                flux, sigma = np.array([conversions.convert(iunit, 'W/m3',
+                          iflux, isigma, passband=ipassband) for iunit, iflux,\
+                              ipassband, isigma in zip(unit, flux, \
+                                  passbands, sigma)]).T
+    
+        # Group per passband
+        split_up = ['time', 'phase', 'flux', 'sigma']
+        added_datarefs = []
+        for unique_passband in unique_passbands:
+            this_group = (passbands == unique_passband)
+            this_kwargs = kwargs.copy()
+            this_dataref = dataref + '_' + unique_passband
+            
+            # Split given arrays per passband
+            for variable in split_up:
+                if locals()[variable] is not None:
+                    this_kwargs[variable] = np.array(locals()[variable])[this_group]
+            
+            # And add these as a light curve
+            added = self.lc_fromarrays(objref=objref, dataref=this_dataref,
+                                       passband=unique_passband, **this_kwargs)
+            
+            added_datarefs.append(added)
+            
+        # Group the observations, but first collect them all
+        this_object = self.get_object(objref)
+        obs = [this_object.get_obs(category='lc', ref=iref) \
+                     for iref in added_datarefs]
+        
+        tools.group(obs, dataref, scale=scale, offset=offset)
+        
+        return dataref
+            
+            
     
     def get_syn(self, twig=None):
         """
@@ -2172,7 +2266,7 @@ class Bundle(Container):
             - :envvar:`x_unit=None`: allows you to override the default units
               for the x-axis. If you plot times, you can set the unit to any
               time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
-              you plot in phase, you switch from cycle (``cy``) to radians
+              you plot in phase, you can switch from cycle (``cy``) to radians
               (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
               of type phase, the data will be phased and if they are time, they
               will be in time units.
@@ -2204,7 +2298,8 @@ class Bundle(Container):
             bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
             bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
         
-        For more explanations and a list of defaults, see:
+        For more explanations and a list of defaults for each type of
+        observaitons, see:
         
             - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
             - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots

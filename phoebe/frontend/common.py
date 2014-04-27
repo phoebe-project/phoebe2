@@ -847,6 +847,12 @@ class Container(object):
                 continue
                 
             else:
+                try:
+                    if item['label'] == 'f2':
+                        print self._get_info_from_item(item, path=path, section=section_name)
+                except:
+                    pass
+            
                 #if 'lcobs' in [p for p in path if isinstance(p,str) and 'lcobs' in p] and isinstance(item, parameters.Parameter):
                     #print path
                     #raise SystemExit
@@ -892,6 +898,9 @@ class Container(object):
             else:
                 label = label
             context = item.get_context()
+            # For some contexts, we need to add labels for disambiguation
+            if context in ['puls']:
+                ref = item.get_value('label') if 'label' in item else ref
             ref = item.get_value('ref') if 'ref' in item else ref
             unique_label = None
             qualifier = None
@@ -920,7 +929,9 @@ class Container(object):
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
                     # due to bad design by Pieter, this needs a hack to make sure we get the right label
                     ref = path[-2]
-                
+                # sometimes we need extra info
+                elif context in ['puls']:
+                    ref = path[-2]['label']
             unique_label = item.get_unique_label()
             qualifier = item.get_qualifier()
             

@@ -1051,14 +1051,14 @@ def plot_lcsyn_as_sed(system, *args, **kwargs):
         if scale == 'obs':
             try:
                 obs = system.get_obs(category='lc', ref=ref)
-                pblum = obs['pblum']
-                l3 = obs['l3']
+                pblum = obs['scale']
+                l3 = obs['offset']
             except:
                 raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
         # or using the synthetic computations    
         elif scale=='syn':
-            pblum = syn['pblum']
-            l3 = syn['l3']
+            pblum = syn['scale']
+            l3 = syn['offset']
         # else we don't scale
         else:
             pblum = 1.
@@ -1144,7 +1144,7 @@ def plot_lcobs_as_sed(system, *args, **kwargs):
         if not np.any(right_time):
             continue    
         
-        wave = passbands.get_info([passband])['eff_wave']
+        wave = [passbands.get_response(passband, full_output=True)[2]['WAVLEFF']]
         wave = list(wave) * len(obs['flux'][right_time])
         
         if not pass_sys in to_plot:
