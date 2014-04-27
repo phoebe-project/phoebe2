@@ -1498,6 +1498,11 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         msg = ("Parameters outside of grid {}: {}. Consider using a different "
                "atmosphere/limbdarkening grid, or use the black body "
                "approximation.").format(atm, msg)
+        #import matplotlib.pyplot as plt
+        #wrong = np.isnan(np.array(pars)[0])
+        #plt.plot(values[0][wrong], values[1][wrong], 'ko')
+        #plt.show()
+        #raise SystemExit
         raise ValueError(msg)
         #logger.error(msg)
         
