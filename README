@@ -96,7 +96,8 @@ the PHOEBE website.
 PHOEBE 2.0 is written in python, C, C++ and Fortran. Its main parts are the
 backend, the frontend, and the Graphical User Interface (GUI). This alpha
 release includes the backend and the frontend. The GUI will be released with
-the beta release on Oct 20 2014.
+the beta release on Oct 20 2014. C++ and Fortran are being phased out and the
+final release will only use python and C.
 
 3.1. THE BACKEND
 ----------------
@@ -134,6 +135,18 @@ The bulk of effort for the alpha release has gone into thoroughly testing the
 backend and stabilizing the frontend. The focus of the beta release scheduled
 for October 2014 is stabilizing the GUI. Thus, there is no GUI for the alpha
 release of PHOEBE 2.0, but we are actively working on it.
+
+3.4. FITTING CAPABILITIES
+-------------------------
+
+It may come as a surprise to you that PHOEBE 2.0-alpha has no fitting
+capability built in. That's right, no fitting capability whatsoever, However,
+that does not mean that you cannot fit your data. It only means that you should
+use PHOEBE as the synthesizer of your likelihood function (the Bayesian way of
+referring to the model of a system) and an external fitting tool, such as emcee
+(Foreman-Mackey et al. 2011), for modeling. The beta release will provide hooks
+for providing parameter priors and heuristic samplers. To help you make your
+first steps with fitting, we provide a tutorial on the PHOEBE website.
 
 4. SCIENCE WITH PHOEBE 2.0-alpha
 --------------------------------
