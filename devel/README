@@ -28,7 +28,7 @@ has been validated against the Wilson-Devinney code to insure scientific
 integrity and consistency.
 
 PHOEBE 2.0 is and always will remain free. It is released under the GNU General
-Public License (GPL), the copy of which you can find in the top-level LICENSE
+Public License (GPL), the copy of which you can find in the top-level COPYING
 file. PHOEBE is an open-source project written by professional astronomers
 that are listed in the top-level AUTHORS file.
 
