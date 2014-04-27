@@ -772,8 +772,10 @@ class Container(object):
         for path, item in system.walk_all(path_as_string=False):
             
             # make sure to catch the obs and pbdep
-            if isinstance(item, str) and item[-3:] in ['obs', 'dep','syn']:
-                
+            did_catch = isinstance(item, str)
+            did_catch = did_catch and item[-3:] in ['obs', 'dep','syn']
+            did_catch = did_catch and (not isinstance(path[-2], str) if len(path)>2 else True)
+            if did_catch:
                 # we completely ignore existing syns, we build them on the same
                 # level as obs are available
                 #~ if item[-3:] == 'syn':
