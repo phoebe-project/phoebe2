@@ -82,6 +82,9 @@ def plot_lcsyn(system, *args, **kwargs):
         - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
           If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
     
+    The DataSet that is returned is a copy of the original DataSet, but with the
+    units of the columns the same as the ones plotted.
+    
     **Example usage:**
     
     >>> artists, syn, (axlbls, axunits), (scale, offset) = plot_lcsyn(system)
@@ -181,6 +184,8 @@ def plot_lcsyn(system, *args, **kwargs):
         flux = conversions.convert(from_unit, y_unit, flux,
                                    passband=dep['passband'])
         from_unit = y_unit
+    else:
+        y_unit = from_unit
     axes_units[1] = conversions.unit2texlabel(from_unit)
     axes_labels[1] = 'Flux'
             
@@ -193,6 +198,8 @@ def plot_lcsyn(system, *args, **kwargs):
             time = conversions.convert(from_unit, x_unit, time)
             period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Time'
         
@@ -208,6 +215,8 @@ def plot_lcsyn(system, *args, **kwargs):
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
@@ -218,6 +227,13 @@ def plot_lcsyn(system, *args, **kwargs):
                 kwargs['label'] = '_nolegend_'
             p, = ax.plot(time+n, flux, *args, **kwargs)
             artists.append(p)
+    
+    # Update values in this current copy of the syn to reflect whatever was
+    # plotted.
+    syn['time'] = time
+    syn.get_parameter('time').set_unit(x_unit, convert=False)
+    syn['flux'] = flux
+    syn.get_parameter('flux').set_unit(y_unit, convert=False)
     
     # Unload if loaded
     if loaded:
@@ -263,6 +279,9 @@ def plot_lcobs(system, **kwargs):
         - :envvar:`yerr`: defaults to the ``sigma`` column from the lcobs if
           they are available.
     
+    The DataSet that is returned is a copy of the original DataSet, but with the
+    units of the columns the same as the ones plotted.
+    
     **Example usage:**
     
     >>> artists, obs, (axlbls, axunits) = plot_lcobs(system)
@@ -289,7 +308,7 @@ def plot_lcobs(system, **kwargs):
     """
     # Get parameterSets
     ref = kwargs.pop('ref', 0)
-    obs = system.get_obs(category='lc', ref=ref)
+    obs = system.get_obs(category='lc', ref=ref).asarray() # to make a copy
     dep, ref = system.get_parset(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
@@ -358,6 +377,8 @@ def plot_lcobs(system, **kwargs):
             flux = conversions.convert(from_unit, y_unit, flux,
                                        passband=dep['passband'])
         from_unit = y_unit
+    else:
+        y_unit = from_unit
     axes_units[1] = conversions.unit2texlabel(from_unit)
     axes_labels[1] = 'Flux'
     
@@ -370,6 +391,8 @@ def plot_lcobs(system, **kwargs):
             time = conversions.convert(from_unit, x_unit, time)
             period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Time'
         
@@ -385,6 +408,8 @@ def plot_lcobs(system, **kwargs):
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
@@ -399,7 +424,17 @@ def plot_lcobs(system, **kwargs):
                 kwargs['label'] = '_nolegend_'
             p = ax.errorbar(time+n, flux, **kwargs)
             artists.append(p)
-            
+    
+    # Update values in this current copy of the obs to reflect whatever was
+    # plotted.
+    obs['time'] = time
+    obs.get_parameter('time').set_unit(x_unit, convert=False)
+    obs['flux'] = flux
+    obs.get_parameter('flux').set_unit(y_unit, convert=False)
+    if has_error:
+        obs['sigma'] = kwargs['yerr']
+        obs.get_parameter('sigma').set_unit(y_unit, convert=False)
+    
     if loaded:
         obs.unload()
     
@@ -423,7 +458,6 @@ def plot_lcres(system,*args,**kwargs):
     **Example usage:**
     
     >>> artists, obs, syn, pblum, l3 = plot_lcres(system,fmt='ko-')
-    
         
     Returns the matplotlib objects, the observed and synthetic parameterSet, and the used ``pblum`` and ``l3``
     """
@@ -540,7 +574,6 @@ def plot_rvsyn(system,*args,**kwargs):
     
     
     ax = kwargs.pop('ax',plt.gca())
-    #scale = kwargs.pop('scale', 'obs')
         
     # Load synthetics: they need to be here
     loaded = syn.load(force=False)
@@ -569,6 +602,8 @@ def plot_rvsyn(system,*args,**kwargs):
         rv = conversions.convert(from_unit, y_unit, rv,
                                    passband=dep['passband'])
         from_unit = y_unit
+    else:
+        y_unit = from_unit
     axes_units[1] = conversions.unit2texlabel(from_unit)
     axes_labels[1] = 'Radial velocity'
     
@@ -581,6 +616,8 @@ def plot_rvsyn(system,*args,**kwargs):
             time = conversions.convert(from_unit, x_unit, time)
             period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Time'
         
@@ -596,6 +633,8 @@ def plot_rvsyn(system,*args,**kwargs):
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
@@ -607,6 +646,13 @@ def plot_rvsyn(system,*args,**kwargs):
                 kwargs['label'] = '_nolegend_'
             p, = ax.plot(time+n, rv, *args, **kwargs)
             artists.append(p)
+    
+    # Update values in this current copy of the syn to reflect whatever was
+    # plotted.
+    syn['time'] = time
+    syn.get_parameter('time').set_unit(x_unit, convert=False)
+    syn['rv'] = rv
+    syn.get_parameter('rv').set_unit(y_unit, convert=False)
     
     if loaded:
         syn.unload()
@@ -622,7 +668,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     """
     # Get parameterSets
     ref = kwargs.pop('ref', 0)
-    obs = system.get_obs(category='rv', ref=ref)
+    obs = system.get_obs(category='rv', ref=ref).asarray()
     dep, ref = system.get_parset(category='rv', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     
@@ -690,6 +736,8 @@ def plot_rvobs(system, errorbars=True, **kwargs):
             rv = conversions.convert(from_unit, y_unit, rv,
                                        passband=dep['passband'])
         from_unit = y_unit
+    else:
+        y_unit = from_unit
     axes_units[1] = conversions.unit2texlabel(from_unit)
     axes_labels[1] = 'Radial velocity'
     
@@ -703,6 +751,8 @@ def plot_rvobs(system, errorbars=True, **kwargs):
             time = conversions.convert(from_unit, x_unit, time)
             period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Time'
         
@@ -721,6 +771,8 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
             from_unit = x_unit
+        else:
+            x_unit = from_unit
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
@@ -735,7 +787,16 @@ def plot_rvobs(system, errorbars=True, **kwargs):
                 kwargs['label'] = '_nolegend_'
             p = ax.errorbar(time+n, rv, **kwargs)
             artists.append(p)
-
+    
+    # Update values in this copy of the obs
+    obs['time'] = time
+    obs.get_parameter('time').set_unit(x_unit, convert=False)
+    obs['rv'] = rv
+    obs.get_parameter('rv').set_unit(y_unit, convert=False)
+    if has_error:
+        obs['sigma'] = kwargs['yerr']
+        obs.get_parameter('sigma').set_unit(y_unit, convert=False)
+    
     if loaded:
         obs.unload()
     

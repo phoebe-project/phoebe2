@@ -1,6 +1,7 @@
 import phoebe
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
 def test_plot(N=3):
@@ -70,10 +71,10 @@ def test_plot(N=3):
     #np.savetxt('testoutput3.dat', np.column_stack([syn3['time'], syn3['rv'], obs3['phase'], obs3['rv']]))
     #np.savetxt('testoutput4.dat', np.column_stack([syn4['time'], syn4['rv'], obs4['phase'], obs4['rv']]))
 
-    test1 = np.loadtxt('testoutput1.dat').T
-    test2 = np.loadtxt('testoutput2.dat').T
-    test3 = np.loadtxt('testoutput3.dat').T
-    test4 = np.loadtxt('testoutput4.dat').T
+    test1 = np.loadtxt(os.path.join(os.path.dirname(__file__), 'testoutput1.dat')).T
+    test2 = np.loadtxt(os.path.join(os.path.dirname(__file__), 'testoutput2.dat')).T
+    test3 = np.loadtxt(os.path.join(os.path.dirname(__file__), 'testoutput3.dat')).T
+    test4 = np.loadtxt(os.path.join(os.path.dirname(__file__), 'testoutput4.dat')).T
 
     if N==3:
         assert(np.all(np.abs(syn1['time']-test1[0]))<1e-6)

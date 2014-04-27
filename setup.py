@@ -82,7 +82,7 @@ setup(
     cmdclass = {'build' : Build},    
     
     name="phoebe",
-    version="2.0.4",
+    version="2.0.0a1",
     description="Physics of stars and stellar and planetary systems",
     long_description="Physics of stars and stellar and planetary systems",
     author="Pieter Degroote",

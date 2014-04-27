@@ -2164,6 +2164,9 @@ class Bundle(Container):
             - :envvar:`yerr`: defaults to the uncertainties from the obs if they
               are available.
         
+        The DataSet that is returned is a copy of the original DataSet, but with the
+        units of the columns the same as the ones plotted.
+    
         **Example usage**::
             
             bundle.plot_obs('mylc')
