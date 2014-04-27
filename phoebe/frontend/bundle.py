@@ -82,6 +82,7 @@ from phoebe.dynamics import keplerorbit
 from phoebe.frontend.usersettings import Settings
 from phoebe.frontend.common import Container, rebuild_trunk
 from phoebe.frontend.figures import Axes
+from phoebe.units import conversions
 import phcompleter
 
 logger = logging.getLogger("BUNDLE")
@@ -904,6 +905,32 @@ class Bundle(Container):
         @rtype: ParameterSet
         """
         return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
+    
+    def set_main_period(self, period=None, objref=None):
+        """
+        Set the main period of the system.
+        
+        Any parameter that is used to set the period needs to be of dimensions
+        of time or frequency, such that the conversion to time is
+        straightforward.
+        
+        [FUTURE]
+        
+        :param period: twig of the Parameter that represent the main period
+        :type period: str (twig)
+        :raises ValueError: if period is not of time or frequency dimensions
+        """
+        # Get the object to set the main period of, and get the parameter
+        obj = self.get_object(objref)
+        
+        if period is not None:
+            period = self._get_by_search(period, kind='Parameter')
+        
+            # Check unit type:
+            unit_type = conversions.get_type(period.get_unit())
+            if not unit_type in ['time', 'frequency']:
+                raise ValueError('Cannot set period of the system to {} which has units of {} (needs to be time or frequency)'.format(period, unit_type))
+            obj.set_period(period=period)
         
     #}  
     #{ Datasets

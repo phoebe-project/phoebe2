@@ -5,7 +5,7 @@ import nose.tools
 
 def test_access():
     """
-    Testing Bundle's setters and getters
+    Bundle: setters and getters
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
     mybundle = phoebe.Bundle(filename)
@@ -56,7 +56,7 @@ def test_access():
 
 def test_dictionary():
     """
-    Testing Bundle's dictionary behaviour
+    Bundle: dictionary behaviour
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
     mybundle = phoebe.Bundle(filename)
@@ -80,7 +80,7 @@ def test_dictionary():
 @nose.tools.raises(KeyError)        
 def test_dictionary():
     """
-    Testing Bundle's dictionary behaviour (error raising)
+    Bundle: dictionary behaviour (error raising)
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe')
     mybundle = phoebe.Bundle(filename)
@@ -91,7 +91,7 @@ def test_dictionary():
 @nose.tools.raises(KeyError)    
 def test_error():
     """
-    Testing Bundle's setter and getters (error raising)
+    Bundle: setter and getters (error raising)
     """
     mybundle = phoebe.Bundle(os.path.join(os.path.dirname(os.path.abspath(__file__)),'defaults.phoebe'))
     mybundle.get_value('teff')

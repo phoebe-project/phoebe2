@@ -37,7 +37,7 @@ def do_ldlaw(atm='kurucz', ld_func='linear', ld_coeffs=None):
 
 def test_ldlaw():
     """
-    Test LD laws, coefficients and intensities
+    Atmospheres: LD laws, coefficients and intensities
     """
     do_ldlaw(atm='kurucz',ld_func='linear')
     do_ldlaw(atm='kurucz',ld_func='linear', ld_coeffs=[0.02])

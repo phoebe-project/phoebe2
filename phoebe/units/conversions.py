@@ -687,16 +687,19 @@ def convert(_from,_to,*args,**kwargs):
     3767.03798984
     >>> print(convert('Jy','erg cm-2 s-1 AA-1',3630.7805477,wave=(1.,'micron')))
     1.08848062485e-09
-    >>> print(convert('ABmag','erg cm-2 s-1 AA-1',0.,wave=(1.,'micron'),passband='SDSS.G'))
-    4.97510278172e-09
-    >>> print(convert('erg cm-2 s-1 AA-1','ABmag',1e-8,wave=(1.,'micron'),passband='SDSS.G'))
-    -0.757994856607
+    
+    #>>> print(convert('ABmag','erg cm-2 s-1 AA-1',0.,wave=(1.,'micron'),passband='SDSS.G'))
+    #4.97510278172e-09764
+    
+    #>>> print(convert('erg cm-2 s-1 AA-1','ABmag',1e-8,wave=(1.,'micron'),passband='SDSS.G'))
+    #-0.757994856607
+    
     >>> print(convert('ppm','muAmag',1.))
     1.0857356618
     >>> print(convert('mAmag','ppt',1.,0.1))
     (0.9214583192957981, 0.09218827316735488)
     >>> print(convert('mag_color','flux_ratio',0.599,0.004,passband='GENEVA.U-B'))
-    (1.1391327795013377, 0.004196720251233046)
+    (1.1391327795013377, 0.004196720251233045)
     
     B{Frequency analysis}:
     
@@ -758,13 +761,13 @@ def convert(_from,_to,*args,**kwargs):
     
     >>> x,y = convert('equatorial','galactic',('17:45:40.4','-29:00:28.1'),epoch='2000')
     >>> print(x,y)
-    (6.282224277178722, -0.000825178833899172)
-    >>> print(x,y)
+    (6.282224277178722, -0.000825178833899176)
+    >>> print("{} {}".format(x,y))
     359:56:41.8 -0:02:50.2
     >>> x,y = convert('galactic','equatorial',('00:00:00.00','00:00:00.0'),epoch='2000')
     >>> print(x,y)
     (4.64964430303663, -0.5050315085342665)
-    >>> print(x,y)
+    >>> print("{} {}".format(x,y))
     17:45:37.20 -28:56:10.2
     
     It is also possible to immediately convert to radians or degrees in floats
@@ -834,10 +837,10 @@ def convert(_from,_to,*args,**kwargs):
     #   when uncertainties are given)
     if uni_from!=uni_to and is_basic_unit(uni_from,'length') and not ('wave' in kwargs):# or 'freq' in kwargs_SI or 'passband' in kwargs_SI):
         kwargs['wave'] = (start_value,_from)
-        logger.warning('Assumed input value to serve also for "wave" key')
+        logger.warning('Assumed input value to serve also for "wave" key (perhaps irrelevant)')
     elif uni_from!=uni_to and is_type(uni_from,'frequency') and not ('freq' in kwargs):# or 'freq' in kwargs_SI or 'passband' in kwargs_SI):
         kwargs['freq'] = (start_value,_from)
-        logger.warning('Assumed input value to serve also for "freq" key')
+        logger.warning('Assumed input value to serve also for "freq" key (perhaps irrelevant)')
     kwargs_SI = {}
     for key in kwargs:
         if isinstance(kwargs[key],tuple):
@@ -863,7 +866,7 @@ def convert(_from,_to,*args,**kwargs):
         uni_to_ = uni_to.split()
         only_from_c,only_to_c = sorted(list(set(uni_from_) - set(uni_to_))),sorted(list(set(uni_to_) - set(uni_from_)))
         only_from_c,only_to_c = [list(components(i))[1:] for i in only_from_c],[list(components(i))[1:] for i in only_to_c]
-        #-- push them all bach to the left side (change sign of right hand side components)
+        #-- push them all back to the left side (change sign of right hand side components)
         left_over = " ".join(['%s%d'%(i,j) for i,j in only_from_c])
         left_over+= " "+" ".join(['%s%d'%(i,-j) for i,j in only_to_c])
         left_over = breakdown(left_over)[1]
@@ -2078,7 +2081,8 @@ def period2freq(arg,**kwargs):
     
     @rtype: float
     """
-    return 1./arg
+    #return 1./arg
+    return 2*np.pi/arg
 
     
 
@@ -2110,7 +2114,7 @@ def baseline_to_spatialfrequency(length, wavelength):
     
     This function is equivalent to:
     
-    >>> x = convert('m', 'cy/arcsec', 112., wave=(21000.,'AA'))) * 2 * np.pi
+    >>> x = convert('m', 'cy/arcsec', 112., wave=(21000.,'AA')) * 2 * np.pi
     >>> x = baseline_to_spatialfrequency(112., 21000.)
     """
     # wavelength in meter
@@ -2132,8 +2136,9 @@ def spatialfrequency_to_baseline(spat_freq, wavelength):
     
     This function is equivalent to:
     
-    >>> b1 = conversions.convert('cy/arcsec','m',258.,wave=(wl,'angstrom')) / (2* np.pi)
+    >>> b1 = convert('cy/arcsec','m',258.,wave=(21000.,'angstrom')) / (2* np.pi)
     >>> spatialfrequency_to_baseline(258., 21000.)
+    111.75427202467682
     """
     # wavelength in meter
     wavelength = wavelength * 1e-10
@@ -2521,9 +2526,9 @@ def derive_critical_velocity(M,R_pole,units='km/s',definition=1):
     which both amount to the same value:
     
     >>> derive_critical_velocity(1.,1.,definition=1)
-    356.71131858379499
+    356.6638809622381
     >>> derive_critical_velocity(1.,1.,definition=2)
-    356.71131858379488
+    356.663880962238
     
     @param M: mass (solar masses)
     @type M: float
@@ -2581,9 +2586,9 @@ def derive_radius_rot(r_pole,omega,theta=np.pi/2):
     """
     Calculate Roche radius for a fast rotating star.
     
-    >>> derive_radius_rot(1.,0.)
-    1.
-    >>> derive_radius_rot(1.,1.)
+    >>> print(derive_radius_rot(1.,0.))
+    1.0
+    >>> print(derive_radius_rot(1.,1.))
     1.5
     >>> derive_radius_rot(1.,0.5)
     1.0418890660015814

@@ -48,6 +48,9 @@ def check_parse_with_numpy(myfile, type='lc', **kwargs):
     
     
 def test_parse_lc_hv2241():
+    """
+    File parsing: parse_lc (1)
+    """
     
     lc_files = ['asas.johnson_V.lc', 'davidge.johnson_B.lc',
                 'davidge.johnson_U.lc', 'davidge.johnson_V.lc',
@@ -62,7 +65,9 @@ def test_parse_lc_hv2241():
     
     
 def test_parse_rv_hv2241():
-    
+    """
+    File parsing: parse_rv (1)
+    """
     rv_files = ['hv2241.final.rv1', 'hv2241.final.rv2']
     rv_files = [os.path.join(basedir, 'hv2241', rv_file) for rv_file in rv_files]
     
@@ -71,6 +76,9 @@ def test_parse_rv_hv2241():
 
 
 def test_parse_lc_GKDra():
+    """
+    File parsing: parse_lc (2)
+    """
     
     lc_files = ['GKDra.B', 'GKDra.V']
     lc_files = [os.path.join(basedir, 'GKDra', lc_file) for lc_file in lc_files]
@@ -79,6 +87,9 @@ def test_parse_lc_GKDra():
         check_parse_with_numpy(lc_file, type='lc')
 
 def test_parse_rv_GKDra():
+    """
+    File parsing: parse_rv (2)
+    """
     
     rv_files = ['GKDra.rv1', 'GKDra.rv1']
     rv_files = [os.path.join(basedir, 'GKDra', rv_file) for rv_file in rv_files]
@@ -87,6 +98,9 @@ def test_parse_rv_GKDra():
         check_parse_with_numpy(rv_file, type='rv')
 
 def test_parse_lc_ABCas():
+    """
+    File parsing: parse_lc (3)
+    """
     
     lc_files = ['ABCas.y', 'ABCas.b', 'ABCas.u', 'ABCas.v']
     lc_files = [os.path.join(basedir, 'ABCas', lc_file) for lc_file in lc_files]
@@ -96,6 +110,9 @@ def test_parse_lc_ABCas():
 
 
 def test_parse_lc_hd174884():
+    """
+    File parsing: parse_lc (4)
+    """
     
     lc_files = ['hd174884.phased.data']
     lc_files = [os.path.join(basedir, 'HD174884', lc_file) for lc_file in lc_files]
@@ -104,6 +121,9 @@ def test_parse_lc_hd174884():
         check_parse_with_numpy(lc_file, type='lc')
 
 def test_parse_rv_hd174884():
+    """
+    File parsing: parse_rv (4)
+    """
     
     rv_files = ['hd174884.rv1', 'hd174884.rv2']
     rv_files = [os.path.join(basedir, 'HD174884', rv_file) for rv_file in rv_files]
@@ -112,12 +132,20 @@ def test_parse_rv_hd174884():
         check_parse_with_numpy(rv_file, type='rv', columns = ['time', 'rv', 'sigma'])
 
 def test_parse_phased_data():
+    """
+    File parsing: phased data
+    """
+    
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
     assert(len(obs['time']) == 0)
     assert(obs['columns'] == ['phase', 'flux', 'sigma'])
 
 def test_parse_phased_data_mag():
+    """
+    File parsing: phased data and magnitudes
+    """
+    
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
     assert(len(obs['time']) == 0)
@@ -133,6 +161,9 @@ def test_parse_phased_data_mag():
     
 
 def test_parse_header():
+    """
+    File parsing: header parsing
+    """
     
     info, sets = phoebe.parameters.datasets.parse_header(os.path.join(basedir, 'datafiles/example1.lc'))
     assert(info == (None, None, None, None, 2))
@@ -167,6 +198,9 @@ def test_parse_header():
     
     
 def test_parse_lc_01():
+    """
+    File parsing: parse_lc (5)
+    """
     
     obs, pbdep = phoebe.parse_lc(os.path.join(basedir, 'datafiles/example1.lc'))
     assert(obs['columns'] == ['time', 'flux', 'sigma'])

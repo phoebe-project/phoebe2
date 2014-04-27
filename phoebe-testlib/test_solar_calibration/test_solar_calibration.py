@@ -5,7 +5,7 @@ from phoebe.parameters import tools
 
 def main():
     """
-    Absolute fluxes: solar calibration
+    Atmospheres: solar calibration
     """
     sun = phoebe.ParameterSet(context='star',add_constraints=True)
     sun['shape'] = 'sphere'
