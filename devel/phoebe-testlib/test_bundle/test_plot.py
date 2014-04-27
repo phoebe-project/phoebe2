@@ -6,7 +6,7 @@ import os
 
 def test_plot(N=3):
     """
-    Testing Bundle's plotting capabilities
+    Bundle: plotting capabilities
     """
     # System set up
     eb = phoebe.Bundle()

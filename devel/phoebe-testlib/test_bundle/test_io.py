@@ -5,7 +5,7 @@ import nose.tools
 
 def test_json():
     """
-    Testing basic Bundle json input and output
+    Bundle: basic json input and output
     """
     mybundle = phoebe.Bundle()
     

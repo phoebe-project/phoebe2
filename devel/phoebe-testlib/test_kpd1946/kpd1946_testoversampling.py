@@ -4,7 +4,7 @@ import pylab as pl
 
 def test_oversampling():
     """
-    Oversampling of light curves
+    Oversampling: light curve
     """
     bundle1 = phoebe.Bundle('KPD1946+4340')
     bundle1.data_fromarrays(time=[0],exptime=[60.],samprate=[5.],passband='KEPLER.V', dataref='keplc')

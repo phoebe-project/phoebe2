@@ -1572,8 +1572,10 @@ class Body(object):
                     self.params[this_context] += params
                 else:
                     self.params[this_context] = params
+            elif (this_context in self.params) and i_am_list:
+                self.params[this_context] += params
             else:
-                raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
+                raise ValueError('Cannot set ParameterSet to Body since it already exists (set force=True if you want to add it')
         
         # data-related stuff (not lists!)
         else:
@@ -1792,10 +1794,31 @@ class Body(object):
         
         This can then be used to convert phases to time and vise versa.
         """
-        period = self._main_period.get('period', np.inf)
-        shift = self._main_period.get('shift', 0.0)
-        t0 = self._main_period.get('t0', 0.0)
-        return period, t0, shift
+        period = self._main_period.get('period', parameters.Parameter(qualifier='period', value=np.inf, unit='d'))
+        shift = self._main_period.get('shift', parameters.Parameter(qualifier='shift', value=0.0, unit='d'))
+        t0 = self._main_period.get('t0', parameters.Parameter(qualifier='t0', value=0.0, unit='d'))
+        return period.get_value('d'), t0.get_value('d'), shift.get_value('d')
+    
+    
+    def set_period(self, period=None, t0=None, shift=None):
+        """
+        Set new Parameters for the system's period, t0 or shift.
+        
+        :param period: new period of the system
+        :type period: Parameter
+        :param t0: new t0 of the system
+        :type t0: Parameter
+        :param shift: new shift of the system
+        :type shift: Parameter
+        """
+        if period is not None:
+            self._main_period['period'] = period
+        
+        if t0 is not None:
+            self._main_period['t0'] = t0
+        
+        if shift is not None:
+            self._main_period['shift'] = shift
     
     def get_orbits(self, orbits=[], components=[]):
         """
@@ -5670,13 +5693,18 @@ class BodyBag(Body):
         """
         Retrieve the period and ephemeris of the system.
         """
-        if 'orbit' in self.params:
-            period = self.params['orbit']['period']
-            t0 = self.params['orbit']['t0']
-            shift = self.params['orbit']['phshift']
-            return period, t0, shift
-        elif len(self.bodies):
-            return self.bodies[0].get_period()
+        # If the user didn't set anything we can make smart defaults
+        if not self._main_period:            
+            if 'orbit' in self.params:
+                period = self.params['orbit']['period']
+                t0 = self.params['orbit']['t0']
+                shift = self.params['orbit']['phshift']
+            elif len(self.bodies):
+                period, t0, shift = self.bodies[0].get_period()
+        else:
+            period, t0, shift = super(BodyBag, self).get_period(self)
+       
+        return period, t0, shift
             
     
     def to_string(self,only_adjustable=False):
@@ -6679,18 +6707,22 @@ class Star(PhysicalBody):
     
     def get_period(self):
         """
-        Extract the main period from the system.
+        Extract the main period from the star.
         
         Overrides default from Body.
         """
-        if 'puls' in system.params:
-            period = 1.0/system.params['puls'][0]['freq']
-            t0 = system.params['puls'][0]['t0']
-            shift = 0.0
-        else: 
-            period = self.params['star']['rotperiod']
-            t0 = 0.0
-            shift = 0.0
+        if not self._main_period:
+            if 'puls' in system.params:
+                period = 1.0/system.params['puls'][0]['freq']
+                t0 = system.params['puls'][0]['t0']
+                shift = 0.0
+            else: 
+                period = self.params['star']['rotperiod']
+                t0 = 0.0
+                shift = 0.0
+        else:
+            period, t0, shift = super(Star, self).get_period()
+            
         return period, t0, shift
     
     
@@ -7477,13 +7509,16 @@ class BinaryRocheStar(PhysicalBody):
         
     def get_period(self):
         """
-        Extract the main period from the system.
+        Extract the main period from the orbit.
         
         Overrides default from Body.
         """
-        period = self.params['orbit']['period']
-        t0 = self.params['orbit']['t0']
-        shift = self.params['orbit']['phshift']
+        if not self._main_period:
+            period = self.params['orbit']['period']
+            t0 = self.params['orbit']['t0']
+            shift = self.params['orbit']['phshift']
+        else:
+            period, t0, shift = super(BinaryRocheStar, self).get_period()
         return period, t0, shift
         
         

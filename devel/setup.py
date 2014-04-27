@@ -29,7 +29,7 @@ from numpy.distutils.command.build import build as _build
 # Get version number
 import re
 
-VERSIONFILE="phoebe/_version.py"
+VERSIONFILE = "phoebe/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)

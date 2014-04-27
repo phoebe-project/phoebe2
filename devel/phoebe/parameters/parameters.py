@@ -645,7 +645,7 @@ class Parameter(object):
     
     #}    
     #{ Get parameter properties
-    def get_value(self,*args):
+    def get_value(self, *args):
         """
         Cast the value of a parameter to the right type and return it.
         

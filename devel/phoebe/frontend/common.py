@@ -424,7 +424,13 @@ class Container(object):
         return od
         #return {twig:param.get_value() for twig, param in zip(matched_twigs, params)}
         
+    def set_main_period(self, twig):
+        """
+        Set the main period of the system to the value of the twig.
         
+        [FUTURE]
+        """
+        pass
     
     @rebuild_trunk
     def set_ps(self, twig, value):
@@ -482,14 +488,15 @@ class Container(object):
             # already exists. We cannot assign a new nonexistent PS to the Body
             # (well, we could, but we don't want to -- that's attach_ps
             # responsibility)
-            given_context = value.get_context()
             try:
+                given_context = value.get_context()
                 this_trunk['item'].set_params(value, force=False)
             except ValueError:
                 raise ValueError(("ParameterSet '{}' at Body already exists. "
                                  "Please use set_ps to override "
                                  "it.").format(given_context))
-        
+            except AttributeError:
+                raise ValueError("{} is not a ParameterSet".format(value))
         elif isinstance(this_trunk['item'], dict): #then this should be a sect.
             section = twig.split('@')[0]
             if value.get_value('label') not in [c.get_value('label') \
