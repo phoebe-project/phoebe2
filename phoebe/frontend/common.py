@@ -725,18 +725,29 @@ class Container(object):
                 for item in section:
                     if item is None:
                         continue
-                    ris = self._get_info_from_item(item,section=section_name,container=container,label=item.get_value('label') if label is None else label)
+                    
+                    # If the system is not a BodyBag, we can't get away with
+                    # calling get_value (BodyBag implements any method!)
+                    # OLD IMPLEMENTATION: remove hasattr(item, 'get_value')
+                    if label is None and hasattr(item, 'get_value'):
+                        this_label = item.get_value('label')
+                    else:
+                        this_label = label
+                        
+                    ris = self._get_info_from_item(item,section=section_name,container=container,label=this_label)
                     for ri in ris:
                         return_items += [ri]
                         
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
 
-                        elif ri['class_name']=='BodyBag':
+                        # OLD IMPLEMENTATION: elif ri['class_name'] == 'BodyBag':
+                        elif ri['kind'] == 'Body':
                             return_items += self._loop_through_system(item, section_name=section_name)
                        
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'])
+
 
         return return_items
         

@@ -239,4 +239,17 @@ def binary_custom_variables(self, time):
                 mass = orbit.request_value('mass', 'SI')
                 
                 #if dependable == 'mass' and :
+                raise NotImplementedError
+            
+            elif qualifier == 'radius':
+                raise NotImplementedError
+            
+            elif qualifier == 'ecosw':
+                raise NotImplementedError
+            
+            elif qualifier == 'esinw':
+                raise NotImplementedError
+            
+            elif qualifier == 'teffratio':
+                raise NotImplementedError
                     
