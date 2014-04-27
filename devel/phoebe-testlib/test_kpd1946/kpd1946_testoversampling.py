@@ -3,6 +3,9 @@ import numpy as np
 import pylab as pl
 
 def test_oversampling():
+    """
+    Oversampling of light curves
+    """
     bundle1 = phoebe.Bundle('KPD1946+4340')
     bundle1.data_fromarrays(time=[0],exptime=[60.],samprate=[5.],passband='KEPLER.V', dataref='keplc')
     bundle1.run_compute(beaming_alg='simple')
@@ -12,6 +15,9 @@ def test_oversampling():
     assert(np.allclose(b1dat['time'][0],0.))
 
 def test_beaming():
+    """
+    Beaming: amplitude match
+    """
     phases = [0.75]
     bundle1 = phoebe.Bundle('KPD1946+4340')
     bundle1.data_fromarrays(phase=phases,passband='KEPLER.V', dataref='keplc')
