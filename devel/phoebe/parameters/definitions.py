@@ -257,7 +257,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep','etvdep','sidep']),
          dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='scattering',  description='Scattering phase function',repr='',value='isotropic',cast_type='choose',choices=['isotropic','henyey','henyey2', 'rayleigh','hapke'], frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
-         dict(qualifier='time',     description='Timepoint LC',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
+         dict(qualifier='time',     description='Timepoint LC',repr='%s',unit='JD',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='flux',   description='Calculated flux',repr='%s',value=[],unit='W/m3',frame=["phoebe"],context='lcsyn'),
          dict(qualifier='samprate',   description='Sampling rate to apply',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='used_samprate',   description='Applied sampling rate',repr='%s',value=[],frame=["phoebe"],context='lcsyn'),
@@ -332,7 +332,7 @@ defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spec
 defs += [dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='rvdep'),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context='rvdep'),
          dict(qualifier='method',   description='Method for calculation of total intensity',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context='rvdep'),
-         dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context=['rvsyn','pssyn','amsyn','sisyn']),
+         dict(qualifier='time',     description='Timepoint',unit='JD',repr='%s',value=[],frame=["phoebe"],context=['rvsyn','pssyn','amsyn','sisyn']),
         ]        
 
 defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','claret'],value='uniform',frame=["phoebe"],context=['spdep','pldep']),

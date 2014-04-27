@@ -1160,7 +1160,7 @@ class Parameter(object):
             logger.info("Set value from posterior")
         
     
-    def set_unit(self,unit):
+    def set_unit(self, unit, convert=True):
         """
         Change the unit of a parameter.
         
@@ -1177,21 +1177,23 @@ class Parameter(object):
             unit = conversions.change_convention(unit,self.unit)
         logger.info("Converting parameter {} from {} to {}".format(self.qualifier,self.unit,unit))
         #-- the prior
-        if hasattr(self,'prior'):
-            self.prior.convert(self.unit,unit)
-        #-- the value
-        new_value = conversions.convert(self.unit,unit,self.get_value())
-        if hasattr(self,'llim'):
-            new_llim = conversions.convert(self.unit,unit,self.cast_type(self.llim))
-            self.llim = new_llim
-        if hasattr(self,'ulim'):
-            new_ulim = conversions.convert(self.unit,unit,self.cast_type(self.ulim))
-            self.ulim = new_ulim
-        if hasattr(self,'step'):
-            new_step = conversions.convert(self.unit,unit,self.cast_type(self.step))
-            self.step = new_step
+        if convert:
+            if hasattr(self,'prior'):
+                self.prior.convert(self.unit,unit)
+            #-- the value
+            new_value = conversions.convert(self.unit,unit,self.get_value())
+            if hasattr(self,'llim'):
+                new_llim = conversions.convert(self.unit,unit,self.cast_type(self.llim))
+                self.llim = new_llim
+            if hasattr(self,'ulim'):
+                new_ulim = conversions.convert(self.unit,unit,self.cast_type(self.ulim))
+                self.ulim = new_ulim
+            if hasattr(self,'step'):
+                new_step = conversions.convert(self.unit,unit,self.cast_type(self.step))
+                self.step = new_step
+            self.value = new_value
         self.unit = unit
-        self.value = new_value
+        
         
     
     def set_adjust(self,adjust):
