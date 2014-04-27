@@ -312,6 +312,7 @@ Section 3.3 Fitting and statistics
    
    
 """
+from _version import __version__
 #-- make some important classes available in the root:
 from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS
