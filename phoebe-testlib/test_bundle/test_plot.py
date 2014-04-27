@@ -19,6 +19,7 @@ def test_plot(N=3):
     # Adding really fake observations
     phase = np.linspace(-0.6, 0.6, N)
     sigma = 0.1*np.ones(N)
+    np.random.seed(1111)
     eb.lc_fromarrays(phase=phase, flux=np.sort(2*np.random.normal(size=N)+3885))#, sigma=sigma)
     eb.rv_fromarrays('primary',  phase=phase, rv=-5*np.sin(2*np.pi*phase)+25, sigma=sigma)
     eb.rv_fromarrays('secondary',  phase=phase, rv=10*np.sin(2*np.pi*phase)+25, sigma=sigma)
@@ -78,6 +79,7 @@ def test_plot(N=3):
         assert(np.all(np.abs(syn1['time']-test1[0]))<1e-6)
         assert(np.all(np.abs(syn1['flux']-test1[1]))<1e-6)
         assert(np.all(np.abs(obs1['phase']-test1[2]))<1e-6)
+        print obs1['flux'], test1[3]
         assert(np.all(np.abs(obs1['flux']-test1[3]))<1e-6)
 
         assert(np.all(np.abs(syn2['time']-test2[0]))<1e-6)
