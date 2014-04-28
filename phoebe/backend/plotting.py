@@ -359,7 +359,7 @@ def plot_lcobs(system, **kwargs):
     # Load observations: they need to be here
     loaded = obs.load(force=False)
     flux = obs['flux']
-    sigm = obs['sigma'] if ('sigma' in obs.keys() and np.all(obs['sigma']>0)) else None
+    sigm = obs['sigma'] if ('sigma' in obs.keys() and len(obs['sigma']) and np.all(obs['sigma']>0)) else None
     kwargs.setdefault('yerr', sigm)
     has_error = kwargs['yerr'] is not None
     if has_error and np.isscalar(kwargs['yerr']):
@@ -727,7 +727,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     # Load observations: they need to be here
     loaded = obs.load(force=False)
     rv = obs['rv']
-    sigm = obs['sigma'] if ('sigma' in obs.keys() and np.all(obs['sigma']>0)) else None
+    sigm = obs['sigma'] if ('sigma' in obs.keys() and len(obs['sigma']) and np.all(obs['sigma']>0)) else None
     kwargs.setdefault('yerr', sigm)
     has_error = kwargs['yerr'] is not None
     if has_error and np.isscalar(kwargs['yerr']):
