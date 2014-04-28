@@ -22,7 +22,8 @@ nice_names = {'lc':'Light curve',
               'pl':'Spectrapolarimetry',
               'if':'Interferometry',
               'am':'Astrometry',
-              'etv':'Eclipse timing variations'}
+              'etv':'Eclipse timing variations',
+              'orb':'Synthetic orbits'}
 
 # Correspondence between data type and function to compute it
 compute_function = {'lc':'lc',
@@ -31,7 +32,8 @@ compute_function = {'lc':'lc',
                     'pl':'pl',
                     'if':'ifm',
                     'am':'am',
-                    'etv':'etv'}
+                    'etv':'etv',
+                    'orb':'orb'}
 
 # Correspondence between data type and pbdep (syn and obs are then similar):
 pbdep_context = {'lc':'lcdep',
@@ -49,7 +51,8 @@ dataset_class = {'lc':'LCDataSet',
                  'pl':'PLDataSet',
                  'if':'IFDataSet',
                  'am':'DataSet',
-                 'etv':'DataSet'}
+                 'etv':'DataSet',
+                 'orb':'DataSet'}
 
 # Correspondence between data type and file extension:
 file_extension = {'lc':'lc',
