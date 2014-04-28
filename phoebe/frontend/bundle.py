@@ -1805,6 +1805,18 @@ class Bundle(Container):
         
         [FUTURE]
         """
+        # We need a reference to link the pb and ds together.
+        if dataref is None:
+            # If the reference is None, suggest one. We'll add it as "lc01"
+            # if no "sed01" exist, otherwise "sed02" etc (unless "sed02"
+            # already exists)
+            existing_refs = self.get_system().get_refs(category='lc')
+            id_number = len(existing_refs)+1
+            dataref = 'sed{:02d}'.format(id_number)
+            while dataref in existing_refs:
+                id_number += 1
+                dataref = 'sed{:02d}'.format(len(existing_refs)+1)            
+        
         # group data per passband:
         passbands = np.asarray(passband)
         unique_passbands = np.unique(passbands)
@@ -1848,7 +1860,35 @@ class Bundle(Container):
         tools.group(obs, dataref, scale=scale, offset=offset)
         
         return dataref
-            
+    
+    def sed_fromfile(self, filename, objref=None, dataref=None, columns=None,
+                      units=None, offset=None, scale=None):
+        """
+        Add SED templates from a file.
+        
+        [FUTURE]
+        """
+        # We need a reference to link the pb and ds together.
+        if dataref is None:
+            # If the reference is None, suggest one. We'll add it as "lc01"
+            # if no "sed01" exist, otherwise "sed02" etc (unless "sed02"
+            # already exists)
+            existing_refs = self.get_system().get_refs(category='lc')
+            id_number = len(existing_refs)+1
+            dataref = 'sed{:02d}'.format(id_number)
+            while dataref in existing_refs:
+                id_number += 1
+                dataref = 'sed{:02d}'.format(len(existing_refs)+1)            
+        
+        # retrieve the arguments with which this function is called
+        set_kwargs, posargs = utils.arguments()
+        
+        # filter the arguments according to not being "None" nor being "self"
+        set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
+                  if set_kwargs[key] is not None and key != 'self'}
+        
+        # We can pass everything now to the main function
+        return self.data_fromfile(category='sed', **set_kwargs)
             
     def get_datarefs(self, objref=None, category=None, per_category=False):
         """
@@ -2853,6 +2893,70 @@ class Bundle(Container):
         ymax = ymax + 1.1*max(r1,r2)
         
         return xmin, xmax, ymin, ymax
+        
+    def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
+                  select='proj', cmap=None, vmin=None, vmax=None, size=800,
+                  dpi=80, background=None, savefig=False,
+                  with_partial_as_half=False, **kwargs):
+        """
+        Plot the mesh at a particular time or phase.
+        
+        This function has a lot of different use cases, which are all explained
+        below.
+        
+        **Plotting the current status of the mesh after running computations**
+        
+        If you've just ran :py:func`Bundle.run_compute` for some observations,
+        and you want to see what the mesh looks like after the last calculations
+        have been performed, then this is what you need to do::
+        
+            >>> mybundle.plot_mesh()
+            >>> mybundle.plot_mesh(objref='primary')
+            >>> mybundle.plot_mesh(select='teff')
+            >>> mybundle.plot_mesh(dataref='lc01')
+        
+        Giving a :envvar:`dataref` and/or setting :envvar:`select='proj'` plots
+        the mesh coloured with the projected flux of the dataref.
+        
+        **Plotting the mesh at an arbitrary time or phase point**
+        
+        If you want to plot the mesh at a particular phase, 
+            
+        """
+        if dataref is not None:
+            # Return just one pbdep, we only need the reference and context
+            deps = self._get_by_search(dataref, context='*dep',
+                            class_name='ParameterSet', all=True)[0]
+            ref = deps['ref']
+            context = deps.get_context()
+            category = context[:-3]
+            kwargs.setdefault('ref', ref)
+            kwargs.setdefault('context', context)
+        else:
+            category = 'lc'
+            
+        # Set the configuration to the correct time/phase, but only when one
+        # (and only one) of them is given.
+        if time is not None and phase is not None:
+            raise ValueError("You cannot set both time and phase to zero, please choose one")
+        elif phase is not None:
+            period, t0, shift = self.get_system().get_period()
+            time = phase * period + t0
+        
+        # Observe the system with the right computations
+        if time is not None:
+            options = self.get_compute(label, create_default=True).copy()
+            observatory.observe(self.get_system(), [time], lc=category=='lc',
+                                rv=category=='rv', sp=category=='sp',
+                                pl=category=='pl', save_result=False, **options)
+        
+        # Get the object and make an image.
+        self.get_object(objref).plot2D(select=select, cmap=cmap, vmin=vmin,
+                     vmax=vmax, size=size, dpi=dpi, background=background,
+                     savefig=savefig, with_partial_as_half=with_partial_as_half,
+                     **kwargs)
+        
+        
         
     def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None,lims=None):
         """
