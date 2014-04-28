@@ -16,12 +16,12 @@ most easily when you start immediately from a legacy parameter file:
 
 When a Bundle is loaded this way, computational options are added automatically
 to the Bundle to mimick the physics that is available in Phoebe1. These options
-are collected in a ParameterSet of context 'compute' with label ``from_legacy``.
+are collected in a ParameterSet of context 'compute' with label ``legacy``.
 The most important parameters are listed below (some unimportant ones have been
 excluded so if you try this, you'll see more parameters)
 
-    >>> print(mybundle['from_legacy'])
-              label from_legacy   --   label for the compute options               
+    >>> print(mybundle['legacy'])
+              label legacy        --   label for the compute options               
             heating True          --   Allow irradiators to heat other Bodies      
                refl False         --   Allow irradiated Bodies to reflect light    
            refl_num 1             --   Number of reflections                       
@@ -37,7 +37,7 @@ value in the loaded parameter file.
 Once data is added, you could run Phoebe2 while mimicking the physics in Phoebe1
 via::
 
->>> mybundle.run_compute(label='from_legacy')
+>>> mybundle.run_compute(label='legacy')
 >>> print(mybundle.get_logp())
 
 >>> mybundle.plot_obs('lightcurve_0', fmt='ko')

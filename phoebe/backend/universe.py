@@ -300,7 +300,7 @@ def luminosity(body, ref='__bol', numerical=False):
     ld = body.mesh['ld_' + ref]
     
     if np.all(ld==0):
-        body.intensity(ref=ref)
+        body.intensity(ref=ref, beaming_alg='none')
         
     # Get a reference to the mesh, and get the sizes of the triangles in real
     # units
@@ -6384,7 +6384,7 @@ class AccretionDisk(PhysicalBody):
         
         return proj_int
     
-    def set_time(self,time, ref='all', beaming_alg='full'):
+    def set_time(self,time, ref='all', beaming_alg='none'):
         
         if self.time is None:
             self.reset_mesh()
@@ -6844,7 +6844,7 @@ class Star(PhysicalBody):
     
     
     @decorators.parse_ref
-    def intensity(self, ref='all', beaming_alg='full'):
+    def intensity(self, ref='all', beaming_alg='none'):
         """
         Calculate local intensity and limb darkening coefficients of a Star.
         """
@@ -7192,7 +7192,7 @@ class Star(PhysicalBody):
         #-- insert the updated values in the original mesh
         self.mesh[subset] = old_mesh
 
-    def set_time(self,time,ref='all', beaming_alg='full'):
+    def set_time(self,time,ref='all', beaming_alg='none'):
         """
         Set the time of the Star object.
         
@@ -7777,7 +7777,7 @@ class BinaryRocheStar(PhysicalBody):
         
     
     @decorators.parse_ref
-    def intensity(self,ref='all', beaming_alg='full'):
+    def intensity(self,ref='all', beaming_alg='none'):
         """
         Calculate local intensity and limb darkening coefficients.
         """
@@ -8058,7 +8058,7 @@ class BinaryRocheStar(PhysicalBody):
     
     
     
-    def set_time(self,time,ref='all', beaming_alg='full'):
+    def set_time(self,time,ref='all', beaming_alg='none'):
         """
         Set the time of a BinaryRocheStar.
         
