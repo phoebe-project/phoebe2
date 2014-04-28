@@ -155,7 +155,7 @@ def write_passbands_to_fits(passbandlist,outfile):
 
         head = hdu.header
         for key in sorted(p.get_headers()):
-            head.set(key, str(p.get_header(key)))
+            head.set(key, p.get_header(key))
         
         # set name of the extension
         head.set('EXTNAME', "{}.{}_v{}".format(p.get_header('system'),

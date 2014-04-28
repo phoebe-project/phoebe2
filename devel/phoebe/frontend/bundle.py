@@ -262,22 +262,28 @@ class Bundle(Container):
             >>> mybundle['atm@secondary'] = 'blackbody'
              
     
+    Inherited from :py:class:`common.Container <phoebe.frontend.common.Container>`:
+    
     .. autosummary::
     
-        Bundle.get_value
-        Bundle.get_value_all
-        Bundle.get_ps
-        Bundle.get_parameter
-        Bundle.get_adjust
-        Bundle.get_prior
-        Bundle.set_value
-        Bundle.set_value_all
-        Bundle.set_ps
-        Bundle.set_system
-        Bundle.attach_ps
+        phoebe.frontend.common.Container.get_value
+        phoebe.frontend.common.Container.get_value_all
+        phoebe.frontend.common.Container.get_ps
+        phoebe.frontend.common.Container.get_parameter
+        phoebe.frontend.common.Container.get_adjust
+        phoebe.frontend.common.Container.get_prior
+        phoebe.frontend.common.Container.set_value
+        phoebe.frontend.common.Container.set_value_all
+        phoebe.frontend.common.Container.set_ps
+        phoebe.frontend.common.Container.attach_ps
+        phoebe.frontend.common.Container.twigs
+        phoebe.frontend.common.Container.search
+    
+    Defined within the Bundle:        
         
-        Bundle.twigs
-        Bundle.search   
+    .. autosummary::    
+        
+        Bundle.set_system
         
         Bundle.run_compute
         
@@ -1155,7 +1161,7 @@ class Bundle(Container):
         
         **Spectra**
         
-        Spectra are typically added to the separate components, allthough they
+        Spectra are typically added to the separate components, although they
         could as well be added to the entire system.
         
         For a list of available parameters, see :ref:`spdep <parlabel-phoebe-spdep>`
@@ -1188,8 +1194,8 @@ class Bundle(Container):
         
         This will generate plots of the system on the sky with the projected
         baseline orientation (as well as some other info), but will also
-        write out an image with the summed profile (*_prof.png) and the rotated
-        image (to correspond to the baseline orientation, (*_rot.png). Lastly,
+        write out an image with the summed profile (_prof.png) and the rotated
+        image (to correspond to the baseline orientation, (_rot.png). Lastly,
         a FITS file is output that contains the image, for use in other programs.
         This way, you have all the tools available for debugging and to check
         if things go as expected.
@@ -1435,7 +1441,7 @@ class Bundle(Container):
         all cases, since you observe the whole system simultaneously and not the
         components separately.
         
-        Note that you cannot add :envvar:`times` and `phases` simultaneously.
+        Note that you cannot add :envvar:`times` and :envvar:`phases` simultaneously.
         
         **Example usage**
         
@@ -1475,6 +1481,7 @@ class Bundle(Container):
         :rtype: str
         :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
         :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
+        
         """
         # retrieve the arguments with which this function is called
         set_kwargs, posargs = utils.arguments()
@@ -1565,11 +1572,14 @@ class Bundle(Container):
         All *lcdeps* and *lcobs* with dataref :envvar:`from_dataref` will be
         duplicated into an *lcdep* with dataref :envvar:`to_dataref`.
         
+        For a list of available parameters, see :ref:`lcdep <parlabel-phoebe-lcdep>`
+        and :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        
         :raises KeyError: if :envvar:`to_dataref` already exists
         :raises KeyError: if :envvar:`from_dataref` is not given and there is
-        either no or more than one light curve present.
+         either no or more than one light curve present.
         :raises ValueError: if keyword arguments are set that could not be
-        processed.
+         processed.
         """
         # retrieve the arguments with which this function is called
         set_kwargs, posargs = utils.arguments()
@@ -2196,14 +2206,14 @@ class Bundle(Container):
         This frontend function wraps the backend function
         :py:func:`observatory.compute <phoebe.backend.observatory.compute>`.
         
-        @param label: name of one of the compute ParameterSets stored in bundle
-        @type label: str
-        @param objref: name of the top-level object used when observing
-        @type objref: str
-        @param anim: basename for animation, or False - will use settings in bundle.get_meshview()
-        @type anim: False or str
-        @param server: name of server to run on, or False to run locally (will override usersettings)
-        @type server: string
+        :param label: name of one of the compute ParameterSets stored in bundle
+        :type label: str
+        :param objref: name of the top-level object used when observing
+        :type objref: str
+        :param anim: basename for animation, or False - will use settings in bundle.get_meshview()
+        :type anim: False or str
+        :param server: name of server to run on, or False to run locally (will override usersettings)
+        :type server: string
         :return: used compute options
         :rtype: ParameterSet
         :raises ValueError: if there are no observations (or only empty ones) attached to the object.
@@ -2386,14 +2396,28 @@ class Bundle(Container):
         The DataSet that is returned is a copy of the original DataSet, but with the
         units of the columns the same as the ones plotted.
     
-        **Example usage**::
+        **Example usage**
+            
+        Suppose you have the following setup::
+        
+            bundle = phoebe.Bundle()
+            bundle.lc_fromarrays(dataref='mylc', time=np.linspace(0, 1, 100),
+            ...                  flux=np.random.normal(size=100))
+            bundle.rv_fromarrays(dataref='myrv', objref='secondary',
+            ...                  phase=np.linspace(0, 1, 100),
+            ...                  rv=np.random.normal(size=100),
+            ...                  sigma=np.ones(100))
+       
+       Then you can plot these observations with any of the following commands::
             
             bundle.plot_obs('mylc')
             bundle.plot_obs('mylc', phased=True)
             bundle.plot_obs('mylc', phased=True, repeat=1)
             bundle.plot_obs('myrv@secondary')
             bundle.plot_obs('myrv@secondary', fmt='ko-')
+            plt.legend()
             bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
+            plt.legend()
             bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
         
         For more explanations and a list of defaults for each type of
@@ -2414,6 +2438,7 @@ class Bundle(Container):
         :rtype: DataSet
         :raises IOError: when observations are not available
         :raises ValueError: when x/y unit is not allowed
+        :raises ValueError: when y-axis not available (flux, rv...)
         """
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
@@ -2476,33 +2501,33 @@ class Bundle(Container):
         
             - :envvar:`ref=0`: the reference of the lc to plot
             - :envvar:`phased=False`: decide whether to phase the data or not. If
-            there are observations corresponding to :envvar:`ref`, the default
-            is ``True`` when those are phased. The setting is overridden
-            completely by ``x_unit`` (see below).
+              there are observations corresponding to :envvar:`ref`, the default
+              is ``True`` when those are phased. The setting is overridden
+              completely by ``x_unit`` (see below).
             - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
-            and you want to repeat the phase curve a couple of times.
+              and you want to repeat the phase curve a couple of times.
             - :envvar:`x_unit=None`: allows you to override the default units for
-            the x-axis. If you plot times, you can set the unit to any time unit
-            (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
-            in phase, you switch from cycle (``cy``) to radians (``rad``). The
-            :envvar:`x_unit` setting has preference over the :envvar:`phased`
-            flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
-            the plot will be made in time, not in phase.
+              the x-axis. If you plot times, you can set the unit to any time unit
+              (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
+              in phase, you switch from cycle (``cy``) to radians (``rad``). The
+              :envvar:`x_unit` setting has preference over the :envvar:`phased`
+              flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
+              the plot will be made in time, not in phase.
             - :envvar:`y_unit=None`: allows you to override the default units for
-            the y-axis.
+              the y-axis.
             - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
-            from the observations. If ``obs``, they will effectively be scaled to
-            the level/units of the observations (if that was specified in the
-            computations as least). If you want to plot the synthetics in the
-            model units, set ``scale=None``.
+              from the observations. If ``obs``, they will effectively be scaled to
+              the level/units of the observations (if that was specified in the
+              computations as least). If you want to plot the synthetics in the
+              model units, set ``scale=None``.
             - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
-            active axes.
+              active axes.
         
         Some of matplotlib's defaults are overriden. If you do not specify any of
         the following keywords, they will take the values:
         
             - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
-            If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
+              If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
         
             
         Example usage:
@@ -2517,8 +2542,6 @@ class Bundle(Container):
         
         - :py:func:`phoebe.backend.plotting.plot_lcsyn`
         - :py:func:`phoebe.backend.plotting.plot_rvsyn`
-        - :py:func:`phoebe.backend.plotting.plot_spsyn_as_profile`
-        - :py:func:`phoebe.backend.plotting.plot_ifsyn`
         
         @param twig: the twig/twiglet to use when searching
         @type twig: str

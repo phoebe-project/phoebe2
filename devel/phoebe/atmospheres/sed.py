@@ -299,7 +299,7 @@ def synthetic_flux(wave, flux, passbands, units=None):
         #-- if we're working in infrared (>4e4A) and the model is not of high
         #   enough resolution (100000 points over wavelength range), interpolate
         #   the model in logscale on to a denser grid (in logscale!)
-        if info['WAVLEFF']>=4e4 and sum(region)<1e5 and sum(region)>1:
+        if info['WAVLEFF']>=4e4 and np.sum(region)<1e5 and np.sum(region)>1:
             logger.debug('%10s: Interpolating model to integrate over response curve'%(passband))
             wave_ = np.logspace(np.log10(wave[region][0]),np.log10(wave[region][-1]),1e5)
             flux_ = 10**np.interp(np.log10(wave_),np.log10(wave[region]),np.log10(flux[region]),)
