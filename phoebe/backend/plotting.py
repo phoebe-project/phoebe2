@@ -384,7 +384,6 @@ def plot_lcobs(system, **kwargs):
     from_unit = obs.get_parameter('flux').get_unit()
     if y_unit is not None:
         if has_error:
-            print kwargs['yerr']
             flux, kwargs['yerr'] = conversions.convert(from_unit, y_unit, flux,
                                        kwargs['yerr'], passband=dep['passband'])
         else:
