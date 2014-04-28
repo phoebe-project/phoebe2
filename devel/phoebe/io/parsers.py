@@ -82,7 +82,7 @@ def legacy_to_phoebe2(inputfile):
              parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='secondary')]
     position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
-                                      heating=True, label='from_legacy',
+                                      heating=True, label='legacy',
                                       eclipse_alg='binary', subdiv_num=3)
     meshes = [parameters.ParameterSet('mesh:marching'),
               parameters.ParameterSet('mesh:marching')]
@@ -697,7 +697,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
                                     add_constraints=True)
     position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
-                                      heating=True, label='from_legacy',
+                                      heating=True, label='legacy',
                                       eclipse_alg='binary', subdiv_num=3)
     
     mesh1wd = parameters.ParameterSet(frame='phoebe',context='mesh:wd',add_constraints=True)
