@@ -970,7 +970,7 @@ def iter_grid_dimensions(atm, atm_pars, other_pars, blackbody_teff_range=None):
     
 
 def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
-    """
+    r"""
     Retrieve specific intensities of a model atmosphere at different angles.
     
     Retrieval is done from the precomputed table C{atm}.
@@ -991,7 +991,18 @@ def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
     
     C{vgamma} is radial velocity: positive is redshift, negative is blueshift
     (m/s!). This shifts the spectrum and does a first order correction for
-    beaming effects.
+    beaming effects:
+    
+        1. First the spectrum :math:`F(\lambda)` is
+           :py:func:`doppler shifted <phoebe.atmospheres.tools.doppler_shift>`
+           to :math:`F^D(\lambda)`.
+        2. Then the spectrum :math:`F^D(\lambda)` is beamed to get
+           :math:`F^B(\lambda)`:
+        
+            .. math::
+            
+                F^B(\lambda) = F^D(\lambda) + \frac{5 v_\gamma}{c} F^D(\lambda)
+        
     
     You get limb angles, wavelength and a table. The shape of the limb angles
     array is N_mu, the wavelength array shape is N_wave, and the table has

@@ -270,17 +270,16 @@ class Bundle(Container):
         Bundle.get_parameter
         Bundle.get_adjust
         Bundle.get_prior
-        Bundle.get_compute
         Bundle.set_value
         Bundle.set_value_all
         Bundle.set_ps
+        Bundle.set_system
         Bundle.attach_ps
         
-        Bundle.add_compute
-        Bundle.remove_compute
-        
         Bundle.twigs
-        Bundle.search        
+        Bundle.search   
+        
+        Bundle.run_compute
         
         Bundle.lc_fromfile
         Bundle.lc_fromarrays
@@ -487,7 +486,6 @@ class Bundle(Container):
         return txt
     
     #{ Settings
-    @rebuild_trunk
     def set_usersettings(self,basedir=None):
         """
         Load user settings into the bundle
@@ -505,6 +503,7 @@ class Bundle(Container):
             
         # else we assume settings is already the correct type
         self.usersettings = settings
+        self._build_trunk()
         
     def get_usersettings(self):
         """
@@ -556,7 +555,6 @@ class Bundle(Container):
         
     #}    
     #{ System
-    @rebuild_trunk
     def set_system(self, system=None, remove_dataref=False):
         """
         Change or set the system.
@@ -658,6 +656,7 @@ class Bundle(Container):
         
         # connect signals
         #self.attach_system_signals()
+        self._build_trunk()
         
     def get_system(self):
         """
@@ -711,7 +710,7 @@ class Bundle(Container):
         """
         return self.get_system().list(summary,*args)
     
-    @rebuild_trunk
+    
     def clear_syn(self):
         """
         Clear all synthetic datasets.
@@ -719,6 +718,7 @@ class Bundle(Container):
         Simply a shortcut to :py:func:`bundle.get_system().clear_synthetic() <phoebe.backend.universe.Body.clear_synthetic>`
         """
         self.get_system().clear_synthetic()
+        self._build_trunk()
         
     def set_time(self, time, label=None, server=None, **kwargs):
         """
@@ -935,7 +935,6 @@ class Bundle(Container):
         
     #}  
     #{ Datasets
-    @rebuild_trunk
     def _attach_datasets(self, output, skip_defaults_from_body=True):
         """
         attach datasets and pbdeps from parsing file or creating synthetic datasets
@@ -1013,7 +1012,7 @@ class Bundle(Container):
 
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
         self.get_system().init_mesh()
-        
+        self._build_trunk()
     
     #rebuild_trunk done by _attach_datasets
     def data_fromfile(self, filename, category='lc', objref=None, dataref=None,
@@ -2044,7 +2043,6 @@ class Bundle(Container):
             return dataref
 
 
-    @rebuild_trunk
     def remove_data(self, dataref=None, category=None):
         """
         remove a dataset (and all its obs, syn, dep) from the system
@@ -2069,7 +2067,8 @@ class Bundle(Container):
                 obj.remove_obs(refs=[dataref])
                 if hasattr(obj, 'remove_pbdeps'): #TODO otherwise: warning 'BinaryRocheStar' has no attribute 'remove_pbdeps'
                     obj.remove_pbdeps(refs=[dataref]) 
-
+            
+            self._build_trunk()
             return
     
     def remove_lc(self, dataref=None):
@@ -2099,10 +2098,103 @@ class Bundle(Container):
     
     @rebuild_trunk
     @run_on_server
-    def run_compute(self, label=None, objref=None, anim=False, server=None, **kwargs):
+    def run_compute(self, label=None, objref=None, animate=False, server=None,
+                    **kwargs):
     #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
-        Convenience function to run observatory.observe
+        Perform calculations to mirror any enabled attached observations.
+        
+        Main arguments: :envvar:`label`, :envvar:`objref`, :envvar:`anim`,
+        :envvar:`server`.
+        
+        Extra keyword arguments are passed to the
+        :ref:`compute <parlabel-phoebe-compute>` ParameterSet.
+        
+        **Example usage**
+        
+        The minimal setup is::
+        
+            >>> mybundle = phoebe.Bundle()
+            >>> dataref = mybundle.lc_fromarrays(phase=[0, 0.5, 1.0])
+            >>> mybundle.run_compute()
+        
+        After which you can plot the results via::
+        
+            >>> mybundle.plot_syn(dataref)
+        
+        **Keyword 'label'**
+        
+        Different compute options can be added via
+        :py:func:`Bundle.attach_ps() <phoebe.frontend.common.Container.attach_ps>`,
+        where each of these ParameterSets have a
+        :envvar:`label`. If :envvar:`label` is given and that compute option is
+        present, those options will be used. If no :envvar:`label` is given, a
+        default set of compute options is created on the fly. The used set of
+        options is returned but also stored for later reference. You can access
+        it via the ``default`` label in the bundle::
+            
+            >>> mybundle.run_compute()
+        
+        and at any point you can query:
+        
+            >>> options = mybundle['default@compute']
+            
+        If you want to store new options before hand for later usage you can
+        issue:
+            
+            >>> new_options = phoebe.ParameterSet('compute', heating=False,
+            ...                  label='no_heating')
+            >>> mybundle.attach_ps('compute', new_options)
+            >>> options = mybundle.run_compute(label='no_heating')
+           
+        
+        **Keyword 'objref'**
+        
+        If :envvar:`objref` is given, the computations are only performed on
+        that object. This is only advised for introspection. Beware that the
+        synthetics will no longer mirror the observations of the entire system,
+        but only those of the specified object.
+        
+        .. warning::
+            
+            1. Even if you only compute the light curve of the secondary in a
+               binary system, the system geometry is still determined by the entire
+               system. Thus, eclipses will occur if the secondary gets eclipsed!
+               If you don't want this behaviour, either turn of eclipse computations
+               entirely (via :envvar:`eclipse_alg='none'`) or create a new
+               binary system with the other component removed.
+            
+            2. This function only computes synthetics of objects that have
+               observations. If observations are added to the system level and
+               :envvar:`run_compute` is run on a component where there are no
+               observations attached to, a :envvar:`ValueError` will be raised.
+        
+        **Keyword 'animate'**
+        
+        It is possible to animate the computations for visual inspection of the
+        system geometry. The different valid options for setting
+        :envvar:`animate` are given in
+        :py:func:`observatory.compute <phoebe.backend.observatory.compute>`,
+        but here are two straightforward examples::
+        
+            >>> mybundle.run_compute(animate=True)
+            >>> mybundle.run_compute(animate='lc')
+        
+        .. warning::
+        
+            1. Animations are only supported on computers/backends that support the
+               animation capabilities of matplotlib (likely excluding Macs).
+            
+            2. Animations will not work in interactive mode in ipython (i.e. when
+               started as ``ipython --pylab``.
+        
+        **Extra keyword arguments**
+        
+        Any extra keyword arguments are passed on to the ``compute``
+        ParameterSet.
+        
+        This frontend function wraps the backend function
+        :py:func:`observatory.compute <phoebe.backend.observatory.compute>`.
         
         @param label: name of one of the compute ParameterSets stored in bundle
         @type label: str
@@ -2112,6 +2204,10 @@ class Bundle(Container):
         @type anim: False or str
         @param server: name of server to run on, or False to run locally (will override usersettings)
         @type server: string
+        :return: used compute options
+        :rtype: ParameterSet
+        :raises ValueError: if there are no observations (or only empty ones) attached to the object.
+        :raises KeyError: if a label of a compute options is set that was not added before
         """
         system = self.get_system()
         obj = self.get_object(objref) if objref is not None else system
@@ -2144,20 +2240,20 @@ class Bundle(Container):
         # then try/except the computations? Though we should keep track of
         # why things don't work out.. how to deal with out-of-grid interpolation
         # etc...
-        if options['time'] == 'auto' and anim == False:
+        if options['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            obj.compute(mpi=mpi, **options)
-        else:
-            im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
-            observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
-                extra_func=[observatory.ef_binary_image] if anim!=False else [],
-                extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
-                mpi=mpi,**options
-                )
+            obj.compute(mpi=mpi, animate=animate, **options)
+        #else:
+            #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
+            #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
+                #extra_func=[observatory.ef_binary_image] if anim!=False else [],
+                #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
+                #mpi=mpi,**options
+                #)
         
-        if anim != False:
-            for ext in ['.gif','.avi']:
-                plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
+        #if anim != False:
+            #for ext in ['.gif','.avi']:
+                #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
         system.uptodate = label
         
@@ -2165,6 +2261,8 @@ class Bundle(Container):
             #~ self.add_version(name=None if add_version==True else add_version)
 
         self.attach_system_signals()
+        
+        return options
         
     #}
             
