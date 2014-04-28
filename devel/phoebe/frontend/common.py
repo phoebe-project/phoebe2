@@ -7,6 +7,7 @@ import copy
 import json
 import uuid
 import numpy as np
+from phoebe import __version__
 from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
 from phoebe.backend import universe
@@ -1281,7 +1282,7 @@ class Container(object):
 
         dump_dict = {}
         
-        dump_dict['PHOEBE Version'] = '2.0alpha'
+        dump_dict['PHOEBE Version'] = __version__
         
         if hasattr(self, 'get_system'):
             dump_dict['Hierarchy'] = _dumps_system_structure(this_bundle.get_system())
