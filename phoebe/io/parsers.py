@@ -196,7 +196,7 @@ def legacy_to_phoebe2(inputfile):
             if leg_qualifier[:3] == 'dc_':
                 continue
             ignore_list = 'spots', 'synscatter', 'proximity', 'levweight',\
-                          'indweight', 'nms_', 'el3_units', 'grid_coarsesize',\
+                          'nms_', 'el3_units', 'grid_coarsesize',\
                           'passband_mode','ie_switch','ie_excess','spectra_disptype',\
                           'mnorm', 'ie_factor', 'bins',  'bins_switch',\
                           'indep','cadence','logg'
@@ -512,12 +512,32 @@ def legacy_to_phoebe2(inputfile):
                     all_rvdeps[1][index]['ref'] = val[1:-1]
                     continue
                 
-                if leg_qualifier == 'lc_sigma':
-                    all_lcobs[index]['sigma'] = float(val)
+                if leg_qualifier == 'lc_indweight':
+                    if val.strip()[1:-1] == 'Unavailable':
+                        all_lcobs[index]['columns'] = all_lcobs[index]['columns'][:2]
+                        all_lcobs[index]['user_columns'] = all_lcobs[index]['user_columns'][:2]
+                    elif val.strip()[1:-1] == 'Standard weight':
+                        all_lcobs[index]['columns'][2] = 'weight'
+                        all_lcobs[index]['user_columns'][2] = 'weight'
+                    elif val.strip()[1:-1] == 'Standard deviation':
+                        all_lcobs[index]['columns'][2] = 'sigma'
+                        all_lcobs[index]['user_columns'][2] = 'sigma'
+                    else:
+                        raise ValueError("unrecognised lc_indweight")
                     continue
                 
-                if leg_qualifier == 'rv_sigma':
-                    all_rvobs[index]['sigma'] = float(val)
+                if leg_qualifier == 'rv_indweight':
+                    if val.strip()[1:-1] == 'Unavailable':
+                        all_rvobs[index]['columns'] = all_rvobs[index]['columns'][:2]
+                        all_rvobs[index]['user_columns'] = all_rvobs[index]['user_columns'][:2]
+                    elif val.strip()[1:-1] == 'Standard weight':
+                        all_rvobs[index]['columns'][2] = 'weight'
+                        all_rvobs[index]['user_columns'][2] = 'weight'
+                    elif val.strip()[1:-1] == 'Standard deviation':
+                        all_rvobs[index]['columns'][2] = 'sigma'
+                        all_rvobs[index]['user_columns'][2] = 'sigma'
+                    else:
+                        raise ValueError("unrecognised rv_indweight")
                     continue
                 
                 
