@@ -114,7 +114,7 @@ def plot_lcsyn(system, *args, **kwargs):
     syn = system.get_synthetic(category='lc', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
     
-    # catch fmt for the unattentive user
+    # catch fmt for the user that is set up by the MPL quirkiness:
     fmt = kwargs.pop('fmt', None)
     if fmt is not None:
         if args:
