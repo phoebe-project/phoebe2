@@ -609,8 +609,18 @@ def legacy_to_phoebe2(inputfile):
             if not all_lcobs[i]['sigma'].shape:
                 all_lcobs[i]['sigma'] = len(all_lcobs[i])*[float(all_lcobs[i]['sigma'])]
             
+            # Convert from mag to flux (perhaps with uncertainties)
             if all_lcobs[i]['user_columns'][1] == 'mag':
-                all_lcobs[i]['flux'] = 10**(all_lcobs[i]['flux']/(-2.5))
+                passband = all_lcdeps[0][i]['passband']
+                flux = all_lcobs[i]['flux']
+                sigma = all_lcobs[i]['sigma']
+                if len(sigma):
+                    flux, sigma = conversions.convert('mag', 'W/m3', flux, sigma, passband=passband)
+                else:
+                    flux = conversions.convert('mag', 'W/m3', flux, passband=passband)
+                all_lcobs[i]['flux'] = flux
+                all_lcobs[i]['sigma'] = sigma
+                
         all_lcobs[i]['filename'] = ""#all_lcobs[i]['ref'] + '_phoebe2.lc'
         
         

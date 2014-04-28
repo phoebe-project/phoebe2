@@ -243,6 +243,12 @@ def plot_lcsyn(system, *args, **kwargs):
     if loaded:
         syn.unload()
     
+    # Reverse axes when plotting in magnitude
+    if y_unit is not None and 'mag' in y_unit:
+        ylim = ax.get_ylim()
+        if ylim[0] < ylim[1]:
+            ax.set_ylim(ylim[::-1])        
+    
     # That's it!
     return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
 
@@ -445,6 +451,12 @@ def plot_lcobs(system, **kwargs):
     
     if loaded:
         obs.unload()
+    
+    # Reverse axes when plotting in magnitude
+    if y_unit is not None and 'mag' in y_unit:
+        ylim = ax.get_ylim()
+        if ylim[0] < ylim[1]:
+            ax.set_ylim(ylim[::-1])        
     
     return artists, obs, (axes_labels, axes_units)
 

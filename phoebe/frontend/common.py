@@ -540,7 +540,7 @@ class Container(object):
             par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
         par.set_adjust(value)
         
-    def set_adjust_all(self, twig, value):
+    def set_adjust_all(self, twig, value, add_prior=True):
         """
         Set whether all matching Parameters are marked to be adjusted
         
@@ -554,7 +554,7 @@ class Container(object):
         pars = self._get_by_search(twig, kind='Parameter', all=True)
         
         for par in pars:
-            if not par.has_prior() and par.get_qualifier() not in ['l3','pblum']:
+            if add_prior and not par.has_prior() and par.get_qualifier() not in ['l3','pblum']:
                 lims = par.get_limits()
                 par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
             par.set_adjust(value)

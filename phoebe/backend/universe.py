@@ -823,7 +823,7 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     # Choose the algorithm
     algorithm = dict(nnls=nnls, lstsq=np.linalg.lstsq)[type]
     
-    if sigma is None:
+    if sigma is None or not len(sigma):
         sigma = np.ones_like(obs)
         
     #   only scaling factor
@@ -2022,6 +2022,7 @@ class Body(object):
                 subsystem = path[-1]
             else:
                 subsystem = self
+            
             # Ignore disabled datasets
             if not obs.get_enabled():
                 continue

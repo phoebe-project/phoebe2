@@ -1850,6 +1850,30 @@ class Bundle(Container):
         return dataref
             
             
+    def get_datarefs(self, objref=None, category=None, per_category=False):
+        """
+        Return all the datarefs, or only those of a certain category.
+        
+        [FUTURE]
+        """
+        return self.get_object(objref).get_refs(category=category,
+                                                per_category=per_category)
+    
+    def get_lc_datarefs(self, objref=None):
+        """
+        Return all datarefs of category lc.
+        
+        [FUTURE]
+        """
+        return self.get_datarefs(objref=objref, category='lc')
+    
+    def get_rv_datarefs(self, objref=None):
+        """
+        Return all datarefs of category rv.
+        
+        [FUTURE]
+        """
+        return self.get_datarefs(objref=objref, category='rv')
     
     def get_syn(self, twig=None):
         """
