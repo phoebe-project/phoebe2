@@ -1274,6 +1274,7 @@ class Container(object):
         """
         # We're changing stuff here, so we need to make a copy first
         this_bundle = self.copy()
+        #~ this_bundle.clear_syn()
         
         this_container = this_bundle.__class__.__name__
 

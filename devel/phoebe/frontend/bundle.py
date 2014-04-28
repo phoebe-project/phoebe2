@@ -2108,14 +2108,12 @@ class Bundle(Container):
     
     @rebuild_trunk
     @run_on_server
-    def run_compute(self, label=None, objref=None, animate=False, server=None,
-                    **kwargs):
+    def run_compute(self, label=None, objref=None, animate=False, **kwargs):
     #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Perform calculations to mirror any enabled attached observations.
         
-        Main arguments: :envvar:`label`, :envvar:`objref`, :envvar:`anim`,
-        :envvar:`server`.
+        Main arguments: :envvar:`label`, :envvar:`objref`, :envvar:`anim`.
         
         Extra keyword arguments are passed to the
         :ref:`compute <parlabel-phoebe-compute>` ParameterSet.
@@ -2135,7 +2133,7 @@ class Bundle(Container):
         **Keyword 'label'**
         
         Different compute options can be added via
-        :py:func:`Bundle.attach_ps() <phoebe.frontend.common.Container.attach_ps>`,
+        :py:func:`Bundle.add_compute() <phoebe.frontend.common.Container.add_compute>`,
         where each of these ParameterSets have a
         :envvar:`label`. If :envvar:`label` is given and that compute option is
         present, those options will be used. If no :envvar:`label` is given, a
@@ -2151,13 +2149,10 @@ class Bundle(Container):
             
         If you want to store new options before hand for later usage you can
         issue:
-            
-            >>> new_options = phoebe.ParameterSet('compute', heating=False,
-            ...                  label='no_heating')
-            >>> mybundle.attach_ps('compute', new_options)
+        
+            >>> mybundle.add_compute(label='no_heating', heating=False)
             >>> options = mybundle.run_compute(label='no_heating')
            
-        
         **Keyword 'objref'**
         
         If :envvar:`objref` is given, the computations are only performed on
@@ -2210,15 +2205,14 @@ class Bundle(Container):
         :type label: str
         :param objref: name of the top-level object used when observing
         :type objref: str
-        :param anim: basename for animation, or False - will use settings in bundle.get_meshview()
+        :param anim: whether to animate the computations
         :type anim: False or str
-        :param server: name of server to run on, or False to run locally (will override usersettings)
-        :type server: string
         :return: used compute options
         :rtype: ParameterSet
         :raises ValueError: if there are no observations (or only empty ones) attached to the object.
         :raises KeyError: if a label of a compute options is set that was not added before
         """
+        server = None # server support deferred 
         system = self.get_system()
         obj = self.get_object(objref) if objref is not None else system
         #~ if add_version is None:
@@ -2243,8 +2237,6 @@ class Bundle(Container):
         for k,v in kwargs.items():
             #if k in options.keys(): # otherwise nonexisting kwargs can be given
             options.set_value(k,v)
-            
-        #~ print "***", options.get_value('mesh_rescale'), options_orig.get_value('mesh_rescale')
             
         # Q <pieterdegroote>: should we first set system.uptodate to False and
         # then try/except the computations? Though we should keep track of
