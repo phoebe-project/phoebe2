@@ -118,7 +118,7 @@ def plot_lcsyn(system, *args, **kwargs):
     fmt = kwargs.pop('fmt', None)
     if fmt is not None:
         if args:
-            raise "TypeError: There is no line property 'fmt'")
+            raise TypeError("There is no line property 'fmt'")
         else:
             args = (fmt,)
     
@@ -566,7 +566,7 @@ def plot_rvsyn(system,*args,**kwargs):
     fmt = kwargs.pop('fmt', None)
     if fmt is not None:
         if args:
-            raise "TypeError: There is no line property 'fmt'")
+            raise TypeError("There is no line property 'fmt'")
         else:
             args = (fmt,)
     
