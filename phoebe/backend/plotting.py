@@ -114,6 +114,14 @@ def plot_lcsyn(system, *args, **kwargs):
     syn = system.get_synthetic(category='lc', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
     
+    # catch fmt for the unattentive user
+    fmt = kwargs.pop('fmt', None)
+    if fmt is not None:
+        if args:
+            raise "TypeError: There is no line property 'fmt'")
+        else:
+            args = (fmt,)
+    
     period, t0, shift = system.get_period()
     
     # Phases are default only when obs are present and given in phase
@@ -553,6 +561,14 @@ def plot_rvsyn(system,*args,**kwargs):
     dep, ref = system.get_parset(category='rv', ref=ref)
     syn = system.get_synthetic(category='rv', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    
+    # catch fmt for the unattentive user
+    fmt = kwargs.pop('fmt', None)
+    if fmt is not None:
+        if args:
+            raise "TypeError: There is no line property 'fmt'")
+        else:
+            args = (fmt,)
     
     period, t0, shift = system.get_period()
     
