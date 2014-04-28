@@ -1,5 +1,5 @@
 """
-Create interpolation tables.
+Create interpolation tables and check them.
 """
 
 from phoebe.atmospheres import limbdark
@@ -7,6 +7,10 @@ from phoebe.io import fits
 from phoebe.atmospheres import passbands as pbmod
 from phoebe.atmospheres import sed
 from phoebe.utils import utils
+from phoebe.units import constants
+from phoebe.units import conversions
+from phoebe.parameters import parameters
+from phoebe.backend import universe
 import matplotlib.pyplot as pl
 import numpy as np
 import logging
@@ -728,6 +732,118 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         
     filename.close()
         
+
+
+def test_solar_calibration(atm):
+    """
+    Print info on a grid, and check the luminosity and visual magnitude of the Sun.
+    """
+    limbdark.register_atm_table(atm)
+    output = limbdark._prepare_grid('OPEN.BOL', atm)
+    header = output[-1]
+    ld_func = header['c__ld_func']
+    
+    
+    with pyfits.open(atm) as ff:
+        npassbands = (len(ff)-1)/2
+        passbands = ", ".join([ext.header['extname'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF'])
+    
+    print("Atmosphere table: {}".format(atm))
+    print("==========================================================")
+    print("Grid variables: {}".format(", ".join(header[key] for key in header.keys() if key[:6]=='C__AI_')))
+    print("Limb darkening function: ".format(ld_func))
+    print("Available passbands ({}): {}".format(npassbands, passbands))
+    
+    output = limbdark._prepare_grid('JOHNSON.V_v1.0', atm)
+    
+    sun = parameters.ParameterSet('star', label='TheSun')
+    sun['shape'] = 'sphere'
+    sun['atm'] = atm
+    sun['ld_coeffs'] = atm
+    sun['ld_func'] = ld_func
+
+    globals = parameters.ParameterSet('position')
+    globals['distance'] = 1., 'au'
+
+    sun_mesh = parameters.ParameterSet('mesh:marching')
+    sun_mesh['delta'] = 0.05
+
+    lcdep1 = parameters.ParameterSet('lcdep')
+    lcdep1['ld_func'] = ld_func
+    lcdep1['ld_coeffs'] = atm
+    lcdep1['atm'] = atm
+    lcdep1['passband'] = 'OPEN.BOL'
+    lcdep1['ref'] = 'Bolometric (numerical)'
+
+    lcdep2 = lcdep1.copy()
+    lcdep2['method'] = 'analytical'
+    lcdep2['ref'] = 'Bolometric (analytical)'
+    
+    lcdep3 = lcdep1.copy()
+    lcdep3['passband'] = 'JOHNSON.V'
+    lcdep3['ref'] = 'Visual'
+
+    if ld_func == 'claret':
+        lcdeps = [lcdep1, lcdep2, lcdep3]
+    else:
+        lcdeps = [lcdep1, lcdep3]
+    the_sun = universe.Star(sun, sun_mesh, pbdep=lcdeps,
+                          position=globals)
+
+    print("\nComputations")
+    print("===========================")
+    the_sun.set_time(0)
+
+    the_sun.lc()
+    
+    params = the_sun.get_parameters()
+    nflux = the_sun.params['syn']['lcsyn']['Bolometric (numerical)']['flux'][0]
+    if ld_func == 'claret':
+        aflux = the_sun.params['syn']['lcsyn']['Bolometric (analytical)']['flux'][0]
+    else:
+        aflux = nflux
+    pflux = the_sun.params['syn']['lcsyn']['Visual']['flux'][0]
+    
+    mupos = the_sun.mesh['mu']>0
+    
+    vmag = conversions.convert('W/m3','mag', pflux, passband='JOHNSON.V')
+    
+    num_error_area = np.abs(np.pi-((the_sun.mesh['size']*the_sun.mesh['mu'])[mupos]).sum())/np.pi*100
+    num_error_flux = np.abs(nflux-aflux)/aflux*100
+    
+    print("\nSolar luminosity and fluxes")
+    print("===========================")
+    print("Computed analytical flux of the model: {} W/m2".format(aflux))
+    print("Computed numerical flux of the model:  {} (={}) W/m2".format(nflux, the_sun.projected_intensity()))
+    print("Visual magnitude: {}".format(vmag))
+    
+    real_error_flux = np.abs(1368.000-aflux)/aflux*100
+    
+    assert(num_error_area<=0.048)
+    assert(num_error_flux<=0.049)
+    assert(real_error_flux<=5.0)
+    assert(np.abs(vmag+26.75)<=0.1)
+    
+    lumi2 = params.get_value('luminosity','W')
+    if ld_func == 'claret':
+        lumi1 = limbdark.sphere_intensity(the_sun.params['star'],the_sun.params['pbdep']['lcdep'].values()[0])[0]
+    else:
+        lumi1 = lumi2
+    
+    lumsn = constants.Lsol#_cgs
+    num_error_area = np.abs(4*np.pi-the_sun.area())/4*np.pi*100
+    num_error_flux = np.abs(lumi1-lumi2)/lumi1*100
+    real_error_flux = np.abs(lumi1-lumsn)/lumsn*100
+    
+    print("Computed analytical luminosity: {} W".format(lumi1))
+    print("Computed numerical luminosity:  {} W".format(lumi2))
+    print("True luminosity:                {} W".format(lumsn))
+    
+    assert(num_error_area<=0.48)
+    assert(num_error_flux<=0.040)
+    assert(real_error_flux<=0.22)
+    
+    print("\n ... all checks passed")
 
 
 

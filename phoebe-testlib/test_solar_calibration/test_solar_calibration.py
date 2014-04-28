@@ -25,7 +25,7 @@ def main():
     lcdep1['atm'] = 'kurucz'
     lcdep1['passband'] = 'OPEN.BOL'
     lcdep1['ref'] = 'Bolometric (numerical)'
-
+    
     lcdep2 = lcdep1.copy()
     lcdep2['method'] = 'analytical'
     lcdep2['ref'] = 'Bolometric (analytical)'

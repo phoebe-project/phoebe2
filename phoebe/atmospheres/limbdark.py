@@ -1869,7 +1869,15 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
         #-- not all columns hold data that needs to be interpolated
         nointerp_columns = data_columns + ['alpha_b', 'res','dflux','idisk']
         #nointerp_columns = data_columns + ['alpha_b', 'dflux']
+        
     with pyfits.open(atm) as ff:
+        
+        # if this passband is not available, try to add _v1.0 to it
+        try:
+            this_ext = ff[passband]
+        except KeyError:
+            passband = passband + '_v1.0'
+        
         header = ff[0].header
         try:
             available = [col.lower() for col in ff[passband].data.names]
