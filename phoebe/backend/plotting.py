@@ -727,9 +727,9 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     # Load observations: they need to be here
     loaded = obs.load(force=False)
     rv = obs['rv']
-    sigm = obs['sigma'] if 'sigma' in obs.keys() else [0]*len(rv)
+    sigm = obs['sigma'] if ('sigma' in obs.keys() and np.all(obs['sigma']>0)) else None
     kwargs.setdefault('yerr', sigm)
-    has_error = 'yerr' in kwargs
+    has_error = kwargs['yerr'] is not None
     if has_error and np.isscalar(kwargs['yerr']):
         kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
     
@@ -764,7 +764,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         # XAXIS
         from_unit = obs.get_parameter('time').get_unit()
         if x_unit is not None:
-            time = conversions.convert(from_unit, x_unit, time)
+            time = conversions.convert(from_unit, x_unit, time, freq=(1.0/period, 'd-1'))
             period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
         else:
@@ -785,7 +785,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         # XAXIS
         from_unit = 'cy'
         if x_unit is not None:
-            time = conversions.convert(from_unit, x_unit, time)
+            time = conversions.convert(from_unit, x_unit, time, freq=(1.0/period, 'd-1'))
             from_unit = x_unit
         else:
             x_unit = from_unit
