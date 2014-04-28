@@ -1,5 +1,6 @@
 import os
 import functools
+import __builtin__
 from collections import OrderedDict
 from fnmatch import fnmatch
 import copy
@@ -1308,6 +1309,17 @@ class Container(object):
             item = ti['item']
             info = {}
             
+            # determine if this parameter is a default item of its PS
+            # or if it will need to be created on the fly during load
+            ps = parameters.ParameterSet(context=ti['context'])
+            if ti['qualifier'] not in ps:
+                # then we need to keep more information
+                info['cast_type'] = str(item.cast_type)
+                if '<type' in info['cast_type']:
+                    info['cast_type'] = info['cast_type'].split("'")[1]
+                
+                # TODO: add more info here if needed (eg if cast_type=='choose')
+            
             info['value'] = item.get_value()#to_str()
             
             if isinstance(info['value'],np.ndarray):
@@ -1333,12 +1345,14 @@ class Container(object):
 
 
     @rebuild_trunk
-    def _load_json(self, filename):
+    def _load_json(self, filename, debug=False):
         """
         TESTING
         
         [FUTURE]
         """
+        #~ debug = True
+        
         f = open(filename, 'r')
         load_dict = json.load(f, object_pairs_hook=OrderedDict)
         # we use OrderedDict because order does matter for reattaching datasets
@@ -1367,19 +1381,42 @@ class Container(object):
                 ps.set_value('label',label)
             elif 'ref' in ps.keys():
                 ps.set_value('ref', label)
-            #~ print "self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label)
+            if debug:
+                print "self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label)
             
             self.attach_ps(parent_twig, ps)
             
         self._build_trunk()
         
         for twig,info in load_dict['Parameters'].items():
-            #~ print "self.set_value('{}', '{}')".format(twig, str(info['value']))
+            # handle if the parameter did not exist in the PS by default
+            if debug:
+                print "parameter: {}".format(twig)
+            
+            if 'cast_type' in info:
+                # then this is a new parameter that needs to be added to the PS
+                if debug:
+                    print "\tcreating parameter", twig
+                qualifier = twig.split('@')[0]
+                ps = self._get_by_search('@'.join(twig.split('@')[1:]), hidden=None)
+                try:
+                    cast_type = getattr(__builtin__,info['cast_type'])
+                except AttributeError:
+                    cast_type = info['cast_type']
+                param = parameters.Parameter(qualifier, context=ps.context, cast_type=cast_type)
+                ps.add(param)
+                
+                # this parameter isn't in the trunk
+                self._build_trunk()
+
             item = self._get_by_search(twig, hidden=None)
             if 'value' in info:
+                if debug:
+                    print "\tself.set_value('{}', '{}')".format(twig, str(info['value']))
                 item.set_value(info['value'])
             if 'adjust' in info:
-                #~ print "HERE", twig, info['adjust']
+                if debug:
+                    print "\tself.set_adjust('{}', '{}')".format(twig, str(info['adjust']))
                 item.set_adjust(info['adjust'])
             #~ if 'prior' in info:
                 #~ item.set_prior(info['prior'])
