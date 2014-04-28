@@ -72,6 +72,8 @@ class Completer:
                         '.twigs(': {},
                         '.search(': {},
                         '[': {},
+                        '.get_compute(': {'kind': 'ParameterSet', 'section': 'compute'},
+                        '.run_compute(': {'kind': 'ParameterSet', 'section': 'compute'},
                         '.get_object(': {'kind': 'Body'},
                         '.get_children(': {'kind': 'Body'},
                         '.get_parent(': {'kind': 'Body'},
