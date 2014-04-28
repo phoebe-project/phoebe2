@@ -2122,7 +2122,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
 
 
 def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflect,
-                          circular, heating, beaming, params, ltt, 
+                          circular, heating, beaming, params, ltt, save_result,
                           extra_func, extra_func_kwargs):
     """
     Compute a system on one given time step.
@@ -2208,7 +2208,10 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
                 continue
             had_refs.append(iref)
         logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
-        getattr(system, itype[:-3])(ref=iref, time=time, correct_oversampling=isamp, beaming_alg=beaming)
+        getattr(system, itype[:-3])(ref=iref, time=time,
+                                    correct_oversampling=isamp,
+                                    beaming_alg=beaming,
+                                    save_result=save_result)
 
     # Call extra funcs if necessary
     for ef, kw in zip(extra_func, extra_func_kwargs):
@@ -2342,7 +2345,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     @type mpi: ParameterSet of context 'mpi'
     """
     inside_mpi = kwargs.pop('inside_mpi', None)
-
+    save_result = kwargs.pop('save_result', True)
+    
     # Gather the parameters that give us more details on how to compute the
     # system: subdivisions, eclipse detection, optimization flags...
     if extra_func is None:
@@ -2618,7 +2622,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if not animate:
         for i, (time, ref, typ, samp) in enumerate(iterator):
             compute_one_time_step(system, i, time, ref, typ, samp, reflect, nreflect,
-                                circular, heating, beaming, params, ltt,
+                                circular, heating, beaming, params, ltt, save_result,
                                 extra_func, extra_func_kwargs)
     
     else:
@@ -2671,8 +2675,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
         
         
-def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
-            extra_func=[], extra_func_kwargs=[{}], animate=None, **kwargs):
+def observe(system, times, lc=False, rv=False, sp=False, pl=False, mpi=None,
+            extra_func=[], extra_func_kwargs=[{}], animate=None,
+            save_result=True, **kwargs):
     """
     Customized computation of dependables of a system.
     
@@ -2756,7 +2761,8 @@ def observe(system,times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     params['samprate'] = [smps] * len(times)
     # And run compute
     compute(system, params=params, mpi=mpi, extra_func=extra_func,
-            extra_func_kwargs=extra_func_kwargs, animate=animate)
+            extra_func_kwargs=extra_func_kwargs, animate=animate,
+            save_result=save_result)
 
 
 

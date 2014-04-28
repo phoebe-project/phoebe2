@@ -1873,8 +1873,8 @@ class Body(object):
     def compute_pblum_or_l3(self):
         # Run over all pbdeps and see for which stars the pblum needs to be
         # computed
-        reference_plum = None
-        do_continue=False
+        reference_plum = {}
+        
         for path, pbdep in self.walk_pbdep():
             
             if 'computed_pblum' in pbdep:
@@ -1883,18 +1883,17 @@ class Body(object):
                 pbdep.remove_constraint('computed_scaling')
                         
             # Compute pblum here if needed
-            if not do_continue and 'pblum' in pbdep and len(path):
+            if 'pblum' in pbdep and len(path):
                 this_body = path[-1]
                 this_ref = pbdep['ref']
             
                 # The first passband luminosity needs to be the reference one,
                 # if any others need to be scaled according to it
-                if reference_plum is None and pbdep['pblum'] > -1:
+                if not this_ref in reference_plum and pbdep['pblum'] > -1:
                     passband_lum = this_body.luminosity(ref=this_ref) / constants.Rsol**2
-                    reference_plum = pbdep['pblum'] / passband_lum
+                    reference_plum[this_ref] = pbdep['pblum'] / passband_lum
                 # if the first one is -1, nothing needs to be computed at all
-                elif reference_plum is None:
-                    do_continue = True
+                elif not this_ref in reference_plum: # and thus pbep['pblum'] == 1
                     continue
                 # otherwise we need to rescale the current one
                 else:
@@ -1923,10 +1922,11 @@ class Body(object):
                     pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(pbdep['pblum']))
                     pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(pbdep['pblum'] / passband_lum))
                 else:
-                    model = model * reference_plum
-                    logger.info("Pblum of {} is computed to {}".format(this_ref, reference_plum*passband_lum))
-                    pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(reference_plum*passband_lum))
-                    pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(reference_plum))
+                    
+                    model = model * reference_plum[this_ref]
+                    logger.info("Pblum of {} is computed to {}".format(this_ref, reference_plum[this_ref]*passband_lum))
+                    pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(reference_plum[this_ref]*passband_lum))
+                    pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(reference_plum[this_ref]))
 
                 
     
@@ -4158,7 +4158,8 @@ class Body(object):
            
            
     @decorators.parse_ref
-    def ifm(self, ref='allifdep', time=None, correct_oversampling=1, beaming_alg='none'):
+    def ifm(self, ref='allifdep', time=None, correct_oversampling=1,
+            beaming_alg='none', save_result=True):
         """
         Compute interferometry.
         
@@ -4206,12 +4207,14 @@ class Body(object):
                                      baseline=baseline[keep],eff_wave=eff_wave,
                                      ref=lbl, keepfig=keepfig)
                                      #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
-                ifsyn, lbl = self.get_parset(type='syn', ref=lbl)
-                ifsyn['time'] += [time] * len(output[0])
-                ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
-                ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
-                ifsyn['vis2'] += list(output[3])
-                ifsyn['vphase'] += list(output[4])
+                
+                if save_result:
+                    ifsyn, lbl = self.get_parset(type='syn', ref=lbl)
+                    ifsyn['time'] += [time] * len(output[0])
+                    ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
+                    ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
+                    ifsyn['vis2'] += list(output[3])
+                    ifsyn['vphase'] += list(output[4])
         #-- try to descend into a bodyBag
         else:
             try:
@@ -4221,7 +4224,8 @@ class Body(object):
                 pass
     
     @decorators.parse_ref
-    def rv(self,correct_oversampling=1,ref='allrvdep', time=None, beaming_alg='none'):
+    def rv(self,correct_oversampling=1,ref='allrvdep', time=None,
+           beaming_alg='none', save_result=True):
         """
         Compute integrated radial velocity and add results to the pbdep ParameterSet.
         """
@@ -4236,16 +4240,21 @@ class Body(object):
                         body.rv(correct_oversampling=correct_oversampling,
                                 ref=ref, time=time, beaming_alg=beaming_alg)
                 continue
-                
+            
             base,lbl = self.get_parset(ref=lbl,type='syn')
             #proj_velo = self.projected_velocity(ref=lbl)
             proj_velo = observatory.radial_velocity(self, obs)
+            
+            if not save_result:
+                continue
+            
             base['time'].append(time)
             base['rv'].append(proj_velo)
                 
     
     @decorators.parse_ref
-    def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1, beaming_alg='none'):
+    def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1,
+           beaming_alg='none', save_result=True):
         """
         Compute Stokes profiles and add results to the pbdep ParameterSet.
         
@@ -4324,20 +4333,22 @@ class Body(object):
             # If nothing was computed, don't do anything
             if output is None:
                 return None
-                
-            # Expand output and save it to the synthetic thing
-            wavelengths_, I, V, Q , U, cont = output
             
-            base['time'].append(time)
-            base['wavelength'].append(wavelengths_ / 10.)
-            base['flux'].append(I)
-            base['V'].append(V)
-            base['Q'].append(Q)
-            base['U'].append(U)
-            base['continuum'].append(cont)
+            if save_result:
+                # Expand output and save it to the synthetic thing
+                wavelengths_, I, V, Q , U, cont = output
+            
+                base['time'].append(time)
+                base['wavelength'].append(wavelengths_ / 10.)
+                base['flux'].append(I)
+                base['V'].append(V)
+                base['Q'].append(Q)
+                base['U'].append(U)
+                base['continuum'].append(cont)
     
     @decorators.parse_ref
-    def sp(self, ref='allspdep', time=None, obs=None, correct_oversampling=1, beaming_alg='none'):
+    def sp(self, ref='allspdep', time=None, obs=None, correct_oversampling=1,
+           beaming_alg='none', save_result=True):
         """
         Compute spectrum and add results to the pbdep ParameterSet.
         
@@ -4419,13 +4430,15 @@ class Body(object):
             # Expand output and save it to the synthetic thing
             wavelengths_, I, cont = output
             
-            base['time'].append(time)
-            base['wavelength'].append(wavelengths_ / 10.)
-            base['flux'].append(I)
-            base['continuum'].append(cont)
+            if save_result:
+                base['time'].append(time)
+                base['wavelength'].append(wavelengths_ / 10.)
+                base['flux'].append(I)
+                base['continuum'].append(cont)
     
     @decorators.parse_ref
-    def am(self, ref='allamdep', time=None, obs=None, correct_oversampling=1, beaming_alg='none'):
+    def am(self, ref='allamdep', time=None, obs=None, correct_oversampling=1,
+           beaming_alg='none', save_result=True):
         """
         Compute astrometry and add results to the pbdep ParameterSet.
         
@@ -4490,12 +4503,13 @@ class Body(object):
                                   "given in obs"))
             output = observatory.astrometry(self, obs, pbdep, index)
                 
-            # Save output to the synthetic thing
-            base['time'].append(time)
-            base['delta_ra'].append(output['delta_ra'][0])
-            base['delta_dec'].append(output['delta_dec'][0])
-            base['plx_lambda'].append(output['plx_lambda'][0])
-            base['plx_beta'].append(output['plx_beta'][0])
+            if save_result:   
+                # Save output to the synthetic thing
+                base['time'].append(time)
+                base['delta_ra'].append(output['delta_ra'][0])
+                base['delta_dec'].append(output['delta_dec'][0])
+                base['plx_lambda'].append(output['plx_lambda'][0])
+                base['plx_beta'].append(output['plx_beta'][0])
     
     #}
     
@@ -5133,7 +5147,8 @@ class PhysicalBody(Body):
     
         
     @decorators.parse_ref
-    def lc(self, correct_oversampling=1, ref='alllcdep', time=None, beaming_alg='none'):
+    def lc(self, correct_oversampling=1, ref='alllcdep', time=None,
+           beaming_alg='none', save_result=True):
         """
         Compute projected intensity and add results to the pbdep ParameterSet.
         
@@ -5146,6 +5161,10 @@ class PhysicalBody(Body):
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')
                 proj_intens = self.projected_intensity(ref=lbl, beaming_alg=beaming_alg)
+                
+                if not save_result:
+                    continue
+                
                 base['time'].append(time)
                 base['flux'].append(proj_intens)
                 base['samprate'].append(correct_oversampling)
@@ -6718,9 +6737,9 @@ class Star(PhysicalBody):
         Overrides default from Body.
         """
         if not self._main_period:
-            if 'puls' in system.params:
-                period = 1.0/system.params['puls'][0]['freq']
-                t0 = system.params['puls'][0]['t0']
+            if 'puls' in self.params:
+                period = 1.0/self.params['puls'][0]['freq']
+                t0 = self.params['puls'][0]['t0']
                 shift = 0.0
             else: 
                 period = self.params['star']['rotperiod']
