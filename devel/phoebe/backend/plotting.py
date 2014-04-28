@@ -172,6 +172,10 @@ def plot_lcsyn(system, *args, **kwargs):
     flux = syn['flux']
     flux = flux * this_scale + this_offset
     
+    # If there is no flux to plot, raise a ValueError
+    if not len(flux):
+        raise ValueError("Cannot plot lc synthetics {}: no fluxes found".format(ref))
+    
     # remember what axes we've plotted
     axes_labels = ['', '']
     axes_units = ['','']
@@ -360,6 +364,10 @@ def plot_lcobs(system, **kwargs):
     has_error = kwargs['yerr'] is not None
     if has_error and np.isscalar(kwargs['yerr']):
         kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
+        
+    # If there is no flux to plot, raise a ValueError
+    if not len(flux):
+        raise ValueError("Cannot plot lc observations {}: no fluxes found".format(ref))
     
     # remember what axes we've plotted
     axes_labels = ['', '']
@@ -593,6 +601,10 @@ def plot_rvsyn(system,*args,**kwargs):
     rv = syn['rv']
     rv = rv * this_scale + this_offset
     
+    # If there is no flux to plot, raise a ValueError
+    if not len(rv):
+        raise ValueError("Cannot plot rv synthetics {}: no radial velocities found".format(ref))
+    
     # remember what axes we've plotted
     axes_labels = ['', '']
     axes_units = ['','']
@@ -720,6 +732,10 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     has_error = 'yerr' in kwargs
     if has_error and np.isscalar(kwargs['yerr']):
         kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
+    
+    # If there is no flux to plot, raise a ValueError
+    if not len(rv):
+        raise ValueError("Cannot plot rv observations {}: no radial velocities found".format(ref))
     
     # remember what axes we've plotted
     axes_labels = ['', '']

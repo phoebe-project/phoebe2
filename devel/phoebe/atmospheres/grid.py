@@ -43,12 +43,19 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     necessary. The first method is the physically most precise: beaming is
     then included by shifting the SED according the radial velocity ``vgamma``,
     and then computing intensities and limb darkening coefficients (see
-    :py:func:`get_limbdarkening`). The other way is to compute the (linear)
-    beaming factor :math:`\alpha_b` of an SED (:math:`(\lambda, F_\lambda)`) via:
+    :py:func:`get_specific_intensities() <phoebe.atmospheres.limbdark.get_specific_intensities>`).
+    The other way is to compute the (linear) beaming factor :math:`\alpha_b` of
+    an SED (:math:`(\lambda, F_\lambda)`) via:
     
     .. math::
             
         \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda}\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
+    
+    Then the beaming amplitude in the passband :math:`P` can be computed as:
+    
+    .. math::
+    
+        A_b = \alpha_b \frac{v}{c}
     
     To get :math:`F_\lambda` from specific intensities, first a disk integration
     is performed (equivalent to a traditional spectral energy distribution):
