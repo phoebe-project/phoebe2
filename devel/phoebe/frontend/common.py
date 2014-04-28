@@ -837,6 +837,11 @@ class Container(object):
                                     mypar = syn.get_parameter(par)
                                     ris = self._get_info_from_item(mypar, path=subpath+[mypar], section=section_name)
                                     return_items += ris
+                                    #for iki in ris:
+                                    #    if 'lcobs' in iki['twig_full']:
+                                    #        print mypar.get_context()
+                                    #        print 'bla'
+                                
                                     
                                                                                     
                     # but also add the collection of dep/obs

@@ -2281,12 +2281,12 @@ class Bundle(Container):
         obj = self.get_object(objref) if objref is not None else system
         #~ if add_version is None:
             #~ add_version = self.settings['add_version_on_compute']
-            
+                
         self.purge_signals(self.attached_signals_system)
-        
+            
         # clear all previous models and create new model
         system.clear_synthetic()
-
+        
         # get compute options, handling 'default' if label==None
         options = self.get_compute(label, create_default=True).copy()
         
@@ -2309,6 +2309,7 @@ class Bundle(Container):
         if options['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
             obj.compute(mpi=mpi, animate=animate, **options)
+            
         #else:
             #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
             #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
@@ -2904,6 +2905,22 @@ class Bundle(Container):
         This function has a lot of different use cases, which are all explained
         below.
         
+        **Plotting the mesh at an arbitrary time or phase point**
+        
+        If you want to plot the mesh at a particular phase, give
+        :envvar:`time` or :envvar:`phase` as a single float (but not both!):
+        
+            >>> mybundle.plot_mesh(time=0.12)
+            >>> mybundle.plot_mesh(phase=0.25, select='teff')
+            >>> mybundle.plot_mesh(phase=0.25, objref='secondary', dataref='lc01')
+        
+        You can use this function to plot the mesh of the entire system, or just
+        one component (eclipses will show in projected light!). Any scalar
+        quantity that is present in the mesh (effective temperature, logg ...)
+        can be used as color values. For some of these quantities, there are
+        smart defaults for the color maps.
+        
+        
         **Plotting the current status of the mesh after running computations**
         
         If you've just ran :py:func`Bundle.run_compute` for some observations,
@@ -2916,11 +2933,20 @@ class Bundle(Container):
             >>> mybundle.plot_mesh(dataref='lc01')
         
         Giving a :envvar:`dataref` and/or setting :envvar:`select='proj'` plots
-        the mesh coloured with the projected flux of the dataref.
+        the mesh coloured with the projected flux of that dataref.
         
-        **Plotting the mesh at an arbitrary time or phase point**
-        
-        If you want to plot the mesh at a particular phase, 
+        .. warning::
+            
+            1. It is strongly advised only to use this function this way when
+               only one set of observations has been added: otherwise it is not
+               guarenteed that the dataref has been computed for the last time
+               point.
+            
+            2. Although it can sometimes be convenient to use this function
+               plainly without arguments or with just the the dataref after
+               computations, you need to be careful for the dataref that is used
+               to make the plot. The dataref will show up in the logger
+               information.
             
         """
         if dataref is not None:

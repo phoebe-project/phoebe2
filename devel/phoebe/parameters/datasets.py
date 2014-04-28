@@ -461,7 +461,7 @@ class DataSet(parameters.ParameterSet):
     
     def clear(self):
         # Reset all parameter to the initial ones
-        self.reset()
+        #self.reset()
         # But clear the results
         for col in self['columns']:
             self[col] = []

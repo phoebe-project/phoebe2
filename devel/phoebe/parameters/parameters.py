@@ -2014,10 +2014,13 @@ class ParameterSet(object):
         Reset a Parameter.
         """
         if qualifier is not None:
-            self.get_parameter(qualifier).reset()
-        else:
-            for qual in self.container:
-                self.get_parameter(qualifier).reset()
+            par = self.get_parameter(qualifier)
+            par.reset()
+            par.set_context(self.get_context())
+            #self.get_parameter(qualifier).reset()
+        #else:
+        #    for qual in self.container:
+        #        self.get_parameter(qual).reset()
         
     def get_parameter(self,qualifier):
         """
