@@ -3491,6 +3491,9 @@ class Body(object):
                     for ref in thing.params[ptype][lbl]:
                         mystring.append(ref)
                         mystring2.append(ref)
+                        
+                        if thing.params[ptype][lbl][ref].get_enabled()==False:
+                            mystring[-1] = strikethrough(mystring[-1])
                     ns += len(thing.params[ptype][lbl])
                 mystring = mystring[0] + ', '.join(mystring[1:])
                 mystring2 = mystring2[0] + ', '.join(mystring2[1:])
@@ -3725,6 +3728,8 @@ class Body(object):
                                 mystring[-1] = "\033[32m" + mystring[-1] +  '\033[m'
                         
                         mystring = mystring[0] + ', '.join(mystring[1:])
+                        if iiterover.get_enabled()==False:
+                            mystring = strikethrough(mystring)
                         summary.append("\n".join(textwrap.wrap(mystring, initial_indent=indent, subsequent_indent=indent+7*' ', width=width)))
                         
                         lbl = '{}[{}]'.format(ptype[:-3]+'syn', iref)
