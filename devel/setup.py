@@ -99,9 +99,9 @@ setup(
     version=verstr,
     description="Physics of stars and stellar and planetary systems",
     long_description="Physics of stars and stellar and planetary systems",
-    author="Pieter Degroote",
-    author_email="pieterdegroote10@gmail.com",
-    url="http://www.phoebe-project.org/2.0/docs",
+    author="Pieter Degroote, Kyle Conroy, Steven Bloemen, Bert Pablo, Kelly Hambleton, Joe Giammarco, Andrej Prsa",
+    author_email="phoebe-devel@lists.sourceforge.net",
+    url="http://www.phoebe-project.org",
     classifiers=["Programming Language :: Python :: 2.7",
                  "Programming Language :: C",
                  "Programming Language :: C++",
@@ -128,5 +128,3 @@ setup(
 
     ext_modules = ext_modules,
 )
-
-
