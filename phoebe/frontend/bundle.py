@@ -898,6 +898,7 @@ class Bundle(Container):
         @return: the orbit PS
         @rtype: ParameterSet
         """
+        # TODO: handle default if twig is None
         return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
         
     def get_meshps(self, twig=None):
