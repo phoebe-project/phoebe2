@@ -1124,7 +1124,7 @@ class Container(object):
         return trunk
         
         
-    def _match_twigs(self, twiglet, trunk=None, **kwargs):
+    def _match_twigs(self, twiglet, trunk=None, ignore_exact=False, **kwargs):
         """
         return a list of twigs that match the input
         the first item is required to be first, but any other item
@@ -1139,6 +1139,7 @@ class Container(object):
         matching_twigs_orig = [t['twig_full'] for t in trunk]
         matching_twigs = [t['twig_full'].split('@') for t in trunk]
         matching_indices = range(len(matching_twigs))
+        matching_comp_indices = [] # twiglet furthest to right is complete match
         
         # We attempt to match a twig twice; once with colons describing
         # subcontext, once without
@@ -1149,7 +1150,8 @@ class Container(object):
             if attempt == 1:
                 matching_twigs = [[st.split(':')[0] for st in t['twig_full'].split('@')] for t in trunk]
                 matching_indices = range(len(matching_twigs))
-                
+                matching_comp_indices = [] # twiglet furthest to right is complete match
+        
             for tsp_i,tsp in enumerate(twig_split):
                 remove = []
                 for mtwig_i, mtwig in enumerate(matching_twigs):
@@ -1160,6 +1162,11 @@ class Container(object):
                         mtwiglets = [mtwiglet[:len(tsp)] for mtwiglet in mtwig] if tsp_i!=0 else [mtwig[0][:len(tsp)]]
                         if tsp in mtwiglets:
                             ind = mtwiglets.index(tsp)
+                            if tsp==mtwig[ind] and not ignore_exact: 
+                                # then twiglet furthest to right is perfect match
+                                # we'll remember this index and prefer it if its the only match
+                                matching_comp_indices.append(mtwig_i)
+
                             mtwig = mtwig[ind+1:]
                     
                     else:
@@ -1177,7 +1184,8 @@ class Container(object):
                     matching_twigs.pop(remove_i)
                     matching_indices.pop(remove_i)
             
-            ret_value = [matching_twigs_orig[i] for i in matching_indices] 
+            indices = matching_comp_indices if len(matching_comp_indices)==1 and matching_comp_indices[0] in matching_indices else matching_indices
+            ret_value = [matching_twigs_orig[i] for i in indices] 
             
             # If we found a match, no need to search through subcontexts
             if len(ret_value):
@@ -1239,7 +1247,7 @@ class Container(object):
             
             results = ', '.join(matched_twigs)
             raise KeyError(("more than one result was found matching the "
-                            "criteria: {}").format(results))
+                            "criteria for twig: {}.  Matching twigs: {}").format(twig, results))
         else:
             items = [ti if return_trunk_item else ti[return_key] \
                             for ti in trunk if ti['twig_full'] in matched_twigs]
