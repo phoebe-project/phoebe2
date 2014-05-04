@@ -839,7 +839,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     if fitparams is None:
         fitparams = parameters.ParameterSet(frame='phoebe',
                                             context='fitting:lmfit')
-        
+    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure
@@ -849,6 +849,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     ids = []
     pars = lmfit.Parameters()
     ppars = [] # Phoebe parameters
+    init_ppars = []
     
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
@@ -888,6 +889,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
                 #-- and add the id
                 ids.append(myid)
                 ppars.append(parameter)
+                init_ppars.append(parameter.copy())
     
     traces = []
     redchis = []
@@ -919,7 +921,6 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
                     
         system.reset()
         system.clear_synthetic()
-        
         system.compute(params=params, mpi=mpi)
         mu, sigma, model = system.get_model()
         retvalue = (model - mu) / sigma
@@ -1047,14 +1048,14 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     traces = np.array(traces).T
     feedback_ = FeedbackLmfit(fitparams, ppars, result, pars,
                               traces, redchis)
-    feedback_.save('test.fb')
     
     feedback = dict(parameters=ppars, values=values, sigmas=sigmas,
                     correls=correl, redchi=redchi, success=success,
                     traces=traces, redchis=redchis,
                     Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
     fitparams['feedback'] = feedback
-    return fitparams
+    #return fitparams
+    return result, pars, ppars
 
 
 class MinuitMinimizer(object):

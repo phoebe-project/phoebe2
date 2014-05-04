@@ -312,6 +312,27 @@ Section 3.3 Fitting and statistics
    
    
 """
+
+import os
+
+# People shouldn't import Phoebe from the installation directory (inspired upon
+# pymc warning message).
+if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]))>-1:
+    # We have a clash of package name with the standard library: we implement an
+    # "io" module and also they do. This means that you can import Phoebe from its
+    # main source tree; then there is no difference between io from here and io
+    # from the standard library. Thus, if the user loads the package from here
+    # it will never work. Instead of letting Python raise the io clash (which
+    # is uniformative to the unexperienced user), we raise the importError here
+    # with a helpful error message
+    if os.getcwd() == os.path.abspath(os.path.dirname(__file__)):
+        raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
+    # Anywhere else the source tree, it should be possible to import Phoebe.
+    # However, it is still not advised to do that.
+    else:
+        print('\n\tWarning: you are importing Phoebe from inside its source tree.\n')
+    
+
 from _version import __version__
 #-- make some important classes available in the root:
 from .parameters.parameters import ParameterSet,Parameter
@@ -321,6 +342,7 @@ from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
                               PulsatingBinaryRocheStar
 from .frontend.bundle import Bundle, load, info
+from .frontend.common import take_orbit_from
 
 #-- common input and output
 from .parameters.parameters import load as load_ps
@@ -346,4 +368,3 @@ from .wd import wd
 from .units import constants
 from .units.conversions import convert,Unit
 
-    

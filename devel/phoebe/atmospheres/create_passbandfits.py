@@ -1,3 +1,7 @@
+"""
+Create a passband FITS file for usage with ``create_atmospherefits.py``.
+"""
+import numpy as np
 import pyfits as pf
 from phoebe.atmospheres.passbands import *
 import glob
@@ -25,9 +29,9 @@ class Passband(object):
             'EXTNAME': '',
             'DETTYPE':'flux',
             'COMMENTS': '',
-            'ZPFLUX':'' ,
-            'ZPFLUXUN':'erg/s/cm2/AA',
-            'ZPMAG': '0',
+            'ZPFLUX':np.nan,
+            'ZPFLUXUN':'W/m3',
+            'ZPMAG':0.0,
             'ZPMAGTYP': 'Undefined'
             }
 
@@ -37,7 +41,7 @@ class Passband(object):
                 self.headers[key]=kwargs[key]
             elif arg in self.columns.keys():
                 self.columns[key]=kwargs[key]
-
+    
     def set_header(self,key,val,force=False):
         """Set a header item. It has to be one of the predefined headers,
         else if you really want to add a non-standard keyword, put force=True"""
@@ -119,28 +123,58 @@ class Passband(object):
         det_type_translated = {'flux':'ccd','energy':'bol'}[det_type]
         resparray = (self.get_column('WAVELENGTH'),self.get_column('RESPONSE'))
         return eff_wave_arrays(resparray=resparray, model=None, det_type=det_type_translated)
+    
+    
+    def calibrate_with_vega(self):
+        """
+        Derive zeropoints using Vega magnitudes
+        """
+        # Get the SED of the calibrator and the header of this passband
+        wavelength, vega_flux = get_calibrator(name='alpha_lyr')
+        header = self.get_header()
         
+        # What info is given?
+        has_zpflux = not np.isnan(header['ZPFLUX'])
+        passband = header['PASSBAND']
+        
+        # If zeropoint flux is already given, we don't have to do anything
+        if not has_zpflux:
+            
+            # Get the synthetic flux of Vega in this passband
+            syn_flux = sed.synthetic_flux(wavelength, vega_flux, [passband], [header])
+            
+            header['ZPFLUX'] = conversions.convert('erg/s/cm2/AA', header['ZPFLUXUN'], syn_flux[0])
+        
+        
+        
+        
+    
+    
 
-def convert_ascii_to_fits(asciifiles,outfile,format=None):
-    """Convert a list of asciifiles to one .fits file. Format can be None or phoebe1, in which
+def convert_ascii_to_fits(asciifiles, outfile, fmt=None):
+    """
+    Convert a list of asciifiles to one .fits file. Format can be None or phoebe1, in which
     case conversions of header keywords etc are performed to make the phoebe1 files compatible with
-    phoebe2."""
+    phoebe2.
+    """
     passbandcollection = []
-    for file in asciifiles:
+    for open_file in asciifiles:
         p = Passband()
-        logger.info('Adding {0}'.format(file))
+        logger.info('Adding {0}'.format(open_file))
 
-        if format==None:
-            p.load_ascii(file)
-        elif format.lower()=='phoebe1':
-            p.load_ascii_phoebe1(file)
+        if fmt==None:
+            p.load_ascii(open_file)
+        elif fmt.lower()=='phoebe1':
+            p.load_ascii_phoebe1(open_file)
         passbandcollection.append(p)
 
     write_passbands_to_fits(passbandlist=passbandcollection,outfile=outfile)    
     logger.info('Saved {0}'.format(outfile))
 
-def write_passbands_to_fits(passbandlist,outfile):
-    """Write a list of Passband instances to a fits file."""
+def write_passbands_to_fits(passbandlist, outfile):
+    """
+    Write a list of Passband instances to a fits file.
+    """
     # create HDUlist and add empty primary
     hdulist = pf.HDUList([])
     hdulist.append(pf.PrimaryHDU())
@@ -173,4 +207,4 @@ if __name__ == "__main__":
     logger = utils.get_basic_logger()
     files = sorted(glob.glob('ptf/phoebe1set/*.ptf'))
     outfile = 'ptf/phoebe2_standardset.fits'
-    convert_ascii_to_fits(files,outfile,format='phoebe1')
+    convert_ascii_to_fits(files,outfile,fmt='phoebe1')

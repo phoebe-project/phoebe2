@@ -72,6 +72,7 @@ import readline
 import json
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
+from phoebe.parameters import definitions
 from phoebe.parameters import datasets
 from phoebe.parameters import create
 from phoebe.parameters import tools
@@ -887,6 +888,7 @@ class Bundle(Container):
         """
         return self.get_object(twig).get_parent()
         
+        
     def get_orbitps(self, twig=None):
         """
         [FUTURE]
@@ -901,6 +903,7 @@ class Bundle(Container):
         # TODO: handle default if twig is None
         return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
         
+        
     def get_meshps(self, twig=None):
         """
         [FUTURE]
@@ -913,6 +916,7 @@ class Bundle(Container):
         @rtype: ParameterSet
         """
         return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
+    
     
     def set_main_period(self, period=None, objref=None):
         """
@@ -1890,7 +1894,65 @@ class Bundle(Container):
         
         # We can pass everything now to the main function
         return self.data_fromfile(category='sed', **set_kwargs)
+    
+    def add_parameter(self, twig, replaces=None, value=None):
+        """
+        Add a new parameter to the set of parameters.
+        
+        The value of the new parameter can either be derived from the existing
+        ones, or replaces one of the existing ones.
+        
+        If we want the replacable parameter to not show up in __str__, we need
+        to rewrite the string representation part. Otherwise the backend needs
+        to deal with 'hidden' stuff, and these are already implemented by the
+        frontend.
+        
+        [FUTURE]
+        """
+        # Does the parameter already exist?
+        param = self._get_by_search(twig, kind='Parameter', ignore_errors=True,
+                                    return_trunk_item=True)
+        
+        # If the parameter does not exist, we need to create a new parameter
+        # and add it in the right place in the tree.
+        twig_split = twig.split('@')
+        
+        # Figure out what the parameter name is
+        qualifier = twig_split[0]
+        
+        if replaces is None:
+            replaces = qualifier
+        if value is None:
+            value = 1.0
+        
+        # If the parameter does not exist yet, there's some work to do
+        if param is None:
+            # Get all the info on this parameter
+            info = definitions.rels['binary'][qualifier]
             
+            # Figure out which level (i.e. ParameterSet) to add it to
+            in_level_as = info.pop('in_level_as')
+            twig_rest = '@'.join([in_level_as] + twig_split[1:])
+            item = self._get_by_search(twig_rest, kind='Parameter',
+                                         return_trunk_item=True)
+            
+            # And add it
+            pset = item['path'][-2]
+            pset.add(info)
+            
+            param = pset.get_parameter(qualifier)
+            param.set_replaces(replaces)
+            
+        # In any case we need to set the 'replaces' attribute and the value    
+        param.set_replaces(replaces)
+        param.set_value(value)
+            
+        # add the preprocessing thing
+        system = self.get_system()
+        system.add_preprocess('binary_custom_variables')
+        self._build_trunk()    
+    
+    
     def get_datarefs(self, objref=None, category=None, per_category=False):
         """
         Return all the datarefs, or only those of a certain category.
@@ -2279,6 +2341,7 @@ class Bundle(Container):
         """
         server = None # server support deferred 
         system = self.get_system()
+        system.fix_mesh()
         obj = self.get_object(objref) if objref is not None else system
         #~ if add_version is None:
             #~ add_version = self.settings['add_version_on_compute']
@@ -2366,7 +2429,7 @@ class Bundle(Container):
         
         # get fitting params
         if fittinglabel is None:
-            fittingoptions = parameters.ParameterSet(context='fitting')
+            fittingoptions = parameters.ParameterSet(context='fitting:lmfit')
         else:
             fittingoptions = self.get_fitting(fittinglabel).copy()
          
@@ -2374,12 +2437,12 @@ class Bundle(Container):
         if computelabel is None:
             computeoptions = parameters.ParameterSet(context='compute')
         else:
-            computeoptions = self.get_compute(label).copy()
+            computeoptions = self.get_compute(computelabel).copy()
 
         # now temporarily override with any values passed through kwargs    
-        for k,v in kwargs.items():
-            if k in options.keys():
-                options.set_value(k,v)
+        #for k,v in kwargs.items():
+        #    if k in options.keys():
+        #        options.set_value(k,v)
             
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
@@ -2408,7 +2471,31 @@ class Bundle(Container):
             
         return feedback
     #}
-
+    
+    def set_syn_as_obs(self, dataref, sigma=0.01):
+        """
+        Set synthetic computations as if they were really observed.
+        
+        This can be handy to experiment with the fitting routines.
+        
+        [FUTURE]
+        """
+        syn = self._get_by_search(dataref, context='*syn', class_name='*DataSet')
+        obs = self._get_by_search(dataref, context='*obs', class_name='*DataSet')
+        
+        if obs.get_context()[:-3] == 'lc':
+            if np.isscalar(sigma):
+                sigma = sigma*np.median(syn['flux'])*np.ones(len(syn))
+            obs['flux'] = syn['flux'] + np.random.normal(size=len(obs), scale=sigma)
+            obs['sigma'] = sigma
+        
+        elif obs.get_context()[:-3] == 'rv':
+            if np.isscalar(sigma):
+                sigma = sigma*np.median(syn['rv'])
+            obs['rv'] = syn['rv'] + np.random.normal(size=len(obs), scale=sigma)
+            obs['sigma'] = sigma
+            
+    
     #{ Figures
     def plot_obs(self, twig=None, **kwargs):
         """
@@ -2644,21 +2731,66 @@ class Bundle(Container):
             
         return syn
         
-    def plot_residuals(self,twig=None,**kwargs):
+    def plot_residuals(self, twig=None, **kwargs):
         """
         Plot the residuals between computed and observed for a given dataset
-
+        
+        [FUTURE]
+        
         @param twig: the twig/twiglet to use when searching
         @type twig: str
         """
-        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet', return_trunk_item=True)
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True)
         ds = dsti['item']
         obj = self.get_object(dsti['label'])
-        context = ds.get_context()
+        category = ds.get_context()[:-3]
+        
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
         
         # Now pass everything to the correct plotting function
         kwargs['ref'] = ds['ref']
-        getattr(plotting, 'plot_{}res'.format(context))(obj, *args, **kwargs)
+        output = getattr(plotting, 'plot_{}res'.format(category))(obj, **kwargs)
+        obs, syn = output[1]
+        fig_decs = output[2]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[category]))
+        elif title:
+            plt.title(title)
+            
+        return obs, syn
+    
+    
+    def plot_prior(self, twig=None, **kwargs):
+        """
+        Plot a prior.
+        
+        [FUTURE]
+        """
+        prior = self.get_prior(twig)
+        prior.plot(**kwargs)
+        
+        
     
     def write_syn(self, twig, output_file):
         """
@@ -2948,7 +3080,13 @@ class Bundle(Container):
                computations, you need to be careful for the dataref that is used
                to make the plot. The dataref will show up in the logger
                information.
-            
+        
+        :param objref: object/system label of which you want to plot the mesh.
+         The default means the top level system.
+        :type objref: str
+        :param label: compute label which you want to use to calculate the mesh
+         and its properties. The default means the ``default`` set.
+        :type label: str
         """
         if dataref is not None:
             # Return just one pbdep, we only need the reference and context

@@ -7,6 +7,7 @@ The following definitions are defined:
 
     Uniform
     Normal
+    Trace
 
 Each distribution has the following attributes:
 
@@ -25,6 +26,7 @@ Each distribution has the following methods:
     Normal.get_limits
     Normal.get_grid
     Normal.get_distribution
+    
 
 
 """
@@ -35,6 +37,7 @@ try:
 except ImportError:
     pass
 from scipy.stats import distributions
+import matplotlib.pyplot as plt
 
 
 class Distribution(object):
@@ -45,15 +48,17 @@ class Distribution(object):
     """
     def __new__(cls, *args, **kwargs):
         if 'distribution' in kwargs:
-            dist_name = kwargs.pop('distribution')
+            dist_name = kwargs.pop('distribution').lower()
         else:
-            dist_name = args[0]
+            dist_name = args[0].lower()
             args = args[1:]
             
         if dist_name == 'normal':
             return Normal(*args, **kwargs)
         elif dist_name == 'uniform':
             return Uniform(*args, **kwargs)
+        elif dist_name == 'trace':
+            return Trace(*args, **kwargs)    
         else:
             return DeprecatedDistribution(dist_name, *args, **kwargs)
     
@@ -68,6 +73,7 @@ class Distribution(object):
         Return the cumulative density function.
         """
         return self.get_distribution(distr_type='cdf', domain=domain, **kwargs)
+
 
 class DeprecatedDistribution(object):
     """
@@ -119,7 +125,8 @@ class DeprecatedDistribution(object):
         @param distribution: type of the distribution
         @type distribution: str
         """
-        self.distribution = distribution.lower()
+        distribution = distribution.lower()
+        self.distribution = distribution
         self.distr_pars = distribution_parameters
         
         #-- discrete can be equivalent to histogram
@@ -141,9 +148,13 @@ class DeprecatedDistribution(object):
             required_keys = set(['mu', 'sigma'])
         elif distribution == 'sample':
             required_keys = set(['sample', 'discrete'])
+        elif distribution == 'trace':
+            required_keys = set(['trace'])
+        else:
+            raise NotImplementedError("Cannot recognize distribution {}".format(distribution))
         
         if (given_keys - required_keys) or (required_keys - given_keys):
-            raise ValueError('Distribution {} needs keys {}'.format(distribution, ", ".join(list(required_keys))))
+            raise ValueError('Distribution {} needs keys {} (not {})'.format(distribution, ", ".join(list(required_keys)), ', '.join(given_keys)))
         
         #-- make sure the histogram is properly normalised
         if distribution=='histogram':
@@ -423,6 +434,9 @@ class DeprecatedDistribution(object):
             return self.distr_pars['sigma']
         else:
             return np.nan
+        
+    def get_name(self):
+        return self.distribution.title()
 
 
 class Normal(DeprecatedDistribution):
@@ -502,7 +516,7 @@ class Normal(DeprecatedDistribution):
     
     def get_grid(self, sampling=5):
         """
-        Draw a (set of) likely value(s) from the normal distribution.
+        Draw regularly sampled values from the distribution, spaced according to probability density.
         
         We grid uniformly in 
         """
@@ -680,6 +694,20 @@ class Uniform(DeprecatedDistribution):
             raise ValueError("Do not understand distr_type='{}'".format(distr_type))
     
     
+    def plot(self, on_axis='x', **kwargs):
+        """
+        Plot a uniform prior to the current axes.
+        """
+        ax = kwargs.pop('ax', plt.gca())
+        lower, upper = self.get_limits()
+        if on_axis.lower()=='x':
+            plot_func = 'axvspan'
+        elif on_axis.lower()=='y':
+            plot_func = 'axhspan'
+        
+        getattr(ax, plot_func)(lower, upper, **kwargs)
+        
+    
     def get_loc(self):
         """
         Get location parameter.
@@ -698,6 +726,138 @@ class Uniform(DeprecatedDistribution):
         
         return (upper - lower) / 2.0
         
+
+class Trace(DeprecatedDistribution):
+    """
+    A distribution from a trace.
+    
+    The Trace Distribution has one parameter in its :envvar:`distr_pars` attribute:
+    
+        - :envvar:`trace`: the trace array
+    
+    Example usage::
+    
+        >>> trace = Trace(np.random.normal(size=10))
+        >>> print(trace)
+        Trace(...)
+        
+    """
+    def __init__(self, trace):
+        """
+        Initiate a normal distribution.
+        
+        @param mu: location parameter (mean)
+        @type mu: float
+        @param sigma: scale parameter (standard deviation)
+        @type sigma: float
+        """
+        self.distribution = 'trace'
+        self.distr_pars = dict(trace=trace)
+    
+    
+    def get_limits(self, factor=1.0):
+        """
+        Return the minimum and maximum of the normal distribution.
+        
+        For a normal distribution, we define the upper and lower limit as the
+        3*factor-sigma limits.
+        """
+        median = np.median(self.distr_pars['trace'])
+        minim = np.min(self.distr_pars['trace'])
+        maxim = np.max(self.distr_pars['trace'])
+        
+        lower = median - factor * (median-minim)
+        upper = median + factor * (maxim-median)
+        
+        return lower, upper
+    
+    
+    def draw(self, size=1, indices=None):
+        """
+        Draw a (set of) random value(s) from the trace.
+        
+        @param size: number of values to generate
+        @type size: int
+        @return: random value from the distribution, used indices
+        @rtype: array[C{size}], array
+        """
+        trace = self.distr_pars['trace']
+        if indices is None:
+            indices = np.random.randint(len(trace), size=size)
+        values = trace[indices]
+        return values, indices
+    
+    
+    def get_grid(self, sampling=5):
+        """
+        Draw a (set of) likely value(s) from the normal distribution.
+        
+        We grid uniformly in 
+        """
+        raise NotImplementedError("Trace distribution needs some work")
+    
+    
+    def get_distribution(self, distr_type=None, domain=None, factor=1.0):
+        """
+        Return the distribution in some custom format.
+        
+        By default, the format is just the name and distribution parameters
+        (attributes :envvar:`distribution` and :envvar:`distr_pars`).
+        
+        Other options:
+            - ``distr_type='pdf'``: return the probability density function.
+              If you do not give :envvar:``domain`` (the value(s) to evaluate the
+              probability density function at), then the domain will be chosen
+              to be an array of 1000 points equidistanly sampled between the
+              :py:func:`limits <Normal.get_limits>` (which can be expanded or
+              contracted with :envvar:`factor`. Returns tuple (domain, pdf) 
+        """
+        if distr_type is None:
+            return self.distribution, self.distr_pars
+        
+        elif distr_type in ['pdf', 'cdf']:
+            
+            raise NotImplementedError("All your bases are belong to us")
+           
+        # Else, we don't know what to do.
+        else:
+            raise ValueError("Do not understand distr_type='{}'".format(distr_type))
+    
+
+
+    def shrink(self, factor=10.0):
+        """
+        Shrink the extent of the normal distribution.
+        
+        @param factor: factor with which to shrink the distribution
+        @type factor: float
+        """
+        raise NotImplementedError("Needs some work")
+        
+    
+    def expand(self, factor=10.0):
+        """
+        Expand the extent of the normal distribution.
+        
+        @param factor: factor with which to expand the distribution
+        @type factor: float
+        """
+        raise NotImplementedError("Needs some work")
+    
+    
+    def get_loc(self):
+        """
+        Get location parameter.
+        """
+        return np.median(self.distr_pars['trace'])
+    
+    
+    def get_scale(self):
+        """
+        Get scale parameter.
+        """
+        return np.std(self.distr_pars['trace'])
+
         
 
 def transform_to_unbounded(par,low,high):

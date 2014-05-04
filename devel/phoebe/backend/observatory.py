@@ -1264,14 +1264,16 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     We probably need to following info:
     
         * time stamp (and possibly exposure time)
-        * dispersion type (lin, log, variable)
+        * dispersion type (lin, log, variable) --> taken care of by wavelength
+          definition in obs
         * wavelength span (wmin,wmax for lin and log, the whole array for
-          variable dispersion)
-        * sampling power
+          variable dispersion) --> taken care of by wavelength definition in obs
+        * sampling power --> taken care of by R in spdep
         * resolving power or dispersion, depending on dispersion type
-        * passband (if any)
+          --> R in spobs
+        * passband (if any) -- passband present
         * auxiliary information that is not used but may be set for reference
-          (grating, angle rotation, ..., whatever)
+          (grating, angle rotation, ..., whatever) --> not necessary
     
     .. note::
         
@@ -2195,7 +2197,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     for k in range(subdiv_num):
         if found_partial is False:
             continue
-        logger.info('Subdividing stage {}/{}'.format(k+1, subdiv_num))
+        logger.debug('Subdividing stage {}/{}'.format(k+1, subdiv_num))
         system.subdivide(threshold=0, algorithm=subdiv_alg)
         ecl_, found_partial = choose_eclipse_algorithm(system, algorithm=ecl)
     
@@ -2222,13 +2224,13 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     
 def animate_one_time_step(i, system, times, refs, types, samprate, reflect, nreflect,
-            circular, heating, beaming, params, ltt, extra_func,
+            circular, heating, beaming, params, ltt, save_result, extra_func,
             extra_func_kwargs, anim):
     """
     Compute one time step and animate it.
     """
     compute_one_time_step(system, i, times[i], refs[i], types[i], samprate[i], reflect, nreflect,
-                          circular, heating, beaming, params, ltt, extra_func,
+                          circular, heating, beaming, params, ltt, save_result, extra_func,
                           extra_func_kwargs)
     anim.draw()
     # Close the window once the animation has finished.
@@ -2643,7 +2645,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                   fargs=(system, time_per_time, labl_per_time,
                                          type_per_time, samp_per_time,
                                          reflect, nreflect, circular, heating,
-                                         beaming, params, ltt, extra_func,
+                                         beaming, params, ltt, save_result, extra_func,
                                          extra_func_kwargs, animate),
                                   init_func=animate.init_func,
                                   interval=25, repeat=animate.repeat)
