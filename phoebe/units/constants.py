@@ -73,6 +73,8 @@ qe     =-1.60217656535e-19 # Electron charge            C             Wikipedia
 mp     = 1.67262177774e-27 # Proton mass                 kg            Wikipedia
 qp     = 1.60217656535e-19 # Proton charge               C             Wikipedia
 z_solar= 0.02
+F0_AB  = 3.6307805477010029e-23 # Flux zeropoint of AB magnitude system  W/m2/Hz (ABMag= -2.5log10(Fnu) - 48.60) with Fnu in erg/s/cm2/Hz
+F0_ST  = 0.03630780547701003    # Flux zeropoint of ST magnitude system  W/m3    (STMag= -2.5log10(Flam) - 21.10) with Flam in erg/s/cm2/AA
 
 cc_units     = 'm s-1'
 cc_air_units = 'm s-1'
@@ -108,6 +110,8 @@ me_units     = 'kg'
 qe_units     = 'C'
 mp_units     = 'kg'
 qp_units     = 'C'
+F0_AB_units  = 'W m-2 Hz-1'
+F0_ST_units  = 'W m-3'
 
 
 

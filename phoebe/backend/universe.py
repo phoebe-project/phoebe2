@@ -2085,12 +2085,11 @@ class Body(object):
             
             if 'scale' in obs and obs.get_adjust('scale') and not obs.has_prior('scale'):
                 do_scale = True
-                preset_pblum = 1.0
+                preset_scale = 1.0
             
             if 'offset' in obs and obs.get_adjust('offset') and not obs.has_prior('offset'):
                 do_offset = True
                 preset_offset = 0.0
-            
             
             # Do the computations
             if do_scale or do_offset:
@@ -2402,25 +2401,25 @@ class Body(object):
                 raise NotImplementedError(("probability for "
                              "{}").format(obs.context))
                 
-            # Take pblum and l3 into account:
-            pblum = obs['pblum'] if ('pblum' in obs) else 1.0
-            l3 = obs['l3'] if ('l3' in obs) else 0.0
+            # Take scale and offset into account:
+            scale = obs['scale'] if ('scale' in obs) else 1.0
+            offset = obs['offset'] if ('offset' in obs) else 0.0
             
             # Compute the log probability ---> not sure that I need to do
-            #                                  sigma*pblum, I'm not touching
+            #                                  sigma*scale, I'm not touching
             #                                  the observations!
             term1 = - 0.5*np.log(2*pi*(sigma)**2)
-            term2 = - (obser-model*pblum-l3)**2 / (2.*(sigma)**2)
+            term2 = - (obser-model*scale-offset)**2 / (2.*(sigma)**2)
             
             # Do also the Stokes V profiles. Because they contain the
-            # derivative of the intensity profile, the l3 factor disappears
+            # derivative of the intensity profile, the offset factor disappears
             if obs.context == 'plobs':
                 if 'V' in obs['columns']:
                     model = np.array(modelset['V']) / np.array(modelset['continuum'])
                     obser = np.array(obs['V']) / np.array(obs['continuum'])
                     sigma = np.array(obs['sigma_V'])
                     term1 += - 0.5*np.log(2*pi*(sigma)**2)
-                    term2 += - (obser-model*pblum)**2 / (2.*(sigma)**2)
+                    term2 += - (obser-model*scale)**2 / (2.*(sigma)**2)
 
             # Statistical weight:
             statweight = obs['statweight']
@@ -2439,7 +2438,7 @@ class Body(object):
                 this_logf = (term1 + term2).sum()
                 this_chi2 = -2*term2.sum()
             
-            logger.debug("pblum = {:.3g}, l3 = {:.3g}".format(pblum, l3))
+            logger.debug("scale = {:.3g}, offset = {:.3g}".format(scale, offset))
             #logger.info("Chi2 of {} = {}".format(obs['ref'], -term2.sum()*2))
             logger.warning("Chi2 of {} = {} (statweight {})".format(obs['ref'], this_chi2, statweight))
             log_f += this_logf
@@ -2585,17 +2584,17 @@ class Body(object):
                 # Statistical weight:
                 statweight = observations['statweight']
                 
-                # Take pblum and l3 into account:
-                pblum = observations['pblum'] if ('pblum' in observations) else 1.0
-                l3 = observations['l3'] if ('l3' in observations) else 0.0
-                model_ = pblum*model_ + l3
+                # Take scale and offset into account:
+                scale = observations['scale'] if ('scale' in observations) else 1.0
+                offset = observations['offset'] if ('offset' in observations) else 0.0
+                model_ = scale*model_ + offset
                 
                 if observations.context == 'plobs':
                     if 'V' in observations['columns']:
                         # We need to correct the Stokes profile for the passband
                         # luminosity factor, as this was not taken into account
                         # during the calculations
-                        model_ = np.hstack([model_, np.ravel(np.array(modelset['V'])/np.array(modelset['continuum'])*pblum)])
+                        model_ = np.hstack([model_, np.ravel(np.array(modelset['V'])/np.array(modelset['continuum'])*scale)])
                         obser_ = np.hstack([obser_, np.ravel(np.array(observations['V'])/np.array(observations['continuum']))])
                         sigma_ = np.hstack([sigma_, np.ravel(np.array(observations['sigma_V']))])
                 
@@ -2743,7 +2742,8 @@ class Body(object):
                 # Extract those which need to be fitted
                 if parset.get_adjust(qual) and parset.has_prior(qual):
                     parset.get_parameter(qual).set_value_from_prior()
-                
+    
+    
     
     
     #{ Functions to manipulate the mesh    
@@ -5509,6 +5509,10 @@ class BodyBag(Body):
         for body in self.bodies:
             yield body
     
+    def __iadd__(self, other):
+        self.bodies.append(other)
+        return self
+    
     
     def walk_bodies(self):
         """
@@ -5666,7 +5670,8 @@ class BodyBag(Body):
         for b in bodies[1:]:
             descrs_ = b.mesh.dtype.descr
             for descr in descrs_:
-                if descr[0] in names: continue
+                if descr[0] in names:
+                    continue
                 descrs.append(descr)                    
                 names.append(descr[0])
         

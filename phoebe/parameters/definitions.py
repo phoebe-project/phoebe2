@@ -751,8 +751,8 @@ defs += [dict(qualifier='label',                description='label for the compu
         ] 
 
 # Globals context
-defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['position']),
-         dict(qualifier='dec', description='Declination', repr='%s', value=0.0, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['position']),
+defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, llim=-np.inf, ulim=np.inf, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['position']),
+         dict(qualifier='dec', description='Declination', repr='%s', value=0.0, llim=-np.inf, ulim=np.inf, unit='deg', cast_type='return_equatorial_dec', frame=['phoebe'], context=['position']),
          dict(qualifier='epoch', description='Epoch of coordinates', repr='%s', value='J2000', cast_type=str, frame=['phoebe'], context=['position']),
          dict(qualifier='pmra', description='Proper motion in right ascension', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['position']),
          dict(qualifier='pmdec', description='Proper motion in declination', repr='%s', value=0.0, unit='mas/yr', cast_type=float, frame=['phoebe'], context=['position']),
@@ -768,10 +768,26 @@ defs += [dict(qualifier='tdyn',   description='Dynamical timescale',repr='%f',ca
 
 # "complicated" relations and constraints
 
-rels = [dict(qualifier='asini', description='Projected system semi-major axis', repr='%f', value=10., unit='Rsol', cast_type=float, connections=['sma', 'incl'], frame=['phoebe'], context='orbit'),
-        dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=['period@orbit', 'q@orbit', 'sma@orbit'], frame=['phoebe'], context='component'),
-        dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=[], frame=['phoebe'], context='component'),
-        dict(qualifier='teff_ratio', description='Effective temperature ratio between components', repr='%f', value=1., cast_type=float, connections=['teff@primary','teff@secondary'], frame=['phoebe'], context='binarybag')]
+#rels = [dict(qualifier='asini', description='Projected system semi-major axis', repr='%f', value=10., unit='Rsol', cast_type=float, connections=['sma', 'incl'], frame=['phoebe'], context='orbit'),
+        #dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=['period@orbit', 'q@orbit', 'sma@orbit'], frame=['phoebe'], context='component'),
+        #dict(qualifier='mass', description='Component mass', repr='%f', value=1., unit='Msol', cast_type=float, connections=[], frame=['phoebe'], context='component'),
+        #dict(qualifier='teff_ratio', description='Effective temperature ratio between components', repr='%f', value=1., cast_type=float, connections=['teff@primary','teff@secondary'], frame=['phoebe'], context='binarybag')]
+
+rels = {'binary':
+            {'radius':dict(in_level_as='pot', qualifier='radius',
+                           description='Component polar radius',repr='%f',
+                           cast_type=float, unit='Rsol', adjust=False,
+                           frame=["phoebe"], context='component'),
+             'mass':dict(in_level_as='pot', qualifier='mass',
+                           description='Component dynamical mass',repr='%f',
+                           cast_type=float, unit='Msol', adjust=False,
+                           frame=["phoebe"], context='component'),
+             'asini':dict(in_level_as='sma', qualifier='asini',
+                          description='Projected system semi-major axis',
+                          repr='%f', cast_type=float, unit='Rsol', adjust=False,
+                          frame=["phoebe"], context='orbit')},
+        }
+
 
 # simple constraints
 constraints = {'phoebe':{}}        

@@ -536,12 +536,19 @@ class Container(object):
         """
         par = self.get_parameter(twig)
         
-        if not par.has_prior() and par.get_qualifier() not in ['l3', 'pblum']:
-            lims = par.get_limits()
-            par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
+        # the following gives issues because some parameters do not have limits
+        # - If get_limits would implement default -np.inf and +np.inf, then
+        # par.pdf() would return zero probability for whatever value
+        # - If get_limits would implement default rediciliously large numbers,
+        #   then this will also impact the total probability, which could
+        #   potentially screw up fitting methods
+        # Verdict: <pieterdegroote> votes for not including it
+        #if not par.has_prior() and par.get_qualifier() not in ['scale', 'offset']:
+        #    lims = list(par.get_limits())
+        #    par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
         par.set_adjust(value)
         
-    def set_adjust_all(self, twig, value, add_prior=True):
+    def set_adjust_all(self, twig='', value=True):
         """
         Set whether all matching Parameters are marked to be adjusted
         
@@ -554,10 +561,13 @@ class Container(object):
         """
         pars = self._get_by_search(twig, kind='Parameter', all=True)
         
+        
         for par in pars:
-            if add_prior and not par.has_prior() and par.get_qualifier() not in ['l3','pblum']:
-                lims = par.get_limits()
-                par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
+            # <pieterdegroote> doesn't want the three following lines. See
+            # set_adjust for a rationale.
+            #if not par.has_prior() and par.get_qualifier() not in ['scale','offset']:
+            #    lims = par.get_limits()
+            #    par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
             par.set_adjust(value)
     
     def get_prior(self, twig):
@@ -602,6 +612,72 @@ class Container(object):
         
         for param in params:
             param.set_prior(**dist_kwargs)
+    
+    def set_posterior(self, twig, **dist_kwargs):
+        """
+        Set the posterior of a Parameter
+        
+        [FUTURE]
+        
+        To set the posterior from a trace, issue:
+        
+        >>> mybundle.set_posterior('incl@orbit', sample=mysample)
+        
+        """
+        param = self.get_parameter(twig)
+        param.set_posterior(**dist_kwargs)
+    
+    
+    def get_value_from_posterior(self, twig, size=1):
+        """
+        Get values from the posterior distribution.
+        
+        
+        [FUTURE]
+        """
+        return None
+    
+    def draw_value_from_posterior_all(self, twig='', size=1, only_adjust=True):
+        """
+        Get values from the posterior distribution.
+        
+        [FUTURE]
+        
+        Return type is a record array! Behaves like a dict, but more powerful
+        (and a different string representation so you might get confused at
+        first). Plus you get keys not via '.keys()' but via dtype.names
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True, return_trunk_item=True)
+        
+        # Filter out all adjustables
+        if only_adjust:
+            params = [param for param in params if param['item'].get_adjust()]
+        
+        # Sample from posterior and collect everything in a dictionary
+        output = []
+        keys = []
+        
+        indices = None
+        for param in params:
+            posterior = param['item'].get_posterior()
+            if posterior is not None:
+                values, indices = posterior.draw(size=size, indices=indices)
+                output.append(values)
+                keys.append(param['twig_full'])
+        
+        return np.rec.fromarrays(output, names=keys)
+    
+    
+    def set_value_from_posterior_all(self, twig='', only_adjust=True):
+        """
+        Set value from the posterior.
+        [FUTURE]
+        """
+        # draw values (1 value per twig, thus size=1 (default))
+        values = self.draw_value_from_posterior_all(twig=twig, only_adjust=only_adjust)
+        for twig in values.dtype.names:
+            self.set_value(twig, values[twig][0])
+        
     
     def get_compute(self,label=None,create_default=False):
         """
@@ -878,7 +954,9 @@ class Container(object):
                 if (ri['unique_label'] is None or ri['unique_label'] not in [r['unique_label'] for r in return_items]) \
                         and ri['twig_full'] not in [r['twig_full'] for r in return_items]:
                     return_items += ris
-                            
+        
+        system.preprocess()
+        
         return return_items
         
     def _get_info_from_item(self, item, path=None, section=None, container=None, context=None, label=None, ref=None):
@@ -1069,6 +1147,7 @@ class Container(object):
         """
         self.trunk = self._loop_through_container()
         
+        
     def _purge_trunk(self):
         """
         simply clears trunk - this will probably only be called before pickling to 
@@ -1219,7 +1298,7 @@ class Container(object):
         kwargs.setdefault('hidden', False)
         trunk = kwargs.pop('trunk')
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
-
+        
         if twig is not None:
             if use_search:
                 matched_twigs = self._search_twigs(twig, **kwargs)
@@ -1535,3 +1614,37 @@ def _loads_system_structure(struc, c1label=None, c2label=None):
     # and finally return the item, which should be the system for any
     # non-recursive calls
     return this_item
+
+
+def take_orbit_from(donor, receiver, do_copy=False, only_lowest_level=False):
+    """
+    Put the receiver in the same orbit as the donor.
+    """
+    the_orbits, the_components = donor.get_orbits()
+    
+    if only_lowest_level:
+        the_orbits = the_orbits[-1:]
+        the_components = the_components[-1:]
+    
+    this_parent = donor.get_parent()
+    
+    for i, (orbit, comp) in enumerate(zip(the_orbits[::-1], the_components[::-1])):
+        # Copy the orbit to have a new ParameterSet, but let the Parameters
+        # (except that one label thing) point to the original set
+        this_orbit = orbit.copy()
+        this_label = 'c{}label'.format(comp+1)
+        if not do_copy:
+            for par in this_orbit:
+                if par in [this_label, 'label']:
+                    continue
+                this_orbit.point_to(par, orbit.get_parameter(par))
+        
+        mylabel = receiver.get_label()+i*'_up'
+        this_orbit[this_label] = mylabel
+        this_orbit['label'] = this_parent.get_label()
+        receiver = universe.BodyBag([receiver], orbit=this_orbit, label=mylabel)
+        
+        receiver.set_parent(this_parent)
+        this_parent = this_parent.get_parent()        
+    
+    return receiver

@@ -113,6 +113,7 @@ def plot_lcsyn(system, *args, **kwargs):
     dep, ref = system.get_parset(category='lc', ref=ref)
     syn = system.get_synthetic(category='lc', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    simulate = kwargs.pop('simulate', False)
     
     # catch fmt for the user that is set up by the MPL quirkiness:
     fmt = kwargs.pop('fmt', None)
@@ -129,6 +130,9 @@ def plot_lcsyn(system, *args, **kwargs):
         obs = system.get_obs(category='lc', ref=ref)
         default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
     except ValueError:
+        obs = None
+        default_phased = False
+    except TypeError:
         obs = None
         default_phased = False
     
@@ -203,9 +207,12 @@ def plot_lcsyn(system, *args, **kwargs):
             
     # Plot model: either in phase or in time.
     artists = []
-    if not phased:
+    if not phased and not simulate:
         # XAXIS
-        from_unit = obs.get_parameter('time').get_unit()
+        if obs is not None:
+            from_unit = obs.get_parameter('time').get_unit()
+        else:
+            from_unit = 'JD'
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
             period = conversions.convert(from_unit, x_unit, period)
@@ -220,7 +227,7 @@ def plot_lcsyn(system, *args, **kwargs):
                 kwargs['label'] = '_nolegend_'
             p, = ax.plot(time+n*period, flux, *args, **kwargs)
             artists.append(p)
-    else:
+    elif not simulate:
         time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
@@ -329,6 +336,7 @@ def plot_lcobs(system, **kwargs):
     obs = system.get_obs(category='lc', ref=ref).asarray() # to make a copy
     dep, ref = system.get_parset(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    simulate = kwargs.pop('simulate', False)
     
     period, t0, shift = system.get_period()
     
@@ -405,7 +413,7 @@ def plot_lcobs(system, **kwargs):
     
     # plot observations
     artists = []
-    if not phased:
+    if not phased and not simulate:
         # XAXIS
         from_unit = obs.get_parameter('time').get_unit()
         if x_unit is not None:
@@ -422,15 +430,18 @@ def plot_lcobs(system, **kwargs):
                 kwargs['label'] = '_nolegend_'
             p = ax.errorbar(time+n*period, flux, **kwargs)
             artists.append(p)
-    else:
+    elif not simulate:
         time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
+        period = 1.0
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
         else:
             x_unit = from_unit
+        
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
@@ -443,7 +454,7 @@ def plot_lcobs(system, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p = ax.errorbar(time+n, flux, **kwargs)
+            p = ax.errorbar(time+n*period, flux, **kwargs)
             artists.append(p)
     
     # Update values in this current copy of the obs to reflect whatever was
@@ -468,85 +479,62 @@ def plot_lcobs(system, **kwargs):
     return artists, obs, (axes_labels, axes_units)
 
 
-def plot_lcres(system,*args,**kwargs):
+def plot_lcres(system, **kwargs):
     """
     Plot lcsyn and lcobs as a residual light curve.
     
-    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except:
+    All kwargs are passed on to matplotlib's `errorbar <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_, except
+    a few.
     
-        - ``ref=0``: the reference of the lc to plot
-        - ``scale='obs'``: correct synthetics for ``pblum`` and ``l3`` from
-          the observations
-        - ``repeat=0``: handy if you are actually fitting a phase curve, and you
-          want to repeat the phase curve a couple of times.
-        - ``period=None``: period of repetition. If not given, the last time point
-          will be used
-    
-    **Example usage:**
-    
-    >>> artists, obs, syn, pblum, l3 = plot_lcres(system,fmt='ko-')
-        
-    Returns the matplotlib objects, the observed and synthetic parameterSet, and the used ``pblum`` and ``l3``
+    See plot_lcobs and plot_lcsyn for more info.
     """
-    ref = kwargs.pop('ref',0)
-    scale = kwargs.pop('scale','obs')
-    repeat = kwargs.pop('repeat',0)
-    period = kwargs.pop('period',None)
-    phased = kwargs.pop('phased',False)
-    ax = kwargs.pop('ax',plt.gca())
+    # Catch weird y_unit:
+    if 'y_unit' in kwargs and kwargs['y_unit'] == 'sigma':
+        y_unit = kwargs.pop('y_unit')
+    else:
+        y_unit = None
     
-    #-- get parameterSets
-    obs = system.get_obs(category='lc',ref=ref)
-    syn = system.get_synthetic(category='lc',ref=ref)
-    kwargs.setdefault('label', obs['ref'])
+    ax = kwargs.get('ax', plt.gca())
     
-    #-- load observations: they need to be here
-    loaded_obs = obs.load(force=False)
+    # Fake ploting lcobs and lcsyn
+    lcobs_out = plot_lcobs(system, simulate=True, **kwargs.copy())
+    lcsyn_out = plot_lcsyn(system, simulate=True, **kwargs.copy())
+    
+    # Forget about the ref
+    _ = kwargs.pop('ref')
+    
+    obs = lcobs_out[1]
+    syn = lcsyn_out[1]
+    
+    # Load synthetics: they need to be here
     loaded_syn = syn.load(force=False)
+    loaded_obs = obs.load(force=False)
     
+    repeat = kwargs.pop('repeat', 0)
     
-    #-- try to get the observations. They don't need to be loaded, we just need
-    #   the pblum and l3 values.
-    if scale=='obs':
-        pblum = obs['pblum']
-        l3 = obs['l3']
-    elif scale=='syn':
-        pblum = syn['pblum']
-        l3 = syn['l3']
+    if lcobs_out[2][0][0] == 'Time':
+        period, t0, shift = system.get_period()
     else:
-        pblum = 1.
-        l3 = 0.
+        period = conversions.convert('cy', lcobs_out[2][1][0], 1.0)
     
-    #-- take third light and passband luminosity contributions into account
-    syn_time = np.array(syn['time'])
-    syn_flux = np.array(syn['flux'])
-    syn_flux = syn_flux*pblum + l3
+    y_value = obs['flux'] - syn['flux']
+    if y_unit is not None:
+        y_value = y_value / obs['sigma']
+        kwargs['yerr'] = np.ones(len(y_value))
     
-    obs_time = obs['time']
-    obs_flux = obs['flux']
-    obs_sigm = obs['sigma']
-    
-    #-- get the period to repeat the LC with
-    if period is None:
-        period = max(syn_time)
-    
-    #-- plot model
     artists = []
-    if not phased:
-        for n in range(repeat+1):
-            p = ax.errorbar(syn_time+n*period,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
-            artists.append(p)
-    else:
-        syn_time = (syn_time % period) / period
-        for n in range(repeat+1):
-            p = ax.errorbar(syn_time+n,(obs_flux-syn_flux)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
-
-
-    if loaded_obs: obs.unload()
-    if loaded_syn: syn.unload()
+    for n in range(repeat+1):
+        if n>=1:
+            kwargs['label'] = '_nolegend_'
+        p = ax.errorbar(obs['time'] + n*period, y_value, **kwargs)
+        artists.append(p)
     
-    return artists, obs, syn, pblum, l3
+    if loaded_obs:
+        obs.unload()
+    if loaded_syn:
+        syn.unload()
     
+    return artists, (obs, syn), lcobs_out[2]
     
 
 

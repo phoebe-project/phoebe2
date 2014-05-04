@@ -3,6 +3,8 @@ List of user-defined preprocessors.
 """
 from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
+from phoebe.units import constants
+from numpy import pi, sin, cos, sqrt
 import logging
 
 logger = logging.getLogger('PROC')
@@ -205,12 +207,24 @@ def binary_custom_variables(self, time):
     
     for loc, param in self.walk_all(path_as_string=False):
         
-        # if this thing has connections, it must be a Parameter for which
-        # relations hold
-        if hasattr(param, 'connections'):
+        # get the current component integer. This will only work for BinaryRoche
+        # Stars, we'll let everything else slip through.
+        try:
+            component = param.get_component()
+        except:
+            pass
+        
+        # if this thing has a dependable, it must be a Parameter for which
+        # relations hold. These relations *must* be predefined here, otherwise
+        # we raise an Error
+        try:
+            replaces = param.get_replaces()
+        except:
+            continue
+        
+        if replaces:
             
             qualifier = param.get_qualifier()
-            dependable = param.get_dependable()
             this_component = 0
             
             # Projected semi-major axis: asini = sma * sin(incl)
@@ -220,28 +234,81 @@ def binary_custom_variables(self, time):
                 incl = orbit.request_value('incl','SI')
                 asini = orbit.request_value('asini','SI')
                 
-                if dependable == 'sma':
+                # Derive sma <--- incl & asini
+                if replaces == 'sma':
                     sma = asini / np.sin(incl)
                     orbit['sma'] = sma, 'SI'
-                elif dependable == 'incl':
+                # Derive incl <--- asini & sma
+                elif replaces == 'incl':
                     incl = np.arcsin(asini / sma)
                     orbit['incl'] = incl, 'SI'
+                # Derive asini <--- sma & incl
                 else:
                     asini = sma * np.sin(incl)
                     orbit['asini'] = asini, 'SI'
             
             # Add mass as a parameter
             elif qualifier == 'mass':
-                
+                this_mass = self[component].params['component'].get_parameter('mass')
                 sma = orbit.request_value('sma','SI')
                 period = orbit.request_value('period', 'SI')
                 q = orbit['q']
-                mass = orbit.request_value('mass', 'SI')
+                mass = this_mass.get_value('SI')
                 
-                #if dependable == 'mass' and :
+                # Derive primary mass <--- sma, period & q
+                if replaces == 'mass' and component == 0:
+                    mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + q)
+                    this_mass.set_value(mass, 'SI')
+                # Derive secondary mass <--- sma, period & q
+                elif replaces == 'mass' and component == 1:
+                    mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + 1.0/q)
+                    this_mass.set_value(mass, 'SI')
+                else:
+                    raise NotImplementedError("Don't know how to derive '{}' from 'mass'".format(dependable))
+            
+            # Add polar radius as a parameter
+            elif qualifier == 'radius':
+                this_radius = self[component].params['component'].get_parameter('radius')
+                this_pot = self[component].params['component'].get_parameter('pot')
+                pot = this_pot.get_value()
+                sync = self[component].params['component']['syncpar']
+                d = 1-orbit['ecc']
+                q = orbit['q']
+                sma = orbit['sma']
+                
+                
+                if component == 1: # means secondary
+                    this_q, this_pot = roche.change_component(q, pot)
+                
+                # Derive radius <--- potential, q, d, F
+                if replaces == 'radius':
+                    radius = roche.potential2radius(pot, q, d=d,F=sync, sma=sma)
+                    this_radius.set_value(radius,'Rsol')
+                    
+                    # We can't have both of pot and radius to be adjustable
+                    if this_pot.get_adjust():
+                        this_radius.set_adjust(True)
+                        this_pot.set_adjust(False)
+                        
+                # Derive potential <--- radius, q, d, F
+                elif replaces == 'pot':
+                    radius = this_radius.get_value()
+                    pot = roche.radius2potential(radius, q, d=d,F=sync, sma=sma)
+                    this_pot.set_value(pot)
+                    # We can't have both of pot and radius to be adjustable
+                    if this_radius.get_adjust():
+                        this_pot.set_adjust(True)
+                        this_radius.set_adjust(False)                    
+                    
+                else:
+                    raise NotImplementedError("Don't know how to derive '{}' from 'radius'".format(dependable))
+
+            
+            # Add vsini as a parameter
+            elif qualifier == 'vsini':
                 raise NotImplementedError
             
-            elif qualifier == 'radius':
+            elif qualifier == 'logg':
                 raise NotImplementedError
             
             elif qualifier == 'ecosw':
@@ -252,4 +319,7 @@ def binary_custom_variables(self, time):
             
             elif qualifier == 'teffratio':
                 raise NotImplementedError
+            
+            else:
+                raise NotImplementedError("Don't know how to connection {} with {}".format(param.get_qualifier(), param.connections))
                     

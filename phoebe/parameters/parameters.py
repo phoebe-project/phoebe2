@@ -268,6 +268,7 @@ import json
 import inspect
 import difflib
 import textwrap
+import math
 from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
@@ -359,7 +360,95 @@ def callback(fctn):
     return add_callback
 
 
-            
+def to_precision(x, p):
+    """
+    Returns a string representation of x formatted with a precision of p
+
+    Based on the webkit javascript implementation taken from here:
+    https://code.google.com/p/webkit-mirror/source/browse/JavaScriptCore/kjs/number_object.cpp
+    
+    But adapted to our needs.
+    """    
+           
+    x = float(x)
+
+    if x == 0.:
+        return "0." + "0"*(p-1)
+
+    out = []
+
+    if x < 0:
+        out.append("-")
+        x = -x
+
+    e = int(math.log10(x))
+    tens = math.pow(10, e - p + 1)
+    n = math.floor(x/tens)
+
+    if n < math.pow(10, p - 1):
+        e = e -1
+        tens = math.pow(10, e - p+1)
+        n = math.floor(x / tens)
+
+    if abs((n + 1.) * tens - x) <= abs(n * tens -x):
+        n = n + 1
+
+    if n >= math.pow(10,p):
+        n = n / 10.
+        e = e + 1
+
+    m = "%.*g" % (p, n)
+
+    if e < -2 or e >= p:
+        out.append(m[0])
+        if p > 1:
+            out.append(".")
+            out.extend(m[1:p])
+        out.append('e')
+        if e > 0:
+            out.append("+")
+        out.append(str(e))
+    elif e == (p -1):
+        out.append(m)
+    elif e >= 0:
+        out.append(m[:e+1])
+        if e+1 < len(m):
+            out.append(".")
+            out.extend(m[e+1:])
+    else:
+        out.append("0.")
+        out.extend(["0"]*-(e+1))
+        out.append(m)
+    return "".join(out)            
+
+
+def e_to_precision(x, e_x):
+    
+    # Special cases
+    if e_x == 0:
+        return '{:.6g}'.format(x), '0'
+    if x == 0:
+        return '0', '{:.2g}'.format(e_x)
+    
+    exp1 = int(np.floor(np.log10(abs(e_x))))-1
+    exp2 = int(np.ceil(np.log10(abs(x))))
+    extra = exp2-exp1
+    error_string = '{:.2g}'.format(e_x)
+    if 'e' in error_string:
+        exp = -int(error_string.split('e')[1])
+        x = x * 10**exp
+        value_string = to_precision(x, extra)
+        value_string += 'e{:+2d}'.format(-exp)
+    else:
+        value_string = to_precision(x, extra)
+    return value_string, error_string
+    
+    
+    
+    
+        
+
+
 #}
 
 #{ Base classes
@@ -536,6 +625,11 @@ class Parameter(object):
     
     
     """
+    
+    _valid_keys = ['qualifier', 'value', 'adjust', 'step', 'ulim', 'llim',
+                   'unit', 'context', 'description', 'frame', 'cast_type',
+                   'long_description', 'repr']
+    
     #{ General methods
     def __init__(self,qualifier=None,**props):
         """
@@ -635,6 +729,15 @@ class Parameter(object):
         """
         for key in self._initial:
             setattr(self,key,self._initial[key])
+    
+    def remember(self):
+        """
+        Set the current properties as initial value.
+        """
+        for key in self._valid_keys:
+            if hasattr(self, key):
+                self._initial[key] = getattr(self, key)
+        
     
     def clear(self):
         """
@@ -903,6 +1006,19 @@ class Parameter(object):
         """
         self.write_protected = write_protected
     
+    
+    def set_replaces(self, replaces):
+        """
+        Set the dependable parameter qualifier.
+        """
+        self.replaces = replaces
+    
+    def get_replaces(self):
+        """
+        Get replaces
+        """
+        if hasattr(self, 'replaces'):
+            return self.replaces
     
     def set_context(self, context):
         """
@@ -1521,6 +1637,51 @@ class Parameter(object):
             out_dict[attrname] = attrinst
         return out_dict
    
+    def as_string_table(self):
+        """
+        Return parameter as a string table.
+        
+        Handy for some post-processing. Only works for stuff that is a float.
+        """
+        if not self.cast_type == float:
+            return None
+        
+        qualifier = self.get_qualifier()
+        unit = self.get_unit() if self.has_unit() else ''
+        
+        if self.has_posterior():
+            posterior = self.get_posterior()
+            post_loc = posterior.get_loc()
+            post_scale_ = posterior.get_scale()
+            post_dist = posterior.get_name()
+            post_loc, post_scale = e_to_precision(post_loc, post_scale_)
+            #value, _ = e_to_precision(self.get_value(), post_scale_)
+            value = self.to_str()
+        else:
+            post_loc = ''
+            post_scale = ''
+            post_dist = ''
+            value = self.to_str()
+        
+        if self.has_prior():
+            prior = self.get_prior()
+            prior_loc = prior.get_loc()
+            prior_scale = prior.get_scale()
+            prior_dist = prior.get_name()
+            prior_loc, prior_scale = e_to_precision(prior_loc, prior_scale)
+        else:
+            prior_loc = ''
+            prior_scale = ''
+            prior_dist = ''
+        
+        row = [qualifier, unit, value, post_loc, post_scale, post_dist,\
+                                      prior_loc,prior_scale,prior_dist]
+        
+        return {self.get_unique_label():row}
+        
+        
+       
+   
     #}
     
     #{ Overloaders    
@@ -2014,14 +2175,25 @@ class ParameterSet(object):
         Reset a Parameter.
         """
         if qualifier is not None:
+            qualifiers = [qualifier]
+        else:
+            qualifiers = self.keys()
+            
+        for qualifier in qualifiers:
             par = self.get_parameter(qualifier)
             par.reset()
             par.set_context(self.get_context())
-            #self.get_parameter(qualifier).reset()
-        #else:
-        #    for qual in self.container:
-        #        self.get_parameter(qual).reset()
+    
+    def remember(self, qualifier=None):
+        if qualifier is not None:
+            qualifiers = [qualifier]
+        else:
+            qualifiers = self.keys()
         
+        for qual in qualifier:
+            self.get_parameter(qual).remember()
+                
+    
     def get_parameter(self,qualifier):
         """
         Return a parameter via its qualifier.
@@ -2103,7 +2275,7 @@ class ParameterSet(object):
     
     #{ Accessibility to the values and units
     
-    def set_value(self,qualifier,value,*args):
+    def set_value(self, qualifier, value, *args):
         """
         Set parameter value, perhaps in different units
         
@@ -2115,10 +2287,10 @@ class ParameterSet(object):
         @type value: dependent on qualifier
         """
         #clear_memoization(self)
-        self.get_parameter(qualifier).set_value(value,*args)
+        self.get_parameter(qualifier).set_value(value, *args)
         self.run_constraints()
     
-    def set_value_from_posterior(self,qualifier):
+    def set_value_from_posterior(self, qualifier):
         """
         Set the value of parameter from its posterior.
         
@@ -2127,7 +2299,7 @@ class ParameterSet(object):
         same index for all parameters. This guarentees proper correlations
         between all the parameters.
         """
-        if isinstance(qualifier,list):
+        if isinstance(qualifier, list):
             index = None
             for qual in qualifier:
                 param = self.get_parameter(qual)
@@ -2703,7 +2875,7 @@ class ParameterSet(object):
             #return self.container[self.container.keys()[self.index-1]]
             return list(self.container.keys())[self.index-1]
         
-    def __contains__(self,qualifier):
+    def __contains__(self, qualifier):
         """
         Check if a parameter is in the class instance.
         """

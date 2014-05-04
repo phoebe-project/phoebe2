@@ -1664,7 +1664,7 @@ def local_boosting(system, parset_pbdep, parset_isr={}, beaming_alg='simple'):
     # No reddening for bolometric fluxes!
     if ref == '__bol':
         red_kwargs = {}
-        logger.info(("Not propagating interstellar reddening info for boosting flux "
+        logger.debug(("Not propagating interstellar reddening info for boosting flux "
                     "(taking default from grid)"))
     else:
         red_kwargs = dict(parset_isr)

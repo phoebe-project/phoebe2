@@ -629,7 +629,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             # For a uniform limb darkening law, we can just take the 
             # disk-integrated intensity and divide by pi.
             else:
-                csol = [1.0]
+                csol = []
                 for i, pb in enumerate(passbands):
                     
                     # So don't fit a law, we know what it is
@@ -754,7 +754,10 @@ def test_solar_calibration(atm):
     print("Limb darkening function: ".format(ld_func))
     print("Available passbands ({}): {}".format(npassbands, passbands))
     
-    output = limbdark._prepare_grid('JOHNSON.V_v1.0', atm)
+    print("\nComputations")
+    print("===========================")
+    
+    output = limbdark._prepare_grid('JOHNSON.V', atm)
     
     sun = parameters.ParameterSet('star', label='TheSun')
     sun['shape'] = 'sphere'
@@ -787,11 +790,10 @@ def test_solar_calibration(atm):
         lcdeps = [lcdep1, lcdep2, lcdep3]
     else:
         lcdeps = [lcdep1, lcdep3]
+        
     the_sun = universe.Star(sun, sun_mesh, pbdep=lcdeps,
                           position=globals)
 
-    print("\nComputations")
-    print("===========================")
     the_sun.set_time(0)
 
     the_sun.lc()
@@ -814,7 +816,7 @@ def test_solar_calibration(atm):
     print("\nSolar luminosity and fluxes")
     print("===========================")
     print("Computed analytical flux of the model: {} W/m2".format(aflux))
-    print("Computed numerical flux of the model:  {} (={}) W/m2".format(nflux, the_sun.projected_intensity()))
+    print("Computed numerical flux of the model:  {} (={}?) W/m2".format(nflux, the_sun.projected_intensity()))
     print("Visual magnitude: {}".format(vmag))
     
     real_error_flux = np.abs(1368.000-aflux)/aflux*100
@@ -829,20 +831,24 @@ def test_solar_calibration(atm):
         lumi1 = limbdark.sphere_intensity(the_sun.params['star'],the_sun.params['pbdep']['lcdep'].values()[0])[0]
     else:
         lumi1 = lumi2
+    lumi3 = the_sun.luminosity(ref='__bol')
     
     lumsn = constants.Lsol#_cgs
     num_error_area = np.abs(4*np.pi-the_sun.area())/4*np.pi*100
     num_error_flux = np.abs(lumi1-lumi2)/lumi1*100
     real_error_flux = np.abs(lumi1-lumsn)/lumsn*100
     
-    print("Computed analytical luminosity: {} W".format(lumi1))
-    print("Computed numerical luminosity:  {} W".format(lumi2))
+    if ld_func == 'claret':
+        print("Computed analytical luminosity: {} W".format(lumi1))
+    print("Computed numerical luminosity:  {} (~{}) W".format(lumi2, lumi3))
     print("True luminosity:                {} W".format(lumsn))
     
     assert(num_error_area<=0.48)
-    assert(num_error_flux<=0.040)
+    if ld_func == 'claret':
+        assert(num_error_flux<=0.040)
     assert(real_error_flux<=0.22)
     
+    print(r"Intensities are accurate to {:.3g}%".format(real_error_flux))
     print("\n ... all checks passed")
 
 
@@ -859,7 +865,7 @@ if __name__ == "__main__":
                    default='blackbody',
                    help='Input atmosphere file(s)')
     
-    parser.add_argument('--passbands', default='JOHNSON.V', help='Comma separated list of passbands')
+    parser.add_argument('--passbands', default='', help='Comma separated list of passbands')
     parser.add_argument('--ld_func', default='claret', help='Limb darkening function')
     parser.add_argument('--filetag', default='myfiletag', help='Tag to identify file')
     
@@ -870,10 +876,26 @@ if __name__ == "__main__":
     law = args.pop('ld_func')
     filetag = args.pop('filetag')
     
-    compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
+    # override default filetag
+    if atm_files == 'blackbody' and filetag == 'myfiletag':
+        filetag = 'blackbody'
+        
+    # if the table that is given is a fits file but it does not contain an
+    # column 'WAVELENGTH' in its first extension, it's a ld_coeffs file and we
+    # need to check it (instead of compute the LD coeffs)
+    is_spec_intens_table = True
+    if len(atm_files)==1 and os.path.isfile(atm_files[0]):
+        with pyfits.open(atm_files[0]) as open_file:
+            if not 'WAVELENGTH' in open_file[1].data.dtype.names:
+                is_spec_intens_table = False
+                
+    if is_spec_intens_table:           
+        compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=passbands,\
                            law=law,fitmethod='equidist_r_leastsq',\
                            limb_zero=False, \
                            filetag=filetag,
                            check_passband_coverage=True)
+    else:
+        test_solar_calibration(atm_files[0])
