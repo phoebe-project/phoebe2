@@ -51,7 +51,7 @@ def do_test(filename):
     mybundle = phb2.Bundle(filename)
     
     # Ignore any existing obs
-    mybundle.disable_obs()
+    mybundle.disable_data()
     
     # use the settings of the first lc in Phoebe Legacy for Phoebe2
     existing_refs = mybundle.get_value_all('ref@lcdep')

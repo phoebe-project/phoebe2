@@ -2372,7 +2372,12 @@ class Bundle(Container):
         # etc...
         if options['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            obj.compute(mpi=mpi, animate=animate, **options)
+            if mpi is not None and animate:
+                raise ValueError("You cannot animate and use MPI simultaneously")
+            elif mpi is not None:
+                obj.compute(mpi=mpi, **options)
+            else:
+                obj.compute(animate=animate, **options)
             
         #else:
             #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
