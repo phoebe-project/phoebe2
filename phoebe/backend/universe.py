@@ -160,10 +160,10 @@ except ImportError:
 if enable_mayavi:
     try:
         from enthought.mayavi import mlab
-    except ImportError:
+    except:
         try:
             from mayavi import mlab
-        except ImportError:
+        except:
             enable_mayavi = False
 from phoebe.units import conversions
 from phoebe.units import constants
