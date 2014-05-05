@@ -1925,7 +1925,8 @@ class Bundle(Container):
         if value is None:
             value = 1.0
         
-        # If the parameter does not exist yet, there's some work to do
+        # If the parameter does not exist yet, there's some work to do: we need
+        # to figure out where to add it, and we need to create it
         if param is None:
             # Get all the info on this parameter
             info = definitions.rels['binary'][qualifier]

@@ -785,7 +785,15 @@ rels = {'binary':
              'asini':dict(in_level_as='sma', qualifier='asini',
                           description='Projected system semi-major axis',
                           repr='%f', cast_type=float, unit='Rsol', adjust=False,
-                          frame=["phoebe"], context='orbit')},
+                          frame=["phoebe"], context='orbit'),
+             'vsini':dict(in_level_as='pot', qualifier='vsini',
+                          description='Component projected equatorial velocity',
+                          repr='%f', cast_type=float, unit='km/s', adjust=False,
+                          frame=["phoebe"], context='component'),
+             'logg':dict(in_level_as='pot', qualifier='logg',
+                          description='Component logarithmic surface gravity',
+                          repr='%f', cast_type=float, unit='[cm/s2]', adjust=False,
+                          frame=["phoebe"], context='component')},
         }
 
 

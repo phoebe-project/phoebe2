@@ -264,7 +264,7 @@ def binary_custom_variables(self, time):
                     mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + 1.0/q)
                     this_mass.set_value(mass, 'SI')
                 else:
-                    raise NotImplementedError("Don't know how to derive '{}' from 'mass'".format(dependable))
+                    raise NotImplementedError("Don't know how to derive '{}' from 'mass'".format(replaces))
             
             # Add polar radius as a parameter
             elif qualifier == 'radius':
@@ -278,7 +278,7 @@ def binary_custom_variables(self, time):
                 
                 
                 if component == 1: # means secondary
-                    this_q, this_pot = roche.change_component(q, pot)
+                    q, pot = roche.change_component(q, pot)
                 
                 # Derive radius <--- potential, q, d, F
                 if replaces == 'radius':
@@ -286,9 +286,7 @@ def binary_custom_variables(self, time):
                     this_radius.set_value(radius,'Rsol')
                     
                     # We can't have both of pot and radius to be adjustable
-                    if this_pot.get_adjust():
-                        this_radius.set_adjust(True)
-                        this_pot.set_adjust(False)
+                    check_adjust(this_radius, this_pot)
                         
                 # Derive potential <--- radius, q, d, F
                 elif replaces == 'pot':
@@ -296,25 +294,69 @@ def binary_custom_variables(self, time):
                     pot = roche.radius2potential(radius, q, d=d,F=sync, sma=sma)
                     this_pot.set_value(pot)
                     # We can't have both of pot and radius to be adjustable
-                    if this_radius.get_adjust():
-                        this_pot.set_adjust(True)
-                        this_radius.set_adjust(False)                    
+                    check_adjust(this_pot, this_radius)
                     
                 else:
-                    raise NotImplementedError("Don't know how to derive '{}' from 'radius'".format(dependable))
+                    raise NotImplementedError("Don't know how to derive '{}' from 'radius'".format(replaces))
 
             
             # Add vsini as a parameter
             elif qualifier == 'vsini':
-                raise NotImplementedError
+                # Parameters
+                this_vsini = self[component].params['component'].get_parameter('vsini')
+                this_pot = self[component].params['component'].get_parameter('pot')
+                this_sma = orbit.get_parameter('sma')
+                this_q = orbit.get_parameter('q')
+                this_sync = self[component].params['component'].get_parameter('syncpar')
+                
+                # Parameter values
+                pot = this_pot.get_value()
+                sync = self[component].params['component']['syncpar']
+                d = 1-orbit['ecc']
+                q = orbit['q']
+                incl = orbit.get_value('incl', 'rad')
+                sma = orbit.get_value('sma', 'km')
+                period = orbit.get_value('period', 's')
+                rotperiod = sync*period
+                radius = roche.potential2radius(pot, q, d=d,F=sync, sma=sma, loc='eq')
+                
+                if component == 1: # means secondary
+                    q, pot = roche.change_component(q, pot)
+                
+                # Derive vsini <--- radius, syncpar, period, incl, pot, q, sma
+                if replaces == 'vsini':
+                    vsini = 2*np.pi*radius / rotperiod * np.sin(incl)
+                    this_vsini.set_value(vsini)
+                    check_adjust(this_vsini, this_sync, this_incl, this_q, this_pot, this_sma)
+                # Derive pot <--- radius, syncpar, period, incl, vsini, q, sma
+                elif replaces == 'pot':
+                    vsini = this_vsini.get_value() # in km/s
+                    radius = vsini * rotperiod /(2*np.pi) / np.sin(incl)
+                    pot = roche.radius2potential(radius, q, d=d,F=sync, sma=sma, loc='eq')
+                    this_pot.set_value(pot)
+                    check_adjust(this_pot, this_vsini, this_incl, this_q, this_sma, this_sync)
+                # Derive syncpar <--- radius, vsini, period, incl, pot, q, sma
+                elif replaces == 'syncpar':
+                    syncpar = 2*np.pi*radius / period / vsini * np.sin(incl)
+                    orbit['syncpar'] = syncpar
+                    check_adjust(this_sync, this_vsini, this_incl, this_q, this_sma, this_pot)
+                # Derive incl <--- radius, syncpar, period, vsini, pot, q, sma
+                elif replaces == 'incl':
+                    incl = np.arcsin(vsini * rotperiod/ (2*np.pi*radius))
+                    orbit.set_value('incl', incl, 'rad')
+                    check_adjust(this_incl, this_vsini, this_sync, this_q, this_sma, this_pot)
+                else:
+                    raise NotImplementedError("Don't know how to derive '{}' from 'vsini'".format(replaces))
             
+            # Add logg as a parameter
             elif qualifier == 'logg':
+                
                 raise NotImplementedError
             
-            elif qualifier == 'ecosw':
+            elif qualifier == 'root_ecosw':
                 raise NotImplementedError
             
-            elif qualifier == 'esinw':
+            elif qualifier == 'root_esinw':
                 raise NotImplementedError
             
             elif qualifier == 'teffratio':
@@ -322,4 +364,19 @@ def binary_custom_variables(self, time):
             
             else:
                 raise NotImplementedError("Don't know how to connection {} with {}".format(param.get_qualifier(), param.connections))
-                    
+
+
+def check_adjust(reference, *args):
+    """
+    If any of the args parameters is adjustable, set the reference one as well.
+    
+    And then set the adjustable to be False for the args parameters.
+    """
+    do_adjust = reference.get_adjust()
+    for par in args:
+        if par.get_adjust():
+            do_adjust = True
+        if do_adjust:
+            par.set_adjust(False)
+            
+    reference.set_adjust(do_adjust)
