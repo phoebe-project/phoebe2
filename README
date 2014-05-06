@@ -53,14 +53,14 @@ requirements:
 
 PHOEBE 2.0-alpha can be downloaded from the PHOEBE website:
 
-	http://phoebe-project.org/downloads/phoebe-2.0_alpha.tgz
+	http://phoebe-project.org/downloads/phoebe-2.0a1.tar.gz
 
 Make sure that your system meets all the requirements (section 2.1), unpack the
 distribution tarball and follow the generic install procedure for python
 modules:
 
-	tar xvzf phoebe-2.0_alpha.tgz
-	cd phoebe-2.0_alpha
+	tar xvzf phoebe-2.0a1.tar.gz
+	cd phoebe-2.0a1
 	python setup.py build
 	sudo python setup.py install
 
@@ -125,7 +125,7 @@ as a friendly interface between the user and the backend. It is more limited
 in power and flexibility but it allows you to start using PHOEBE essentially
 rightaway. The frontend functionality is fully documented and we provide
 several tutorials on the PHOEBE website to get you started. For those of you
-familiar with PHOEBE 1 terminology, the backend is equivalent to PHOEBE
+familiar with PHOEBE 1 terminology, the frontend is equivalent to PHOEBE
 scripter.
 
 3.3. THE GUI
@@ -140,7 +140,7 @@ release of PHOEBE 2.0, but we are actively working on it.
 -------------------------
 
 It may come as a surprise to you that PHOEBE 2.0-alpha has no fitting
-capability built in. That's right, no fitting capability whatsoever, However,
+capability built in. That's right, no fitting capability whatsoever. However,
 that does not mean that you cannot fit your data. It only means that you should
 use PHOEBE as the synthesizer of your likelihood function (the Bayesian way of
 referring to the model of a system) and an external fitting tool, such as emcee
