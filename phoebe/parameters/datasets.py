@@ -2670,6 +2670,29 @@ def parse_lsd_as_plprof(filename,columns=None,components=None,full_output=False,
 
 #{ High-end wrappers
 
+def hstack(tup):
+    """
+    Stack datasets in sequence horizontally (column wise).
+    
+    Take a sequence of datasets and stack them horizontally to make
+    a single array.
+    
+    Parameters
+    ----------
+    tup : sequence of datasets
+        All datasets must have the same shape
+    
+    Returns
+    -------
+    stacked : dataset
+        The dataset formed by stacking the given datasets.
+    """
+    out = tup[0].copy()
+    for col in out['columns']:
+        out[col] = np.hstack([out[col]] + [dset[col] for dset in tup[1:]])
+    return out
+
+
 def oifits2vis2(filename,wtol=1.,ttol=1e-6,**kwargs):
     """
     Convert an OIFITS file to Phoebe's VIS2 format.

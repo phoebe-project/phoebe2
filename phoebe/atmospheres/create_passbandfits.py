@@ -29,10 +29,11 @@ class Passband(object):
             'EXTNAME': '',
             'DETTYPE':'flux',
             'COMMENTS': '',
-            'ZPFLUX':np.nan,
+            'ZPFLUX':0.0,
             'ZPFLUXUN':'W/m3',
             'ZPMAG':0.0,
-            'ZPMAGTYP': 'Undefined'
+            'ZPMAGTYP': 'Undefined',
+            'WLFACTOR':1.0,
             }
 
         # fill the dictionaries with kwargs
@@ -134,7 +135,7 @@ class Passband(object):
         header = self.get_header()
         
         # What info is given?
-        has_zpflux = not np.isnan(header['ZPFLUX'])
+        has_zpflux = (header['ZPFLUX'] != 0.0)
         passband = header['PASSBAND']
         
         # If zeropoint flux is already given, we don't have to do anything

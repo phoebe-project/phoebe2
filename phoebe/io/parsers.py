@@ -53,7 +53,7 @@ def translate_filter(val, separate):
         if val == 'COROT.SISMO':
             val = 'COROT.SIS'
         elif val == 'KEPLER.MEAN':
-            val = 'KEPLER.V'
+            val = 'KEPLER.MEAN'
         elif val == 'IRAC.CH1':
             val = 'IRAC.36'
         elif val == 'MOST.DEFAULT':

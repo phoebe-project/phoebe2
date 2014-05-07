@@ -1059,7 +1059,12 @@ def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
             whole_table = np.array(mod.data.tolist(), float)
             wave = whole_table[:, 0] # first column, but skip first row
             table = whole_table[:, 1:] 
+            # sort according to invers mu (thus according to radius)
             mu = np.array(mod.columns.names[1:], float)
+            sa = np.argsort(mu)[::-1]
+            mu = mu[sa]
+            table = table[:, sa]
+
         
     except KeyError:
         raise KeyError("Specific intensity not available in atmosphere file")
@@ -1131,6 +1136,22 @@ def get_limbdarkening(atm, atm_kwargs={}, red_kwargs={}, vgamma=0,\
     if normalised:
         intensities/= intensities.max(axis=0)
     return mus, intensities
+
+
+def disk_integrate(mu, wavelength, table):
+    """
+    Disk-integrate specific intensities to get an SED
+    """
+    # Disk-integrate the specific intensities
+    rs_ = np.sqrt(1 - mu**2)
+    if rs_[-1]==1:
+        itable = table[:,:-1]
+    else:
+        itable = table
+        rs_ = np.hstack([rs_, 1.0])
+    flux = (np.pi*np.diff(rs_[None,:]**2) * itable).sum(axis=1)
+    
+    return flux
 
 
 def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
@@ -1393,7 +1414,9 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
                               "the file that I need is {}, but it doesn't "
                               "exist. If in doubt, consult the installation "
                               "section of the documentation on how to add "
-                              "atmosphere tables.".format(atm, ret_val)))
+                              "atmosphere tables. If you don't have the standard "
+                              "atmosphere tables yet, you might first want to try:\n"
+                              "$:> sudo python\n>>>import phoebe\n>>>phoebe.download_atm".format(atm, ret_val)))
             answer = raw_input(("Cannot interpret atm parameter {}: I think "
                               "the file that I need is {}, but it doesn't "
                               "exist. If in doubt, consult the installation "

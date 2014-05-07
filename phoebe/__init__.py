@@ -70,8 +70,13 @@ more information on the file structure of limb darkening tables.
 
 The absolute scaling of the intensity calculations is in real physical units
 (erg/s/cm2/angstrom). It takes into account the distance to the target,
-interstellar reddening effects and reflection/heating effects. There are two
-ways of scaling the model fluxes to observed fluxes:
+interstellar reddening effects and reflection/heating effects. Four parameters
+govern the absolute scaling:
+
+    - ``pblum`` and ``l3``: physical scaling via fixed passband luminosity and third light
+    - ``scale`` and ``offset``: instrumental scaling via a linear scaling factor and offset term
+
+Thus, there are two ways of scaling the model fluxes to observed fluxes:
 
    - **physical scaling**: each passband dependent parameterSet (lcdep...)
      contains a ``pblum`` parameter. When ``pblum=-1``, the parameter is
@@ -85,8 +90,10 @@ ways of scaling the model fluxes to observed fluxes:
      is the first target in the system). In WD terms, this is dubbed "coupling
      of the luminosities". If you want to decouple the luminosity computations
      from the local atmospheric quantities for a target, then set ``pblum`` for
-     that target.
-   - **observational scaling**: many observable parameterSet (lcobs...) have
+     that target. Note that the value of ``pblum`` never changes: if you set it
+     to ``pblum=-1``, the code will internally compute the passband luminosity
+     but will not replace the -1 with that value. Everything happens internally.
+   - **instrumental scaling**: many observable parameterSet (lcobs...) have
      two parameters ``scale`` and ``offset``. When you set them to be adjustable
      but do not specify any prior, a linear fitting will be performed to match
      the observations with the model computations. This is useful for normalised
@@ -342,7 +349,7 @@ from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
                               PulsatingBinaryRocheStar
 from .frontend.bundle import Bundle, load, info
-from .frontend.common import take_orbit_from
+from .frontend.common import take_orbit_from, compute_pot_from
 
 #-- common input and output
 from .parameters.parameters import load as load_ps

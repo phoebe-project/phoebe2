@@ -522,7 +522,12 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 if not np.isnan(mus[0]):
                     # Disk-integrate the specific intensities
                     rs_ = np.sqrt(1 - mus**2)
-                    flux = (np.pi*np.diff(rs_[None,:]**2) * table[:,:-1]).sum(axis=1)
+                    if rs_[-1]==1:
+                        itable = table[:,:-1]
+                    else:
+                        itable = table
+                        rs_ = np.hstack([rs_, 1.0])
+                    flux = (np.pi*np.diff(rs_[None,:]**2) * itable).sum(axis=1)
                 else:
                     # otherwise it's already disk-integrated
                     flux = table[:,0]
