@@ -1595,7 +1595,7 @@ class Bundle(Container):
         
         self.data_fromexisting(to_dataref, category='lc', **set_kwargs)
         
-    def rv_fromarrays(self, objref, dataref=None, time=None, phase=None,
+    def rv_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
@@ -1658,8 +1658,17 @@ class Bundle(Container):
         :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
         :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
         """
-        if objref == self.get_system().get_label():
-            raise ValueError("Cannot add RV to the system, only to the components")
+        # we're a little careful when it comes to binaries:
+        if hasattr(self.get_system(), 'bodies') and len(self.get_system())>1:
+            if objref is None:
+                raise ValueError(("In binary or multiple systems, you are "
+                                  "required to specify the component to which "
+                                  "you want to add rv data (via objref)"))
+            if objref == self.get_system().get_label():
+                raise ValueError("Cannot add RV to the system, only to the components")
+        # But other system configuration can have a smart default
+        elif objref is None:
+            objref = self.get_system().get_label()
         
         # retrieve the arguments with which this function is called
         set_kwargs, posargs = utils.arguments()
@@ -1929,13 +1938,20 @@ class Bundle(Container):
         # to figure out where to add it, and we need to create it
         if param is None:
             # Get all the info on this parameter
-            info = definitions.rels['binary'][qualifier]
+            info = definitions.rels['binary'][qualifier].copy()
             
             # Figure out which level (i.e. ParameterSet) to add it to
             in_level_as = info.pop('in_level_as')
-            twig_rest = '@'.join([in_level_as] + twig_split[1:])
-            item = self._get_by_search(twig_rest, kind='Parameter',
+            
+            # If we already have a level here, it's easy-peasy
+            if in_level_as[:2] != '__':
+                twig_rest = '@'.join([in_level_as] + twig_split[1:])
+                item = self._get_by_search(twig_rest, kind='Parameter',
                                          return_trunk_item=True)
+            elif in_level_as == '__system__':
+                system = self.get_system()
+                system.attach_ps()
+                pass
             
             # And add it
             pset = item['path'][-2]

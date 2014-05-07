@@ -513,7 +513,7 @@ def potential2radius(pot, q, d=1, F=1.0, component=1, sma=1.0, loc='pole',
 
 def radius2potential(radius, q, d=1., F=1., component=1, sma=1., loc='pole',
                      tol=1e-10, maxiter=50):
-    """
+    r"""
     Convert a radius to a potential value.
     
     Radius should be in units of C{sma}: if you want to give radius in Rsol,
@@ -522,7 +522,18 @@ def radius2potential(radius, q, d=1., F=1., component=1, sma=1., loc='pole',
     
     For eccentric orbits, the radius/potential are dependent on the orbital
     phase. You should explicitly set C{d} to the instantaneous seperation in
-    units of semi-major axis. Setting C{d=1} gives the potential at periastron.
+    units of semi-major axis. Setting C{d=1-ecc} gives the potential at
+    periastron.
+    
+    The location in the star to convert the potential to radius is given by
+    envvar:`loc`. If ``eq`` or ``pole``, then those radii will be returned. For
+    arbitrary angles, :envvar:`loc` can also be given as a tuple of direction
+    cosines;
+    
+    .. math::
+    
+        \lambda = \sin\theta\cos\phi
+        \nu = \cos\theta
     
     >>> M1,M2 = 1.5,0.75
     >>> q = M2/M1
@@ -563,17 +574,25 @@ def radius2potential(radius, q, d=1., F=1., component=1, sma=1., loc='pole',
     @type component: integer
     @param sma: semi-major axis
     @type sma: value of the semi-major axis.
-    @param loc: location of the radius ('pole' or 'eq')
-    @type loc: str
+    @param loc: location of the radius ('pole' or 'eq') or (lambda,nu) coordinates (directional cosines)
+    @type loc: str or tuple
     @return: radius corresponding to the potential
     @rtype: float
     """
-    if 'pol' in loc.lower():
-        theta = 0
-    elif 'eq' in loc.lower():
-        theta = np.pi/2.
-    else:
-        ValueError,"don't understand loc=%s"%(loc)
+    try:
+        # Magic strings
+        loc = loc.lower()
+        if 'pol' in loc:
+            theta = 0
+        elif 'eq' in loc:
+            theta = np.pi/2.
+        else:
+            ValueError,"don't understand loc=%s"%(loc)
+    except AttributeError:
+        # Direction cosines
+        lam, nu = loc
+        theta = np.arccos(nu)
+        phi = np.arccos(lam / np.sqrt(1-nu**2))
         
     def _binary_potential(Phi,r,theta,phi,q,d,F,component=1):
         return binary_potential(r,theta,phi,Phi,q,d,F,component=component)

@@ -2661,6 +2661,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         # information. This is solved in the MPI decorator, which calls the
         # function after everything is merged.
         system.set_pblum_or_l3()
+        #raise SystemExit
         try:
             system.compute_scale_or_offset()
             system.postprocess(time=None)            

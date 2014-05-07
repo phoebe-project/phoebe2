@@ -4,7 +4,7 @@ List of user-defined preprocessors.
 from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
 from phoebe.units import constants
-from numpy import pi, sin, cos, sqrt
+from numpy import pi, sin, cos, sqrt, arcsin
 import logging
 
 logger = logging.getLogger('PROC')
@@ -200,10 +200,13 @@ def binary_custom_variables(self, time):
     Given the complexity and customizibility of this job, the relations are
     hardcoded.
     """
-    
     comp1 = self[0].params['component']
     comp2 = self[1].params['component']
     orbit = self[0].params['orbit']
+    
+    # Keep track of the values that are derived, so that no value can be
+    # derived twice
+    is_derived = []
     
     for loc, param in self.walk_all(path_as_string=False):
         
@@ -218,7 +221,7 @@ def binary_custom_variables(self, time):
         # relations hold. These relations *must* be predefined here, otherwise
         # we raise an Error
         try:
-            replaces = param.get_replaces()
+            replaces = param.get_replaces().split('@')[0]
         except:
             continue
         
@@ -229,42 +232,67 @@ def binary_custom_variables(self, time):
             
             # Projected semi-major axis: asini = sma * sin(incl)
             if qualifier == 'asini':
-                
+                this_sma = orbit.get_parameter('sma')
+                this_incl = orbit.get_parameter('incl')
                 sma = orbit.request_value('sma','SI')
                 incl = orbit.request_value('incl','SI')
                 asini = orbit.request_value('asini','SI')
                 
                 # Derive sma <--- incl & asini
                 if replaces == 'sma':
-                    sma = asini / np.sin(incl)
+                    sma = asini / sin(incl)
                     orbit['sma'] = sma, 'SI'
+                    this_sma.set_hidden(True)
                 # Derive incl <--- asini & sma
                 elif replaces == 'incl':
-                    incl = np.arcsin(asini / sma)
+                    incl = arcsin(asini / sma)
                     orbit['incl'] = incl, 'SI'
+                    this_incl.set_hidden(True)
                 # Derive asini <--- sma & incl
                 else:
-                    asini = sma * np.sin(incl)
+                    asini = sma * sin(incl)
                     orbit['asini'] = asini, 'SI'
+                    this_sma.set_hidden(False)
+                    this_incl.set_hidden(False)
             
             # Add mass as a parameter
             elif qualifier == 'mass':
                 this_mass = self[component].params['component'].get_parameter('mass')
-                sma = orbit.request_value('sma','SI')
-                period = orbit.request_value('period', 'SI')
+                this_sma = orbit.get_parameter('sma')
+                this_q = orbit.get_parameter('q')
+                sma = orbit.request_value('sma','m')
+                period = orbit.request_value('period', 's')
                 q = orbit['q']
-                mass = this_mass.get_value('SI')
+                mass = this_mass.get_value('kg')
+                pot = self[component].params['component']['pot']
                 
-                # Derive primary mass <--- sma, period & q
-                if replaces == 'mass' and component == 0:
+                # We need to be *much* more carefull here: if a parameter is
+                # hidden, we *cannot* use it here. Thus if q is already derived,
+                # we need to really derive q here first. Freakin' hell this will
+                # become complicated... perhaps we can use the constraints of
+                # the parameterSet after all?
+                
+                if component == 1: # means secondary
+                    q, pot = roche.change_component(q, pot)
+                
+                # Derive mass <--- sma, period & q
+                if replaces == 'mass':
                     mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + q)
-                    this_mass.set_value(mass, 'SI')
-                # Derive secondary mass <--- sma, period & q
-                elif replaces == 'mass' and component == 1:
-                    mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + 1.0/q)
-                    this_mass.set_value(mass, 'SI')
+                    this_mass.set_value(mass, 'm')
+                    is_derived.append(this_mass.get_unique_label())
+                # Derive sma <--- mass, period & q
+                elif replaces == 'sma':
+                    sma3 = mass / (4*pi**2) * period**2 * constants.GG * (1.0 + q)
+                    sma = sma3**(1./3.)
+                    this_sma.set_value(sma, 'm')
+                    is_derived.append(this_sma.get_unique_label())
+                elif replaces == 'q':
+                    q = (4*pi**2) * sma**3 / mass / period**2 / constants.GG  - 1.0
+                    print sma, mass, period, q
+                    this_q.set_value(q)
+                    is_derived.append(this_q.get_unique_label())
                 else:
-                    raise NotImplementedError("Don't know how to derive '{}' from 'mass'".format(replaces))
+                    raise NotImplementedError("Don't know (yet) how to derive '{}' from 'mass'".format(replaces))
             
             # Add polar radius as a parameter
             elif qualifier == 'radius':
@@ -274,8 +302,7 @@ def binary_custom_variables(self, time):
                 sync = self[component].params['component']['syncpar']
                 d = 1-orbit['ecc']
                 q = orbit['q']
-                sma = orbit['sma']
-                
+                sma = orbit['sma']                
                 
                 if component == 1: # means secondary
                     q, pot = roche.change_component(q, pot)
@@ -287,6 +314,7 @@ def binary_custom_variables(self, time):
                     
                     # We can't have both of pot and radius to be adjustable
                     check_adjust(this_radius, this_pot)
+                    this_radius.set_hidden(True)
                         
                 # Derive potential <--- radius, q, d, F
                 elif replaces == 'pot':
@@ -295,7 +323,7 @@ def binary_custom_variables(self, time):
                     this_pot.set_value(pot)
                     # We can't have both of pot and radius to be adjustable
                     check_adjust(this_pot, this_radius)
-                    
+                    this_pot.set_hidden(True)
                 else:
                     raise NotImplementedError("Don't know how to derive '{}' from 'radius'".format(replaces))
 
@@ -308,6 +336,7 @@ def binary_custom_variables(self, time):
                 this_sma = orbit.get_parameter('sma')
                 this_q = orbit.get_parameter('q')
                 this_sync = self[component].params['component'].get_parameter('syncpar')
+                this_incl = orbit.get_parameter('incl')
                 
                 # Parameter values
                 pot = this_pot.get_value()
@@ -325,24 +354,24 @@ def binary_custom_variables(self, time):
                 
                 # Derive vsini <--- radius, syncpar, period, incl, pot, q, sma
                 if replaces == 'vsini':
-                    vsini = 2*np.pi*radius / rotperiod * np.sin(incl)
+                    vsini = 2*pi*radius / rotperiod * sin(incl)
                     this_vsini.set_value(vsini)
                     check_adjust(this_vsini, this_sync, this_incl, this_q, this_pot, this_sma)
                 # Derive pot <--- radius, syncpar, period, incl, vsini, q, sma
                 elif replaces == 'pot':
                     vsini = this_vsini.get_value() # in km/s
-                    radius = vsini * rotperiod /(2*np.pi) / np.sin(incl)
+                    radius = vsini * rotperiod /(2*pi) / sin(incl)
                     pot = roche.radius2potential(radius, q, d=d,F=sync, sma=sma, loc='eq')
                     this_pot.set_value(pot)
                     check_adjust(this_pot, this_vsini, this_incl, this_q, this_sma, this_sync)
                 # Derive syncpar <--- radius, vsini, period, incl, pot, q, sma
                 elif replaces == 'syncpar':
-                    syncpar = 2*np.pi*radius / period / vsini * np.sin(incl)
+                    syncpar = 2*pi*radius / period / vsini * sin(incl)
                     orbit['syncpar'] = syncpar
                     check_adjust(this_sync, this_vsini, this_incl, this_q, this_sma, this_pot)
                 # Derive incl <--- radius, syncpar, period, vsini, pot, q, sma
                 elif replaces == 'incl':
-                    incl = np.arcsin(vsini * rotperiod/ (2*np.pi*radius))
+                    incl = arcsin(vsini * rotperiod/ (2*pi*radius))
                     orbit.set_value('incl', incl, 'rad')
                     check_adjust(this_incl, this_vsini, this_sync, this_q, this_sma, this_pot)
                 else:
@@ -350,8 +379,49 @@ def binary_custom_variables(self, time):
             
             # Add logg as a parameter
             elif qualifier == 'logg':
+                this_logg = self[component].params['component'].get_parameter('logg')
+                this_sma = orbit.get_parameter('sma')
+                this_q = orbit.get_parameter('q')
+                this_period = orbit.get_parameter('period')
+                this_sync = self[component].params['component'].get_parameter('syncpar')
+                this_pot = self[component].params['component'].get_parameter('pot')
                 
-                raise NotImplementedError
+                # Get the mass
+                sma = this_sma.get_value('SI')
+                period = this_period.get_value('SI')
+                q = this_q.get_value()
+                pot = this_pot.get_value()
+                sync = this_sync.get_value()
+                d = 1-orbit['ecc']
+                
+                if component == 1:
+                    q, pot = roche.change_component(q, pot)
+                
+                # Derive logg <--- dynamical mass and polar radius
+                if replaces == 'logg':
+                    mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + q)
+                    radius = roche.potential2radius(pot, q, d=d, F=sync, sma=sma, loc='pole')
+                    surf_grav = constants.GG * mass / radius**2
+                    this_logg.set_value(surf_grav, 'SI')
+                    this_logg.set_adjust(False)
+                # Derive pot <--- surface gravity, dynamical mass and polar radius
+                elif replaces == 'pot':
+                    mass = 4*pi**2 * sma**3 / period**2 / constants.GG / (1.0 + q)
+                    surf_grav = this_logg.get_value('SI')
+                    radius = sqrt(constants.GG*mass/surf_grav)
+                    pot = roche.radius2potential(radius, q, d=d,F=sync, sma=sma)
+                    this_pot.set_value(pot)
+                    check_adjust(this_logg, this_pot)
+                elif replaces == 'sma':
+                    surf_grav = this_logg.get_value('SI')
+                    radius = roche.potential2radius(pot, q, d=d, F=sync, sma=sma, loc='pole')
+                    mass = surf_grav*radius**2 / constants.GG
+                    sma3 = mass / (4*pi**2) * period**2 * constants.GG * (1.0 + q)
+                    sma = sma3**(1./3.)
+                    this_sma.set_value(sma, 'SI')
+                else:
+                    raise NotImplementedError("Don't know how to derive '{}' from 'logg'".format(replaces))
+                    
             
             elif qualifier == 'root_ecosw':
                 raise NotImplementedError
@@ -364,7 +434,13 @@ def binary_custom_variables(self, time):
             
             else:
                 raise NotImplementedError("Don't know how to connection {} with {}".format(param.get_qualifier(), param.connections))
-
+    
+    # Now check if none of the values are derived twice:
+    while is_derived:
+        next_element = is_derived.pop()
+        if next_element in is_derived:
+            raise ValueError("Parameter with unique label {} is derived twice in a different way...")
+    
 
 def check_adjust(reference, *args):
     """

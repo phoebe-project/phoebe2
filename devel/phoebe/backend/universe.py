@@ -1943,6 +1943,7 @@ class Body(object):
             has_computed_pblum = 'computed_pblum' in pbdep.constraints
             has_nonzero_l3 = 'l3' in pbdep and pbdep['l3'] > 0
             
+            
             # Correct for pblum/l3 here if needed
             if not do_continue and (has_computed_pblum or has_nonzero_l3):
                 
@@ -1950,7 +1951,7 @@ class Body(object):
                     scale = pbdep.request_value('computed_scaling')
                 else:
                     scale = None
-                  
+                 
                 # Now we need the synthetics so that we can scale them.
                 syn = this_body.get_synthetic(ref=this_ref)
                 
@@ -1967,6 +1968,7 @@ class Body(object):
                 
                 # and remember the value
                 the_scale_column = np.array(syn[scale_column])
+                
                 if scale is not None:
                     the_scale_column = scale * the_scale_column
             
@@ -2717,6 +2719,7 @@ class Body(object):
         """
         for func, arg, kwargs in self._preprocessing:
             getattr(processing, func)(self, time, *arg, **kwargs)
+        
     
     
     def postprocess(self, time=None):
@@ -5470,7 +5473,9 @@ class BodyBag(Body):
         # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()  
         self._main_period = dict()
-                
+    
+    def set_connected(self, connected=True):
+        self.connected = connected
     
     def __getattr__(self, name):
         """

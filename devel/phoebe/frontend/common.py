@@ -11,6 +11,7 @@ from phoebe import __version__
 from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
 from phoebe.backend import universe
+from phoebe.atmospheres import roche
 from phoebe.utils import config
 
 def rebuild_trunk(fctn):
@@ -972,7 +973,7 @@ class Container(object):
         container = self.__class__.__name__ if container is None else container
         class_name = item.__class__.__name__
         body = False
-    
+        hidden = False
         if isinstance(item, parameters.ParameterSet):
             kind = 'ParameterSet'
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
@@ -1019,6 +1020,7 @@ class Container(object):
                     ref = path[-2]['label']
             unique_label = item.get_unique_label()
             qualifier = item.get_qualifier()
+            hidden = item.get_hidden()
             
         elif isinstance(item, universe.Body):
             kind = 'Body'
@@ -1067,7 +1069,7 @@ class Container(object):
         else:
             context_twig = context
          
-        hidden = qualifier in ['c1label', 'c2label']
+        hidden = hidden or qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
         
@@ -1648,3 +1650,15 @@ def take_orbit_from(donor, receiver, do_copy=False, only_lowest_level=False):
         this_parent = this_parent.get_parent()        
     
     return receiver
+
+
+def compute_pot_from(mybundle, rrel, component=0):
+    """
+    Convert relative radius to potential value.
+    """
+    q = mybundle['q@orbit']
+    d = 1 - mybundle['ecc@orbit']
+    syncpar = mybundle.get_system()[component]['component']['syncpar']
+    if component == 1:
+        q = 1.0 / q
+    return roche.radius2potential(rrel, q=q, d=d, F=syncpar, component=1)

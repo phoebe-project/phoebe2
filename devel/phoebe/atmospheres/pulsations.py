@@ -140,13 +140,22 @@ import numpy as np
 from numpy import sqrt,pi,sin,cos,exp
 from scipy.special import lpmv,legendre
 from scipy.special import sph_harm as sph_harm0
-from scipy.misc.common import factorial
+
+try:
+    from scipy.misc.common import factorial
+except ImportError:
+    from scipy.special import factorial
 from scipy.integrate import dblquad,quad
 from scipy.spatial import Delaunay
 from phoebe.utils import Ylm
 from phoebe.utils import coordinates
 from phoebe.units import constants
 from phoebe.atmospheres import limbdark
+try:
+    from phoebe.atmospheres import fpulsations
+    fpulsations_success = True
+except ImportError:
+    fpulsations_success = False
 
 logger = logging.getLogger("PULS")
 logger.addHandler(logging.NullHandler())
@@ -653,7 +662,7 @@ def longitudinal(theta,phi,l,m,freq,phase,t,spin,k,alpha=0.0, beta=0.0, gamma=0.
     return term1 + term2 + term3
 
 
-def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, mesh_phase=0, t0=0.0, dfdt=0.0):
+def surface_pure_python(radius, theta, phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, mesh_phase=0, t0=0.0, dfdt=0.0):
     """
     Compute surface displacements.
     
@@ -706,7 +715,25 @@ def surface(radius,theta,phi,t,l,m,freq,phases,spin,k,asl, incls, phaseincls, me
            velo_r.real,velo_theta.real,velo_phi.real
 
 
-def observables(radius, theta, phi, teff, logg,
+def surface_fortran(radius, theta, phi, t, l, m, freq, phases, spin, k, asl,
+                    incls, phaseincls, mesh_phase=0, t0=0.0, dfdt=0.0):
+    return fpulsations.surface(radius, theta, phi, t, l, m, freq, phases, spin, k, asl,
+                    incls, phaseincls, mesh_phase, t0, dfdt, len(radius), len(l))
+
+
+def observables_fortran(radius, theta, phi, teff, logg,
+                t, l, m, freq, phases,
+                spin, k, asl, delta_T, delta_g, incls, phaseincls,
+                mesh_phase=0.0, t0=0.0, dfdt=0.0):
+    N = len(radius)
+    return fpulsations.observables(radius, theta, phi, teff, logg, t, l, m,
+                                   freq, phases, spin, k, asl, delta_T, delta_g,
+                                   incls, phaseincls, mesh_phase, t0, dfdt, N,
+                                   len(l))
+    
+
+
+def observables_pure_python(radius, theta, phi, teff, logg,
                 t, l, m, freq, phases,
                 spin, k, asl, delta_T, delta_g, incls, phaseincls,
                 mesh_phase=0.0, t0=0.0, dfdt=0.0):
@@ -988,5 +1015,14 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
         #mlab.figure()
         #self.plot3D(normals=True,scale_factor=0.1)
     #mlab.show()
+
+
+
+if not fpulsations_success:
+    observables = observables_pure_python
+    surface = surface_pure_python
+else:
+    observables = observables_fortran
+    surface = surface_fortran
 
 #}

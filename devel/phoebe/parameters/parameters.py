@@ -483,6 +483,8 @@ class Parameter(object):
        Parameter.get_value_from_prior
        Parameter.get_value_from_posterior
        Parameter.get_unique_label
+       Parameter.get_replaces
+       Parameter.get_hidden
        
     .. autosummary::
     
@@ -1013,12 +1015,28 @@ class Parameter(object):
         """
         self.replaces = replaces
     
+    
     def get_replaces(self):
         """
         Get replaces
         """
         if hasattr(self, 'replaces'):
             return self.replaces
+    
+    
+    def get_hidden(self):
+        """
+        Get hidden
+        """
+        if hasattr(self, 'hidden'):
+            return self.hidden
+    
+    
+    def set_hidden(self, hidden=True):
+        """
+        Set hidden
+        """
+        self.hidden = hidden
     
     def set_context(self, context):
         """
@@ -2163,7 +2181,19 @@ class ParameterSet(object):
         parameter = Parameter(qualifier=kwargs.pop('context'),value=new_ps)
         self.add(parameter)
         
-    
+    def contains(self, parameter):
+        """
+        Check if a ParameterSet contains a particular parameter.
+        """
+        unique_label = parameter.get_unique_label()
+        for par in self.container:
+            if self.container[par].get_unique_label() == unique_label:
+                break
+        else:
+            return False
+        
+        return True
+        
     def remove(self,qualifier,*args):
         """
         Remove a parameter from the class instance.

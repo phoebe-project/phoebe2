@@ -793,7 +793,11 @@ rels = {'binary':
              'logg':dict(in_level_as='pot', qualifier='logg',
                           description='Component logarithmic surface gravity',
                           repr='%f', cast_type=float, unit='[cm/s2]', adjust=False,
-                          frame=["phoebe"], context='component')},
+                          frame=["phoebe"], context='component'),
+             'teffratio':dict(in_level_as='__system__', qualifier='teffratio',
+                          description='Effective temperature ratio (secondary/primary)',
+                          repr='%f', cast_type=float, adjust=False,
+                          frame=["phoebe"], context='extra')},
         }
 
 
