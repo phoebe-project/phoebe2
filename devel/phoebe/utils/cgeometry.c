@@ -148,19 +148,44 @@ static PyObject *cos_theta(PyObject *self, PyObject *args)
 
 
 
-
-
 // register all functions
 static PyMethodDef geometryMethods[] = {
-  {"rotate_into_orbit",  rotate_into_orbit}, //python name, C name
-  {"cos_theta", cos_theta}, 
+  {"rotate_into_orbit",  (PyCFunction)rotate_into_orbit, METH_VARARGS, NULL}, //python name, C name
+  {"cos_theta", (PyCFunction)cos_theta, METH_VARARGS, NULL}, 
   {NULL, NULL} //required ending
 };
 
+
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "cgeometry",     /* m_name */
+        "This is a module",  /* m_doc */
+        -1,                  /* m_size */
+        geometryMethods,    /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+#endif
+
+
+
+
+
 // module init function
 PyMODINIT_FUNC
+#if PY_MAJOR_VERSION >= 3
+PyInit_cgeometry(void)
+#else
 initcgeometry(void)
+#endif
 {
-  (void) Py_InitModule("cgeometry", geometryMethods);
+#if PY_MAJOR_VERSION >= 3
+  (void) PyModule_Create(&moduledef);
+#else
+  (void) Py_InitModule3("cgeometry", geometryMethods,"cgeometry docs");
   import_array(); //needed if numpy is used
+#endif
 }

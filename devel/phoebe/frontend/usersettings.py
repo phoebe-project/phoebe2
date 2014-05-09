@@ -1,15 +1,18 @@
 import os
 import pickle
-import ConfigParser
+try:
+    import ConfigParser
+except ImportError: # for Python3
+    import configparser as ConfigParser
 from collections import OrderedDict
 import copy
 import readline
-from server import Server
+from phoebe.frontend.server import Server
 from phoebe.utils import utils
 from phoebe.parameters import parameters
 from phoebe.backend import universe
 from phoebe.frontend.common import Container, rebuild_trunk
-import phcompleter
+from phoebe.frontend import phcompleter
 
 
 class Settings(Container):

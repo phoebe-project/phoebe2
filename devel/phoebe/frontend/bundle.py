@@ -85,7 +85,7 @@ from phoebe.frontend.usersettings import Settings
 from phoebe.frontend.common import Container, rebuild_trunk
 from phoebe.frontend.figures import Axes
 from phoebe.units import conversions
-import phcompleter
+from phoebe.frontend import phcompleter
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())

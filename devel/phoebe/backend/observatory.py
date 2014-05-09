@@ -717,8 +717,6 @@ def quiver(system, select='velo___bol_', **kwargs):
     v = mesh[select][:,1]
     
     # Draw the arrows
-    print x,y
-    print u,v
     pl.quiver(x, y, u, v, **kwargs)
     
     
@@ -1766,7 +1764,11 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
         try:
             main_parset = the_system.params.values()[0]
             teff_mean = main_parset['teff']
-        except IndexError, KeyError:
+        except IndexError:
+            logger.critical("Cannot figure out reference temperature, set to T=10000K")
+            teff_mean = 10000.
+            alpha_T = 0.0
+        except KeyError:
             logger.critical("Cannot figure out reference temperature, set to T=10000K")
             teff_mean = 10000.
             alpha_T = 0.0

@@ -340,7 +340,7 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
         print('\n\tWarning: you are importing Phoebe from inside its source tree.\n')
     
 
-from _version import __version__
+from ._version import __version__
 #-- make some important classes available in the root:
 from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS

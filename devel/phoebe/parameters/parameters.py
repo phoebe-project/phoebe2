@@ -269,6 +269,7 @@ import inspect
 import difflib
 import textwrap
 import math
+import sys
 from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
@@ -288,6 +289,9 @@ try:
     import ephem
 except:
     pass
+
+if sys.version_info[0] >= 3:
+    basestring = str
   
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
@@ -3104,7 +3108,7 @@ class ParameterSet(object):
             # units columns to be full length. The remaining space needs to
             # divided equally between the values and the descriptions
             minimum_width = col_width_qualf + col_width_unit + 4 + 1
-            value_width = min(col_width_value, (width-minimum_width)/2)
+            value_width = min(col_width_value, (width-minimum_width)//2)
             descr_width = width - value_width - minimum_width
             
             str_value = textwrap.wrap(value, width=value_width)
@@ -3403,7 +3407,7 @@ def return_equatorial_ra(value):
     Parse equatorial coordinates in whatever value
     """
     if not 'ephem' in globals():
-        return value
+        return float(value)
 
     try:
         value = float(value)
@@ -3417,7 +3421,7 @@ def return_equatorial_dec(value):
     Parse equatorial coordinates in whatever value
     """
     if not 'ephem' in globals():
-        return value
+        return float(value)
     
     try:
         value = float(value)

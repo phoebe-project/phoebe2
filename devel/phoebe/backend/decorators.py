@@ -3,7 +3,7 @@ Decorators specifically for backend purposes.
 """
 import functools
 import inspect
-import cPickle
+import pickle
 import tempfile
 import subprocess
 import os

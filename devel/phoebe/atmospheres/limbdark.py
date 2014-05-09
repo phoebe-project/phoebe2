@@ -932,7 +932,7 @@ def get_passbands(atm, atm_pars=('teff', 'logg', 'abun'),
     # Now open the file and go
     with pyfits.open(atm) as ff:
         passbands = [ext.header['EXTNAME'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF']
-    print passbands
+    print(passbands)
     return passbands
 
 
@@ -1831,9 +1831,9 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
             idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
             
             # Bracket the temperature (much like we did above for Mb and Lb):
-            print [table[idx+j,1] for j in range(4)]
+            #print [table[idx+j,1] for j in range(4)]
             j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
-            print m,l,t, mm, ll, j
+            #print m,l,t, mm, ll, j
             # Read out Legendre coefficients for the bracketed temperature and
             # compute the intensity from the series expansion:
             Cl = table[idx+j,2:]
@@ -3068,7 +3068,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
         # 4. Wilson Devinney compatibility layer
         elif os.path.splitext(atm)[1] == '.dat':
             atm_kwargs = {key:system.mesh[key] for key in config.atm_props['wd']}
-            print atm_kwargs
+            print(atm_kwargs)
             system.mesh[tag][:, -1] = interp_ld_coeffs_wd(atm, passband,
                                          atm_kwargs=atm_kwargs,
                                          red_kwargs=red_kwargs, vgamma=vgamma)
@@ -3332,7 +3332,7 @@ def get_info(path):
     print("Interpolatable quantities: {}".format(", ".join(fields)))
     print("Dimensions:")
     for field, dim in zip(fields, dimensions):
-        print "{}: {}".format(field, dim)
+        print("{}: {}".format(field, dim))
         
             
 

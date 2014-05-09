@@ -181,10 +181,34 @@ static PyMethodDef ctransMethods[] = {
   {NULL, NULL, 0, NULL} //required ending
 };
 
+
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "ctrans",     /* m_name */
+        "This is a module",  /* m_doc */
+        -1,                  /* m_size */
+        ctransMethods,    /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+#endif
+
+
 // module init function
 PyMODINIT_FUNC
+#if PY_MAJOR_VERSION >= 3
+PyInit_ctrans(void)
+#else
 initctrans(void)
+#endif
 {
-  (void) Py_InitModule("ctrans", ctransMethods);
-  import_array(); //needed if numpy is used
-}
+#if PY_MAJOR_VERSION >= 3
+  (void) PyModule_Create(&moduledef);
+#else
+  (void) Py_InitModule3("ctrans", ctransMethods,"ctrans doc");
+  import_array();
+#endif
+}    

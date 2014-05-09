@@ -117,10 +117,33 @@ static PyMethodDef spotsMethods[] = {
   {NULL, NULL} //required ending
 };
 
-// module init function
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "cspots",     /* m_name */
+        "This is a module",  /* m_doc */
+        -1,                  /* m_size */
+        spotsMethods,    /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+#endif
+
+
+
 PyMODINIT_FUNC
+#if PY_MAJOR_VERSION >= 3
+PyInit_cspots(void)
+#else
 initcspots(void)
+#endif
 {
-  (void) Py_InitModule("cspots", spotsMethods);
-  import_array(); //needed if numpy is used
+#if PY_MAJOR_VERSION >= 3
+  (void) PyModule_Create(&moduledef);
+#else
+  (void) Py_InitModule3("cspots", spotsMethods,"cspots doc");
+  import_array();
+#endif
 }

@@ -651,10 +651,36 @@ static PyMethodDef ceclipseMethods[] = {
   {NULL, NULL, 0, NULL} //required ending
 };
 
-// module init function
+
+
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "ceclipse",     /* m_name */
+        "This is a module",  /* m_doc */
+        -1,                  /* m_size */
+        ceclipseMethods,    /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+#endif
+
+
+
 PyMODINIT_FUNC
+#if PY_MAJOR_VERSION >= 3
+PyInit_ceclipse(void)
+#else
 initceclipse(void)
+#endif
 {
-  (void) Py_InitModule("ceclipse", ceclipseMethods);
-  import_array(); //needed if numpy is used
+#if PY_MAJOR_VERSION >= 3
+  (void) PyModule_Create(&moduledef);
+#else
+  (void) Py_InitModule3("ceclipse", ceclipseMethods,"ceclipse doc");
+  import_array();
+#endif
 }
+

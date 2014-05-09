@@ -7,7 +7,10 @@ import logging
 import os
 import re
 import numpy as np
-from StringIO import StringIO
+try:
+    import StringIO
+except ImportError: # for Python3
+    from io import StringIO
 
 logger = logging.getLogger("IO.ASCII")
 logger.addHandler(logging.NullHandler())

@@ -78,7 +78,7 @@ from phoebe.algorithms import interp_nDgrid
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import decorators
-import froche
+from phoebe.atmospheres import froche
 import time
 
 logger = logging.getLogger('ATM.ROCHE')

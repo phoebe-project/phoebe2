@@ -572,7 +572,7 @@ class PhoebeGUI(QMainWindow, gui.Ui_PHOEBE_MainWindow):
             from time import sleep
             for line in f:
                 while self.gui_locked:
-                    print "gui locked"
+                    print("gui locked")
                     sleep(1)
                     pass
                 self.PythonEdit.write(line.strip('\n'))
