@@ -1173,9 +1173,37 @@ static PyMethodDef marchingMethods[] = {
   {NULL, NULL, 0, NULL},
 };
 
+
+
+
+
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "cmarching",     /* m_name */
+        "This is a module",  /* m_doc */
+        -1,                  /* m_size */
+        marchingMethods,    /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+#endif
+
+
+
 PyMODINIT_FUNC
+#if PY_MAJOR_VERSION >= 3
+PyInit_cmarching(void)
+#else
 initcmarching(void)
+#endif
 {
-  (void) Py_InitModule("cmarching", marchingMethods);
+#if PY_MAJOR_VERSION >= 3
+  (void) PyModule_Create(&moduledef);
+#else
+  (void) Py_InitModule3("cmarching", marchingMethods,"cmarching doc");
   import_array();
+#endif
 }

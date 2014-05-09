@@ -396,7 +396,7 @@ def legacy_to_phoebe2(inputfile):
                 elif qualifier in this_dep:
                     this_set = this_dep
                 else:
-                    print 'error',qualifier, leg_qualifier, index, compno, val
+                    print('error {} {} {} {} {}'.format(qualifier, leg_qualifier, index, compno, val))
                 
                 this_param = this_set.get_parameter(qualifier)
                 

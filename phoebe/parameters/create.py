@@ -420,7 +420,6 @@ def from_library(name, create_body=False):
         return globals()[name](create_body=create_body)
     if not os.path.isfile(name):
         raise NotImplementedError("system not in library")
-    print name
     ps = parameters.load_ascii(name)
     logger.info("Loaded {} from library".format(name))
     

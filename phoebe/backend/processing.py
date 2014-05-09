@@ -288,7 +288,6 @@ def binary_custom_variables(self, time):
                     is_derived.append(this_sma.get_unique_label())
                 elif replaces == 'q':
                     q = (4*pi**2) * sma**3 / mass / period**2 / constants.GG  - 1.0
-                    print sma, mass, period, q
                     this_q.set_value(q)
                     is_derived.append(this_q.get_unique_label())
                 else:

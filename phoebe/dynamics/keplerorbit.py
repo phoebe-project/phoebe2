@@ -413,8 +413,8 @@ from phoebe.units import constants
 from phoebe.units import conversions
 from phoebe.utils import cgeometry
 from phoebe.utils import fgeometry
-import ftrans
-import ctrans
+from phoebe.dynamics import ftrans
+from phoebe.dynamics import ctrans
 
 logger = logging.getLogger('BINARY.ORBIT')
 

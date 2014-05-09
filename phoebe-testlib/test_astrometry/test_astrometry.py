@@ -97,8 +97,8 @@ if __name__ == "__main__":
         plt.subplot(111,aspect='equal')
         plt.plot(output[0][0]-output[1][0],output[0][1]-output[1][1])
         plt.title('error in polaris')
-        print output[0]
-        print output[1]
+        print(output[0])
+        print(output[1])
         plt.show()
     
     test_lam_aqr()

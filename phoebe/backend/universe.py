@@ -7436,7 +7436,10 @@ class BinaryRocheStar(PhysicalBody):
         # Check if this star is actually a component in the orbit:
         try:
             this_comp = self.get_component()
-        except TypeError, KeyError:
+        except TypeError:
+            this_comp = None
+            logger.warning("No orbit specified in BinaryRocheStar. Be sure to do it later.")
+        except KeyError:
             this_comp = None
             logger.warning("No orbit specified in BinaryRocheStar. Be sure to do it later.")
         if this_comp is None and orbit is not None:

@@ -4,6 +4,7 @@ Plotting and multimedia routines.
 import os
 import glob
 import subprocess
+import logging
 import numpy as np
 from scipy import ndimage
 from phoebe.utils import decorators
@@ -11,6 +12,8 @@ try:
     import matplotlib as mpl
 except ImportError:
     print("Soft warning: matplotlib could not be found on your system, 2D plotting is disabled, as well as IFM functionality")
+
+logger = logging.getLogger('UTLS.PLOTLIB')
 
 def fig2data(fig, grayscale=False):
     """
@@ -42,7 +45,7 @@ def fig2data(fig, grayscale=False):
 
 
 @decorators.memoized
-def read_bitmap(system, image_file, res=1, scale=None, invert=False):
+def read_bitmap(system, image_file, res=1, scale=None, hshift=0, vshift=0, invert=False):
     """
     Read a bitmap to match the coordinates of a system.
     """
@@ -50,12 +53,17 @@ def read_bitmap(system, image_file, res=1, scale=None, invert=False):
     r,phi,theta = system.get_coords()
     #-- read in the data
     data = mpl.pyplot.imread(image_file)[::res,::res]
+    logger.info('Read in image with resolution {}x{}'.format(*data.shape))
     #   convert color images to gray scale
     if len(data.shape)>2:
         data = data.mean(axis=2).T
     else:
         data = data.T
     data = data[::-1]
+    if vshift:
+        data = np.roll(data, vshift, axis=1)
+    if hshift:
+        data = np.roll(data, hshift, axis=0)
     
     # Rescale data if necessary:
     if invert:

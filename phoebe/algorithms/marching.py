@@ -40,11 +40,11 @@ if enable_mayavi:
         except:
             #print("Soft warning: Mayavi could not be found on your system, 3D plotting is disabled, as well as some debugging features")
             enable_mayavi = False
-import cmarching
-try:
-    import marching2FLib        
-except ImportError:
-    pass
+from phoebe.algorithms import cmarching
+#try:
+#    import marching2FLib        
+#except ImportError:
+#    pass
     #print("Cannot import C methods for grid computations")
 
 #{ Sphere

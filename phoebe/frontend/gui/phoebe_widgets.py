@@ -1969,7 +1969,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
                         elif function == 'add_surfgrav':
                             value = constants.GG*parset.get_value('mass')/parset.get_value('radius')**2
                         else:
-                            print "WARNING: function %s not implemented yet" % function
+                            print("WARNING: function %s not implemented yet" % function)
                             return
                         do_command = 'tools.%s(bundle.get_%s(\'%s\'),%f,derive=\'%s\')' % (function,par.get_context()[0],label,value,par.get_qualifier())
                         undo_command = 'bundle.get_%s(\'%s\').remove_constraint(\'%s\')' % (par.get_context()[0],label,par.get_qualifier())
@@ -2028,7 +2028,7 @@ class ParameterTreeWidget(GeneralParameterTreeWidget):
                         self.emit(SIGNAL("parameterChanged"),self,label,par,old_value,new_value,None,None,False)
                          
                 else:
-                    print "WARNING: not implemented yet"
+                    print("WARNING: not implemented yet")
                     
                 # force to unfocus item
                 self.item_changed(False)
@@ -2237,7 +2237,7 @@ class JavaScriptMessenger(QObject):
     @pyqtSlot(str)  
     def printToTerm(self, msg):
         #~ pass
-        print msg
+        print(msg)
 
     @pyqtSlot(str)
     def showMessage(self, msg):  
@@ -2349,8 +2349,8 @@ class PyInterpThread(QThread):
         try:
             code = compile(self.command, '<string>', 'single')
             exec(code)
-        except Exception,message:
-            self.message = message
+        except Exception as message:
+            self.message = str(message)
             self.emit(SIGNAL('threadFailed'))
         else:
             self.emit(SIGNAL('threadComplete'),self.command)
@@ -2477,8 +2477,8 @@ class PyInterp(QTextEdit):
             try:
                 code = compile(command, '<string>', 'single')
                 exec(code)
-            except Exception,message:
-                print message
+            except Exception as message:
+                print(str(message))
                 
             for key in locals().keys():
                 if key is not 'self':
@@ -2575,7 +2575,7 @@ class PyInterp(QTextEdit):
     def recallHistory(self):
         # used when using the arrow keys to scroll through history
         self.clearCurrentBlock()
-        if self.historyIndex <> -1:
+        if self.historyIndex != -1:
             self.insertPlainText(self.history[self.historyIndex])
         return True
 

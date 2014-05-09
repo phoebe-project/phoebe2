@@ -1,6 +1,9 @@
 import os
 import functools
-import __builtin__
+try:
+    import __builtin__
+except ImportError:
+    import builtins as __builtin__
 from collections import OrderedDict
 from fnmatch import fnmatch
 import copy
@@ -933,7 +936,7 @@ class Container(object):
             else:
                 try:
                     if item['label'] == 'f2':
-                        print self._get_info_from_item(item, path=path, section=section_name)
+                        print(self._get_info_from_item(item, path=path, section=section_name))
                 except:
                     pass
             
@@ -1219,7 +1222,7 @@ class Container(object):
         
         matching_twigs_orig = [t['twig_full'] for t in trunk]
         matching_twigs = [t['twig_full'].split('@') for t in trunk]
-        matching_indices = range(len(matching_twigs))
+        matching_indices = list(range(len(matching_twigs)))
         matching_comp_indices = [] # twiglet furthest to right is complete match
         
         # We attempt to match a twig twice; once with colons describing
@@ -1230,7 +1233,7 @@ class Container(object):
             # second attempt is without colons denoting subcontexts
             if attempt == 1:
                 matching_twigs = [[st.split(':')[0] for st in t['twig_full'].split('@')] for t in trunk]
-                matching_indices = range(len(matching_twigs))
+                matching_indices = list(range(len(matching_twigs)))
                 matching_comp_indices = [] # twiglet furthest to right is complete match
         
             for tsp_i,tsp in enumerate(twig_split):
@@ -1477,7 +1480,7 @@ class Container(object):
             elif 'ref' in ps.keys():
                 ps.set_value('ref', label)
             if debug:
-                print "self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label)
+                print("self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label))
             
             self.attach_ps(parent_twig, ps)
             
@@ -1486,12 +1489,12 @@ class Container(object):
         for twig,info in load_dict['Parameters'].items():
             # handle if the parameter did not exist in the PS by default
             if debug:
-                print "parameter: {}".format(twig)
+                print("parameter: {}".format(twig))
             
             if 'cast_type' in info:
                 # then this is a new parameter that needs to be added to the PS
                 if debug:
-                    print "\tcreating parameter", twig
+                    print("\tcreating parameter {}".format(twig))
                 qualifier = twig.split('@')[0]
                 ps = self._get_by_search('@'.join(twig.split('@')[1:]), hidden=None)
                 try:
@@ -1507,11 +1510,11 @@ class Container(object):
             item = self._get_by_search(twig, hidden=None)
             if 'value' in info:
                 if debug:
-                    print "\tself.set_value('{}', '{}')".format(twig, str(info['value']))
+                    print("\tself.set_value('{}', '{}')".format(twig, str(info['value'])))
                 item.set_value(info['value'])
             if 'adjust' in info:
                 if debug:
-                    print "\tself.set_adjust('{}', '{}')".format(twig, str(info['adjust']))
+                    print("\tself.set_adjust('{}', '{}')".format(twig, str(info['adjust'])))
                 item.set_adjust(info['adjust'])
             #~ if 'prior' in info:
                 #~ item.set_prior(info['prior'])

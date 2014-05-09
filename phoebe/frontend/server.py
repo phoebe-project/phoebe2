@@ -159,7 +159,7 @@ class Server(Container):
         @type script: str
         """
         if self.is_local():
-            print 'server is local'
+            print('server is local')
             return
         
         # files and script should already have been copied/saved to self.mount_dir
@@ -187,7 +187,7 @@ class Server(Container):
         
         """
         if self.is_local():
-            print 'server is local'
+            print('server is local')
             return 
                     
         fname = os.path.join(self.sections['server'].get_value('mount_dir'),'%s.status' % script)
