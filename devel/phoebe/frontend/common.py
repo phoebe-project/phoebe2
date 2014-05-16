@@ -510,7 +510,8 @@ class Container(object):
                 raise ValueError("{} is not a ParameterSet".format(value))
         elif isinstance(this_trunk['item'], dict): #then this should be a sect.
             section = twig.split('@')[0]
-            if value.get_value('label') not in [c.get_value('label') \
+            key = 'label' if 'label' in value.keys() else 'ref'
+            if value.get_value(key) not in [c.get_value(key) \
                                                for c in self.sections[section]]:
                 self._add_to_section(section, value)
                 
@@ -812,7 +813,7 @@ class Container(object):
             
         for section_name,section in self.sections.items():
             if do_sectionlevel and section_name not in ['system']:
-                ris = self._get_info_from_item({item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
+                ris = self._get_info_from_item({item.get_value('label') if 'label' in item.keys() else item.get_value('ref'):item for item in section},section=section_name,container=container,label=-1)
                 return_items += ris
                 
             if do_pslevel:
@@ -824,7 +825,10 @@ class Container(object):
                     # calling get_value (BodyBag implements any method!)
                     # OLD IMPLEMENTATION: remove hasattr(item, 'get_value')
                     if label is None and hasattr(item, 'get_value'):
-                        this_label = item.get_value('label')
+                        if 'label' in item.keys():
+                            this_label = item.get_value('label')
+                        else:
+                            this_label = item.get_value('ref')
                     else:
                         this_label = label
                         
@@ -855,7 +859,7 @@ class Container(object):
         
         for qualifier in ps:
             item = ps.get_parameter(qualifier)
-            ris = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label)
+            ris = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label, ref=ps.get_value('ref') if 'ref' in ps.keys() else None)
             for ri in ris:
                 if ri['qualifier'] not in ['ref','label']:
                     return_items += [ri]
@@ -991,6 +995,10 @@ class Container(object):
                 label = self.get_system().get_label()
             else:
                 label = label
+            # unless we're in one of the following sections
+            # in which case we identify by ref and have no label
+            if section in ['axes','plot','figure']:
+                label = None
             context = item.get_context()
             # For some contexts, we need to add labels for disambiguation
             if context in ['puls']:
@@ -1002,6 +1010,7 @@ class Container(object):
         elif isinstance(item, parameters.Parameter):
             kind = 'Parameter'
             labels = [ipath.get_label() for ipath in path if hasattr(ipath, 'get_label')] if path else []
+            ref = ref
             if len(labels):
                 label = labels[-1]
             elif hasattr(self, 'get_system') and label is None:
@@ -1017,7 +1026,12 @@ class Container(object):
             else:
                 #then we're coming from a section and already know the context
                 context = context
-            ref = ref
+
+            # unless we're in one of the following sections
+            # in which case we identify by ref and have no label
+            if section in ['axes','plot','figure']:
+                label = None
+
             if path:
                 if context[-3:] in ['obs','dep','syn']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
@@ -1076,7 +1090,7 @@ class Container(object):
             context_twig = None
         else:
             context_twig = context
-         
+            
         hidden = hidden or qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
@@ -1369,13 +1383,15 @@ class Container(object):
                         all=True, ignore_errors=True,
                         return_trunk_item=True)
                  
-        return {ti['label']:ti['item'] for ti in all_ti} if all_ti is not None else {}
+        return {ti['label'] if ti['label'] is not None else ti['ref']:ti['item'] for ti in all_ti} if all_ti is not None else {}
         
     def _save_json(self, filename):
         """
         TESTING
         [FUTURE]
         """
+        debug = False
+        
         # We're changing stuff here, so we need to make a copy first
         this_bundle = self.copy()
         #~ this_bundle.clear_syn()
@@ -1397,15 +1413,18 @@ class Container(object):
             if ti['context'] not in ['orbit','component','mesh:marching']:
                 info = {}
                 
-                if ti['context'][-3:]=='syn' or (ti['context'][-3:]=='obs' and item['filename']):
+                if ti['context'].split(':')[0]!='plotting' and (ti['context'][-3:]=='syn' or (ti['context'][-3:]=='obs' and item['filename'])):
                     # then unload the data first
                     item.unload()
                     
-                if not (ti['context'][-3:]=='syn' and not ti['hidden']):
+                if not (ti['context'].split(':')[0]!='plotting' and ti['context'][-3:]=='syn' and not ti['hidden']):
                     info['context'] = ti['context']
                     #~ info['class_name'] = ti['class_name']
                     #~ info['parent'] = self._make_twig([qualifier,ref,context,label,section,container])
                     dump_dict['ParameterSets'][ti['twig']] = info
+                else:
+                    if debug:
+                        print ti['twig']
         
         dump_dict['Parameters'] = {}
         for ti in this_bundle._get_by_search(kind='Parameter',container=this_container,all=True,hidden=None,return_trunk_item=True):
@@ -1437,7 +1456,7 @@ class Container(object):
             #~ if item.has_prior():
                 #~ info['prior'] = 'has prior, but export not yet supported'
             
-            if not (ti['context'][-3:]=='syn' and not ti['hidden']):
+            if not (ti['context'].split(':')[0]!='plotting' and ti['context'][-3:]=='syn' and not ti['hidden']):
                 # the real syns are marked as hidden, whereas the fake
                 # ones forced to match the obs are not hidden
                 dump_dict['Parameters'][ti['twig']] = info
@@ -1454,7 +1473,7 @@ class Container(object):
         
         [FUTURE]
         """
-        #~ debug = True
+        debug = False
         
         f = open(filename, 'r')
         load_dict = json.load(f, object_pairs_hook=OrderedDict)
@@ -1475,7 +1494,7 @@ class Container(object):
             # lcdeps etc are ParameterSets, lcobs/lcsyn are DataSets (which are
             # a sublcass of ParameterSets but with extra functionality)
             context = str(info['context'])
-            if context[-3:] in ['obs', 'syn']:
+            if context.split(':')[0]!='plotting' and context[-3:] in ['obs', 'syn']:
                 ps = getattr(datasets, config.dataset_class[context[:-3]])(context=context)
             else:
                 ps = parameters.ParameterSet(context)
@@ -1485,7 +1504,7 @@ class Container(object):
             elif 'ref' in ps.keys():
                 ps.set_value('ref', label)
             if debug:
-                print("self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] else 'label', label))
+                print("self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] or info['context'].split(':')[0]=='plotting' else 'label', label))
             
             self.attach_ps(parent_twig, ps)
             

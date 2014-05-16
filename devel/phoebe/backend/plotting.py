@@ -609,7 +609,7 @@ def plot_rvsyn(system,*args,**kwargs):
     this_offset = 0.0
     if obs is not None:
         this_scale = 1.0#obs['scale']
-        print obs
+        #~ print obs
         this_offset = obs['vgamma_offset']
         
     
