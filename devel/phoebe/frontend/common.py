@@ -15,6 +15,7 @@ from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
 from phoebe.backend import universe
 from phoebe.atmospheres import roche
+from phoebe.atmospheres import limbdark
 from phoebe.utils import config
 
 def rebuild_trunk(fctn):
@@ -380,6 +381,10 @@ class Container(object):
             system.change_ref(from_, value)
             self._build_trunk()
             return None
+        
+        # Make sure non-standard atmosphere tables are registered
+        elif qualifier in ['ld_coeffs', 'atm']:
+            limbdark.register_atm_table(value)
         
         if unit is None:
             param.set_value(value)

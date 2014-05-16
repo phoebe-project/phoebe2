@@ -56,7 +56,7 @@ def which(cmd):
     return attempt
 
 
-def get_basic_logger(style="default",clevel='INFO',
+def get_basic_logger(style="default",clevel='WARNING',
                              flevel='DEBUG',filename=None,filemode='w'):
     """
     Return a basic logger via a log file and/or terminal.

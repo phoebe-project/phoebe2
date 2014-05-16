@@ -403,4 +403,72 @@ def mpirun(fctn):
 
 
 
+
+def set_default_units(fctn):
+    """
+    Set default units for plotting functions
+    """
+    @functools.wraps(fctn)
+    def parse(system, *args, **kwargs):
+        """
+        Set default units for plotting functions
+        """
+        # No need to do anything if the user explicitly set both units
+        if 'x_unit' in kwargs and 'y_unit' in kwargs:
+            return fctn(system, *args, **kwargs)
+        
+        # Otherwise we do need some work
+        category = fctn.__name__.split('_')[1][:-3]
+        ref = kwargs.get('ref', 0)
+        obs = system.get_obs(category=category, ref=ref)
+        dep = system.get_parset(category=category, ref=ref)[0]
+        
+        # No need to do anything if there are not user_columns/user_units
+        if not 'user_columns' in obs or not 'user_units' in obs:
+            return fctn(system, *args, **kwargs)
+        
+        userc = obs['user_columns']
+        useru = obs['user_units']
+        
+        # No need to do anything if there's nothing special
+        if userc is None or useru is None:
+            return fctn(system, *args, **kwargs)
+        
+        # Otherwise we do need some work:
+        x_unit = kwargs.get('x_unit', None)
+        y_unit = kwargs.get('x_unit', None)
+        x_quantity = kwargs.get('x_quantity', None)
+        y_quantity = kwargs.get('y_quantity', None)
+        phased = kwargs.get('phased', None)
+        
+        
+        if x_unit is None:
+            # Time/phase stuff
+            if category in ['lc', 'rv']:
+                obs_in_time = 'time' in userc
+                index = userc.index('time' if obs_in_time else 'phase')
+            
+                if obs_in_time and not phased: # otherwise stick to defaults again
+                    kwargs['x_unit'] = useru[index]
+        
+        if y_unit is None:
+            # Flux/mag stuff
+            if category == 'lc':
+                obs_in_flux = 'flux' in userc
+                obs_in_mag = 'mag' in userc
+            
+                if obs_in_flux or obs_in_mag:
+                    index = userc.index('flux' if obs_in_flux else 'mag')
+                    kwargs['y_unit'] = useru[index]
+            
+            elif category == 'rv' and 'rv' in userc:
+                index = userc.index('rv')
+                kwargs['y_unit'] = useru[index]
+        
+        return fctn(system, *args, **kwargs)
+    
+    return parse
+
+
+
         

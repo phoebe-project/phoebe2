@@ -139,7 +139,7 @@ def test_parse_phased_data():
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
     assert(len(obs['time']) == 0)
-    assert(obs['columns'] == ['phase', 'flux', 'sigma'])
+    assert(obs['columns'] == ['phase', 'flux'])
 
 def test_parse_phased_data_mag():
     """
@@ -149,7 +149,7 @@ def test_parse_phased_data_mag():
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
     assert(len(obs['time']) == 0)
-    assert(obs['columns'] == ['phase', 'flux', 'sigma'])
+    assert(obs['columns'] == ['phase', 'flux'])
     
     data = np.loadtxt(phasedfile).T
     
@@ -203,7 +203,7 @@ def test_parse_lc_01():
     """
     
     obs, pbdep = phoebe.parse_lc(os.path.join(basedir, 'datafiles/example1.lc'))
-    assert(obs['columns'] == ['time', 'flux', 'sigma'])
+    assert(obs['columns'] == ['time', 'flux'])
     assert(len(obs['time']) == 4)
     
     obs, pbdep = phoebe.parse_lc(os.path.join(basedir, 'datafiles/example2.lc'))
@@ -248,16 +248,16 @@ if __name__=="__main__":
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
     
     assert(len(obs['time'])==0)
-    assert(obs['columns']==['phase', 'flux', 'sigma'])
+    assert(obs['columns']==['phase', 'flux'])
     
     
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
     obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
     assert(len(obs['time']) == 0)
-    assert(obs['columns'] == ['phase', 'flux', 'sigma'])
+    assert(obs['columns'] == ['phase', 'flux'])
     
     data = np.loadtxt(phasedfile).T
     
-    flux1 = phoebe.convert('mag','erg/s/cm2/AA',data[1], passband=pbdep['passband'])
+    flux1 = phoebe.convert('mag','W/m3',data[1], passband=pbdep['passband'])
     #flux2 = phoebe.convert('W/m3','erg/s/cm2/AA',10**(-data[1]/2.5))
     assert(np.all(flux1 == obs['flux']))

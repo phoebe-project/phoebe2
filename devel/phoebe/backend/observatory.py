@@ -1293,22 +1293,24 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         raise ValueError("Either wavelength is not in dataset, or it's not an array. Perhaps this is a weird location to throw this error, and this should be checked upon array creation")
     
     # Instrumental and stellar field info
-    R = obs.get('R', None)
-    vmacro = obs.get('vmacro', 0.0)
+    Robs = obs.get('R', None)
     
     # Intrinsic width of the profile
+    Rmod = pbdep.get('R_input', 0.0)
     vmicro = pbdep.get('vmicro', 5.0)
+    vmacro = pbdep.get('vmacro', 0.0)
     depth = pbdep.get('depth', 0.4)
+    alphaT = pbdep.get('alphaT', 0.0)
     
-    # System velocity
-    vgamma = obs.get('vgamma', 0.0)
+    # System velocity offset
+    vgamma = obs.get('vgamma_offset', 0.0)
     
     # Information on dependable set: we need the limb darkening function and
     # the method
     ld_model = pbdep['ld_func']
     method = pbdep['method']
     profile = pbdep['profile']
-    extend = pbdep.get('extend', 500.)
+    
     keep = the_system.mesh['mu'] >= 0
     
     # Set the central wavelength "wc".
@@ -1316,23 +1318,24 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     
     # Broaden the range of the wavelengths a bit, so that we are sure that also
     # neighbouring lines are taken into account. We clip the spectrum
-    # aftwards. This "a bit" is taken to be 500 km/s, just to be sure.
-    if extend > 0:
-        w0 = conversions.convert('km/s', 'AA', -extend, wave=(wavelengths[0], 'AA'))
-        wn = conversions.convert('km/s', 'AA', +extend, wave=(wavelengths[-1], 'AA'))
-        step_before = (wavelengths[1]  - wavelengths[0])
-        step_after =  (wavelengths[-1] - wavelengths[-2])
-        wave_before = np.arange(w0, wavelengths[0], step_before)[:-1]
-        wave_after = np.arange(wavelengths[-1], wn, step_after)[1:]
-        wavelengths = np.hstack([wave_before, wavelengths, wave_after])    
+    # aftwards. This "a bit" is taken to be the wavelength range corresponding
+    # to the maximum RV range in the model
+    rv_range = the_system.mesh['velo___bol_'][:,2].ptp()
+    wave_extension = conversions.convert('Rsol/d', 'nm', rv_range, wave=(wc, 'nm')) - wc
     
-    # If we're not seeing the star, we can easily compute the spectrum: it's
-    # zero! Hihihi (hysterical laughter)!
-    if not np.sum(keep):
-        logger.info('Still need to compute (projected) intensity')
-        the_system.intensity(ref=ref)
-        
-    # Check if there is any flux    
+    # Define wavelength template for model. It depends on the given wavelength
+    # range, the extension and resolution
+    wavelengths_orig = wavelengths
+    w0 = wavelengths.min() - wave_extension
+    wn = wavelengths.max() + wave_extension
+    if Rmod == 0:
+        deltaw = np.median(np.diff(wavelengths))
+    else:
+        deltaw = wc / Rmod
+    wavelengths = np.arange(w0, wn + deltaw, deltaw)
+    
+    # Check if there is any flux. If we're not seeing the star, we can easily
+    # compute the spectrum: it's zero! Hihihi (hysterical laughter)!
     the_system.projected_intensity(ref=ref, method='numerical')
     keep = the_system.mesh['proj_'+ref] > 0
     
@@ -1341,6 +1344,8 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
     
     cc_ = constants.cc / 1000.
+    
+    teff_local = the_system.mesh['teff'][keep]
     
     # Numerical method with profiles from a precomputed grid:
     if method == 'numerical' and not profile == 'gauss':    
@@ -1381,7 +1386,8 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
                                              logg.min(), logg.max()))
                           
                 return wavelengths, np.zeros(len(wavelengths)), np.ones(len(wavelengths))
-    
+        
+        
         # Compute the spectrum
         proj_intens = spectra[1] * mus * Imu * the_system.mesh['size'][keep]
         rad_velos = -the_system.mesh['velo___bol_'][keep, 2]
@@ -1395,13 +1401,15 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         
         # gravitational redshift:
         if rv_grav:
-            rv_grav = 0#generic.gravitational_redshift(the_system)
+            rv_grav = tools.gravitational_redshift(the_system)
+            rad_velos += rv_grav[keep]
+            
         for i,rv in enumerate(rad_velos):
             
             # Not inline
-            total_spectrum += tools.doppler_shift(wavelengths, rv+rv_grav,
+            total_spectrum += tools.doppler_shift(wavelengths, rv,
                                                   flux=spectra[0,:,i]*proj_intens[:,i])
-            total_continum += tools.doppler_shift(wavelengths, rv+rv_grav,
+            total_continum += tools.doppler_shift(wavelengths, rv,
                                                   flux=proj_intens[:,i])
                                                   
             #if i%10==0:
@@ -1415,6 +1423,9 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         
     # Numerical computation with Gaussian profile
     elif method == 'numerical':
+        
+        # Temperature dependence of depth
+        teff_mean = 10000.
         
         # Derive intrinsic width of the profile
         sigma = conversions.convert('km/s', 'AA', vmicro, wave=(wc, 'AA')) - wc
@@ -1430,15 +1441,22 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         logger.info('synthesizing Gaussian profile using %d faces (RV range = %.6g to %.6g km/s)'%(len(proj_intens),rad_velos.min(),rad_velos.max()))
         total_continum = np.zeros_like(wavelengths)
         total_spectrum = 0.
+        
+        
+        
         #-- gravitational redshift:
-        if rv_grav:
-            rv_grav = 0#generic.gravitational_redshift(the_system)
-        for pri,rv,sz in zip(proj_intens,rad_velos,sizes):
+        #if rv_grav:
+        #    rv_grav = 0#generic.gravitational_redshift(the_system)
+        template_ = template
+        for i,(pri,rv,sz) in enumerate(zip(proj_intens,rad_velos,sizes)):
             
             #spec = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
             
-            wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
-            spec = pri*sz*np.interp(wavelengths,wave_out1,template)
+            if alphaT > 0:
+                template_ = 1.00 - (1.0+alphaT) * (teff_local[i]/teff_mean)*(1-template)
+            
+            wave_out1 = wavelengths * (1 + rv/cc_)
+            spec = pri*sz*np.interp(wavelengths,wave_out1,template_)
             
             total_spectrum += spec
             total_continum += pri*sz
@@ -1465,10 +1483,10 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         total_continum = np.ones_like(wavelengths)
 
     #-- convolve with instrumental profile if desired
-    if R is not None and R > 0:
-        instr_fwhm = wc/R
+    if Robs is not None and Robs > 0:
+        instr_fwhm = wc/Robs
         
-        logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA (R={})'.format(instr_fwhm, R))
+        logger.info('Convolving spectrum with instrumental profile of FWHM={:.3f}AA (R={})'.format(instr_fwhm, Robs))
         try:
             total_spectrum = tools.broadening_instrumental(wavelengths,
                        total_spectrum/total_continum, width=instr_fwhm,
@@ -1487,12 +1505,10 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
             total_spectrum *= total_continum
         except ValueError:
             logger.error("Cannot convolve spectrum, resolution too low wrt microturbulent broadening")
-        
-    if extend > 0:
-        keep = slice(len(wave_before), len(wavelengths) - len(wave_after))
-        wavelengths = wavelengths[keep]
-        total_spectrum = total_spectrum[keep]
-        total_continum = total_continum[keep]
+    
+    # Interpolate onto original wavelength grid
+    total_spectrum = np.interp(wavelengths_orig, wavelengths, total_spectrum)
+    total_continum = np.interp(wavelengths_orig, wavelengths, total_continum)
     
     # Scale the projected intensity with the distance
     globals_parset = the_system.get_globals()
@@ -1501,7 +1517,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         total_spectrum /= distance**2
         total_continum /= distance**2
         
-    return wavelengths, total_spectrum, total_continum
+    return wavelengths_orig, total_spectrum, total_continum
 
 
 def stokes(the_system, obs, pbdep, rv_grav=True):
@@ -1843,7 +1859,7 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
     return wavelengths, stokes_I, stokes_V, stokes_Q, stokes_U, total_continum
     
 
-def radial_velocity(the_system, obs):
+def radial_velocity(the_system, obs, rv_grav=True):
     """
     Compute a Body's radial velocity
     """
@@ -1863,7 +1879,7 @@ def radial_velocity(the_system, obs):
     
     if not np.sum(keep):
         logger.info('no radial velocity {} computed, zero flux received'.format(ref))
-        return 0.0
+        return np.nan
     
     # Get limb angles
     mus = the_system.mesh['mu']
@@ -1876,6 +1892,17 @@ def radial_velocity(the_system, obs):
     proj_intens = the_system.mesh['proj_'+ref][keep]
     rad_velos = -the_system.mesh['velo___bol_'][keep,2]
     rad_velos = rad_velos * 8.04986111111111 # from Rsol/d to km/s
+    if rv_grav:
+        rv_grav = tools.gravitational_redshift(the_system)
+        #print rad_velos
+        rad_velos = rad_velos + rv_grav[keep]
+        #print rad_velos
+        #import matplotlib.pyplot as plt
+        #plt.plot(rad_velos)
+        #plt.plot(rv_grav[keep])
+        #plt.plot(rad_velos + rv_grav[keep])
+        #plt.show()
+    
     return np.average(rad_velos, weights=proj_intens)
 
 def astrometry(system, obs, pbdep, index):

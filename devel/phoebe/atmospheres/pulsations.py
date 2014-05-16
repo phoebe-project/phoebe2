@@ -488,6 +488,8 @@ def visibility(ell, m, angle, passband, atm, atm_kwargs, red_kwargs={},
     
     Here, visibility refers to the amount of geometric cancellation of a
     pulsation mode due to its own geometry and the stellar inclination axis.
+    
+    Probably wrong.
     """        
     # Coefficients
     acoeff = wignerD(ell, 0, m, 0.0, angle, 0.0).real
@@ -506,7 +508,43 @@ def visibility(ell, m, angle, passband, atm, atm_kwargs, red_kwargs={},
     mu = np.linspace(0,1,100)
     Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mu, coeffs)
     vis_factor = Plmi * np.trapz(mu*Imu, x=mu)
-    return np.abs(vis_factor)
+    
+    return vis_factor
+
+def spatial_response(ell, m=0, incl=0, passband=None, atm=None,
+                     atm_kwargs={}, red_kwargs={}, vgamma=0.0, ld_func='claret',
+                     fitmethod='equidist_r_leastsq'):
+    """
+    Compute the spatial response of a mode.
+    
+    """        
+    theta = np.linspace(0,np.pi/2,1000)
+    mu = cos(theta)
+    
+    if passband is not None:
+        # Retrieve filename of atmosphere table
+        atm = limbdark.choose_ld_coeffs_table(atm, atm_kwargs=atm_kwargs,
+                        red_kwargs=red_kwargs, vgamma=vgamma, ld_func=ld_func,
+                        fitmethod=fitmethod)
+        # Retrieve limb darkening coefficients
+        coeffs, header = limbdark.interp_ld_coeffs(atm, passband,
+                         atm_kwargs=atm_kwargs, red_kwargs=red_kwargs, 
+                         vgamma=vgamma, return_header=True)
+        coeffs = coeffs[:-1]
+        Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mu, coeffs)
+    else:
+        Imu = np.ones_like(theta)
+        
+    Plmi_ = legendre_(ell, m, cos(theta))
+    
+    acoeff = wignerD(ell, 0, m, 0.0, incl/180.*np.pi, 0.0).real
+    Plmi_ = acoeff*Plmi_
+    
+    # In intensity
+    vis_factor_intens = np.trapz(Imu*Plmi_*cos(theta)*sin(theta), x=theta)*2*sqrt(2*ell+1)
+    # In velocity
+    vis_factor_velo = np.trapz(Imu*Plmi_*cos(theta)**2*sin(theta), x=theta)*2*sqrt(2*ell+1)
+    return vis_factor_intens, vis_factor_velo
     
 
 def rotate_sph_harm(theta, phi, l=2, m=1, alpha=0.0, beta=0.0, gamma=0.0):
@@ -946,11 +984,11 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
                 spinpar = rotfreq/freq
                 Cnl = pls.get_value('ledoux_coeff')
                 k = k0 + 2*m*spinpar*((1.+k0)/(l**2+l)-Cnl)
-                logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
+                logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3g, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
             else:
                 spinpar = 0.
-                k = k_#k0
-                logger.info('puls: no Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3f, spin=0'%(rotfreq,freq,l,m,k))
+                k = k0 if k_<0 else k_
+                logger.info('puls: no Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3g, spin=0'%(rotfreq,freq,l,m,k))
             freqs.append(freq)
             freqs_Hz.append(freq_Hz)
             ampls.append(ampl)
@@ -1017,7 +1055,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
     #mlab.show()
 
 
-
+#fpulsations_success = False
 if not fpulsations_success:
     observables = observables_pure_python
     surface = surface_pure_python

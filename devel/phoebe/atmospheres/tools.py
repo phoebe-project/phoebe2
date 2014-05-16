@@ -28,23 +28,24 @@ def gravitational_redshift(the_system):
     # the gravitional redshift is zero
     M = 0
     R = 1.
-    #-- try to get information of the mass and radius of the system
-    if hasattr(the_system,'params') and 'body' in the_system.params.keys() \
-          and 'mass' in the_system.params['body']:
-        M = the_system.params['body'].request_value('mass','kg')
-        R = the_system.params['body'].request_value('radius','m')
-    elif hasattr(the_system,'keys'):
-        M = the_system.request_value('mass','kg')
-        R = the_system.request_value('radius','m')
-    if hasattr(M,'__iter__') or M==0.:
-        M = 0.
-        R = 1.
-        logger.warning('unable to calculate gravitational redshift')
-    #-- compute gravitaional redshift
-    rv_grav = constants.GG*M/R/constants.cc/1000.
-    logger.info('gravitational redshift = %.3f km/s'%(rv_grav))
+    if hasattr(the_system, 'bodies'):
+        bodies = the_system.get_bodies()
+    else:
+        bodies = [the_system]
+    
+    rv_gravs = []
+    for body in bodies:
+        M = body.get_mass() * constants.Msol
+        R = np.sqrt(body.mesh['_o_center'][:,0]**2 + \
+                body.mesh['_o_center'][:,1]**2 + body.mesh['_o_center'][:,2]**2)
+        R = R*constants.Rsol
+        rv_grav = constants.GG*M/R/constants.cc
+        rv_grav = conversions.convert('m/s', 'km/s', rv_grav)
+        rv_gravs.append(rv_grav*np.ones(len(body.mesh)))
+    rv_gravs = np.hstack(rv_gravs)
+        
     #-- yes, it's that easy
-    return rv_grav
+    return rv_gravs
 
 
 def doppler_shift(wave,vrad,vrad_units='km/s',flux=None):

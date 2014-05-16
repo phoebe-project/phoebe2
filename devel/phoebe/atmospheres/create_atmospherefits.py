@@ -751,11 +751,18 @@ def test_solar_calibration(atm):
     
     with pyfits.open(atm) as ff:
         npassbands = (len(ff)-1)/2
-        passbands = ", ".join([ext.header['extname'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF'])
+        grid_passbands = [ext.header['extname'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF']
+        passbands = ", ".join(grid_passbands)
     
+    grid_variables = [header[key] for key in header.keys() if key[:6]=='C__AI_']
     print("Atmosphere table: {}".format(atm))
     print("==========================================================")
-    print("Grid variables: {}".format(", ".join(header[key] for key in header.keys() if key[:6]=='C__AI_')))
+    print("Grid variables: {}".format(", ".join(grid_variables)))
+    
+    with pyfits.open(atm) as ff:
+        for grid_variable in grid_variables:
+            grid_values = ff[grid_passbands[0]].data.field(grid_variable)
+            print("         -- {}: {} -> {}".format(grid_variable, grid_values.min(), grid_values.max()))
     print("Limb darkening function: ".format(ld_func))
     print("Available passbands ({}): {}".format(npassbands, passbands))
     
@@ -859,7 +866,16 @@ def test_solar_calibration(atm):
 
 
 if __name__ == "__main__":
-    logger = utils.get_basic_logger()
+    logger = utils.get_basic_logger(clevel='INFO')
+    
+    # add box filters:
+    passbands = []
+    for clam in np.arange(3000,8001,500):
+        wave = np.linspace(clam-20,clam+20,1000)
+        trans = np.where(np.abs(clam-wave)<10.0, 1.0, 0.0)
+        passband ='BOX_10.{:.0f}'.format(clam)
+        passbands.append(passband)
+        limbdark.pbmod.add_response(wave, trans, passband=passband)
     
     #-- initialize the parser and subparsers
     parser = argparse.ArgumentParser(description='Compute limb darkening tables',
@@ -891,16 +907,18 @@ if __name__ == "__main__":
     is_spec_intens_table = True
     if len(atm_files)==1 and os.path.isfile(atm_files[0]):
         with pyfits.open(atm_files[0]) as open_file:
-            if not 'WAVELENGTH' in open_file[1].data.dtype.names:
+            names = [name.upper() for name in open_file[1].data.dtype.names]
+            if not 'WAVELENGTH' in names:
                 is_spec_intens_table = False
                 
     if is_spec_intens_table:           
         compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=passbands,\
-                           law=law,fitmethod='equidist_r_leastsq',\
+                           law=law,fitmethod='equidist_mu_leastsq',\
                            limb_zero=False, \
                            filetag=filetag,
+                           debug_plot=True,
                            check_passband_coverage=True)
     else:
         test_solar_calibration(atm_files[0])
