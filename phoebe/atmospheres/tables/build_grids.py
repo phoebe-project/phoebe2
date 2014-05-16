@@ -4,9 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import phoebe
 import sys
-from phoebe.atmospheres import limbdark
+#from phoebe.atmospheres import limbdark
+from phoebe.atmospheres import create_atmospherefits as limbdark
 
-logger = phoebe.get_basic_logger()
+logger = phoebe.get_basic_logger(clevel='INFO')
 
 
 def build_grid(filetag='kurucz', passbands=None, ld_func='claret', fitmethod='equidist_r_leastsq',

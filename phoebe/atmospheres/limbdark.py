@@ -527,6 +527,11 @@ from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
 from phoebe.atmospheres import tools
 from phoebe.atmospheres import passbands as pbmod
+try:
+    from phoebe.algorithms import interp
+    use_new_interp_mod = True
+except ImportError:
+    use_new_interp_mod = False
 
 logger = logging.getLogger('ATMO.LD')
 logger.addHandler(logging.NullHandler())
@@ -866,6 +871,10 @@ def disk_claret(coeffs):
     int_moms = np.array([I_ls(0,1 + r/2.) for r in range(0,5,1)]).reshape((5,-1))
     I_lx = 2*np.pi*(limb_coeffs * int_moms).sum(axis=0)
     return I_lx
+
+def disk_power(coeffs):
+    logger.warning('disk_power not well implemented, luminosities will be off')
+    return np.pi
 
 #}
 #{ Specific intensities
@@ -1520,8 +1529,11 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
                               "function, perhaps not available in table").format(label))
     # Try to interpolate
     try:
-        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
+        #if use_new_interp_mod:
         #pars = interp_nDgrid.cinterpolate(values.T, axis_values, pixelgrid).T
+        #else:
+        pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
+        
         if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     
@@ -1532,10 +1544,18 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         msg = ("Parameters outside of grid {}: {}. Consider using a different "
                "atmosphere/limbdarkening grid, or use the black body "
                "approximation.").format(atm, msg)
-        #import matplotlib.pyplot as plt
-        #wrong = np.isnan(np.array(pars)[0])
-        #plt.plot(values[0][wrong], values[1][wrong], 'ko')
-        #plt.show()
+        
+        if True:
+            import matplotlib.pyplot as plt
+            with pyfits.open(atm) as ff:
+                plt.plot(ff[passband].data.field('teff'), ff[passband].data.field('logg'), 'ko')
+            wrong = np.isnan(np.array(pars)[0])
+            plt.plot(values[0][wrong], values[1][wrong], 'rx', mew=2, ms=10)
+            wrong = np.isinf(np.array(pars)[0])
+            plt.plot(values[0][wrong], values[1][wrong], 'ro')
+            plt.xlim(plt.xlim()[::-1])
+            plt.ylim(plt.ylim()[::-1])
+            plt.show()
         #raise SystemExit
         raise ValueError(msg)
         #logger.error(msg)

@@ -26,6 +26,16 @@ ld_func = linear       #  Bolometric limb darkening model
 ld_coeffs = [0.5]             #  Bolometric limb darkening coefficients
 
 
+[phoebe--position--V380Cyg]
+ra = 0.0         #deg   Right ascension                                        
+dec = 0.0        #deg   Declination                                            
+epoch = J2000    # --   Epoch of coordinates                                   
+pmra = 0.0       #mas/yr   Proper motion in right ascension                       
+pmdec = 0.0      #mas/yr   Proper motion in declination                           
+distance = 10.0  #    pc - Distance to the object                                 
+vgamma = 0.0     #km/s - Systemic velocity 
+
+
 [phoebe--orbit--V380Cyg]
 dpdt = 0.0              # (s/yr) Period change
 dperdt = 0.0            # (deg/yr) Periastron change
@@ -40,7 +50,6 @@ q = 0.609661016949      #  Mass ratio
 vgamma = 0.0            # (km/s) Systemic velocity
 sma = 60.2528369131     # (Rsol) semi major axis
 long_an = 0.0              # (deg) Longitude of ascending node
-distance = 10.0         # (pc) Distance to the binary system
 c1label = B1V_primary   # label of primary component
 c2label = B1V_secondary # label of secondary component
 
@@ -53,3 +62,6 @@ mass2 ~  4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + 1.0/{q})
 totalmass ~  4*pi**2 * {sma}**3 / {period}**2 / constants.GG
 q2 ~  1.0/{q}
 com ~  {q}/(1.0+{q})*{sma}
+
+
+

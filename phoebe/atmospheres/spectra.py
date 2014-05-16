@@ -4,6 +4,7 @@ Interpolate and manipulate spectra.
 import os
 import logging
 import numpy as np
+import scipy.integrate
 try:
     import pyfits
 except ImportError:
@@ -126,3 +127,33 @@ def interp_spectable(gridfile,teff,logg,wrange):
     pars[N:] = 10**pars[N:]
     pars = pars.reshape((2,len(wrange),-1))
     return pars
+
+
+
+
+def moments(velo,flux,SNR=200.,max_moment=3):
+    """
+    Compute the moments from a line profile.
+    """
+    mymoms,e_mymoms = np.zeros(max_moment+1),np.zeros(max_moment+1)
+    
+    # Compute zeroth moment (equivalent width)
+    m0 = scipy.integrate.simps( (1-flux),x=velo)
+    
+    # To calculate the uncertainties, we need the error in each velocity
+    # bin, and the error on the zeroth moment
+    sigma_i = 1./SNR / np.sqrt(flux)
+    Delta_v0 = np.sqrt(scipy.integrate.simps( sigma_i,x=velo)**2)
+    e_m0 = np.sqrt(2)*(Delta_v0/m0)
+    
+    mymoms[0] = m0
+    e_mymoms[0] = e_m0
+        
+    # Calculate other moments
+    for n in range(1,max_moment+1):
+        mymoms[n] = scipy.integrate.simps((1-flux)*velo**n,x=velo)
+        # And the uncertainty on it
+        Delta_vn = np.sqrt(scipy.integrate.simps(sigma_i*velo**n)**2)
+        e_mymoms[n] = np.sqrt(  (Delta_vn/m0)**2 + (Delta_v0/m0 * mymoms[n])**2 )
+        
+    return mymoms, e_mymoms

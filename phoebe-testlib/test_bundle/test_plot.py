@@ -100,5 +100,6 @@ def test_plot(N=3):
 
 if __name__ == "__main__":
     logger = phoebe.get_basic_logger()
+    #test_plot(N=3)
     test_plot(N=201)
     plt.show()

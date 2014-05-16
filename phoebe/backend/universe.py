@@ -2053,6 +2053,11 @@ class Body(object):
                 obser = np.array(obs['rv']/constants.Rsol*(24*3.6e6))
                 sigma = np.array(obs['sigma']/constants.Rsol*(24*3.6e6))
             
+            elif obs.context == 'ifobs' and 'vis2' in obs:
+                model = np.array(syn['vis2'])
+                obser = np.array(obs['vis2'])
+                sigma = np.array(obs['sigma_vis2'])
+                
             else:
                 logger.error('SCALE/OFFSET: skipping {}'.format(obs.context))
                 continue
@@ -2974,7 +2979,7 @@ class Body(object):
             distance = 10*constants.pc/constants.Rsol
         return distance
     
-    def get_coords(self, type='spherical', loc='center'):
+    def get_coords(self, type='spherical', loc='center', prefix='_o_'):
         """
         Return the coordinates of the Body in a convenient coordinate system.
         
@@ -2983,14 +2988,14 @@ class Body(object):
         
         Can be useful for surface maps or so.
         
-        Nees some work...
+        Needs some work...
         """
         if type == 'spherical':
             index = np.array([1,0,2])
-            r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,0:3].T[index])
-            r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,3:6].T[index])
-            r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh['_o_triangle'][:,6:9].T[index])
-            r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh['_o_center'].T[index])
+            r1,phi1,theta1 = coordinates.cart2spher_coord(*self.mesh[prefix+'triangle'][:,0:3].T[index])
+            r2,phi2,theta2 = coordinates.cart2spher_coord(*self.mesh[prefix+'triangle'][:,3:6].T[index])
+            r3,phi3,theta3 = coordinates.cart2spher_coord(*self.mesh[prefix+'triangle'][:,6:9].T[index])
+            r4,phi4,theta4 = coordinates.cart2spher_coord(*self.mesh[prefix+'center'].T[index])
             #r = np.hstack([r1,r2,r3,r4])
             #phi = np.hstack([phi1,phi2,phi3,phi4])
             #theta = np.hstack([theta1,theta2,theta3,theta4])

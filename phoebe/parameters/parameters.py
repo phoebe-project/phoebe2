@@ -3057,6 +3057,9 @@ class ParameterSet(object):
         
         @rtype: str
         """
+        # Make sure to not print out all array variables
+        old_threshold = np.get_printoptions()['threshold']
+        np.set_printoptions(threshold=8)
         #-- first derive what the maximum lengths is for all the values. For the
         #   width of the value column, we split over the '\n' characters. We
         #   also check if there are constraints give, they will be appended at
@@ -3141,6 +3144,7 @@ class ParameterSet(object):
                 str_descr = textwrap.fill(str_descr,initial_indent=initial_indent,
                                         subsequent_indent=subs_indent,width=width)
                 mystr.append(str_descr)
+        np.set_printoptions(threshold=old_threshold)
         return '\n'.join(mystr)
     
     def info(self, qualifier):

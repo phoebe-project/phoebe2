@@ -32,13 +32,14 @@ from phoebe.algorithms import marching
 from phoebe.units import conversions
 from phoebe.utils import utils
 from phoebe.parameters import parameters
+from phoebe.backend import decorators
 
 logger = logging.getLogger("BE.PLOT")
 
 #{ Atomic plotting functions
 
 
-
+@decorators.set_default_units
 def plot_lcsyn(system, *args, **kwargs):
     """
     Plot lcsyn as a light curve.
@@ -267,7 +268,7 @@ def plot_lcsyn(system, *args, **kwargs):
     # That's it!
     return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
 
-
+@decorators.set_default_units
 def plot_lcobs(system, **kwargs):
     """
     Plot lcobs as a light curve.
@@ -608,6 +609,7 @@ def plot_rvsyn(system,*args,**kwargs):
     this_offset = 0.0
     if obs is not None:
         this_scale = 1.0#obs['scale']
+        print obs
         this_offset = obs['vgamma_offset']
         
     
@@ -1370,8 +1372,12 @@ def plot_spobs_as_profile(system, *args, **kwargs):
     # select the correct one
     if len(x.shape)==2:
         x = x[index]
+    
     y = obs['flux'][index] / obs['continuum'][index]
-    e_y = obs['sigma'][index] / obs['continuum'][index]
+    try:
+        e_y = obs['sigma'][index] / obs['continuum'][index]
+    except:
+        e_y = np.zeros(len(obs['flux'][index]))
     
     p = plt.errorbar(x, y+offset, yerr=e_y, **kwargs)
     
@@ -1635,37 +1641,43 @@ def plot_spobs(system, *args, **kwargs):
     """
     Plot an observed spectrum.
     """
+    # Get parameterSets
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
-    ax = kwargs.pop('ax', plt.gca())
-    normalised = kwargs.pop('normalised', True)
-    
-    # Get ParameterSets
-    obs = system.get_obs(category='sp', ref=ref)
+    obs = system.get_obs(category='sp', ref=ref).asarray() # to make a copy
+    dep, ref = system.get_parset(category='lc', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    simulate = kwargs.pop('simulate', False)
+    normalised = kwargs.pop('normalised', True)
+    ax = kwargs.pop('ax', plt.gca())
     
     # Load observations, they need to be here
     loaded = obs.load(force=False)
     
-    
-    wavelength = np.ravel(np.array(obs['wavelength']))
+    wavelength = np.ravel(obs['wavelength'])
     wavelength = wavelength.reshape(-1,len(obs['flux'][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
     
     # shift the observed wavelengths if necessary
-    if 'vgamma' in obs and obs['vgamma']!=0:
-        wavelength = tools.doppler_shift(wavelength, obs.get_value('vgamma','km/s'))
+    if 'vgamma_offset' in obs and obs['vgamma_offset']!=0:
+        wavelength = tools.doppler_shift(wavelength, obs.get_value('vgamma_offset','km/s'))
     
     flux = obs['flux'][index]
     cont = obs['continuum'][index]
-    sigm = obs['sigma'][index]
+    
+    sigm = obs['sigma'][index] if ('sigma' in obs.keys() and len(obs['sigma']) and np.all(obs['sigma'][index]>0)) else None
+    kwargs.setdefault('yerr', sigm)
+    has_error = kwargs['yerr'] is not None
+    if has_error and np.isscalar(kwargs['yerr']):
+        kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
     
     if normalised:
         flux = flux / cont
-        sigm = sigm / cont
+    if normalised and has_error:
+        kwargs['yerr'] = kwargs['yerr'] / cont
     
     artists = []
-    p = ax.errorbar(wavelength, flux, yerr=sigm, **kwargs)
+    p = ax.errorbar(wavelength, flux,  **kwargs)
     artists.append(p)
     
     if loaded: obs.unload()
@@ -1686,11 +1698,11 @@ def plot_spsyn(system, *args, **kwargs):
     # Get ParameterSets
     try:
         obs = system.get_obs(category='sp', ref=ref)
-        pblum = obs['pblum']
-        l3 = obs['l3']
+        scale = obs['scale']
+        offset = obs['offset']
     except:
-        pblum = 1.0
-        l3 = 0.0
+        scale = 1.0
+        offset = 0.0
         
     syn = system.get_synthetic(category='sp', ref=ref)
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
@@ -1698,9 +1710,22 @@ def plot_spsyn(system, *args, **kwargs):
     # Load observations, they need to be here
     loaded = syn.load(force=False)
     
+    # Retrieve extra information
+    repeat = kwargs.pop('repeat', 0)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    
     wavelength = np.ravel(np.array(syn['wavelength']))
     wavelength = wavelength.reshape(-1,len(syn['flux'][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
+    
+    from_unit = syn.get_parameter('wavelength').get_unit()    
+    if x_unit is not None:
+        wavelength = conversions.convert(from_unit, x_unit, wavelength,
+                                   wave=(np.median(wavelength),from_unit))
+        from_unit = x_unit
+    else:
+        x_unit = from_unit
     
     flux = syn['flux'][index]
     cont = syn['continuum'][index]
@@ -1708,7 +1733,7 @@ def plot_spsyn(system, *args, **kwargs):
     if normalised:
         flux = flux / cont
         
-    flux = flux*pblum + l3
+    flux = flux*scale + offset
     
     artists = []
     p = ax.plot(wavelength, flux, *args, **kwargs)
@@ -1814,31 +1839,41 @@ def plot_ifsyn(system, *args, **kwargs):
     """
     # Get some default parameters
     ref = kwargs.pop('ref', 0)
-    x = kwargs.pop('x', 'baseline')
-    y = kwargs.pop('y', 'vis2')
-    
-    # Get parameterSets and set a default label if none is given
+    x_quantity = kwargs.pop('x_quantity', 'baseline')
+    y_quantity = kwargs.pop('y_quantity', 'vis2')
+    dep, ref = system.get_parset(category='if', ref=ref)
     syn = system.get_synthetic(category='if', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    simulate = kwargs.pop('simulate', False)
+    
+    # catch fmt for the user that is set up by the MPL quirkiness:
+    fmt = kwargs.pop('fmt', None)
+    if fmt is not None:
+        if args:
+            raise TypeError("There is no line property 'fmt'")
+        else:
+            args = (fmt,)
+    
+    period, t0, shift = system.get_period()
     
     # Load synthetics: they need to be here
     loaded = syn.load(force=False)
     
     time = syn['time']
     
-    if x == 'baseline':
-        plot_x = np.sqrt(syn['ucoord']**2 + syn['vcoord']**2)
+    # Figure out what to plot on the X-axis:
+    if x_quantity == 'baseline':
+        x = np.sqrt(syn['ucoord']**2 + syn['vcoord']**2)
     else:
-        plot_x = syn[x]
+        x = syn[x_quantity]
     
-    if y == 'vis':
-        plot_y = np.sqrt(syn['vis2'])
-    elif y == 'vis2':
-        plot_y = syn[y]
+    # Figure out what to plot on the Y-axis
+    if y_quantity == 'vis':
+        y = np.sqrt(syn['vis2'])
     else:
-        raise NotImplementedError("y=phase not implemented in plot_ifsyn. Stick to vis or vis2")
+        y = syn[y_quantity]
     
-    plt.plot(plot_x, plot_y, *args, **kwargs)
+    plt.plot(x, y, *args, **kwargs)
    
     if loaded:
         syn.unload()
@@ -2070,6 +2105,10 @@ def plot_pldep_as_profile(system,index=0,ref=0,stokes='I',residual=False,
     
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
+
+
+
+
 
 
 def contour_BinaryRoche(orbit, height=0, comp=None, vmin=None, vmax=None,

@@ -46,6 +46,7 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.io import oifits
 from phoebe.io import ascii
+from phoebe.atmospheres import spectra
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger("PARS.DATA")
@@ -303,17 +304,23 @@ class DataSet(parameters.ParameterSet):
         
         # contruct parameter if not present
         if not to_col in self:
-            context = self.get_context()
-            par = parameters.Parameter(to_col, context=context, frame='phoebe')
-            self.add(par)
+            if 'sigma_'+str(from_col) in self:
+                to_col = 'sigma_'+str(from_col)
+            
+            
+            #else:
+                
+            #context = self.get_context()
+            #par = parameters.Parameter(to_col, value=[-1]*len(self), context=context, frame='phoebe')
+            #self.add(par)
         
-        if not to_col in self or force or not len(self[to_col])==len(self):
+        if to_col in self and (force or not len(self[to_col])==len(self)):
             # Fill with the value
             self[to_col] = sigma #np.hstack([noise[0],noise])
         
         # Make sure the column is in the columns
-        if not to_col in self['columns']:
-            self['columns'].append(to_col)
+        #if not to_col in self['columns']:
+        #    self['columns'].append(to_col)
         
         if did_load:
             self.unload()
@@ -833,6 +840,109 @@ class SPDataSet(DataSet):
         self['time'] = new_time
         self['samprate'] = new_samprate
         #logger.info("Binned data according to oversampling rate")
+    
+    def convert_to_fourier(self, freq=None):
+        """
+        Experimental feature. Really Experimental.
+        """
+        try:
+            from ivs.timeseries import freqanalyse
+        except ImportError:
+            logger.warning("Can't do this yet, sorry")
+            return None
+        
+        time = np.asarray(self['time'])
+        wavelength = np.asarray(self['wavelength'])
+        if not len(wavelength.shape)==2:
+            wavelength = wavelength.reshape((1,-1))
+        flux = np.asarray(self['flux'])
+        cont = np.asarray(self['continuum'])
+        flux = flux/cont
+        
+        # Make sure everything is interpolated onto the same wavelength grid
+        if len(wavelength)>1:
+            flux_ = np.zeros((len(time), len(wavelength[0])))
+            for i in range(len(time)):
+                flux_[i] = np.interp(wavelength[0], wavelength[i], flux[i])
+            flux = flux_
+                 
+        T = time.ptp()
+        nyquist = 0.5 / np.median(np.diff(time))
+        if freq is None:
+            f0 = 0.1/T
+            fn = nyquist
+            df = 0.1/T
+        else:
+            f0 = freq
+            fn = freq
+            df = 0
+            
+        output = freqanalyse.spectrum_2D(time, wavelength[0],
+                                         flux, f0=f0, fn=fn, df=df, threads=6,
+                                         method='scargle', subs_av=True,
+                                         full_output=True, harmonics=0)
+        
+        const, e_const = output['pars']['const'], output['pars']['e_const']
+        ampl, e_ampl = output['pars']['ampl'], output['pars']['e_ampl']
+        freq, e_freq = output['pars']['freq'], output['pars']['e_freq']
+        phase, e_phase = output['pars']['phase'], output['pars']['e_phase']
+        
+        self.add(parameters.Parameter(qualifier='const', value=const, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='sigma_const', value=e_const, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='ampl', value=ampl, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='sigma_ampl', value=e_ampl, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='freq', value=freq, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='sigma_freq', value=e_freq, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='phase', value=phase, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='sigma_phase', value=e_phase, cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='avprof', value=output['avprof'], cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='model', value=output['model'], cast_type=np.array))
+        
+    def convert_to_moments(self, max_moment=3):
+        """
+        Convert spectral timeseries to their moments
+        """
+        
+        time = np.asarray(self['time'])
+        wavelength = np.asarray(self['wavelength'])
+        if not len(wavelength.shape)==2:
+            wavelength = wavelength.reshape((1,-1))
+        flux = np.asarray(self['flux'])
+        cont = np.asarray(self['continuum'])
+        flux = flux/cont
+        
+        # Compute small unnormalised moments
+        mymoments = np.zeros((len(time), max_moment+1, 2))
+        wc = np.median(wavelength[0])
+        SNR = 200.0
+        for i in range(len(time)):
+            velo = conversions.convert('nm', 'km/s', wavelength[i], wave=(wc,'nm'))
+            moms, e_moms = spectra.moments(velo, flux[i], SNR, max_moment=max_moment)
+            mymoments[i,:,0] = moms
+            mymoments[i,:,1] = e_moms
+        
+        # observed unnormalised moments
+        x0 = np.median(mymoments[:,1,0]/mymoments[:,0,0])
+        for i in range(len(time)):
+            velo = conversions.convert('nm', 'km/s', wavelength[i], wave=(wc,'nm'))
+            moms, e_moms = spectra.moments(velo-x0, flux[i], SNR, max_moment=max_moment)
+            mymoments[i,:,0] = moms
+            mymoments[i,:,1] = e_moms
+        
+        # observed normalised moments
+        mymoments[:,1:,0] = mymoments[:,1:,0]/mymoments[:,0,0][:,None]
+        
+        # add to parameterSet
+        for i in range(max_moment+1):
+            self.add(parameters.Parameter(qualifier='mom{}'.format(i), value=mymoments[:,i,0], cast_type=np.array))
+            self.add(parameters.Parameter(qualifier='sigma_mom{}'.format(i), value=mymoments[:,i,1], cast_type=np.array))
+        
+        
+        
+        
+        
+        
+    
 
 class PLDataSet(SPDataSet):
     """
