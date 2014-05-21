@@ -69,16 +69,16 @@ def test_dictionary():
     assert(isinstance(mybundle.items()[0], tuple))
     
     # test for explicit values
-    assert(mybundle.get('period')==1)
+    assert(mybundle.get('period')==5.25)
     assert(mybundle.get('non-existing-key') == None)
     assert(mybundle.get('non-existing-key', None) == None)
     assert(mybundle.get('non-existing-key', 'my_default') == 'my_default')
     
-    assert(mybundle['period']==1)
+    assert(mybundle['period']==5.25)
     
     
 @nose.tools.raises(KeyError)        
-def test_dictionary():
+def test_dictionary_err():
     """
     Bundle: dictionary behaviour (error raising)
     """
@@ -100,5 +100,6 @@ def test_error():
 if __name__ == "__main__":
     test_access()
     test_error()
-    test_dictionary
+    test_dictionary()
+    test_dictionary_err()
     
