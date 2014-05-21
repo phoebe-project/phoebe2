@@ -140,7 +140,7 @@ def legacy_to_phoebe2(inputfile):
                 all_rvdeps[1] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 continue
             elif key == 'phoebe_lcno':
-                all_lcobs = [datasets.LCDataSet(user_columns=['time','rv','sigma'], user_units=['JD','erg/s/cm2/AA','erg/s/cm2/AA']) for i in range(int(val))]
+                all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=['JD','erg/s/cm2/AA','erg/s/cm2/AA']) for i in range(int(val))]
                 all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_lcdeps[1] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 
