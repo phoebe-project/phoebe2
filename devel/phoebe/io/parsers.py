@@ -132,14 +132,9 @@ def legacy_to_phoebe2(inputfile):
                 raise IOError("Cannot parse phoebe file '{}': line '{}'".format(inputfile, l[:-1]))
              
             key = key.strip()
-             
-            if key == 'phoebe_rvno':
-                all_rvobs = [datasets.RVDataSet(user_columns=['time','rv','sigma'], user_units=['JD','km/s','km/s']) for i in range(int(val))]
-                rv_component_spec = [None for i in range(int(val))]
-                all_rvdeps[0] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
-                all_rvdeps[1] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
-                continue
-            elif key == 'phoebe_lcno':
+
+			# Start with parameters that determine container sizes:
+            if key == 'phoebe_lcno':
                 all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=['JD','erg/s/cm2/AA','erg/s/cm2/AA']) for i in range(int(val))]
                 all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_lcdeps[1] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
@@ -150,12 +145,19 @@ def legacy_to_phoebe2(inputfile):
                     all_lcdeps[0][i].add(ext_par.copy())
                     all_lcdeps[1][i].add(ext_par.copy())
                 continue            
-                
+
+            if key == 'phoebe_rvno':
+                all_rvobs = [datasets.RVDataSet(user_columns=['time','rv','sigma'], user_units=['JD','km/s','km/s']) for i in range(int(val))]
+                rv_component_spec = [None for i in range(int(val))]
+                all_rvdeps[0] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                all_rvdeps[1] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
+                continue
+
             #-- if this is an rvdep or lcdep, check which index it has
             # and remove it from the string:
-            pattern = re.search('\[(\d)\]',key)
-            separate = re.search('\:',val)
-            
+            pattern = re.search('\[(\d)\]', key)
+            separate = re.search('\:', val)
+                        
             # this is a light or radial velocity file?
             if pattern:
                 index = int(pattern.group(1))-1
@@ -165,49 +167,43 @@ def legacy_to_phoebe2(inputfile):
             
             key_split = key.split('_')
             
-            # ignore gui settings
+            # Ignore GUI-, WD-, and DC-specific settings:
             if key_split[0] in ['gui', 'wd', 'dc']:
                 continue
                         
             # get the true qualifier, split in qualifier and postfix (if any)
-            leg_qualifier_splitted = "_".join(key_split[1:]).split('.')
-            leg_qualifier = leg_qualifier_splitted[0]
+            leg_qualifier_split = "_".join(key_split[1:]).split('.')
+            leg_qualifier = leg_qualifier_split[0]
             
-            if len(leg_qualifier_splitted) == 2:
-                postfix = leg_qualifier_splitted[1]
-            elif len(leg_qualifier_splitted) == 1:
+            if len(leg_qualifier_split) == 2:
+                postfix = leg_qualifier_split[1]
+            elif len(leg_qualifier_split) == 1:
                 postfix = None
             else:
-                raise ValueError("Shouldn't happen")
+                raise ValueError("Exception invoked in parsers.py, please report this.")
             
-            # check if this is a component or a system parameter
-            if leg_qualifier[-1].isdigit() and int(leg_qualifier[-1])>0 and int(leg_qualifier[-1])<3:
+            # Parse component number (if applicable):
+            if leg_qualifier[-1].isdigit() and ( int(leg_qualifier[-1]) == 1 or int(leg_qualifier[-1]) == 2 ):
                 compno = int(leg_qualifier[-1])-1
                 leg_qualifier = leg_qualifier[:-1]
             else:
                 compno = None
-            
-            
-            
-            # ignore certain other things
-            if leg_qualifier in ['opsf', 'spots_no', 'spno', 'logg', 'sbr','mass',
-                                 'radius','plum','mbol']:
+                        
+            # Ignore obsolete or inapplicable qualifiers:
+            if leg_qualifier in [
+				'opsf', 'spots_no', 'spno', 'logg', 'sbr', 'mass', 'radius',
+                'plum', 'mbol', 'indep', 'spots_corotate', 'spots_units',
+                'synscatter_seed', 'synscatter_switch', 'synscatter_sigma',
+                'synscatter_levweight', 'proximity_rv1_switch', 'proximity_rv2_switch',
+                'nms_accuracy', 'nms_iters_max', 'el3_units', 'grid_coarsesize',
+                'passband_mode', 'ie_switch', 'spectra_disptype', 'bins_switch',
+                'bins']:
                 continue
             if leg_qualifier[:3] == 'dc_':
                 continue
-            ignore_list = 'spots', 'synscatter', 'proximity', 'levweight',\
-                          'nms_', 'el3_units', 'grid_coarsesize',\
-                          'passband_mode','ie_switch','ie_excess','spectra_disptype',\
-                          'mnorm', 'ie_factor', 'bins',  'bins_switch',\
-                          'indep','cadence','logg'
-            do_continue = False
-            for ignore in ignore_list:
-                if ignore in leg_qualifier:
-                    do_continue = True
-                    break
-            if do_continue:
-                continue
-            
+
+#           print "qualifier:", leg_qualifier, "postfix:", postfix, "compno:", compno
+
             # special cases
             if leg_qualifier == 'name':
                 val = val.strip()[1:-1]
