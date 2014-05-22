@@ -82,6 +82,8 @@ ext_modules = [
                   libraries = ['m']),
         Extension('phoebe.atmospheres.froche',
                   sources=['phoebe/atmospheres/froche.f']),
+        Extension('phoebe.atmospheres.fpulsations',
+                  sources=['phoebe/atmospheres/pulsations-devel.f']),
         ]
 setup(
     

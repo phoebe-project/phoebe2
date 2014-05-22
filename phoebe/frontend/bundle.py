@@ -87,6 +87,7 @@ from phoebe.frontend.common import Container, rebuild_trunk
 #~ from phoebe.frontend.figures import Axes
 from phoebe.units import conversions
 from phoebe.frontend import phcompleter
+from phoebe.frontend import stringreps
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
@@ -470,6 +471,7 @@ class Bundle(Container):
         :return: string representation
         :rtype: str
         """
+        return stringreps.to_str(self)
         # Make sure to not print out all array variables
         old_threshold = np.get_printoptions()['threshold']
         np.set_printoptions(threshold=8)
@@ -863,7 +865,7 @@ class Bundle(Container):
         :return: the object
         :rtype: Body
         """
-        if twig is None:
+        if twig is None or twig == '__nolabel__':
             return self.get_system()
         return self._get_by_search(twig, kind='Body')
         
@@ -1103,7 +1105,7 @@ class Bundle(Container):
         elif category == 'sed':
             scale, offset = kwargs.pop('scale', True), kwargs.pop('offset', False)
             output = datasets.parse_phot(filename, columns=columns,
-                  units=units, group=filename,
+                  units=units, group=filename, 
                   group_kwargs=dict(scale=scale, offset=offset),
                   full_output=True, **kwargs)
         #elif category == 'pl':
@@ -1891,6 +1893,7 @@ class Bundle(Container):
         
         [FUTURE]
         """
+        
         # We need a reference to link the pb and ds together.
         if dataref is None:
             # If the reference is None, suggest one. We'll add it as "lc01"
@@ -1902,7 +1905,7 @@ class Bundle(Container):
             while dataref in existing_refs:
                 id_number += 1
                 dataref = 'sed{:02d}'.format(len(existing_refs)+1)            
-        
+            
         # retrieve the arguments with which this function is called
         set_kwargs, posargs = utils.arguments()
         
@@ -3754,6 +3757,7 @@ class Bundle(Container):
         #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
         
         return ax, (plotref, axesref, figref)
+        return out
         
     def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None,lims=None):
         """

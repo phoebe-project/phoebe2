@@ -277,7 +277,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='samprate',    description='Signal sampling rate',repr='%s',cast_type=np.array,value=[],frame=["phoebe"],context=['lcobs','rvobs']),
          
          #dict(qualifier='fittransfo',    description='Transform variable in fit',repr='%s',cast_type=str,value='linear',frame=["phoebe"],context=['lcobs']),
-         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma','flag','weight'],cast_type='return_list_of_strings',frame=["phoebe"],context=['lcobs']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','sigma','flag','weight'],cast_type='return_list_of_strings',hidden=True,frame=["phoebe"],context=['lcobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','flux','samprate','used_samprate'],cast_type='return_list_of_strings',frame=["phoebe"],context=['lcsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv','sigma'],frame=["phoebe"],context=['rvobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','etv','sigma'],frame=["phoebe"],context=['etvobs']),
@@ -290,10 +290,10 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','rv'],frame=["phoebe"],context=['rvsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','flux','continuum'],cast_type='return_list_of_strings',frame=["phoebe"],context=['spobs','spsyn']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['wavelength','time','flux','V','Q','U','continuum'],cast_type='return_list_of_strings',frame=["phoebe"],context=['plobs','plsyn']),
-         dict(qualifier='user_columns', description='Column names given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs','ifobs','spobs','plobs','etvobs']),
-         dict(qualifier='user_components', description='Component names given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
-         dict(qualifier='user_dtypes', description='Data types given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
-         dict(qualifier='user_units', description='Units given by user', repr='%s', value=None, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
+         dict(qualifier='user_columns', description='Column names given by user', repr='%s', value=None, hidden=True, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs','ifobs','spobs','plobs','etvobs']),
+         dict(qualifier='user_components', description='Component names given by user', repr='%s', value=None, hidden=True, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
+         dict(qualifier='user_dtypes', description='Data types given by user', repr='%s', value=None, hidden=True, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
+         dict(qualifier='user_units', description='Units given by user', repr='%s', value=None, hidden=True, cast_type='return_self', frame=['phoebe'], context=['lcobs','rvobs', 'ifobs','spobs','plobs','etvobs']),
         ]
 
 # Orbsyn context
@@ -331,7 +331,7 @@ defs += [dict(qualifier='wavelength',description='Wavelengths of calculated spec
         
 defs += [dict(qualifier='ld_coeffs',description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='rvdep'),
          dict(qualifier='passband', description='Photometric passband',repr='%s',value='JOHNSON.V',cast_type='make_upper',frame=["phoebe"],context='rvdep'),
-         dict(qualifier='method',   description='Method for calculation of total intensity',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context='rvdep'),
+         dict(qualifier='method',   description='Method for calculation of radial velocity',repr='%s',cast_type='choose',choices=['flux-weighted','dynamical'],value='flux-weighted',frame=["phoebe"],context='rvdep'),
          dict(qualifier='time',     description='Timepoint',unit='JD',repr='%s',value=[],frame=["phoebe"],context=['rvsyn','pssyn','amsyn','sisyn']),
         ]        
 

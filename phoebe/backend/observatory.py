@@ -2014,7 +2014,13 @@ def extract_times_and_refs(system, params, tol=1e-8):
     refs  = [] # references
     samps = [] # sampling rates
     
+    # Some datasets don't really need any numerical meshing. We'll keep those
+    # separated because they require a different structure to hold: we need
+    # type, reference and timepoints
+    no_mesh_required = dict()
+    
     found_obs = False
+    
     # Collect the times of the data, the types and refs of the data: walk
     # through all the parameterSets, if they represent observations, load the
     # dataset and collect the times. The reference and type for each
@@ -2022,6 +2028,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     # for exposure time and sampling rates: we add time points, which in the end
     # should be then averaged over.
     for parset in system.walk():
+        
         # Skip stuff that is not a DataSet
         if not isinstance(parset, datasets.DataSet):
             continue
@@ -2031,6 +2038,15 @@ def extract_times_and_refs(system, params, tol=1e-8):
         if not parset.context[-3:] == 'obs':
             continue
         found_obs = True
+        
+        # Figure out if we need to compute a mesh to deal with this obs
+        require_mesh = True
+        category = parset.get_context()[:-3]
+        if category == 'rv' and 'method' in parset and parset['method'] == 'dynamical':
+            require_mesh = False
+        elif category == 'am' and 'method' in parset and parset['method'] == 'dynamical':
+            require_mesh = False
+            
         
         # If the dataset is not enabled, forget about it (if dates == 'auto')
         if dates == 'auto' and not parset.get_enabled():
@@ -2049,33 +2065,42 @@ def extract_times_and_refs(system, params, tol=1e-8):
         else:
             samp = [1] * len(parset)
 
-        # Now the user could have given phases instead of times. I know, that
-        # is incredibly annoying, but there's nothing we can do about it.
-        # Believe me, I tried. Old habits die hard, they say. I don't know who
-        # "they" are, but "they" seem to be right, at least in this case (only
-        # from this case it is hard to provide a general proof of the theorem).
-        # The definition of "phase" is quite system-morphology-dependent, so
-        # here comes some messy code to convert phases to times. We can extend
-        # this later for other cases, including period changes etc.
-        if 'phase' in parset['columns'] and not 'time' in parset['columns']:
-            
-            # For now, we just assume we have a simple binary (so it's not that
-            # messy (yet)):
+        # Now the user could have given phases instead of times. The definition
+        # of "phase" is quite system-morphology-dependent.
+        if 'phase' in parset['columns'] and not 'time' in parset['columns']:    
             period, t0, shift = system.get_period()
+            
             if np.isinf(period):
                 raise ValueError("Don't know how to unphase observations")
+            
             mytimes = (parset['phase'] * period) + t0
+        
         else:
             mytimes = parset['time']
+        
+        # If a mesh is required add the info to the right lists
+        if require_mesh:
+            for itime, iexp, isamp in zip(mytimes, exps, samp):
+                iexp_d = iexp/(24*3600.)
+                times.append(np.linspace(itime - iexp_d/2., itime + iexp_d/2.0, isamp+1)[:-1]+(iexp_d/2./isamp))
 
-        for itime, iexp, isamp in zip(mytimes, exps, samp):
-            iexp_d = iexp/(24*3600.)
-            times.append(np.linspace(itime - iexp_d/2., itime + iexp_d/2.0, isamp+1)[:-1]+(iexp_d/2./isamp))
-
-            refs.append([parset['ref']] * isamp)
-            types.append([parset.context] * isamp)
-            samps.append([isamp]*isamp)
-
+                refs.append([parset['ref']] * isamp)
+                types.append([parset.context] * isamp)
+                samps.append([isamp]*isamp)
+        
+        # If a mesh is not required, add the info to the no_mesh_required dict
+        else:
+            if not category in no_mesh_required:
+                no_mesh_required[category] = dict()
+            no_mesh_time = []
+            no_mesh_samp = []
+            for itime, iexp, isamp in zip(mytimes, exps, samp):
+                iexp_d = iexp/(24*3600.)
+                no_mesh_time.append(np.linspace(itime - iexp_d/2., itime + iexp_d/2.0, isamp+1)[:-1]+(iexp_d/2./isamp))
+                no_mesh_samp.append([isamp]*isamp)
+            no_mesh_required[category][parset[ref]] = dict(time=no_mesh_time,
+                                                           samprate=no_mesh_samp)
+        
         # Put the parameterSet in the state we found it
         if loaded: parset.unload()
     
@@ -2145,7 +2170,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     params['types'] = type_per_time
     params['samprate'] = samp_per_time
     
-
+    return no_mesh_required
 
 
     
@@ -2397,11 +2422,24 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # (refs+types) to compute the system for. In principle, we could derive the
     # type from the ref since they are unique, but this way we allow for a
     # possibility to implement 'all lcdep' or so in the future.
-    extract_times_and_refs(system, params)
+    no_mesh_required = extract_times_and_refs(system, params)
     time_per_time = params['time']
     labl_per_time = params['refs']
     type_per_time = params['types']
     samp_per_time = params['samprate']
+    
+    # Some preprocessing steps
+    system.preprocess(time=None)
+    
+    # Compute stuff for which no mesh is required
+    if no_mesh_required:
+        for category in no_mesh_required:
+            for iref in no_mesh_required[category]:
+                itime = no_mesh_required[category][iref]['time']
+                isamp = no_mesh_required[category][iref]['samprate']
+                getattr(system, category + '_nomesh')(ref=iref, time=time,
+                                    correct_oversampling=isamp,
+                                    save_result=save_result)
     
     # separate times and refs for datasets that don't need to compute intensities 
     # (ivo = independent_variable_other)
@@ -2473,9 +2511,6 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # et
     # while providing eclipsing object globally or as a column
 
-    # Some preprocessing steps
-    system.preprocess(time=None)
-    
     # Some simplifications: try to detect whether a system is circular is not
     system_is_bbag = hasattr(system, 'bodies')
     bbag_has_orbit = system_is_bbag and 'orbit' in system.bodies[0].params
@@ -2658,9 +2693,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     else:
         if animate is True or animate == 1:
-            animate = office.Animation1(system, select='teff')
+            animate = office.Animation1(system, select='rv')
         elif animate == 2:
-            animate = office.Animation4(system, select='teff')
+            animate = office.Animation4(system, select='proj')
         elif animate == 'lc':
             animate = office.AnimationImLC(system, kwargs1=dict(select='teff'), kwargs2=dict(color='k'))
         elif animate == 'rv':

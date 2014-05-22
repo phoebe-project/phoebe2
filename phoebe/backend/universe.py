@@ -4259,6 +4259,32 @@ class Body(object):
             base['time'].append(time)
             base['rv'].append(proj_velo)
                 
+    @decorators.parse_ref
+    def rv_nomesh(self,correct_oversampling=None,ref='allrvdep', time=None,
+           save_result=True):
+        """
+        Dynamical RV computation.
+        """
+        for lbl in ref:
+            obs, lbl = self.get_parset(type='obs', ref=lbl)
+            
+            # If there are no obs here, traverse
+            if obs is None:
+                if hasattr(self,'bodies'):
+                    for body in self.bodies:
+                        body.rv_nomesh(correct_oversampling=correct_oversampling,
+                                ref=ref, time=time)
+                continue
+            
+            orbits, comps = self.get_orbits()
+            obj, vel, ptimes = keplerorbit.get_barycentric_hierarchical_orbit(time,
+                                                 orbits, comps)
+            base,lbl = self.get_parset(ref=lbl,type='syn')
+            base['time'] = time
+            base['rv'] = vel[2]
+        
+    
+    
     
     @decorators.parse_ref
     def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1,
@@ -8544,7 +8570,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
             #-- compute polar radius
             R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
             R_ = R_*sma
-            R = np.linalg.norm(R)
+            R = np.linalg.norm(R_)
             g_pole = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
             self.params['component'].add_constraint('{{r_pole}} = {0:.16g}'.format(R*constants.Rsol))
             self.params['component'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
@@ -8599,7 +8625,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         
         return list(x1)+list(x2)
         
-    def set_time(self,time,ref='all'):
+    def set_time(self,time,ref='all', beaming_alg='none'):
         """
         Set the time of a BinaryRocheStar.
         

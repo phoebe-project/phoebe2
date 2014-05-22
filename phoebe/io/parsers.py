@@ -478,6 +478,7 @@ def legacy_to_phoebe2(inputfile):
                     elif val[1:-1] == 'Phase':
                         all_lcobs[index]['user_units'][0] = 'cy'
                         all_lcobs[index]['user_columns'][0] = 'phase'
+                        all_lcobs[index]['columns'][all_lcobs[index]['columns'].index('time')] = 'phase'
                     else:
                         raise ValueError("Time unit not recognised")
                     continue
@@ -490,6 +491,7 @@ def legacy_to_phoebe2(inputfile):
                     elif val[1:-1] == 'Phase':
                         all_rvobs[index]['user_units'][0] = 'cy'
                         all_rvobs[index]['user_columns'][0] = 'phase'
+                        all_rvobs[index]['columns'][all_rvobs[index]['columns'].index('time')] = 'phase'
                     else:
                         raise ValueError("Time unit not recognised")
                     continue
