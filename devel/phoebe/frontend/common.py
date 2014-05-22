@@ -916,6 +916,21 @@ class Container(object):
                                 subpath = list(path[:-1]) + [syn['ref']]
                                 subpath[-3] = syn.get_context()
                                 
+                                # Convert columns to user supplied units
+                                obs = bodies[-1].get_obs(category=item[:-3], ref=isubtype['ref'])
+                                if obs is not None:
+                                    user_columns = obs['user_columns']
+                                    user_units = obs['user_units']
+                                    
+                                    # Remove times and insert phases if phases
+                                    # where given before
+                                    if user_columns is not None and 'phase' in user_columns:
+                                        out = system.get_period()
+                                        par = parameters.Parameter('phase', value=[], unit='cy', description='Phase', context=syn.get_context())
+                                        syn.add(par)
+                                        syn['phase'] = (syn['time'] - out[1]) / out[0]
+                                        syn['time'] = []
+                                
                                 # add phase to synthetic
                                 #if 'time' in syn and len(syn['time']) and not 'phase' in syn:
                                     #period = self.get_value('period@orbit')
