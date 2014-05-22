@@ -3394,7 +3394,7 @@ class Bundle(Container):
 
 
     
-    def plot_obs(self, twig=None, **kwargs):
+    def new_plot_obs(self, twig=None, **kwargs):
         """
         Make a plot of the attached observations (wraps pyplot.errorbar).
         
@@ -3495,7 +3495,7 @@ class Bundle(Container):
         #~ return obs
 
         
-    def plot_syn(self, twig=None, *args, **kwargs):
+    def new_plot_syn(self, twig=None, *args, **kwargs):
         """
         Plot simulated/computed observations (wraps pyplot.plot).
         
@@ -3565,7 +3565,7 @@ class Bundle(Container):
         
         return ax, (plotref, axesref, figref)
         
-    def plot_residuals(self, twig=None, **kwargs):
+    def new_plot_residuals(self, twig=None, **kwargs):
         """
         Plot the residuals between computed and observed for a given dataset
         
@@ -3590,6 +3590,290 @@ class Bundle(Container):
         #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
         
         return ax, (plotref, axesref, figref)
+
+    def plot_obs(self, twig=None, **kwargs):
+        """
+        Make a plot of the attached observations (wraps pyplot.errorbar).
+        
+        This function is designed to behave like matplotlib's
+        `plt.errorbar() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_
+        function, with additional options.
+        
+        Thus, all kwargs (there are no args) are passed on to matplotlib's
+        `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+        except:
+    
+            - :envvar:`phased=False`: decide whether to phase the data or not.
+              The default is ``True`` when the observations are phased. You can
+              unphase them in that case by setting :envvar:`phased=False`
+              explicitly. This setting is trumped by :envvar:`x_unit` (see
+              below).
+            - :envvar:`repeat=0`: handy if you are actually fitting a phase
+              curve, and you want to repeat the phase curve a couple of times.
+            - :envvar:`x_unit=None`: allows you to override the default units
+              for the x-axis. If you plot times, you can set the unit to any
+              time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
+              you plot in phase, you can switch from cycle (``cy``) to radians
+              (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
+              of type phase, the data will be phased and if they are time, they
+              will be in time units.
+            - :envvar:`y_unit=None`: allows you to override the default units
+              for the y-axis. Allowable values depend on the type of
+              observations.
+            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+              active axes.
+    
+        Some of matplotlib's defaults are overriden. If you do not specify any
+        of the following keywords, they will take the values:
+    
+            - :envvar:`label`: the label for the legend defaults to
+              ``<ref> (obs)``. If you don't want a label for this curve, set
+              :envvar:`label='_nolegend_'`.
+            - :envvar:`yerr`: defaults to the uncertainties from the obs if they
+              are available.
+        
+        The DataSet that is returned is a copy of the original DataSet, but with the
+        units of the columns the same as the ones plotted.
+    
+        **Example usage**
+            
+        Suppose you have the following setup::
+        
+            bundle = phoebe.Bundle()
+            bundle.lc_fromarrays(dataref='mylc', time=np.linspace(0, 1, 100),
+            ...                  flux=np.random.normal(size=100))
+            bundle.rv_fromarrays(dataref='myrv', objref='secondary',
+            ...                  phase=np.linspace(0, 1, 100),
+            ...                  rv=np.random.normal(size=100),
+            ...                  sigma=np.ones(100))
+       
+       Then you can plot these observations with any of the following commands::
+            
+            bundle.plot_obs('mylc')
+            bundle.plot_obs('mylc', phased=True)
+            bundle.plot_obs('mylc', phased=True, repeat=1)
+            bundle.plot_obs('myrv@secondary')
+            bundle.plot_obs('myrv@secondary', fmt='ko-')
+            plt.legend()
+            bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
+            plt.legend()
+            bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
+        
+        For more explanations and a list of defaults for each type of
+        observaitons, see:
+        
+            - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
+            - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
+        
+        The arguments are passed to the appropriate functions in
+        :py:mod:`plotting`.
+        
+        For more info on :envvar:`kwargs`, see the
+        pyplot documentation on `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+        
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :return: observations used for plotting
+        :rtype: DataSet
+        :raises IOError: when observations are not available
+        :raises ValueError: when x/y unit is not allowed
+        :raises ValueError: when y-axis not available (flux, rv...)
+        """
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
+        context = ds.get_context()
+        
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
+        # Now pass everything to the correct plotting function in the backend
+        kwargs['ref'] = ds['ref']
+        output = getattr(plotting, 'plot_{}'.format(context))(obj, **kwargs)
+        
+        # Now take care of figure decorations
+        fig_decs = output[2]
+        artists = output[0]
+        obs = output[1]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[context[:-3]]))
+        elif title:
+            plt.title(title)        
+        
+        logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
+                                   fig_decs[0][1], context, ds['ref']))
+        
+        return obs
+
+        
+    def plot_syn(self, twig=None, *args, **kwargs):
+        """
+        Plot simulated/computed observations (wraps pyplot.plot).
+        
+        This function is designed to behave like matplotlib's
+        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
+        function, with additional options.
+        
+        Thus, all args and kwargs are passed on to matplotlib's
+        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
+        except:
+        
+            - :envvar:`ref=0`: the reference of the lc to plot
+            - :envvar:`phased=False`: decide whether to phase the data or not. If
+              there are observations corresponding to :envvar:`ref`, the default
+              is ``True`` when those are phased. The setting is overridden
+              completely by ``x_unit`` (see below).
+            - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
+              and you want to repeat the phase curve a couple of times.
+            - :envvar:`x_unit=None`: allows you to override the default units for
+              the x-axis. If you plot times, you can set the unit to any time unit
+              (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
+              in phase, you switch from cycle (``cy``) to radians (``rad``). The
+              :envvar:`x_unit` setting has preference over the :envvar:`phased`
+              flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
+              the plot will be made in time, not in phase.
+            - :envvar:`y_unit=None`: allows you to override the default units for
+              the y-axis.
+            - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
+              from the observations. If ``obs``, they will effectively be scaled to
+              the level/units of the observations (if that was specified in the
+              computations as least). If you want to plot the synthetics in the
+              model units, set ``scale=None``.
+            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+              active axes.
+        
+        Some of matplotlib's defaults are overriden. If you do not specify any of
+        the following keywords, they will take the values:
+        
+            - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
+              If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
+        
+            
+        Example usage:
+        
+        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
+        >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
+        
+        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
+        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
+        
+        More information on arguments and keyword arguments:
+        
+        - :py:func:`phoebe.backend.plotting.plot_lcsyn`
+        - :py:func:`phoebe.backend.plotting.plot_rvsyn`
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        """
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
+        context = ds.get_context()
+        
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = ds['ref']
+        output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        syn = output[1]
+        fig_decs = output[2]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[context[:-3]]))
+        elif title:
+            plt.title(title)
+            
+        return syn
+        
+    def plot_residuals(self, twig=None, **kwargs):
+        """
+        Plot the residuals between computed and observed for a given dataset
+        
+        [FUTURE]
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        """
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
+        category = ds.get_context()[:-3]
+        
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = ds['ref']
+        output = getattr(plotting, 'plot_{}res'.format(category))(obj, **kwargs)
+        obs, syn = output[1]
+        fig_decs = output[2]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[category]))
+        elif title:
+            plt.title(title)
+            
+        return obs, syn
+    
     
     def plot_prior(self, twig=None, **kwargs):
         """
@@ -3630,49 +3914,7 @@ class Bundle(Container):
         self.select_time = time
         #~ self.system.set_time(time)
         
-    def get_meshview(self,label=None):
-        """
-        [FUTURE]
-        """
-        return self._get_by_section(label,"meshview")
-      
-        
-    def _get_meshview_limits(self,times):
-        """
-        [FUTURE]
-        """
-        # get size of system during these times for scaling image
-        system = self.get_system()
-        if hasattr(system, '__len__'):
-            orbit = system[0].params['orbit']
-            star1 = system[0]
-            star2 = system[1]
-        else:
-            orbit = system.params['orbit']
-            star1 = system
-            star2 = None
-        period = orbit['period']
-        orbit1 = keplerorbit.get_binary_orbit(times, orbit, component='primary')[0]
-        orbit2 = keplerorbit.get_binary_orbit(times, orbit, component='secondary')[0]
-        # What's the radius of the stars?
-        r1 = coordinates.norm(star1.mesh['_o_center'], axis=1).mean()
-        if star2 is not None:
-            r2 = coordinates.norm(star2.mesh['_o_center'], axis=1).mean()
-        else:
-            r2 = r1
-        # Compute the limits
-        xmin = min(orbit1[0].min(),orbit2[0].min())
-        xmax = max(orbit1[0].max(),orbit2[0].max())
-        ymin = min(orbit1[1].min(),orbit2[1].min())
-        ymax = max(orbit1[1].max(),orbit2[1].max())
-        xmin = xmin - 1.1*max(r1,r2)
-        xmax = xmax + 1.1*max(r1,r2)
-        ymin = ymin - 1.1*max(r1,r2)
-        ymax = ymax + 1.1*max(r1,r2)
-        
-        return xmin, xmax, ymin, ymax
-        
-    def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
+    def new_plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
                   select='proj', cmap=None, vmin=None, vmax=None, size=800,
                   dpi=80, background=None, savefig=False,
                   with_partial_as_half=False, **kwargs):
@@ -3759,61 +4001,99 @@ class Bundle(Container):
         return ax, (plotref, axesref, figref)
         return out
         
-    def plot_meshview(self,mplfig=None,mplaxes=None,meshviewoptions=None,lims=None):
+    def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
+                  select='proj', cmap=None, vmin=None, vmax=None, size=800,
+                  dpi=80, background=None, savefig=False,
+                  with_partial_as_half=False, **kwargs):
         """
-        Creates a mesh plot using the saved options if not overridden
+        Plot the mesh at a particular time or phase.
         
-        [FUTURE]
+        This function has a lot of different use cases, which are all explained
+        below.
         
-        @param mplfig: the matplotlib figure to add the axes to, if none is given one will be created
-        @type mplfig: plt.Figure()
-        @param mplaxes: the matplotlib axes to plot to (overrides mplfig)
-        @type mplaxes: plt.axes.Axes()
-        @param meshviewoptions: the options for the mesh, will default to saved options
-        @type meshviewoptions: ParameterSet
+        **Plotting the mesh at an arbitrary time or phase point**
+        
+        If you want to plot the mesh at a particular phase, give
+        :envvar:`time` or :envvar:`phase` as a single float (but not both!):
+        
+            >>> mybundle.plot_mesh(time=0.12)
+            >>> mybundle.plot_mesh(phase=0.25, select='teff')
+            >>> mybundle.plot_mesh(phase=0.25, objref='secondary', dataref='lc01')
+        
+        You can use this function to plot the mesh of the entire system, or just
+        one component (eclipses will show in projected light!). Any scalar
+        quantity that is present in the mesh (effective temperature, logg ...)
+        can be used as color values. For some of these quantities, there are
+        smart defaults for the color maps.
+        
+        
+        **Plotting the current status of the mesh after running computations**
+        
+        If you've just ran :py:func`Bundle.run_compute` for some observations,
+        and you want to see what the mesh looks like after the last calculations
+        have been performed, then this is what you need to do::
+        
+            >>> mybundle.plot_mesh()
+            >>> mybundle.plot_mesh(objref='primary')
+            >>> mybundle.plot_mesh(select='teff')
+            >>> mybundle.plot_mesh(dataref='lc01')
+        
+        Giving a :envvar:`dataref` and/or setting :envvar:`select='proj'` plots
+        the mesh coloured with the projected flux of that dataref.
+        
+        .. warning::
+            
+            1. It is strongly advised only to use this function this way when
+               only one set of observations has been added: otherwise it is not
+               guarenteed that the dataref has been computed for the last time
+               point.
+            
+            2. Although it can sometimes be convenient to use this function
+               plainly without arguments or with just the the dataref after
+               computations, you need to be careful for the dataref that is used
+               to make the plot. The dataref will show up in the logger
+               information.
+        
+        :param objref: object/system label of which you want to plot the mesh.
+         The default means the top level system.
+        :type objref: str
+        :param label: compute label which you want to use to calculate the mesh
+         and its properties. The default means the ``default`` set.
+        :type label: str
         """
-        if self.select_time is not None:
-            self.set_time(self.select_time)
+        if dataref is not None:
+            # Return just one pbdep, we only need the reference and context
+            deps = self._get_by_search(dataref, context='*dep',
+                            class_name='ParameterSet', all=True)[0]
+            ref = deps['ref']
+            context = deps.get_context()
+            category = context[:-3]
+            kwargs.setdefault('ref', ref)
+            kwargs.setdefault('context', context)
         else:
-            self.set_time(0)
+            category = 'lc'
+            
+        # Set the configuration to the correct time/phase, but only when one
+        # (and only one) of them is given.
+        if time is not None and phase is not None:
+            raise ValueError("You cannot set both time and phase to zero, please choose one")
+        elif phase is not None:
+            period, t0, shift = self.get_system().get_period()
+            time = phase * period + t0
         
-        po = self.get_meshview() if meshviewoptions is None else meshviewoptions
-
-        if mplaxes is not None:
-            axes = mplaxes
-            mplfig = plt.gcf()
-        elif mplfig is None:
-            axes = plt.axes([0,0,1,1],aspect='equal',axisbg=po['background'])
-            mplfig = plt.gcf()
-        else:
-            axes = mplfig.add_subplot(111,aspect='equal',axisbg=po['background'])
+        # Observe the system with the right computations
+        if time is not None:
+            options = self.get_compute(label, create_default=True).copy()
+            observatory.observe(self.get_system(), [time], lc=category=='lc',
+                                rv=category=='rv', sp=category=='sp',
+                                pl=category=='pl', save_result=False, **options)
         
-        mplfig.set_facecolor(po['background'])
-        mplfig.set_edgecolor(po['background'])
-        axes.get_xaxis().set_visible(False)
-        axes.get_yaxis().set_visible(False)
-
-        #~ cmap = po['cmap'] if po['cmap'] is not 'None' else None
-        slims, vrange, p = observatory.image(self.get_system(), ref=po['ref'], context=po['context'], select=po['select'], background=po['background'], ax=axes)
+        # Get the object and make an image.
+        self.get_object(objref).plot2D(select=select, cmap=cmap, vmin=vmin,
+                     vmax=vmax, size=size, dpi=dpi, background=background,
+                     savefig=savefig, with_partial_as_half=with_partial_as_half,
+                     **kwargs)
         
-        #~ if po['contours']:
-            #~ observatory.contour(self.system, select='longitude', colors='k', linewidths=2, linestyles='-')
-            #~ observatory.contour(self.system, select='latitude', colors='k', linewidths=2, linestyles='-')
-        
-        if lims is None:
-            axes.set_xlim(slims['xlim'])
-            axes.set_ylim(slims['ylim'])       
-        else: #apply supplied lims (likely from _get_meshview_limits)
-            axes.set_xlim(lims[0],lims[1])
-            axes.set_ylim(lims[2],lims[3])
-        
-    def get_orbitview(self,label=None):
-        """
-        [FUTURE]
-        """
-        # TODO: fix this so we can set defaults in usersettings
-        # (currently can't with search_by = None)
-        return self._get_by_section(label,'orbitview')
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
