@@ -172,7 +172,7 @@ def plot_lcsyn(system, *args, **kwargs):
     loaded = syn.load(force=False)
     
     # Try to get the observations. They don't need to be loaded, we just need
-    # the pblum and l3 values.
+    # the scale and offset values.
     # We can scale the synthetic light curve using the observations
     this_scale = 1.0
     this_offset = 0.0
@@ -479,7 +479,7 @@ def plot_lcobs(system, **kwargs):
     
     return artists, obs, (axes_labels, axes_units)
 
-
+@decorators.set_default_units
 def plot_lcres(system, **kwargs):
     """
     Plot lcsyn and lcobs as a residual light curve.
@@ -538,7 +538,7 @@ def plot_lcres(system, **kwargs):
     return artists, (obs, syn), lcobs_out[2]
     
 
-
+@decorators.set_default_units
 def plot_rvsyn(system,*args,**kwargs):
     """
     Plot rvsyn as a radial velocity curve.
@@ -688,7 +688,7 @@ def plot_rvsyn(system,*args,**kwargs):
     
     return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
 
-
+@decorators.set_default_units
 def plot_rvobs(system, errorbars=True, **kwargs):
     """
     Plot rvobs as a radial velocity curve.
@@ -835,7 +835,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     
     return artists, obs, (axes_labels, axes_units)
 
-
+@decorators.set_default_units
 def plot_rvres(system,*args,**kwargs):
     """
     Plot rvsyn and rvobs as a residual radial velocity curve.
@@ -1240,14 +1240,14 @@ def plot_lcres_as_sed(system, *args, **kwargs):
         if scale == 'obs':
             try:
                 obs = system.get_obs(category='lc', ref=ref)
-                pblum = obs['pblum']
-                l3 = obs['l3']
+                pblum = obs['scale']
+                l3 = obs['offset']
             except:
                 raise ValueError("No observations in this system or component, so no scalings available: set keyword `scale=None`")
         # or using the synthetic computations    
         elif scale=='syn':
-            pblum = syn['pblum']
-            l3 = syn['l3']
+            pblum = syn['scale']
+            l3 = syn['offset']
         # else we don't scale
         else:
             pblum = 1.
@@ -1691,21 +1691,37 @@ def plot_spsyn(system, *args, **kwargs):
     Plot an observed spectrum.
     """
     ref = kwargs.pop('ref', 0)
-    index = kwargs.pop('index', 0)
+    dep, ref = system.get_parset(category='sp', ref=ref)
+    syn = system.get_synthetic(category='sp', ref=ref).asarray()
+    index = kwargs.pop('index', None)
     ax = kwargs.pop('ax', plt.gca())
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
     normalised = kwargs.pop('normalised', True)
+    simulate = kwargs.pop('simulate', False)
     
-    # Get ParameterSets
+    if not normalised:
+        raise NotImplementedError("Plotting unnormalised spectra")
+    
+    # catch fmt for the user that is set up by the MPL quirkiness:
+    fmt = kwargs.pop('fmt', None)
+    if fmt is not None:
+        if args:
+            raise TypeError("There is no line property 'fmt'")
+        else:
+            args = (fmt,)
+    
+    period, t0, shift = system.get_period()
+    
+    # Get observations?
     try:
         obs = system.get_obs(category='sp', ref=ref)
-        scale = obs['scale']
-        offset = obs['offset']
-    except:
-        scale = 1.0
-        offset = 0.0
-        
-    syn = system.get_synthetic(category='sp', ref=ref)
-    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+        default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    except ValueError:
+        obs = None
+        default_phased = False
+    except TypeError:
+        obs = None
+        default_phased = False
     
     # Load observations, they need to be here
     loaded = syn.load(force=False)
@@ -1714,11 +1730,15 @@ def plot_spsyn(system, *args, **kwargs):
     repeat = kwargs.pop('repeat', 0)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
+    x_quantity = kwargs.pop('x_quantity', 'wavelength')
+    y_quantity = kwargs.pop('y_quantity', 'flux')
     
+    # Get the wavelengths in the right shape
     wavelength = np.ravel(np.array(syn['wavelength']))
     wavelength = wavelength.reshape(-1,len(syn['flux'][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
     
+    # Convert the wavelengths to the correct units
     from_unit = syn.get_parameter('wavelength').get_unit()    
     if x_unit is not None:
         wavelength = conversions.convert(from_unit, x_unit, wavelength,
@@ -1727,15 +1747,79 @@ def plot_spsyn(system, *args, **kwargs):
     else:
         x_unit = from_unit
     
+    # Get the fluxes
     flux = syn['flux'][index]
     cont = syn['continuum'][index]
     
     if normalised:
         flux = flux / cont
-        
-    flux = flux*scale + offset
+    
+    # Try to get the observations. They don't need to be loaded, we just need
+    # the scale and offset values.
+    # We can scale the synthetic spectrum using the observations
+    this_scale = 1.0
+    this_offset = 0.0
+    if scale == 'obs' and obs is not None:
+        this_scale = obs['scale']
+        this_offset = obs['offset']
+    
+    flux = flux*this_scale + this_offset
+    
+    # remember what axes we've plotted
+    axes_labels = ['', 'Normalised flux']
+    axes_units = ['','']
     
     artists = []
+    if not phased and not simulate:
+        # XAXIS
+        if obs is not None:
+            from_unit = obs.get_parameter('time').get_unit()
+        else:
+            from_unit = 'JD'
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
+            from_unit = x_unit
+        else:
+            x_unit = from_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Time'
+        
+        for n in range(repeat+1):
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
+            p, = ax.plot(time+n*period, flux, *args, **kwargs)
+            artists.append(p)
+    elif not simulate:
+        time = ((time-t0) % period) / period
+        # XAXIS
+        from_unit = 'cy'
+        if x_unit is not None:
+            time = conversions.convert(from_unit, x_unit, time)
+            from_unit = x_unit
+        else:
+            x_unit = from_unit
+        axes_units[0] = conversions.unit2texlabel(from_unit)
+        axes_labels[0] = 'Phase'
+        
+        sa = np.argsort(time)
+        time, flux = time[sa], flux[sa]
+        for n in range(repeat+1):
+            if n>=1:
+                kwargs['label'] = '_nolegend_'
+            p, = ax.plot(time+n, flux, *args, **kwargs)
+            artists.append(p)
+    
+    # Update values in this current copy of the syn to reflect whatever was
+    # plotted.
+    syn['time'] = time
+    syn.get_parameter('time').set_unit(x_unit, convert=False)
+    syn['flux'] = flux
+    syn.get_parameter('flux').set_unit(y_unit, convert=False)
+        
+        
+        
+        
     p = ax.plot(wavelength, flux, *args, **kwargs)
     artists.append(p)
     

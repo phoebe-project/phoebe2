@@ -467,6 +467,7 @@ class Animation4(Animation):
         self.system = system
         self.repeat = kwargs.pop('repeat', False)
         self.save = kwargs.pop('save', None)
+        kwargs['incremental_axes'] = False
         self.close_after_finish = kwargs.pop('close_after_finish',True)
         ax1 = plt.subplot(121)
         ax2 = plt.subplot(122)

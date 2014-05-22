@@ -1375,6 +1375,18 @@ def vega_monnier2012():
     star.get_parameter('rotperiod').set_prior(distribution='normal',sigma=0.02)
     
     return star
+
+
+def pulsating_star(create_body=True):
+    """
+    Pulsating star
+    """
+    star = from_library('Sun', create_body=create_body)
+    star.set_params(parameters.ParameterSet('puls', ampl=0.1, amplteff=0.05))
+    
+    return star
+    
+
 #}
 
 if __name__=="__main__":

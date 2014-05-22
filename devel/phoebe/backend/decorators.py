@@ -424,7 +424,7 @@ def set_default_units(fctn):
         dep = system.get_parset(category=category, ref=ref)[0]
         
         # No need to do anything if there are not user_columns/user_units
-        if not 'user_columns' in obs or not 'user_units' in obs:
+        if obs is None or not 'user_columns' in obs or not 'user_units' in obs:
             return fctn(system, *args, **kwargs)
         
         userc = obs['user_columns']
