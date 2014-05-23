@@ -700,6 +700,12 @@ defs += [dict(qualifier='ref',        description='identifier for the plotting o
          #~ dict(qualifier='cmap',description='what color mapping to use',repr='%s',cast_type='choose',choices=['None', 'blackbody', 'blackbody_proj', 'eye'],value='None',frame=["phoebe"],context='plotting:plot_mesh'),
          dict(qualifier='background',description='background color',repr='%s',cast_type=str,value='black',frame=["phoebe"],context='plotting:plot_mesh'),
         ]
+
+defs += [dict(qualifier='ref',        description='identifier for the plotting options',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot_custom'),
+         #~ dict(qualifier='active',          description='whether to draw this plot on the axes',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:plot_custom'),
+         dict(qualifier='function',          description='name of the mpl function to call',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot_custom'),
+         dict(qualifier='args',          description='arguments to pass to the function',repr='',cast_type=list,value=[],frame=["phoebe"],context='plotting:plot_custom'),
+        ]
         
 
          
