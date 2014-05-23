@@ -3110,7 +3110,7 @@ class Bundle(Container):
     #}
 
     #{ Plots
-    def _handle_plotting_call(self, func_name, dsti, **kwargs):
+    def _handle_plotting_call(self, func_name, dsti=None, **kwargs):
         """
         [FUTURE]
         this function should be called by any plot_* function.
@@ -3125,8 +3125,8 @@ class Bundle(Container):
         
         if plotref is None:
 
-            if func_name in ['plot_mesh']:
-                plotref_base = 'mesh'
+            if func_name in ['plot_mesh', 'plot_custom']:
+                plotref_base = func_name.split('_')[1]
             else:
                 # then we need an intelligent default
                 plotref_base = "_".join([dsti['ref'], dsti['context'], dsti['label']])
@@ -3148,7 +3148,7 @@ class Bundle(Container):
         fig_ps = self.get_figure(figref)
 
         # TODO: plot_obs needs to be generalized to pull from the function called
-        kwargs['datatwig'] = dsti.pop('twig',None) 
+        kwargs['datatwig'] = dsti.pop('twig',None) if dsti is not None else None
         ps = parameters.ParameterSet(context='plotting:{}'.format(func_name), ref=plotref)
         for k,v in kwargs.items():
             # try plot_ps first, then axes_ps and fig_ps
@@ -3291,19 +3291,27 @@ class Bundle(Container):
         # this plot needs to be attached as a member of the axes if it is not
         if plotref not in axes_ps['plotrefs']:
             axes_ps.add_plot(plotref)
+            
+        plot_fctn = self.get_plot(plotref).context.split(':')[1]
 
         # Retrieve the obs/syn and the object it belongs to
-        dsti = self._get_by_search(plkwargs.pop('datatwig'), return_trunk_item=True)
-        ds = dsti['item']
-        obj = self.get_object(dsti['label'])
-        context = ds.get_context()
-        
+        datatwig = plkwargs.pop('datatwig', None)
+
         # when passing to mpl, plotref will be used for legends so we'll override that with the ref of the plot_ps
         plkwargs['label'] = plkwargs.pop('ref')
-        # and the backend plotting function needs ref to be the dataset ref
-        plkwargs['ref'] = ds['ref']
+
         # and we need to pass the mpl axes
-        plkwargs['ax'] = ax
+        if plot_fctn not in ['plot_custom']:
+            plkwargs['ax'] = ax
+        
+        if datatwig is not None and plot_fctn not in ['plot_custom']:
+            dsti = self._get_by_search(datatwig, return_trunk_item=True)
+            ds = dsti['item']
+            obj = self.get_object(dsti['label'])
+            context = ds.get_context()
+        
+            # when passing to mpl the backend plotting function needs ref to be the dataset ref
+            plkwargs['ref'] = ds['ref']
         
         axkwargs = {}
         for key in ['x_unit', 'y_unit', 'phased', 'xlabel', 'ylabel', 'title']:
@@ -3315,22 +3323,22 @@ class Bundle(Container):
                 axes_ps.set_value(key, value)
 
             # either way, retrieve the value from axes_ps and handle defaults
-            if key in ['x_unit', 'y_unit']:
-                plkwargs[key] = axes_ps.get_value(key) if axes_ps.get_value(key) not in ['_auto_', u'_auto_'] else None
-            
-            elif key in ['phased']:
-                if 'x_unit' not in plkwargs.keys() or axes_ps.get_value(key) or value is not None:
-                    # TODO: the if statement above is hideous
-                    plkwargs[key] = axes_ps.get_value(key)
-                # else it won't exist in plkwargs and will use the backend defaults
-            
-            elif key in ['xlabel', 'ylabel', 'title']:
-                # these don't get passed to the plotting call
-                # rather if they are not overriden here, they will receive
-                # there defaults from the output of the plotting call
-                pass
+            if plot_fctn not in ['plot_custom']:
+                if key in ['x_unit', 'y_unit']:
+                    plkwargs[key] = axes_ps.get_value(key) if axes_ps.get_value(key) not in ['_auto_', u'_auto_'] else None
+                
+                elif key in ['phased']:
+                    if 'x_unit' not in plkwargs.keys() or axes_ps.get_value(key) or value is not None:
+                        # TODO: the if statement above is hideous
+                        plkwargs[key] = axes_ps.get_value(key)
+                    # else it won't exist in plkwargs and will use the backend defaults
+                
+                elif key in ['xlabel', 'ylabel', 'title']:
+                    # these don't get passed to the plotting call
+                    # rather if they are not overriden here, they will receive
+                    # there defaults from the output of the plotting call
+                    pass
        
-        plot_fctn = self.get_plot(plotref).context.split(':')[1]
         if plot_fctn in ['plot_obs', 'plot_syn']:
             output = getattr(plotting, 'plot_{}'.format(context))(obj, **plkwargs)
             
@@ -3389,6 +3397,29 @@ class Bundle(Container):
                          
             fig_decs = [['changeme','changeme'],['changeme','changeme']]
             artists = None
+
+            
+        elif plot_fctn in ['plot_custom']:
+            function = plkwargs.pop('function', None)
+            args = plkwargs.pop('args', [])
+            if hasattr(ax, function):
+                output = getattr(ax, function)(*args, **plkwargs)
+                
+            else:
+                logger.error("{} not an available function for plt.axes".format(function))
+                return
+
+            # fake things for the logger 
+            # TODO handle this better
+            fig_decs = [['changeme','changeme'],['changeme','changeme']]
+            artists = None
+            context = 'changeme'                
+            ds = {'ref': 'changeme'}
+            
+        else:
+            logger.error("non-recognized plot type: {}".format(plot_fctn))
+            return
+        
         
         # automatically set axes_ps plotrefs if they're not already
         # The x-label
@@ -3627,6 +3658,28 @@ class Bundle(Container):
         # now call the command to plot
         ax = None
         #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
+        
+        return ax, (plotref, axesref, figref)
+        
+    def new_plot_custom(self, function, args=None, **kwargs):
+        """
+        [FUTURE]
+        
+        **VERY EXPERIMENTAL**
+        Add a custom call through matplotlib and attach it to the bundle
+        
+        accepts function, args, and kwargs
+        
+        :param function: name of the matplotlib function to call, must be an attribute of matplotlib.axes.Axes
+        :type function: str
+        :param args: args to pass to the function
+        """
+        kwargs['function'] = function
+        kwargs['args'] = args
+        
+        plotref, axesref, figref = self._handle_plotting_call('plot_custom', None, **kwargs)
+        
+        ax = None
         
         return ax, (plotref, axesref, figref)
 
