@@ -90,9 +90,10 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
             
         # If we have a new ParameterSet, we need to string-rep the old one        
         if item['kind'] == 'Parameter' and (current_pset is None or not current_pset.contains(it)):
+            
             if not current_string and current_pset is not None and summary_type=='only_adjust':
                 current_string = ['']
-                
+            
             if current_string:        
                 
                 context = current_pset.get_context()
@@ -142,7 +143,9 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                 else:
                     current_pset = None
                 current_string = []
-                continue
+                
+                if current_pset is None:
+                    continue
             
             current_string = []
             

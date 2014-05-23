@@ -1565,7 +1565,7 @@ class Bundle(Container):
         return self.data_fromfile(category='lc', **set_kwargs)
     
     
-    def lc_fromexisting(to_dataref, from_dataref=None, time=None, phase=None,
+    def lc_fromexisting(self, to_dataref, from_dataref=None, time=None, phase=None,
                       flux=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
@@ -1599,15 +1599,15 @@ class Bundle(Container):
         
         # filter the arguments according to not being "None" nor being "self"
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
-                  if set_kwargs[key] is not None and key != 'self'}
+                  if set_kwargs[key] is not None and key not in ['self', 'to_dataref']}
         
         self.data_fromexisting(to_dataref, category='lc', **set_kwargs)
         
     def rv_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
-                      atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, beaming=None,
+                      method=None, atm=None, ld_func=None, ld_coeffs=None,
+                      passband=None, pblum=None, l3=None, alb=None, beaming=None,
                       scattering=None):
         """
         Create and attach radial velocity curve templates to compute the model.
