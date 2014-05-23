@@ -456,12 +456,17 @@ def set_default_units(fctn):
             if category == 'lc':
                 obs_in_flux = 'flux' in userc
                 obs_in_mag = 'mag' in userc
-            
+                
                 if obs_in_flux or obs_in_mag:
-                    index = userc.index('flux' if obs_in_flux else 'mag')
-                    kwargs['y_unit'] = useru[index]
+                    # If no user units are give, use default ones
+                    if useru:
+                        index = userc.index('flux' if obs_in_flux else 'mag')
+                        kwargs['y_unit'] = useru[index]
+                    
+                
+                        
             
-            elif category == 'rv' and 'rv' in userc:
+            elif category == 'rv' and 'rv' in userc and useru:
                 index = userc.index('rv')
                 kwargs['y_unit'] = useru[index]
         
