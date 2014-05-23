@@ -129,8 +129,11 @@ def summarize(system, time=None, filename=None):
                                                     proj_int, passband='OPEN.BOL')
                 else:
                     passband = passband=parset[0]['passband']
-                    app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                    try:
+                        app_mag = phoebe.convert('erg/s/cm2/AA','mag',
                                                     proj_int, passband=parset[0]['passband'])
+                    except:
+                        app_mag = 99.
                 if not np.isnan(app_mag):
                     text.append("Apparent mag({}) = {:.3f}".format(passband, app_mag))
                 text.append("Passband LD(a0) = {:8.4f} +/- {:8.4e}".format(*a0))
