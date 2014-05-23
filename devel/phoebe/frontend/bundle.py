@@ -2612,7 +2612,7 @@ class Bundle(Container):
             
     
     #{ Figures
-    def show(self, twig=None, **kwargs):
+    def show(self, twig=None, attach=None, **kwargs):
         """
         [FUTURE]
         
@@ -2623,11 +2623,13 @@ class Bundle(Container):
         
         :param twig: twig pointing the the figure, axes, or plot options
         :type twig: str or None
+        :param attach: whether to attach these options to the bundle
+        :type attach: bool
         """
-        ax_or_fig = self.draw(twig, **kwargs)
+        ax_or_fig = self.draw(twig, attach=attach, **kwargs)
         plt.show()
         
-    def savefig(self, twig=None, filename=None, **kwargs):
+    def savefig(self, twig=None, filename=None, attach=None, **kwargs):
         """
         [FUTURE]
 
@@ -2639,19 +2641,26 @@ class Bundle(Container):
         
         :param twig: twig pointing the the figure, axes, or plot options
         :type twig: str or None
+        :param attach: whether to attach these options to the bundle
+        :type attach: bool
         :param filename: filename for the resulting image
         :type filename: str
         """
-        ax_or_fig = self.draw(twig, **kwargs)
+        ax_or_fig = self.draw(twig, attach=attach **kwargs)
         plt.savefig(filename)
         
-    def draw(self, twig=None, **kwargs):
+    def draw(self, twig=None, attach=None, **kwargs):
         """
         [FUTURE]
         
         Draw a figure, axes, or plot that is attached to the bundle.
         
         If :envvar:`twig` is None, then the current figure will be plotted.
+        
+        If you do not provide a value for :envvar:`attach`, it will default to True
+        if you provide a value for :envvar:`twig`, or False if you do not.  In this 
+        way, simply calling draw() with no arguments will not retain a copy in the 
+        bundle - you must either explicitly provide a twig or set attach to True.
         
         If you don't provide :envvar:`fig` or :envvar:`ax`, then the the 
         figure/axes will be drawn to plt.gcf() or plt.gca()
@@ -2661,6 +2670,8 @@ class Bundle(Container):
         
         :param twig: twig pointing the the figure, axes, or plot options
         :type twig: str or None
+        :param attach: whether to attach these options to the bundle
+        :type attach: bool
         :param ax: mpl axes used for plotting (optional, overrides :envvar:`fig`)
         :type ax: mpl.Axes
         :param fig: mpl figure used for plotting (optional)
@@ -2670,6 +2681,9 @@ class Bundle(Container):
         :param cla: whether to call plt.cal() before plotting
         :type cla: bool
         """
+        if attach is None:
+            attach = twig is not None
+        
         if twig is None:
             ps = self.get_figure()
         else:
@@ -2690,6 +2704,9 @@ class Bundle(Container):
                 fig.clf()
             
             ret = self.draw_figure(ref, fig=fig)
+            
+            if not attach:
+                self.remove_figure(ref)
         
         elif level=='axes':
             if ax is None:
@@ -2702,6 +2719,9 @@ class Bundle(Container):
         
             ret = self.draw_axes(ref, ax=ax)
             
+            if not attach:
+                self.remove_axes(ref)
+            
         else:
             if ax is None:
                 if fig is None:
@@ -2712,6 +2732,10 @@ class Bundle(Container):
                 ax.cla()
             
             ret = self.draw_plot(ref, ax=ax)
+            
+            if not attach:
+                self.remove_plot(ref)
+            
         
         return ret
 
@@ -2947,6 +2971,14 @@ class Bundle(Container):
         for plotref in axes_ps['plotrefs']:
             if all([plotref not in ps['plotrefs'] for ps in self.sections['axes']]):
                 self.remove_plot(plotref)
+                
+        # we also need to check all figures, and remove this entry from any axesrefs
+        for figref,fig_ps in self._get_dict_of_section('figure').items():
+            axesrefs = fig_ps['axesrefs']
+            if axesref in axesrefs:
+                axesrefs.remove(axesref)
+                fig_ps['axesrefs'] = axesrefs
+                
         
     def draw_axes(self, axesref=None, ax=None):
         """
@@ -3174,6 +3206,13 @@ class Bundle(Container):
         """
         plot_ps = self._get_by_section(plotref, "plot", kind=None)
         self.sections['plot'].remove(plot_ps)
+        
+        # we also need to check all axes, and remove this entry from any plotrefs
+        for axesref,axes_ps in self._get_dict_of_section('axes').items():
+            plotrefs = axes_ps['plotrefs']
+            if plotref in plotrefs:
+                plotrefs.remove(plotref)
+                axes_ps['plotrefs'] = plotrefs
         
     def add_plot(self, plotref=None, axesref=None, figref=None, loc=None, **kwargs):
         """
