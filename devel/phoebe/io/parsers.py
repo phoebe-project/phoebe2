@@ -135,7 +135,7 @@ def legacy_to_phoebe2(inputfile):
 
 			# Start with parameters that determine container sizes:
             if key == 'phoebe_lcno':
-                all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=['JD','erg/s/cm2/AA','erg/s/cm2/AA']) for i in range(int(val))]
+                all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=['JD','W/m3','W/m3']) for i in range(int(val))]
                 all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_lcdeps[1] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 
@@ -460,7 +460,7 @@ def legacy_to_phoebe2(inputfile):
                         all_lcobs[index]['user_units'][1] = 'mag'
                         all_lcobs[index]['user_columns'][1] = 'mag'
                     elif val[1:-1] == 'Flux':
-                        all_lcobs[index]['user_units'][1] = 'erg/s/cm2/AA'
+                        all_lcobs[index]['user_units'][1] = 'W/m3'
                         all_lcobs[index]['user_columns'][1] = 'flux'
                     else:
                         raise ValueError("Flux unit not recognised")

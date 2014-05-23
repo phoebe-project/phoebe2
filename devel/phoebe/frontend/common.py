@@ -926,8 +926,6 @@ class Container(object):
                                     # where given before
                                     if user_columns is not None and 'phase' in user_columns:
                                         out = system.get_period()
-                                        par = parameters.Parameter('phase', value=[], unit='cy', description='Phase', context=syn.get_context())
-                                        syn.add(par)
                                         syn['phase'] = (syn['time'] - out[1]) / out[0]
                                         syn['time'] = []
                                 

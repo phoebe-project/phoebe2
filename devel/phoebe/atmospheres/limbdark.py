@@ -1546,6 +1546,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
                "approximation.").format(atm, msg)
         
         if True:
+            print(msg)
             import matplotlib.pyplot as plt
             with pyfits.open(atm) as ff:
                 plt.plot(ff[passband].data.field('teff'), ff[passband].data.field('logg'), 'ko')

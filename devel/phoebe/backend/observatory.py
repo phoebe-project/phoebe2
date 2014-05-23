@@ -2693,7 +2693,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     else:
         if animate is True or animate == 1:
-            animate = office.Animation1(system, select='rv')
+            animate = office.Animation1(system, select='teff')
         elif animate == 2:
             animate = office.Animation4(system, select='proj')
         elif animate == 'lc':
