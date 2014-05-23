@@ -2042,11 +2042,11 @@ def extract_times_and_refs(system, params, tol=1e-8):
         # Figure out if we need to compute a mesh to deal with this obs
         require_mesh = True
         category = parset.get_context()[:-3]
-        if category == 'rv' and 'method' in parset and parset['method'] == 'dynamical':
+        dep_parset = system.get_parset(context=category+'dep', ref=parset['ref'])[0]
+        if category == 'rv' and 'method' in dep_parset and dep_parset['method'] == 'dynamical':
             require_mesh = False
-        elif category == 'am' and 'method' in parset and parset['method'] == 'dynamical':
+        elif category == 'am' and 'method' in dep_parset and dep_parset['method'] == 'dynamical':
             require_mesh = False
-            
         
         # If the dataset is not enabled, forget about it (if dates == 'auto')
         if dates == 'auto' and not parset.get_enabled():
@@ -2098,7 +2098,9 @@ def extract_times_and_refs(system, params, tol=1e-8):
                 iexp_d = iexp/(24*3600.)
                 no_mesh_time.append(np.linspace(itime - iexp_d/2., itime + iexp_d/2.0, isamp+1)[:-1]+(iexp_d/2./isamp))
                 no_mesh_samp.append([isamp]*isamp)
-            no_mesh_required[category][parset[ref]] = dict(time=no_mesh_time,
+            no_mesh_time = np.array(no_mesh_time).ravel()
+            no_mesh_samp = np.array(no_mesh_samp).ravel()
+            no_mesh_required[category][parset['ref']] = dict(time=no_mesh_time,
                                                            samprate=no_mesh_samp)
         
         # Put the parameterSet in the state we found it
@@ -2118,6 +2120,14 @@ def extract_times_and_refs(system, params, tol=1e-8):
                          "to be computed. Perhaps the obs are not DataSets? "
                          "(original message: {})").format(str(msg)))
     except IndexError as msg:
+        # If we happen to only have stuff that doesn't require a mesh,
+        # we can get away with it
+        if no_mesh_required:
+            params['time'] = []
+            params['refs']= []
+            params['types'] = []
+            params['samprate'] = []
+            return no_mesh_required
         if not found_obs:
             raise ValueError(("Failed to derive at which points the system needs "
                           "to be computed. I can't find any obs attached to "
@@ -2169,7 +2179,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
     params['refs']= labl_per_time
     params['types'] = type_per_time
     params['samprate'] = samp_per_time
-    
+
     return no_mesh_required
 
 
@@ -2437,7 +2447,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             for iref in no_mesh_required[category]:
                 itime = no_mesh_required[category][iref]['time']
                 isamp = no_mesh_required[category][iref]['samprate']
-                getattr(system, category + '_nomesh')(ref=iref, time=time,
+                getattr(system, category + '_nomesh')(ref=iref, time=itime,
                                     correct_oversampling=isamp,
                                     save_result=save_result)
     
@@ -2578,23 +2588,23 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # So what about heating then...: if heating is switched on and the orbit is
     # circular, heat only once
-    if heating and circular:
+    if heating and circular and time_per_time:
         heating = 1
         labl_per_time[0].append('__bol')
         
     # Else heat always
-    elif heating:
+    elif heating and time_per_time:
         for labl in labl_per_time:
             labl.append('__bol')
     
     # and uuhhh... what about reflection? Well, same as for heating: if
     # reflection is switched on, do it only once. Otherwise, reflect always.
     # If heating is not enabled, we need to add the bolometric label.
-    if reflect and circular:
+    if reflect and circular and time_per_time:
         reflect = 1
         if not heating:
             labl_per_time[0].append('__bol')
-    elif reflect and not heating:
+    elif reflect and not heating and time_per_time:
         for labl in labl_per_time:
             labl.append('__bol')
     
@@ -2602,7 +2612,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # between proper time and barycentric time. We need to do two things:
     # first compute the conversions, and then add those arrays to the 'orbsyn'
     # parameterSets, such that 'get_proper_time' knows what to do.
-    if ltt:
+    if ltt and time_per_time:
         # First get a flat list of the bodies
         if hasattr(system, 'get_bodies'):
             bodies = system.get_bodies()

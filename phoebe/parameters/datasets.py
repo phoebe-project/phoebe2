@@ -325,6 +325,8 @@ class DataSet(parameters.ParameterSet):
         if did_load:
             self.unload()
     
+    
+    
     def __add__(self,other):
         """
         Add two DataSets together.
@@ -551,8 +553,8 @@ class LCDataSet(DataSet):
         while seek<len(old_flux):
             samprate = old_samprate[seek]
             #exptime = old_exptime[seek]
-            new_flux.append(np.mean(old_flux[seek:seek+samprate]))
-            new_time.append(np.mean(old_time[seek:seek+samprate]))
+            new_flux.append(np.mean(old_flux[seek:seek+samprate], axis=0))
+            new_time.append(np.mean(old_time[seek:seek+samprate], axis=0))
             used_samprate.append(samprate)
             #used_exptime.append(exptime)
             new_samprate.append(1)
@@ -572,6 +574,9 @@ class RVDataSet(DataSet):
     def __init__(self,**kwargs):
         kwargs.setdefault('context','rvobs')
         super(RVDataSet,self).__init__(**kwargs)
+    
+    def bin_oversampling(self):
+        return bin_oversampling(self, x='time', y='rv')
 
 class SPDataSet(DataSet):
     """
@@ -2883,6 +2888,44 @@ def esprit2plprof(filename,**kwargs):
     
     
     
+def bin_oversampling(system, x='time', y='flux'):
+    """
+    Bin synthetics according to the desired oversampling rate.
+    """
+    new_flux = []
+    new_time = []
+    new_samprate = []
+    used_samprate = []
+    #used_exptime = []
+    
+    old_flux = np.array(system[y])
+    old_time = np.array(system[x])
+    old_samprate = np.array(system['samprate'])
+        
+    #old_exptime = np.array(self['used_exptime'])
+    sa = np.argsort(old_time)
+    old_flux = old_flux[sa]
+    old_time = old_time[sa]
+    old_samprate = old_samprate[sa]
+    #old_exptime = old_exptime[sa]
+    
+    
+    seek = 0
+    while seek<len(old_flux):
+        samprate = old_samprate[seek]
+        #exptime = old_exptime[seek]
+        new_flux.append(np.mean(old_flux[seek:seek+samprate], axis=0))
+        new_time.append(np.mean(old_time[seek:seek+samprate], axis=0))
+        used_samprate.append(samprate)
+        #used_exptime.append(exptime)
+        new_samprate.append(1)
+        seek += samprate
+    system[y] = new_flux
+    system['time'] = new_time
+    system['samprate'] = new_samprate
+    system['used_samprate'] = used_samprate
+    #self['used_exptime'] = used_exptime
+    #logger.info("Binned data according to oversampling rate")
     
 
 

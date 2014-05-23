@@ -4258,6 +4258,7 @@ class Body(object):
             
             base['time'].append(time)
             base['rv'].append(proj_velo)
+            base['samprate'].append(correct_oversampling)
                 
     @decorators.parse_ref
     def rv_nomesh(self,correct_oversampling=None,ref='allrvdep', time=None,
@@ -4281,7 +4282,8 @@ class Body(object):
                                                  orbits, comps)
             base,lbl = self.get_parset(ref=lbl,type='syn')
             base['time'] = time
-            base['rv'] = vel[2]
+            base['rv'] = -vel[2] / kms_2_rsold
+            base['samprate'] = correct_oversampling
         
     
     
@@ -6645,7 +6647,7 @@ class Star(PhysicalBody):
                 to_add = circ_spot
             
             # Perhaps the user gave an empty list, then that's a bit silly
-            if len(puls) > 0:
+            if len(circ_spot) > 0:
                 for ito_add in to_add:
                     check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
                 self.params['circ_spot'] = to_add
