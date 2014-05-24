@@ -350,6 +350,7 @@ class Bundle(Container):
         
         self.current_axes = None
         self.current_figure = None
+        self.currently_plotted = [] # this will hold (axesref, plotref) pairs of items already plotted on-the-fly
         
         # self.select_time controls at which time to draw the meshview and
         # the 'selector' on axes (if enabled)
@@ -2703,10 +2704,10 @@ class Bundle(Container):
             if clf:
                 fig.clf()
             
-            ret = self.draw_figure(ref, fig=fig)
+            ret = self.draw_figure(ref, fig=fig, **kwargs)
             
             if not attach:
-                self.remove_figure(ref)
+                self.remove_figure(ref if ref is not None else self.current_figure)
         
         elif level=='axes':
             if ax is None:
@@ -2717,10 +2718,10 @@ class Bundle(Container):
             if cla:
                 ax.cla()
         
-            ret = self.draw_axes(ref, ax=ax)
+            ret = self.draw_axes(ref, ax=ax, **kwargs)
             
             if not attach:
-                self.remove_axes(ref)
+                self.remove_axes(ref if ref is not None else self.current_axes)
             
         else:
             if ax is None:
@@ -2731,7 +2732,7 @@ class Bundle(Container):
             if cla:
                 ax.cla()
             
-            ret = self.draw_plot(ref, ax=ax)
+            ret = self.draw_plot(ref, ax=ax, **kwargs)
             
             if not attach:
                 self.remove_plot(ref)
@@ -2837,7 +2838,7 @@ class Bundle(Container):
             
         return self.current_figure
         
-    def draw_figure(self, figref=None, fig=None):
+    def draw_figure(self, figref=None, fig=None, **kwargs):
         """
         [FUTURE]
         
@@ -2856,21 +2857,45 @@ class Bundle(Container):
 
         if fig is None:
             fig = plt.gcf()
+        
+        live_plot = kwargs.pop('live_plot', False)
             
         fig_ps = self.get_figure(figref)
         
         axes_ret, plot_ret = {}, {}
         for (axesref,axesloc) in zip(fig_ps['axesrefs'], fig_ps['axeslocs']):
-            ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2])
-            axes_ret_new, plot_ret_new = self.draw_axes(axesref, ax=ax)
+            # need to handle logic for live-plotting
+            axes_ps = self.get_axes(axesref)
+            plotrefs = axes_ps['plotrefs']
+            # the following line will check (if we're live-plotting) to 
+            # see if all the plots in this axes have already been drawn,
+            # and if they have, then we have no need to make a new subplot
+            # or call the plotting function
+            if not (live_plot and all([(axesref.split('@')[0], plotref.split('@')[0]) in self.currently_plotted for plotref in plotrefs])):
+                # the following line will default to the current mpl ax object if we've already
+                # created this subplot - TODO this might cause issues if switching back to a preview axesref
+                if live_plot and axesref.split('@')[0] in [p[0] for p in self.currently_plotted]:
+                    #~ print "*** plot_figure resetting ax to None"
+                    ax = None # will default to plt.gca() - this could still cause some odd things
+                else:
+                    ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2])
+                    # we must set the current axes so that subsequent live-plotting calls will
+                    # go here unless overriden by the user
+                    plt.sca(ax)
+
+                axes_ret_new, plot_ret_new = self.draw_axes(axesref, ax=ax, live_plot=live_plot)
+                
+                for k,v in axes_ret_new.items():
+                    axes_ret[k] = v
+                for k,v in plot_ret_new.items():
+                    plot_ret[k] = v
+            #~ else:
+                #~ print "*** plot_figure skipping axesref {} entirely".format(axesref)
             
-            for k,v in axes_ret_new.items():
-                axes_ret[k] = v
-            for k,v in plot_ret_new.items():
-                plot_ret[k] = v
-            
-        self.current_figure = None
-        self.current_axes = None
+        if not live_plot:
+            self.current_figure = None
+            self.current_axes = None
+            self.currently_plotted = []
             
         return ({figref: fig}, axes_ret, plot_ret)
         
@@ -2980,7 +3005,7 @@ class Bundle(Container):
                 fig_ps['axesrefs'] = axesrefs
                 
         
-    def draw_axes(self, axesref=None, ax=None):
+    def draw_axes(self, axesref=None, ax=None, **kwargs):
         """
         [FUTURE]
         
@@ -3002,6 +3027,8 @@ class Bundle(Container):
         
         if ax is None:
             ax = plt.gca()
+            
+        live_plot = kwargs.pop('live_plot', False)
  
         # right now all axes options are being set for /each/ draw_plot
         # call, which will work, but is overkill.  The reason for this is
@@ -3010,13 +3037,21 @@ class Bundle(Container):
         
         plot_ret = {}
         for plotref in axes_ps['plotrefs']:
-            plot_ret_new = self.draw_plot(plotref, axesref=axesref, ax=ax)
+            # handle logic for live-plotting - don't duplicate something that has already been called
+            #~ print "*** draw_axes", live_plot, (axesref.split('@')[0], plotref.split('@')[0]), self.currently_plotted
+            if not (live_plot and (axesref.split('@')[0], plotref.split('@')[0]) in self.currently_plotted):
+                #~ print "*** draw_axes CALLING draw_plot for", axesref, plotref
+                plot_ret_new = self.draw_plot(plotref, axesref=axesref, ax=ax, live_plot=live_plot)
             
-            for k,v in plot_ret_new.items():
-                plot_ret[k] = v
+                for k,v in plot_ret_new.items():
+                    plot_ret[k] = v
+            #~ else:
+                #~ print "*** draw_axes skipping draw_plot for", axesref, plotref
             
-        self.current_axes = None
-        #~ self.current_figure = None
+        if not live_plot:
+            self.current_axes = None
+            #~ self.current_figure = None
+            self.currently_plotted = []
             
         return ({axesref: ax}, plot_ret)
             
@@ -3266,7 +3301,7 @@ class Bundle(Container):
         return plotref, axesref, figref
 
         
-    def draw_plot(self, plotref, axesref=None, ax=None):
+    def draw_plot(self, plotref, axesref=None, ax=None, **kwargs):
         """
         [FUTURE]
         
@@ -3289,8 +3324,8 @@ class Bundle(Container):
         # that we previously set or overriding axes options that were _auto_
         
         # this plot needs to be attached as a member of the axes if it is not
-        if plotref not in axes_ps['plotrefs']:
-            axes_ps.add_plot(plotref)
+        #~ if plotref not in axes_ps['plotrefs']:
+            #~ axes_ps.add_plot(plotref)
             
         plot_fctn = self.get_plot(plotref).context.split(':')[1]
 
@@ -3348,7 +3383,7 @@ class Bundle(Container):
 
         elif plot_fctn in ['plot_residuals']:
             category = context[:-3]
-            output = getattr(plotting, 'plot_{}res'.format(category))(obj, **kwargs)
+            output = getattr(plotting, 'plot_{}res'.format(category))(obj, **plkwargs)
             
             artists = output[0]
             ds_ret = output[1]
@@ -3406,7 +3441,7 @@ class Bundle(Container):
                 output = getattr(ax, function)(*args, **plkwargs)
                 
             else:
-                logger.error("{} not an available function for plt.axes".format(function))
+                logger.error("{} not an available function for plt.axes.Axes".format(function))
                 return
 
             # fake things for the logger 
@@ -3548,20 +3583,22 @@ class Bundle(Container):
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
                                    return_trunk_item=True)
-        #~ ds = dsti['item']
-        #~ obj = self.get_object(dsti['label'])
-        #~ context = ds.get_context()
         
-        ax = kwargs.pop('ax', plt.gca())
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
         
         plotref, axesref, figref = self._handle_plotting_call('plot_obs', dsti, **kwargs)
 
         # now call the command to plot
-        ax = None
-        #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
+        if ax is None:
+            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
+        else:
+            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
+        
+        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
         
         #~ return None, (plotref, axesref, figref)
-        return ax, (plotref, axesref, figref)
+        return output, (plotref, axesref, figref)
         #~ return obs
 
         
@@ -3621,19 +3658,23 @@ class Bundle(Container):
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
                                    return_trunk_item=True)
-        #~ ds = dsti['item']
-        #~ obj = self.get_object(dsti['label'])
-        #~ context = ds.get_context()
         
-        ax = kwargs.pop('ax', plt.gca())
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
         
         plotref, axesref, figref = self._handle_plotting_call('plot_syn', dsti, **kwargs)
 
         # now call the command to plot
-        ax = None
-        #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
+        if ax is None:
+            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
+        else:
+            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
         
-        return ax, (plotref, axesref, figref)
+        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
+        
+        #~ return None, (plotref, axesref, figref)
+        return output, (plotref, axesref, figref)
+        #~ return obs
         
     def new_plot_residuals(self, twig=None, **kwargs):
         """
@@ -3647,19 +3688,23 @@ class Bundle(Container):
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
                                    return_trunk_item=True)
-        #~ ds = dsti['item']
-        #~ obj = self.get_object(dsti['label'])
-        #~ category = ds.get_context()[:-3]
         
-        ax = kwargs.pop('ax', plt.gca())
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
         
         plotref, axesref, figref = self._handle_plotting_call('plot_residuals', dsti, **kwargs)
 
         # now call the command to plot
-        ax = None
-        #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
+        if ax is None:
+            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
+        else:
+            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
         
-        return ax, (plotref, axesref, figref)
+        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
+        
+        #~ return None, (plotref, axesref, figref)
+        return output, (plotref, axesref, figref)
+        #~ return obs
         
     def new_plot_custom(self, function, args=None, **kwargs):
         """
@@ -3674,14 +3719,28 @@ class Bundle(Container):
         :type function: str
         :param args: args to pass to the function
         """
+        if not hasattr(plt.gca(), function):
+            logger.error("{} not an available function for plt.axes.Axes".format(function))
+            
         kwargs['function'] = function
         kwargs['args'] = args
         
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
+        
         plotref, axesref, figref = self._handle_plotting_call('plot_custom', None, **kwargs)
         
-        ax = None
+        # now call the command to plot
+        if ax is None:
+            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
+        else:
+            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
         
-        return ax, (plotref, axesref, figref)
+        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
+        
+        #~ return None, (plotref, axesref, figref)
+        return output, (plotref, axesref, figref)
+        #~ return obs
 
     def plot_obs(self, twig=None, **kwargs):
         """
@@ -4080,18 +4139,24 @@ class Bundle(Container):
             # meh, let's fake the information we need for the plotting call
             dsti = {'context': 'lcdep', 'ref': 'lc', 'label': self.get_system().get_label()}
 
-        ax = kwargs.pop('ax', plt.gca())
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
         
         kwargs['compute_label'] = label
         kwargs['objref'] = objref
         plotref, axesref, figref = self._handle_plotting_call('plot_mesh', dsti, **kwargs)
 
         # now call the command to plot
-        ax = None
-        #~ ax = self.draw_plot(plotref, axesref=axesref, ax=ax)
+        if ax is None:
+            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
+        else:
+            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
         
-        return ax, (plotref, axesref, figref)
-        return out
+        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
+        
+        #~ return None, (plotref, axesref, figref)
+        return output, (plotref, axesref, figref)
+        #~ return obs
         
     def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
                   select='proj', cmap=None, vmin=None, vmax=None, size=800,
