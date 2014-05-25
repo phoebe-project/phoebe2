@@ -3198,11 +3198,24 @@ class Bundle(Container):
             elif k in ['label']:
                 raise KeyError("parameter with qualifier {} forbidden".format(k))
             else:
+                if isinstance(v, float):
+                    _cast_type = float
+                    _repr = '%f'
+                elif isinstance(v, int):
+                    _cast_type = int
+                    _repr = '%d'
+                elif isinstance(v, bool):
+                    _cast_type = 'make_bool'
+                    _repr = ''
+                else:
+                    _cast_type = str
+                    _repr = '%s'
+                
                 new_parameter = parameters.Parameter(qualifier=k,
                         description = 'user added parameter: see matplotlib',
-                        rerp='%s',
-                        cast_type=str,
-                        value=v)
+                        repr = _repr,
+                        cast_type = _cast_type,
+                        value = v)
                 ps.add(new_parameter, with_qualifier=k)
         
         self._add_to_section('plot', ps)
@@ -3373,6 +3386,11 @@ class Bundle(Container):
                     # rather if they are not overriden here, they will receive
                     # there defaults from the output of the plotting call
                     pass
+                    
+        # handle _auto_
+        for key, value in plkwargs.items():
+            if value=='_auto_':
+                dump = plkwargs.pop(key)
        
         if plot_fctn in ['plot_obs', 'plot_syn']:
             output = getattr(plotting, 'plot_{}'.format(context))(obj, **plkwargs)
