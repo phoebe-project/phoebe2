@@ -125,7 +125,7 @@ class DataSet(parameters.ParameterSet):
             default_columns = self['columns']
             for col in default_columns:
                 if not col in columns and col in self:
-                    thrash = self.pop(col)
+                    self.pop(col)
             self['columns'] = columns
         
     def pop_column(self, qualifier):
@@ -154,8 +154,8 @@ class DataSet(parameters.ParameterSet):
             # First load data
             filename = self.get_value('filename')
             columns = self.get_value('columns')
-            #-- check if the data is already in here, and only reload when
-            #   it is not, or when force is True
+            #-- check if the data are already in here, and only reload when
+            #   they are not, or when force is True
             if not force and (self['columns'][0] in self and len(self[self['columns'][0]])>0):
                 return False
             data_columns = np.loadtxt(filename).T
@@ -486,7 +486,7 @@ class LCDataSet(DataSet):
     DataSet representing a light curve or photometry
     """
     def __init__(self,**kwargs):
-        kwargs.setdefault('context','lcobs')
+        kwargs.setdefault('context', 'lcobs')
         super(LCDataSet,self).__init__(**kwargs)
     
     def plot(self,ax=None,**plotoptions):
@@ -572,7 +572,7 @@ class RVDataSet(DataSet):
     DataSet reprensenting radial velocity measurements
     """
     def __init__(self,**kwargs):
-        kwargs.setdefault('context','rvobs')
+        kwargs.setdefault('context', 'rvobs')
         super(RVDataSet,self).__init__(**kwargs)
     
     def bin_oversampling(self):
