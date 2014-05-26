@@ -135,11 +135,11 @@ def broadening_instrumental(wave, flux, width=0.25, width_type='fwhm',
     where :math:`\lambda_0` is the center of the wavelength array
     :envvar:`wave`.
     
-    **Example usage**: Construct a simple Gaussian line profile and convolve with an instrumental profile sigma=0.5AA
+    **Example**: Construct a simple Gaussian line profile and convolve with an instrumental profile sigma=0.5AA
         
     >>> sigma = 0.5
     >>> wave = np.linspace(3995, 4005, 1001)
-    >>> flux = 1.0 - 0.5*np.exp( - (wave-4000)**2/(2*sigma**2))
+    >>> flux = 1.0 - 0.5*np.exp(-(wave-4000)**2/(2*sigma**2))
     
     Convolve it with an instrumental :math:`\sigma=0.5\AA`:
 
@@ -153,12 +153,12 @@ def broadening_instrumental(wave, flux, width=0.25, width_type='fwhm',
         plt.plot(wave, flux, 'k-')
         plt.plot(wave, flux_broad, 'r-', lw=2)
         plt.xlabel("Wavelength [$\AA$]")
-        plt.ylabel("Normalised flux")
+        plt.ylabel("Normalized flux")
 
         plt.figure()
         plt.plot(wave_kernel, kernel, 'r-', lw=2)
         plt.xlabel("Wavelength [$\AA$]")
-        plt.ylabel("Normalised flux")
+        plt.ylabel("Normalized flux")
     
     .. +----------------------------------------------------------------------+----------------------------------------------------------------------+
     .. | .. image:: ../../images/api/spectra/tools/broaden_instrumental01.png | .. image:: ../../images/api/spectra/tools/broaden_instrumental02.png |
@@ -172,7 +172,7 @@ def broadening_instrumental(wave, flux, width=0.25, width_type='fwhm',
     :parameter width: width of instrumental profile, in units of :envvar:`wave`
     :type width: float
     :parameter width_type: type of width
-    :type width: str, one of ``fwhm`` or ``sigma``
+    :type width_type: str, one of ``fwhm`` or ``sigma``
     :parameter return_kernel: return kernel
     :type return_kernel: bool
     :return: broadened flux [, (wavelength, kernel)]
