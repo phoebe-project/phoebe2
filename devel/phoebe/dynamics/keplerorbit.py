@@ -706,6 +706,7 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components, barycentr
     @rtype: 3-tuple, 3-tuple, array/float
     """
     bary_times = np.asarray(bary_times)
+    
     # We need to set the location of the object such that it light arrives
     # simultaneously with the barycentric time. Only the direction in the
     # line-of-sight is important (z-coordinate). The time it takes for light to
@@ -719,10 +720,12 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components, barycentr
         obj,vel = get_hierarchical_orbit_phoebe(t, orbits, components)
         z = obj[2,0]
         return t - z*scale_factor - t_bary
+    
     # Finding that right time is easy with a Newton optimizer:
     propertimes = [newton(propertime_barytime_residual, t_bary) for \
                        t_bary in bary_times] if barycentric else bary_times
     propertimes = np.array(propertimes).ravel()
+    
     # then make an orbit with these times!
     this_orbit = get_hierarchical_orbit_phoebe(bary_times, orbits, components)
     return list(this_orbit) + [propertimes]
@@ -1502,7 +1505,7 @@ def calculate_total_radius_from_eclipse_duration(eclipse_duration,incl,sma=1):
     return sma*sqrt( sin(pi*eclipse_duration)**2 + cos(incl)**2)
     
     
-def truecoords_to_spherical(coords,distance=0., origin=(0.,0.), units=None):
+def truecoords_to_spherical(coords, distance=0., origin=(0.,0.), units=None):
     """
     Convert 3D coords to spherical on-sky coordinates.
     
@@ -1526,12 +1529,15 @@ def truecoords_to_spherical(coords,distance=0., origin=(0.,0.), units=None):
         distance = 10*phoebe.constants.pc/phoebe.constants.Rsol
     elif isinstance(distance,tuple):
         distance = conversions.convert(distance[1],'Rsol',distance[0])
-    #-- correct coords for distance
+    
+    # correct coords for distance
     z = coords[:,2]+distance
-    #-- compute spherical angles
+    
+    # compute spherical angles
     alpha = 2*arctan(coords[:,0]/(2*z)) 
     beta = 2*arctan(coords[:,1]/(2*z))
-    #-- correct spherical angles for offset
+    
+    # correct spherical angles for offset
     if units is not None:
         ra = conversions.convert('rad',units,origin[0] + alpha)
         dec = conversions.convert('rad',units,origin[1] + beta)
