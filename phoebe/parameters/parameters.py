@@ -3406,7 +3406,7 @@ def make_label(value):
     return value
     
 
-def return_equatorial_ra(value):
+def return_equatorial_ra(value, unit=None):
     """
     Parse equatorial coordinates in whatever value
     """
@@ -3418,9 +3418,12 @@ def return_equatorial_ra(value):
     except:
         value = float(ephem.Equatorial(value,0).ra)/np.pi*180
     
+    if unit is not None:
+        value = conversions.convert('deg', unit, value)
+    
     return value
    
-def return_equatorial_dec(value):
+def return_equatorial_dec(value, unit=None):
     """
     Parse equatorial coordinates in whatever value
     """
@@ -3431,6 +3434,9 @@ def return_equatorial_dec(value):
         value = float(value)
     except:
         value = float(ephem.Equatorial(0,value).dec)/np.pi*180
+    
+    if unit is not None:
+        value = conversions.convert('deg', unit, value)
     
     return value
    

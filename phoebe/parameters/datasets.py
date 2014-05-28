@@ -474,8 +474,20 @@ class DataSet(parameters.ParameterSet):
         # But clear the results
         for col in self['columns']:
             self[col] = []
-        
     
+    def phase(self, period, t0=0.0, pshift=0.0):
+        """
+        Phase data with a period.
+        """
+        # Phase if not already done
+        if not len(self['phase']) == len(self):
+            time = self['time']
+            phase = np.mod(self['time'] - t0 + pshift*period, period)
+            sa = np.argsort(phase)
+            for col in self['columns']:
+                self[col] = self[col][sa]
+            self['phase'] = phase[sa]
+        
     
     dtype = property(get_dtype)
     shape = property(get_shape)

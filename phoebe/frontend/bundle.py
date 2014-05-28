@@ -897,12 +897,96 @@ class Bundle(Container):
         """
         return self.get_object(twig).get_parent()
         
+    def get_orbit(self, objref, time=None, length_unit='Rsol',
+                  velocity_unit='km/s', time_unit='d'):
+        """
+        Retrieve the orbit of an object.
+        
+        This function returns 3 quantities: the position of the object of the
+        orbit over time (by default in solar radii), the velocity of the object
+        (by default in km/s) and the proper time of the object (by default in
+        days).
+        
+        The coordinate frame is chosen such that for each tuple (X, Y, Z), X and
+        Y are in the plane of the sky, and Z is the radial direction pointing
+        away from the observer. Negative velocities are towards the observer.
+        Negative Z coordinates are closer to the observer than positive Z
+        coordinates. When :envvar:`length_unit` is really length (as opposed to
+        angular, see below), then the X, Y and Z coordinates are relative to the
+        center of mass of the system.
+        
+        Length units can also be given in angle (rad, deg, mas), in which case
+        the angular coordinates are returned for the X and Y coordinates and the
+        Z coordinate is absolute (i.e. including the distance to the object).
+        
+        [FUTURE]
+        
+        :param objref: name of the object to retrieve the orbit from
+        :type objref: str
+        :param time: time array to compute the orbit on. If none is given, the
+         time array will cover one orbital period of the outer orbit, with a time
+         resolution of at least 100 points per inner orbital period. Time array
+         has to be in days, but can be converted in the output.
+        :type time: array
+        :return: position (solar radii), velocity (km/s), barycentric times (d), proper times (d)
+        :rtype: 3-tuple, 3-tuple, array
+        """
+        # Get the Body to compute the orbit of
+        body = self.get_object(objref)
+        
+        # Get a list of all orbits the component belongs to, and if it's the
+        # primary or secondary in each of them
+        orbits, components = body.get_orbits()
+        
+        # If no times are given, construct a time array that has the length
+        # of the outermost orbit, and a resolution to sample the inner most
+        # orbit with at least 100 points
+        if time is None:
+            period_outer = orbits[-1]['period']
+            t0 = orbits[-1]['t0']
+            period_inner = orbits[0]['period']
+            t_step = period_inner / 100.
+            time = np.arange(t0, t0+period_outer, t_step)
+        
+        pos, vel, proper_time = keplerorbit.get_barycentric_hierarchical_orbit(time,
+                                                             orbits, components)
+        
+        # Convert to correct units. If positional units are angles rather than
+        # length, we need to first convert the true coordinates to spherical
+        # coordinates
+        if conversions.get_type(length_unit) == 'length':
+            pos = [conversions.convert('Rsol', length_unit, i) for i in pos]
+            
+            # Switch direction of Z coords
+            pos[2] = -1*pos[2]
+        else:
+            position = body.get_globals(context='position')
+            distance = position.get_value_unit('distance')
+            origin = (position.get_value('ra', 'rad'), position.get_value('dec', 'rad'))
+            
+            # Switch direction of Z coords
+            pos = np.array(pos)
+            pos[:,2] = -1*pos[:,2]
+            
+            # Convert true coordinates to spherical ones
+            pos = list(keplerorbit.truecoords_to_spherical(np.array(pos), distance=distance,
+                                                origin=origin, units=length_unit))
+        vel = [conversions.convert('Rsol/d', velocity_unit, i) for i in vel]
+        
+        proper_time = conversions.convert('d', time_unit, proper_time)
+        time = conversions.convert('d', time_unit, time)
+        
+        # Switch direction of radial velocities and Z coords
+        vel[2] = -1*vel[2]
+        
+        return tuple(pos), tuple(vel), time, proper_time
+        
         
     def get_orbitps(self, twig=None):
         """
-        [FUTURE]
+        Retrieve the orbit ParameterSet that belongs to a given BodyBag
         
-        retrieve the orbit ParameterSet that belongs to a given BodyBag
+        [FUTURE]
         
         @param twig: the twig/twiglet to use when searching
         @type twig: str
