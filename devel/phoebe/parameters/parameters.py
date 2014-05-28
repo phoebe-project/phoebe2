@@ -274,10 +274,15 @@ from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
 import numpy as np
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    pass
+
+# If we try to load matplotlib.pyplot on a non-X system, it will fail
+# unless 'Agg' is used before the import. All X-systems define the
+# 'DISPLAY' environment variable, and all non-X-systems do not. Hence:
+if 'DISPLAY' not in os.environ.keys():
+    import matplotlib
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 #-- load self defined modules
 from phoebe.units import conversions
 from phoebe.units import constants
