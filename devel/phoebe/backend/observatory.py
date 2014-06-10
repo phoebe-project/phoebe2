@@ -1347,6 +1347,20 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     
     teff_local = the_system.mesh['teff'][keep]
     
+    # Get mean teff, this is important for the change in depth of Gaussian
+    # lines
+    try:
+        main_parset = the_system.params.values()[0]
+        teff_mean = main_parset['teff']
+    except IndexError:
+        logger.critical("Cannot figure out reference temperature, set to T=10000K")
+        teff_mean = 10000.
+        alpha_T = 0.0
+    except KeyError:
+        logger.critical("Cannot figure out reference temperature, set to T=10000K")
+        teff_mean = 10000.
+        alpha_T = 0.0
+    
     # Numerical method with profiles from a precomputed grid:
     if method == 'numerical' and not profile == 'gauss':    
         
@@ -1424,9 +1438,6 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     # Numerical computation with Gaussian profile
     elif method == 'numerical':
         
-        # Temperature dependence of depth
-        teff_mean = 10000.
-        
         # Derive intrinsic width of the profile
         sigma = conversions.convert('km/s', 'AA', vmicro, wave=(wc, 'AA')) - wc
         logger.info('Intrinsic width of the profile: {} AA ({} km/s)'.format(sigma, vmicro))
@@ -1451,7 +1462,6 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         for i,(pri,rv,sz) in enumerate(zip(proj_intens,rad_velos,sizes)):
             
             #spec = pri*sz*tools.doppler_shift(wavelengths,rv+rv_grav,flux=template)
-            
             if alphaT > 0:
                 template_ = 1.00 - (1.0+alphaT) * (teff_local[i]/teff_mean)*(1-template)
             
@@ -2210,7 +2220,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     eclipse_alg = params['eclipse_alg']
     irradiation_alg = params['irradiation_alg']
     
-    if subdiv_num:  
+    if subdiv_num:
         system.unsubdivide()
     
     # Execute some pre-processing steps if necessary
@@ -2219,6 +2229,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Clear previous reflection effects if necessary (not if reflect==1 because
     # one might want to keep the reflection results in circular orbits or if they
     # otherwise do not change!)
+    
     if reflect is True:
         system.clear_reflection()
     
@@ -2692,7 +2703,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
-    
+
     # We're gonna compute one time step per turn, but this is different with
     # and without animation.
     if not animate:

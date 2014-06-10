@@ -1,9 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import phoebe
 
 logger = phoebe.get_basic_logger()
 
-def test_fast_rotator():
+def test_fast_rotator(from_main=False):
     """
     Spectrum test: compare numerical computation to analytical one
     """
@@ -48,7 +49,13 @@ def test_fast_rotator():
     flux1 = np.array(result1['flux'][0])/np.array(result1['continuum'][0])
     flux2 = np.array(result2['flux'][0])/np.array(result2['continuum'][0])
 
-    assert (np.all(np.abs((flux1-flux2)/flux1)<=0.00061))
+    if not from_main:
+        assert (np.all(np.abs((flux1-flux2)/flux1)<=0.00061))
+    else:
+	plt.plot(result1['wavelength'][0], flux1,'k-')
+	plt.plot(result2['wavelength'][0], flux2,'r-')
+
 
 if __name__=='__main__':
-    test_fast_rotator()
+    test_fast_rotator(from_main=True)
+    plt.show()

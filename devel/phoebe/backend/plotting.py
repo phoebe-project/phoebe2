@@ -550,6 +550,7 @@ def plot_rvsyn(system,*args,**kwargs):
     dep, ref = system.get_parset(category='rv', ref=ref)
     syn = system.get_synthetic(category='rv', ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    simulate = kwargs.pop('simulate', False)
     
     # catch fmt for the user that is set up by the MPL quirkiness:
     fmt = kwargs.pop('fmt', None)
@@ -568,10 +569,12 @@ def plot_rvsyn(system,*args,**kwargs):
     except ValueError:
         obs = None
         default_phased = False
+    except TypeError:
+        obs = None
+        default_phased = False
     
     # Retrieve extra information
     repeat = kwargs.pop('repeat', 0)
-    phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
     
@@ -597,7 +600,9 @@ def plot_rvsyn(system,*args,**kwargs):
                                    y_unit_type, ", ".join(allowed)))
     
     
+    phased = kwargs.pop('phased', default_phased)
     ax = kwargs.pop('ax',plt.gca())
+    scale = kwargs.pop('scale', 'obs')
         
     # Load synthetics: they need to be here
     loaded = syn.load(force=False)
@@ -638,9 +643,12 @@ def plot_rvsyn(system,*args,**kwargs):
     
     # Plot model
     artists = []
-    if not phased:
+    if not phased and not simulate:
         # XAXIS
-        from_unit = obs.get_parameter('time').get_unit()
+        if obs is not None:
+            from_unit = obs.get_parameter('time').get_unit()
+        else:
+            from_unit = 'JD'
         if x_unit is not None:
             time = conversions.convert(from_unit, x_unit, time)
             period = conversions.convert(from_unit, x_unit, period)
@@ -655,8 +663,8 @@ def plot_rvsyn(system,*args,**kwargs):
                 kwargs['label'] = '_nolegend_'
             p, = ax.plot(time+n*period, rv, *args, **kwargs)
             artists.append(p)
-    else:
-        time = (time % period) / period
+    elif not simulate:
+        time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
         if x_unit is not None:

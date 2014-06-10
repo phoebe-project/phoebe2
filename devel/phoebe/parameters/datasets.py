@@ -38,6 +38,7 @@ regardless of the type:
 import logging
 import os
 import glob
+import uuid
 import numpy as np
 from collections import OrderedDict
 from phoebe.parameters import parameters
@@ -48,6 +49,10 @@ from phoebe.io import oifits
 from phoebe.io import ascii
 from phoebe.atmospheres import spectra
 import matplotlib.pyplot as plt
+try:
+    import lmfit
+except ImportError:
+    pass
 
 logger = logging.getLogger("PARS.DATA")
 logger.addHandler(logging.NullHandler())
@@ -111,16 +116,22 @@ class DataSet(parameters.ParameterSet):
      
     """
     
-    def __init__(self,*args,**kwargs):
+    def __init__(self, *args, **kwargs):
+        """
+        Initialise a DataSet.
+        """
         # if the user specified her/his own set of columns, we need to remove
         # the ones that are not given
         if 'columns' in kwargs:
             columns = kwargs.pop('columns')
         else:
             columns = None
-        # normal init
-        super(DataSet,self).__init__(*args,**kwargs)
-        # now check the columns
+            
+        # normal init of ParameterSet
+        super(DataSet,self).__init__(*args, **kwargs)
+        
+        # now check the columns, the ones that are not given need to be
+        # removed
         if columns is not None:
             default_columns = self['columns']
             for col in default_columns:
@@ -128,16 +139,20 @@ class DataSet(parameters.ParameterSet):
                     self.pop(col)
             self['columns'] = columns
         
+        
     def pop_column(self, qualifier):
         """
         Pop a column.
+        
+        :param qualifier: name of the column to remove
+        :type qualifier: str
         """
         columns = self['columns']
         columns.remove(qualifier)
         self['columns'] = columns
-        return super(DataSet,self).pop(qualifier)
         
-    
+        return super(DataSet, self).pop(qualifier)
+            
     
     def load(self, force=True):
         """
@@ -213,6 +228,7 @@ class DataSet(parameters.ParameterSet):
             logger.info("No file to reload")
         return True
             
+            
     def unload(self):
         """
         Remove arrays from the parameterSet to save memory.
@@ -223,6 +239,7 @@ class DataSet(parameters.ParameterSet):
             for col in columns:
                 if col in self:
                     self[col] = []
+    
     
     def save(self, filename=None, pretty_header=False):
         """
@@ -287,6 +304,7 @@ class DataSet(parameters.ParameterSet):
         
         logger.info('Wrote file {} with columns {} from dataset {}:{}'.format(filename,', '.join(self['columns']),self.context,self['ref']))
     
+    
     def estimate_sigma(self, from_col='flux', to_col='sigma', force=True):
         """
         Estimate the sigma.
@@ -326,8 +344,18 @@ class DataSet(parameters.ParameterSet):
             self.unload()
     
     
+    def sort(self, col='time'):
+        """
+        Sort a DataSet according to a column
+        
+        :param col: name of the column to use in sorting (defaults to 'time')
+        :type col: str
+        """
+        sa = np.argsort(self[col])
+        self.take(sa)
     
-    def __add__(self,other):
+    
+    def __add__(self, other):
         """
         Add two DataSets together.
         
@@ -353,15 +381,17 @@ class DataSet(parameters.ParameterSet):
                 result[col] = list(this_col + other_col)
         return result
     
+    
     def __radd__(self,other):
-        if other==0:
+        if other == 0:
             return self.copy()
         else:
             return self.__add__(other)
     
+    
     def __getitem__(self, item):
         """
-        Access information in a dataset.
+        Access information in a dataset via keys or indexes.
         
         Suppose you initialized a dataset:
         
@@ -410,10 +440,11 @@ class DataSet(parameters.ParameterSet):
         else:
             self_copy = self.copy()
             for col in self_copy['columns']:
-                if col=='wavelength':
+                if col == 'wavelength':
                     continue
-                self_copy[col] = self_copy[col][item]
+                self_copy[col] = np.asarray(self_copy[col])[item]
             return self_copy
+    
     
     def take(self, index):
         """
@@ -421,9 +452,12 @@ class DataSet(parameters.ParameterSet):
         
         This function does the same thing as fancy indexing (indexing arrays
         using arrays).
+        
+        Changes DataSet in-place.
         """
         for col in self['columns']:
-            self[col] = self[col][index]
+            self[col] = np.asarray(self[col])[index]
+    
     
     def overwrite_values_from(self, other_ds):
         """
@@ -434,6 +468,7 @@ class DataSet(parameters.ParameterSet):
         """
         for key in other_ds:
             self[key] = other_ds[key]
+    
     
     def get_dtype(self):
         """
@@ -450,54 +485,111 @@ class DataSet(parameters.ParameterSet):
     
         return dtypes
     
+    
     def get_shape(self):
+        """
+        Return the length of the data as a tuple.
+        
+        :return: shape tuple (N,)
+        :rtype: tuple
+        """
         return (len(self),)    
     
+    
     def __len__(self):
+        """
+        Return the length of the data.
+        
+        :return: length of the data columns
+        :rtype: int
+        """
         # if there is time in this parameterSet, we'll take the length of that
         if 'time' in self['columns']:
             return len(self['time'])
-        # otherwise we guess the firt column
+        # otherwise we guess the first column
         else:
             return len(self[self['columns'][0]])
     
+    
     def asarray(self):
+        """
+        Return a copy of the DataSet where all data columns are arrays.
+        
+        :return: arrary-ified copy of the DataSet
+        :rtype: DataSet
+        """
         self_copy = self.copy()
         for col in self['columns']:
             if col in self:
                 self_copy[col] = np.array(self[col])
         return self_copy
     
+    
     def clear(self):
-        # Reset all parameter to the initial ones
-        #self.reset()
-        # But clear the results
+        """
+        Remove all data from the DataSet
+        """
+        # Clear the results
         for col in self['columns']:
             self[col] = []
     
-    def phase(self, period, t0=0.0, pshift=0.0):
+    
+    def phase(self, period, t0=0.0, pshift=0.0, sort=True, force=False):
         """
-        Phase data with a period.
+        Phasefold data with a period.
+        
+        If :envvar:`sort=True`, then all parameters included in ``columns`` are
+        sorted according to phase (default). Otherwise, the data are not sorted
+        but left in the orginal order.
+        
+        If :envvar:`force=False`, then data that is already phased (i.e. the
+        phase column is filled) will be left untouched (default). This is to
+        make sure that data that was originally given in phase, cannot be
+        overwritten on accident. You need to set :envvar:`force=True` in that
+        case. Thus, if :envvar:`force=True`, then you can give data in phase,
+        which will be unfolded according to the system's period, after which
+        you can rephase it onto a different period.
+        
+        Phasing is done via:
+        
+        .. math::
+        
+            \phi = \frac{\mod \left( t - t_0 + \Delta\phi P, P\right)}{P}
+            
+        :param period: folding period (days)
+        :type period: float
+        :param t0: zeropoint of time
+        :type t0: float
+        :param pshift: phase shift
+        :type pshift: float
+        :param sort: after folding, sort DataSet according to phase
+        :type sort: bool
+        :param force: force computation of phase, even if already given
+        :type force: bool
         """
-        # Phase if not already done
-        if not len(self['phase']) == len(self):
+        # Phase if not already done or when forced to
+        if not len(self['phase']) == len(self) or force:
+            
+            # Phase data
             time = self['time']
-            phase = np.mod(self['time'] - t0 + pshift*period, period)
-            sa = np.argsort(phase)
-            for col in self['columns']:
-                self[col] = self[col][sa]
-            self['phase'] = phase[sa]
+            phase = np.fmod(self['time'] - t0 + pshift*period, period) / period
+            self['phase'] = phase
+            
+            # Sort dataset if required
+            if sort:
+                self.sort('phase')
         
     
     dtype = property(get_dtype)
     shape = property(get_shape)
     
+
     
 class LCDataSet(DataSet):
     """
     DataSet representing a light curve or photometry
     """
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         kwargs.setdefault('context', 'lcobs')
         super(LCDataSet,self).__init__(**kwargs)
     
@@ -578,6 +670,7 @@ class LCDataSet(DataSet):
         #self['used_exptime'] = used_exptime
         #logger.info("Binned data according to oversampling rate")
     
+    
         
 class RVDataSet(DataSet):
     """
@@ -589,6 +682,8 @@ class RVDataSet(DataSet):
     
     def bin_oversampling(self):
         return bin_oversampling(self, x='time', y='rv')
+
+
 
 class SPDataSet(DataSet):
     """
@@ -722,6 +817,7 @@ class SPDataSet(DataSet):
                 ff.write("".join(gg.readlines()))
         os.unlink(filename+'temp')
         logger.info('Wrote file {} as spectrum ({}:{})'.format(filename,self.context,self['ref']))
+    
     
     def join(self,other_list):
         """
@@ -858,7 +954,7 @@ class SPDataSet(DataSet):
         self['samprate'] = new_samprate
         #logger.info("Binned data according to oversampling rate")
     
-    def convert_to_fourier(self, freq=None):
+    def convert_to_fourier(self, freq=None, f0=None, fn=None, df=None, method='scargle', **kwargs):
         """
         Experimental feature. Really Experimental.
         """
@@ -886,36 +982,53 @@ class SPDataSet(DataSet):
         T = time.ptp()
         nyquist = 0.5 / np.median(np.diff(time))
         if freq is None:
-            f0 = 0.1/T
-            fn = nyquist
-            df = 0.1/T
+            if f0 is None:
+                f0 = 0.1/T
+            if fn is None:
+                fn = nyquist
+            if df is None:
+                df = 0.1/T
         else:
             f0 = freq
             fn = freq
             df = 0
-            
+          
         output = freqanalyse.spectrum_2D(time, wavelength[0],
                                          flux, f0=f0, fn=fn, df=df, threads=6,
-                                         method='scargle', subs_av=True,
-                                         full_output=True, harmonics=0)
+                                         method=method, subs_av=(method!='gls'),
+                                         full_output=True, harmonics=0,
+                                         **kwargs)
         
         const, e_const = output['pars']['const'], output['pars']['e_const']
         ampl, e_ampl = output['pars']['ampl'], output['pars']['e_ampl']
         freq, e_freq = output['pars']['freq'], output['pars']['e_freq']
         phase, e_phase = output['pars']['phase'], output['pars']['e_phase']
+        fourier_freqs = output['pergram'][0]
+        fourier_spec = output['pergram'][1]
         
-        self.add(parameters.Parameter(qualifier='const', value=const, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='sigma_const', value=e_const, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='ampl', value=ampl, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='sigma_ampl', value=e_ampl, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='freq', value=freq, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='sigma_freq', value=e_freq, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='phase', value=phase, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='sigma_phase', value=e_phase, cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='avprof', value=output['avprof'], cast_type=np.array))
-        self.add(parameters.Parameter(qualifier='model', value=output['model'], cast_type=np.array))
+        self.add(parameters.Parameter(qualifier='fourier_const', value=const, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='sigma_fourier_const', value=e_const, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_ampl', value=ampl, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='sigma_fourier_ampl', value=e_ampl, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_freq', value=freq, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='sigma_fourier_freq', value=e_freq, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_phase', value=phase, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='sigma_fourier_phase', value=e_phase, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_freqs', value=fourier_freqs, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_spectrum', value=fourier_spec, cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_avprof', value=output['avprof'], cast_type=np.array), force=True)
+        self.add(parameters.Parameter(qualifier='fourier_model', value=output['model'], cast_type=np.array), force=True)
         
-    def convert_to_moments(self, max_moment=3):
+        # Add extra columns to the columns stuff
+        column_names = ['fourier_const', 'fourier_ampl', 'fourier_freq', 'fourier_phase', 'fourier_model']
+        for col in column_names:
+            if not col in self['columns']:
+                self['columns'].append(col)
+            if 'sigma_'+col in self and not 'sigma_'+col in self['columns']:
+                self['columns'].append('sigma_'+col)
+        
+        
+    def convert_to_moments(self, max_moment=4, snr=None, clip_gauss=None):
         """
         Convert spectral timeseries to their moments
         """
@@ -924,25 +1037,59 @@ class SPDataSet(DataSet):
         wavelength = np.asarray(self['wavelength'])
         if not len(wavelength.shape)==2:
             wavelength = wavelength.reshape((1,-1))
+            wave_shape = 0
+        else:
+            wave_shape = len(wavelength)
         flux = np.asarray(self['flux'])
         cont = np.asarray(self['continuum'])
         flux = flux/cont
         
+        # Get the signal to noise:
+        if snr is None and 'snr' in self['columns']:
+            snr = self['snr']
+        elif snr is None:
+            raise ValueError("Unknown SNR of spectra, cannot compute uncertainties on moments. Please give a global snr to 'convert_to_moments' at least.")
+        if np.isscalar(snr):
+            snr = np.ones(len(self))*snr
+        
         # Compute small unnormalised moments
         mymoments = np.zeros((len(time), max_moment+1, 2))
         wc = np.median(wavelength[0])
-        SNR = 200.0
+        
         for i in range(len(time)):
-            velo = conversions.convert('nm', 'km/s', wavelength[i], wave=(wc,'nm'))
-            moms, e_moms = spectra.moments(velo, flux[i], SNR, max_moment=max_moment)
+            this_wave = wavelength[min(i, wave_shape)]
+            if clip_gauss:
+                keep = np.abs(this_wave - self['gauss_mu'][i])<=clip_gauss*self['gauss_sigma'][i]
+                this_wave = this_wave[keep]
+                this_flux = flux[i][keep]
+            else:
+                this_flux = flux[i]
+            velo = conversions.convert('nm', 'km/s', this_wave, wave=(wc,'nm'))
+            try:
+                moms, e_moms = spectra.moments(velo, this_flux, snr[i], max_moment=max_moment)
+            except IndexError:
+                print("***ERROR in profile {} at time {}***".format(i, time[i]))
+                plt.plot(wavelength[min(i, wave_shape)], flux[i],'k-')
+                if clip_gauss:
+                    plt.plot(wavelength[min(i, wave_shape)][keep], flux[i][keep],'r-')
+                    print "gauss_params",self['gauss_mu'][i], self['gauss_sigma'][i]
+                raise
+                
             mymoments[i,:,0] = moms
             mymoments[i,:,1] = e_moms
         
         # observed unnormalised moments
-        x0 = np.median(mymoments[:,1,0]/mymoments[:,0,0])
+        x0 = np.median(mymoments[:,1,0] / mymoments[:,0,0])
         for i in range(len(time)):
-            velo = conversions.convert('nm', 'km/s', wavelength[i], wave=(wc,'nm'))
-            moms, e_moms = spectra.moments(velo-x0, flux[i], SNR, max_moment=max_moment)
+            this_wave = wavelength[min(i, wave_shape)]
+            if clip_gauss:
+                keep = np.abs(this_wave - self['gauss_mu'][i])<=clip_gauss*self['gauss_sigma'][i]
+                this_wave = this_wave[keep]
+                this_flux = flux[i][keep]
+            else:
+                this_flux = flux[i]
+            velo = conversions.convert('nm', 'km/s', this_wave, wave=(wc,'nm'))
+            moms, e_moms = spectra.moments(velo-x0, this_flux, snr[i], max_moment=max_moment)
             mymoments[i,:,0] = moms
             mymoments[i,:,1] = e_moms
         
@@ -950,10 +1097,99 @@ class SPDataSet(DataSet):
         mymoments[:,1:,0] = mymoments[:,1:,0]/mymoments[:,0,0][:,None]
         
         # add to parameterSet
+        moment_descr = ['Moment 0: equivalent width', 'Moment 1: radial velocity',
+                        'Moment 2: line width', 'Moment 3: line skewness',
+                        'Moment 4: line kurtosis']
         for i in range(max_moment+1):
-            self.add(parameters.Parameter(qualifier='mom{}'.format(i), value=mymoments[:,i,0], cast_type=np.array))
-            self.add(parameters.Parameter(qualifier='sigma_mom{}'.format(i), value=mymoments[:,i,1], cast_type=np.array))
+            
+            # Set the units of each moment: equivalent width and radial velocity
+            # are in im/s, the higher order moments are powers of that
+            if i >= 2:
+                unit = 'km{}/s{}'.format(i, i)
+            else:
+                unit = 'km/s'
+                
+            # Create columns for the moments and their errors
+            self.add(parameters.Parameter(qualifier='mom{}'.format(i), value=mymoments[:,i,0], unit=unit, cast_type=np.array, description=moment_descr[i]), force=True)
+            self.add(parameters.Parameter(qualifier='sigma_mom{}'.format(i), value=mymoments[:,i,1], cast_type=np.array, description=moment_descr[i]), force=True)
+            
+            # Add extra column names to the column-tracking parameter
+            if not 'mom{}'.format(i) in self['columns']:
+                self['columns'].append('mom{}'.format(i))
+            if not 'sigma_mom{}'.format(i) in self['columns']:
+                self['columns'].append('sigma_mom{}'.format(i))
         
+        
+    
+    def convert_to_gauss(self):
+        """
+        Convert spectral time series to Gaussian parameters.
+        """
+        def gauss(pars, x, y):
+            return y - pars['A'].value*np.exp( -0.5*(x-pars['mu'].value)**2/pars['sigma'].value**2) - pars['const'].value
+        
+        
+        
+        time = np.asarray(self['time'])
+        wavelength = np.asarray(self['wavelength'])
+        if not len(wavelength.shape)==2:
+            wavelength = wavelength.reshape((1,-1))
+            wave_shape = 0
+        else:
+            wave_shape = len(wavelength)
+        flux = np.asarray(self['flux'])
+        cont = np.asarray(self['continuum'])
+        flux = flux/cont
+        
+        ampl = np.zeros((len(time),2))
+        mu = np.zeros((len(time),2))
+        sigma = np.zeros((len(time),2))
+        const = np.zeros((len(time),2))
+        ew = np.zeros((len(time),2))
+        
+        pars = lmfit.Parameters()
+        pars.add(name='A', value=1, min=-2, max=2, vary=True)
+        pars.add(name='mu', value=np.median(wavelength[0]), min=wavelength[0].min(), max=wavelength[0].max(), vary=True)
+        pars.add(name='sigma', value=1, min=0.01, max=10, vary=True)
+        pars.add(name='const', value=0, min=-0.5, max=0.5, vary=True)
+        
+        for i in range(len(time)):
+            mywave = wavelength[min(wave_shape, i)]
+            myflux = 1 - flux[i]
+            pars['A'].value = max(myflux)
+            pars['mu'].value = np.average(mywave, weights=myflux)
+            pars['sigma'].value = mywave.ptp()/4.0
+            
+            #print sum(np.isnan(mywave)), sum(np.isinf(mywave))
+            #print sum(np.isnan(myflux)), sum(np.isinf(myflux))
+            #print pars
+            try:
+                lmfit.minimize(gauss, pars, args=(mywave, myflux))
+            except ValueError:
+                logger.warning("Gaussian fit failed for profile {}".format(i))
+                pars['A'].value = max(myflux)
+                pars['mu'].value = np.average(mywave, weights=myflux)
+                pars['sigma'].value = mywave.ptp()/4.0
+            
+            ampl[i] = pars['A'].value, pars['A'].stderr
+            mu[i] = pars['mu'].value, pars['mu'].stderr
+            sigma[i] = pars['sigma'].value, pars['sigma'].stderr
+            const[i] = pars['const'].value, pars['const'].stderr            
+            ew[i][0] = ampl[i][0]*sigma[i][0]*np.sqrt(2*np.pi)
+            
+        self.add(parameters.Parameter(qualifier='gauss_ew', value=ew[:,0], cast_type=np.array, description='Gaussian EW'))
+        #self.add(parameters.Parameter(qualifier='sigma_gauss_ew', value=ampl[:,1], cast_type=np.array, description='Gaussian EW'))
+        self.add(parameters.Parameter(qualifier='gauss_ampl', value=ampl[:,0], cast_type=np.array, description='Gaussian amplitude'))
+        self.add(parameters.Parameter(qualifier='sigma_gauss_ampl', value=ampl[:,1], cast_type=np.array, description='Gaussian amplitude'))
+        self.add(parameters.Parameter(qualifier='gauss_mu', value=mu[:,0], cast_type=np.array, description='Gaussian mean'))
+        self.add(parameters.Parameter(qualifier='sigma_gauss_mu', value=mu[:,1], cast_type=np.array, description='Gaussian mean'))
+        self.add(parameters.Parameter(qualifier='gauss_sigma', value=sigma[:,0], cast_type=np.array, description='Gaussian width'))
+        self.add(parameters.Parameter(qualifier='sigma_gauss_sigma', value=sigma[:,1], cast_type=np.array, description='Gaussian width'))
+        self.add(parameters.Parameter(qualifier='gauss_const', value=const[:,0], cast_type=np.array, description='Gaussian constant'))
+        self.add(parameters.Parameter(qualifier='sigma_gauss_const', value=const[:,1], cast_type=np.array, description='Gaussian const'))
+        
+        
+        return None
         
         
         
@@ -1393,7 +1629,7 @@ def process_header(info, sets, default_column_order, required=2, columns=None,
                          phase=float, rv=float, exptime=float, samprate=int,
                          ucoord=float, vcoord=float, sigma_vis2=float,
                          sigma_phase=float, eff_wave=float, vis2=float,
-                         unit=str)
+                         unit=str, snr=float, weight=float, path=str)
     
     if dtypes is not None:
         for col in dtypes:
@@ -1457,6 +1693,7 @@ def process_file(filename, default_column_order, ext, columns, components,\
     parsed = parse_header(filename, ext=ext)
     (columns_in_file, components_in_file, units_in_file, dtypes_in_file, ncol),\
                    (pb, ds) = parsed
+    
     # Remember user-supplied arguments and keyword arguments for this parse
     # function
     # add columns, components, dtypes, units, full_output    
@@ -1492,7 +1729,7 @@ def process_file(filename, default_column_order, ext, columns, components,\
             if line[0] == '#':
                 continue
             data.append(tuple(line.split()[:ncol]))
-
+    
     # We have the information from header now, but only use that if it is not
     # overriden
     if components is None and components_in_file is None:
@@ -1501,12 +1738,14 @@ def process_file(filename, default_column_order, ext, columns, components,\
         components = [components_in_file] * len(columns_in_file)
     elif components is None:
         components = components_in_file
+    elif isinstance(components, str):
+        components = [components] * len(columns_in_file)
 
     # Make sure all the components are strings
     components = [str(c) for c in components]
     
     # We need unique names for the columns in the record array
-    columns_in_data = ["".join([col, name]) for col, name in \
+    columns_in_data = ["".join([col, name])+str(uuid.uuid4()) for col, name in \
                                          zip(columns_in_file, components)]
     
     # Add these to an existing dataset, or a new one. Also create pbdep to go
@@ -1840,6 +2079,7 @@ def parse_rv(filename, columns=None, components=None,
     
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
+    
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='rv', to_col='sigma')
     
@@ -2247,18 +2487,25 @@ def parse_phot(filenames, columns=None, full_output=False, group=None,
 
 def parse_spec_timeseries(timefile, clambda=None, columns=None,
                           components=None, dtypes=None, units=None,
-                          full_output=False, fixed_wavelength=True, **kwargs):
+                          full_output=False, fixed_wavelength=True, window=None,
+                          timefile_columns=None,
+                          **kwargs):
     """
     Parse a timeseries of spectrum files.
     """
     default_column_order = ['wavelength', 'flux', 'sigma', 'continuum']
+    default_timefile_column_order = ['path', 'time', 'weight', 'snr']
     
     # read in the time file:
-    timedata = np.loadtxt(timefile, dtype=str, usecols=(0,1), unpack=True)
-    basedir = os.path.dirname(timefile)
-    filenames = [os.path.join(basedir, filename) for filename in timedata[0]]
-    time = np.array(timedata[1],float)
+    timedata = process_file(timefile, default_timefile_column_order, 'sp',
+                            timefile_columns, None, None, None)[0].values()[0][0][0]
+    timedata.sort()
     
+    # Construct filenames
+    basedir = os.path.dirname(timefile)
+    filenames = [os.path.join(basedir, filename) for filename in timedata['path']]
+    time = timedata['time']
+        
     # Process the header and body of the file
     for i, filename in enumerate(filenames):
         output_, \
@@ -2267,27 +2514,51 @@ def parse_spec_timeseries(timefile, clambda=None, columns=None,
                                             components, dtypes, units, **kwargs)
         
         if i==0:
+            
+            # The first file serves as a template so we copy it completely
             output = output_
             myds = output.values()[0][0][-1]
             myds['filename'] = timefile
+            
+            # Select only a wavelength window if necessary
+            if window is not None:
+                keep = np.abs(myds['wavelength']-window[0])<=window[1]
+                for col in columns_in_file:
+                    myds[col] = myds[col][keep]
+                    
         else:
             for col in columns_in_file:
-                if col != 'wavelength' or not fixed_wavelength:
+                if col != 'wavelength' and not fixed_wavelength:
                     myds[col] = np.vstack([myds[col], output_.values()[0][0][-1][col]])
+                elif col != 'wavelength':
+                    this_ds = output_.values()[0][0][-1]
+                    this_col = np.interp(myds['wavelength'], this_ds['wavelength'], this_ds[col])
+                    myds[col] = np.vstack([myds[col], this_col])
+                    
+        
         
     # Convert to right units
-    for i, col in enumerate(myds['columns']):
-        if units is None or i>=len(units):
-            continue
+    #for i, col in enumerate(myds['columns']):
+        #if units is None or i>=len(units):
+            #continue
             
-        if col == 'wavelength':
-            if conversions.get_type(units[i])=='velocity' and clambda is None:
-                raise ValueError(("If the wavelength is given in velocity "
-                                  "units, you need to specify the central "
-                                  "wavelength 'clambda'"))
-            myds['wavelength'] = conversions.convert(units[i],
-                                         myds.get_parameter(col).get_unit(), 
-                                         myds['wavelength'], wave=clambda)
+        #if col == 'wavelength':
+            #if conversions.get_type(units[i])=='velocity' and clambda is None:
+                #raise ValueError(("If the wavelength is given in velocity "
+                                  #"units, you need to specify the central "
+                                  #"wavelength 'clambda'"))
+            #myds['wavelength'] = conversions.convert(units[i],
+                                         #myds.get_parameter(col).get_unit(), 
+                                         #myds['wavelength'], wave=clambda)
+    #for col in units:
+        #if col == 'wavelength':
+            #if conversions.get_type(units[col])=='velocity' and clambda is None:
+                #raise ValueError(("If the wavelength is given in velocity "
+                                  #"units, you need to specify the central "
+                                  #"wavelength 'clambda'"))
+            #myds['wavelength'] = conversions.convert(units[col],
+                                         #myds.get_parameter(col).get_unit(), 
+                                         #myds['wavelength'], wave=clambda)
     
     # Add sigma if not available
     if not 'sigma' in myds['columns']:
@@ -2296,15 +2567,26 @@ def parse_spec_timeseries(timefile, clambda=None, columns=None,
     
     # Add continuum if not available
     if not 'continuum' in myds['columns']:
-        myds['continuum'] = np.ones_like(myds['wavelength'])
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds['continuum'] = np.ones_like(myds['flux'])
+        myds['columns'] = myds['columns'] + ['continuum']
     
     
-    # Add time
-    myds['time'] = time
-    myds['columns'] = ['time'] + myds['columns']
-    
-    
+    # Add time and other columns from the timefile. We make sure that the time
+    # column is the first column.
+    for col in timedata['columns']:
+        # Skip if column not available
+        if not col in myds:
+            continue
+        # Skip if column already filled
+        if len(myds[col]):
+            continue
+        if col == 'time':
+            myds['time'] = time
+            myds['columns'] = ['time'] + myds['columns']
+        else:
+            myds[col] = timedata[col]
+            myds['columns'] = myds['columns'] + [col]
+        
     # If the user didn't provide any labels (either as an argument or in the
     # file), we don't bother the user with it:
     if not full_output:

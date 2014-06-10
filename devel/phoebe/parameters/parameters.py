@@ -2818,7 +2818,7 @@ class ParameterSet(object):
         """
         return [self.container[key].get_value() for key in self.container]
     
-    def pop(self,qualifier,default=__marker):
+    def pop(self, qualifier, default=__marker):
         """
         Pop a parameter from the class instance
         

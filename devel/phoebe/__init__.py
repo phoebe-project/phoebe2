@@ -69,7 +69,7 @@ See the section on :ref:`file formats <limbdark-atmospheres-fileformats>` for
 more information on the file structure of limb darkening tables.
 
 The absolute scaling of the intensity calculations is in real physical units
-(erg/s/cm2/angstrom). It takes into account the distance to the target,
+(W/m3). It takes into account the distance to the target,
 interstellar reddening effects and reflection/heating effects. Four parameters
 govern the absolute scaling:
 
@@ -85,14 +85,22 @@ Thus, there are two ways of scaling the model fluxes to observed fluxes:
      distance (1 Rsol) without extra effects (reddening, reflection...) with
      ``pblum=1`` will have observed fluxes of :math:`(4\pi)^{-1}`. Extra
      effects can decrease (reddening, distance) or increase (reflection) it.
+     
      If only the first component has a specified ``pblum``, all other fluxes
      will be scaled **relative to the primary component in the system** (which
      is the first target in the system). In WD terms, this is dubbed "coupling
      of the luminosities". If you want to decouple the luminosity computations
-     from the local atmospheric quantities for a target, then set ``pblum`` for
-     that target. Note that the value of ``pblum`` never changes: if you set it
-     to ``pblum=-1``, the code will internally compute the passband luminosity
-     but will not replace the -1 with that value. Everything happens internally.
+     from the local atmospheric quantities for one component in the system, then
+     set ``pblum`` for that component. Note that the value of ``pblum`` never
+     changes: if you set it to ``pblum=-1``, the code will internally compute
+     the passband luminosity but will not replace the -1 with that value.
+     Everything happens internally.
+     
+     Third light ``l3`` also works on a component-to-component basis. Its units
+     are the same as ``pblum``. If ``pblum=-1``, then ``l3`` is in absolute
+     physical units (i.e. W/m3). Since ``l3`` is additive, specifying it for one
+     component is the same as adding to the total system.
+     
    - **instrumental scaling**: many observable parameterSet (lcobs...) have
      two parameters ``scale`` and ``offset``. When you set them to be adjustable
      but do not specify any prior, a linear fitting will be performed to match
@@ -103,6 +111,19 @@ Thus, there are two ways of scaling the model fluxes to observed fluxes:
      ``scale`` and ``offset``, or both. Note that in this case the model fluxes
      are not altered in situ, but only rescaled when needed (e.g. when fitting
      or plotting).
+     
+     The units of ``offset`` are the units of the ``scale`` factor, because
+     
+     .. math::
+     
+        \mathtt{obs} = \mathtt{scale}*\mathtt{model} + \mathtt{offset}
+        
+     Thus if you normalised the observations to 1 and you allow automatic scaling
+     ``offset`` will be fractional.
+     
+**Examples:**
+
+
 
 Section 2.2 Reflection and heating
 -----------------------------------

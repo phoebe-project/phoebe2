@@ -1698,7 +1698,7 @@ def compute_pot_from(mybundle, rrel, component=0):
     """
     q = mybundle['q@orbit']
     d = 1 - mybundle['ecc@orbit']
-    syncpar = mybundle.get_system()[component]['component']['syncpar']
+    syncpar = mybundle.get_system()[component].params['component']['syncpar']
     if component == 1:
         q = 1.0 / q
     return roche.radius2potential(rrel, q=q, d=d, F=syncpar, component=1)

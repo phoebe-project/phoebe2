@@ -1645,7 +1645,7 @@ class FeedbackLmfit(Feedback):
         method = fitparams['method']
         
         # First check the values
-        if results.success:
+        if hasattr(results, 'success') and results.success:
             values = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-', '_'))].value for ipar in phoebe_pars]
         else:
             values = [np.nan for ipar in lmfit_pars]
@@ -1653,7 +1653,7 @@ class FeedbackLmfit(Feedback):
             logger.error(msg)
         
         # Then check the errorbars and correlation coefficients
-        if results.errorbars:
+        if hasattr(results, 'errorbars') and results.errorbars:
             sigmas = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].stderr for ipar in phoebe_pars]
             correl = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].correl for ipar in phoebe_pars]
         else:
@@ -1670,11 +1670,14 @@ class FeedbackLmfit(Feedback):
         self.values = values
         self.sigmas = sigmas
         self.correls = correl
-        self.redchi = results.redchi
-        self.success = results.success
-        self.n_data = results.ndata
-        self.n_pars = results.nvarys
-        self.df = results.nfree # = result.ndata - result.nvarys
+        try:
+            self.redchi = results.redchi
+            self.success = results.success
+            self.n_data = results.ndata
+            self.n_pars = results.nvarys
+            self.df = results.nfree # = result.ndata - result.nvarys
+        except AttributeError:
+            pass
         self.traces = traces
         self.redchis = redchis
         
