@@ -875,30 +875,6 @@ def convert(_from,_to,*args,**kwargs):
         left_over = [change_convention('SI',ilo) for ilo in left_over.split()]
         only_from = "".join(left_over)
         only_to = ''
-
-        #-- first we remove any differences concerning (ster)radians
-        #   we recently added fac_from* to all these things, maybe this needs to 
-        #   change?
-        #if 'rad2' in only_from:
-        #    start_value = fac_from*_switch['rad2_to_'](start_value,**kwargs_SI)
-        #    only_from = only_from.replace('rad2','')
-        #    logger.debug('Switching to /sr')
-        #    fac_from = 1.
-        #elif 'rad-2' in only_from:
-        #    start_value = fac_from*_switch['rad-2_to_'](start_value,**kwargs_SI)
-        #    only_from = only_from.replace('rad-2','')
-        #    logger.debug('Switching from /sr')
-        #    fac_from = 1.
-        #elif 'rad1' in only_from:
-        #    start_value = fac_from*_switch['rad1_to_'](start_value,**kwargs_SI)
-        #    only_from = only_from.replace('rad1','')
-        #    logger.debug('Switching to /rad')
-        #    fac_from = 1.
-        #elif 'rad-1' in only_from:
-        #    start_value = fac_from*_switch['rad-1_to_'](start_value,**kwargs_SI)
-        #    only_from = only_from.replace('rad-1','')
-        #    logger.debug('Switching from /rad')
-        #    fac_from = 1.
         
         #-- then we do what is left over (if anything is left over)
         if only_from or only_to:

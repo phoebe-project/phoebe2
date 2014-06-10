@@ -2210,12 +2210,12 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             logger.warning('No passbands found matching pattern {}'.format(passband))
     passbands = sorted(set(passbands + ['OPEN.BOL']))
     
-    # Sort out which passbands are not calibrated
-    filter_info = pbmod.get_info()
-    available = set(list(filter_info['passband']))
-    overlap = set(passbands) & available
-    logger.info("Skipping passbands {} (no calibration available)".format(sorted(list(set(passbands)-available))))
-    passbands = sorted(list(overlap))
+    # Sort out which passbands are not calibrated (old behaviour)
+    #filter_info = pbmod.get_info()
+    #available = set(list(filter_info['passband']))
+    #overlap = set(passbands) & available
+    #logger.info("Skipping passbands {} (no calibration available)".format(sorted(list(set(passbands)-available))))
+    #passbands = sorted(list(overlap))
     
     # If the user gave a list of files, it needs to a list of specific
     # intensities.

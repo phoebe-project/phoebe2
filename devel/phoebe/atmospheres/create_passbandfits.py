@@ -205,7 +205,9 @@ def write_passbands_to_fits(passbandlist, outfile):
     
     
 if __name__ == "__main__":
-    logger = utils.get_basic_logger()
-    files = sorted(glob.glob('ptf/phoebe1set/*.ptf'))
+    logger = utils.get_basic_logger(clevel='INFO')
+    files1 = glob.glob('ptf/phoebe1set/*.ptf')
+    files2 = glob.glob('ptf/phoebe2set/*')
+    files = sorted(files1 + files2)
     outfile = 'ptf/phoebe2_standardset.fits'
     convert_ascii_to_fits(files,outfile,fmt='phoebe1')

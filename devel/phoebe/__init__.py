@@ -1,4 +1,4 @@
-"""
+r"""
 
 Section 1. Package structure
 ============================
@@ -119,11 +119,136 @@ Thus, there are two ways of scaling the model fluxes to observed fluxes:
         \mathtt{obs} = \mathtt{scale}*\mathtt{model} + \mathtt{offset}
         
      Thus if you normalised the observations to 1 and you allow automatic scaling
-     ``offset`` will be fractional.
+     ``offset`` will be fractional. If you normalised your observations to 100,
+     then ``offset`` will be in percentage.
      
 **Examples:**
 
+We initialize a wide binary Bundle, set the inclination angle to 90 degrees and
+set the radius of the secondary to be half the one of the primary. We'll take
+uniform disks and blackbody atmospheres. We'll set the secondary luminosity to
+zero such that we have a dark object eclipsing a star. In this case, the flux
+ratio :math:`F_\mathrm{ecl}` during total eclipse is 75% of the total light, since
 
+.. math::
+
+    F_\mathrm{ecl} = \frac{\pi R_1^2 - \pi \left(\frac{R_1}{2}\right)^2}{\pi R_1^2} \\
+                   =  1 - \frac{1}{4} = 0.75
+
+::
+
+    # System setup
+    b = phoebe.Bundle()
+    b['period'] = 20.0
+    b['incl'] = 90.0
+    b['pot@primary'] = phoebe.compute_pot_from(b, 0.05, component=0)
+    b['pot@secondary'] = phoebe.compute_pot_from(b, 0.025, component=1)
+    b.set_value_all('ld_func', 'uniform')
+    b.set_value_all('ld_coeffs', [0.0])
+    b.set_value_all('atm', 'blackbody')
+
+    # Addition of default data
+    b.lc_fromarrays(phase=np.linspace(0,1,100))
+    b['pblum@lc01@secondary'] = 0.0
+
+We compute the light curve and use the purely physical calculations as
+observations. These can then be used to auto-scale the synthetics::
+
+    b.run_compute()
+    obsflux = b['flux@lc01@lcsyn']
+                   
+To show the behaviour of ``scale`` and ``offset`` and ``pblum`` and ``l3``, we'll
+add 6 different light curves on top op the original one, with different values
+of the scaling parameters. Unless stated otherwise, ``pblum=-1``, ``l3=0``,
+``scale=1`` and ``offset=1``. In each case, we list the relative eclipse depth
+and the minimum and maximum flux values. The different cases are:
+
+- ``lc01``: all default values::
+        
+        syn = b['lc01@lcsyn']
+        obs = b['lc01@lcobs']
+        rel_depth = syn['flux'].min() / syn['flux'].max()
+        minim, maxim = syn['flux'].min(), syn['flux'].max()
+        assert(rel_depth==0.748343497631)
+        assert(minim==1776.54192813)
+        assert(maxim==2373.96587764)
+        
+- ``lc02``: we force an offset of 10000 units (``offset=10000``)::
+
+        b.lc_fromarrays(phase=np.linspace(0,1,100), offset=10000)
+        b['pblum@lc02@secondary'] = 0.0
+        b.run_compute()
+        
+        assert(rel_depth==0.951719282612)
+        assert(minim==11776.5419281)
+        assert(maxim==12373.9658776)
+        
+- ``lc03``: Artifical addition of 10000 flux units to the observations as offset, and
+  automatic scaling. This results in the same fluxes as ``lc02``, but the scaling
+  and offset factors are determined automatically::
+
+        b.lc_fromarrays(phase=np.linspace(0,1,100), flux=fluxobs+10000)
+        b['pblum@lc03@secondary'] = 0.0
+        b.set_adjust('scale@lc03')
+        b.set_adjust('offset@lc03')
+        b.run_compute()
+
+        assert(rel_depth==0.951719282612)
+        assert(minim==11776.5419281)
+        assert(maxim==12373.9658776)
+        
+        assert(b['scale@lc02@lcobs']==1.0)
+        assert(b['offset@lc02@lcobs']==10000.0)
+        
+- ``lc04``: Like ``lc03``, but with scaling of the fluxes as well::
+        
+        b.lc_fromarrays(phase=np.linspace(0,1,100), flux=0.75*fluxobs+10000)
+        b['pblum@lc04@secondary'] = 0.0
+        b.set_adjust('scale@lc04')
+        b.set_adjust('offset@lc04')
+        b.run_compute()
+
+        assert(rel_depth==0.961965202198)
+        assert(minim==11332.4064461)
+        assert(maxim==11780.4744082)
+        
+        assert(b['scale@lc02@lcobs']==0.75)
+        assert(b['offset@lc02@lcobs']==10000.0)
+
+- ``lc05``: Manual passband luminosity ``pblum=12.56`` such that the total flux
+  should be normalised to 1.0::
+
+        b.lc_fromarrays(phase=np.linspace(0,1,100), flux=obsflux)
+        b['pblum@lc05@primary'] = 4*np.pi
+        b.run_compute()
+        
+        assert(rel_depth==0.748343497631)
+        assert(minim==0.748606948021)
+        assert(maxim==1.00035204474)        
+
+- ``lc06``: Manual third light::
+
+        b.lc_fromarrays(phase=np.linspace(0,1,100), flux=obsflux)
+        b['l3@lc06@primary'] = 10000.0
+        b.run_compute()
+        
+        assert(rel_depth==0.951719282612)
+        assert(minim==11776.5419281)
+        assert(maxim==12373.9658776)        
+        
+- ``lc07``: Manual third light and passband luminosity::
+
+        b.lc_fromarrays(phase=np.linspace(0,1,100), flux=obsflux)
+        b['l3@lc07@primary'] = 0.1
+        b['pblum@lc07@primary'] = 4*np.pi
+        b.run_compute()
+        
+        assert(rel_depth==0.771214041978)
+        assert(minim==0.848606948021)
+        assert(maxim==1.10035204474)     
+        
+        
+                   
 
 Section 2.2 Reflection and heating
 -----------------------------------
