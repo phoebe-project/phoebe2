@@ -299,14 +299,14 @@ class GenericBody(object):
             #-- merge given keyword arguments with derived keyword arguments
             return getattr(universe,match[0])(*info[match[0]]['required'],**info[match[0]]['optional'])
         elif len(match)>1:
-            logger.warning("Given set of arguments is ambiguous: could match any Body of {}".format(", ".join(match)))
+            logger.debug("Given set of arguments is ambiguous: could match any Body of {}".format(", ".join(match)))
             if 'Star' in match:
                 mymatch = 'Star'
             elif 'BinaryRocheStar' in match:
                 mymatch = 'BinaryRocheStar'
             else:
                 mymatch = match[0]
-            logger.warning("Decided to take {}".format(mymatch))
+            logger.info("Creating Body of type {}".format(mymatch))
             return getattr(universe,mymatch)(*info[mymatch]['required'],**info[mymatch]['optional'])
         else:
             best_match = '<no close match found>'
@@ -1382,7 +1382,7 @@ def pulsating_star(create_body=True):
     Pulsating star
     """
     star = from_library('Sun', create_body=create_body)
-    star.set_params(parameters.ParameterSet('puls', ampl=0.1, amplteff=0.05))
+    star.set_params(parameters.ParameterSet('puls', ampl=0.1, amplteff=0.05, label='puls01'))
     
     return star
     

@@ -565,7 +565,9 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
                 irradiated.mesh[refl_ref] += bond_albedo*inco[:,j]
             
             except ValueError:
+                raise
                 raise ValueError("Did not find ref {}. Did you prepare for reflection?".format(refl_ref))
+            
                 
     
 

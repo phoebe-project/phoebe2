@@ -26,7 +26,6 @@ def check_parse_with_numpy(myfile, type='lc', **kwargs):
         obs, pbdep = phoebe.parse_lc(myfile, **kwargs)
     elif type == 'rv':
         obs, pbdep = phoebe.parse_rv(myfile, **kwargs)
-        
     # Read via Numpy
     data = np.loadtxt(myfile)
     
@@ -239,6 +238,10 @@ def test_parse_lc_01():
     
     
 if __name__=="__main__":
+    
+    obs, pbdep = phoebe.parse_rv('../HD174884/hd174884.rv1')
+    print obs
+    raise SystemExit
     
     test_parse_lc_01()
     test_parse_phased_data_mag()

@@ -1549,7 +1549,11 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
             print(msg)
             import matplotlib.pyplot as plt
             with pyfits.open(atm) as ff:
-                plt.plot(ff[passband].data.field('teff'), ff[passband].data.field('logg'), 'ko')
+                extensions = [ext.header['extname'] for ext in ff[1:]]
+                if not passband in extensions:
+                    passband = passband + '_v1.0'
+                plt.plot(ff[passband].data.field('teff'),
+                         ff[passband].data.field('logg'), 'ko')
             wrong = np.isnan(np.array(pars)[0])
             plt.plot(values[0][wrong], values[1][wrong], 'rx', mew=2, ms=10)
             wrong = np.isinf(np.array(pars)[0])

@@ -758,22 +758,22 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     
     .. math::
         
-        O = P_b S + l_3
+        O = \mathtt{scale} S + \mathtt{offset}
     
     where :math:`O` represents the observations, :math:`S` the synthetics (the
-    model), :math:`P_b` represents a linear scaling factor (here called passband
-    luminosity) and :math:`l_3` represents an offset term (here called third
-    light). The parameter :envvar:`sigma` represent the uncertainty on the
+    model), :math:`\mathtt{scale}` represents a linear scaling factor and
+    :math:`\mathtt{offset}` represents an offset term. The parameter
+    :envvar:`sigma` represent the uncertainty on the
     observations, which are used as weights in the fit. If they are not given,
     they are set to unity.
     
-    The units of ``l3`` are the observer's units: i.e. if the observations are
-    normalised to 1, ``l3`` will be fractional. If they are normalised to 100,
-    ``l3`` is in percentage. If they are in absolute flux units, then also ``l3``
-    is in absolute flux units.
+    The units of ``offset`` are the observer's units: i.e. if the observations
+    are normalised to 1, ``offset`` will be fractional. If they are normalised
+    to 100, ``offset`` is in percentage. If they are in absolute flux units,
+    then also ``offset`` is in absolute flux units.
     
-    The user has the choice to fit none of, only one of, or both of ``pblum``
-    and ``l3``.
+    The user has the choice to fit none of, only one of, or both of ``scale``
+    and ``offset``.
     
     Note that the philosophy of this function is that we do **not** (I repeat
     do **not**) touch the observations in **any** circumstance. Our model should
@@ -1546,6 +1546,7 @@ class Body(object):
         """
         self.time = None
         self._clear_when_reset = dict()
+        self.subdivision['orig'] = None
     
     
     def set_params(self, params, force=True):
@@ -2400,7 +2401,8 @@ class Body(object):
                 sigma = np.array(obs['sigma_vis2'])
             
             elif obs.context == 'rvobs':
-                model = conversions.convert('Rsol/d', 'km/s', np.array(modelset['rv']))
+                #model = conversions.convert('Rsol/d', 'km/s', np.array(modelset['rv']))
+                model = np.array(modelset['rv'])
                 obser = np.array(obs['rv'])
                 sigma = np.array(obs['sigma'])
                 
@@ -2416,7 +2418,7 @@ class Body(object):
             #                                  sigma*scale, I'm not touching
             #                                  the observations!
             term1 = - 0.5*np.log(2*pi*(sigma)**2)
-            term2 = - (obser-model*scale-offset)**2 / (2.*(sigma)**2)
+            term2 = - (obser-model*scale-offset)**2 / (2.*(sigma)**2)                       
             
             # Do also the Stokes V profiles. Because they contain the
             # derivative of the intensity profile, the offset factor disappears
@@ -2582,7 +2584,8 @@ class Body(object):
                     obser_ = np.ravel(np.array(observations['vis2']))
                     sigma_ = np.ravel(np.array(observations['sigma_vis2']))
                 elif observations.context == 'rvobs':
-                    model_ = conversions.convert('Rsol/d', 'km/s', np.ravel(np.array(modelset['rv'])))
+                    #model_ = conversions.convert('Rsol/d', 'km/s', np.ravel(np.array(modelset['rv'])))
+                    model_ = np.ravel(np.array(modelset['rv']))
                     obser_ = np.ravel(np.array(observations['rv']))
                     sigma_ = np.ravel(np.array(observations['sigma']))
                 else:
@@ -4715,7 +4718,7 @@ class PhysicalBody(Body):
     
     
     @decorators.parse_ref
-    def prepare_reflection(self,ref=None):
+    def prepare_reflection(self, ref=None):
         """
         Prepare the mesh to handle reflection from an other body.
         
@@ -4724,17 +4727,15 @@ class PhysicalBody(Body):
         be taken into account in the reflection algorithm. In the isotropic case,
         reflections is aspect indepedent.
         
-        If you want to do something non-isotropic, you'd better do some kind of
-        raytracing I guess. This requires a different approach than the one
-        implemented here.
         """
         for iref in ref:
             field = 'refl_{}'.format(iref)
-            if field in self.mesh.dtype.names: continue
-            dtypes = np.dtype([(field,'f8')])
+            if field in self.mesh.dtype.names:
+                continue
+            dtypes = np.dtype([(field, 'f8')])
             new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
             self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
-            logger.debug('added reflection column for pbdep {}'.format(iref))
+            logger.info('added reflection column {} for pbdep {} to {}'.format(field, iref, self.get_label()))
     
     
     @decorators.parse_ref

@@ -131,18 +131,47 @@ def interp_spectable(gridfile,teff,logg,wrange):
 
 
 
-def moments(velo,flux,SNR=200.,max_moment=3):
-    """
+def moments(velo, flux, snr=200., max_moment=3):
+    r"""
     Compute the moments from a line profile.
+    
+    The :math:`k`-th moment is defined as (see, e.g., [Aerts2010]_, Eq. 6.62-6.65)
+    
+    .. math::
+    
+        m_k = \sum_{i=1}^N (1-F_i) x_i^k \Delta x_i
+        
+    where :math:`F_i` is the flux and :math:`x_i` is the velocity of a given
+    wavelength pixel. Then, :math:`\Delta x_i=x_i-x_{i-1}`.
+    
+    In this routine, numerical integration is done using Simpson's rule.
+    
+    We estimate the uncertainty in the flux in each pixel as
+    
+    .. math::
+    
+        \sigma_i = \mathrm{SNR}^{-1} F^{-1/2}
+    
+    :param velo: velocity array
+    :type velo: array
+    :param flux: normalised flux array
+    :type flux: array
+    :param snr: signal-to-noise ratio used for error estimation
+    :type snr: float
+    :param max_moment: highest moment to compute (including)
+    :type max_moment: int
+    :return: moments and error on moments
+    :rtype: two-tupel arrays of shape (N x max_moment)
     """
-    mymoms,e_mymoms = np.zeros(max_moment+1),np.zeros(max_moment+1)
+    # Prepare output arrays
+    mymoms, e_mymoms = np.zeros(max_moment+1), np.zeros(max_moment+1)
     
     # Compute zeroth moment (equivalent width)
-    m0 = scipy.integrate.simps( (1-flux),x=velo)
+    m0 = scipy.integrate.simps( (1-flux), x=velo)
     
     # To calculate the uncertainties, we need the error in each velocity
     # bin, and the error on the zeroth moment
-    sigma_i = 1./SNR / np.sqrt(flux)
+    sigma_i = 1./snr / np.sqrt(flux)
     Delta_v0 = np.sqrt(scipy.integrate.simps( sigma_i,x=velo)**2)
     e_m0 = np.sqrt(2)*(Delta_v0/m0)
     
@@ -150,8 +179,8 @@ def moments(velo,flux,SNR=200.,max_moment=3):
     e_mymoms[0] = e_m0
         
     # Calculate other moments
-    for n in range(1,max_moment+1):
-        mymoms[n] = scipy.integrate.simps((1-flux)*velo**n,x=velo)
+    for n in range(1, max_moment+1):
+        mymoms[n] = scipy.integrate.simps((1-flux)*velo**n, x=velo)
         # And the uncertainty on it
         Delta_vn = np.sqrt(scipy.integrate.simps(sigma_i*velo**n)**2)
         e_mymoms[n] = np.sqrt(  (Delta_vn/m0)**2 + (Delta_v0/m0 * mymoms[n])**2 )

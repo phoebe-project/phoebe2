@@ -449,7 +449,9 @@ def set_default_units(fctn):
                 index = userc.index('time' if obs_in_time else 'phase')
             
                 if obs_in_time and not phased: # otherwise stick to defaults again
-                    kwargs['x_unit'] = useru[index]
+                    #kwargs['x_unit'] = useru[index]
+                    if 'time' in useru or 'phase' in useru:
+                        kwargs['x_unit'] = useru['time' if obs_in_time else 'phase']
         
         if y_unit is None:
             # Flux/mag stuff
@@ -460,15 +462,21 @@ def set_default_units(fctn):
                 if obs_in_flux or obs_in_mag:
                     # If no user units are give, use default ones
                     if useru:
-                        index = userc.index('flux' if obs_in_flux else 'mag')
-                        kwargs['y_unit'] = useru[index]
+                        # In case useru is a dictionary
+                        #if hasattr(useru, 'keys'):
+                        kwargs['y_unit'] = useru['flux' if obs_in_flux else 'mag']
+                        # else it is a list    
+                        #else:
+                        #    index = userc.index('flux' if obs_in_flux else 'mag')
+                        #    kwargs['y_unit'] = useru[index]
                     
                 
                         
             
             elif category == 'rv' and 'rv' in userc and useru:
-                index = userc.index('rv')
-                kwargs['y_unit'] = useru[index]
+                kwargs['y_unit'] = useru['rv']
+                #index = userc.index('rv')
+                #kwargs['y_unit'] = useru[index]
         
         return fctn(system, *args, **kwargs)
     

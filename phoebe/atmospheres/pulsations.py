@@ -371,7 +371,7 @@ def norm_N(l, m):
     
 
 
-def norm_atlp1(l,m,spin,k):
+def norm_atlp1(l, m, spin, k):
     r"""
     Amplitude of toroidal component.
     
@@ -389,12 +389,17 @@ def norm_atlp1(l,m,spin,k):
     is the spin parameter.
     
     We neglect the factor :math:`a_{s,\ell}` because this factor is
-    present in all the components, so we apply it afterwards.
+    present in all the components, so we apply it afterwards. Note that this
+    is not entirely correct (see note by [Schrijvers1997]_ after Eq. 15), but
+    it only introduces errors of second order in the spin parameter. Effectively,
+    in their notation, we replace :math:`a^{(0)}` with :math:`a_{s,\ell}`.
     
+    See e.g. [Schrijvers1997]_, Eq. 13-15.
     """
     return spin * (l-abs(m)+1.)/(l+1.) * 2./(2*l+1.) * (1-l*k)
 
-def norm_atlm1(l,m,spin,k):
+
+def norm_atlm1(l, m, spin, k):
     r"""
     Amplitude of toroidal component.
     
@@ -414,6 +419,7 @@ def norm_atlm1(l,m,spin,k):
     We neglect the factor :math:`a_{s,\ell}` because this factor is
     present in all the components, so we apply it afterwards.
     
+    See e.g. [Schrijvers1997]_, Eq. 13-15.
     """
     return spin * (l+abs(m))/l * 2./(2*l+1.) * (1 + (l+1)*k)
   
@@ -606,6 +612,7 @@ def radial(theta, phi, l, m, freq, phase, t, alpha=0.0, beta=0.0, gamma=0.0):
     .. math::
     
         \xi_r & = Y_\ell^m(\theta,\phi) e^{2\pi i (ft+\phi)}
+    
     """
     return sph_harm(theta,phi,l,m,alpha,beta,gamma) * exp(1j*2*pi*(freq*t+phase))
 
@@ -979,7 +986,11 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
             if scheme == 'coriolis' and l > 0:
                 spinpar = rotfreq/freq
                 Cnl = pls.get_value('ledoux_coeff')
-                k = k0 + 2*m*spinpar*((1.+k0)/(l**2+l)-Cnl)
+                
+                # First order correction for k (horizontal over vertical amplitude)
+                # Note that the frequency freq is the frequency in the nonrotating
+                # frame. See Schrijvers 1997, Eq. 22.
+                k = k0 + 2*m*spinpar * ((1.+k0) / (l**2+l) - Cnl*k0)
                 logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3g, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
             else:
                 spinpar = 0.
@@ -1052,7 +1063,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
 
 
 #fpulsations_success = False
-if True:
+if False:
     observables = observables_fortran
     surface = surface_fortran
 else:
