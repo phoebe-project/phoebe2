@@ -101,8 +101,13 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                     level = level - 1
                 
                 if context[-3:] in ['obs', 'dep', 'syn'] and summary_type != 'cursory':
+                    # if we want "lcdep[0]" as a string
                     seqnr = len([key for key in total_string[current_label].keys() if key[:len(context)]==context])
-                    context = context + '[{}]'.format(seqnr)
+                    #context = context + '[{}]'.format(seqnr)
+                    # if we want [ref@lcdep@body] as a string
+                    #last_body = [b for b in path if isinstance(b, phoebe.backend.universe.Body)][-1]
+                    #current_body_label = last_body.get_label()
+                    context = '({}) {}@{}'.format(context, current_pset['ref'], context)
                         
                 
                 current_label = make_body_label(bodies[level-1], level, emphasize)
@@ -184,8 +189,13 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                 level = level - 1
             
             if context[-3:] in ['obs', 'dep', 'syn'] and summary_type != 'cursory':
-                seqnr = len([key for key in total_string[current_label].keys() if key[:len(context)]==context])
-                context = context + '[{}]'.format(seqnr)
+                # if we want "lcdep[0]" as a string
+                    seqnr = len([key for key in total_string[current_label].keys() if key[:len(context)]==context])
+                    #context = context + '[{}]'.format(seqnr)
+                    # if we want [ref@lcdep@body] as a string
+                    #last_body = [b for b in path if isinstance(b, phoebe.backend.universe.Body)][-1]
+                    #current_body_label = last_body.get_label()
+                    context = '({}) {}@{}'.format(context, current_pset['ref'], context)
                     
             
             current_label = make_body_label(bodies[level-1], level, emphasize)

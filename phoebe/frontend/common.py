@@ -903,11 +903,24 @@ class Container(object):
                                 
                                 return_items += [ri]
                                 
-                        # we want to see if there any syns associated with the obs
+                        # we want to see if there any syns associated with the
+                        # obs. If there are, we will add the synthetics to the
+                        # trunk, but make sure they are arrayified and scaled
+                        # properly to the obs. Note that the their might be a
+                        # breach of consistency between the underlying system
+                        # and the Bundle: the BodyBag keeps separate syns in
+                        # each body and only combines them when necessary. The
+                        # syns for the Bundle, on the other hand, are at the
+                        # same level as the obs. This should be more intuitive
+                        # to users but is less flexible in the end.
+                        category = item[:-3]
                         if itype[-3:] == 'obs':
                             bodies = [self.get_system()] + [thing for thing in path if isinstance(thing, universe.Body)]
-                            syn = bodies[-1].get_synthetic(category=item[:-3], ref=isubtype['ref'])
+                            syn = bodies[-1].get_synthetic(category=category,
+                                                           ref=isubtype['ref'])
                             if syn is not None: 
+                                
+                                # 1. Arrayify
                                 syn = syn.asarray()
                                 ris = self._get_info_from_item(syn, path=path, section=section_name)
                                 return_items += ris
@@ -916,11 +929,20 @@ class Container(object):
                                 subpath = list(path[:-1]) + [syn['ref']]
                                 subpath[-3] = syn.get_context()
                                 
-                                # Convert columns to user supplied units
-                                obs = bodies[-1].get_obs(category=item[:-3], ref=isubtype['ref'])
+                                # 2. Convert columns to user supplied units
+                                obs = bodies[-1].get_obs(category=category,
+                                                         ref=isubtype['ref'])
                                 if obs is not None:
                                     user_columns = obs['user_columns']
                                     user_units = obs['user_units']
+                                    
+                                    # Scale syns to obs
+                                    if category == 'lc':
+                                        syn['flux'] = obs['scale']*syn['flux'] + obs['offset']
+                                    elif category == 'rv':
+                                        syn['rv'] = syn['rv'] + obs['vgamma_offset']
+                                    else:
+                                        logger.critical('Auto-scaling in Bundle of {} is not implemented yet'.format(category))
                                     
                                     # Remove times and insert phases if phases
                                     # where given before

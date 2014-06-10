@@ -1789,7 +1789,7 @@ def process_file(filename, default_column_order, ext, columns, components,\
     
     # lastly, loop over all data columns with units, and convert them
     for unit in units:
-        if units[unit].lower() in ['none','mag']:
+        if units[unit].lower() in ['none','mag'] or unit in ['flux', 'mag']:
             continue
         for label in output:
             from_units = units[unit]
@@ -2026,7 +2026,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
         myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("Obs {}: sigma estimated (not available)".format(myds['ref']))
     
-    # Convert to right units
+    # Convert to right units (flux and mag are not done in process_file)
     for col in units:
         if col == 'flux':
             unit_from = units[col]
@@ -2034,7 +2034,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
             
             if unit_from != unit_to:
                 passband = mypb['passband']
-                logger.info("Obs {}: flux and sigma converted from {} to {} ({})".format(myds['ref'], unit_from, unit_to, passband))
+                logger.warning("Obs {}: flux and sigma converted from {} to {} ({})".format(myds['ref'], unit_from, unit_to, passband))
                 f, e_f = conversions.convert(unit_from, unit_to,
                                          myds['flux'], myds['sigma'], passband=passband)
                 myds['flux'] = f
