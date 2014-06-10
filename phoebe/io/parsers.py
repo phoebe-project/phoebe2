@@ -135,7 +135,7 @@ def legacy_to_phoebe2(inputfile):
 
 			# Start with parameters that determine container sizes:
             if key == 'phoebe_lcno':
-                all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=['JD','W/m3','W/m3']) for i in range(int(val))]
+                all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=dict(time='JD',flux='W/m3',sigma='W/m3')) for i in range(int(val))]
                 all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_lcdeps[1] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 
@@ -147,7 +147,7 @@ def legacy_to_phoebe2(inputfile):
                 continue            
 
             if key == 'phoebe_rvno':
-                all_rvobs = [datasets.RVDataSet(user_columns=['time','rv','sigma'], user_units=['JD','km/s','km/s']) for i in range(int(val))]
+                all_rvobs = [datasets.RVDataSet(user_columns=['time','rv','sigma'], user_units=dict(time='JD',rv='km/s',sigma='km/s')) for i in range(int(val))]
                 rv_component_spec = [None for i in range(int(val))]
                 all_rvdeps[0] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
                 all_rvdeps[1] = [parameters.ParameterSet('rvdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
@@ -194,7 +194,7 @@ def legacy_to_phoebe2(inputfile):
 				'opsf', 'spots_no', 'spno', 'logg', 'sbr', 'mass', 'radius',
                 'plum', 'mbol', 'indep', 'spots_corotate', 'spots_units',
                 'synscatter_seed', 'synscatter_switch', 'synscatter_sigma',
-                'synscatter_levweight', 'proximity_rv1_switch', 'proximity_rv2_switch',
+                'synscatter_levweight',
                 'nms_accuracy', 'nms_iters_max', 'el3_units', 'grid_coarsesize',
                 'passband_mode', 'ie_switch', 'spectra_disptype', 'bins_switch',
                 'bins']:
@@ -227,6 +227,12 @@ def legacy_to_phoebe2(inputfile):
                 continue
             if leg_qualifier == 'compute_hla_switch':
                 computehla = int(val)
+                continue
+            if leg_qualifier == 'proximity_rv1_switch':
+                proximity_rv1 = int(val)
+                continue
+            if leg_qualifier == 'proximity_rv2_switch':
+                proximity_rv2 = int(val)
                 continue
             
             # passband luminosities
@@ -457,10 +463,10 @@ def legacy_to_phoebe2(inputfile):
                 if leg_qualifier == 'lc_dep':
                     val = val.strip()
                     if val[1:-1] == 'Magnitude':
-                        all_lcobs[index]['user_units'][1] = 'mag'
+                        all_lcobs[index]['user_units']['flux'] = 'mag'
                         all_lcobs[index]['user_columns'][1] = 'mag'
                     elif val[1:-1] == 'Flux':
-                        all_lcobs[index]['user_units'][1] = 'W/m3'
+                        all_lcobs[index]['user_units']['flux'] = 'W/m3'
                         all_lcobs[index]['user_columns'][1] = 'flux'
                     else:
                         raise ValueError("Flux unit not recognised")
@@ -473,10 +479,10 @@ def legacy_to_phoebe2(inputfile):
                 if leg_qualifier == 'lc_indep':
                     val = val.strip()
                     if val[1:-1] == 'Time (HJD)':
-                        all_lcobs[index]['user_units'][0] = 'JD'
+                        all_lcobs[index]['user_units']['time'] = 'JD'
                         all_lcobs[index]['user_columns'][0] = 'time'
                     elif val[1:-1] == 'Phase':
-                        all_lcobs[index]['user_units'][0] = 'cy'
+                        all_lcobs[index]['user_units']['phase'] = 'cy'
                         all_lcobs[index]['user_columns'][0] = 'phase'
                         all_lcobs[index]['columns'][all_lcobs[index]['columns'].index('time')] = 'phase'
                     else:
@@ -486,10 +492,10 @@ def legacy_to_phoebe2(inputfile):
                 if leg_qualifier == 'rv_indep':
                     val = val.strip()
                     if val[1:-1] == 'Time (HJD)':
-                        all_rvobs[index]['user_units'][0] = 'JD'
+                        all_rvobs[index]['user_units']['time'] = 'JD'
                         all_rvobs[index]['user_columns'][0] = 'time'
                     elif val[1:-1] == 'Phase':
-                        all_rvobs[index]['user_units'][0] = 'cy'
+                        all_rvobs[index]['user_units']['phase'] = 'cy'
                         all_rvobs[index]['user_columns'][0] = 'phase'
                         all_rvobs[index]['columns'][all_rvobs[index]['columns'].index('time')] = 'phase'
                     else:
@@ -589,9 +595,11 @@ def legacy_to_phoebe2(inputfile):
             all_rvobs[i].set_adjust('offset', True)
         
         if rv_component_spec[i] == 'Primary RV':
+            all_rvdeps[0][i]['method'] = ['flux-weighted', 'dynamical'][proximity_rv1]
             star1.add_pbdeps(all_rvdeps[0][i])
             star1.add_obs(all_rvobs[i])
         else:
+            all_rvdeps[1][i]['method'] = ['flux-weighted', 'dynamical'][proximity_rv2]
             star2.add_pbdeps(all_rvdeps[1][i])
             star2.add_obs(all_rvobs[i])
             

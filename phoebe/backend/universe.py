@@ -4695,6 +4695,7 @@ class PhysicalBody(Body):
             while intersect:
                 ref = intersect.pop()
                 self.params['pbdep'][dep].pop(ref)
+                self.params['syn'][dep[:-3]+'syn'].pop(ref)
                 #-- drop fields
                 fields = 'ld_{0}'.format(ref),\
                          'lproj_{0}'.format(ref),\

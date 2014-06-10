@@ -464,7 +464,7 @@ def set_default_units(fctn):
                     if useru:
                         # In case useru is a dictionary
                         #if hasattr(useru, 'keys'):
-                        kwargs['y_unit'] = useru['flux' if obs_in_flux else 'mag']
+                        kwargs['y_unit'] = useru['flux']# if obs_in_flux else 'mag']
                         # else it is a list    
                         #else:
                         #    index = userc.index('flux' if obs_in_flux else 'mag')
