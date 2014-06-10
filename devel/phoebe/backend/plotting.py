@@ -339,6 +339,8 @@ def plot_lcobs(system, **kwargs):
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     simulate = kwargs.pop('simulate', False)
     
+    print obs
+    
     period, t0, shift = system.get_period()
     
     # Phases are default only when obs are given in phase
@@ -401,6 +403,7 @@ def plot_lcobs(system, **kwargs):
     from_unit = obs.get_parameter('flux').get_unit()
     if y_unit is not None:
         if has_error:
+            print from_unit, y_unit, flux, dep['passband']
             flux, kwargs['yerr'] = conversions.convert(from_unit, y_unit, flux,
                                        kwargs['yerr'], passband=dep['passband'])
         else:

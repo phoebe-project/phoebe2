@@ -890,6 +890,7 @@ class Bundle(Container):
         else:
             return []
         
+        
     def get_parent(self, twig=None):
         """
         Retrieve the direct parent of a Body or BodyBag from the system
@@ -901,15 +902,17 @@ class Bundle(Container):
         """
         return self.get_object(twig).get_parent()
         
-    def get_orbit(self, objref, time=None, length_unit='Rsol',
-                  velocity_unit='km/s', time_unit='d'):
+        
+    def get_orbit(self, objref, time=None, phase=None, length_unit='Rsol',
+                  velocity_unit='km/s', time_unit='d', observer_position=None):
         """
-        Retrieve the orbit of an object.
+        Retrieve the position, velocity, barycentric and proper time of an object.
         
         This function returns 3 quantities: the position of the object of the
-        orbit over time (by default in solar radii), the velocity of the object
-        (by default in km/s) and the proper time of the object (by default in
-        days).
+        orbit (by default in solar radii, change via :envvar:`length_unit`) for
+        each time point, the velocity of the object (by default in km/s, change
+        via :envvar:`velocity_unit`) and the proper time of the object (by
+        default in days, change via :envvar:`time_unit`).
         
         The coordinate frame is chosen such that for each tuple (X, Y, Z), X and
         Y are in the plane of the sky, and Z is the radial direction pointing
@@ -933,7 +936,7 @@ class Bundle(Container):
          has to be in days, but can be converted in the output.
         :type time: array
         :return: position (solar radii), velocity (km/s), barycentric times (d), proper times (d)
-        :rtype: 3-tuple, 3-tuple, array
+        :rtype: 3-tuple, 3-tuple, array, array
         """
         # Get the Body to compute the orbit of
         body = self.get_object(objref)
@@ -948,9 +951,13 @@ class Bundle(Container):
         if time is None:
             period_outer = orbits[-1]['period']
             t0 = orbits[-1]['t0']
-            period_inner = orbits[0]['period']
-            t_step = period_inner / 100.
-            time = np.arange(t0, t0+period_outer, t_step)
+            
+            if phase is None:
+                period_inner = orbits[0]['period']
+                t_step = period_inner / 100.
+                time = np.arange(t0, t0+period_outer, t_step)
+            else:
+                time = t0 + phase*period_outer
         
         pos, vel, proper_time = keplerorbit.get_barycentric_hierarchical_orbit(time,
                                                              orbits, components)
@@ -958,14 +965,16 @@ class Bundle(Container):
         # Convert to correct units. If positional units are angles rather than
         # length, we need to first convert the true coordinates to spherical
         # coordinates
-        if conversions.get_type(length_unit) == 'length':
+        if not observer_position and conversions.get_type(length_unit) == 'length':
             pos = [conversions.convert('Rsol', length_unit, i) for i in pos]
             
             # Switch direction of Z coords
             pos[2] = -1*pos[2]
-        else:
+            
+        # Angular position wrt solar system barycentre
+        elif not observer_position:
             position = body.get_globals(context='position')
-            distance = position.get_value_unit('distance')
+            distance = position.get_value_with_unit('distance')
             origin = (position.get_value('ra', 'rad'), position.get_value('dec', 'rad'))
             
             # Switch direction of Z coords
@@ -973,8 +982,20 @@ class Bundle(Container):
             pos[:,2] = -1*pos[:,2]
             
             # Convert true coordinates to spherical ones
-            pos = list(keplerorbit.truecoords_to_spherical(np.array(pos), distance=distance,
+            pos = list(keplerorbit.truecoords_to_spherical(np.array(pos).T, distance=distance,
                                                 origin=origin, units=length_unit))
+            
+            # Take proper motions into account
+            pmdec = position.get_value('pmdec', 'rad/d')
+            pmra = position.get_value('pmra', 'rad/d')
+            pos[1] = pos[1] + pmdec*time
+            pos[0] = pos[0] + pmra*time/np.cos(pos[1])
+            raise NotImplementedError
+        
+        # Angular position wrt observer coordinates
+        else:
+            raise NotImplementedError
+            
         vel = [conversions.convert('Rsol/d', velocity_unit, i) for i in vel]
         
         proper_time = conversions.convert('d', time_unit, proper_time)
@@ -1570,8 +1591,7 @@ class Bundle(Container):
         >>> bundle = phoebe.Bundle()
         >>> bundle.lc_fromarrays(time=np.linspace(0, 10.33, 101))
         
-        or in phase space (phase space will probably not work for anything but
-        light curves and radial velocities):
+        or in phase space:
         
         >>> phase = np.linspace(-0.5, 0.5, 101)
         >>> bundle.lc_fromarrays(phase=phase, passband='GENEVA.V')
@@ -1582,14 +1602,15 @@ class Bundle(Container):
         ...     passband='GENEVA.V', atm='kurucz', ld_func='claret', 
         ...     ld_coeffs='kurucz')
         
-        For a list of acceptable values for each parameter, see
-        :ref:`lcdep <parlabel-phoebe-lcdep>` and
-        :ref:`lcobs <parlabel-phoebe-lcobs>`.
+        .. note:: More information
         
-        In general, :envvar:`time`, :envvar:`flux`, :envvar:`phase`,
-        :envvar:`sigma`, :envvar:`flag`, :envvar:`weight, :envvar:`exptime` and
-        :envvar:`samprate` should all be arrays of equal length (unless left to
-        ``None``).
+            - For a list of acceptable values for each parameter, see
+              :ref:`lcdep <parlabel-phoebe-lcdep>` and
+              :ref:`lcobs <parlabel-phoebe-lcobs>`.
+            - In general, :envvar:`time`, :envvar:`flux`, :envvar:`phase`,
+              :envvar:`sigma`, :envvar:`flag`, :envvar:`weight`, :envvar:`exptime` and
+              :envvar:`samprate` should all be arrays of equal length (unless left to
+              ``None``).
         
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
@@ -1658,6 +1679,13 @@ class Bundle(Container):
         >>> bundle.lc_fromfile('myfile.lc', units=dict(time='s', flux='erg/s/cm2/AA'))
         >>> bundle.lc_fromfile('myfile.lc', columns=['time', 'flux'], units=dict(time='s', flux='mag'))
         
+        Note that
+        
+        >>> bundle.lc_fromfile('myfile.lc', columns=['time', 'mag']))
+        
+        is actually a shortcut to
+        
+        >>> bundle.lc_fromfile('myfile.lc', columns=['time', 'flux'], units=dict(flux='mag'))
         
         .. note:: More information
         
@@ -1735,6 +1763,18 @@ class Bundle(Container):
         """
         Create and attach radial velocity curve templates to compute the model.
         
+        In contrast to py:func:`lc_fromarrays`, this function will probably
+        always be called with a specific :envvar:`objref`. While light curves
+        typically encompass the whole system (and are thus added to the whole
+        system by default), the radial velocities curves belong to a given
+        component. Therefore, make sure to always supply :envvar:`objref`.
+        
+        An extra keyword is :envvar:`method`, which can take the values
+        ``flux-weighted`` (default) or ``dynamical``. In the later case, no
+        mesh is computed for the component, but the Kepler-predictions of the
+        (hierarhical) orbit are computed. This is much faster, but includes no
+        Rossiter-McLaughlin effect.
+        
         For any parameter that is not explicitly set (i.e. not left equal to
         ``None``), the defaults from each component in the system are used
         instead of the Phoebe2 defaults. For example, the :envvar:`atm`,
@@ -1757,17 +1797,17 @@ class Bundle(Container):
         nothing will be computed. Thus, the minimal function call that makes
         sense is something like:
         
-        >>> bundle.rv_fromarrays(time=np.linspace(0, 10.33, 101))
+        >>> bundle.rv_fromarrays('primary', time=np.linspace(0, 10.33, 101))
         
         or in phase space (phase space will probably not work for anything but
         light curves and radial velocities):
         
         >>> phase = np.linspace(-0.5, 0.5, 101)
-        >>> bundle.rv_fromarrays(phase=phase, passband='GENEVA.V')
+        >>> bundle.rv_fromarrays('primary', phase=phase, passband='GENEVA.V')
         
         With many more details:
         
-        >>> bundle.rv_fromarrays(phase=phase, samprate=5, exptime=20.,
+        >>> bundle.rv_fromarrays('primary', phase=phase, samprate=5, exptime=20.,
         ...     passband='GENEVA.V', atm='kurucz', ld_func='claret', 
         ...     ld_coeffs='kurucz')
         
@@ -1826,6 +1866,12 @@ class Bundle(Container):
         generated: the first radial velocity curve that is added is named 'rv01',
         and if that one already exists, 'rv02' is tried and so on.
         
+        An extra keyword is :envvar:`method`, which can take the values
+        ``flux-weighted`` (default) or ``dynamical``. In the later case, no
+        mesh is computed for the component, but the Kepler-predictions of the
+        (hierarhical) orbit are computed. This is much faster, but includes no
+        Rossiter-McLaughlin effect.
+        
         For any parameter that is not explicitly set (i.e. not left equal to
         ``None``), the defaults from each component in the system are used
         instead of the Phoebe2 defaults. For example, the :envvar:`atm`,
@@ -1833,23 +1879,33 @@ class Bundle(Container):
         component (which reflect the bolometric properties) unless explicitly
         overriden.
         
-        See :py:func:`phoebe.parameters.datasets.parse_rv` for more information
-        on file formats.
-        
         **Example usage**
         
         A plain file can loaded via::
         
-        >>> bundle.rv_fromarrays('myfile.rv')
+        >>> bundle.rv_fromfile('myfile.rv', 'primary')
         
         Note that extra parameters can be given in the file itself, but can
         also be overriden in the function call:
         
-        >>> bundle.rv_fromarrays('myfile.rv', atm='kurucz')
+        >>> bundle.rv_fromfile('myfile.rv', 'primary', atm='kurucz')
         
-        For a list of acceptable values for each parameter, see
-        :ref:`rvdep <parlabel-phoebe-rvdep>` and
-        :ref:`rvobs <parlabel-phoebe-rvobs>`.
+        If your radial velocity measurements of several components are in one
+        file (say time, rv of primary, rv of secondary, sigma of primary rv,
+        sigma of secondary rv), you could easily do:
+        
+        >>> bundle.rv_fromfile('myfile.rv', 'primary', columns=['time', 'rv', '', 'sigma'])
+        >>> bundle.rv_fromfile('myfile.rv', 'secondary', columns=['time', '', 'rv', '', 'sigma'])
+        
+        .. note:: More information
+        
+            - For a list of acceptable values for each parameter, see
+              :ref:`rvdep <parlabel-phoebe-rvdep>` and
+              :ref:`rvobs <parlabel-phoebe-rvobs>`.
+            - For more information on file formats, see
+              :py:func:`phoebe.parameters.datasets.parse_rv`.
+        
+        
         
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
@@ -2109,7 +2165,6 @@ class Bundle(Container):
         :rtype: str
         :raises ValueError: if :envvar:`time` and :envvar:`phase` are both given
         :raises TypeError: if a keyword is given but the value cannot be cast to the Parameter
-        
         """
         # retrieve the arguments with which this function is called
         set_kwargs, posargs = utils.arguments()
@@ -4136,7 +4191,11 @@ class Bundle(Container):
         
         # Now pass everything to the correct plotting function
         kwargs['ref'] = ds['ref']
-        output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        try:
+            output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        except ValueError:
+            logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
+            return None
         syn = output[1]
         fig_decs = output[2]
         
