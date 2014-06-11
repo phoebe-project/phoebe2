@@ -1348,8 +1348,12 @@ def components(unit):
             raise ValueError('Unknown unit %s'%(basis))
         
     #-- switch from base units to SI units
+    # In the case of nonlinear conversions:
     if hasattr(_factors[basis][0],'__call__'):
+        #nonlinconv = _factors[basis][0]()
+        #nonlinconv.factor = factor
         factor = factor*_factors[basis][0]()
+    # The case of normal conversions:
     else:
         factor *= _factors[basis][0]
     basis = _factors[basis][1]
@@ -2675,8 +2679,8 @@ class VegaMag(NonLinearConverter):
                 F0 = convert(zp['Flam0_units'][match][0],'W/m2/AA',zp['Flam0'][match][0])    
                 mag0 = float(zp['vegamag'][match][0])
                 
-        if not inv: return 10**(-(meas-mag0)/2.5)*F0
-        else:       return -2.5*log10(meas/F0)+mag0
+        if not inv: return 10**(-(meas*self.prefix-mag0)/2.5)*F0
+        else:       return (-2.5*log10(meas/F0)+mag0)/self.prefix
 
 class ABMag(NonLinearConverter):
     """
@@ -2691,10 +2695,10 @@ class ABMag(NonLinearConverter):
         if np.isnan(mag0): mag0 = 0.
         if not inv:
             try:
-                return 10**(-(meas-mag0)/2.5)*F0
+                return 10**(-(meas*self.prefix-mag0)/2.5)*F0
             except OverflowError:
                 return np.nan
-        else:       return -2.5*log10(meas/F0)
+        else:       return -2.5*log10(meas/F0)/self.prefix
 
 class STMag(NonLinearConverter):
     """
@@ -2711,8 +2715,8 @@ class STMag(NonLinearConverter):
         if sum(match)==0: raise ValueError("No calibrations for %s"%(passband))
         mag0 = float(zp['STmag'][match][0])
         if np.isnan(mag0): mag0 = 0.
-        if not inv: return 10**(-(meas-mag0)/-2.5)*F0
-        else:       return -2.5*log10(meas/F0)
+        if not inv: return 10**(-(meas*self.prefix-mag0)/-2.5)*F0
+        else:       return -2.5*log10(meas/F0)/self.prefix
 
 
 class Color(NonLinearConverter):
