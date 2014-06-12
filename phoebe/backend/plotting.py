@@ -208,7 +208,7 @@ def plot_lcsyn(system, *args, **kwargs):
             
     # Plot model: either in phase or in time.
     artists = []
-    if not phased and not simulate:
+    if not phased:
         # XAXIS
         if obs is not None:
             from_unit = obs.get_parameter('time').get_unit()
@@ -226,9 +226,11 @@ def plot_lcsyn(system, *args, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p, = ax.plot(time+n*period, flux, *args, **kwargs)
-            artists.append(p)
-    elif not simulate:
+            
+            if not simulate:
+                p, = ax.plot(time+n*period, flux, *args, **kwargs)
+                artists.append(p)
+    else:
         time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
@@ -245,8 +247,10 @@ def plot_lcsyn(system, *args, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p, = ax.plot(time+n, flux, *args, **kwargs)
-            artists.append(p)
+            
+            if not simulate:
+                p, = ax.plot(time+n, flux, *args, **kwargs)
+                artists.append(p)
     
     # Update values in this current copy of the syn to reflect whatever was
     # plotted.
@@ -260,7 +264,7 @@ def plot_lcsyn(system, *args, **kwargs):
         syn.unload()
     
     # Reverse axes when plotting in magnitude
-    if y_unit is not None and 'mag' in y_unit:
+    if y_unit is not None and 'mag' in y_unit and not simulate:
         ylim = ax.get_ylim()
         if ylim[0] < ylim[1]:
             ax.set_ylim(ylim[::-1])        
@@ -339,8 +343,6 @@ def plot_lcobs(system, **kwargs):
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     simulate = kwargs.pop('simulate', False)
     
-    print obs
-    
     period, t0, shift = system.get_period()
     
     # Phases are default only when obs are given in phase
@@ -403,7 +405,6 @@ def plot_lcobs(system, **kwargs):
     from_unit = obs.get_parameter('flux').get_unit()
     if y_unit is not None:
         if has_error:
-            print from_unit, y_unit, flux, dep['passband']
             flux, kwargs['yerr'] = conversions.convert(from_unit, y_unit, flux,
                                        kwargs['yerr'], passband=dep['passband'])
         else:
@@ -417,7 +418,7 @@ def plot_lcobs(system, **kwargs):
     
     # plot observations
     artists = []
-    if not phased and not simulate:
+    if not phased:
         # XAXIS
         from_unit = obs.get_parameter('time').get_unit()
         if x_unit is not None:
@@ -432,9 +433,11 @@ def plot_lcobs(system, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p = ax.errorbar(time+n*period, flux, **kwargs)
-            artists.append(p)
-    elif not simulate:
+                
+            if not simulate:
+                p = ax.errorbar(time+n*period, flux, **kwargs)
+                artists.append(p)
+    else:
         time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
@@ -458,8 +461,10 @@ def plot_lcobs(system, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p = ax.errorbar(time+n*period, flux, **kwargs)
-            artists.append(p)
+            
+            if not simulate:
+                p = ax.errorbar(time+n*period, flux, **kwargs)
+                artists.append(p)
     
     # Update values in this current copy of the obs to reflect whatever was
     # plotted.
@@ -475,7 +480,7 @@ def plot_lcobs(system, **kwargs):
         obs.unload()
     
     # Reverse axes when plotting in magnitude
-    if y_unit is not None and 'mag' in y_unit:
+    if y_unit is not None and 'mag' in y_unit and not simulate:
         ylim = ax.get_ylim()
         if ylim[0] < ylim[1]:
             ax.set_ylim(ylim[::-1])        
@@ -498,14 +503,12 @@ def plot_lcres(system, **kwargs):
     else:
         y_unit = None
     
-    ax = kwargs.get('ax', plt.gca())
-    
     # Fake ploting lcobs and lcsyn
-    lcobs_out = plot_lcobs(system, simulate=True, **kwargs.copy())
-    lcsyn_out = plot_lcsyn(system, simulate=True, **kwargs.copy())
+    lcobs_out = plot_lcobs(system, simulate=True, **kwargs)
+    lcsyn_out = plot_lcsyn(system, simulate=True, **kwargs)
     
-    # Forget about the ref
-    _ = kwargs.pop('ref')
+    # Get the axes, we need it to draw the residuals on
+    ax = kwargs.pop('ax', plt.gca())
     
     obs = lcobs_out[1]
     syn = lcsyn_out[1]
@@ -515,6 +518,11 @@ def plot_lcres(system, **kwargs):
     loaded_obs = obs.load(force=False)
     
     repeat = kwargs.pop('repeat', 0)
+    
+    # Remove all keywords that cannot be passed to matplotlib errorbar
+    for key in ['ref', 'y_unit', 'x_unit', 'simulate', 'phased']:
+        if key in kwargs:
+            _ = kwargs.pop(key)
     
     if lcobs_out[2][0][0] == 'Time':
         period, t0, shift = system.get_period()
@@ -532,6 +540,11 @@ def plot_lcres(system, **kwargs):
             kwargs['label'] = '_nolegend_'
         p = ax.errorbar(obs['time'] + n*period, y_value, **kwargs)
         artists.append(p)
+    
+    if y_unit is not None and 'mag' in y_unit:
+        ylim = ax.get_ylim()
+        if ylim[0] < ylim[1]:
+            ax.set_ylim(ylim[::-1])        
     
     if loaded_obs:
         obs.unload()
@@ -646,7 +659,7 @@ def plot_rvsyn(system,*args,**kwargs):
     
     # Plot model
     artists = []
-    if not phased and not simulate:
+    if not phased:
         # XAXIS
         if obs is not None:
             from_unit = obs.get_parameter('time').get_unit()
@@ -664,9 +677,10 @@ def plot_rvsyn(system,*args,**kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p, = ax.plot(time+n*period, rv, *args, **kwargs)
-            artists.append(p)
-    elif not simulate:
+            if not simulate:
+                p, = ax.plot(time+n*period, rv, *args, **kwargs)
+                artists.append(p)
+    else:
         time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
@@ -684,8 +698,9 @@ def plot_rvsyn(system,*args,**kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p, = ax.plot(time+n, rv, *args, **kwargs)
-            artists.append(p)
+            if not simulate:
+                p, = ax.plot(time+n, rv, *args, **kwargs)
+                artists.append(p)
     
     # Update values in this current copy of the syn to reflect whatever was
     # plotted.
@@ -700,7 +715,7 @@ def plot_rvsyn(system,*args,**kwargs):
     return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
 
 @decorators.set_default_units
-def plot_rvobs(system, errorbars=True, **kwargs):
+def plot_rvobs(system, **kwargs):
     """
     Plot rvobs as a radial velocity curve.
     
@@ -711,6 +726,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     obs = system.get_obs(category='rv', ref=ref).asarray()
     dep, ref = system.get_parset(category='rv', ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    simulate = kwargs.pop('simulate', False)
     
     period, t0, shift = system.get_period()
     
@@ -737,7 +753,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         elif x_unit_type == 'time':
             default_phased = False
         else:
-            raise ValueError(("Unallowed x_unit for plotting lc: {} is of type "
+            raise ValueError(("Unallowed x_unit for plotting rv: {} is of type "
                               "{}, while only phase or time are "
                               "allowed").format(x_unit, x_unit_type))
     
@@ -746,7 +762,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         y_unit_type = conversions.get_type(y_unit)
         allowed = ['velocity']
         if not y_unit_type in allowed:
-            raise ValueError(("Unallowed y_unit for plotting lc: {} is of type "
+            raise ValueError(("Unallowed y_unit for plotting rv: {} is of type "
                               "{}, while only {} are allowed").format(y_unit,
                                    y_unit_type, ", ".join(allowed)))
     
@@ -800,23 +816,24 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Time'
         
-        # Period for repeating
-        period = max(time)
-        
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p = ax.errorbar(time+n*period, rv, **kwargs)
-            artists.append(p)
+            if not simulate:
+                p = ax.errorbar(time+n*period, rv, **kwargs)
+                artists.append(p)
     else:
         time = ((time-t0) % period) / period
         # XAXIS
         from_unit = 'cy'
+        period = 1.0
         if x_unit is not None:
-            time = conversions.convert(from_unit, x_unit, time, freq=(1.0/period, 'd-1'))
+            time = conversions.convert(from_unit, x_unit, time)
+            period = conversions.convert(from_unit, x_unit, period)
             from_unit = x_unit
         else:
             x_unit = from_unit
+            
         axes_units[0] = conversions.unit2texlabel(from_unit)
         axes_labels[0] = 'Phase'
         
@@ -829,8 +846,9 @@ def plot_rvobs(system, errorbars=True, **kwargs):
         for n in range(repeat+1):
             if n>=1:
                 kwargs['label'] = '_nolegend_'
-            p = ax.errorbar(time+n, rv, **kwargs)
-            artists.append(p)
+            if not simulate:
+                p = ax.errorbar(time+n, rv, **kwargs)
+                artists.append(p)
     
     # Update values in this copy of the obs
     obs['time'] = time
@@ -847,7 +865,7 @@ def plot_rvobs(system, errorbars=True, **kwargs):
     return artists, obs, (axes_labels, axes_units)
 
 @decorators.set_default_units
-def plot_rvres(system,*args,**kwargs):
+def plot_rvres(system, *args, **kwargs):
     """
     Plot rvsyn and rvobs as a residual radial velocity curve.
     
@@ -867,69 +885,58 @@ def plot_rvres(system,*args,**kwargs):
         
     Returns the matplotlib objects, the observed and synthetic parameterSet, and the used ``l3``
     """
-    ref = kwargs.pop('ref',0)
-    scale = kwargs.pop('scale','obs')
-    repeat = kwargs.pop('repeat',0)
-    period = kwargs.pop('period',None)
-    phased = kwargs.pop('phased',False)
-    ax = kwargs.pop('ax',plt.gca())
+    # Catch weird y_unit:
+    if 'y_unit' in kwargs and kwargs['y_unit'] == 'sigma':
+        y_unit = kwargs.pop('y_unit')
+    else:
+        y_unit = None
     
-    #-- get parameterSets
-    obs = system.get_obs(category='rv',ref=ref)
-    syn = system.get_synthetic(category='rv',ref=ref)
-    kwargs.setdefault('label', obs['ref'])
+    ax = kwargs.get('ax', plt.gca())
     
-    #-- load observations: they need to be here
-    loaded_obs = obs.load(force=False)
+    # Fake ploting lcobs and lcsyn
+    rvobs_out = plot_rvobs(system, simulate=True, **kwargs)
+    rvsyn_out = plot_rvsyn(system, simulate=True, **kwargs)
+    
+    # Forget about the ref
+    _ = kwargs.pop('ref')
+    
+    obs = rvobs_out[1]
+    syn = rvsyn_out[1]
+    
+    # Load synthetics: they need to be here
     loaded_syn = syn.load(force=False)
+    loaded_obs = obs.load(force=False)
     
-    #-- try to get the observations. They don't need to be loaded, we just need
-    #   the l3 values.
-    if scale=='obs':
-        l3 = obs['l3']
-    elif scale=='syn':
-        l3 = syn['l3']
+    repeat = kwargs.pop('repeat', 0)
+    
+    # Remove all keywords that cannot be passed to matplotlib errorbar
+    for key in ['ref', 'y_unit', 'x_unit', 'simulate', 'phased']:
+        if key in kwargs:
+            _ = kwargs.pop(key)
+    
+    if rvobs_out[2][0][0] == 'Time':
+        period, t0, shift = system.get_period()
     else:
-        l3 = 0.
+        period = conversions.convert('cy', rvobs_out[2][1][0], 1.0)
     
-    #-- take third light and passband luminosity contributions into account
-    syn_time = np.array(syn['time'])
-    syn_rv = np.array(syn['rv'])
-    syn_rv = syn_rv + l3
+    y_value = obs['rv'] - syn['rv']
+    if y_unit is not None:
+        y_value = y_value / obs['sigma']
+        kwargs['yerr'] = np.ones(len(y_value))
     
-    obs_time = obs['time']
-    obs_rv = obs['rv']
-    obs_sigm = obs['sigma']
-    
-    #-- get the period to repeat the LC with
-    if period is None:
-        period = max(obs_time)
-    
-    #-- plot model
     artists = []
-    syn_rv = conversions.convert('Rsol/d','km/s',syn_rv)
+    for n in range(repeat+1):
+        if n>=1:
+            kwargs['label'] = '_nolegend_'
+        p = ax.errorbar(obs['time'] + n*period, y_value, **kwargs)
+        artists.append(p)
     
-    if not phased:
-        for n in range(repeat+1):
-            p = ax.errorbar(syn_time+n*period,(obs_rv-syn_rv)/obs_sigm,yerr=np.ones_like(obs_sigm),**kwargs)
-            artists.append(p)
-    else:
-        syn_time = (syn_time % period) / period
-        # need to sort by time (if using lines)
-        o = syn_time.argsort()
-        syn_time_, syn_rv_ = syn_time[o], syn_rv[o]
-        obs_rv_ = obs_rv[o]
-        obs_sigm_ = obs_sigm[o]
-        for n in range(repeat+1):
-            p = ax.errorbar(syn_time_+n,(obs_rv_-syn_rv_)/obs_sigm_,yerr=np.ones_like(obs_sigm),**kwargs)
-            artists.append(p)
-
-
-
-    if loaded_obs: obs.unload()
-    if loaded_syn: syn.unload()
+    if loaded_obs:
+        obs.unload()
+    if loaded_syn:
+        syn.unload()
     
-    return artists, obs, syn, l3
+    return artists, (obs, syn), rvobs_out[2]
     
 def plot_etvsyn(system,*args,**kwargs):
     """
@@ -1660,21 +1667,41 @@ def plot_spobs(system, *args, **kwargs):
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     simulate = kwargs.pop('simulate', False)
     normalised = kwargs.pop('normalised', True)
-    ax = kwargs.pop('ax', plt.gca())
+    
+    period, t0, shift = system.get_period()
+    
+    # Phases are default only when obs are given in phase
+    default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    if default_phased:
+        time = obs['phase'] * period + t0 #+ phshift * period    
+    elif 'time' in obs['columns']:
+        time = obs['time']
+    else:
+        raise IOError("No times or phases defined")
     
     # Load observations, they need to be here
     loaded = obs.load(force=False)
     
+    # Retrieve extra information
+    repeat = kwargs.pop('repeat', 0)
+    phased = kwargs.pop('phased', default_phased)
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    x_quantity = kwargs.pop('x_quantity', 'length')
+    y_quantity = kwargs.pop('y_quantity', 'flux')
+    
+    ax = kwargs.pop('ax', plt.gca())
+    
+    # Get the wavelength, flux and continuum
     wavelength = np.ravel(obs['wavelength'])
     wavelength = wavelength.reshape(-1,len(obs['flux'][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
-    
-    # shift the observed wavelengths if necessary
-    if 'vgamma_offset' in obs and obs['vgamma_offset'] != 0:
-        wavelength = tools.doppler_shift(wavelength, obs.get_value('vgamma_offset','km/s'))
-    
     flux = obs['flux'][index]
     cont = obs['continuum'][index]
+    
+    # remember what axes we've plotted
+    axes_labels = ['', '']
+    axes_units = ['','']
     
     sigm = obs['sigma'][index] if ('sigma' in obs.keys() and len(obs['sigma']) and np.all(obs['sigma'][index]>0)) else None
     kwargs.setdefault('yerr', sigm)
@@ -1693,7 +1720,7 @@ def plot_spobs(system, *args, **kwargs):
     
     if loaded: obs.unload()
     
-    return artists, obs
+    return artists, obs, (axes_labels, axes_units)
     
     
     
@@ -1701,14 +1728,14 @@ def plot_spsyn(system, *args, **kwargs):
     """
     Plot an observed spectrum.
     """
+    # Get parameterSets
     ref = kwargs.pop('ref', 0)
+    index = kwargs.pop('index', 0)
     dep, ref = system.get_parset(category='sp', ref=ref)
     syn = system.get_synthetic(category='sp', ref=ref).asarray()
-    index = kwargs.pop('index', None)
-    ax = kwargs.pop('ax', plt.gca())
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
-    normalised = kwargs.pop('normalised', True)
     simulate = kwargs.pop('simulate', False)
+    normalised = kwargs.pop('normalised', True)
     
     if not normalised:
         raise NotImplementedError("Plotting unnormalised spectra")
@@ -1759,18 +1786,24 @@ def plot_spsyn(system, *args, **kwargs):
         x_unit = from_unit
     
     # Get the fluxes
+    wavelength = np.ravel(syn['wavelength'])
+    wavelength = wavelength.reshape(-1,len(syn['flux'][0]))
+    wavelength = wavelength[min(index,wavelength.shape[0]-1)]
     flux = syn['flux'][index]
     cont = syn['continuum'][index]
     
     if normalised:
         flux = flux / cont
     
+    phased = kwargs.pop('phased', default_phased)
+    ax = kwargs.pop('ax',plt.gca())
+    
     # Try to get the observations. They don't need to be loaded, we just need
     # the scale and offset values.
     # We can scale the synthetic spectrum using the observations
     this_scale = 1.0
     this_offset = 0.0
-    if scale == 'obs' and obs is not None:
+    if this_scale == 'obs' and this_obs is not None:
         this_scale = obs['scale']
         this_offset = obs['offset']
     
@@ -1782,61 +1815,12 @@ def plot_spsyn(system, *args, **kwargs):
     
     artists = []
     
-    if phased:
-        syn.phase()
-    
-    
-    if not phased and not simulate:
-        # XAXIS
-        if obs is not None:
-            from_unit = obs.get_parameter('time').get_unit()
-        else:
-            from_unit = 'JD'
-        if x_unit is not None:
-            time = conversions.convert(from_unit, x_unit, time)
-            period = conversions.convert(from_unit, x_unit, period)
-            from_unit = x_unit
-        else:
-            x_unit = from_unit
-        axes_units[0] = conversions.unit2texlabel(from_unit)
-        axes_labels[0] = 'Time'
-        
-    elif not simulate:
-        time = ((time-t0) % period) / period
-        # XAXIS
-        from_unit = 'cy'
-        if x_unit is not None:
-            time = conversions.convert(from_unit, x_unit, time)
-            from_unit = x_unit
-        else:
-            x_unit = from_unit
-        axes_units[0] = conversions.unit2texlabel(from_unit)
-        axes_labels[0] = 'Phase'
-        
-        sa = np.argsort(time)
-        time, flux = time[sa], flux[sa]
-        for n in range(repeat+1):
-            if n>=1:
-                kwargs['label'] = '_nolegend_'
-            p, = ax.plot(time+n, flux, *args, **kwargs)
-            artists.append(p)
-    
-    # Update values in this current copy of the syn to reflect whatever was
-    # plotted.
-    syn['time'] = time
-    syn.get_parameter('time').set_unit(x_unit, convert=False)
-    syn['flux'] = flux
-    syn.get_parameter('flux').set_unit(y_unit, convert=False)
-        
-        
-        
-        
-    p = ax.plot(wavelength, flux, *args, **kwargs)
+    p, = ax.plot(wavelength, flux, *args, **kwargs)
     artists.append(p)
-    
+        
     if loaded: syn.unload()
     
-    return artists, syn
+    return artists, syn, (axes_labels, axes_units)
 
     
 def plot_spdep_as_profile(system,index=0,ref=0,residual=False,

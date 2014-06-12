@@ -1297,7 +1297,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     
     # Intrinsic width of the profile
     Rmod = pbdep.get('R_input', 0.0)
-    vmicro = pbdep.get('vmicro', 5.0)
+    vmicro = pbdep.get('vmicro', 2.0)
     vmacro = pbdep.get('vmacro', 0.0)
     depth = pbdep.get('depth', 0.4)
     alphaT = pbdep.get('alphaT', 0.0)
@@ -1526,7 +1526,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         distance = globals_parset.request_value('distance', 'Rsol')
         total_spectrum /= distance**2
         total_continum /= distance**2
-        
+    
     return wavelengths_orig, total_spectrum, total_continum
 
 

@@ -895,6 +895,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     redchis = []
     Nmodel = dict()
     
+    nnniter = dict(val=0)
     def model_eval(pars, system):
         #-- evaluate the system, get the results and return a probability
         had = []
@@ -924,7 +925,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         system.compute(params=params, mpi=mpi)
         mu, sigma, model = system.get_model()
         retvalue = (model - mu) / sigma
-        
+        nnniter['val']+= 1
         #retvalue = np.array([system.get_logp(include_priors=True)[1]])
         #retvalue = np.array([system.get_chi2(include_priors=True)[0]])
         #print 'r',retvalue
@@ -933,6 +934,12 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         names = [par for par in pars]
         vals = [pars[par].value for par in pars]
         logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
+        
+        system.save('test_{:03d}.pck'.format(nnniter['val']))
+        #plt.figure()
+        #plt.plot(mu,'ko-')
+        #plt.plot(model,'ro-')
+        #plt.show()
         
         #-- keep track of trace
         traces.append(vals)

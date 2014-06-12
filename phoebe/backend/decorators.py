@@ -269,18 +269,18 @@ def mpirun(fctn):
                 
                 # The system
                 sys_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
-                cPickle.dump(system, sys_file)
+                pickle.dump(system, sys_file)
                 sys_file.close()
                 
                 # The arguments
                 args_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
-                cPickle.dump(args, args_file)
+                pickle.dump(args, args_file)
                 args_file.close()
                 
                 # The keyword arguments
                 kwargs_file = tempfile.NamedTemporaryFile(delete=False,
                                                           dir=direc)
-                cPickle.dump(kwargs, kwargs_file)
+                pickle.dump(kwargs, kwargs_file)
                 kwargs_file.close()
                 
                 # Construct mpirun command
