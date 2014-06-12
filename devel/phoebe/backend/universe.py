@@ -1547,6 +1547,10 @@ class Body(object):
         self.time = None
         self._clear_when_reset = dict()
         self.subdivision['orig'] = None
+        
+        # Forget about the volume in binary stars
+        if 'component' in self.params:
+            _ = self.params['component'].pop_constraint('volume', None)
     
     
     def set_params(self, params, force=True):
