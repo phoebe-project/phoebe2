@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 import copy
 import json
 import uuid
+import logging
 import numpy as np
 from phoebe import __version__
 from phoebe.parameters import parameters, datasets
@@ -17,6 +18,8 @@ from phoebe.backend import universe
 from phoebe.atmospheres import roche
 from phoebe.atmospheres import limbdark
 from phoebe.utils import config
+
+logger = logging.getLogger("FRONT.COMMON")
 
 def rebuild_trunk(fctn):
     """
@@ -942,7 +945,7 @@ class Container(object):
                                     elif category == 'rv':
                                         syn['rv'] = syn['rv'] + obs['vgamma_offset']
                                     else:
-                                        logger.critical('Auto-scaling in Bundle of {} is not implemented yet'.format(category))
+                                        logger.critical('Auto-scaling in Bundle of {} synthetics is not implemented yet'.format(category))
                                     
                                     # Remove times and insert phases if phases
                                     # where given before

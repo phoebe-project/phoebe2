@@ -265,7 +265,7 @@ class Bundle(Container):
             >>> mybundle['atm@secondary'] = 'blackbody'
              
     
-    Inherited from :py:class:`common.Container <phoebe.frontend.common.Container>`:
+    Accessing and changing parameters via twigs:
     
     .. autosummary::
     
@@ -278,11 +278,13 @@ class Bundle(Container):
         phoebe.frontend.common.Container.set_value
         phoebe.frontend.common.Container.set_value_all
         phoebe.frontend.common.Container.set_ps
+        phoebe.frontend.common.Container.set_adjust
+        phoebe.frontend.common.Container.set_prior
         phoebe.frontend.common.Container.attach_ps
         phoebe.frontend.common.Container.twigs
         phoebe.frontend.common.Container.search
     
-    Defined within the Bundle:        
+    Adding and handling data:        
         
     .. autosummary::    
         
@@ -300,9 +302,38 @@ class Bundle(Container):
         Bundle.sed_fromarrays
         Bundle.sp_fromfile
         Bundle.sp_fromarrays
-        
+                
+        Bundle.disable_lc
+        Bundle.disable_rv
+    
+    Computations and fitting:
+    
+    .. autosummary::
+    
+        Bundle.run_compute
+        Bundle.run_fitting
+    
+    High-level plotting functionality:
+    
+    .. autosummary::
+    
         Bundle.plot_obs
         Bundle.plot_syn
+        Bundle.plot_residuals
+        Bundle.plot_mesh
+
+        
+    Convenience functions:
+    
+    .. autosummary::
+        
+        Bundle.get_datarefs
+        Bundle.get_lc_datarefs
+        Bundle.get_rv_datarefs
+        Bundle.get_system
+        Bundle.get_object
+        Bundle.get_orbit
+        
     
     
     **Printing information**
@@ -926,6 +957,19 @@ class Bundle(Container):
         the angular coordinates are returned for the X and Y coordinates and the
         Z coordinate is absolute (i.e. including the distance to the object).
         
+        **Example usage**::
+        
+        mybundle = Bundle()
+        position, velocity, bary_time, proper_time = mybundle.get_orbit()
+        
+            # On-sky orbit:
+            plt.plot(position[0], position[1], 'k-')
+            
+            # Radial velocity:
+            plt.plot(bary_time, velocity[2], 'r-')
+        
+        
+        
         [FUTURE]
         
         :param objref: name of the object to retrieve the orbit from
@@ -1136,9 +1180,9 @@ class Bundle(Container):
             # obs get attached to the requested object
             for ds in dss:
                 #~ ds.load()
-                ds.estimate_sigma(from_col=None, force=False)
+                #ds.estimate_sigma(force=False)
                 comp.add_obs(ds)
-
+        
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
         self.get_system().init_mesh()
         self._build_trunk()
@@ -1222,6 +1266,7 @@ class Bundle(Container):
                                        components=objref, units=units,
                                        full_output=True, ref=dataref,
                                        **kwargs)
+            # Then this is a shapshot
             else:
                 output = datasets.parse_spec_as_lprof(filename, columns=columns,
                                        components=objref, units=units,
@@ -1229,7 +1274,7 @@ class Bundle(Container):
                                        **kwargs)
         
         elif category == 'sed':
-            scale, offset = kwargs.pop('scale', True), kwargs.pop('offset', False)
+            scale, offset = kwargs.pop('adjust_scale', False), kwargs.pop('adjust_offset', False)
             output = datasets.parse_phot(filename, columns=columns,
                   units=units, group=filename, 
                   group_kwargs=dict(scale=scale, offset=offset),
@@ -2068,7 +2113,8 @@ class Bundle(Container):
         return dataref
     
     def sed_fromfile(self, filename, objref=None, dataref=None, columns=None,
-                      units=None, offset=None, scale=None):
+                      units=None, offset=None, scale=None, adjust_scale=None,
+                      adjust_offset=None):
         """
         Add SED templates from a file.
         
@@ -2093,7 +2139,6 @@ class Bundle(Container):
         # filter the arguments according to not being "None" nor being "self"
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key != 'self'}
-        
         # We can pass everything now to the main function
         return self.data_fromfile(category='sed', **set_kwargs)
     
@@ -2177,7 +2222,8 @@ class Bundle(Container):
         return self.data_fromarrays(category='sp', **set_kwargs)
     
     
-    def sp_fromfile(self, filename, objref=None,
+    def sp_fromfile(self, filename, objref=None, time=None,
+                      clambda=None, wrange=None,
                       dataref=None, snapshot=False, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       R_input=None, vmacro=None, vmicro=None, depth=None,
@@ -2439,6 +2485,58 @@ class Bundle(Container):
         @type dataref: str
         """
         self.enable_data(dataref, 'rv', False)
+    
+    def enable_sp(self, dataref=None):
+        """
+        Enable an SP dataset so that it will be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'sp', True)
+        
+    def disable_sp(self, dataref=None):
+        """
+        Disable an SP dataset so that it will not be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'sp', False)
+        
+    def enable_sed(self, dataref=None):
+        """
+        Enable LC datasets belonging to an sed so that it will be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        system = self.get_system()
+        all_lc_refs = system.get_refs(category='lc')
+        all_lc_refs = [ref for ref in all_lc_refs if dataref in ref]
+        for dataref in all_lc_refs:
+            self.enable_data(dataref, 'lc', True)
+        
+    def disable_sed(self, dataref=None):
+        """
+        Enable LC datasets belonging to an sed so that it will not be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        system = self.get_system()
+        all_lc_refs = system.get_refs(category='lc')
+        all_lc_refs = [ref for ref in all_lc_refs if dataref in ref]
+        for dataref in all_lc_refs:
+            self.enable_data(dataref, 'lc', False)
         
     def reload_obs(self, twig=None):
         """
@@ -2793,7 +2891,8 @@ class Bundle(Container):
         # keep track of those and then re-enstate them to their original
         # value afterwards (the user could also have disabled a dataset)
         # <some code>
-        
+        logger.warning("Fit options:\n{:s}".format(fittingoptions))
+        logger.warning("Compute options:\n{:s}".format(computeoptions))
         # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions, fitparams=fittingoptions, mpi=mpi)
         
@@ -4196,6 +4295,9 @@ class Bundle(Container):
         except ValueError:
             logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
             return None
+        except IndexError:
+            logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
+            return None
         syn = output[1]
         fig_decs = output[2]
         
@@ -4244,7 +4346,11 @@ class Bundle(Container):
         
         # Now pass everything to the correct plotting function
         kwargs['ref'] = ds['ref']
-        output = getattr(plotting, 'plot_{}res'.format(category))(obj, **kwargs)
+        try:
+            output = getattr(plotting, 'plot_{}res'.format(category))(obj, **kwargs)
+        except ValueError:
+            logger.warning("Cannot plot residuals {}: no calculations found".format(kwargs['ref']))
+            return None
         obs, syn = output[1]
         fig_decs = output[2]
         
