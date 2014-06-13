@@ -355,7 +355,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 # directory (phoebe/atmospheres/tables/spec_intens)
                 elif key[:10] == 'C__ATMFILE':
                     direc = os.path.dirname(os.path.abspath(__file__))
-                    atm_file = os.path.join(direc, 'tables', 'spec_intens',
+                    if ff[0].header[key] == 'blackbody':
+                        atm_file = 'blackbody'
+                    else:
+                        atm_file = os.path.join(direc, 'tables', 'spec_intens',
                                             ff[0].header[key])
                     atm_files.append(atm_file)
             
@@ -915,10 +918,10 @@ if __name__ == "__main__":
         compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=passbands,\
-                           law=law,fitmethod='equidist_mu_leastsq',\
+                           law=law,fitmethod='equidist_r_leastsq',\
                            limb_zero=False, \
                            filetag=filetag,
-                           debug_plot=True,
+                           debug_plot=False,
                            check_passband_coverage=True)
     else:
         test_solar_calibration(atm_files[0])

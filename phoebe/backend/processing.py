@@ -226,9 +226,8 @@ def binary_custom_variables(self, time):
             continue
         
         if replaces:
-            
             qualifier = param.get_qualifier()
-            this_component = 0
+            this_component = 0           
             
             # Projected semi-major axis: asini = sma * sin(incl)
             if qualifier == 'asini':
@@ -241,20 +240,23 @@ def binary_custom_variables(self, time):
                 # Derive sma <--- incl & asini
                 if replaces == 'sma':
                     sma = asini / sin(incl)
-                    orbit['sma'] = sma, 'SI'
+                    this_sma.set_value(sma, 'SI')
                     this_sma.set_hidden(True)
                 # Derive incl <--- asini & sma
                 elif replaces == 'incl':
                     incl = arcsin(asini / sma)
-                    orbit['incl'] = incl, 'SI'
+                    this_incl.set_value(incl, 'SI')
                     this_incl.set_hidden(True)
                 # Derive asini <--- sma & incl
                 else:
                     asini = sma * sin(incl)
-                    orbit['asini'] = asini, 'SI'
-                    this_sma.set_hidden(False)
-                    this_incl.set_hidden(False)
-            
+                    raise NotImplementedError
+                    #orbit['asini'] = asini, 'SI'
+                    #this_sma.set_hidden(False)
+                    #this_incl.set_hidden(False)
+                
+                
+                
             # Add mass as a parameter
             elif qualifier == 'mass':
                 this_mass = self[component].params['component'].get_parameter('mass')

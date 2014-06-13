@@ -45,6 +45,7 @@ from phoebe.parameters import parameters
 from phoebe.parameters import tools as ptools
 from phoebe.units import conversions
 from phoebe.units import constants
+from phoebe.utils import utils
 from phoebe.io import oifits
 from phoebe.io import ascii
 from phoebe.atmospheres import spectra
@@ -344,6 +345,25 @@ class DataSet(parameters.ParameterSet):
             self.unload()
     
     
+    def get_sigmas(self):
+        """
+        Return two dictionaries to match uncertainty with corresponding column.
+        """
+        sigma_to_quantity = dict()
+        quantity_to_sigma = dict()
+        for col in self['columns']:
+            if col[:6] == 'sigma_' and col[6:] in self['columns']:
+                sigma_to_quantity[col] = col[6:]
+                quantity_to_sigma[col[6:]] = col
+            elif col == 'sigma' and 'flux' in self['columns']:
+                sigma_to_quantity[col] = 'flux'
+                quantity_to_sigma['flux'] = col
+            elif col == 'sigma' and 'rv' in self['columns']:
+                sigma_to_quantity[col] = 'rv'
+                quantity_to_sigma['rv'] = col
+        return sigma_to_quantity, quantity_to_sigma
+        
+    
     def sort(self, col='time'):
         """
         Sort a DataSet according to a column
@@ -456,7 +476,8 @@ class DataSet(parameters.ParameterSet):
         Changes DataSet in-place.
         """
         for col in self['columns']:
-            self[col] = np.asarray(self[col])[index]
+            if len(self[col]):
+                self[col] = np.asarray(self[col])[index]
     
     
     def overwrite_values_from(self, other_ds):
@@ -572,8 +593,9 @@ class DataSet(parameters.ParameterSet):
             
             # Phase data
             time = self['time']
-            phase = np.fmod(self['time'] - t0 + pshift*period, period) / period
+            phase = ((time - t0)/period + pshift) % 1.0
             self['phase'] = phase
+            self['columns'].append('phase')
             
             # Sort dataset if required
             if sort:
@@ -632,43 +654,11 @@ class LCDataSet(DataSet):
         if loaded:
             self.unload()
     
-    def bin_oversampling(self):
+    def bin_oversampling(self, x='time', y='flux', sigma=None, skip=None, stat='mean'):
         """
-        Bin synthetics according to the desired oversampling rate.
+        Bin synthetics/observations according to the desired oversampling rate.
         """
-        new_flux = []
-        new_time = []
-        new_samprate = []
-        used_samprate = []
-        #used_exptime = []
-        
-        old_flux = np.array(self['flux'])
-        old_time = np.array(self['time'])
-        old_samprate = np.array(self['samprate'])
-        #old_exptime = np.array(self['used_exptime'])
-        sa = np.argsort(old_time)
-        old_flux = old_flux[sa]
-        old_time = old_time[sa]
-        old_samprate = old_samprate[sa]
-        #old_exptime = old_exptime[sa]
-        
-        
-        seek = 0
-        while seek<len(old_flux):
-            samprate = old_samprate[seek]
-            #exptime = old_exptime[seek]
-            new_flux.append(np.mean(old_flux[seek:seek+samprate], axis=0))
-            new_time.append(np.mean(old_time[seek:seek+samprate], axis=0))
-            used_samprate.append(samprate)
-            #used_exptime.append(exptime)
-            new_samprate.append(1)
-            seek += samprate
-        self['flux'] = new_flux
-        self['time'] = new_time
-        self['samprate'] = new_samprate
-        self['used_samprate'] = used_samprate
-        #self['used_exptime'] = used_exptime
-        #logger.info("Binned data according to oversampling rate")
+        bin_oversampling(self, x=x, y=y, sigma=sigma, skip=skip, stat=stat)
     
     
         
@@ -856,7 +846,6 @@ class SPDataSet(DataSet):
         """
         Estimate the noise by differencing.
         """
-        return None
         if not to_col in self['columns']:
             self['columns'].append(to_col)
         
@@ -866,9 +855,10 @@ class SPDataSet(DataSet):
             self.load()
             did_load = True
         
-        for i in range(len(self[from_col])):
-            noise = np.diff(self[from_col][i])/np.sqrt(2)
-            self[to_col].append(np.ones(len(self[from_col][i]))*noise.std())#np.hstack([noise[0],noise]))
+        if to_col in self and (force or not len(self[to_col])==len(self)):
+            x = np.asarray(self[from_col])
+            noise = (np.diff(x, axis=1)/np.sqrt(2)).std(axis=1)[:,None]*np.ones_like(x)
+            self[to_col] = noise
         
         if did_load:
             self.unload()
@@ -1317,6 +1307,74 @@ class IFDataSet(DataSet):
             logger.info("IFOBS: Converted baseline and position angle data to u and v coordinates")
         
         super(IFDataSet,self).__init__(**kwargs)
+    
+    def __add__(self, other):
+        """
+        Add two IFDataSets together.
+        """
+        result = self.asarray() # Make a copy!
+        other = other.asarray()
+        columns = result.get_value('columns')
+                        
+        vis_a = np.sqrt(self['vis2'])
+        vis_b = np.sqrt(other['vis2'])
+        phase_a = np.array(self['vphase'])
+        phase_b = np.array(other['vphase'])
+        flux_a = np.array(self['total_flux'])
+        flux_b = np.array(other['total_flux'])
+
+        vis = (vis_a*np.exp(1j*phase_a) + vis_b*np.exp(1j*phase_b)) / (flux_a + flux_b)
+        
+        
+        result['vis2'] = np.abs(vis)**2
+        result['vphase'] = np.angle(vis)
+        
+        return result
+    
+    def add_spatial_frequency(self):
+        
+        # Prepare new parameter
+        par = parameters.Parameter(qualifier='spat_freq', unit='cy/arcsec',
+                                   description='Spatial frequency')
+        
+        # Baseline in meter
+        baseline = np.asarray(np.sqrt(self['ucoord']**2 + self['vcoord']**2))
+        
+        # Effective wavelength in nm
+        eff_wave = np.asarray(self['eff_wave'])
+        
+        # compute spatial frequency in cy/arcsec
+        spat_freq = conversions.convert('m/rad', 'cy/arcsec', baseline,
+                                        wave=(eff_wave, 'nm'))
+        par.set_value(spat_freq)
+        self.add(par)
+    
+    
+    def add_baseline(self):
+        
+        # Prepare new parameter
+        par = parameters.Parameter(qualifier='baseline', unit='m',
+                                   description='Baseline')
+        
+        # Baseline in meter
+        baseline = np.asarray(np.sqrt(self['ucoord']**2 + self['vcoord']**2))
+        
+        # compute spatial frequency in cy/arcsec
+        par.set_value(baseline)
+        self.add(par)
+        
+    def add_position_angle(self):
+        # Prepare new parameter
+        par = parameters.Parameter(qualifier='position_angle', unit='deg',
+                                   description='Position angle')
+        
+        # Baseline in meter
+        baseline = np.asarray(np.sqrt(self['ucoord']**2 + self['vcoord']**2))
+        angle = np.arctan2(self['vcoord'], self['ucoord']) / np.pi * 180
+        
+        # compute spatial frequency in cy/arcsec
+        par.set_value(angle)
+        self.add(par)
     
     
     def save2oifits(self,filename,like):
@@ -1788,8 +1846,9 @@ def process_file(filename, default_column_order, ext, columns, components,\
                 output[label][1][-1][key] = kwargs[key]
     
     # lastly, loop over all data columns with units, and convert them
+    manual_conversion_later = ['flux', 'mag', 'wavelength']
     for unit in units:
-        if units[unit].lower() in ['none','mag'] or unit in ['flux', 'mag']:
+        if units[unit].lower() in ['none','mag'] or unit in manual_conversion_later:
             continue
         for label in output:
             from_units = units[unit]
@@ -2024,7 +2083,7 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     mypb = output.values()[0][1][0]
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
-        logger.info("Obs {}: sigma estimated (not available)".format(myds['ref']))
+        logger.warning("Obs {}: sigma estimated (not available)".format(myds['ref']))
     
     # Convert to right units (flux and mag are not done in process_file)
     for col in units:
@@ -2102,14 +2161,23 @@ def parse_rv(filename, columns=None, components=None,
             myds['rv'] = f
             myds['sigma'] = e_f
     
-    # Remove nans:
     for comp in output.keys():
         for ds in output[comp][0]:
+            
+            # Remove skipped columns: they can be '' or 'none'
             columns = ds['columns']
+            while '' in columns:
+                columns.remove('')
+            while 'none' in columns:
+                columns.remove('none')
+                
+            # Remove nans    
             keep = np.ones(len(ds[columns[0]]), bool)
+            
             # First look for nans in all columns
             for col in columns:
                 keep = keep & -np.isnan(ds[col])
+            
             # Then throw the rows with nans out
             for col in columns:
                 ds[col] = ds[col][keep]
@@ -2428,14 +2496,16 @@ def parse_phot(filenames, columns=None, full_output=False, group=None,
                 auto_columns.append(np.zeros(len(data)))
             if not 'unit' in columns_in_file:
                 auto_columns_names.append('unit')
-                auto_columns.append(np.array(['erg/s/cm2/AA']*len(data)))
+                #auto_columns.append(np.array(['erg/s/cm2/AA']*len(data)))
+                auto_columns.append(np.array(['W/m3']*len(data)))
             if not 'label' in columns_in_file:
                 auto_columns_names.append('label')
                 auto_columns.append(np.array(['__nolabel__']*len(data)))
             if len(auto_columns):
                 data = plt.mlab.rec_append_fields(data,auto_columns_names,auto_columns)
             #-- now, make sure each flux value is in the right units:
-            flux,sigma = conversions.nconvert(data['unit'],'erg/s/cm2/AA',data['flux'],data['sigma'],passband=data['passband'])
+            #flux,sigma = conversions.nconvert(data['unit'],'erg/s/cm2/AA',data['flux'],data['sigma'],passband=data['passband'])
+            flux,sigma = conversions.nconvert(data['unit'],'W/m3',data['flux'],data['sigma'],passband=data['passband'])
             data['flux'] = flux
             data['sigma'] = sigma
             #-- now create datasets for each component (be sure to add them
@@ -2655,11 +2725,12 @@ def parse_spec_as_lprof(filename, clambda=None, wrange=None, time=0.0,
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
+        myds['columns'] = myds['columns'] + ['sigma']
     
     # Add continuum if not available
     if not 'continuum' in myds['columns']:
         myds['continuum'] = np.ones_like(myds['wavelength'])
-        myds['columns'] = myds['columns'] + ['sigma']
+        myds['columns'] = myds['columns'] + ['continuum']
     
     
     # Add time
@@ -3102,6 +3173,43 @@ def hstack(tup):
     return out
 
 
+def parse_oifits(filename, full_output=False, **kwargs):
+    """
+    Parse OIFITS file to IFDataSet.
+    """
+    # Prepare output contexts
+    ref = kwargs.get('ref', os.path.splitext(filename)[0])
+    ifmdep = parameters.ParameterSet(context='ifdep', ref=ref)
+    ifmobs = IFDataSet(context='ifobs', ref=ref,
+                       columns=['ucoord','vcoord','vis2','sigma_vis2','time'])
+    for key in kwargs:
+        if key in ifmdep:
+            ifmdep[key] = kwargs[key]
+        if key in ifmobs:
+            ifmobs[key] = kwargs[key]
+    
+    # Read in the visibilities
+    templatedata = oifits.open(filename)
+    allvis2 = templatedata.allvis2 
+    ifmobs['vis2'] = allvis2['vis2data']
+    ifmobs['sigma_vis2'] = allvis2['vis2err']
+    ifmobs['ucoord'] = allvis2['ucoord']
+    ifmobs['vcoord'] = allvis2['vcoord']
+    ifmobs['time'] = allvis2['mjd']
+    ifmobs['eff_wave'] = conversions.convert('m','AA',allvis2['eff_wave'])
+    
+    output = OrderedDict()
+    output['__nolabel__'] = [[ifmobs], [ifmdep]]
+    
+    # If the user didn't provide any labels (either as an argument or in the
+    # file), we don't bother the user with it:
+    if not full_output:
+        return output.values()[0][0][0], output.values()[0][1][0]
+    else:
+        return output
+    
+
+
 def oifits2vis2(filename,wtol=1.,ttol=1e-6,**kwargs):
     """
     Convert an OIFITS file to Phoebe's VIS2 format.
@@ -3182,44 +3290,106 @@ def esprit2plprof(filename,**kwargs):
     
     
     
-def bin_oversampling(system, x='time', y='flux'):
+def bin_oversampling(dataset, x='time', y='flux', sigma=None, skip=None, stat='mean'):
     """
     Bin synthetics according to the desired oversampling rate.
     """
-    new_flux = []
-    new_time = []
+    # If there is nothing here, don't bother...
+    if not len(dataset[x]):
+        return None
+    
+    # Make sure sigma and skip are lists
+    if sigma is None:
+        sigma = []
+    elif isinstance(sigma, str):
+        sigma = [sigma]
+        
+    if skip is None:
+        skip = []
+    elif isinstance(skip, str):
+        skip = [skip]
+        
+    # If 'y=None', we want to bin all columns (treat x, sigma and skip differently)
+    if y is None:
+        y = list(dataset['columns'])
+        for sig in sigma:
+            y.remove(sig)
+        for skp in skip:
+            y.remove(skp)
+            
+    # Make sure y is a list
+    elif isinstance(y, str):
+        y = [y]
+    
+    # Prepare new arrays
+    new_y = [[] for col in y]
+    new_sig = [[] for col in sigma]
+    new_x = []
     new_samprate = []
     used_samprate = []
-    #used_exptime = []
     
-    old_flux = np.array(system[y])
-    old_time = np.array(system[x])
-    old_samprate = np.array(system['samprate'])
-        
-    #old_exptime = np.array(self['used_exptime'])
-    sa = np.argsort(old_time)
-    old_flux = old_flux[sa]
-    old_time = old_time[sa]
-    old_samprate = old_samprate[sa]
-    #old_exptime = old_exptime[sa]
+    # Sort according to x column
+    sa = np.argsort(dataset[x])
+    dataset.take(sa)
     
+    # Take arrays to bin_oversample
+    old_x = np.array(dataset[x])
+    old_y = np.array([dataset[col] for col in y])
+    old_sig = np.array([dataset[col] for col in sigma])
+    old_samprate = np.array(dataset['samprate'])
     
+    # Derive what quanitities belong to which sigmas
+    if sigma:
+        sigma_to_quantity, quantity_to_sigma = dataset.get_sigmas()
+    
+    # And oversample according to a (perhaps non-constant) oversampling rate
     seek = 0
-    while seek<len(old_flux):
+    while seek < old_y.shape[1]:
+        
+        # What is the 'local' sampling rate?
         samprate = old_samprate[seek]
-        #exptime = old_exptime[seek]
-        new_flux.append(np.mean(old_flux[seek:seek+samprate], axis=0))
-        new_time.append(np.mean(old_time[seek:seek+samprate], axis=0))
+        
+        # Bin the y-columns according to the given statistic
+        for col in range(old_y.shape[0]):
+            new_y[col].append(getattr(np, stat)(old_y[col, seek:seek+samprate], axis=0))
+        
+        # Treat sigma's differently
+        for col in range(old_sig.shape[0]):
+            # What quantity does this sigma belong to?
+            old_y_col = y.index(sigma_to_quantity[sigma[col]])
+            
+            # Take the std of the quantity as the new sigma
+            if stat == 'mean':
+                new_sig[col].append(np.std(old_y[old_y_col, seek:seek+samprate], axis=0))
+            elif stat == 'median':
+                new_sig[col].append(1.4826*utils.mad(old_y[old_y_col, seek:seek+samprate], axis=0))
+            else:
+                raise NotImplementedError(stat)
+        
+        # Bin the x-column according to the mean (we assume no outliers)
+        new_x.append(np.mean(old_x[seek:seek+samprate], axis=0))
         used_samprate.append(samprate)
-        #used_exptime.append(exptime)
         new_samprate.append(1)
         seek += samprate
-    system[y] = new_flux
-    system['time'] = new_time
-    system['samprate'] = new_samprate
-    system['used_samprate'] = used_samprate
-    #self['used_exptime'] = used_exptime
-    #logger.info("Binned data according to oversampling rate")
+    
+    
+    # Replace the original columns with the new ones
+    for i, col in enumerate(y):
+        dataset[col] = new_y[i]
+    
+    # Time doesn't mean anything anymore if the stuff is sorted in phase
+    if 'time' in y:
+        dataset[col] = []
+        dataset['columns'].remove('time')
+        
+    for i, col in enumerate(sigma):
+        dataset[col] = new_sig[i]
+        
+    dataset[x] = new_x
+    dataset['samprate'] = new_samprate
+    
+    if 'used_samprate' in dataset:
+        dataset['used_samprate'] = used_samprate
     
 
 

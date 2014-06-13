@@ -815,12 +815,14 @@ class Container(object):
             return_items += ris
             
         for section_name,section in self.sections.items():
+            
             if do_sectionlevel and section_name not in ['system']:
                 ris = self._get_info_from_item({item.get_value('label') if 'label' in item.keys() else item.get_value('ref'):item for item in section},section=section_name,container=container,label=-1)
                 return_items += ris
                 
             if do_pslevel:
                 for item in section:
+                    
                     if item is None:
                         continue
                     
@@ -837,6 +839,7 @@ class Container(object):
                         
                     ris = self._get_info_from_item(item,section=section_name,container=container,label=this_label)
                     for ri in ris:
+                        
                         return_items += [ri]
                         
                         if ri['kind']=='Container':

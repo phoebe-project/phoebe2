@@ -3780,6 +3780,7 @@ class Body(object):
         else:
             emphasize = lambda x: x
             italicize = lambda x: x
+            strikethrough = lambda x:x
         
         if summary:
             add_summary = locals()['add_summary_'+summary]
@@ -4171,10 +4172,11 @@ class Body(object):
                 etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
                 etvsyn['etv'] = np.append(etvsyn['etv'],t-times)
            
-           
+
+    
     @decorators.parse_ref
-    def ifm(self, ref='allifdep', time=None, correct_oversampling=1,
-            beaming_alg='none', save_result=True):
+    def ifm(self, ref='allifdep', time=None, obs=None, correct_oversampling=1,
+           beaming_alg='none', save_result=True):
         """
         Compute interferometry.
         
@@ -4182,61 +4184,116 @@ class Body(object):
         
         For details on the computations, see :py:func:`observatory.ifm <phoebe.backend.observatory.ifm>`
         """
-        # Don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'obs' in self.params and 'ifobs' in self.params['obs']:
-            for lbl in set(ref):
-                # Get the parameterSet with relevant parameters
-                ifobs, lbl = self.get_parset(type='obs', ref=lbl)
-                
-                # do we want to keep figures?
-                keepfig = ifobs.get('images', '')
-                
-                # Retrieve the times of observations, the baseline coordinates
-                # (baseline length and position angle) and effective wavelength
-                times = ifobs['time']
-                posangle = np.arctan2(ifobs['vcoord'],ifobs['ucoord'])/pi*180.
-                baseline = sqrt(ifobs['ucoord']**2 + ifobs['vcoord']**2)
-                eff_wave = None if (not 'eff_wave' in ifobs or not len(ifobs['eff_wave'])) else ifobs['eff_wave']
-                
-                # If not time is given, assume all baselines are measured at
-                # the same time (or equivalently the system is time independent)
-                if time is None:
-                    keep = np.ones(len(posangle),bool)
-                
-                # Else, regard all time differences below 1e-8 seconds as
-                # negligible
+        # We need to get the observation ParameterSet so that we know all the
+        # required info on **what** exactly to compute (**how** to compute it
+        # is contained in the pbdep)
+        if obs is None and hasattr(self,'params') and 'obs' in self.params \
+                                    and 'ifobs' in self.params['obs']:
+            # Compute the IFM profiles for all references
+            for lbl in ref:
+                # Get the observations if they are not given already
+                if obs is None:
+                    ifobs, lbl = self.get_parset(type='obs', ref=lbl)
+                    if lbl is None:
+                        continue
                 else:
-                    keep = np.abs(times-time)<1e-8
-                    
-                # If nothing needs to be computed, don't do it
-                if sum(keep) == 0:
-                    continue
+                    ifobs = obs
                 
-                # make sure each time image has a unique name
-                if keepfig:
-                    keepfig = ('{}_time_{:.8f}'.format(keepfig,time)).replace('.','_')
-                else:
-                    keepfig = False
-                    
-                output = observatory.ifm(self, posangle=posangle[keep],
-                                     baseline=baseline[keep],eff_wave=eff_wave,
-                                     ref=lbl, keepfig=keepfig)
-                                     #ref=lbl,keepfig=('pionier_time_{:.8f}'.format(time)).replace('.','_'))
-                
-                if save_result:
-                    ifsyn, lbl = self.get_parset(type='syn', ref=lbl)
-                    ifsyn['time'] += [time] * len(output[0])
-                    ifsyn['ucoord'] += list(ifobs['ucoord'][keep])
-                    ifsyn['vcoord'] += list(ifobs['vcoord'][keep])
-                    ifsyn['vis2'] += list(output[3])
-                    ifsyn['vphase'] += list(output[4])
-        #-- try to descend into a bodyBag
-        else:
+                # Compute the IFM profiles for this reference
+                self.ifm(ref=lbl, time=time, obs=ifobs,
+                         correct_oversampling=correct_oversampling,
+                         beaming_alg=beaming_alg, save_result=save_result)
+        
+        # If no obs are given and there are no obs attached, assume we're a
+        # BodyBag and descend into ourselves:
+        elif obs is None:
             try:
                 for body in self.bodies:
-                    body.ifm(ref=ref,time=time)
+                    body.ifm(ref=ref, time=time, obs=obs,
+                         correct_oversampling=correct_oversampling,
+                         beaming_alg=beaming_alg, save_result=save_result)
             except AttributeError:
                 pass
+        
+        # If obs are given, there is no need to look for the references, and we
+        # can readily compute the visibilities
+        else:
+            ref = obs['ref']
+            
+            # Well, that is, we will only compute the IFM if there are pbdeps
+            # on this body. If not, we assume it's a BodyBag and descend into
+            # the bodies.
+            if not (hasattr(self,'params') and 'pbdep' in self.params \
+                                    and 'ifdep' in self.params['pbdep']):
+                try:
+                    for body in self.bodies:
+                        body.ifm(ref=ref, time=time, obs=obs,
+                         correct_oversampling=correct_oversampling,
+                         beaming_alg=beaming_alg, save_result=save_result)
+                except AttributeError:
+                    pass
+                
+                # Quit here!
+                return None
+            else:
+                pbdep = self.params['pbdep']['ifdep'][ref]
+                        
+            # Else, we have found the observations (from somewhere), and this
+            # Body has spdeps attached: so we can finally compute the spectra
+            base, ref = self.get_parset(ref=ref, type='syn')
+            if obs['ref'] != pbdep['ref']:
+                raise ValueError("IF: Something went wrong here! The obs don't match the pbdep...")
+            
+            # do we want to keep figures?
+            keepfig = obs.get('images', '')
+            
+            # Retrieve the times of observations, the baseline coordinates
+            # (baseline length and position angle) and effective wavelength
+            times = obs['time']
+            posangle = np.arctan2(obs['vcoord'], obs['ucoord'])/pi*180.
+            baseline = sqrt(obs['ucoord']**2 + obs['vcoord']**2)
+            eff_wave = None if (not 'eff_wave' in obs or not len(obs['eff_wave'])) else obs['eff_wave']
+            
+            # If not time is given, assume all baselines are measured at
+            # the same time (or equivalently the system is time independent)
+            if time is None:
+                keep = np.ones(len(posangle),bool)
+            
+            # Else, regard all time differences below 1e-8 seconds as
+            # negligible
+            else:
+                keep = np.abs(times-time)<1e-8
+                
+            # If nothing needs to be computed, don't do it
+            if sum(keep) == 0:
+                return None
+            
+            # make sure each time image has a unique name
+            if keepfig:
+                keepfig = ('{}_time_{:.8f}'.format(keepfig,time)).replace('.','_')
+            else:
+                keepfig = False
+            
+            output = observatory.ifm(self, posangle=posangle[keep],
+                                     baseline=baseline[keep],eff_wave=eff_wave,
+                                     ref=ref, keepfig=keepfig)
+                
+            # If nothing was computed, don't do anything
+            if output is None:
+                return None
+                
+            # Save results if necessary
+            if save_result:
+                base, ref = self.get_parset(type='syn', ref=ref)
+                base['time'] += [time] * len(output[0])
+                base['ucoord'] += list(obs['ucoord'][keep])
+                base['vcoord'] += list(obs['vcoord'][keep])
+                base['vis2'] += list(output[3])
+                base['vphase'] += list(output[4])
+                base['total_flux'] += list(output[-1])
+                if eff_wave is not None:
+                    base['eff_wave'] += list(eff_wave[keep])
+
     
     @decorators.parse_ref
     def rv(self,correct_oversampling=1,ref='allrvdep', time=None,
@@ -5213,8 +5270,6 @@ class PhysicalBody(Body):
     
 
     
-
-    
     @decorators.parse_ref
     def ps(self,correct_oversampling=1, ref='alllcdep',time=None, beaming_alg='none'):
         """
@@ -5975,11 +6030,8 @@ class BodyBag(Body):
         cumulative = kwargs.get('cumulative', True)
         
         # Sometimes synthetics can be added directly to the BodyBag, instead of
-        # being built from the ones in the bodies list. E.g. interferometry can
-        # only be computed of the whole system, since the total Fourier
-        # transform is not the sum of the component Fourier transforms.
-        #   .... euhh... it kind of is! Anyway...
-        if kwargs.get('category', 'lc') in ['if', 'rv']:
+        # being built from the ones in the bodies list. 
+        if kwargs.get('category', 'lc') in ['rv']:
             total_results = self.get_parset(ref=kwargs.get('ref',0), type='syn',
                                         category=kwargs.get('category', None))[0]
         
@@ -7818,6 +7870,12 @@ class BinaryRocheStar(PhysicalBody):
             else:
                 grad = (potentials[-1]-potentials[-2])/(volumes[-1]-volumes[-2])
                 oldpot = grad*(V1-volumes[-2])+potentials[-2]
+        else:
+            raise ValueError(("Reprojection algorithm failed. This is probably "
+                              "due to the inherently bad algorithm, which "
+                              "builds up errors each time a reprojection is done."
+                              " Possible solution is to phase the data, or replace "
+                              "the algorithm."))
         
         #-- keep parameters up-to-date
         g_pole = roche.binary_surface_gravity(0,0,R*constants.Rsol,d_*constants.Rsol,omega_orb,M1,M2,normalize=True)

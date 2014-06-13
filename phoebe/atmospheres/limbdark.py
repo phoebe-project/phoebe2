@@ -1425,7 +1425,7 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
                               "section of the documentation on how to add "
                               "atmosphere tables. If you don't have the standard "
                               "atmosphere tables yet, you might first want to try:\n"
-                              "$:> sudo python\n>>>import phoebe\n>>>phoebe.download_atm".format(atm, ret_val)))
+                              "$:> sudo python\n>>>import phoebe\n>>>phoebe.download_atm()".format(atm, ret_val)))
             answer = raw_input(("Cannot interpret atm parameter {}: I think "
                               "the file that I need is {}, but it doesn't "
                               "exist. If in doubt, consult the installation "
@@ -1533,7 +1533,6 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         #pars = interp_nDgrid.cinterpolate(values.T, axis_values, pixelgrid).T
         #else:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
-        
         if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
             raise IndexError
     
@@ -1989,7 +1988,7 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
 
 #{ Grid creators
 
-def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
+def compute_grid_ld_coeffs_deprecated(atm_files,atm_pars=('teff', 'logg'),\
                            red_pars_iter={},red_pars_fixed={},vgamma=None,\
                            passbands=('JOHNSON.V',),\
                            law='claret',fitmethod='equidist_r_leastsq',\
@@ -2320,7 +2319,10 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                 # directory (phoebe/atmospheres/tables/spec_intens)
                 elif key[:10] == 'C__ATMFILE':
                     direc = os.path.dirname(os.path.abspath(__file__))
-                    atm_file = os.path.join(direc, 'tables', 'spec_intens',
+                    if ff[0].header[key] == 'blackbody':
+                        atm_file = 'blackbody'
+                    else:
+                        atm_file = os.path.join(direc, 'tables', 'spec_intens',
                                             ff[0].header[key])
                     atm_files.append(atm_file)
             

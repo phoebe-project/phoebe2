@@ -452,6 +452,7 @@ def eff_wave(passband, model=None, det_type=None):
 
         # If the passband is not defined, set the effective wavelength to nan
         except IOError:
+            logger.error("Cannot find passband {}".format(ipassband))
             this_eff_wave = np.nan
 
         # Call the function that computes the effwavelength from arrays

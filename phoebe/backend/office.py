@@ -23,7 +23,20 @@ def summarize(system, time=None, filename=None):
     if not len(system.mesh):
         system.set_time(0.)
     
+    # Colors
+    if filename is None:
+        sc1 = '\033[33m'
+        ec = '\033[m'
+        sc2 = '\033[32m'
+    else:
+        adj = system.get_adjustable_parameters()
+        for i in adj:
+            i.set_adjust(False)
+        sc1 = ''
+        ec = ''
+        sc2 = ''
             
+    
     params = {}
     for loc, thing in phoebe.BodyBag([system]).walk_all():
         class_name = thing.__class__.__name__
@@ -33,7 +46,8 @@ def summarize(system, time=None, filename=None):
                           'AccretionDisk']:
             
             # Compute the luminosity of the object
-            lum = phoebe.convert('erg/s', 'W', thing.luminosity()), 'W'
+            #lum = phoebe.convert('erg/s', 'W', thing.luminosity()), 'W'
+            lum = thing.luminosity(), 'W'
             
             # If this thing is a star, we can immediately derive mass, radius,
             # and effective temperature
@@ -63,9 +77,9 @@ def summarize(system, time=None, filename=None):
             
             
             title = "Body '{}' (t={})".format(thing.get_label(), thing.time)
-            text.append("\n\n\033[32m{}\n{}\033[m".format(title,'='*len(title)))
+            text.append("\n\n{}{}\n{}{}".format(sc2, title,'='*len(title),ec))
             text.append("\nSystem parameters\n==================\n")
-            text.append(thing.list(summary='physical'))
+            text.append(thing.list(summary='physical', emphasize=(filename is None)))
             
             if not error:
                 M = phoebe.convert(mass[1],'Msol', mass[0])
@@ -92,9 +106,10 @@ def summarize(system, time=None, filename=None):
                 
             text.append("\nPassband parameters\n===================\n")
             
+            
             for ref in ld_columns:
                 lbl = 'ld_{}'.format(ref)
-                text.append("\n\033[33mPassband '{}':\n-------------------------\033[m".format(ref))
+                text.append("\n{}Passband '{}':\n-------------------------{}".format(sc1, ref, ec))
                 
                 parset = thing.get_parset(ref=ref)
                 text.append(str(parset[0]))
@@ -122,15 +137,20 @@ def summarize(system, time=None, filename=None):
                 a2 = np.average(mesh[lbl][:,2], weights=weights), np.std(mesh[lbl][:,2])
                 a3 = np.average(mesh[lbl][:,3], weights=weights), np.std(mesh[lbl][:,3])
                 
-                text.append("Projected intensity = {:.6e} erg/s/cm2/AA".format(proj_int))
+                #text.append("Projected intensity = {:.6e} erg/s/cm2/AA".format(proj_int))
+                text.append("Projected intensity = {:.6e} W/m3".format(proj_int))
                 if ref=='__bol':
                     passband = 'BOL'
-                    app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                    #app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                    #                                proj_int, passband='OPEN.BOL')
+                    app_mag = phoebe.convert('W/m3','mag',
                                                     proj_int, passband='OPEN.BOL')
                 else:
                     passband = passband=parset[0]['passband']
                     try:
-                        app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                        #app_mag = phoebe.convert('erg/s/cm2/AA','mag',
+                        #                            proj_int, passband=parset[0]['passband'])
+                        app_mag = phoebe.convert('W/m3','mag',
                                                     proj_int, passband=parset[0]['passband'])
                     except:
                         app_mag = 99.

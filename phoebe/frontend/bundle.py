@@ -1279,6 +1279,11 @@ class Bundle(Container):
                   units=units, group=filename, 
                   group_kwargs=dict(scale=scale, offset=offset),
                   full_output=True, **kwargs)
+            
+        elif category == 'if':
+            if subcategory == 'oifits':
+                output = datasets.parse_oifits(filename, full_output=True,
+                                               ref=dataref, **kwargs)
         #elif category == 'pl':
         #    output = datasets.parse_plprof(filename, columns=columns,
         #                               components=objref, full_output=True,
@@ -1286,6 +1291,7 @@ class Bundle(Container):
         else:
             output = None
             print("only lc, rv, etv, sed, and sp currently implemented")
+            raise NotImplementedError
         
         if output is not None:
             self._attach_datasets(output, skip_defaults_from_body=kwargs.keys())
@@ -2259,8 +2265,22 @@ class Bundle(Container):
         return self.data_fromfile(category=category, **set_kwargs)
         
     
+    def if_fromfile(self, filename, dataref=None, atm=None):
+        """
+        Add interferometry data from an OIFITS file
+        """
+        # retrieve the arguments with which this function is called
+        set_kwargs, posargs = utils.arguments()
+        
+        # filter the arguments according to not being "None" nor being "self"
+        set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
+                  if set_kwargs[key] is not None and key != 'self'}
+        
+        # We can pass everything now to the main function
+        return self.data_fromfile(category='if:oifits', **set_kwargs)
     
-    def add_parameter(self, twig, replaces=None, value=None):
+    
+    def add_parameter(self, twig, replaces=None, value=1.0):
         """
         Add a new parameter to the set of parameters.
         
@@ -2285,14 +2305,14 @@ class Bundle(Container):
         # Figure out what the parameter name is
         qualifier = twig_split[0]
         
+        # If this parameter does not replaces any other, it is derived itself
         if replaces is None:
             replaces = qualifier
-        if value is None:
-            value = 1.0
-        
+                    
         # If the parameter does not exist yet, there's some work to do: we need
         # to figure out where to add it, and we need to create it
         if param is None:
+            
             # Get all the info on this parameter
             info = definitions.rels['binary'][qualifier].copy()
             
@@ -2307,7 +2327,6 @@ class Bundle(Container):
             elif in_level_as == '__system__':
                 system = self.get_system()
                 system.attach_ps()
-                pass
             
             # And add it
             pset = item['path'][-2]
@@ -2319,11 +2338,11 @@ class Bundle(Container):
         # In any case we need to set the 'replaces' attribute and the value    
         param.set_replaces(replaces)
         param.set_value(value)
-            
+        
         # add the preprocessing thing
         system = self.get_system()
         system.add_preprocess('binary_custom_variables')
-        self._build_trunk()    
+        self._build_trunk()   
     
     
     def get_datarefs(self, objref=None, category=None, per_category=False):
