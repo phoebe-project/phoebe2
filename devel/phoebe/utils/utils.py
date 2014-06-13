@@ -378,4 +378,20 @@ def phasediagram(time, y, period, t0=0.0, repeat=0, sort=True,
         return phase, y
 
 
+
+def mad(a, axis=None):
+    """
+    Compute *Median Absolute Deviation* of an array along given axis.
+    
+    From https://informatique-python.readthedocs.org/en/latest/Exercices/mad.html
+    """
+
+    med = np.median(a, axis=axis)                # Median along given axis
+    if axis is None:
+        umed = med                              # med is a scalar
+    else:
+        umed = np.expand_dims(med, axis)         # Bring back the vanished axis
+    mad = np.median(np.abs(a - umed), axis=axis) # MAD along given axis
+
+    return mad
 #}

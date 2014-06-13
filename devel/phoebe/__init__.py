@@ -1,5 +1,9 @@
 r"""
 
+.. contents:: Table of Contents
+   :depth: 1
+   :local:
+
 Section 1. Package structure
 ============================
 
@@ -22,9 +26,15 @@ Section 1. Package structure
    phoebe.io
    phoebe.units
    phoebe.utils
-
+   
+   
+   
 Section 2. Operation details
 ============================
+
+.. contents:: Table of Contents
+   :depth: 4
+   :local:
 
 Section 2.1 Limb darkening, local intensities and absolute fluxes
 ------------------------------------------------------------------
@@ -152,15 +162,17 @@ ratio :math:`F_\mathrm{ecl}` during total eclipse is 75% of the total light, sin
     b['pblum@lc01@secondary'] = 0.0
 
 We compute the light curve and use the purely physical calculations as
-observations. These can then be used to auto-scale the synthetics::
+observations. These can then be used to auto-scale the synthetics, with different
+settings of the scaling parameters::
 
     b.run_compute()
     obsflux = b['flux@lc01@lcsyn']
                    
 To show the behaviour of ``scale`` and ``offset`` and ``pblum`` and ``l3``, we'll
 add 6 different light curves on top op the original one, with different values
-of the scaling parameters. Unless stated otherwise, ``pblum=-1``, ``l3=0``,
-``scale=1`` and ``offset=1``. In each case, we list the relative eclipse depth
+of the scaling parameters. Unless stated otherwise, ``pblum=-1`` (absolute fluxes),
+``l3=0`` (no third light), ``scale=1`` (no scaling) and ``offset=0`` (no offset).
+In each case, we list the relative eclipse depth
 and the minimum and maximum flux values. The different cases are:
 
 - ``lc01``: all default values::
@@ -172,8 +184,12 @@ and the minimum and maximum flux values. The different cases are:
         assert(rel_depth==0.748343497631)
         assert(minim==1776.54192813)
         assert(maxim==2373.96587764)
+   
+   With the default parameters, we have fluxes between 1776 and 2373 W/m3, and
+   thus a relative depth of 75%. Just as expected.
         
-- ``lc02``: we force an offset of 10000 units (``offset=10000``)::
+- ``lc02``: we force an offset of 10000 units (``offset=10000``). All fluxes
+   will be offset by that amount, which means that the eclipse will be shallower::
 
         b.lc_fromarrays(phase=np.linspace(0,1,100), offset=10000)
         b['pblum@lc02@secondary'] = 0.0
@@ -436,11 +452,41 @@ Section 2.13 Potential shapes
 --------------------------------------
 
 TBD
-   
-Section 3. Wonder how things are done?
+
+Section 3. Data handling
 ======================================
 
-Section 3.1 Model computations
+3.1 Light curves
+------------------
+
+3.2 Radial velocity curves
+-----------------------------
+
+3.3 Multicolour photometry (SEDs)
+------------------------------------
+
+3.4 Spectra
+-----------------
+
+3.5 Spectrapolarimetry
+------------------------------------
+
+3.6 Interferometry
+------------------------------------
+
+3,7 Speckle interferometry
+------------------------------------
+
+3.8 Astrometry
+------------------------------------
+
+3.9 Eclipse timing variations
+------------------------------------
+   
+Section 4. Wonder how things are done?
+======================================
+
+Section 4.1 Model computations
 -------------------------------
 
 * How are surface deformations done?

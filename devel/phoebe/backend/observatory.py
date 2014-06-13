@@ -976,6 +976,7 @@ def bandwidth_smearing(fctn):
         # For each port, compute the visibilities and such.
         output = []
         proj_int = np.ones(n_parts)
+        flux = []
         transmission_weight = np.ones(n_parts)
         
         for n_part in range(n_parts):
@@ -997,17 +998,20 @@ def bandwidth_smearing(fctn):
                 
             # Compute the ifm observables
             freq, base, pos_angle, visib, phase, \
-                            ang_scale, ang_prof = fctn(system, *args, **kwargs)
+                            ang_scale, ang_prof, this_flux = fctn(system, *args, **kwargs)
+            flux.append(this_flux)
             output.append([visib, phase])
                         
         # Now compute all the averages...
         output = np.array(output)
         weights = proj_int*transmission_weight
+        #print("in bandwidth smearing (obseratory.py) {} {}".format(proj_int, flux, this_flux))
         vis2, phase = np.average(output, axis=0, weights=weights)
+        flux = np.array(flux).mean(axis=0)
         
         # That's it -- we just need to make sure to have the same return
         # signature as "ifm". Please change it in the future.
-        return freq, base, pos_angle, vis2, phase, ang_scale, ang_prof
+        return freq, base, pos_angle, vis2, phase, ang_scale, ang_prof, flux
     
     return do_bandwidth_smearing    
     
@@ -1016,6 +1020,12 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         figname=None, bandwidth_smearing=1, keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
+    
+    Algorithm steps:
+    
+        1. An flux-image is made using :py:func:`image` according to the
+           prescriptions in the *ifdep* with reference :envvar:`ref`. This image
+           is converted to a numpy array using :py:func:`plotlib.fig2data`.
     
     If you give a single positional angle as a float instead of an array,
     the whole profile will be computed. Otherwise, only selected baselines
@@ -1047,6 +1057,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     phase_out = []
     angular_scale_out = []
     angular_profile_out = []
+    total_flux_out = []
     
     # Set effective wavelength to the one from the passband if not given
     # otherwise
@@ -1150,9 +1161,9 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         x = x/d # radians
         #x = conversions.convert('rad','as',x) # arseconds
         x = x / (2 * np.pi) * 360. * 3600.
-        x -= x[0]
+        #x -= x[0]
         if single_baseline and bl==0: 
-            nyquist = 0.5/x[1]
+            nyquist = 0.5/(x[1]-x[0])
             f0 = 0.01/x.ptp()
             fn = nyquist/25.
             df = 0.01/x.ptp()
@@ -1176,14 +1187,15 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         #   wavelength vary over the passband, and add up all the
         #   Fourier transforms but weighted with the SED intensity
         #   times the transmission filter.
-        signal = signal/signal.sum()
+        total_flux = signal.sum()
+        #signal = signal/signal.sum()
         f1,s1 = pergrams.DFTpower(x,signal,full_output=True,
                             f0=f0,fn=fn,df=df)
         s1_vis = np.abs(s1)
         s1_phs = np.angle(s1)
         #-- correct cumulative phase
-        s1_phs = s1_phs - x.ptp()*pi*f1
-        s1_phs = (s1_phs % (2*pi))# -pi
+        #s1_phs = s1_phs - x.ptp()*pi*f1
+        #s1_phs = (s1_phs % (2*pi))# -pi
         #b1 = conversions.convert('cy/arcsec','m',f1,wave=(wl,'angstrom')) / (2*np.pi)
         b1 = conversions.spatialfrequency_to_baseline(f1, wl)
         if keepfig and keepfig is not True:
@@ -1199,6 +1211,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         phase_out.append(s1_phs)
         angular_scale_out.append(x)
         angular_profile_out.append(signal)
+        total_flux_out.append(total_flux)
         
     if single_baseline and baseline[0]==0:
         frequency_out = frequency_out[0]
@@ -1208,18 +1221,20 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         phase_out = phase_out[0]
         angular_scale_out = angular_scale_out[0]
         angular_profile_out = angular_profile_out[0]
+        total_flux_out = total_flux_out[0]
     else:
         frequency_out = np.array(frequency_out)
         baseline_out = np.array(baseline_out)
         posangle_out = np.array(posangle_out)
         visibility_out = np.array(visibility_out)
         phase_out = np.array(phase_out)
+        total_flux_out = np.array(total_flux_out)
         #angular_scale_out = np.array(angular_scale_out)
         #angular_profile_out = np.array(angular_profile_out)
     
     return frequency_out,baseline_out,posangle_out,\
            visibility_out,phase_out,\
-           angular_scale_out,angular_profile_out
+           angular_scale_out,angular_profile_out, total_flux_out
 
 
 def spectrum(the_system, obs, pbdep, rv_grav=True):
