@@ -83,8 +83,10 @@ The absolute scaling of the intensity calculations is in real physical units
 interstellar reddening effects and reflection/heating effects. Four parameters
 govern the absolute scaling:
 
-    - ``pblum`` and ``l3``: physical scaling via fixed passband luminosity and third light
-    - ``scale`` and ``offset``: instrumental scaling via a linear scaling factor and offset term
+    - ``pblum`` and ``l3``: physical scaling via fixed passband luminosity and
+       third light (live in the pbdep)
+    - ``scale`` and ``offset``: instrumental scaling via a linear scaling factor
+       and offset term (live in the obs)
 
 Thus, there are two ways of scaling the model fluxes to observed fluxes:
 
@@ -109,11 +111,12 @@ Thus, there are two ways of scaling the model fluxes to observed fluxes:
      Third light ``l3`` also works on a component-to-component basis. Its units
      are the same as ``pblum``. If ``pblum=-1``, then ``l3`` is in absolute
      physical units (i.e. W/m3). Since ``l3`` is additive, specifying it for one
-     component is the same as adding to the total system.
+     component is the same as adding it to the total system. Adding it to two
+     components means adding it twice to the system.
      
    - **instrumental scaling**: many observable parameterSet (lcobs...) have
      two parameters ``scale`` and ``offset``. When you set them to be adjustable
-     but do not specify any prior, a linear fitting will be performed to match
+     but do not specify any prior, a :py:func:`linear fitting <phoebe.backend.universe.compute_scale_or_offset>` will be performed to match
      the observations with the model computations. This is useful for normalised
      data, or for data for which the scaling can then be interpreted as a
      distance scaling. The offset factor can then be interpreted as
@@ -185,8 +188,8 @@ and the minimum and maximum flux values. The different cases are:
         assert(minim==1776.54192813)
         assert(maxim==2373.96587764)
    
-   With the default parameters, we have fluxes between 1776 and 2373 W/m3, and
-   thus a relative depth of 75%. Just as expected.
+  With the default parameters, we have fluxes between 1776 and 2373 W/m3, and
+  thus a relative depth of 75%. Just as expected.
         
 - ``lc02``: we force an offset of 10000 units (``offset=10000``). All fluxes
    will be offset by that amount, which means that the eclipse will be shallower::
@@ -269,13 +272,14 @@ and the minimum and maximum flux values. The different cases are:
 Section 2.2 Reflection and heating
 -----------------------------------
 
-By default, reflection and heating effects are not calculated. You can switch
-them on via ``refl=True`` and ``heating=True``. You can switch off the calculation
-of irradiation of objects that are too dim or too cool, by setting the parameter
+You can switch on/off reflection and heating effects via ``refl=True`` and
+``heating=True``. You can switch off the calculation of irradiation of objects
+that are too dim or too cool, by setting the parameter
 ``irradiator=False`` in the Body parameterSet (star, component). Note that they
-will still be irradiated, but other bodies will not receive their radiation.
-If you don't want a body to take part in anything, you will need to separate it
-from the others (e.g. in a disconnected BodyBag).
+will still be irradiated (and can thus reflect light or heat up), but other
+bodies will not receive their radiation. If you don't want a body to take part
+in anything, you will need to separate it from the others (e.g. in a
+disconnected BodyBag).
 
 The following algorithms can be chosen to compute irradiation:
 
@@ -301,9 +305,13 @@ specified. The current options are:
 
     - ``isotropic``: Thompson scattering, e.g. in atmospheres of hot stars
     - ``henyey``: Henyey-Greenstein scattering, for either front or backwards scattering
+      :py:func:`(more info) <phoebe.algorithms.reflection.henyey_greenstein>`
     - ``henyey2``: Two-term Henyey-Greenstein scattering (Jupiter-like)
+      :py:func:`(more info) <phoebe.algorithms.reflection.henyey_greenstein2>`
     - ``rayleigh``: back-front symmetric scattering
+      :py:func:`(more info) <phoebe.algorithms.reflection.rayleigh>`
     - ``hapke``: for regolith surfaces, or even vegetation, snow...
+      :py:func:`(more info) <phoebe.algorithms.reflection.hapke>`
 
 .. warning::
 
@@ -322,6 +330,8 @@ specified. The current options are:
     Bolometric albedos need to be between 0 and 1, passband albedos can exceed 1.
 
 See the :ref:`reflection <reflection-algorithms>` module for more information.
+See :py:func:`generic_projected_intensity <phoebe.universe.generic_projected_intensity>`
+for implementation details.
 
 Section 2.3 Beaming
 -----------------------------------
@@ -413,25 +423,32 @@ a light curve are more rapid.
 
 The oversampling is done as follows: say that you want to compute observables at time 100s, using an
 integration time of 200s and with an oversampling of 4, then the observation started at 0s and ended
- at 200s. As a result, you get the average value of the observables at times 25s, 75s, 125s and 
- 175s.
+at 200s. As a result, you get the average value of the observables at times 25s, 75s, 125s and 
+175s.
 
 The functions in which the times extract times and refs and binoversampling are done under the hood
 are :py:func:`(extract_times_and_refs) <phoebe.backend.observatory.extract_times_and_refs>` and
 :py:func:`(bin_oversampling) <phoebe.backend.universe.Body.bin_oversampling>`.
 
 
-
-Section 2.8 Subdivision
+Section 2.8 Interstellar reddening
 --------------------------------------
 
-TBD
+Interstellar reddening can be taken into account in two ways:
 
+1. Assuming a known reddening law (Cardelli, Fitzpatrick, Seaton...),
+   described in the parameterSet :ref:`(reddening:interstellar) <parlabel-phoebe-reddening:interstellar>`,
+   which is a global system parameterSet.
+   The extinction law and parameters (e.g. :math:`R_v`) can then be set and the
+   extinction at any wavelength can be derived from the extinction at a reference
+   wavelenght :math:`A_\lambda`.
+2. Using custom passband extinction parameters, which should be manually added
+   and given in each pbdep (see. :py:func:`add_ebv <phoebe.parameters.tools.add_ebv>`)
+   
+See :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>`
+for implementation details.
 
-Section 2.9 Interstellar reddening
---------------------------------------
-
-TBD
+See :py:mod:`phoebe.atmospheres.reddening` for more information on reddening.
 
 Section 2.10 Pulsations
 --------------------------------------
