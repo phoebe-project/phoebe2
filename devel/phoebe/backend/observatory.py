@@ -374,7 +374,10 @@ def image(the_system, ref='__bol', context='lcdep',
         norm_proj = colors.max()
         colors /= norm_proj
         values = colors
-        vmin_, vmax_ = 0, 1        
+        if vmin is None:
+            vmin_ = 0
+        if vmax is None:
+            vmax_ = 1
         
     else:
         if select == 'rv':
@@ -451,7 +454,8 @@ def image(the_system, ref='__bol', context='lcdep',
         values = np.abs(mesh['proj_'+ref] / mesh['mu'])
         if 'refl_'+ref in mesh.dtype.names:
             values += mesh['refl_'+ref]
-        values = (values / values.max()).reshape((-1, 1)) * np.ones((len(values), 4))
+        scale = vmax if vmax is not None else 1.0
+        values = (values / (scale*values.max())).reshape((-1, 1)) * np.ones((len(values), 4))
         values[:, -1] = 1.0
         colors = np.array([cmap(c) for c in colors]) * values 
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
@@ -1023,15 +1027,35 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     
     Algorithm steps:
     
-        1. An flux-image is made using :py:func:`image` according to the
+        1. A flux-image is made using :py:func:`image` according to the
            prescriptions in the *ifdep* with reference :envvar:`ref`. This image
-           is converted to a numpy array using :py:func:`plotlib.fig2data`.
+           is converted to a numpy array using :py:func:`fig2data <phoebe.utils.plotlib.fig2data>`.
+        2. For every set of :envvar:`baseline`, :envvar:`posangle` and
+           :envvar:`eff_wave` (the latter being computed from the passband if
+           not available in the observations):
+           
+           1. **rotation**: the image array is rotated counter-clockwise
+              according to the position angle (the same is done for the
+              coordinates of the corners of the image, such that we know the
+              absolute location of the object in space). The spatial coordinates
+              are converted to angular coordinates by scaling with the distance. 
+           2. **projection**: The image data is projected onto the X-axis in the
+              newly rotated frame. We call this the ``angular_profile``.
+           3. **amplitude**: The ``total_flux`` in the image is computed by
+              summing up the flux in every pixel. In principle, this should be
+              rotation independent, but because of pixel-interpolation during
+              the rotation, there is probably some variation on this. The total
+              flux factor is import for normalisation of the visibilities, 
+              specifically when combining visibilities of different components.
+              The output is normalised, but the unnormalised visibilities can
+              be computed easily by scaling with the total flux.
+           4. **Fourier transform**: The Discrete Fourier transform is computed
+              for the observed spatial frequencies. These are computed from the
+              baselines.
     
     If you give a single positional angle as a float instead of an array,
     the whole profile will be computed. Otherwise, only selected baselines
     will be computed, to e.g. match observed data.
-    
-    xlims and ylims in Rsol.
     
     .. note::
     
@@ -1106,6 +1130,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
             xlims = figdec['xlim']
             ylims = figdec['ylim']
             pl.gca().set_autoscale_on(False)
+            
             #-- add the baseline on the figure
             x_toplot = np.linspace(xlims[0]-0.5*abs(xlims[1]-xlims[0]),xlims[1]+0.5*abs(xlims[1]-xlims[0]),100)
             y_toplot = np.zeros_like(x_toplot)
@@ -1201,8 +1226,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         if keepfig and keepfig is not True:
             pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
             pl.close()
-        
-        
+                
         #-- append to output
         frequency_out.append(f1)
         baseline_out.append(b1)

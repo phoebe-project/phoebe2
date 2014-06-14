@@ -1290,8 +1290,33 @@ class PLDataSet(SPDataSet):
         return Bl,e_Bl
 
 class IFDataSet(DataSet):
-    """
-    DataSet representing interferometry
+    r"""
+    DataSet representing interferometry.
+    
+    Addition of IFDataSet is treated as follows:
+    
+    The complex visibilities :math:`V` of a system consisting of two
+    components :math:`V_1` and :math:`V_2` can be computed from the component's
+    visibilities. Suppose the normalised complex visilibities of the
+    components are given by
+    
+    .. math::
+        
+        V_1 = \frac{A_1}{F_1} \exp(i\phi_1) \\
+        V_2 = \frac{A_2}{F_2} \exp(i\phi_2)
+    
+    Where :math:`A_i` is the amplitude of the components visibility computed
+    in absolute flux units (i.e. not normalised to 1 at zero baseline for
+    an unresolved source). The factor :math:`F_i` is the normalisation constant required for normalisation to one at zero baseline for an unresolved
+    point source.
+    
+    Then, the total normalised visibilities are given by
+    
+    .. math::
+    
+        V &= \frac{F_1V_1 + F_2V_2}{F_1 + F_2} \\
+          &= \frac{A}{F} \exp(i\phi)
+      
     """
     def __init__(self,**kwargs):
         kwargs.setdefault('context','ifobs')
@@ -1309,25 +1334,30 @@ class IFDataSet(DataSet):
         super(IFDataSet,self).__init__(**kwargs)
     
     def __add__(self, other):
-        """
+        r"""
         Add two IFDataSets together.
+        
+        See class documentation for more info.
         """
+        # Get this dataset and the other one
         result = self.asarray() # Make a copy!
         other = other.asarray()
-        columns = result.get_value('columns')
-                        
+        
+        # Retrieve normalisation factors, visibility amplitudes and phases
+        flux_a = np.array(self['total_flux'])
+        flux_b = np.array(other['total_flux'])
         vis_a = np.sqrt(self['vis2'])
         vis_b = np.sqrt(other['vis2'])
         phase_a = np.array(self['vphase'])
         phase_b = np.array(other['vphase'])
-        flux_a = np.array(self['total_flux'])
-        flux_b = np.array(other['total_flux'])
-
+        
+        # Compute the combined visibility
         vis = (vis_a*np.exp(1j*phase_a) + vis_b*np.exp(1j*phase_b)) / (flux_a + flux_b)
         
-        
+        # Compute the normalisation compu
         result['vis2'] = np.abs(vis)**2
         result['vphase'] = np.angle(vis)
+        result['total_flux'] = (flux_a + flux_b)
         
         return result
     

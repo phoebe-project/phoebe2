@@ -758,7 +758,7 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     
     .. math::
         
-        O = \mathtt{scale} S + \mathtt{offset}
+        O = \mathtt{scale} * S + \mathtt{offset}
     
     where :math:`O` represents the observations, :math:`S` the synthetics (the
     model), :math:`\mathtt{scale}` represents a linear scaling factor and
@@ -783,23 +783,22 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     (either fixed or to be fitted) should be stored inside the ``obs`` DataSets,
     and the data generating functions (``lc`` etc..) should know about them.
     
-    If no uncertainties are given, they will be set to unity.
-    
-    Types:
+    Fitting types:
         - :envvar:`type='nnls'` does not allow negative coefficients: this can
           be useful for light curves: you perhaps don't want to accommodate for
-          negative third light thingies.
+          negative third light. Equivalently, this prohibits you from enhancing
+          contrasts or amplitudes, but only allows them to be decreased.
         - :envvar:`type='lstsq'` does allow negative coefficients: this can be
           used for spectral lines: if the model profile is shallower than the
           observations, you can still enlargen them.
           
-    The type only has effect if ``pblum`` and ``l3`` need to be fitted
-    simultaneously. If only ``pblum`` is to be fitted, the passband luminosity
+    The type only has effect if ``scale`` and ``offset`` need to be fitted
+    simultaneously. If only ``scale`` is to be fitted, the scaling factor
     is computed as
     
     .. math::
     
-        P_b = \frac{\sum_i w_i \frac{O_i}{S_i}}{\sum_i w_i},
+        \mathtt{scale} = \frac{\sum_i w_i \frac{O_i}{S_i}}{\sum_i w_i},
         
     with
     
@@ -807,11 +806,11 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     
         w_i = \left(\frac{\sigma_i}{S_i}\right)^{-2}.
         
-    If only third light needs to be computed, it is computed as
+    If only the offset needs to be computed, it is computed as
     
     .. math::
     
-        l_3 = \frac{\sum_i w_i (O_i-S_i)}{\sum_i w_i},
+        \mathtt{offset} = \frac{\sum_i w_i (O_i-S_i)}{\sum_i w_i},
         
     with
     
