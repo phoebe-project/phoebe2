@@ -1378,7 +1378,7 @@ def vega_monnier2012():
     return star
 
 
-def pulsating_star():
+def pulsating_star(create_body=True):
     """
     Pulsating star
     """

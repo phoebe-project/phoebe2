@@ -53,12 +53,12 @@ just linear combinations of the nonrotating case).
       rotation). Thus, due to purely geometrical effects, the frequency
       :math:`f_\mathrm{obs}` that you will get out of a Fourier transform of
       synthetically generated data is related to the input frequency
-      :math:`f_\mathrm{input}` and the stellar rotation frequency
-      :math:`\Omega_\mathrm{rot}` via:
+      :math:`f_\mathrm{input}` and the cyclic stellar rotation frequency
+      :math:`f_\mathrm{rot}` via:
         
       .. math::
         
-         f_\mathrm{obs} = f_\mathrm{input} + m \Omega_\mathrm{rot}
+         f_\mathrm{obs} = f_\mathrm{input} + m f_\mathrm{rot}
       
       In other words, prograde modes (:math:`m>0`) on rotating stars will appear
       to have a higher frequency to an observer, while retrograde modes will
@@ -73,7 +73,7 @@ just linear combinations of the nonrotating case).
       
       .. math::
         
-         f_\mathrm{obs} = f_\mathrm{input} + m (1-C_{n\ell}) \Omega_\mathrm{rot}
+         f_\mathrm{obs} = f_\mathrm{input} + m (1-C_{n\ell}) f_\mathrm{rot}
       
       In zeroth order for pressure modes,
       
@@ -987,11 +987,14 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
                 spinpar = rotfreq/freq
                 Cnl = pls.get_value('ledoux_coeff')
                 
+                # Correct corotating frequency for Coriolis effects
+                freq = freq - m*rotfreq*Cnl
+                
                 # First order correction for k (horizontal over vertical amplitude)
                 # Note that the frequency freq is the frequency in the nonrotating
                 # frame. See Schrijvers 1997, Eq. 22.
-                k = k0 + 2*m*spinpar * ((1.+k0) / (l**2+l) - Cnl*k0)
-                logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3g, spin=%.3f'%(rotfreq,freq,l,m,k,spinpar))
+                k = k0 + 2.0*m*spinpar * ((1.+k0) / (l**2+l) - Cnl*k0)
+                logger.info('puls: adding Coriolis (rot=%.3f cy/d) effects for freq %.3f cy/d (l,m=%d,%d): ah/ar=%.3g, spin=%.3f, Cnl=%.3f'%(rotfreq,freq,l,m,k,spinpar,Cnl))
             else:
                 spinpar = 0.
                 k = k0 if k_<0 else k_
