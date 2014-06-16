@@ -7329,7 +7329,8 @@ class Star(PhysicalBody):
         #-- this mesh is mostly independent of time! We collect some values
         #   that could be handy later on: inclination and rotation frequency
         rotperiod = self.params['star'].request_value('rotperiod','d')
-        Omega_rot = 2*pi*time/rotperiod
+        t0 = self.params['star']['t0'] if 't0' in self.params['star'] else 0.0        
+        Omega_rot = 2*pi*(time-t0)/rotperiod
         inclin = self.params['star'].request_value('incl','rad')
         longit = self.params['star'].request_value('long','rad')
         
@@ -7588,6 +7589,7 @@ class BinaryRocheStar(PhysicalBody):
         if len(msg_):
             msg = msg + ': ' + ', '.join(msg_)
         logger.info(msg)
+        self._clear_when_reset['counter'] = 0
         
     
     def set_label(self, label, component=None):
@@ -7652,7 +7654,7 @@ class BinaryRocheStar(PhysicalBody):
         
     def compute_mesh(self,time=None,conserve_volume=True):
         """
-        Compute the mesh.
+        Compute the mesh of a BinaryRocheStar.
         
         The ``conserve_volume`` parameter doesn't really conserve the volume,
         it only computes the volume so that :py:func:`conserve_volume` can
@@ -7679,12 +7681,12 @@ class BinaryRocheStar(PhysicalBody):
         #-- where in the orbit are we? We need everything in cartesian Rsol units
         #-- dimensionless "D" in Roche potential is ratio of real seperation over
         #   semi major axis.
-        pos1,pos2,d = get_binary_orbit(self,time)
+        pos1, pos2, d = get_binary_orbit(self, time)
 
         #-- marching method
         if component==2:
-            q,Phi = roche.change_component(q,Phi)   
-            M1,M2 = M2,M1 # we need to switch the masses!
+            q, Phi = roche.change_component(q, Phi)   
+            M1, M2 = M2, M1 # we need to switch the masses!
         #-- is this correct to calculate the polar surface gravity??
         #   I would imagine that we only need the omega_rot due to the binary
         #   period, since it is the angular momentum around the COM that is
@@ -7831,7 +7833,9 @@ class BinaryRocheStar(PhysicalBody):
         else:
             critpot = 0.
         
-        if max_iter > 1:
+        if max_iter == 0:
+            return None
+        elif max_iter > 1:
             V1 = self.params['component'].get_constraint('volume')
         else:
             V1 = 1.
@@ -7870,7 +7874,7 @@ class BinaryRocheStar(PhysicalBody):
                 grad = (potentials[-1]-potentials[-2])/(volumes[-1]-volumes[-2])
                 oldpot = grad*(V1-volumes[-2])+potentials[-2]
         else:
-            raise ValueError(("Reprojection algorithm failed. This is probably "
+            raise ValueError(("Reprojection algorithm failed to converge. This is probably "
                               "due to the inherently bad algorithm, which "
                               "builds up errors each time a reprojection is done."
                               " Possible solution is to phase the data, or replace "
@@ -8187,7 +8191,7 @@ class BinaryRocheStar(PhysicalBody):
     
     
     
-    def set_time(self,time,ref='all', beaming_alg='none'):
+    def set_time(self, time, ref='all', beaming_alg='none'):
         """
         Set the time of a BinaryRocheStar.
         
@@ -8213,7 +8217,7 @@ class BinaryRocheStar(PhysicalBody):
         logger.info('===== SET TIME TO %.3f ====='%(time))
         # Convert the barycentric time to propertime
         time = self.get_proper_time(time)
-        
+                
         #-- rotate in 3D in orbital plane
         #   for zero-eccentricity, we don't have to recompute local quantities, and not
         #   even projected quantities (this should be taken care of on a higher level
@@ -8222,9 +8226,32 @@ class BinaryRocheStar(PhysicalBody):
         #   local quantities
         e = self.params['orbit'].get_value('ecc')
         sma = self.params['orbit'].get_value('sma')#,'Rsol')
+        
         has_freq = 'puls' in self.params
         has_spot = 'circ_spot' in self.params
         has_magnetic_field = 'magnetic_field' in self.params
+        
+        # Having a frequency means we need to do a lot of stuff like for the
+        # eccentric case. Let's fake eccentricity even if it's not
+        if has_freq and e == 0:
+            self.params['orbit']['ecc'] = 1e-10
+            e = 1e-10
+        
+        
+        # Our reprojection algorithm doesn't work very well. For eccentric
+        # orbits, we'll reset the mesh every 100 reprojections. We can safely
+        # remove this part in the future if the reprojection step is
+        # improved
+        if e > 0:
+            if not 'counter' in self._clear_when_reset:
+                self._clear_when_reset['counter'] = 0
+            elif self._clear_when_reset['counter'] >= 50:
+                logger.warning("Forcing resetting of mesh (bad reprojection alg)")
+                self.time = None
+                self._clear_when_reset['counter'] = 0
+            else:
+                self._clear_when_reset['counter'] += 1
+            
         
         #-- there is a possibility to set to conserve volume or equipot
         #   IF eccentricity is zero, we never need to conserve volume, that
@@ -8234,12 +8261,20 @@ class BinaryRocheStar(PhysicalBody):
         if conserve_volume and 'conserve' in self.params['orbit']:
             if self.params['orbit']['conserve']=='equipot':
                 conserve_volume = False
-        max_iter_volume = 10 if conserve_volume else 1 # number of iterations for conservation of volume (max)
+        # number of iterations for conservation of volume (max)
+        if conserve_volume:
+            max_iter_volume = 10
+        elif e>0:
+            max_iter_volume = 1
+        else:
+            max_iter_volume = 0
+            
         #-- we do not need to calculate bolometric luminosities if we don't include
         #   the reflection effect
         do_reflection = False
         #-- compute new mesh if this is the first time set_time is called, or
         #   if the eccentricity is nonzero
+            
         if self.time is None or e>0 or has_freq or has_spot:
             if self.time is None:
                 #-- if we need to conserve volume, we need to know at which
@@ -8574,7 +8609,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
                 logger.info("volume needs to be conserved {0}".format(self.params['component'].request_value('volume')))
         
         
-    def conserve_volume(self,time,max_iter=10,tol=1e-6):
+    def conserve_volume(self, time, max_iter=10, tol=1e-6):
         """
         Update the mesh to conserve volume.
         

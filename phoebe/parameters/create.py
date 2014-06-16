@@ -178,6 +178,7 @@ from phoebe.atmospheres import roche
 from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.io import ascii
+from phoebe.io import parsers
 
 
 logger = logging.getLogger('PARS.CREATE')
@@ -1377,14 +1378,37 @@ def vega_monnier2012():
     return star
 
 
-def pulsating_star(create_body=True):
+def pulsating_star():
     """
     Pulsating star
     """
-    star = from_library('Sun', create_body=create_body)
+    star = from_library('Sun', create_body=True)
     star.set_params(parameters.ParameterSet('puls', ampl=0.1, amplteff=0.05, label='puls01'))
     
     return star
+
+def binary_pulsating_primary(create_body=True, npuls=1):
+    """
+    Binary with a pulsating primary.
+    """
+    library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'library/')
+    system = os.path.join(library_dir, 'defaults.phoebe')
+    bodybag, compute = parsers.legacy_to_phoebe2(system)
+    for i in range(npuls):
+        bodybag[0].set_params(parameters.ParameterSet('puls', label='puls{:02d}'.format(i+1)))
+    return bodybag
+
+
+def binary_pulsating_secondary(create_body=True, npuls=1):
+    """
+    Binary with a pulsating secondary
+    """
+    library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'library/')
+    system = os.path.join(library_dir, 'defaults.phoebe')
+    bodybag, compute = parsers.legacy_to_phoebe2(system)
+    for i in range(npuls):
+        bodybag[1].set_params(parameters.ParameterSet('puls', label='puls{:02d}'.format(i+1)))
+    return bodybag
     
 
 #}

@@ -758,7 +758,7 @@ def surface_pure_python(radius, theta, phi,t,l,m,freq,phases,spin,k,asl, incls, 
 
 def surface_fortran(radius, theta, phi, t, l, m, freq, phases, spin, k, asl,
                     incls, phaseincls, mesh_phase=0, t0=0.0, dfdt=0.0):
-    return fpulsations.surface(radius, theta, phi, t, l, m, freq, phases, spin, k, asl,
+    return fpulsations.puls.surface(radius, theta, phi, t, l, m, freq, phases, spin, k, asl,
                     incls, phaseincls, mesh_phase, t0, dfdt, len(radius), len(l))
 
 
@@ -767,7 +767,7 @@ def observables_fortran(radius, theta, phi, teff, logg,
                 spin, k, asl, delta_T, delta_g, incls, phaseincls,
                 mesh_phase=0.0, t0=0.0, dfdt=0.0):
     N = len(radius)
-    return fpulsations.observables(radius, theta, phi, teff, logg, t, l, m,
+    return fpulsations.puls.observables(radius, theta, phi, teff, logg, t, l, m,
                                    freq, phases, spin, k, asl, delta_T, delta_g,
                                    incls, phaseincls, mesh_phase, t0, dfdt, N,
                                    len(l))
@@ -1063,7 +1063,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
 
 
 #fpulsations_success = False
-if False:
+if True:
     observables = observables_fortran
     surface = surface_fortran
 else:

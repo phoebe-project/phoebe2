@@ -947,6 +947,8 @@ class Container(object):
                                         syn['flux'] = obs['scale']*syn['flux'] + obs['offset']
                                     elif category == 'rv':
                                         syn['rv'] = syn['rv'] + obs['vgamma_offset']
+                                    elif category == 'sp':
+                                        syn['flux'] = obs['scale']*syn['flux']/syn['continuum'] + obs['offset']
                                     else:
                                         logger.critical('Auto-scaling in Bundle of {} synthetics is not implemented yet'.format(category))
                                     

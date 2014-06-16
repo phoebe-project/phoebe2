@@ -29,6 +29,9 @@ logger = logging.getLogger('PARSER')
 logger.addHandler(logging.NullHandler())
 
 def try_to_locate_file(filename, rootfile=None):
+    """
+    Check if a file is available.
+    """
     found = False
     if os.path.isfile(filename):
         found = filename
