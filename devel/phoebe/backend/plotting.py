@@ -1797,18 +1797,19 @@ def plot_spsyn(system, *args, **kwargs):
     
     phased = kwargs.pop('phased', default_phased)
     ax = kwargs.pop('ax',plt.gca())
+    scale = kwargs.pop('scale', 'obs')
     
     # Try to get the observations. They don't need to be loaded, we just need
     # the scale and offset values.
     # We can scale the synthetic spectrum using the observations
     this_scale = 1.0
     this_offset = 0.0
-    if this_scale == 'obs' and this_obs is not None:
+    if scale == 'obs' and obs is not None:
         this_scale = obs['scale']
         this_offset = obs['offset']
     
     flux = flux*this_scale + this_offset
-    
+    print this_scale, this_offset
     # remember what axes we've plotted
     axes_labels = ['', 'Normalised flux']
     axes_units = ['','']

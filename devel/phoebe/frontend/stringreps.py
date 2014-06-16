@@ -34,7 +34,12 @@ def make_param_label(param, green):
 
 
 def to_str(x, summary_type='full', emphasize=True, width=79):
+    """
+    Make a string representation of a Bundle.
     
+    
+    """
+    # Define how to print out emphasis, italic, strikethrough and colors
     if emphasize:
         emphasize = lambda x: '\033[1m\033[4m' + x + '\033[m'
         italicize = lambda x:  '\x1B[3m' + x + '\033[m'
@@ -50,7 +55,8 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
     current_pset = None
     current_body = None
     current_string = []
-
+    
+    # Get the label of the total system, this is ignored when iterating over it
     system_label = x.get_system().get_label()
     total_string = OrderedDict()
     current_dict = total_string
@@ -97,9 +103,15 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
             if current_string:        
                 
                 context = current_pset.get_context()
+                
                 if context in ['orbit']:
                     level = level - 1
+                    
+                # Some contexts appear more than once, we need to make them unique
+                if context in ['puls', 'circ_spot']:
+                    context = '{}@{}'.format(current_pset['label'], context)
                 
+                # pbdeps, obs and syn deserve special treatment
                 if context[-3:] in ['obs', 'dep', 'syn'] and summary_type != 'cursory':
                     # if we want "lcdep[0]" as a string
                     seqnr = len([key for key in total_string[current_label].keys() if key[:len(context)]==context])
@@ -187,6 +199,10 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
             context = current_pset.get_context()
             if context in ['orbit']:
                 level = level - 1
+            
+            # Some contexts appear more than once, we need to make them unique
+            if context in ['puls', 'circ_spot']:
+                context = '{}@{}'.format(current_pset['label'], context)
             
             if context[-3:] in ['obs', 'dep', 'syn'] and summary_type != 'cursory':
                 # if we want "lcdep[0]" as a string

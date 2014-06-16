@@ -156,6 +156,7 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
         dict(qualifier='gravblaw',description='Gravity brightening law',repr='%s',cast_type='choose',choices=['zeipel','espinosa','claret'],value='zeipel',frame=['phoebe'],context=['star','component']),
         dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context=['star','accretion_disk']),
         dict(qualifier='long',   description='Orientation on the sky (East of North)', repr='%f',llim=-360., ulim=   360.,step=   0.01, adjust=False, cast_type=float, unit='deg',  value=0.,frame=["phoebe"],context=['star','accretion_disk']),
+        dict(qualifier='t0',   description='Origin of time', repr='%f',adjust=False, cast_type=float, unit='JD',  value=0.,frame=["phoebe"],context=['star','accretion_disk']),
         #dict(qualifier='distance',description='Distance to the star',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='star'),
         dict(qualifier='shape', description='Shape of surface',repr='%s',cast_type='choose',choices=['equipot','sphere'],value='equipot',frame=["phoebe"],context='star'),
         #dict(qualifier='vgamma', description='Systemic velocity',repr='%f',llim=-1e6,ulim=1e6,step=0.1,adjust=False,cast_type=float,value=0.,unit='km/s',alias=['vga'],frame=["phoebe"],context='star'),

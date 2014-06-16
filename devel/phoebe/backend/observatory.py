@@ -1989,7 +1989,7 @@ def astrometry(system, obs, pbdep, index):
 #{ Input/output
 
 def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
-               update_intensities=False):
+               update_intensities=False, shift=0):
     """
     Add a pattern from a bitmap figure to a mesh column.
     
@@ -1997,6 +1997,8 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
     useful.
     
     Use PNG! Not JPG!
+    
+    Shift horizontally in degrees
     
     Ideally, the image is twice as wide as it is high.
     """
@@ -2010,17 +2012,26 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
     else:
         data = data.T
     data = data[::-1]
+    
+    # Shift horizontal
+    if shift:
+        #data = np.roll(data, int(0.25*data.shape[0]), axis=0)
+        phi = phi - shift / 180. * np.pi
+        phi[phi>2*np.pi] = phi[phi>2*np.pi]-2*np.pi
+        phi[phi<0] = phi[phi<0]+2*np.pi
     #-- normalise the coordinates so that we can map the coordinates
     PHI = (phi+np.pi)/(2*np.pi)*data.shape[0]
     THETA = (theta)/np.pi*data.shape[1]
-    vals = np.array(ndimage.map_coordinates(data,[PHI,THETA]),float)
+    vals = np.array(ndimage.map_coordinates(data,[PHI,THETA],mode='nearest'),float)
     #-- fix edges of image
-    vals[PHI>0.99*PHI.max()] = 1.0
-    vals[PHI<0.01*PHI.max()] = 1.0
+    #vals[PHI>0.99999*PHI.max()] = 1.0
+    #vals[PHI<0.00001*PHI.max()] = 1.0
+    
     #-- rescale values between 0 and 1 so that we can map them between
     #   minval and maxval
     if minval is None: minval = system.mesh[select].min()
     if maxval is None: maxval = system.mesh[select].max()
+    
     #-- don't map white values, but let the starlight shine through!
     keep = vals<0.99
     vals = (vals-vals.min())
@@ -2291,7 +2302,6 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Compute reflection effect (maybe just once, maybe always). If this is done
     # we need to update the intensities
     update_intensity = False
-    
     if (reflect is True or heating is True) or (i == 0 and (reflect == 1 or heating == 1)):
         reflection.mutual_heating(*system.get_bodies(), heating=heating,
                                   reflection=reflect, niter=nreflect,
@@ -2482,6 +2492,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     # (refs+types) to compute the system for. In principle, we could derive the
     # type from the ref since they are unique, but this way we allow for a
     # possibility to implement 'all lcdep' or so in the future.
+
     no_mesh_required = extract_times_and_refs(system, params)
     time_per_time = params['time']
     labl_per_time = params['refs']
@@ -2500,6 +2511,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                 getattr(system, category + '_nomesh')(ref=iref, time=itime,
                                     correct_oversampling=isamp,
                                     save_result=save_result)
+    
     
     # separate times and refs for datasets that don't need to compute intensities 
     # (ivo = independent_variable_other)
@@ -2539,7 +2551,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                         k = ivo_labl_per_labl.index(labl)
                         
                     ivo_time_per_labl[k].append(t)
-                    
+    
     # compute ETVs
     if inside_mpi is None:
         for i,labl in enumerate(ivo_labl_per_labl):
@@ -2573,7 +2585,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
 
     # Some simplifications: try to detect whether a system is circular is not
     system_is_bbag = hasattr(system, 'bodies')
-    bbag_has_orbit = system_is_bbag and 'orbit' in system.bodies[0].params
+    bbag_has_orbit = system_is_bbag and 'orbit' in system.bodies[0].params              
     
     if system_is_bbag and bbag_has_orbit and auto_detect_circular:
         
@@ -2742,9 +2754,9 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # Now we're ready to do the real stuff
     iterator = zip(time_per_time, labl_per_time, type_per_time, samp_per_time)
-
+    
     # We're gonna compute one time step per turn, but this is different with
-    # and without animation.
+    # and without animation.    
     if not animate:
         for i, (time, ref, typ, samp) in enumerate(iterator):
             compute_one_time_step(system, i, time, ref, typ, samp, reflect, nreflect,
