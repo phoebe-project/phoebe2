@@ -111,6 +111,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                 if context in ['puls', 'circ_spot']:
                     context = '{}@{}'.format(current_pset['label'], context)
                 
+		current_label = make_body_label(bodies[level-1], level, emphasize)
                 # pbdeps, obs and syn deserve special treatment
                 if context[-3:] in ['obs', 'dep', 'syn'] and summary_type != 'cursory':
                     # if we want "lcdep[0]" as a string
@@ -122,7 +123,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                     context = '({}) {}@{}'.format(context, current_pset['ref'], context)
                         
                 
-                current_label = make_body_label(bodies[level-1], level, emphasize)
+                
                 
                 if not current_label in total_string:
                     total_string[current_label] = OrderedDict()
