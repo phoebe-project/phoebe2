@@ -71,7 +71,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
     
     correct_level = ['system', 'Bundle']
     
-    for item in x.trunk:
+    for item in x.trunk:       
         
         last_two = item['twig_full'].split('@')[-2:]
         
@@ -93,7 +93,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
         it = item['item']
         
         twig_split = twig.split('@')
-            
+        
         # If we have a new ParameterSet, we need to string-rep the old one        
         if item['kind'] == 'Parameter' and (current_pset is None or not current_pset.contains(it)):
             
@@ -120,7 +120,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                     # if we want [ref@lcdep@body] as a string
                     #last_body = [b for b in path if isinstance(b, phoebe.backend.universe.Body)][-1]
                     #current_body_label = last_body.get_label()
-                    context = '({}) {}@{}'.format(context, current_pset['ref'], context)
+                    context = '{} ({}@{})'.format(context, current_pset['ref'], context)
                         
                 
                 
@@ -212,7 +212,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                     # if we want [ref@lcdep@body] as a string
                     #last_body = [b for b in path if isinstance(b, phoebe.backend.universe.Body)][-1]
                     #current_body_label = last_body.get_label()
-                    context = '({}) {}@{}'.format(context, current_pset['ref'], context)
+                    context = '{} ({}@{})'.format(context, current_pset['ref'], context)
                     
             
             current_label = make_body_label(bodies[level-1], level, emphasize)

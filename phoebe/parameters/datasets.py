@@ -295,13 +295,17 @@ class DataSet(parameters.ParameterSet):
         if pretty_header:
             ff.write(header)
         
+        # Catch errors in 'columns' parameter and exclude columns that are not
+        # filled:
+        N = len(self)
+        write_columns = [col for col in self['columns'] if len(self[col]) == N]
+        
         #-- write the data
-        np.savetxt(ff,np.column_stack([self[col] for col in self['columns']]))
+        np.savetxt(ff,np.column_stack([self[col] for col in write_columns]))
         
         #-- clean up
         if isinstance(filename,str):
             ff.close()
-        
         
         logger.info('Wrote file {} with columns {} from dataset {}:{}'.format(filename,', '.join(self['columns']),self.context,self['ref']))
     
@@ -1368,7 +1372,7 @@ class IFDataSet(DataSet):
                                    description='Spatial frequency')
         
         # Baseline in meter
-        baseline = np.asarray(np.sqrt(self['ucoord']**2 + self['vcoord']**2))
+        baseline = np.sqrt(np.asarray(self['ucoord'])**2 + np.asarray(self['vcoord'])**2)
         
         # Effective wavelength in nm
         eff_wave = np.asarray(self['eff_wave'])

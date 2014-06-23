@@ -15,6 +15,9 @@ from phoebe import __version__
 from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
 from phoebe.backend import universe
+from phoebe.units import conversions
+from phoebe.units import constants
+from phoebe.dynamics import keplerorbit
 from phoebe.atmospheres import roche
 from phoebe.atmospheres import limbdark
 from phoebe.utils import config
@@ -905,7 +908,7 @@ class Container(object):
                                 if item[-3:]=='syn':
                                     # then this is the true syn, which we need to keep available
                                     # for saving and loading, but will hide from the user in twig access
-                                    ri['hidden']=True
+                                    ri['hidden'] = True
                                 
                                 return_items += [ri]
                                 
@@ -965,7 +968,14 @@ class Container(object):
                                     #par = parameters.Parameter('phase', value=np.mod(syn['time'], period), unit='cy', context=syn.get_context())
                                     #syn.add(par)
                                 
-                                for par in syn:
+                                # Fix path
+                                subpath = [ii for ii in path]
+                                subpath[-1] = syn.get_context()
+                                subpath.append(syn['ref'])
+                                subpath[-3] = OrderedDict()
+                                subpath[-3][syn.get_context()] = OrderedDict()
+                                subpath[-3][syn.get_context()][syn['ref']] = syn
+                                for par in syn:                                                                                                                                       
                                     mypar = syn.get_parameter(par)
                                     ris = self._get_info_from_item(mypar, path=subpath+[mypar], section=section_name)
                                     return_items += ris
@@ -1393,7 +1403,9 @@ class Container(object):
             
             results = ', '.join(matched_twigs)
             raise KeyError(("more than one result was found matching the "
-                            "criteria for twig: {}.  Matching twigs: {}").format(twig, results))
+                            "criteria for twig: {}.  Matching twigs: {}."
+                            " If you want to set all twigs simultaneously, use "
+                            "Bundle.set_value_all('{}', value)").format(twig, results, twig))
         else:
             items = [ti if return_trunk_item else ti[return_key] \
                             for ti in trunk if ti['twig_full'] in matched_twigs]
@@ -1722,13 +1734,226 @@ def take_orbit_from(donor, receiver, do_copy=False, only_lowest_level=False):
     return receiver
 
 
-def compute_pot_from(mybundle, rrel, component=0):
+def compute_pot_from(mybundle, radius, component=0, relative=True,
+                     adopt=True):
     """
-    Convert relative radius to potential value.
+    Convert (relative) polar radius to potential value.
+    
+    The default settings require you to give the radius in relative units
+    (relative to the semi-major axis). If you want to give the radius in absolute
+    units (i.e. :math:`R_\odot`), then set :envvar:`relative=False`::
+    
+        >>> mybundle = phoebe.Bundle()
+        >>> print(mybundle['pot@primary'], mybundle['pot@secondary'])
+        (8.0, 8.0)
+        >>> new_pot_primary = compute_pot_from(mybundle, 0.1)
+        >>> new_pot_secondary = compute_pot_from(mybundle, 0.2, component=1)
+        >>> print(new_pot_primary, mybundle['pot@primary'])
+        (10.99503719020999, 10.99503719020999)
+        >>> print(new_pot_secondary, mybundle['pot@secondary'])
+        (5.9805806756909199, 5.98058067569092)
+
+    The value for the potential is automatically set in the system, unless you
+    specificy :envvar:`adopt=False`.
+    
+    :param mybundle: Bundle or BodyBag containing a Binary system
+    :param radius: polar radius to compute the potential for (relative to the
+     system semi-major axis if :envvar:`relative=True`, otherwise in solar units)
+    :param component: primary (0) or secondary (1) component, or component's label
+    :type component: int
+    :param relative: flag to interpret radius as relative (default) or absolute
+    :type relative: bool
+    :param adopt: flag to automatically set potential value in the system (default)
+     or not
+    :type adopt: bool
+    :return: new value of the potential
+    :rtype: float
     """
-    q = mybundle['q@orbit']
-    d = 1 - mybundle['ecc@orbit']
-    syncpar = mybundle.get_system()[component].params['component']['syncpar']
+    # For generality, we allow the binary to be given as a BodyBag or Bundle
+    if not isinstance(mybundle, universe.BodyBag):
+        mysystem = mybundle.get_system()
+    
+    # Translate the component label to an integer if necessary
+    if isinstance(component, str):
+        component = 0 if component == mysystem[0].params['orbit']['c1label'] else 1
+    
+    # Retrieve the orbit (the orbit is given in the primary and secondary, and
+    # because it's the same orbit it doesn't matter which one you take)
+    orbit = mysystem[component].params['orbit']
+    
+    # We need some parameters
+    q = orbit['q']
+    d = 1 - mybundle['ecc']
+    syncpar = mysystem[component].params['component']['syncpar']
+    
+    # Make the radius units relative if necessary
+    if not relative:
+        radius = radius / orbit['sma']
+    
+    # Switch mass ratio to the secondary's frame of reference if necessary
     if component == 1:
         q = 1.0 / q
-    return roche.radius2potential(rrel, q=q, d=d, F=syncpar, component=1)
+    
+    # Compute the new potential value. component=1 means primary in the
+    # function, in contrast to here. Since we switched the frame of reference
+    # and potential values are always given in the primary frame of reference,
+    # we need to take component=1 (primary)
+    new_pot = roche.radius2potential(radius, q=q, d=d, F=syncpar, component=1)
+    
+    # Adopt if necessary
+    if adopt:
+        mysystem[component].params['component']['pot'] = new_pot
+        
+    return new_pot
+
+
+def compute_mass_from(mybundle, primary_mass=None, secondary_mass=None, q=None, sma=None,
+             period=None, adopt=True):
+    """
+    Compute masses or dynamical parameters in the system and return derived values.
+    
+    You need to give at least three different parameters (i.e. not
+    :envvar:`primary_mass`, :envvar:`secondary_mass` and :envvar:`q`).
+    
+    **Examples**
+    
+    If you only want to get the individual masses:
+    
+        >>> x = phoebe.Bundle()
+        >>> phoebe.compute_mass_from(x)
+        {'q': 1.0, 'primary_mass': 6.703428704219417, 'period': 1.0, 'sma': 10.0, 'secondary_mass': 6.703428704219417}
+        
+    If you want to change the primary mass, but want to keep the semi-major axis
+    and period (in the example, mass ratio is automatically adopted in :envvar:`x`)::
+        
+        >>> phoebe.compute_mass_from(x, primary_mass=1.0, sma=x['sma'], period=x['period'])
+        {'q': 12.406857408438833, 'primary_mass': 1.0, 'period': 1.0, 'sma': 10.0, 'secondary_mass': 12.406857408438833}
+    
+    If you want to set individual masses, keep the period but adapt the
+    semi-major axis:
+    
+        >>> phoebe.compute_mass_from(x, primary_mass=1.0, secondary_mass=2.0, period=x['period'])
+        {'q': 2.0, 'primary_mass': 1.0, 'period': 1.0, 'sma': 6.071063212082658, 'secondary_mass': 2.0}
+
+    :param mybundle: Bundle or BodyBag containing a Binary system
+    :param primary_mass: primary mass (:math:`R_\odot` or tuple with units)
+    :type primary_mass: float or tuple
+    :param secondary_mass: secondary mass (:math:`R_\odot` or tuple with units)
+    :type secondary_mass: float or tuple
+    :param q: mass ratio
+    :type q: float
+    :param sma: system semi-major axis
+    :type sma: float
+    :param period: orbital period
+    :type period: float
+    :param adopt: flag to automatically set potential value in the system (default)
+     or not
+    :type adopt: bool
+    :return: new value of the potential
+    :rtype: float    
+    """
+    
+    # For generality, we allow the binary to be given as a BodyBag or Bundle
+    if not isinstance(mybundle, universe.BodyBag):
+        mysystem = mybundle.get_system()
+        
+    # If values are given as floats, they are default Phoebe units: solar mass,
+    # solar radii, days. Else, they should be tuples with the units
+    if primary_mass is not None and not np.isscalar(primary_mass):
+        primary_mass = conversions.convert(primary_mass[1], 'Msol', primary_mass[0])
+    if secondary_mass is not None and not np.isscalar(secondary_mass):
+        secondary_mass = conversions.convert(secondary_mass[1], 'Msol', secondary_mass[0])
+    if sma is not None and not np.isscalar(sma):
+        sma = conversions.convert(sma[1], 'Rsol', sma[0])
+    if period is not None and not np.isscalar(period):
+        period = conversions.convert(period[1], 'd', period[0])
+    
+    # Retrieve the orbit (the orbit is given in the primary and secondary, and
+    # because it's the same orbit it doesn't matter which one you take)
+    orbit = mysystem[0].params['orbit']
+    totalmass = None
+    
+    # Shortcut: if everything is zero, just compute the individual masses from
+    # the existing parameters
+    if sum([0 if x is None else 1 for x in [primary_mass, secondary_mass, q,
+                                            sma, period]]) == 0:
+        q = orbit['q']
+        sma = orbit['sma']
+        period = orbit['period']
+        
+    if sum([0 if x is None else 1 for x in [primary_mass, secondary_mass, q,
+                                            sma, period]]) <=2:
+        raise ValueError("You need to give at least 3 properties to set_mass")
+    
+    
+    
+    # Fill in the component masses if possible
+    if primary_mass is not None and secondary_mass is None and q is not None:
+        secondary_mass = primary_mass * q
+    elif secondary_mass is not None and primary_mass is None and q is not None:
+        primary_mass = secondary_mass / q
+    elif primary_mass is not None and secondary_mass is None and q is None:
+        # Then sma and period need to be given
+        if sma is None or period is None:
+            raise ValueError("If you give primary_mass without secondary_mass or q, you need to give sma and period")
+    elif secondary_mass is not None and primary_mass is None and q is None:
+        # Then sma and period need to be given
+        if sma is None or period is None:
+            raise ValueError("If you give secondary_mass without primary_mass or q, you need to give sma and period")
+        
+    # We have primary and secondary masses
+    if primary_mass is not None and secondary_mass is not None:
+        
+        if q is not None and q != secondary_mass / primary_mass:
+            raise ValueError("You cannot give primary_mass, secondary_mass and an inconsistent q value")
+        
+        q = secondary_mass / primary_mass
+        totalmass = primary_mass + secondary_mass    
+    
+    if primary_mass is not None and secondary_mass is not None and sma is not None and period is not None:
+        raise ValueError("You cannot give primary_mass, secondary_mass (and/or q), sma and period")
+    elif sma is not None:
+        sma = sma * constants.Rsol / constants.au
+                
+    out = keplerorbit.third_law(totalmass=totalmass, sma=sma, period=period)
+        
+    # Which one did we compute?
+    if sma is None:
+        sma = out
+    elif period is None:
+        period = out
+    elif totalmass is None:
+        totalmass = out
+    
+    # All info should now be available, so compute primary and secondary masses
+    # if possible
+    if primary_mass is not None:
+        secondary_mass = totalmass - primary_mass
+    elif secondary_mass is not None:
+        primary_mass = totalmass - secondary_mass
+    elif q is not None:
+        primary_mass = totalmass / (1+q)
+        secondary_mass = totalmass - primary_mass
+    q = secondary_mass / primary_mass
+    
+    # And convert sma back to solar radii
+    sma = sma * constants.au / constants.Rsol
+    
+    # Adopt the values if necessary
+    if adopt:
+        orbit['q'] = q
+        orbit['sma'] = sma
+        orbit['period'] = period
+    
+    return dict(primary_mass=primary_mass, secondary_mass=secondary_mass, q=q,
+                sma=sma, period=period)
+
+
+def compute_from_spectroscopy(mybundle, period, ecc, K1=None, K2=None,
+                              logg1=None, logg2=None, vsini1=None, vsini2=None):
+    """
+    Set value binary parameters from spectroscopic measurements.
+    
+    Set mass ratio q, asini, syncpar...
+    """
+    raise NotImplementedError

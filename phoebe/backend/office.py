@@ -20,8 +20,23 @@ def summarize(system, time=None, filename=None):
         #if isinstance(thing, parameters.ParameterSet) and 'extinction' in thing:
             #thing['extinction'] = 0.0
             #system.set_time(0.)
-    if not len(system.mesh):
-        system.set_time(0.)
+    #if not len(system.mesh):
+    period, t0, shift = system.get_period()
+    
+    try:
+        orbit = system[0].params['orbit']
+        t0type = orbit['t0type']
+        if t0type == 'superior conjunction':
+            t0 = phoebe.dynamics.keplerorbit.from_supconj_to_perpass(orbit['t0'],
+                                                     orbit['period'],
+                                                     orbit['per0']/180*np.pi)
+        print("Set to time of periastron passage")
+    except:
+        pass
+    
+    system.set_time(t0)
+    system.projected_intensity()
+        
     
     # Colors
     if filename is None:
@@ -66,9 +81,10 @@ def summarize(system, time=None, filename=None):
                 
                 comp = thing.get_component()
                 mass = thing.params['orbit'].request_value('mass{:d}'.format(comp+1), 'kg'), 'kg'
-                radi = phoebe.atmospheres.roche.potential2radius(pot, q, d=1,
-                            F=F, component=comp+1, sma=sma, loc='pole',
-                            tol=1e-10, maxiter=50), 'm'
+                #radi = phoebe.atmospheres.roche.potential2radius(pot, q, d=1,
+                #            F=F, component=comp+1, sma=sma, loc='pole',
+                #            tol=1e-10, maxiter=50), 'm'
+                radi = (0.75/np.pi*thing.volume())**(1./3.)*phoebe.constants.Rsol, 'm'
                 teff = thing.params['component'].get_value('teff', 'K'), 'K'
             
             # Else, we can't do it.

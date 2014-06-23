@@ -453,7 +453,69 @@ See :py:mod:`phoebe.atmospheres.reddening` for more information on reddening.
 Section 2.10 Pulsations
 --------------------------------------
 
-TBD
+There are three implementation schemes available for adding pulsations to a Sta
+or BinaryRocheStar. It is important to note that none of them take into account
+the effect of stellar deformation, only the Coriolis effects can be accounted
+for. This means that pulsations are not consistently taken into account, but
+doing better requires *a lot* more effort [Reese2009]_. We can hope that the current
+approximations are an adequate approximation for many applications. The following
+schemes are available (which can be set with the parameter ``scheme`` in the
+:ref:`puls <parlabel-phoebe-puls>` parameterSet):
+
+1. ``scheme='nonrotating'``: pulsations are pure spherical harmonics
+2. ``scheme='coriolis'``: first order inclusion of Coriolis forces, according to
+   [Schrijvers1997]_ and [Zima2006]_.
+3. ``scheme='traditional_approximation``: higher order inclusion of Coriolis forces
+   following [Townsend2003]_.
+   
+Full information can be find in the :py:mod:`pulsations <phoebe.atmospheres.pulsations>`
+module, but here are some important notes:
+
+* The input frequency ``freq`` is the frequency in the stellar frame of reference,
+  which means that the observed frequency is:
+  
+  .. math::
+        
+         f_\mathrm{obs} = f_\mathrm{input} + m (1-C_{n\ell}) f_\mathrm{rot}
+  
+  With :math:`C_{n\ell}` the Ledoux coefficient ([Ledoux1952]_, [Hansen1978]_)
+  and :math:`f_\mathrm{rot}` the stellar rotation frequency. For a Star, this
+  translates in Phoebe2-parameter-names to:
+  
+  .. math::
+    
+    f_\mathrm{obs} = \mathtt{freq} + \mathtt{m} \frac{(1-\mathtt{ledoux\_coeff})}{\mathtt{rotperiod}}
+  
+  while a BinaryRocheStar has
+  
+  .. math::
+    
+    f_\mathrm{obs} = \mathtt{freq} + \mathtt{m} \frac{(1-\mathtt{ledoux\_coeff})*\mathtt{period}}{\mathtt{syncpar}}
+
+* The flux perturbation is caused by three sources: the change in apparent
+  radius, the change in local effective temperature and the change in local
+  surface gravity [Townsend2003]_:
+      
+  .. math::
+  
+     \frac{\Delta F}{F} = \mathrm{Re}\left[\left\{\Delta_R \mathcal{R} + \Delta_T\mathcal{T} + \Delta_g\mathcal{G}\right\}\exp{2\pi i f t}\right]
+  
+  The three perturbation coefficients :math:`\Delta_R`, :math:`\Delta_T` and
+  :math:`\Delta_g` are complex perturbation coefficients. In Phoebe, they are
+  each given by two parameters:
+  
+  .. math::
+    
+    \Delta_R = \mathtt{ampl} \exp(2\pi i\mathtt{phase})
+    
+    \Delta_T = \mathtt{amplteff} \exp(2\pi i (\mathtt{phaseteff} + \mathtt{phase}))
+    
+    \Delta_g = \mathtt{amplgrav} \exp(2\pi i (\mathtt{phasegrav} + \mathtt{phase}))
+  
+  Thus, the phases for the temperature and gravity are relative to the phase
+  of the radius perturbation. The amplitudes are all fractional.
+      
+      
 
 Section 2.11 Magnetic fields
 --------------------------------------
@@ -499,33 +561,85 @@ Section 3. Data handling
 
 3.9 Eclipse timing variations
 ------------------------------------
-   
-Section 4. Wonder how things are done?
-======================================
+  
 
-Section 4.1 Model computations
--------------------------------
+Section 4. Code structure
+===============================
 
-* How are surface deformations done?
-    - bla
-* How is gravity darkening taken into account?
-    - bla
-* :ref:`How is limb darkening treated? <wonder_how_atmospheres>`
+.. contents:: Table of Contents
+   :depth: 4
+   :local:
 
-
-Section 3.2 Generating observables
--------------------------------------   
-
-* How is interferometry computed?
-* How are spectra computed?
-* How are Stokes profiles computed?
+4.1 Introduction
+-------------------
 
 
-Section 3.3 Fitting and statistics
------------------------------------
+The Universe of Phoebe2 is built up with Bodies, which are basically collections
+of triangles (*mesh*) that contain all the information (by virtue of
+*Parameters*) needed to replicate observations (velocities, intensities, positions, etc).
 
-* How is the goodness-of-fit of a model computed?   
-   
+Each :py:class:`Body <phoebe.backend.universe.Body>` keeps track of all the
+information it needs to put itself at its location given a certain time. Thus
+each Body, whether it is a part of a multiple system or not, can "live" on its
+own. Bodies can be collected in super-Bodies, also named a
+:py:class:`BodyBag <phoebe.backend.universe.BodyBag>`. Each Body in a BodyBag
+keeps it independence (and can thus always be taken out of the BodyBag), but
+BodyBags can be translated or rotated as a whole.
+
+Once Bodies are setup and put in place, they can also interact through irradiation.
+Separate functions are responsible for adapting the local properties given such
+processes.
+
+4.2 Code hierarchy
+---------------------
+
+The basic building block is a :py:class:`Parameter <phoebe.parameters.parameters.Parameter>`.
+Sets of parameters that are logically connected (i.e. have the same *context*) are collected into
+an advanced dictionary-style class dubbed a :py:class:`ParameterSet <phoebe.parameters.parameters.ParameterSet>`.
+ParameterSets have two flavors: one is the base ParameterSet class for ordinary
+parameters, the other is the :py:class:`DataSet <phoebe.parameters.datasets.DataSet>`,
+which provides extra functionality to treat observations or synthetic calculations.
+On its turn , DataSets have many different flavors, one for each of the different
+type of data (light curves, radial velocity curves, spectra etc).
+
+ParameterSets and DataSets are organised in the :envvar:`params` attribute of a
+Body. This attribute is a dictionary, where the context of the ParameterSet is
+the key, and the value is the ParameterSet itself. If there can be more than
+one ParameterSet of the same context (e.g. pulsations), then the value is a list
+of ParameterSets. The only exception to this rule are the contexts that describe
+data.
+
+Each type of observations, whether it is a light curve or something else, is described
+by three different contexts, of which two need to be user-supplied, and the third
+one is automatically generated:
+    - 
+
+4.3 Description of base classes
+---------------------------------
+
+The next sections contains details on the most important base classes.
+
+4.3.1 Parameter
+~~~~~~~~~~~~~~~~~~~~~
+
+A :py:class:`Parameter <phoebe.parameters.parameters.Parameter>` is a self-contained
+representation of any value, switch or option that can be accessed or changed by
+the user. 
+
+4.3.2 ParameterSet
+~~~~~~~~~~~~~~~~~~~~~
+
+4.3.3 Body
+~~~~~~~~~~~~~~~~~~~~~
+
+4.3.4 BodyBag
+~~~~~~~~~~~~~~~~~~~~~
+
+4.4 Filling the mesh / setting the time
+------------------------------------------
+
+4.5 Where is my data?
+~~~~~~~~~~~~~~~~~~~~~~~
    
 """
 
@@ -558,7 +672,7 @@ from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
                               PulsatingBinaryRocheStar
 from .frontend.bundle import Bundle, load, info
-from .frontend.common import take_orbit_from, compute_pot_from
+from .frontend.common import take_orbit_from, compute_pot_from, compute_mass_from
 
 #-- common input and output
 from .parameters.parameters import load as load_ps

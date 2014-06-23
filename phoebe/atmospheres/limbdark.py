@@ -1544,7 +1544,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
                "atmosphere/limbdarkening grid, or use the black body "
                "approximation.").format(atm, msg)
         
-        if True:
+        if False:
             print(msg)
             import matplotlib.pyplot as plt
             with pyfits.open(atm) as ff:
@@ -1563,8 +1563,7 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         #raise SystemExit
         raise ValueError(msg)
         #logger.error(msg)
-        
-        pars = np.zeros((pixelgrid.shape[-1], values.shape[1]))
+        #pars = np.zeros((pixelgrid.shape[-1], values.shape[1]))
     
     # The intensities were interpolated in log, but we want them in linear scale
     pars[-1] = 10**pars[-1]

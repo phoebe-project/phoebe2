@@ -501,7 +501,7 @@ def plot_lcres(system, **kwargs):
     if 'y_unit' in kwargs and kwargs['y_unit'] == 'sigma':
         y_unit = kwargs.pop('y_unit')
     else:
-        y_unit = None
+        y_unit = kwargs.get('y_unit', None)
     
     # Fake ploting lcobs and lcsyn
     lcobs_out = plot_lcobs(system, simulate=True, **kwargs)
@@ -529,16 +529,38 @@ def plot_lcres(system, **kwargs):
     else:
         period = conversions.convert('cy', lcobs_out[2][1][0], 1.0)
     
-    y_value = obs['flux'] - syn['flux']
-    if y_unit is not None:
-        y_value = y_value / obs['sigma']
+    # Sort observations and synthetic equally
+    time_obs = obs['time']
+    time_syn = syn['time']
+    sa_obs = np.argsort(time_obs)
+    sa_syn = np.argsort(time_syn)
+    time_obs = time_obs[sa_obs]
+    time_syn = time_syn[sa_syn]
+    flux_obs = obs['flux'][sa_obs]
+    flux_syn = syn['flux'][sa_syn]
+    sigma_obs = obs['sigma'][sa_obs]
+    
+    # Compute residuals
+    y_value = flux_obs - flux_syn
+    res = obs.copy()
+    
+    if y_unit == 'sigma':
+        y_value = y_value / sigma_obs
         kwargs['yerr'] = np.ones(len(y_value))
+    else:
+        kwargs['yerr'] = sigma_obs
+    
+    # Prepare the residual dataset
+    res['time']  = time_obs
+    res['flux']  = y_value
+    res['sigma'] = kwargs['yerr']
+    
     
     artists = []
     for n in range(repeat+1):
         if n>=1:
             kwargs['label'] = '_nolegend_'
-        p = ax.errorbar(obs['time'] + n*period, y_value, **kwargs)
+        p = ax.errorbar(time_obs + n*period, y_value, **kwargs)
         artists.append(p)
     
     if y_unit is not None and 'mag' in y_unit:
@@ -551,7 +573,7 @@ def plot_lcres(system, **kwargs):
     if loaded_syn:
         syn.unload()
     
-    return artists, (obs, syn), lcobs_out[2]
+    return artists, res, lcobs_out[2]
     
 
 @decorators.set_default_units
@@ -889,7 +911,7 @@ def plot_rvres(system, *args, **kwargs):
     if 'y_unit' in kwargs and kwargs['y_unit'] == 'sigma':
         y_unit = kwargs.pop('y_unit')
     else:
-        y_unit = None
+        y_unit = kwargs.get('y_unit', None)
     
     ax = kwargs.get('ax', plt.gca())
     
@@ -919,24 +941,47 @@ def plot_rvres(system, *args, **kwargs):
     else:
         period = conversions.convert('cy', rvobs_out[2][1][0], 1.0)
     
-    y_value = obs['rv'] - syn['rv']
-    if y_unit is not None:
+    # Sort observations and synthetic equally
+    time_obs = obs['time']
+    time_syn = syn['time']
+    sa_obs = np.argsort(time_obs)
+    sa_syn = np.argsort(time_syn)
+    time_obs = time_obs[sa_obs]
+    time_syn = time_syn[sa_syn]
+    rv_obs = obs['rv'][sa_obs]
+    rv_syn = syn['rv'][sa_syn]
+    sigma_obs = obs['sigma'][sa_obs]
+    
+    # Compute residuals
+    y_value = rv_obs - rv_syn
+    res = obs.copy()
+    
+    if y_unit == 'sigma':
         y_value = y_value / obs['sigma']
         kwargs['yerr'] = np.ones(len(y_value))
+    else:
+        kwargs['yerr'] = sigma_obs
+    
+    # Prepare the residual dataset
+    res['time'] = time_obs
+    res['rv'] = y_value
+    res['sigma'] = kwargs['yerr']
+    
     
     artists = []
     for n in range(repeat+1):
         if n>=1:
             kwargs['label'] = '_nolegend_'
-        p = ax.errorbar(obs['time'] + n*period, y_value, **kwargs)
+        p = ax.errorbar(time_obs + n*period, y_value, **kwargs)
         artists.append(p)
+    
     
     if loaded_obs:
         obs.unload()
     if loaded_syn:
         syn.unload()
     
-    return artists, (obs, syn), rvobs_out[2]
+    return artists, res, rvobs_out[2]
     
 def plot_etvsyn(system,*args,**kwargs):
     """
