@@ -969,9 +969,11 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         if fitparams['method'] == 'leastsq':
             extra_kwargs['epsfcn'] = 1e-3
     
-
-        result = lmfit.minimize(model_eval, pars, args=(system,),
+        try:
+            result = lmfit.minimize(model_eval, pars, args=(system,),
                             method=fitparams['method'], **extra_kwargs)
+        except:
+            raise RuntimeError("Error in running lmfit. Perhaps the version is not right? (you have {} and should have >{})".format(lmfit.__version__, '0.7'))
     
     # In this case we have fine tuning parameters
     else:

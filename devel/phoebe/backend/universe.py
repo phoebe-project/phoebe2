@@ -392,7 +392,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         
         # Compute intensity using the already calculated limb darkening
         # coefficents, or interpolate here if we're using the Prsa method.
-        logger.info('using limbdarkening law {}'.format((ld_func)))
+        logger.debug('using limbdarkening law {}'.format((ld_func)))
         if ld_func != 'prsa':
             Imu = getattr(limbdark, 'ld_{}'.format(ld_func))(mus, vis_mesh['ld_'+ref].T)\
                       * vis_mesh['ld_'+ref][:,-1]
@@ -4249,9 +4249,10 @@ class Body(object):
             # Retrieve the times of observations, the baseline coordinates
             # (baseline length and position angle) and effective wavelength
             times = obs['time']
-            posangle = np.arctan2(obs['vcoord'], obs['ucoord'])/pi*180.
-            baseline = sqrt(obs['ucoord']**2 + obs['vcoord']**2)
-            eff_wave = None if (not 'eff_wave' in obs or not len(obs['eff_wave'])) else obs['eff_wave']
+            ucoord, vcoord = np.asarray(obs['ucoord']), np.asarray(obs['vcoord'])
+            posangle = np.arctan2(vcoord, ucoord)/pi*180.
+            baseline = sqrt(ucoord**2 + vcoord**2)
+            eff_wave = None if (not 'eff_wave' in obs or not len(obs['eff_wave'])) else np.asarray(obs['eff_wave'])
             
             # If not time is given, assume all baselines are measured at
             # the same time (or equivalently the system is time independent)
@@ -4285,8 +4286,8 @@ class Body(object):
             if save_result:
                 base, ref = self.get_parset(type='syn', ref=ref)
                 base['time'] += [time] * len(output[0])
-                base['ucoord'] += list(obs['ucoord'][keep])
-                base['vcoord'] += list(obs['vcoord'][keep])
+                base['ucoord'] += list(ucoord[keep])
+                base['vcoord'] += list(vcoord[keep])
                 base['vis2'] += list(output[3])
                 base['vphase'] += list(output[4])
                 base['total_flux'] += list(output[-1])
@@ -5743,7 +5744,25 @@ class BodyBag(Body):
         # Then this level stuff
         for func, args, kwargs in self._postprocessing:
             getattr(processing, func)(self, time, *args, **kwargs)
+    
+    def get_adjustable_parameters(self):
+        """
+        Return a list of all adjustable parameters.
+        """
+        # First get the adjustable parameters in the BodyBag's .params attribute
+        mylist = super(BodyBag, self).get_adjustable_parameters()
+        
+        # Then the adjustable from all subbodies.
+        for body in self.bodies:
+            this_adjustable = body.get_adjustable_parameters()
             
+            # Make sure not to store duplicates
+            body_list = [par for par in this_adjustable if not par in mylist]
+            mylist += body_list
+            
+        return mylist
+        
+    
     def fix_mesh(self):
         """
         Make sure all bodies in a list have the same mesh columns.

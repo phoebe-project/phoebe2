@@ -1318,25 +1318,27 @@ class Parameter(object):
         #   of the current unit... bastard!:
         if unit in conversions._conventions:
             unit = conversions.change_convention(unit,self.unit)
-        logger.info("Converting parameter {} from {} to {}".format(self.qualifier,self.unit,unit))
-        #-- the prior
-        if convert:
-            if hasattr(self,'prior'):
-                self.prior.convert(self.unit,unit)
-            #-- the value
-            new_value = conversions.convert(self.unit,unit,self.get_value())
-            if hasattr(self,'llim'):
-                new_llim = conversions.convert(self.unit,unit,self.cast_type(self.llim))
-                self.llim = new_llim
-            if hasattr(self,'ulim'):
-                new_ulim = conversions.convert(self.unit,unit,self.cast_type(self.ulim))
-                self.ulim = new_ulim
-            if hasattr(self,'step'):
-                new_step = conversions.convert(self.unit,unit,self.cast_type(self.step))
-                self.step = new_step
-            self.value = new_value
-        self.unit = unit
         
+        if self.unit != unit:
+            logger.info("Converting parameter {} from {} to {}".format(self.qualifier,self.unit,unit))
+            #-- the prior
+            if convert:
+                if hasattr(self,'prior'):
+                    self.prior.convert(self.unit,unit)
+                #-- the value
+                new_value = conversions.convert(self.unit,unit,self.get_value())
+                if hasattr(self,'llim'):
+                    new_llim = conversions.convert(self.unit,unit,self.cast_type(self.llim))
+                    self.llim = new_llim
+                if hasattr(self,'ulim'):
+                    new_ulim = conversions.convert(self.unit,unit,self.cast_type(self.ulim))
+                    self.ulim = new_ulim
+                if hasattr(self,'step'):
+                    new_step = conversions.convert(self.unit,unit,self.cast_type(self.step))
+                    self.step = new_step
+                self.value = new_value
+            self.unit = unit
+            
         
     
     def set_adjust(self,adjust):

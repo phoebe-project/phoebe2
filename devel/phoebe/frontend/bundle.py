@@ -2017,7 +2017,8 @@ class Bundle(Container):
     
     def sed_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                        passband=None, flux=None, sigma=None, unit=None,
-                       scale=False, offset=False, **kwargs):
+                       scale=None, offset=None, auto_scale=False,
+                       auto_offset=False, **kwargs):
         """
         Create and attach SED templates to compute the model.
         
@@ -2116,7 +2117,7 @@ class Bundle(Container):
         obs = [this_object.get_obs(category='lc', ref=iref) \
                      for iref in added_datarefs]
         
-        tools.group(obs, dataref, scale=scale, offset=offset)
+        tools.group(obs, dataref, scale=auto_scale, offset=auto_offset)
         
         return dataref
     
@@ -2326,7 +2327,8 @@ class Bundle(Container):
         return self.data_fromfile(category='if:oifits', **set_kwargs)
     
     def if_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
-                      flux=None, sigma=None, flag=None, weight=None,
+                      ucoord=None, vcoord=None, vis2=None, sigma_vis2=None,
+                      eff_wave=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
                       pblum=None, l3=None, alb=None, beaming=None,
@@ -2539,27 +2541,30 @@ class Bundle(Container):
         :raises ValueEror: if dataref is None and no category is given
         :raises KeyError: when dataref is not available
         """
-        dataref = self._process_dataref(dataref, category)
+        try:
+            dataref = self._process_dataref(dataref, category)
+        except:
+            dataref = None
         
-        if dataref is not None:
-            system = self.get_system()
-            try:
-                iterate_all_my_bodies = system.walk_bodies()
-            except AttributeError:
-                iterate_all_my_bodies = [system]
-            
-            for body in iterate_all_my_bodies:
-                this_objref = body.get_label()
-                #~ if objref is None or this_objref == objref:
-                if True:
-                    for obstype in body.params['obs']:
-                        if dataref is None:
-                            for idataref in body.params['obs'][obstype]:
-                                body.params['obs'][obstype][idataref].set_enabled(enabled)
-                                logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
-                        elif dataref in body.params['obs'][obstype]:
-                            body.params['obs'][obstype][dataref].set_enabled(enabled)
-                            logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
+        
+        system = self.get_system()
+        try:
+            iterate_all_my_bodies = system.walk_bodies()
+        except AttributeError:
+            iterate_all_my_bodies = [system]
+        
+        for body in iterate_all_my_bodies:
+            this_objref = body.get_label()
+            #~ if objref is None or this_objref == objref:
+            if True:
+                for obstype in body.params['obs']:
+                    if dataref is None:
+                        for idataref in body.params['obs'][obstype]:
+                            body.params['obs'][obstype][idataref].set_enabled(enabled)
+                            logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
+                    elif dataref in body.params['obs'][obstype]:
+                        body.params['obs'][obstype][dataref].set_enabled(enabled)
+                        logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
 
         
     def disable_data(self, dataref=None, category=None):
@@ -2703,10 +2708,13 @@ class Bundle(Container):
             # then see if there is only one entry with this category
             # and if so, default to it
             if category is None: 
+                # Next line doesn't seem to work, so I short-cutted a return value
                 category = '*'
+                
             dss = self._get_by_search(dataref, 
                     context = ['{}obs'.format(category),'{}syn'.format(category),'{}dep'.format(category)], 
                     kind = 'ParameterSet', all = True, ignore_errors = True)
+            
             datarefs = []
             for ds in dss:
                 if ds['ref'] not in datarefs:
@@ -4488,7 +4496,7 @@ class Bundle(Container):
         except ValueError:
             logger.warning("Cannot plot residuals {}: no calculations found".format(kwargs['ref']))
             return None
-        obs, syn = output[1]
+        res = output[1]
         fig_decs = output[2]
         
         # The x-label
@@ -4509,7 +4517,7 @@ class Bundle(Container):
         elif title:
             plt.title(title)
             
-        return obs, syn
+        return res
     
     
     def plot_prior(self, twig=None, **kwargs):

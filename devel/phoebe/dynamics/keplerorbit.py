@@ -1271,7 +1271,7 @@ def per0_from_eclipse_separation(separation,ecc):
 
 #{ Kepler's laws and helper functions
 
-def third_law(totalmass=None,sma=None,period=None):
+def third_law(totalmass=None, sma=None, period=None):
     """
     Kepler's third law.
     
@@ -1329,7 +1329,8 @@ def third_law(totalmass=None,sma=None,period=None):
     if sma is None:
         return (constants.GG*totalmass*period**2/(4*pi**2))**(1./3.)/constants.au
     if period is None:
-        return sqrt(4*pi**2*sma**3/(constants.GG*totalmass))/(24*3600.)    
+        return sqrt(4*pi**2*sma**3/(constants.GG*totalmass))/(24*3600.)
+    
 
         
 def calculate_asini(period, ecc, K1=0, K2=0):

@@ -87,6 +87,7 @@ logger.addHandler(logging.NullHandler())
     
 def image(the_system, ref='__bol', context='lcdep',
             cmap=None, select='proj', background=None, vmin=None, vmax=None,
+            beaming_alg='none',
             size=800, ax=None, savefig=False, nr=0, zorder=1, dpi=80,
             fourier=False, with_partial_as_half=True, coords='cartesian'):
     """
@@ -305,11 +306,12 @@ def image(the_system, ref='__bol', context='lcdep',
     # set the time.
     logger.info('Making image of dependable set {}: plotting {}'.format(ref, select))    
     try:
-        the_system.projected_intensity(ref=ref,
+        total_flux = the_system.projected_intensity(ref=ref,beaming_alg=beaming_alg,
                                       with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
     except AttributeError as msg:
+        total_flux = 0.0
         logger.warning("Body has not attribute `projected_intensity', some stuff will not work")
     
     # Order the body's triangles from back to front so that they get plotted in
@@ -542,7 +544,7 @@ def image(the_system, ref='__bol', context='lcdep',
         pl.close()
         data = pl.imread('__temp.png')[:,:,0]
         os.unlink('__temp.png')
-        d = the_system.as_point_source()['coordinates'][2]
+        d = the_system.get_distance()
         hdu = pyfits.PrimaryHDU(data)
         
         # for a simple linear projection, in RA and DEC (watch out: 'data axis 0' = y-axis!)
@@ -573,7 +575,8 @@ def image(the_system, ref='__bol', context='lcdep',
         hdulist.close()
     
     figure_decorations = dict(xlim=xlim, ylim=ylim)
-    artist_decorations = dict(norm_proj=norm_proj, vmin=vmin_, vmax=vmax_)
+    artist_decorations = dict(norm_proj=norm_proj, vmin=vmin_, vmax=vmax_,
+                              total_flux=total_flux)
     
     return figure_decorations, artist_decorations, p
 
@@ -1062,7 +1065,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         Thanks to M. Hillen. He is not responsible for bugs or errors.
     """
     # Information on what to compute
-    data_pars,ref = the_system.get_parset(ref)
+    data_pars, ref = the_system.get_parset(ref)
     passband = data_pars['passband']
     
     # Make sure we can cycle over the baselines and posangles
@@ -1100,12 +1103,14 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         xlims = figdec['xlim']
         ylims = figdec['ylim']
         data = np.array(plotlib.fig2data(pl.gcf(), grayscale=True),float)
+        total_flux = artdec['total_flux']
         pl.close()
-    
+        
     else:
         keep_figname = True
         figname,xlims,ylims = figname
         data = pl.imread(figname)[:,:,0]
+        total_flux = 1.0
     coords =np.array([[i,j] for i,j in itertools.product(xlims,ylims)])
     
     #-- cycle over all baselines and position angles
@@ -1207,15 +1212,26 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
                 pl.xlabel('Coordinate [mas]')
                 pl.ylabel("Flux")
                 pl.savefig('{}_{:05d}_prof.png'.format(keepfig,nr))
+                #np.savetxt('prof.dat', np.column_stack([x*1000, signal]))
                 pl.close()
         #-- to take band pass smearing into account, we need to let the
         #   wavelength vary over the passband, and add up all the
         #   Fourier transforms but weighted with the SED intensity
         #   times the transmission filter.
-        total_flux = signal.sum()
+        signal = signal / signal.sum() * total_flux
         #signal = signal/signal.sum()
-        f1,s1 = pergrams.DFTpower(x,signal,full_output=True,
-                            f0=f0,fn=fn,df=df)
+        #f1_,s1_ = pergrams.DFTpower(x,signal,full_output=True,
+        #                    f0=f0,fn=fn,df=df)
+        s1 = pergrams.DFT(x, signal, f0)
+        f1 = f0
+        
+        # We could add a check for the Nyquist frequency here, but that should
+        # be always fine for realistic observations
+        #print('frequency = {:.3g}, nyquist = {:.3g} ({:.3f}%)'.format(f0, 0.5/(x[1]-x[0]),f0/0.5*(x[1]-x[0])))
+        
+        if np.angle(s1)<-np.pi:
+            print("angular diameter = {} mas, angle={}".format(x[signal>0].ptp()*1000, np.angle(s1), np.angle(s1)- x.ptp()*pi*f1))
+        
         s1_vis = np.abs(s1)
         s1_phs = np.angle(s1)
         #-- correct cumulative phase
