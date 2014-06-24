@@ -10,7 +10,7 @@ atm = 'blackbody'
 alb = 1-0.932
 
 def do_mercury(redist):
-    sun = phoebe.create.from_library('sun')
+    sun, position = phoebe.create.from_library('sun')
     sun['irradiator'] = True
 
 

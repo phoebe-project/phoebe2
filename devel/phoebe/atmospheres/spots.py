@@ -104,3 +104,54 @@ def detect_circular_spot(the_system,time,spot_pars):
         the_system.mesh = mesh
         logger.info('marked circular spot (on:{0:d}, in:{1:d})'.format(sum(triangles_on_spotradius),sum(triangles_in_spotradius)))
         return triangles_in_spotradius,triangles_on_spotradius
+    
+    
+def worley_noise(system, feature_points=100):
+    """
+    Create a granulation type pattern of a quantity.
+    
+    This function returns values between 0 and 1, which can be used to scale
+    certain quantities.
+    """
+    r_, phi_, theta_ = system.get_coords()
+    R = r_.max()
+    
+    z = np.random.uniform(low=-R, high=R, size=feature_points)
+    seeds_phi = np.random.uniform(low=-np.pi, high=np.pi, size=feature_points)
+    seeds_theta = np.arcsin(z/R) + np.pi/2. # between 0 and pi
+
+    directions = np.zeros((len(phi_), 3))
+    value = np.zeros_like(phi_)
+    
+    # find max distance
+    maxDist1 = 0.0
+    maxDist2 = 0.0
+    
+    for i, (kphi, kth) in enumerate(zip(phi_, theta_)):
+        # create a sorted list of distances to all seed points
+        dists = sphere_distance(np.column_stack([seeds_phi, seeds_theta]),
+                                          np.array([[kphi, kth]]))
+        # Update the maximum distances
+        dists.sort()
+        if dists[0] > maxDist1:
+            maxDist1 = dists[0]
+        if dists[1] > maxDist2:
+            maxDist2 = dists[1]
+            
+        # We should add directional vectors here...
+            
+    # Set the values
+    
+    for i, (kphi, kth) in enumerate(zip(phi_, theta_)):
+        # create a sorted list of distances to all seed points
+        dists = sphere_distance(np.column_stack([seeds_phi, seeds_theta]),
+                                          np.array([[kphi, kth]]))
+        sa = np.argsort(dists)
+        
+        c1 = dists[sa[0]] / maxDist1
+        c2 = dists[sa[1]] / maxDist2
+        value[i] = c2-c1
+        directions[i] = 0, 0, 0 # should be fixed!
+    
+    value = value - value.min()
+    return value / value.max()
