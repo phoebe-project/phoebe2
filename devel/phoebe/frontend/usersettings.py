@@ -371,7 +371,8 @@ class Settings(Container):
             self.add_compute(label='preview',refl=False,heating=False,eclipse_alg='binary',subdiv_num=1)
             self.add_compute(label='detailed',ltt=True,eclipse_alg='binary',beaming_alg='local')
         
-        if devel:
+        #~ if devel:
+        if True:
             self.sections['fitting'] = []
             if not self.load_cfg('fitting', basedir):
                 self.add_fitting(context='fitting:grid',label='grid')

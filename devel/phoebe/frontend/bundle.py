@@ -377,7 +377,7 @@ class Bundle(Container):
         
         self.sections['system'] = [None] # only 1
         self.sections['compute'] = []
-        #~ self.sections['fitting'] = []
+        self.sections['fitting'] = []
         #~ self.sections['feedback'] = []
         #~ self.sections['version'] = []
         self.sections['figure'] = []
