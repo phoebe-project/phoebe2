@@ -624,7 +624,33 @@ The next sections contains details on the most important base classes.
 
 A :py:class:`Parameter <phoebe.parameters.parameters.Parameter>` is a self-contained
 representation of any value, switch or option that can be accessed or changed by
-the user. 
+the user. The most important properties that a Parameter holds are:
+
+- the parameter's name (called :envvar:`qualifier`)
+- the parameter's data type (float, integer, string, array), which is actually a *caster* (see below)
+- the parameter's value
+- the parameter's unit (if applicable)
+- the parameter's context (e.g. *orbit*, *component*..) and frame (always *phoebe* if you use predefined parameters)
+- a boolean to mark it for inclusion in fitting procedures (:envvar:`adjust`)
+- the parameter's prior and posterior (if applicable)
+
+A list of all available setters and getters is given in the documentation of the
+:py:class:`Parameter <phoebe.parameters.parameters.Parameter>` class itself.
+
+By virtue of the data type, which is actually a function that casts a value to
+the correct data type, the user does not need to worry about giving integers
+or floats, and parsing code can immediately pass strings as parameter values,
+making writing parsers really easy.
+
+All the parameters and parameter properties used in the code are listed in the
+:py:mod:`parameters.parameters.definitions` module.
+
+**Simple examples**:
+
+Minimal code to construct a parameter:
+
+>>> par = phoebe.Parameter(qualifier='myparameter')
+>>> print(x)
 
 4.3.2 ParameterSet
 ~~~~~~~~~~~~~~~~~~~~~
