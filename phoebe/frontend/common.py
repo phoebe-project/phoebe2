@@ -1139,7 +1139,8 @@ class Container(object):
             label = self._get_object(label).get_parent().get_label()
             ref = None
         
-        if context == section:
+        if context is not None and context.split(':')[0] == section: 
+            # : is used for different contexts in fitting, but this should be hidden to the user
             context_twig = None
         else:
             context_twig = context
