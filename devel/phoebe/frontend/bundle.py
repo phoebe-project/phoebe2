@@ -2328,6 +2328,7 @@ class Bundle(Container):
     
     def if_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       ucoord=None, vcoord=None, vis2=None, sigma_vis2=None,
+                      vphase=None, sigma_vphase=None,
                       eff_wave=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
@@ -2425,13 +2426,52 @@ class Bundle(Container):
         # Figure out what the parameter name is
         qualifier = twig_split[0]
         
-        # If this parameter does not replaces any other, it is derived itself
-        if replaces is None:
-            replaces = qualifier
-                    
         # If the parameter does not exist yet, there's some work to do: we need
         # to figure out where to add it, and we need to create it
-        if param is None:
+        
+        # There are two ways we can add it: the easy way is if the parameter
+        # can be added via the "tools" module
+        if param is None and hasattr(tools, 'add_{}'.format(qualifier)):
+            
+            # Retrieve the parameterSet to add it to
+            twig_rest = '@'.join(twig_split[1:])
+            item = self._get_by_search(twig_rest, kind='ParameterSet',
+                                       return_trunk_item=True)
+            
+            # If the 'replaces' is a twig, make sure it's a valid one
+            if not replaces is None:
+                replaces_split = replaces.split('@')
+                if len(replaces_split)>1:
+                    replaces_rest = '@'.join(replaces_split[1:])
+                    replaces_item = self._get_by_search(replaces_rest, kind='ParameterSet',
+                                       return_trunk_item=True)
+                    
+                    if not item == replaces_item:
+                        raise ValueError("The parameter {} cannot replace {} because it is not in the same ParameterSet".format(twig, replaces))
+                    
+                    # Set the replaced parameter to be hidden
+                    self.get_parameter(replaces).set_hidden(True)
+                    
+                replaces = replaces_split[0]
+            
+            param = getattr(tools, 'add_{}'.format(qualifier))(item['item'], value,
+                         derive=replaces)
+            
+            
+                
+            
+            logger.info("Added {} to ParameterSet with context {}".format(qualifier, item['item'].get_context()))
+            
+            self._build_trunk()
+            
+            
+            return None
+        
+        elif param is None:
+            
+            # If this parameter does not replaces any other, it is derived itself
+            if replaces is None:
+                replaces = qualifier    
             
             # Get all the info on this parameter
             info = definitions.rels['binary'][qualifier].copy()
@@ -2453,7 +2493,7 @@ class Bundle(Container):
             pset.add(info)
             
             param = pset.get_parameter(qualifier)
-            param.set_replaces(replaces)
+            #param.set_replaces(replaces)
             
         # In any case we need to set the 'replaces' attribute and the value    
         param.set_replaces(replaces)
@@ -4730,7 +4770,10 @@ class Bundle(Container):
             raise ValueError("You cannot set both time and phase to zero, please choose one")
         elif phase is not None:
             period, t0, shift = self.get_system().get_period()
-            time = phase * period + t0
+            if np.isinf(period):
+                time = t0
+            else:
+                time = phase * period + t0
         
         # Observe the system with the right computations
         if time is not None:

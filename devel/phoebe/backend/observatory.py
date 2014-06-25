@@ -87,7 +87,7 @@ logger.addHandler(logging.NullHandler())
     
 def image(the_system, ref='__bol', context='lcdep',
             cmap=None, select='proj', background=None, vmin=None, vmax=None,
-            beaming_alg='none',
+            beaming_alg='none', antialiasing=True,
             size=800, ax=None, savefig=False, nr=0, zorder=1, dpi=80,
             fourier=False, with_partial_as_half=True, coords='cartesian'):
     """
@@ -440,6 +440,7 @@ def image(the_system, ref='__bol', context='lcdep',
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              array=values,
                              closed=False,
+                             antialiaseds=antialiasing,
                              edgecolors=cmap(colors),
                              facecolors=cmap(colors),
                              cmap=cmap, zorder=zorder)
@@ -449,6 +450,7 @@ def image(the_system, ref='__bol', context='lcdep',
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              closed=False,
                              edgecolors=colors,
+                             antialiaseds=antialiasing,
                              facecolors=colors, zorder=zorder)
     elif cmap_ == 'blackbody_proj':
         # In this particular case we also need to set the values for the
@@ -462,6 +464,7 @@ def image(the_system, ref='__bol', context='lcdep',
         colors = np.array([cmap(c) for c in colors]) * values 
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              closed=False,
+                             antialiaseds=antialiasing,
                              edgecolors=colors,
                              facecolors=colors,)
         
@@ -479,6 +482,7 @@ def image(the_system, ref='__bol', context='lcdep',
         p = PolyCollection(mesh['triangle'].reshape((-1, 3, 3))[:, :, :2],
                              closed=False,
                              edgecolors=colors,
+                             antialiaseds=antialiasing,
                              facecolors=colors)
 
     # Set the color scale limits
@@ -1099,7 +1103,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         #xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
         #data = pl.imread(figname)[:,:,0]
         #os.unlink(figname)
-        figdec, artdec, p = image(the_system,ref=ref, dpi=100, context='ifdep')
+        figdec, artdec, p = image(the_system,ref=ref, dpi=100, antialiasing=False, context='ifdep')
         xlims = figdec['xlim']
         ylims = figdec['ylim']
         data = np.array(plotlib.fig2data(pl.gcf(), grayscale=True),float)
@@ -2819,6 +2823,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             system.postprocess(time=None)            
         except:
            logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")
+           raise
     
         # Scale mesh density
         if mesh_scale != 1:

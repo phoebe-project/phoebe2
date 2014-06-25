@@ -213,6 +213,8 @@ def add_surfgrav(star,surfgrav=None,derive='mass',unit='[cm/s2]',**kwargs):
         logger.info("star '{}': '{}' constrained by 'surfgrav' and 'mass'".format(star['label'],derive))
     else:
         raise ValueError("Cannot derive {} from surface gravity".format(derive))
+    
+    return star.get_parameter('surfgrav')
 
 
 def add_luminosity(star, luminosity=None, derive=None,unit='[Lsol]',**kwargs):
@@ -255,7 +257,7 @@ def add_luminosity(star, luminosity=None, derive=None,unit='[Lsol]',**kwargs):
     else:
         raise ValueError("Cannot derive {} from luminosity".format(derive))
 
-
+    return star.get_parameter('luminosity')
    
 def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     r"""
@@ -329,6 +331,8 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     else:
         star.add_constraint('{vsini} = (2*np.pi*{radius})/{rotperiod}*np.sin({incl})')
         logger.info("star '{}': 'vsini' constrained by 'radius', 'rotperiod' and 'incl'".format(star['label']))
+    
+    return star.get_parameter('vsini')
     
     
 def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):
@@ -407,6 +411,7 @@ def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):
         logger.info("star '{}': 'rotperiod' not necessarily consistent with 'rotfreqcrit'".format(star['label']))
     #-- we didn't explicitly set a value here!
     star.run_constraints()
+    return star.get_parameter('rotfreqcrit')
 
 def add_vrotcrit(star, vrotcrit=None, derive='rotperiod',**kwargs):
     r"""
@@ -456,7 +461,7 @@ def add_vrotcrit(star, vrotcrit=None, derive='rotperiod',**kwargs):
         logger.info("star '{}': 'rotperiod' constrained by 'vrotcrit'".format(star['label']))
 
     star.run_constraints()
-
+    return star.get_parameter('vrotcrit')
     
 
 def add_radius_eq(star,radius_eq=None,derive=None,unit='Rsol',**kwargs):
@@ -484,6 +489,7 @@ def add_radius_eq(star,radius_eq=None,derive=None,unit='Rsol',**kwargs):
     else:
         star.add_constraint('{radius_eq} = 3*{radius}/{rotfreqcrit}*np.cos((np.pi+np.arccos({rotfreqcrit}))/3.))')
     star.run_constraints()
+    return star.get_parameter('radius_eq')
 
     
 def add_teffpolar(star,teffpolar=None,**kwargs):
@@ -526,6 +532,7 @@ def add_teffpolar(star,teffpolar=None,**kwargs):
         star['teffpolar'] = teffpolar
     star.add_constraint('{teff} = {teffpolar}')
     logger.info("star '{}': 'teff' redefined to be equal to 'teffpolar'".format(star['label']))
+    return star.get_parameter('teffpolar')
     
 
 def add_solarosc(star,numax,Deltanu0=None,unit='muHz'):
@@ -578,6 +585,7 @@ def add_solarosc_numax(star,numax,unit='muHz',**kwargs):
     #-- append the constraint on the radius to be after the surface gravity.
     star.add_constraint('{radius} = '+star.pop_constraint('radius'))
     logger.info("star '{}': 'surfgrav' constrained by 'numax' and 'teff'".format(star['label']))
+    return star.get_parameter('numax')
     
 
 def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
@@ -614,7 +622,7 @@ def add_solarosc_Deltanu0(star,Deltanu0,unit='muHz',**kwargs):
     logger.info("star '{}': 'radius' constrained by 'numax', 'teff' and 'Deltanu0'".format(star['label']))
     logger.info("star '{}': 'mass' constrained by 'surfgrav' and 'radius'".format(star['label']))
     
-    
+    return star.get_parameter('Deltanu0')
 #}
 
 
