@@ -1,3 +1,9 @@
+"""
+Coordinate transformations.
+
+In general, we define :math:`\phi` as the longitude between :math:`-\pi` and
+:math:`+\pi`. The colatitude :math:`\theta` lies between :math:`0` and :math:`\pi`.
+"""
 import logging
 import numpy as np
 from numpy import sin,cos,sqrt,pi,arctan2
@@ -46,6 +52,7 @@ def rotate_in_place(obj,euler,pivot=(0,0,0),loc=(0,0,0)):
     out[:,2] =           (s2*s3)*x +          (s2*c3)*y +    c2*z + loc[2]       
     return out
 
+
 def rotate_and_translate(mesh,theta=0,incl=0,Omega=0,
              pivot=(0,0,0),loc=(0,0,0),
              los=(0,0,+1),incremental=False):
@@ -82,6 +89,7 @@ def rotate_and_translate(mesh,theta=0,incl=0,Omega=0,
     for lbl in mesh_.dtype.names:
         if lbl[:4]=='velo':
             mesh_[lbl] = rotate_in_place(mesh_[prefix+lbl],(theta,Omega,incl),(0,0,0))
+    
     mesh_['mu'] = cgeometry.cos_theta(mesh_['normal_'].ravel(order='F').reshape((-1,3)),np.array(los,float))
     #mesh_['mu'] = fgeometry.cos_theta(mesh_['normal_'],los)
     return mesh_
@@ -129,7 +137,7 @@ def cart2spher_coord(x,y,z):
 
 def spher2cart_coord(r,phi,theta):
     """
-    Spherical to Cartesian coordinate tranfomation.
+    Spherical to Cartesian coordinate transformation.
     
     @return: x, y, z
     @rtype: 3-tuple

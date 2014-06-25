@@ -822,7 +822,9 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     # Choose the algorithm
     algorithm = dict(nnls=nnls, lstsq=np.linalg.lstsq)[type]
     
-    if sigma is None or not len(sigma):
+    if np.isscalar(sigma):
+        sigma = sigma*np.ones_like(obs)
+    elif sigma is None or not len(sigma):
         sigma = np.ones_like(obs)
         
     #   only scaling factor
@@ -6568,6 +6570,7 @@ class Star(PhysicalBody):
         - ``puls``: pulsation mode properties (can be a list)
         - ``magnetic_field``: global magnetic field properties (dipole...)
         - ``velocity_field``: surface velocity field properties (macroturbulence)
+        - ``granulation``: surface granulation
         - ``globals``: systemic velocity, position, distance...
         
     As for any other Body, you can give also a list of
@@ -6656,11 +6659,13 @@ class Star(PhysicalBody):
     """
     _params_tree = dict(star=None, mesh=None, reddening=None,
                         puls='list', circ_spot='list', magnetic_field=None,
-                        velocity_field='list', position=None)
+                        velocity_field='list', granulation='list',
+                        position=None)
     
     def __init__(self, star=None, mesh=None, reddening=None, puls=None,
                  circ_spot=None, magnetic_field=None, velocity_field=None,
-                 position=None, pbdep=None, obs=None, label=None, **kwargs):
+                 granulation=None, position=None, pbdep=None, obs=None,
+                 label=None, **kwargs):
         """
         Initialize a Star.
         
@@ -6762,6 +6767,20 @@ class Star(PhysicalBody):
                                                    'velocity_field:meri'],
                                    'velocity_field', is_list=True)
                 self.params['velocity_field'] = to_add
+        
+        # Add granulation field parameters when applicable
+        if granulation is not None:
+            if not isinstance(granulation, list):
+                to_add = [granulation]
+            else:
+                to_add = granulation
+            
+            # Perhaps the user gave an empty list, then that's a bit silly
+            if len(to_add) > 0:
+                for ito_add in to_add:
+                    check_input_ps(self, ito_add, ['granulation'],
+                                   'granulation', is_list=True)
+                self.params['granulation'] = to_add
         
         # Add the parameters to compute dependables
         if pbdep is not None:
@@ -7188,7 +7207,45 @@ class Star(PhysicalBody):
                 
     
     def add_pulsations(self,time=None):
+        """
+        Add pulsations to a Star.
+        """
         pulsations.add_pulsations(self, time=time)
+    
+    def add_granulation(self,time=None):
+        """
+        Add granulation to a Star.
+        """
+        # Don't add granulation if there is none
+        if not 'granulation' in self.params:
+            return None
+        
+        for gran in self.params['granulation']:
+            
+            # Don't add granulation if there aren't any cells
+            if gran['cells'] == 0:
+                continue
+            
+            # Generate the Worly noise pattern
+            values, velocity = spots.worley_noise(self, seed=gran['seed'],
+                                                  feature_points=gran['cells'],
+                                                  metric=gran['pattern'],
+                                                  max_angle=gran['vgran_angle'])
+            
+            # Adapt local effective temperatures
+            deltateff = values-np.median(values)
+            deltateff = deltateff / np.std(deltateff) * gran['teff_ampl']
+            self.mesh['teff'] = self.mesh['teff'] * (1 + deltateff/self.mesh['teff'])
+            
+            # Adapt local velocity fields
+            velo = velocity * gran['vgran_ampl']
+            self.mesh['_o_velo___bol_'] = self.mesh['_o_velo___bol_'] + velo
+            self.mesh['velo___bol_'] = self.mesh['_o_velo___bol_']
+        
+        logger.info("Add granulation: {} < teff < {}".format(self.mesh['teff'].min(),
+                                                           self.mesh['teff'].max()))
+        
+        
     
     def compute_mesh(self,time=None):
         """
@@ -7299,6 +7356,7 @@ class Star(PhysicalBody):
         self.mesh['_o_normal_'] = the_grid[:,13:16]
         self.mesh['normal_'] = the_grid[:,13:16]
         self.mesh['visible'] = True
+        
     
     def update_mesh(self,subset):
         """
@@ -7376,6 +7434,8 @@ class Star(PhysicalBody):
             #-- if there are any spots, this is taken care of in the function
             #   that calculates the temperature
             self.temperature(time)
+            # Set the granulation pattern if necessary
+            self.add_granulation(time)
             #-- perhaps add pulsations
             if has_freq:
                 self.add_pulsations(time)

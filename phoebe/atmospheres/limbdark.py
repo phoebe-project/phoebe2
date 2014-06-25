@@ -1937,8 +1937,8 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
                         extra_msg += ff[0].header[key]+', '
             extra_msg+= 'exist in directory {}, '.format(get_paths()[1])
             extra_msg+= 'you can add it via the command\n'
-            passband_name = ".".join(str(msg).split("\'")[-2].split('.')[:-1]) + '*'
-            extra_msg+= '>>> phoebe.atmospheres.limbdark.compute_grid_ld_coeffs("{}", passbands=("{}",))'.format(atm, passband_name)
+            passband_name = ".".join(str(msg).split("\'")[-2].split('.')[:-1])
+            extra_msg+= '>>> phoebe.atmospheres.create_atmopsherefits.compute_grid_ld_coeffs("{}", passbands=("{}",))'.format(atm, passband_name)
             raise ValueError("Atmosphere file {} does not contain required information ({:s})\n{}".format(atm,str(msg),extra_msg))
         #-- remove columns that are not available and derive which parameters
         #   need to be interpolated
