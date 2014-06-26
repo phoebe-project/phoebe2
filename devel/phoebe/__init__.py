@@ -573,15 +573,13 @@ Section 4. Code structure
 4.1 Introduction
 -------------------
 
-
-The Universe of Phoebe2 is built up with Bodies, which are basically collections
-of triangles (*mesh*) that contain all the information (by virtue of
-*Parameters*) needed to replicate observations (velocities, intensities, positions, etc).
+*Punchline: The Universe of Phoebe2 is built up with Bodies, which are basically collections
+of triangles (mesh) that contain all the information (by virtue of
+Parameters) needed to replicate observations (velocities, intensities, positions, etc).*
 
 Each :py:class:`Body <phoebe.backend.universe.Body>` keeps track of all the
-information it needs to put itself at its location given a certain time. Thus
-each Body, whether it is a part of a multiple system or not, can "live" on its
-own. Bodies can be collected in super-Bodies, also named a
+information it needs to put itself at its location given a certain time. Bodies
+can be collected in super-Bodies, also named a
 :py:class:`BodyBag <phoebe.backend.universe.BodyBag>`. Each Body in a BodyBag
 keeps it independence (and can thus always be taken out of the BodyBag), but
 BodyBags can be translated or rotated as a whole.
@@ -637,6 +635,17 @@ the user. The most important properties that a Parameter holds are:
 A list of all available setters and getters is given in the documentation of the
 :py:class:`Parameter <phoebe.parameters.parameters.Parameter>` class itself.
 
+Parameters don't need to implement all properties. For example, a filename can
+be a Parameter, but it doesn't make sense to implement adjust flags or priors
+and posteriors for a filename. It is the responsibility of the code that deals
+with Parameters to treat them correctly. Some query-functionality exists to
+facilitate such coding, like :py:func:`Parameter.has_prior <phoebe.parameters.parameters.Parameter.has_prior>`
+or :py:func:`Parameter.has_unit <phoebe.parameters.parameters.Parameter.has_unit>`.
+In other cases, the getters return enough information. For example for the
+adjust flag, you can just query :py:func:`Parameter.get_adjust <phoebe.parameters.parameters.Parameter.get_adjust>`:
+if there is an adjust flag, it will return :envvar:`True` or :envvar:`False`,
+if it has no such flag, it will return :envvar:`None`.
+
 By virtue of the data type, which is actually a function that casts a value to
 the correct data type, the user does not need to worry about giving integers
 or floats, and parsing code can immediately pass strings as parameter values,
@@ -650,23 +659,193 @@ All the parameters and parameter properties used in the code are listed in the
 Minimal code to construct a parameter:
 
 >>> par = phoebe.Parameter(qualifier='myparameter')
->>> print(x)
+>>> print(par)
+
+Initiating a predefined parameter is not particularly easy because they are
+not ordered in any way. This is not at all a bad thing because you never need
+to initiate a single Parameter (you'll always use ParameterSets, see below),
+and if you do for some custom coding, you can
+always cycle over all predefined parameters and extract those with the properties
+you require. All predefined Parameters are contained in the following list:
+
+>>> predefined_parameters = phoebe.parameters.definitions.defs
+
+This is a list of dictionaries. For example if we take the first definition:
+
+>>> print(predefined_parameters[0])
+{'description': 'Common name of the binary', 'alias': ['phoebe_name'], 'frame': ['wd'], 'repr': '%s', 'value': 'mybinary', 'cast_type': <type 'str'>, 'context': 'root', 'qualifier': 'name'}
+
+Thus, this contains all the arguments to create a Parameter:
+
+>>> par = phoebe.Parameter(**predefined_parameters[0])
+>>> print(par)
 
 4.3.2 ParameterSet
 ~~~~~~~~~~~~~~~~~~~~~
 
+A :py:class:`ParameterSet <phoebe.parameters.parameters.ParameterSet>` is a
+collection of Parameters of the same context. `Context` is a general term, it
+can mean physical entity (e.g. parameters necessary to describe the properties
+of a Star -- mass, radius, effective temperature...), observations (time and
+observed fluxes of a light curve...), or computational options (take into
+account beaming, reflection...). ParameterSets are, from a user-point perspective,
+the basic building blocks to build Bodies, add physics, add observations and
+specify computational options. Because they are so vital and thus need to be
+easy to create and modify, ParameterSets have the look and feel of a basic Python
+object, the dictionary:
+
+>>> ps = phoebe.ParameterSet('star')
+>>> ps['mass'] = 5.0
+>>> print(ps['teff'])
+5777.0
+
+The dictionary interface is an interface to the Parameter *values*, not the
+Parameter *objects*. If you need to get the full Parameter object, you need
+to get away from the dictionary-style interface and use the ParameterSet's
+methods:
+
+>>> ps.get_parameter('radius')
+<phoebe.parameters.parameters.Parameter at 0x3603050>
+
+You rarely need to access the Parameters themselves to change their properties,
+because a ParameterSet implements similar functions as the Parameter class.
+For example to change the `adjust` flag of the radius, you could do:
+
+>>> ps.get_parameter('radius').set_adjust(True)
+
+but this is equivalent to
+
+>>> ps.set_adjust('radius', True)
+
+Contexts are Phoebe's solution to keeping the parameter names short, unique and
+stable against future changes in the code. For example, as long as we're working
+with binaries, it is clear that ``incl`` means orbital inclination. Adding single
+Stars to the mix would require us to all of a sudden introduce ``incl_star``, in
+which case we would also need to change the original definition and make it
+``incl_orbit`` so avoid ambiguities. There are many other occurrences of the
+inclination angle, e.g. in magnetic fields, pulsations, misalignments... Putting
+``incl`` in different contexts, allows us to keep intuitive parameter names (qualifiers)
+while still allowing a great deal of flexibility.
+
+Aside from a *context*, a ParameterSet also has a *frame*. However, the latter
+is usually unimportant since in the case of Phoebe2, the frame is always ``phoebe``.
+An example of an predefined frame is ``wd`` for Wilson-Devinney. the only reason
+for its existence is that one can apply the Parameter philosophy also to other
+codes. Defining the frame then solves possible ambiguities in predefined parameters.
+
 4.3.3 Body
 ~~~~~~~~~~~~~~~~~~~~~
 
-4.3.4 BodyBag
+A :py:class:`Body <phoebe.backend.universe.Body>` is the base class for all
+objects in the universe. Bodies can be combined in a BodyBag, which itself is
+also a Body. The philosophy of the design of the Body is that it contains all
+basic methods to access and change parameters and ParameterSets, and to perform
+mesh computations like :py:func:`rotations and translations <phoebe.backend.universe.Body.rotate_and_translate>`,
+computation of :py:func:`triangle sizes <phoebe.backend.universe.Body.compute_sizes>`,
+:py:func:`surface area <phoebe.backend.universe.Body.area>`, etc...
+
+A Body has two basic attributes:
+
+    - ``params``: a (nested) dictionary holding all the parameterSets.
+    - ``mesh``: a numpy record array containing all information on the mesh. The
+      mesh can be *virtual* (i.e. there is a ``mesh`` attribute but it is created
+      on-the-fly, see BodyBag) or *real* (i.e. there is a real array linked to
+      the mesh property)
+    
+Thus, a Body contains all information on the object plus the mesh.
+
+4.3.4 PhysicalBody
 ~~~~~~~~~~~~~~~~~~~~~
+
+A :py:class:`PhysicalBody <phoebe.backend.universe.PhysicalBody>` is only a
+thin wrapper around the base :py:class:`Body <phoebe.backend.universe.Body>`,
+and honestly the distinction is not always completely obvious. Basically, the
+PhysicalBody is a base class for any single Body (a Star, AccretionDisk,
+BinaryRocheStar) that is **not a BodyBag**. It contains all methods that are shared
+by actual Bodies but not BodyBags. For example, any mesh manipulation method that
+alters the shape or length of the mesh, is defined in the PhysicalBody:
+e.g. :py:func:`subdivision <phoebe.backend.universe.PhysicalBody.subdivide>` or
+addition of columns (:py:func:`prepare_reflection <phoebe.backend.universe.PhysicalBody.prepare_reflection>` etc...) 
+
+A Body cannot implement mesh manipulation methods, because it is possible that
+the mesh is not `owned` by the Body, i.e. when it is actually a BodyBag (see below).
+In that case, it can only change values within an existing mesh, such as when
+rotating and translating.
+
+4.3.5 BodyBag
+~~~~~~~~~~~~~~~~~~~~~
+
+A :py:class:`BodyBag <phoebe.backend.universe.BodyBag>` is a container for Bodies
+that is itself a Body. This design holds most of the power and flexibility of
+Phoebe2. So listen up!
 
 4.4 Filling the mesh / setting the time
 ------------------------------------------
 
-4.5 Where is my data?
-~~~~~~~~~~~~~~~~~~~~~~~
-   
+4.5 Synthesizing data
+------------------------
+
+Data computations involve a lot of steps and prerequisites. In principle, any
+type of data follows the same pattern of computations, perhaps with slight
+deviations.
+
+4.5.1 Prerequisites
+~~~~~~~~~~~~~~~~~~~~~
+
+Before data can by synthesized, the Body or BodyBag needs to exist, need to be
+set to a particular time and interactions (like reflection effects) need to be
+computed. Additionally, observations need to be present. These observations are
+used as a template to mirror observations (obs) in the synthetic datasets (syn).
+Thus, the prerequisites are:
+
+* Body needs to have a fully computed mesh (set to a time)
+* Body needs to have observations attached
+
+4.5.2 Synthesis
+~~~~~~~~~~~~~~~~~~~~~
+
+The base :py:class:`Body <phoebe.backend.universe.Body>` and 
+:py:class:`Body <phoebe.backend.universe.PhysicalBody>` classes implement all
+types of synthesis methods. The method names are the *category* of the observations:
+for light curves, with datasets *lcobs*, the method name or category is *lc*.
+For radial velocity curves (*rvobs*) it's *rv*, for spectra (*spobs*) it's *sp* etc..
+There can be exceptions for historical reasons: the developers decided to give
+interferometry (*ifobs*) the category *if*, but since that is reserved keyword
+in Python, it cannot be the name of a function. Thus, the interferometry function
+is called *ifm*.
+
+The responsibility of the *category* method, which is a property of a Body, is
+nothing more than calling the correct function defined in the :py:mod:`observatory <phoebe.backend.observatory>` with the correct arguments. The parameter parsing can
+be a little different for BodyBags or Bodies, since sometimes the BodyBag itself
+can be directly used, but sometimes the final data need to be synthesized from
+the separate Bodies first. Here are two examples:
+
+1. for light curves (:py:func:`lc <phoebe.backend.universe.PhysicalBody.lc>`), all we
+   need to know are intensities and we don't care if the Body consists of
+   multiple Bodies or not. We can just call a Body's or
+   BodyBag's :py:func:`projected_intensity <phoebe.backend.universe.Star.projected_intensity>`,
+   and we get the projected integratd flux.
+2. for interferometry (:py:func:`lc <phoebe.backend.universe.Body.ifm>`), we
+   cannot just create an image of a BodyBag and Fourier transform it: in the case
+   of a very wide binary, it might be that the star covers only one pixel, unless
+   we make an unrealistically large image consisting of nothing but blackness.
+   A solution is here to descend into the BodyBag, compute visibilities of
+   the separate objects in the BodyBag, and combine the interferometry afterwards
+   (see doc of :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
+
+
+4.6 Recipes
+-----------------
+
+4.6.1 How to implement a new Body
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+4.6.2 How to implement a new type of observations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+4.6.3 How to add physics
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 """
 
 import os

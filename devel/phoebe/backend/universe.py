@@ -7212,7 +7212,7 @@ class Star(PhysicalBody):
         """
         pulsations.add_pulsations(self, time=time)
     
-    def add_granulation(self,time=None):
+    def add_granulation(self, time=None):
         """
         Add granulation to a Star.
         """
@@ -7226,19 +7226,19 @@ class Star(PhysicalBody):
             if gran['cells'] == 0:
                 continue
             
-            # Generate the Worly noise pattern
+            # Generate the Worley noise pattern
             values, velocity = spots.worley_noise(self, seed=gran['seed'],
                                                   feature_points=gran['cells'],
                                                   metric=gran['pattern'],
                                                   max_angle=gran['vgran_angle'])
             
             # Adapt local effective temperatures
-            deltateff = values-np.median(values)
+            deltateff = values - np.median(values)
             deltateff = deltateff / np.std(deltateff) * gran['teff_ampl']
             self.mesh['teff'] = self.mesh['teff'] * (1 + deltateff/self.mesh['teff'])
             
             # Adapt local velocity fields
-            velo = velocity * gran['vgran_ampl']
+            velo = velocity * gran['vgran_ampl'] * kms_2_rsold
             self.mesh['_o_velo___bol_'] = self.mesh['_o_velo___bol_'] + velo
             self.mesh['velo___bol_'] = self.mesh['_o_velo___bol_']
         

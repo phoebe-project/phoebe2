@@ -1484,16 +1484,7 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
                                                   flux=spectra[0,:,i]*proj_intens[:,i])
             total_continum += tools.doppler_shift(wavelengths, rv,
                                                   flux=proj_intens[:,i])
-                                                  
-            #if i%10==0:
-            #    pl.plot(wavelengths,tools.doppler_shift(wavelengths, rv+rv_grav,
-            #                                      flux=spectra[0,:,i]))
-            
-            # Inline
-            #wave_out1 = wavelengths * (1+(rv+rv_grav)/cc_)
-            #total_spectrum += 
-        #pl.show()
-        
+                                                          
     # Numerical computation with Gaussian profile
     elif method == 'numerical':
         
@@ -1564,6 +1555,10 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
         except ValueError:
             logger.info("Cannot convolve spectrum, resolution too low wrt instrumental broadening")
     
+    # Microturbulent velocity is approximated as an extra Gaussian broadening
+    # in the case of precomputed grid spectra. Obviously, this is not correct:
+    # the precomputed grid should implement vmicro since also the line depths
+    # are influenced. In other words, this is a quick-n-dirty approximation.
     if vmicro > 0 and profile != 'gauss':
         dlam_micro = vmicro/constants.cc*1000*wc
         logger.info('Convolving spectrum with microturbulent profile dlam_mic={:.3f}AA'.format(dlam_micro))
