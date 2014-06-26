@@ -853,12 +853,12 @@ class Container(object):
                             return_items += self._loop_through_system(item, section_name=section_name)
                        
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
-                            return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'])
+                            return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'], ref=ri['ref'])
 
 
         return return_items
         
-    def _loop_through_ps(self, ps, section_name, container, label):
+    def _loop_through_ps(self, ps, section_name, container, label, ref):
         """
         called when _loop_through_container hits a PS
         
@@ -868,7 +868,9 @@ class Container(object):
         
         for qualifier in ps:
             item = ps.get_parameter(qualifier)
-            ris = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label, ref=ps.get_value('ref') if 'ref' in ps.keys() else None)
+            if ref is None:
+                ref=ps.get_value('ref') if 'ref' in ps.keys() else None
+            ris = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label, ref=ref)
             for ri in ris:
                 if ri['qualifier'] not in ['ref','label']:
                     return_items += [ri]
@@ -1055,11 +1057,11 @@ class Container(object):
                 label = label
             # unless we're in one of the following sections
             # in which case we identify by ref and have no label
-            if section in ['axes','plot','figure']:
+            if section in ['axes','plot','figure','fitting']:
                 label = None
             context = item.get_context()
             # For some contexts, we need to add labels for disambiguation
-            if context in ['puls']:
+            if context in ['puls'] or section in ['fitting']:
                 ref = item.get_value('label') if 'label' in item else ref
             ref = item.get_value('ref') if 'ref' in item else ref
             unique_label = None
@@ -1087,9 +1089,9 @@ class Container(object):
 
             # unless we're in one of the following sections
             # in which case we identify by ref and have no label
-            if section in ['axes','plot','figure']:
+            if section in ['axes','plot','figure','fitting']:
                 label = None
-
+                
             if path:
                 if context[-3:] in ['obs','dep','syn']:
                     # then we need to get the ref of the obs or dep, which is placed differently in the path
@@ -1144,11 +1146,11 @@ class Container(object):
             label = self._get_object(label).get_parent().get_label()
             ref = None
         
-        if context is not None and context.split(':')[0] == section: 
-            # : is used for different contexts in fitting, but this should be hidden to the user
+        if context == section: 
             context_twig = None
         else:
             context_twig = context
+            
             
         hidden = hidden or qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
@@ -1547,6 +1549,7 @@ class Container(object):
             #print self.get_system().list(summary='full')
             
         for twig,info in load_dict['ParameterSets'].items():
+            #~ print "*** _load_json", twig, info['context']#, info['section']
             label = str(twig.split('@')[0])
             where = twig.split('@').index(info['context'])
             if info['context'] not in self.sections.keys(): where+=1
