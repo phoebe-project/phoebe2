@@ -136,6 +136,41 @@ def worley_noise(system, time=0, feature_points=100, metric='f1', seed=None,
     seeds_phi = np.random.uniform(low=-np.pi, high=np.pi, size=feature_points)
     seeds_theta = np.arcsin(z/R) + np.pi/2. # between 0 and pi
     
+    # We should know what the previous state is (we can access the previous time
+    # via self.time), and compute incrementatlly up to the current point
+    # if time < self.time: raise ValueError
+    # delta_time = time - self.time
+    # steps = delta_time / elementary_delta_time
+    # -- FOR EACH POINT
+    #    -- FOR EACH ELEMENTARY DT
+    #        if dissappear: generate new one and follow that one
+    #
+    #        distances = stats.distr.exponential.draw(size=steps)
+    #        delta_thetas = stats.distr.uniform(0, distance, size=steps)
+    #        delta_phis = compute_from_distances_and_theta
+    # net_delta_theta = np.sum(delta_thetas)
+    # net_delta_phi = np.sum(delta_phis)
+    # -- now we know where the go to for each point
+    
+    # Set the seeder to be this time point for any other computation
+    #deltat = 0.001
+    
+    # somewhere between this time step
+    #np.random.seed(int(time/deltat))
+    #distance1 = 1.0 # draw random distance
+    #delta_phi1 = 1.0 # draw random value from between 0 and distance from uniform distribution
+    #delta_theta1 = 1.0 # compute delta_theta such that the distance is recovered
+    
+    # and this time step
+    #np.random.seed(int(time/deltat)+1)
+    
+    # 1. Define the delta_phi and deltha_theta to walk into:
+    #      - draw random distance
+    #      - define arbitrary deltha_phi
+    #      - compute deltha_theta
+    
+    
+    
     # Prepare arrays for output storage
     directions = np.zeros((2, len(phi_), 3))
     value = np.zeros_like(phi_)
@@ -212,6 +247,9 @@ def worley_noise(system, time=0, feature_points=100, metric='f1', seed=None,
     
     tangent = tangent2 - directions[0]
     tangent = tangent[:, index]
+    
+    norm = np.sqrt(np.sum(tangent**2, axis=1))[:, None]
+    tangent = tangent / norm
     
     # That's it!
     return value, tangent #/ np.sqrt(np.sum(directions**2, axis=1))[:,None]

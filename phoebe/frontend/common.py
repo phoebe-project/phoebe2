@@ -889,6 +889,11 @@ class Container(object):
         
         for path, item in system.walk_all(path_as_string=False):
             
+            # Make sure all constraints are correctly set
+            if isinstance(item, parameters.ParameterSet):
+                item.run_constraints()
+                
+            
             # make sure to catch the obs and pbdep
             did_catch = isinstance(item, str)
             did_catch = did_catch and item[-3:] in ['obs', 'dep','syn']

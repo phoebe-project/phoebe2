@@ -4571,19 +4571,80 @@ class Bundle(Container):
         
         
     
-    def write_syn(self, twig, output_file):
+    def write_syn(self, twig, output_file, use_user_units=True, fmt='%.18e',
+                  delimiter=' ', newline='\n', footer=''):
         """
+        Write synthetic datasets to an ASCII file.
+        
+        By default, this function writes out the model in the same units as the
+        data (:envvar:`use_user_units=True`). It will then also attempt to use
+        the same columns as the observations were given in. It is possible to
+        override these settings and write out the synthetic data in the internal
+        model units of Phoebe. In that case, set :envvar:`use_user_units=False`
+        
+        Extra keyword arguments come from ``np.savetxt``, though headers are not
+        supported as they are auto-generated.
+        
         [FUTURE]
         
         Export the contents of a synthetic parameterset to a file
         
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        @param output_file: path and filename of the exported file
-        @type output_file: str
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :param output_file: path and filename of the exported file
+        :type output_file: str
         """
-        ds = self.get_syn(twig)
-        ds.save(output_file)
+        # Retrieve synthetics and observations
+        this_syn = self.get_syn(twig)
+        this_obs = self.get_obs(twig)
+        
+        # Which columns to write out?
+        user_columns = this_obs['user_columns'] and use_user_units
+        columns = this_obs['user_columns'] if user_columns else this_obs['columns']
+        
+        # Filter out column names that do not exist in the synthetics
+        columns = [col for col in columns if col in this_syn]
+        
+        # Which units to use? Start with default ones and override with user
+        # given values
+        units = [this_syn.get_unit(col) if this_syn.has_unit(col) else '--' \
+                                                             for col in columns]
+        if use_user_units:
+            for col in this_obs['user_units']:
+                units[columns.index(col)] = this_obs['user_units'][col]
+        
+        # Create header
+        header = [" ".join(columns)]
+        header+= [" ".join(units)]
+        header = "\n".join(header)
+        
+        # Create data
+        data = []
+        
+        # We might need the passband for some conversions
+        try:
+            passband = self.get_value_all('passband@{}'.format(twig)).values()[0]
+        except KeyError:
+            passband = None
+        
+        for col, unit in zip(columns, units):
+            this_col_data = this_syn[col]
+            
+            # Convert to right units if this column has units and their not
+            # already the correct one
+            if unit != '--':
+                this_col_unit = this_syn.get_unit(col)
+                if this_col_unit != unit:
+                    this_col_data = conversions.convert(this_col_unit, unit,
+                                               this_col_data, passband=passband)
+            
+            data.append(this_col_data)
+        
+        # Write out file
+        np.savetxt(output_file, np.column_stack(data), header=header,
+                   footer=footer, comments='# ', fmt=fmt, delimiter=delimiter,
+                   newline=newline)
+        
         
     def set_select_time(self,time=None):
         """
