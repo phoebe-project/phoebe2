@@ -2115,8 +2115,10 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     # Add sigma if not available:
     myds = output.values()[0][0][0]
     mypb = output.values()[0][1][0]
+    
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
+        #myds['columns'] = myds['columns'] + ['sigma']
         logger.warning("Obs {}: sigma estimated (not available)".format(myds['ref']))
     
     # Convert to right units (flux and mag are not done in process_file)
@@ -2175,6 +2177,7 @@ def parse_rv(filename, columns=None, components=None,
     
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='rv', to_col='sigma')
+        #myds['columns'] = myds['columns'] + ['sigma']
     
     # Convert to right units
     for col in units:
@@ -2264,8 +2267,10 @@ def parse_etv(filename, columns=None, components=None,
     
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
+    
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='etv', to_col='sigma')
+        #myds['columns'] = myds['columns'] + ['sigma']
     
     # Convert to right units
     for col in units:
@@ -2668,6 +2673,7 @@ def parse_spec_timeseries(timefile, clambda=None, columns=None,
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
+        #myds['columns'] = myds['columns'] + ['sigma']
     
     # Add continuum if not available
     if not 'continuum' in myds['columns']:
@@ -2759,7 +2765,7 @@ def parse_spec_as_lprof(filename, clambda=None, wrange=None, time=0.0,
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
-        myds['columns'] = myds['columns'] + ['sigma']
+        #myds['columns'] = myds['columns'] + ['sigma']
     
     # Add continuum if not available
     if not 'continuum' in myds['columns']:
@@ -3001,6 +3007,7 @@ def parse_plprof(filename, clambda=None, wrange=None, time=0.0, columns=None,
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
         logger.info("No uncertainties available in data --> estimated")
+        #myds['columns'] = myds['columns'] + ['sigma']
     
     # Add continuum if not available
     if not 'continuum' in myds['columns']:

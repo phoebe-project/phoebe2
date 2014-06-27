@@ -106,7 +106,7 @@ def image(the_system, ref='__bol', context='lcdep',
     
     >>> vega = phoebe.create.from_library('vega',create_body=True)
     >>> vega.set_time(0.)
-    >>> xlim, ylim, patch = image(vega)
+    >>> fig_props, artist_props, patch = image(vega)
     
     .. image:: images/backend_observatory_image01.png 
        :scale: 20 %                                   
@@ -119,9 +119,9 @@ def image(the_system, ref='__bol', context='lcdep',
     smart default colormaps. E.g. for the effective temperature, the following
     two expressions yield the same result:
     
-    >>> xlims, ylims, patch = image(vega, select='teff')
-    >>> xlims, ylims, patch = image(vega, select='teff', cmap=pl.cm.hot,
-    ...                             background='0.7')
+    >>> fig_props, artist_props, patch = image(vega, select='teff')
+    >>> fig_props, artist_props, patch = image(vega, select='teff', cmap=pl.cm.hot,
+    ...                                        background='0.7')
     
     .. image:: images/backend_observatory_image02.png 
        :scale: 20 %                                   
@@ -134,8 +134,8 @@ def image(the_system, ref='__bol', context='lcdep',
     settings for the colorscale via ``vmin`` and ``vmax`` (if you set the
     limits, beware that the units of RV are Rsol/d!):
     
-    >>> xlims, ylims, patch = image(vega, select='rv')
-    >>> xlims, ylims, patch = image(vega, select='rv', vmin=-10, vmax=10)
+    >>> fig_props, artist_props, patch = image(vega, select='rv')
+    >>> fig_props, artist_props, patch = image(vega, select='rv', vmin=-10, vmax=10)
     
     +---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image03.png | .. image:: images/backend_observatory_image04.png |
@@ -166,9 +166,9 @@ def image(the_system, ref='__bol', context='lcdep',
     should make the object appear to glow (I find that it works better for
     hot objects).
     
-    >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='blackbody')
-    >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='blackbody_proj')
-    >>> xlm, ylm, p = phoebe.image(vega, select='teff', cmap='eye')
+    >>> fig, arts, patch = phoebe.image(vega, select='teff', cmap='blackbody')
+    >>> fig, arts, patch = phoebe.image(vega, select='teff', cmap='blackbody_proj')
+    >>> fig, arts, patch = phoebe.image(vega, select='teff', cmap='eye')
     
     +---------------------------------------------------+---------------------------------------------------+---------------------------------------------------+
     | .. image:: images/backend_observatory_image05.png | .. image:: images/backend_observatory_image06.png | .. image:: images/backend_observatory_image07.png |
@@ -191,9 +191,9 @@ def image(the_system, ref='__bol', context='lcdep',
     documentation).
     
     >>> ax = pl.gca()
-    >>> xlim, ylim, patch = phoebe.image(vega,ax=ax,background='white')
-    >>> p = pl.xlim(xlim)
-    >>> p = pl.ylim(ylim)
+    >>> fig, arts, patch = phoebe.image(vega,ax=ax,background='white')
+    >>> p = pl.xlim(fig['xlim'])
+    >>> p = pl.ylim(fig['ylim'])
     >>> p = pl.xlabel("X-Distance [$R_\odot$]")
     >>> p = pl.ylabel("Y-Distance [$R_\odot$]")
     
@@ -216,7 +216,7 @@ def image(the_system, ref='__bol', context='lcdep',
     Finally, an experimental option is to compute the Fourier transform of
     an image instead of the normal image:
     
-    >>> xlims, ylims, patch = image(vega,fourier=True)
+    >>> fig, arts, patch = image(vega,fourier=True)
     
     .. image:: images/backend_observatory_image10.png 
        :width: 233px

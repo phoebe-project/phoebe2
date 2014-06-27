@@ -695,9 +695,13 @@ def add_asini(orbit, asini=None, derive='sma', unit='Rsol', **kwargs):
     elif derive=='incl':
         orbit.pop_constraint('incl',None)
         orbit.add_constraint('{incl} = np.arcsin({asini}/{sma})')
+    elif derive is None:
+        orbit.pop_constraint('asini',None)
+        orbit.add_constraint('{asini} = {sma}*np.sin({incl})')
     else:
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
+    return orbit.get_parameter('asini')
 
 def add_K1_K2(orbit, K1=None, K2=None, unit='km/s',**kwargs):
     """
