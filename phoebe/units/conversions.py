@@ -2673,7 +2673,7 @@ class VegaMag(NonLinearConverter):
             zp = passbands.get_info()
             match = zp['passband']==passband.upper()
             if sum(match)==0:
-                raise ValueError("No calibrations for %s"%(passband))
+                logger.error("No calibrations for %s: conversion from mag to flux is not absolute"%(passband))
             
             if not np.isnan(zp['Flam0'][match][0]) and not np.isnan(float(zp['vegamag'][match][0])):
                 F0 = convert(zp['Flam0_units'][match][0],'W/m2/AA',zp['Flam0'][match][0])    

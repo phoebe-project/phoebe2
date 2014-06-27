@@ -4256,7 +4256,7 @@ class Body(object):
             baseline = sqrt(ucoord**2 + vcoord**2)
             eff_wave = None if (not 'eff_wave' in obs or not len(obs['eff_wave'])) else np.asarray(obs['eff_wave'])
             
-            # If not time is given, assume all baselines are measured at
+            # If time is not given, assume all baselines are measured at
             # the same time (or equivalently the system is time independent)
             if time is None:
                 keep = np.ones(len(posangle),bool)
@@ -4270,31 +4270,142 @@ class Body(object):
             if sum(keep) == 0:
                 return None
             
+            # Do we need to compute closure phases?
+            if 'closure_phase' in obs and len(obs['closure_phase'])==len(obs['time']):
+                do_closure_phases = True
+                
+                # Select the observations with closure phases (first select the
+                # ones with the correct timing)
+                obs_ = obs[keep]
+                has_closure_phase = -np.isnan(obs_['closure_phase'])
+                obs_ = obs[has_closure_phase]
+                
+                # Get the first and second baseline and derive the third
+                # baseline
+                ucoord_1, vcoord_1 = np.asarray(obs_['ucoord']),\
+                                     np.asarray(obs_['vcoord'])
+                ucoord_2, vcoord_2 = np.asarray(obs_['ucoord_2']),\
+                                     np.asarray(obs_['vcoord_2'])
+                ucoord_3, vcoord_3 = -(ucoord_1 + ucoord_2),\
+                                     -(vcoord_1 + vcoord_2)
+                
+                # Compute position angles and baselines
+                posangle_1 = np.arctan2(vcoord_1, ucoord_1)/pi*180.
+                posangle_2 = np.arctan2(vcoord_2, ucoord_2)/pi*180.
+                posangle_3 = np.arctan2(vcoord_3, ucoord_3)/pi*180.
+                baseline_1 = sqrt(ucoord_1**2 + vcoord_1**2)
+                baseline_2 = sqrt(ucoord_2**2 + vcoord_2**2)
+                baseline_3 = sqrt(ucoord_3**2 + vcoord_3**2)
+                
+                # Keep track of how many single baselines there are. For these
+                # we don't need to compute closure phases afterwards
+                keep = keep & np.isnan(obs['closure_phase'])
+                n_single = sum(keep)
+                
+                # Throw all baselines (single and closed) together for
+                # computations
+                posangle = np.hstack([posangle[keep], posangle_1, posangle_2, posangle_3])
+                baseline = np.hstack([baseline[keep], baseline_1, baseline_2, baseline_3])
+                if eff_wave is not None:
+                    eff_wave = np.hstack([eff_wave[keep], obs_['eff_wave'],
+                                          obs_['eff_wave'], obs_['eff_wave']])
+                
+            else:
+                # Here we only have single baselines
+                do_closure_phases = False
+                posangle = posangle[keep]
+                baseline = baseline[keep]
+                if eff_wave is not None:
+                    eff_wave = eff_wave[keep]
+            
+            
             # make sure each time image has a unique name
             if keepfig:
                 keepfig = ('{}_time_{:.8f}'.format(keepfig,time)).replace('.','_')
             else:
                 keepfig = False
             
-            output = observatory.ifm(self, posangle=posangle[keep],
-                                     baseline=baseline[keep],eff_wave=eff_wave,
+            output = observatory.ifm(self, posangle=posangle,
+                                     baseline=baseline,eff_wave=eff_wave,
                                      ref=ref, keepfig=keepfig)
-                
+            
             # If nothing was computed, don't do anything
             if output is None:
                 return None
+            
+            # Separate closure phases from single baselines
+            if do_closure_phases and save_result:
                 
+                # First get single baseline results
+                time = [time] * len(output[0][:n_single])
+                ucoord = list(ucoord[keep][:n_single])
+                vcoord = list(vcoord[keep][:n_single])
+                vis2 = list(output[3][:n_single])
+                vphase = list(output[4][:n_single])
+                total_flux = list(output[-1][:n_single])
+                eff_wave_ = None if eff_wave is None else list(eff_wave[:n_single])
+                
+                # Then get the closure phases info
+                vis2_1, vis2_2, vis2_3 = output[3][n_single:].reshape((3,-1))
+                vphase_1, vphase_2, vphase_3 = output[4][n_single:].reshape((3,-1))
+                total_flux_1, total_flux_2, total_flux3 = output[-1][n_single:].reshape((3,-1))
+                time_cp = [time]*len(total_flux_1)
+                if eff_wave is not None:
+                    eff_wave_cp = eff_wave[n_single:].reshape((3,-1))[0]
+                    
+                # ... compute closure phases as the product of exponentials
+                #     this will be overriden when calling __add__ at ifsyn
+                closure_phase = np.angle(np.exp(1j*(vphase_1+vphase_2+vphase_3)))
+                
+            elif save_result:
+                time = [time] * len(output[0])
+                ucoord = list(ucoord[keep])
+                vcoord = list(vcoord[keep])
+                vis2 = list(output[3])
+                vphase = list(output[4])
+                total_flux = list(output[-1])
+                eff_wave_ = None if eff_wave is None else list(eff_wave)
+                
+            
             # Save results if necessary
             if save_result:
                 base, ref = self.get_parset(type='syn', ref=ref)
-                base['time'] += [time] * len(output[0])
-                base['ucoord'] += list(ucoord[keep])
-                base['vcoord'] += list(vcoord[keep])
-                base['vis2'] += list(output[3])
-                base['vphase'] += list(output[4])
-                base['total_flux'] += list(output[-1])
+                base['time'] += time
+                base['ucoord'] += ucoord
+                base['vcoord'] += vcoord
+                base['vis2'] += vis2
+                base['vphase'] += vphase
+                base['total_flux'] += total_flux
                 if eff_wave is not None:
-                    base['eff_wave'] += list(eff_wave[keep])
+                    base['eff_wave'] += eff_wave_
+                
+                # Save closure phase info
+                if do_closure_phases:
+                    # first add nans for as many "time" we have to the single
+                    # baseline entries of ucoord_2 etc
+                    for col in ['ucoord_2', 'vcoord_2', 'vis2_2', 'vis2_3',\
+                                'vphase_2', 'vphase_3', 'total_flux_2', 'total_flux_3',\
+                                'closure_phase']:
+                        base[col] += [np.nan]*len(time)
+                    
+                    # Then we can add all our info on closure phases
+                    base['time'] += time_cp # is already list
+                    base['ucoord'] += list(ucoord_1)
+                    base['vcoord'] += list(vcoord_1)
+                    base['ucoord_2'] += list(ucoord_2)
+                    base['vcoord_2'] += list(vcoord_2)
+                    base['vis2'] += list(vis2_1)
+                    base['vis2_2'] += list(vis2_2)
+                    base['vis2_3'] += list(vis2_3)
+                    base['vphase'] += list(vphase_1)
+                    base['vphase_2'] += list(vphase_2)
+                    base['vphase_3'] += list(vphase_3)
+                    base['total_flux'] += list(total_flux_1)
+                    base['total_flux_2'] += list(total_flux_2)
+                    base['total_flux_3'] += list(total_flux_3)
+                    base['closure_phase'] += list(closure_phase)
+                    if eff_wave is not None:
+                        base['eff_wave'] += list(eff_wave_cp)
 
     
     @decorators.parse_ref
@@ -4346,9 +4457,11 @@ class Body(object):
             orbits, comps = self.get_orbits()
             obj, vel, ptimes = keplerorbit.get_barycentric_hierarchical_orbit(time,
                                                  orbits, comps)
+            # retrieve the systemic velocity
+            pos = self.get_globals()
             base,lbl = self.get_parset(ref=lbl,type='syn')
             base['time'] = time
-            base['rv'] = -vel[2] / kms_2_rsold
+            base['rv'] = -vel[2] / kms_2_rsold + pos['vgamma']
             base['samprate'] = correct_oversampling
         
     
@@ -7216,6 +7329,9 @@ class Star(PhysicalBody):
         """
         Add granulation to a Star.
         """
+        if time is None:
+            time = 0
+            
         # Don't add granulation if there is none
         if not 'granulation' in self.params:
             return None
@@ -7227,9 +7343,9 @@ class Star(PhysicalBody):
                 continue
             
             # Generate the Worley noise pattern
-            values, velocity = spots.worley_noise(self, seed=gran['seed'],
-                                                  feature_points=gran['cells'],
+            values, velocity = spots.worley_noise(self, seed=int(time*1000),
                                                   metric=gran['pattern'],
+                                                  feature_points=gran['cells'],
                                                   max_angle=gran['vgran_angle'])
             
             # Adapt local effective temperatures
@@ -8325,7 +8441,7 @@ class BinaryRocheStar(PhysicalBody):
             if not 'counter' in self._clear_when_reset:
                 self._clear_when_reset['counter'] = 0
             elif self._clear_when_reset['counter'] >= 50:
-                logger.warning("Forcing resetting of mesh (bad reprojection alg)")
+                logger.info("Forcing resetting of mesh (bad reprojection alg)")
                 self.time = None
                 self._clear_when_reset['counter'] = 0
             else:

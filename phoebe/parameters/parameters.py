@@ -1735,14 +1735,14 @@ class Parameter(object):
         
         if '\n' in value_str: value_str = '\n'+value_str
         if '\n' in rawvl_str: rawvl_str = '\n'+rawvl_str
-        info  = "Qualifier:      %-s\n" % self.qualifier
-        info += "%s\n" % self.get_long_description(force=True,initial_indent='Description:    ',subsequent_indent=' '*16,width=80)
-        info += "Value:          %-s\n" % value_str
-        info += "Type:           %-s\n" % cast_type_string
+        info  = "Qualifier:        %-s\n" % self.qualifier
+        info += "%s\n" % self.get_long_description(force=True,initial_indent='Description:      ',subsequent_indent=' '*18,width=80)
+        info += "Value:            %-s\n" % value_str
+        info += "Type:             %-s\n" % cast_type_string
         if hasattr(self,'unit'):
-            info += 'Unit:           %-s\n' % self.unit
+            info += 'Unit:             %-s\n' % self.unit
         if hasattr(self,'choices'):
-            info += 'Allowed values: %-s\n' % ' -- '.join(self.choices)
+            info += 'Allowed values:   %-s\n' % ' -- '.join(self.choices)
         if hasattr(self,'llim') and hasattr(self,'ulim') and hasattr(self,'step'):
             info += 'llim/ulim/step:   %-s / %-s / %-s\n'%(self.repr%self.llim,self.repr%self.ulim,self.repr%self.step)
         if hasattr(self,'choices') and self.cast_type=='indexf':
@@ -1750,9 +1750,13 @@ class Parameter(object):
         elif hasattr(self,'choices') and self.cast_type=='index':
             info += " (%s)\n" % self.repr % self.choices[self.get_value()]
         if hasattr(self,'adjust'):
-            info += "Adjustable:     %-s\n" %  self.adjust
+            info += "Adjustable:       %-s\n" %  bool(self.adjust)
+        if self.has_prior():
+            info += "Prior:            %s\n" % self.get_prior()
+        if self.has_posterior():
+            info += "Posterior:        %s\n" % self.get_posterior()
         if hasattr(self,'frame'):
-            info += 'Frame:          %-s\n' % ', '.join(self.frame)
+            info += 'Frame:            %-s\n' % ', '.join(self.frame)
         info = info.strip()
         return info
         
