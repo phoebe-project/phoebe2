@@ -2440,25 +2440,16 @@ class Bundle(Container):
             
             # If the 'replaces' is a twig, make sure it's a valid one
             if not replaces is None:
-                replaces_split = replaces.split('@')
-                if len(replaces_split)>1:
-                    replaces_rest = '@'.join(replaces_split[1:])
-                    replaces_item = self._get_by_search(replaces_rest, kind='ParameterSet',
-                                       return_trunk_item=True)
-                    
-                    if not item == replaces_item:
-                        raise ValueError("The parameter {} cannot replace {} because it is not in the same ParameterSet".format(twig, replaces))
-                    
-                    # Set the replaced parameter to be hidden
-                    self.get_parameter(replaces).set_hidden(True)
-                    
-                replaces = replaces_split[0]
-            
-            param = getattr(tools, 'add_{}'.format(qualifier))(item['item'], value,
-                         derive=replaces)
-            
-            
+                replaces_param = self.get_parameter(replaces)
                 
+                if replaces_param.get_context() != item['item'].get_context():
+                    raise ValueError("The parameter {} cannot replace {} because it is not in the same ParameterSet".format(twig, replaces))
+                    
+                # Set the replaced parameter to be hidden
+                replaces_param.set_hidden(True)
+                    
+            param = getattr(tools, 'add_{}'.format(qualifier))(item['item'], value,
+                         derive=replaces.split('@')[0])                
             
             logger.info("Added {} to ParameterSet with context {}".format(qualifier, item['item'].get_context()))
             
@@ -5414,7 +5405,8 @@ def info():
              'plotting:selector', 'point_source', 'pssyn', 'server', 'root',\
              'circ_orbit'
     for ign in ignore:
-        contexts.remove(ign)
+        if ign in contexts:
+            contexts.remove(ign)
     
     # Sort according to category/physical
     contexts_obs = []

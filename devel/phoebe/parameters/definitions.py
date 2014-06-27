@@ -154,7 +154,7 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
         dict(qualifier='diffrot', description='(Eq - Polar) rotation period (<0 is solar-like)',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],unit='d',context='star'),
         dict(qualifier='gravb',  description='Bolometric gravity brightening',repr='%f',cast_type=float,value=1.,llim=0,ulim=1.,step=0.05,adjust=False,alias=['grb'],frame=["phoebe"],context='star'),
         dict(qualifier='gravblaw',description='Gravity brightening law',repr='%s',cast_type='choose',choices=['zeipel','espinosa','claret'],value='zeipel',frame=['phoebe'],context=['star','component']),
-        dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context=['star','accretion_disk']),
+        dict(qualifier='incl',   description='Inclination angle', unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context=['star','accretion_disk']),
         dict(qualifier='long',   description='Orientation on the sky (East of North)', repr='%f',llim=-360., ulim=   360.,step=   0.01, adjust=False, cast_type=float, unit='deg',  value=0.,frame=["phoebe"],context=['star','accretion_disk']),
         dict(qualifier='t0',   description='Origin of time', repr='%f',adjust=False, cast_type=float, unit='JD',  value=0.,frame=["phoebe"],context=['star','accretion_disk']),
         #dict(qualifier='distance',description='Distance to the star',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='star'),
@@ -169,7 +169,14 @@ defs += [dict(qualifier='dpdt',   description='Period change',unit='s/yr',repr='
          dict(qualifier='ecc',    description='Eccentricity',repr='%f',llim=0,ulim=1.,step=0.01,adjust=False,cast_type=float,value=0.,frame=["phoebe"],context='orbit'),
          dict(qualifier='t0',     description='Zeropoint date',unit='JD',repr='%f',llim=-2e10,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context='orbit'),
          dict(qualifier='t0type', description='Interpretation of zeropoint date', repr='%s', cast_type='choose', choices=['periastron passage','superior conjunction'], value='periastron passage',frame=["phoebe"],context='orbit'),
-         dict(qualifier='incl',   description='Inclination angle',unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='orbit'),
+         dict(qualifier='incl',   description='Orbital inclination angle',\
+                                  long_description=("The inclination angle of the orbit is defined such that an angle of 90 degrees"
+                                                   " means an edge-on system, i.e. the components eclipse each other. An angle of "
+                                                   "0 degrees means face-on, the components orbit in the plane of the sky. An angle "
+                                                   "of 45 degrees means that when t0type is superior conjunction, the time equals "
+                                                   "the time zeropoint (t0), and the longitude of the ascending node (long_an) is zero, "
+                                                   " then the secondary will be in front and below the primary"),\
+                                                       unit='deg',repr='%f',llim=-180,ulim=180,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='orbit'),
          dict(qualifier='label',  description='Name of the system',repr='%s',cast_type='make_label',value='',frame=["phoebe","wd"],context=['orbit','root']),
          dict(qualifier='period', description='Period of the system',repr='%f',unit='d',llim=0,ulim=1e10,step=0.01,adjust=False,cast_type=float,value=3.,frame=["phoebe"],context='orbit'),
          dict(qualifier='per0',   description='Periastron',repr='%f',unit='deg',llim=-360,ulim=360,step=0.01,adjust=False,cast_type=float,value=90.,frame=["phoebe"],context='orbit'),
@@ -371,26 +378,29 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
          dict(qualifier='vcoord',   description='V-coordinate',repr='%s',value=[],unit='m',frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='eff_wave',   description='Effective wavelength',repr='%s',value=[],unit='AA',frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='vis2', description='Squared Visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_vis2', description='Error on squared visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_vis2', description='Error on squared visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='vphase',   description='Phase of visibility',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_vphase',   description='Error on phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_vphase',   description='Error on phase of visibility',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='total_flux',   description='Total flux',repr='%s',value=[],frame=["phoebe"],context=['ifsyn']),
          dict(qualifier='ucoord_2',   description='U-coordinate of second baseline',repr='%s',value=[],unit='m',frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='vcoord_2',   description='V-coordinate of second baseline',repr='%s',value=[],unit='m',frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='vis2_2', description='Squared Visibility of second baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_vis2_2', description='Error on squared visibility of second baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_vis2_2', description='Error on squared visibility of second baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='vphase_2',   description='Phase of visibility of second baseline',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_vphase_2',   description='Error on phase of visibility of second baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_vphase_2',   description='Error on phase of visibility of second baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='total_flux_2',   description='Total flux of second baseline',repr='%s',value=[],frame=["phoebe"],context=['ifsyn']),
          dict(qualifier='vis2_3', description='Squared Visibility of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_vis2_3', description='Error on squared visibility of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_vis2_3', description='Error on squared visibility of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='closure_phase',   description='Closure phase',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_closure_phase',   description='Error on closure phase',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_closure_phase',   description='Error on closure phase',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='total_flux_3',   description='Total flux of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifsyn']),
          dict(qualifier='images',   description='Basename for files of original baseline plots',cast_type=str,repr='%s',value='',frame=["phoebe"],context=['ifobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis2','sigma_vis2','vphase','sigma_vphase',
                                                                                        'ucoord_2','vcoord_2', 'vis2_2','sigma_vis2_2', 'vphase_2','sigma_vphase_2',
-                                                                                       'vis2_3', 'sigma_vis2_3', 'closure_phase', 'sigma_closure_phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs','ifsyn']),
+                                                                                       'vis2_3', 'sigma_vis2_3', 'closure_phase', 'sigma_closure_phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs']),
+         dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis2','vphase',
+                                                                                       'ucoord_2','vcoord_2', 'vis2_2', 'vphase_2',
+                                                                                       'vis2_3', 'closure_phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifsyn']),
          dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
         ]
 
@@ -481,7 +491,7 @@ defs += [dict(qualifier='bottom', description='Relative depth of meridional cell
          ]
 
 defs += [dict(qualifier='cells', description='Number of granulation cells', cast_type=int, repr='%d',adjust=False,value=100,frame=['phoebe'], context='granulation'),
-         dict(qualifier='seed', description='Random generator seed', cast_type=int, repr='%d',value=1111,frame=['phoebe'], context='granulation'),
+         #dict(qualifier='seed', description='Random generator seed', cast_type=int, repr='%d',value=1111,frame=['phoebe'], context='granulation'),
          dict(qualifier='vgran_ampl', description='Amplitude of granulation velocity', cast_type=float, repr='%f',adjust=False,value=2.0,unit='km/s',frame=['phoebe'], context='granulation'),
          dict(qualifier='vgran_angle', description='Maximum perturbation on rad. comp. velocity', cast_type=float, repr='%f',adjust=False,value=-1,unit='deg',frame=['phoebe'], context='granulation'),
          dict(qualifier='teff_ampl', description='Amplitude of effective temperature variation', cast_type=float, repr='%f',adjust=False,value=10.0,unit='K',frame=['phoebe'], context='granulation'),

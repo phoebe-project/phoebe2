@@ -573,16 +573,16 @@ Section 4. Code structure
 4.1 Introduction
 -------------------
 
-*Punchline: The Universe of Phoebe2 is built up with Bodies, which are basically collections
+*Punchline: The Universe of Phoebe2 consists of fully opaque Bodies, represented by collections
 of triangles (mesh) that contain all the information (by virtue of
 Parameters) needed to replicate observations (velocities, intensities, positions, etc).*
 
 Each :py:class:`Body <phoebe.backend.universe.Body>` keeps track of all the
 information it needs to put itself at its location given a certain time. Bodies
-can be collected in super-Bodies, also named a
-:py:class:`BodyBag <phoebe.backend.universe.BodyBag>`. Each Body in a BodyBag
+can be collected in super-Bodies, also named
+:py:class:`BodyBags <phoebe.backend.universe.BodyBag>`. Each Body in a BodyBag
 keeps it independence (and can thus always be taken out of the BodyBag), but
-BodyBags can be translated or rotated as a whole.
+BodyBags can be manipulated (translated, rotated, evolved) as a whole.
 
 Once Bodies are setup and put in place, they can also interact through irradiation.
 Separate functions are responsible for adapting the local properties given such
@@ -591,7 +591,7 @@ processes.
 4.2 Code hierarchy
 ---------------------
 
-The basic building block is a :py:class:`Parameter <phoebe.parameters.parameters.Parameter>`.
+The basic building block of Phoebe2 is a :py:class:`Parameter <phoebe.parameters.parameters.Parameter>`.
 Sets of parameters that are logically connected (i.e. have the same *context*) are collected into
 an advanced dictionary-style class dubbed a :py:class:`ParameterSet <phoebe.parameters.parameters.ParameterSet>`.
 ParameterSets have two flavors: one is the base ParameterSet class for ordinary
@@ -610,12 +610,66 @@ data.
 Each type of observations, whether it is a light curve or something else, is described
 by three different contexts, of which two need to be user-supplied, and the third
 one is automatically generated:
-    - 
+    - a *pbdep* (passband dependable, e.g. *lcdep*): this collects all information
+      that the codes needs to simulate observations. This includes passbands,
+      passband albedos, passband limb darkening coefficients, the atmosphere
+      tables to use in this passband, passband scattering properties etc...
+    - an *obs* (observation, e.g. *lcobs*): this collects all information on the
+      data that is not contained in the pbdep: times of observations, observed
+      fluxes, instrumental resolution, exposure times...
+    - a *syn* (synthetic, e.g. *lcsyn*): this is a mirror of the obs, where
+      instead of observed fluxes the model fluxes are stored.
+
+Each type of context has a separate entry in the :envvar:`params` attribute.
+One level deeper, each pbdep, obs or syn is is stored inside yet another
+dictionary with keys lcdep, lcobs, lcsyn etc. Finally, each of these dictionaries
+is again a dictionary where the key is the reference of the Parameterset (:envvar:`ref`)
+and the value is the ParameterSet/DataSet itself.
+
+Thus, we can recreate a minimal version (without any boiler plate code) of a
+Body in the Phoebe universe like::
+
+    class Body(object):
+        
+        def __init__(self, mybodyparams, lcdep, lcobs):
+            
+            # Every body should remember its own proper time
+            self.time = None
+            
+            # Create an empty mesh with columns 'triangle' and 'size'
+            self.mesh = np.zeros(0, dtype=[('triangle','f8',(9,)),('size','f8',1)])
+            
+            # Initiate the params attribute that contains all ParameterSets
+            self.params = OrderedDict()
+            self.params['pbdep'] = OrderedDict()
+            self.params['obs'] = OrderedDict()
+            self.params['syn'] = OrderedDict()
+            
+            # Fill in the mybodyparams ParameterSet
+            self.params['mybodyparams'] = mybodyparams
+            
+            # Check if the lcdep and lcobs have the same reference
+            assert(lcdep['ref'] == lcobs['ref'])
+            
+            # Fill in the lcdep
+            self.params['pbdep']['lcdep'] = OrderedDict()
+            self.params['pbdep']['lcdep'][lcdep['ref']] = lcdep
+            
+            # Fill in the lcobs
+            self.params['obs']['lcobs'] = OrderedDict()
+            self.params['obs']['lcobs'][lcobs['ref']] = lcobs
+            
+            # Prepare a synthetic dataset to fill in later
+            lcsyn = datasets.LCDataSet(ref=lcobs['ref'])
+            self.params['syn']['lcsyn'] = OrderedDict()
+            self.params['syn']['lcsyn'][lcsyn['ref']] = lcsyn
+            
+
 
 4.3 Description of base classes
 ---------------------------------
 
-The next sections contains details on the most important base classes.
+The next sections contain more details on the most important base classes.
 
 4.3.1 Parameter
 ~~~~~~~~~~~~~~~~~~~~~
@@ -707,7 +761,7 @@ methods:
 >>> ps.get_parameter('radius')
 <phoebe.parameters.parameters.Parameter at 0x3603050>
 
-You rarely need to access the Parameters themselves to change their properties,
+You rarely need to access the Parameter objects themselves to change their properties,
 because a ParameterSet implements similar functions as the Parameter class.
 For example to change the `adjust` flag of the radius, you could do:
 
@@ -722,7 +776,7 @@ stable against future changes in the code. For example, as long as we're working
 with binaries, it is clear that ``incl`` means orbital inclination. Adding single
 Stars to the mix would require us to all of a sudden introduce ``incl_star``, in
 which case we would also need to change the original definition and make it
-``incl_orbit`` so avoid ambiguities. There are many other occurrences of the
+``incl_orbit`` to avoid ambiguities. There are many other occurrences of the
 inclination angle, e.g. in magnetic fields, pulsations, misalignments... Putting
 ``incl`` in different contexts, allows us to keep intuitive parameter names (qualifiers)
 while still allowing a great deal of flexibility.
@@ -744,13 +798,14 @@ mesh computations like :py:func:`rotations and translations <phoebe.backend.univ
 computation of :py:func:`triangle sizes <phoebe.backend.universe.Body.compute_sizes>`,
 :py:func:`surface area <phoebe.backend.universe.Body.area>`, etc...
 
-A Body has two basic attributes:
+A Body has three basic attributes:
 
     - ``params``: a (nested) dictionary holding all the parameterSets.
     - ``mesh``: a numpy record array containing all information on the mesh. The
       mesh can be *virtual* (i.e. there is a ``mesh`` attribute but it is created
       on-the-fly, see BodyBag) or *real* (i.e. there is a real array linked to
       the mesh property)
+    - ``time``: a float that keeps track of the Body's proper time
     
 Thus, a Body contains all information on the object plus the mesh.
 
@@ -779,8 +834,157 @@ A :py:class:`BodyBag <phoebe.backend.universe.BodyBag>` is a container for Bodie
 that is itself a Body. This design holds most of the power and flexibility of
 Phoebe2. So listen up!
 
+A BodyBag has one additional basic attribute with respect to a Body: a list of
+Bodies under the attribute name ``BodyBag.bodies``. Thus a BodyBag has four
+basic attributes:
+
+    - ``params``: a (nested) dictionary holding all the parameterSets
+    - ``mesh``: a virtual mesh, actually a shortcut to :py:func:`get_mesh <phoebe.backend.universe.BodyBag.get_method>`
+    - ``time``: a float that keeps track of the Body's proper time
+    - ``bodies``: a list of Bodies
+
+The BodyBag has many
+`virtual` methods and one `virtual` attribute. The term `virtual` here means
+that that particular method or attribute is not defined within the BodyBag itself,
+but is derived from those of the Bodies it contains. Take for example the mesh.
+If you access the ``mesh`` attribute of a BodyBag as ``BodyBag.mesh``,
+the method :py:func:``get_mesh <phoebe.backend.universe.BodyBag.get_mesh>`` or
+:py:func:``set_mesh <phoebe.backend.universe.BodyBag.set_mesh>`` is called. This
+method actually calls the meshes of the Bodies contained in the BodyBag, and
+merges them together. Thus:
+
+>>> mymesh = myBodyBag.mesh
+
+is equivalent to
+
+>>> mymesh = np.hstack([mybody.mesh for mybody in myBodyBag.bodies])
+
+The virtual methods are created whenever a BodyBag does not implement a particular
+function itself. If this is the case, the call is passed on to the Bodies inside
+the BodyBag. For example, a BodyBag does not know how to set the temperature
+of it's members, yet still you can call:
+
+>>> myBodyBag.temperature()
+
+which is then equivalent to
+
+>>> for mybody in myBodyBag.bodies:
+...     mybody.temperature()
+
+This way, BodyBags can feel just like the PhysicalBodies it contains, and the user
+or programmer doesn't need to care what exactly he or she is dealing with in
+most occassions. The return value will be a list of return values from the 
+individual calls to the Bodies. There is one little caveat here: if a member of a BodyBag does
+not implement the particular method, it is silently ignored. This also means
+that if the method doesn't exist anywhere, it will raise not AttributeError!
+The following function will thus pass silently:
+
+>>> myBodyBag.i_am_pretty_sure_this_function_does_not_exist()
+
+So beware of typos! This behaviour requires some discipline of the programmer.
+If at any point this behaviour is not wanted anymore, one should change the
+(short) :py:class:`CallInstruct <phoebe.backend.universe.CallInstruct>` code.
+
 4.4 Filling the mesh / setting the time
 ------------------------------------------
+
+The mesh contains the physical properties of every triangle in a Body, that are
+needed to compute observables. The mesh is a numpy record array, where each
+record (row) represents one triangle. Each column represents a physical property.
+Any column in the mesh can be accessed as
+
+>>> mybody.mesh['triangle']
+
+The basic columns are:
+
+- ``triangle``: an Nx9 array containing the coordinates of all vertices (:math:`x_1`, 
+  :math:`y_1`, :math:`z_1`, :math:`x_2`, :math:`y_2`, :math:`z_2`, :math:`x_3`,
+  :math:`y_3`, :math:`z_3`) (units: :math:`R_\odot`)
+- ``center``: an Nx3 array containing the coordinates of the center of each
+  triangle (units: :math:`R_\odot`)
+- ``size``: an array of length N containing the sizes of each triangle
+  (units: :math:`R_\odot^2`)
+- ``normal_``: an Nx3 array containing the normal vectors on each triangle
+- ``mu``: an array of length N containing the cosine of the angle between
+   the line-of-sight and the the normal
+- ``hidden``: an array of length N containing boolean flags to mark
+  triangles as hidden from the user (eclipsed)
+- ``visible`` an array of length N containing boolean flags to mark
+  triangles as visible to the user
+- ``partial`` an array of length N containing boolean flags to mark
+  triangles as partially hidden from the user
+- ``velo___bol_``: an Nx3 array containing the velocity vectors of each
+  triangle (units: :math:`R_\odot/d`)
+- ``ld___bol``: an Nxd array containing the limb darkening coefficients and
+  normal emergent intensities of each triangle (units: :math:`W/m^3/sr`).
+  The parameter :math:`d` is the number of limb darkening coefficients + 1.
+  By default, :math:`d=4` which is sufficient for almost all limb darkening
+  laws.
+
+Vector quantities have a trailing underscore ``_``, which is important for the
+rotation functions (vectors are translated/rotated differently from coordinates).
+
+Building upon the minimal version of the Body class, we can add some of the
+features discussed above::
+
+    from algorithms import marching
+    class PhysicalBody(Body):
+    
+    
+        def fix_mesh(self):
+            
+            # Hold a list of all dtypes of the columns to add
+            add_columns_dtype = []
+            
+            # walk over all necessary ld-columns
+            for deptype in self.params['pbdep']:
+                # deptype takes values 'lcdep', 'rvdep'...
+                for dep in self.params['pbdep'][deptype]:
+                    # dep takes as values the references of the pbdeps
+                    ref = self.params['pbdep'][deptype][dep]['ref']
+                    col = 'ld_' + ref
+                    
+                    # Remember the column if it is missing
+                    if not col in self.mesh.dtype.names:
+                        add_columns_dtype.append([col, 'f8', (5,)])
+            
+            # Define all the dtypes in the mesh, i.e. the existing and missing
+            # ones
+            dtypes = np.dtype(self.mesh.dtype.descr + add_columns_dtype)
+            
+            # Now add the missing columns to the mesh, and reset it
+            self.mesh = np.zeros(N, dtype=dtypes)
+            
+        
+        def compute_mesh(self, time=None):
+            mesh = marching.cdiscretize(0.1, 100000, *self.subdivision['mesh_args'][:-1])
+        
+        def surface_gravity(self, time=None):
+            self.mesh['logg'] = 4.4
+        
+        def temperature(self, time=None):
+            freq = self.params['mybodyparams']['freq']
+            self.mesh['teff'] = 5777.0 + 500.0*sin(2*pi*freq*time)
+            
+        def set_time(self, time):
+            
+            # Only compute the mesh if not done before, and also only check
+            # if the mesh has the correct columns if the time has not set
+            # before (here we do not allow adding data in the middle of
+            # the computations)
+            if self.time = None:
+                self.compute_mesh(time)
+                self.fix_mesh()
+                
+                            
+            
+            # 
+                
+            
+            # Keep track of the time
+            self.time = time
+            
+
 
 4.5 Synthesizing data
 ------------------------

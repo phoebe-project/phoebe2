@@ -1912,8 +1912,7 @@ def compute_mass_from(mybundle, primary_mass=None, secondary_mass=None, q=None, 
         
     # We have primary and secondary masses
     if primary_mass is not None and secondary_mass is not None:
-        
-        if q is not None and q != secondary_mass / primary_mass:
+        if q is not None and not np.allclose(q, secondary_mass / primary_mass):
             raise ValueError("You cannot give primary_mass, secondary_mass and an inconsistent q value")
         
         q = secondary_mass / primary_mass
@@ -1950,9 +1949,31 @@ def compute_mass_from(mybundle, primary_mass=None, secondary_mass=None, q=None, 
     
     # Adopt the values if necessary
     if adopt:
-        orbit['q'] = q
-        orbit['sma'] = sma
-        orbit['period'] = period
+        # If something has changed, warn the user that the potential values
+        # might be inconsistent
+        if not np.allclose([q, sma, period], [orbit['q'], orbit['sma'], orbit['period']]):
+            logger.warning("Change in q, sma or period: adapting potential values to maintain relative radii (approximately)")
+            old_pot1 = mysystem[0].params['component']['pot']
+            old_pot2 = mysystem[1].params['component']['pot']
+            syncpar1 = mysystem[0].params['component']['syncpar']
+            syncpar2 = mysystem[1].params['component']['syncpar']
+            d = 1 - orbit['ecc']
+            old_radius1 = roche.potential2radius(old_pot1, q=q, d=d, F=syncpar1, component=1, sma=orbit['sma'])
+            old_radius2 = roche.potential2radius(old_pot2, q=1./q, d=d, F=syncpar2, component=2, sma=orbit['sma'])
+        
+            orbit['q'] = q
+            orbit['sma'] = sma
+            orbit['period'] = period
+        
+            new_pot1 = roche.radius2potential(old_radius1, q=q, d=d, F=syncpar1, component=1, sma=sma)
+            new_pot2 = roche.radius2potential(old_radius2, q=1./q, d=d, F=syncpar2, component=2, sma=sma)
+            mysystem[0].params['component']['pot'] = new_pot1
+            mysystem[1].params['component']['pot'] = new_pot2
+            
+        else:
+            orbit['q'] = q
+            orbit['sma'] = sma
+            orbit['period'] = period
     
     return dict(primary_mass=primary_mass, secondary_mass=secondary_mass, q=q,
                 sma=sma, period=period)
