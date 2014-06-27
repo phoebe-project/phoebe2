@@ -1032,6 +1032,20 @@ class Parameter(object):
         if hasattr(self, 'replaces'):
             return self.replaces
     
+    def set_replaced_by(self, replaced_by):
+        """
+        Set the parent parameter qualifier.
+        """
+        self.replaced_by = replaced_by
+    
+    
+    def get_replaced_by(self):
+        """
+        Get replaced by
+        """
+        if hasattr(self, 'replaced_by'):
+            return self.replaced_by
+    
     
     def get_hidden(self):
         """
@@ -1277,7 +1291,7 @@ class Parameter(object):
             #self.value = old_value
             logger.error('value {0} for {1} is outside of range [{2},{3}]: set to {4}'.format(value,self.qualifier,self.llim,self.ulim,self.value))
         elif has_limits and not inside_limits:
-            logger.error('value {0} for {1} is outside of range [{2},{3}] (ignored)'.format(value,self.qualifier,self.llim,self.ulim))
+            logger.warning('value {0} for {1} is outside of range [{2},{3}] (ignored)'.format(value,self.qualifier,self.llim,self.ulim))
     
     def set_value_from_prior(self):
         """

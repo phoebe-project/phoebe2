@@ -344,15 +344,24 @@ class Container(object):
         return str(self.get_parameter(twig))
            
            
-    def get_value(self, twig):
+    def get_value(self, twig, *args):
         """
-        Retrieve the value of a Parameter
+        Retrieve the value of a Parameter.
+        
+        If the Parameter has units, it is possible to do on-the-fly unit
+        conversions:
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.get_value('sma')
+        10.0
+        >>> mybundle.get_value('sma', 'm')
+        6955080000.0
         
         :param twig: the search twig
         :type twig: str
         :raises KeyError: when twig is not available or is not a Parameter
         """
-        return self.get_parameter(twig).get_value()
+        return self.get_parameter(twig).get_value(*args)
         
     def set_value(self, twig, value, unit=None):
         """
@@ -366,7 +375,13 @@ class Container(object):
         :type unit: str or None
         :raises KeyError: when twig is not available or is not a Parameter
         """
+        # Retrieve the parameter
         param = self.get_parameter(twig)
+        
+        # Check if it can be changed: that is not the case if it's replaced by
+        # another parameter!
+        if param.get_replaced_by():
+            raise ValueError("Cannot change value of parameter '{}', it is derived from other parameters".format(twig))
         
         # special care needs to be taken when setting labels and refs
         qualifier = param.get_qualifier()
