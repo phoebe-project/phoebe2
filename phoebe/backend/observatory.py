@@ -2004,7 +2004,7 @@ def astrometry(system, obs, pbdep, index):
 #{ Input/output
 
 def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
-               update_intensities=False, shift=0):
+               update_intensities=False, shift=0, white_as_transparent=True):
     """
     Add a pattern from a bitmap figure to a mesh column.
     
@@ -2048,7 +2048,10 @@ def add_bitmap(system,image_file,select='teff',minval=None,maxval=None,res=1,
     if maxval is None: maxval = system.mesh[select].max()
     
     #-- don't map white values, but let the starlight shine through!
-    keep = vals<0.99
+    if white_as_transparent:
+        keep = vals<0.99
+    else:
+        keep = np.ones(len(vals), bool)
     vals = (vals-vals.min())
     vals = vals/vals.max()
     vals = vals*(maxval-minval) + minval
