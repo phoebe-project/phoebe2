@@ -284,19 +284,20 @@ class Container(object):
         
     def twigs(self, twig=None, **kwargs):
         """
-        return a list of matching twigs (with same method as used in
-        get_value, get_parameter, get_prior, etc)
+        Return a list of matching twigs
         
-        @param twig: the search twig
-        @type twig: str
-        @return: list of twigs
-        @rtype: list of strings
-        """
-    
+        (with same method as used in get_value, get_parameter, get_prior, etc)
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: list of twigs
+        :rtype: list of strings
+        """    
         if twig is None:
             trunk = self._filter_twigs_by_kwargs(**kwargs)
             return [t['twig_full'] for t in trunk] 
         return self._match_twigs(twig, **kwargs)
+    
     
     def get_ps(self, twig):
         """
@@ -529,12 +530,29 @@ class Container(object):
                                                 current_context, given_context))
         
     @rebuild_trunk
-    def attach_ps(self, twig, value):
+    def attach_ps(self, value=None, twig=None, ):
         """
         Add a new ParameterSet.
         
+        **Example usage**::
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.attach_ps(phoebe.PS('reddening:interstellar'), 'new_system')
+        >>> mybundle.attach_ps(phoebe.PS('reddening:interstellar'))
+        
         [FUTURE]
+        
+        :param value: new ParameterSet to be added
+        :type value: ParameterSet
+        :param twig: location in the system to add it to (defaults to the root system)
+        :type twig: str or None
         """
+        
+        # By default, add the ParameterSet to the entire system
+        if twig is None:
+            twig = self.get_system().get_label()
+            logger.warning("The new ParameterSet will be added to the root system ({})".format(twig))
+            
         # Get all the info we can get
         this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
         
@@ -1614,7 +1632,7 @@ class Container(object):
             if debug:
                 print("self.attach_ps('{}', {}(context='{}', {}='{}'))".format(parent_twig, 'PS' if info['context'][-3:] not in ['obs','syn'] else 'DataSet', info['context'], 'ref' if info['context'][-3:] in ['obs','dep','syn'] or info['context'].split(':')[0]=='plotting' else 'label', label))
             
-            self.attach_ps(parent_twig, ps)
+            self.attach_ps(ps, parent_twig)
             
         self._build_trunk()
         

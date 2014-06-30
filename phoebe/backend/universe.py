@@ -6418,6 +6418,8 @@ class AccretionDisk(PhysicalBody):
         check_input_ps(self, mesh, ['mesh:disk'], 2)
         
         self.params['disk'] = accretion_disk
+        if mesh is None:
+            mesh = parameters.ParameterSet('mesh:disk')
         self.params['mesh'] = mesh
         self.params['pbdep'] = OrderedDict()
         #-- add interstellar reddening
@@ -6641,7 +6643,10 @@ class AccretionDisk(PhysicalBody):
         return proj_int
     
     def set_time(self,time, ref='all', beaming_alg='none'):
-        
+        """
+        Set the time of the AccretionDisk object
+        """
+        logger.info('===== SET TIME TO %.3f ====='%(time))
         if self.time is None:
             self.reset_mesh()
             

@@ -4142,7 +4142,7 @@ class Bundle(Container):
             ...                  rv=np.random.normal(size=100),
             ...                  sigma=np.ones(100))
        
-       Then you can plot these observations with any of the following commands::
+        Then you can plot these observations with any of the following commands::
             
             bundle.plot_obs('mylc')
             bundle.plot_obs('mylc', phased=True)
@@ -4348,34 +4348,34 @@ class Bundle(Container):
         `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
         except:
     
-            - :envvar:`phased=False`: decide whether to phase the data or not.
-              The default is ``True`` when the observations are phased. You can
-              unphase them in that case by setting :envvar:`phased=False`
-              explicitly. This setting is trumped by :envvar:`x_unit` (see
-              below).
-            - :envvar:`repeat=0`: handy if you are actually fitting a phase
-              curve, and you want to repeat the phase curve a couple of times.
-            - :envvar:`x_unit=None`: allows you to override the default units
-              for the x-axis. If you plot times, you can set the unit to any
-              time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
-              you plot in phase, you can switch from cycle (``cy``) to radians
-              (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
-              of type phase, the data will be phased and if they are time, they
-              will be in time units.
-            - :envvar:`y_unit=None`: allows you to override the default units
-              for the y-axis. Allowable values depend on the type of
-              observations.
-            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
-              active axes.
+        - :envvar:`phased=False`: decide whether to phase the data or not.
+          The default is ``True`` when the observations are phased. You can
+          unphase them in that case by setting :envvar:`phased=False`
+          explicitly. This setting is trumped by :envvar:`x_unit` (see
+          below).
+        - :envvar:`repeat=0`: handy if you are actually fitting a phase
+          curve, and you want to repeat the phase curve a couple of times.
+        - :envvar:`x_unit=None`: allows you to override the default units
+          for the x-axis. If you plot times, you can set the unit to any
+          time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
+          you plot in phase, you can switch from cycle (``cy``) to radians
+          (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
+          of type phase, the data will be phased and if they are time, they
+          will be in time units.
+        - :envvar:`y_unit=None`: allows you to override the default units
+          for the y-axis. Allowable values depend on the type of
+          observations.
+        - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+          active axes.
     
         Some of matplotlib's defaults are overriden. If you do not specify any
         of the following keywords, they will take the values:
     
-            - :envvar:`label`: the label for the legend defaults to
-              ``<ref> (obs)``. If you don't want a label for this curve, set
-              :envvar:`label='_nolegend_'`.
-            - :envvar:`yerr`: defaults to the uncertainties from the obs if they
-              are available.
+        - :envvar:`label`: the label for the legend defaults to
+          ``<ref> (obs)``. If you don't want a label for this curve, set
+          :envvar:`label='_nolegend_'`.
+        - :envvar:`yerr`: defaults to the uncertainties from the obs if they
+          are available.
         
         The DataSet that is returned is a copy of the original DataSet, but with the
         units of the columns the same as the ones plotted.
@@ -4392,7 +4392,7 @@ class Bundle(Container):
             ...                  rv=np.random.normal(size=100),
             ...                  sigma=np.ones(100))
        
-       Then you can plot these observations with any of the following commands::
+        Then you can plot these observations with any of the following commands::
             
             bundle.plot_obs('mylc')
             bundle.plot_obs('mylc', phased=True)
@@ -4405,10 +4405,10 @@ class Bundle(Container):
             bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
         
         For more explanations and a list of defaults for each type of
-        observaitons, see:
+        observations, see:
         
-            - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
-            - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
+        - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
+        - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
         
         The arguments are passed to the appropriate functions in
         :py:mod:`plotting`.
@@ -4642,7 +4642,7 @@ class Bundle(Container):
         
         
     
-    def write_syn(self, twig, output_file, use_user_units=True, fmt='%.18e',
+    def write_syn(self, dataref, output_file, use_user_units=True, fmt='%.18e',
                   delimiter=' ', newline='\n', footer=''):
         """
         Write synthetic datasets to an ASCII file.
@@ -4654,33 +4654,39 @@ class Bundle(Container):
         model units of Phoebe. In that case, set :envvar:`use_user_units=False`
         
         Extra keyword arguments come from ``np.savetxt``, though headers are not
-        supported as they are auto-generated.
+        supported as they are auto-generated to give information on column names
+        and units.
         
         [FUTURE]
         
         Export the contents of a synthetic parameterset to a file
         
-        :param twig: the twig/twiglet to use when searching
-        :type twig: str
+        :param dataref: the dataref of the dataset to write out
+        :type dataref: str
         :param output_file: path and filename of the exported file
         :type output_file: str
         """
         # Retrieve synthetics and observations
-        this_syn = self.get_syn(twig)
-        this_obs = self.get_obs(twig)
+        this_syn = self.get_syn(dataref)
+        this_obs = self.get_obs(dataref)
         
         # Which columns to write out?
         user_columns = this_obs['user_columns'] and use_user_units
         columns = this_obs['user_columns'] if user_columns else this_obs['columns']
         
+        # Make sure to consider all synthetic columns (e.g. flux might not have
+        # been given in the obs just for simulation purposes)
+        columns = this_syn['columns'] + [col for col in columns if not col in this_syn['columns']]
+        
         # Filter out column names that do not exist in the synthetics
-        columns = [col for col in columns if col in this_syn]
+        columns = [col for col in columns if col in this_syn and len(this_syn[col])==len(this_syn)]
         
         # Which units to use? Start with default ones and override with user
         # given values
         units = [this_syn.get_unit(col) if this_syn.has_unit(col) else '--' \
                                                              for col in columns]
-        if use_user_units:
+        
+        if use_user_units and this_obs['user_units']:
             for col in this_obs['user_units']:
                 units[columns.index(col)] = this_obs['user_units'][col]
         
@@ -4694,7 +4700,7 @@ class Bundle(Container):
         
         # We might need the passband for some conversions
         try:
-            passband = self.get_value_all('passband@{}'.format(twig)).values()[0]
+            passband = self.get_value_all('passband@{}'.format(dataref)).values()[0]
         except KeyError:
             passband = None
         
@@ -4715,6 +4721,10 @@ class Bundle(Container):
         np.savetxt(output_file, np.column_stack(data), header=header,
                    footer=footer, comments='# ', fmt=fmt, delimiter=delimiter,
                    newline=newline)
+        
+        # Report to the user
+        info = ", ".join(['{} ({})'.format(col, unit) for col, unit in zip(columns, units)])
+        logger.info("Wrote columns {} to file '{}'".format(info, output_file))
         
         
     def set_select_time(self,time=None):
@@ -4824,8 +4834,9 @@ class Bundle(Container):
         return output, (plotref, axesref, figref)
         #~ return obs
         
+        
     def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
-                  select='proj', cmap=None, vmin=None, vmax=None, size=800,
+                  select='teff', cmap=None, vmin=None, vmax=None, size=800,
                   dpi=80, background=None, savefig=False,
                   with_partial_as_half=False, **kwargs):
         """
@@ -4848,8 +4859,7 @@ class Bundle(Container):
         quantity that is present in the mesh (effective temperature, logg ...)
         can be used as color values. For some of these quantities, there are
         smart defaults for the color maps.
-        
-        
+                
         **Plotting the current status of the mesh after running computations**
         
         If you've just ran :py:func:`Bundle.run_compute` for some observations,
@@ -4866,18 +4876,22 @@ class Bundle(Container):
         
         .. warning::
             
-            1. It is strongly advised only to use this function this way when
+            1. If you have no observations attached, you cannot use ``select='proj'``
+               because there will be no flux computed. You can then only plot
+               mesh quantities like ``teff``, ``logg`` etc.
+            
+            2. It is strongly advised only to use this function this way when
                only one set of observations has been added: otherwise it is not
                guarenteed that the dataref has been computed for the last time
                point.
             
-            2. Although it can sometimes be convenient to use this function
-               plainly without arguments or with just the the dataref after
-               computations, you need to be careful for the dataref that is used
-               to make the plot. The dataref will show up in the logger
-               information.
+            3. Although it can sometimes be convenient to use this function
+               plainly without arguments you need to be careful for the
+               :envvar:`dataref` that is used to make the plot. The dataref
+               will show up in the logger information.
         
-        Extra keyword arguments are explained in :py:func:`phoebe.backend.observatory.image`.
+        Extra keyword arguments and the return values are explained
+        in :py:func:`phoebe.backend.observatory.image`.
         
         :param objref: object/system label of which you want to plot the mesh.
          The default means the top level system.
@@ -4885,6 +4899,8 @@ class Bundle(Container):
         :param label: compute label which you want to use to calculate the mesh
          and its properties. The default means the ``default`` set.
         :type label: str
+        :return: figure properties, artist properties, patch collection
+        :rtype: dict, dict, matplotlib patch collection
         """
         if dataref is not None:
             # Return just one pbdep, we only need the reference and context
@@ -4897,6 +4913,7 @@ class Bundle(Container):
             kwargs.setdefault('context', context)
         else:
             category = 'lc'
+            kwargs.setdefault('ref', '__bol')
             
         # Set the configuration to the correct time/phase, but only when one
         # (and only one) of them is given.
