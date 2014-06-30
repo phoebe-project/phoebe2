@@ -327,10 +327,17 @@ class GenericBody(object):
 
 
 def make_body_from_parametersets(ps):
-
     if not isinstance(ps,tuple) and not isinstance(ps,list):
-        ps = ps,
+        ps = list([ps])
+    elif isinstance(ps, tuple):
+        ps = list(ps)
     contexts = [ips.context for ips in ps]
+    
+    # Remove positional ps to add later on
+    pos_ps = ps.pop(contexts.index('position')) if 'position' in contexts else None
+    if pos_ps is not None:
+        contexts.remove('position')
+    
     #-- let's create two bodies and put them in a BodyBag
     if len(ps)==3 and contexts.count('component')==2 and contexts.count('orbit')==1:
         orbit = ps[contexts.index('orbit')]
@@ -345,9 +352,11 @@ def make_body_from_parametersets(ps):
             body1.prepare_reflection()
             body2.prepare_reflection()
         #-- put the two Bodies in a BodyBag and return it to the user.
-        body = universe.BodyBag([body1,body2],label=orbit['label'])
+        body = universe.BodyBag([body1,body2],label=orbit['label'], position=pos_ps)
     #-- OK, if it's no binary, we assume we can deal with it as is
     else:
+        if pos_ps is not None:
+            ps = ps + [pos_ps]
         body = GenericBody(*ps)
     
     return body
@@ -1194,7 +1203,7 @@ def KOI126(create_body=True,**kwargs):
     starA = universe.BinaryStar(starA,orbitA_BC,meshA,pbdep=[lcdep1])
     systemBC = universe.BodyBag([starB,starC],orbit=orbitA_BC,label='systemBC')
     
-    system = universe.BodyBag([starA,systemBC])
+    system = universe.BodyBag([starA,systemBC], label='KOI126')
     return system
     
 def KOI126_alternate(create_body=True,**kwargs):
@@ -1248,7 +1257,7 @@ def KOI126_alternate(create_body=True,**kwargs):
     orbitA_BC['ecc'] = 0.3043
     orbitA_BC['per0'] = 52.88,'deg'
     orbitA_BC['incl'] = 92.100,'deg'
-    
+    orbitA_BC['label'] = 'KOI126'
     
     
     mean_anomaly = 19.87/180.*np.pi
@@ -1283,7 +1292,7 @@ def KOI126_alternate(create_body=True,**kwargs):
     starC = universe.BinaryStar(starC,None,meshC,pbdep=[lcdep3])
     
     systemBC = universe.BinaryBag([starB,starC],orbit=orbitBC)
-    systemA_BC = universe.BinaryBag([starA,systemBC],orbit=orbitA_BC)
+    systemA_BC = universe.BinaryBag([starA,systemBC],orbit=orbitA_BC, label='KOI126')
     
     return systemA_BC
 
@@ -1376,6 +1385,46 @@ def vega_monnier2012():
     star.get_parameter('rotperiod').set_prior(distribution='normal',sigma=0.02)
     
     return star
+
+
+def hierarchical_triple(create_body=True):
+    """
+    Hierarchical triple system.
+    """    
+    # Create two binary systems, we'll use the first as the inner system, and
+    # the second as the outer system
+    library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'library/')
+    system = os.path.join(library_dir, 'defaults.phoebe')
+    bodybag1, compute = parsers.legacy_to_phoebe2(system)
+    bodybag2, compute = parsers.legacy_to_phoebe2(system)
+    
+    # Inner system: set some labels to clarify that this is the inner system,
+    # and make it compact and short-period. Remove the positional parameterSet,
+    # that will be the responsibility of the outer system
+    bodybag1.set_label("outer_secondary")
+    bodybag1[0].set_label("inner_primary")
+    bodybag1[1].set_label("inner_secondary")
+    bodybag1.params.pop('position')
+    bodybag1[0].params['orbit']['sma'] = 5.0
+    bodybag1[0].params['orbit']['period'] = 1.54
+    
+    # Outer system: also set some labels and make it wider and longer-period
+    bodybag2.set_label("outer_system")
+    bodybag2[0].set_label("outer_primary")
+    bodybag2[1].set_label("outer_secondary")
+    bodybag2[0].params['orbit']['sma'] = 15.0
+    bodybag2[0].params['orbit']['period'] = 10.123
+    
+    # Make the inner system into a new BodyBag with an orbit
+    bodybag1 = universe.BodyBag(bodybag1.bodies, orbit=bodybag2[1].params['orbit'],
+                                label='outer_secondary')
+    
+    # And put the outer primary and inner system in a BodyBag
+    system = universe.BodyBag([bodybag2[0], bodybag1])
+    
+    # That's it!
+    return system
+        
 
 
 def pulsating_star(create_body=True):

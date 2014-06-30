@@ -10,6 +10,9 @@ import copy
 import json
 import uuid
 import logging
+import glob
+import pyfits
+import textwrap
 import numpy as np
 from phoebe import __version__
 from phoebe.parameters import parameters, datasets
@@ -334,14 +337,34 @@ class Container(object):
         """
         Retrieve info on a Parameter.
         
-        This is just a shortcut to str(get_parameter(twig))
+        This is just a shortcut to str(get_parameter(twig)), except when info
+        on the passband is queried. In that case, a list of possible passbands
+        in the default atmosphere files is included (and ordered per atmosphere
+        file).
         
         :param twig: the search twig
         :type twig: str
         :return: info
         :rtype: str
         """
-        return str(self.get_parameter(twig))
+        info_str = str(self.get_parameter(twig))
+        
+        # Special addition for default support for passbands:
+        if twig.split('@')[0] == 'passband':            
+            # Get the location of the predefined ld_coeffs files
+            path = limbdark.get_paths()[0]
+            
+            # Cycle over all FITS files and see what passbands are defined
+            for filename in sorted(glob.glob(os.path.join(path, '*.fits'))):
+                with pyfits.open(filename) as ff:
+                    grid_passbands = [ext.header['extname'].rstrip('_v1.0') for ext in ff[1:]\
+                                      if not ext.header['EXTNAME'][:4]=='_REF']
+                text = os.path.basename(filename)+': '+", ".join(grid_passbands)
+                info_passband = textwrap.fill(text, width=80, initial_indent='',
+                                              subsequent_indent=' '*5)
+                info_str += '\n' + info_passband
+        
+        return info_str
            
            
     def get_value(self, twig, *args):
@@ -566,6 +589,11 @@ class Container(object):
         :type value: bool
         """
         par = self.get_parameter(twig)
+        
+        # Check if it can be adjusted: that is not the case if it's replaced by
+        # another parameter!
+        if par.get_replaced_by():
+            raise ValueError("Cannot adjust value of parameter '{}', it is derived from other parameters".format(twig))        
         
         # the following gives issues because some parameters do not have limits
         # - If get_limits would implement default -np.inf and +np.inf, then
@@ -1268,6 +1296,7 @@ class Container(object):
             path.reverse()
         while None in path:
             path.remove(None)
+        
         return '{}'.format('/' if invert else '@').join(path)
         
     def _search_twigs(self, twiglet, trunk=None, **kwargs):

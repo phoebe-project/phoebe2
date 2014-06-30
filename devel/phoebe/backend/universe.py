@@ -5573,7 +5573,7 @@ class BodyBag(Body):
         """
         # We definitely need signals and a label, even if it's empty
         self.signals = {}
-        self.label = uuid.uuid4()
+        self.label = str(uuid.uuid4())
         self.parent = None
         
         # Do the components belong together? This is important for the eclipse
@@ -5608,7 +5608,7 @@ class BodyBag(Body):
         
         # Add globals parameters, but only if given. DO NOT add default ones,
         # that can be confusing
-        if 'position' in kwargs:
+        if 'position' in kwargs and kwargs['position'] is not None:
             self.params['position'] = kwargs.pop('position')
         
         # Also the _plot is a leftover from earlier days, this is deprecated
@@ -5619,6 +5619,8 @@ class BodyBag(Body):
         # if it's a binary, so that we can figure out which component it is
         # We also allow for "compute" parameters here!
         for key in kwargs:
+            if kwargs[key] is None:
+                continue
             if key == 'label':
                 self.label = kwargs[key]
                 continue
