@@ -146,6 +146,7 @@ import uuid
 import logging
 import copy
 import textwrap
+import types
 from collections import OrderedDict
 # Load 3rd party modules
 import numpy as np
@@ -685,6 +686,8 @@ def init_mesh(self):
     if 'magnetic_field' in self.params and not 'B_' in dtypes.names:
         dtypes = np.dtype(dtypes.descr + \
                  [('B_', 'f8', (3,)), ('_o_B_','f8', (3,))])
+    
+    dtypes = np.dtype(dtypes.descr + [col for col in self._extra_mesh_columns if not col[0] in self.mesh.dtype.names])
     
     self.mesh = np.zeros(N, dtype=dtypes)
     # We need to make sure to reset the body, otherwise we could be fooled
@@ -1450,6 +1453,7 @@ class Body(object):
         # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()
         self._main_period = dict()
+        self._extra_mesh_columns = [] # e.g. ['B_', 'f8', (3,))] or [('abun','f8')]
         
     
     def __eq__(self, other):
@@ -1470,6 +1474,7 @@ class Body(object):
         String representation of a Body.
         """
         return self.to_string()
+    
     
     def fix_mesh(self):
         """
@@ -7794,6 +7799,11 @@ class BinaryRocheStar(PhysicalBody):
         self._clear_when_reset['counter'] = 0
         
     
+    #@classmethod
+    #def add_method(cls, func):
+    #    return setattr(cls, func.__name__, types.MethodType(func, cls))
+    
+    
     def set_label(self, label, component=None):
         """
         Set the label of a BinaryRocheStar.
@@ -8159,7 +8169,7 @@ class BinaryRocheStar(PhysicalBody):
 
     def temperature(self,time=None):
         r"""
-        Calculate local temperature.
+        Calculate local temperatureof a BinaryRocheStar.
         
         If the law of [Espinosa2012]_ is used, some approximations are made:
             
@@ -8331,9 +8341,17 @@ class BinaryRocheStar(PhysicalBody):
     
     def abundance(self, time=None):
         """
-        Set the abundance.
+        Set the abundance of a BinaryRochestar.
         """
         self.mesh['abun'] = list(self.params.values())[0]['abun']
+    
+    
+    def albedo(self, time=None):
+        """
+        Set the albedo of a BinaryRochestar.
+        """
+        return None
+    
     
     def get_mass(self):
         """
@@ -8497,8 +8515,9 @@ class BinaryRocheStar(PhysicalBody):
                                       conserve_volume=True)
                     # Calculated the basic properties at this time
                     self.surface_gravity()
-                    self.abundance()
-                    self.temperature()
+                    self.abundance(time)
+                    self.temperature(time)
+                    self.albedo(time)
                     self.intensity(ref=ref, beaming_alg=beaming_alg)
                     self.projected_intensity(beaming_alg=beaming_alg)
                     self.conserve_volume(time,max_iter=max_iter_volume)
@@ -8515,8 +8534,9 @@ class BinaryRocheStar(PhysicalBody):
                 
             #-- compute polar radius and logg!
             self.surface_gravity()
-            self.abundance()
-            self.temperature()
+            self.abundance(time)
+            self.temperature(time)
+            self.albedo(time)
             
             if has_freq:
                 self.add_pulsations(time=time)

@@ -364,102 +364,70 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
                        'quadratic','square_root', 'uniform']
     ld_laws = [ld_laws_indices.index(ld_law) for ld_law in ld_models]
     
-    # Add surface map information if needed: we're walking over all parameterSets
-    # here, although only the bolometric ones are used in this function. The
-    # others are returned, and other functions can use them.
-    albmap = None
-    redistmap = None
-    for iindex, ps in enumerate(ps_irradiated):
-        if 'albmap' in ps[0]:
-            scale = (ps[0]['albmap_min'], ps[0]['albmap_max'])
-            invert = ps[0]['albmap_inv']
-            A_irradiateds[iindex] = plotlib.read_bitmap(irradiated, ps[0]['albmap'],
-                                                        scale=scale, invert=invert)
-            if iindex == index_bol:
-                albmap = A_irradiateds[iindex]
-            logger.info("Albedo {} via surface map {}".format(ps[1], ps[0]['albmap']))
-        
-        if (iindex == index_bol) and 'redistmap' in ps[0]:
-            scale = (ps[0]['redistmap_min'], ps[0]['redistmap_max'])
-            invert = ps[0]['redistmap_inv']
-            redistmap = plotlib.read_bitmap(irradiated, ps[0]['redistmap'],
-                                        scale=scale, invert=invert)
-            logger.info("Global redistribution {} via surface map {}".format(ps[1], ps[0]['albmap']))
-    
-    # If at least one surface map is given, we need to make sure everything is
-    # an array
-    if albmap is not None or redistmap is not None:
-        if albmap is None:
-            albmap = alb*np.ones_like(redistmap)
-            logger.info("Albedo via single value")
-        elif redistmap is None:
-            redistmap = redist*np.ones_like(albmap)
-            logger.info("Global redistribution via single value")
-        redist = redistmap
-        alb = albmap
-        
-        R1, R2, inco = freflection.reflectionarray(irradiator.mesh['center'],
-                           irradiator.mesh['size'],
-                           irradiator.mesh['normal_'], irrorld,
-                           irradiated.mesh['center'], irradiated.mesh['size'],
-                           irradiated.mesh['normal_'], emer,
-                           albmap, redistmap, ld_laws)
+    # It is possible that the albedo's are in the mesh, in that case we treat
+    # the albedo's not as a single value but interpret it as a map
+    if 'alb' in irradiated.mesh.dtype.names:
+        refl_algorithm = freflection.reflectionarray 
+        alb = irradiated.mesh['alb']
+        redist = redist*np.ones_like(alb)
     else:
+        refl_algorithm = freflection.reflection
+    
         
-        # There are different approximations for the irradiation: treat the
-        # irradiator as a point source or an extended body
+    # There are different approximations for the irradiation: treat the
+    # irradiator as a point source or an extended body
+    
+    if irradiation_alg == 'point_source':
+        # For a point source, we need to know the center-coordinates of the
+        # irradiator, it's projected surface area and the direction. This
+        # way we can treat the irradiator as a single surface element.
         
-        if irradiation_alg == 'point_source':
-            # For a point source, we need to know the center-coordinates of the
-            # irradiator, it's projected surface area and the direction. This
-            # way we can treat the irradiator as a single surface element.
-            
-            # line-of-sight and distance between two centers of the Bodies
-            X1 = (irradiator.mesh['center']*irradiator.mesh['size'][:,None]/irradiator.mesh['size'].sum()).sum(axis=0)
-            X2 = (irradiated.mesh['center']*irradiated.mesh['size'][:,None]/irradiated.mesh['size'].sum()).sum(axis=0)
-            irradiator_mesh_normal = np.array([X2-X1])
-            irradiator_mesh_normal/= np.sqrt((irradiator_mesh_normal**2).sum())
-            d = np.sqrt( ((X1-X2)**2).sum())
-            
-            # mu-angles from irradiator to irradiated (what does the irradiator see?)
-            mus = coordinates.cos_angle(irradiator.mesh['normal_'], irradiator_mesh_normal, axis=1)
-                        
-            # let's say that this is the location of the irradiator
-            irradiator_mesh_center = np.array([X1])
-            irradiator_mesh_size = np.array([1.0])
-            
-            # Then compute the projected intensity of the irradiator towards
-            # the irradiated body
-            irrorld_ = []
-            keep = mus > 0
-            
-            # Summarize the mesh of the irradiator as one surface element
-            these_fields = irradiator.mesh.dtype.names
-            for i, ild in enumerate(irrorld):
-                this_ld_func = getattr(limbdark, 'ld_{}'.format(ld_laws_indices[ld_laws[i]]))
-                Imu = this_ld_func(mus[keep], irradiator.mesh['ld_'+ref[i]][keep].T)
-                proj_Imu = irradiator.mesh['ld_'+ref[i]][keep,-1] * Imu
-                if 'refl_'+ref[i] in these_fields:
-                    proj_Imu += irradiator.mesh['refl_'+ref[i]][keep] * mus[keep]
-                proj_Imu *= irradiator.mesh['size'][keep]* mus[keep] # not sure about this mus!!
-                
-                ld_laws[i] = 6 # i.e. uniform, because we did all the projection already
-                irrorld[i] = np.array([[0.0,0.0,0.0,0.0,proj_Imu.sum()]])
-            
-        # Else, we'll use the full mesh of the irradiator    
-        elif irradiation_alg == 'full':
-            irradiator_mesh_center = irradiator.mesh['center']
-            irradiator_mesh_size = irradiator.mesh['size']
-            irradiator_mesh_normal = irradiator.mesh['normal_']
-        else:
-            raise NotImplementedError("Irradiation algorithm {} unknown".format(irradiation_alg))
+        # line-of-sight and distance between two centers of the Bodies
+        X1 = (irradiator.mesh['center']*irradiator.mesh['size'][:,None]/irradiator.mesh['size'].sum()).sum(axis=0)
+        X2 = (irradiated.mesh['center']*irradiated.mesh['size'][:,None]/irradiated.mesh['size'].sum()).sum(axis=0)
+        irradiator_mesh_normal = np.array([X2-X1])
+        irradiator_mesh_normal/= np.sqrt((irradiator_mesh_normal**2).sum())
+        d = np.sqrt( ((X1-X2)**2).sum())
         
-        R1, R2, inco = freflection.reflection(irradiator_mesh_center,
-                           irradiator_mesh_size,
-                           irradiator_mesh_normal, irrorld,
-                           irradiated.mesh['center'], irradiated.mesh['size'],
-                           irradiated.mesh['normal_'], emer,
-                           alb, redist, ld_laws)
+        # mu-angles from irradiator to irradiated (what does the irradiator see?)
+        mus = coordinates.cos_angle(irradiator.mesh['normal_'], irradiator_mesh_normal, axis=1)
+                    
+        # let's say that this is the location of the irradiator
+        irradiator_mesh_center = np.array([X1])
+        irradiator_mesh_size = np.array([1.0])
+        
+        # Then compute the projected intensity of the irradiator towards
+        # the irradiated body
+        irrorld_ = []
+        keep = mus > 0
+        
+        # Summarize the mesh of the irradiator as one surface element
+        these_fields = irradiator.mesh.dtype.names
+        for i, ild in enumerate(irrorld):
+            this_ld_func = getattr(limbdark, 'ld_{}'.format(ld_laws_indices[ld_laws[i]]))
+            Imu = this_ld_func(mus[keep], irradiator.mesh['ld_'+ref[i]][keep].T)
+            proj_Imu = irradiator.mesh['ld_'+ref[i]][keep,-1] * Imu
+            if 'refl_'+ref[i] in these_fields:
+                proj_Imu += irradiator.mesh['refl_'+ref[i]][keep] * mus[keep]
+            proj_Imu *= irradiator.mesh['size'][keep]* mus[keep] # not sure about this mus!!
+            
+            ld_laws[i] = 6 # i.e. uniform, because we did all the projection already
+            irrorld[i] = np.array([[0.0,0.0,0.0,0.0,proj_Imu.sum()]])
+        
+    # Else, we'll use the full mesh of the irradiator    
+    elif irradiation_alg == 'full':
+        irradiator_mesh_center = irradiator.mesh['center']
+        irradiator_mesh_size = irradiator.mesh['size']
+        irradiator_mesh_normal = irradiator.mesh['normal_']
+    else:
+        raise NotImplementedError("Irradiation algorithm {} unknown".format(irradiation_alg))
+    
+    R1, R2, inco = refl_algorithm(irradiator_mesh_center,
+                       irradiator_mesh_size,
+                       irradiator_mesh_normal, irrorld,
+                       irradiated.mesh['center'], irradiated.mesh['size'],
+                       irradiated.mesh['normal_'], emer,
+                       alb, redist, ld_laws)
     
     # Global redistribution factor:
     R2 = 1.0 + (1-redisth)*R2/total_surface
