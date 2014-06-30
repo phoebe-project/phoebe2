@@ -1058,7 +1058,7 @@ the separate Bodies first. Here are two examples:
 
 """
 
-import os
+import os, sys
 
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
@@ -1076,10 +1076,19 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
     # However, it is still not advised to do that.
     else:
         print('\n\tWarning: you are importing Phoebe from inside its source tree.\n')
-    
 
+# If we try to load matplotlib.pyplot on a non-X system, it will fail
+# unless 'Agg' is used before the import. All X-systems define the
+# 'DISPLAY' environment variable, and all non-X-systems do not. We do make a
+# distinction between windows and unix based system. Hence:
+import matplotlib
+if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
+    matplotlib.use('Agg')
+
+# Make the __version__ variable available
 from ._version import __version__
-#-- make some important classes available in the root:
+
+# make some important classes available in the root:
 from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS
 from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
