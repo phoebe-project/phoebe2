@@ -2409,18 +2409,74 @@ class Bundle(Container):
         return self.data_fromarrays(category='if', **set_kwargs)
     
     
-    def add_parameter(self, twig, replaces=None, value=1.0):
+    def add_parameter(self, twig, replaces=None, value=None):
         """
-        Add a new parameter to the set of parameters.
+        Add a new parameter to the set of parameters as a combination of others.
         
         The value of the new parameter can either be derived from the existing
-        ones, or replaces one of the existing ones.
+        ones, or replaces one of the existing ones. It is thus not possible to
+        simply add an extra parameter; i.e. the number of total free parameters
+        must stay the same.
         
-        If we want the replacable parameter to not show up in __str__, we need
-        to rewrite the string representation part. Otherwise the backend needs
-        to deal with 'hidden' stuff, and these are already implemented by the
-        frontend.
+        Explanation of the two scenarios:
         
+        **1. Adding a new parameter without replacing an existing one**
+        
+        For example, you want to add ``asini`` as a parameter but want to keep
+        ``sma`` and ``incl`` as free parameters in the fit:
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_parameter('asini@orbit')
+        >>> mybundle['asini']
+        9.848077530129958
+        
+        Then, you can still change ``sma`` and ``incl``:
+        
+        >>> mybundle['sma'] = 20.0
+        >>> mybundle['incl'] = 85.0, 'deg'
+        
+        and then ``asini`` is updated automatically:
+        
+        >>> x['asini']
+        19.923893961843316
+        
+        However you are not allowed to change the parameter of ``asini``
+        manually, because the code does not know if it needs to update ``incl``
+        or ``sma`` to keep consistency:
+        
+        >>> x['asini'] = 10.0
+        ValueError: Cannot change value of parameter 'asini', it is derived from other parameters
+
+        **2. Adding a new parameter to replace an existing one**
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_parameter('asini@orbit', replaces='sma')
+        >>> mybundle['asini']
+        9.848077530129958
+        
+        Then, you can change ``asini`` and ``incl``:
+        
+        >>> mybundle['asini'] = 10.0
+        >>> mybundle['incl'] = 85.0, 'deg'
+        
+        and ``sma`` is updated automatically:
+        
+        >>> x['sma']
+        10.038198375429241
+        
+        However you are not allowed to change the parameter of ``sma``
+        manually, because the code does not know if it needs to update ``asini``
+        or ``incl`` to keep consistency:
+        
+        >>> x['sma'] = 10.0
+        ValueError: Cannot change value of parameter 'sma', it is derived from other parameters
+
+        **Non-exhaustive list of possible additions**
+        
+        - ``asini@orbit``: projected system semi-major axis (:py:func:`more info <phoebe.parameters.tools.add_asini>`)
+        - ``ecosw@orbit``: eccentricity times cosine of argument of periastron,
+          automatically adds also ``esinw`` (:py:func:`more info <phoebe.parameters.tools.add_esinw_ecosw>`)
+        - ``theta_eff@orbit``: Effective misalignment parameter (:py:func:`more info <phoebe.parameters.tools.add_theta_eff>`)
         [FUTURE]
         """
         # Does the parameter already exist?
@@ -2433,6 +2489,10 @@ class Bundle(Container):
         
         # Figure out what the parameter name is
         qualifier = twig_split[0]
+        
+        # Special cases:
+        if qualifier in ['ecosw', 'esinw']:
+            qualifier = 'esinw_ecosw'
         
         # If the parameter does not exist yet, there's some work to do: we need
         # to figure out where to add it, and we need to create it
@@ -2460,14 +2520,16 @@ class Bundle(Container):
             else:
                 replaces_qualifier = None
                     
-            param = getattr(tools, 'add_{}'.format(qualifier))(item['item'], value,
+            params = getattr(tools, 'add_{}'.format(qualifier))(item['item'], value,
                          derive=replaces_qualifier)
             
             if replaces is None:
-                param.set_replaced_by(True)
+                for param in params:
+                    param.set_replaced_by(True)
             else:
-                param.set_replaced_by(None)
-                replaces_param.set_replaced_by(param)
+                for param in params:
+                    param.set_replaced_by(None)
+                replaces_param.set_replaced_by(params)
             
             logger.info("Added {} to ParameterSet with context {}".format(qualifier, item['item'].get_context()))
             

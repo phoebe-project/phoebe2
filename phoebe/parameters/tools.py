@@ -701,7 +701,7 @@ def add_asini(orbit, asini=None, derive='sma', unit='Rsol', **kwargs):
     else:
         raise ValueError("Cannot derive {} from asini".format(derive))
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
-    return orbit.get_parameter('asini')
+    return orbit.get_parameter('asini'),
 
 def add_K1_K2(orbit, K1=None, K2=None, unit='km/s',**kwargs):
     """
@@ -748,7 +748,8 @@ def add_K1_K2(orbit, K1=None, K2=None, unit='km/s',**kwargs):
     orbit.add_constraint('{sma} = {K2}*{period}/(2*np.pi)*np.sqrt(1-{ecc}**2)*(1+{q})')
     
     logger.info("orbit '{}': q and sma constrained by K1 and K2".format(orbit['label']))
-
+    
+    return orbit.get_parameter('K1'), orbit.get_parameter('K2')
 
 
 def add_ecosw(orbit,ecosw=None,derive='per0',**kwargs):
