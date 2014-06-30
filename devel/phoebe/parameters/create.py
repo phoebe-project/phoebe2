@@ -27,12 +27,27 @@ L{binary_from_spectroscopy} or a separation via L{binary_from_stars}).
     binary_from_spectroscopy
     dep_from_object
     
+**Generic system**
+
+.. autosummary::
+
+    hierarchical_triple
+    pulsating_star
+    binary_pulsating_primary
+    binary_pulsating_secondary
+    close_beta_cephei
+    
 **Specific targets**    
     
 .. autosummary::    
 
+    mu_Cas
     T_CrB
     KOI126
+    vega_monnier2012
+    
+    
+    
 
     
 
@@ -1082,17 +1097,14 @@ def T_CrB(create_body=True,**kwargs):
     """
     T Coronae Borealis - The Blaze star
     """
-    orbit,red_giant,white_dwarf,disk = from_library('T_CrB',create_body=False,**kwargs)
+    orbit,red_giant,white_dwarf,disk = from_library('T_CrB_system',create_body=False,**kwargs)
     disk['label'] = white_dwarf['label']
     if create_body:
-        myobs1 = observables(**kwargs)
-        myobs2 = [myobs.copy() for myobs in myobs1]
-        myobs3 = [myobs.copy() for myobs in myobs2]
         mesh = parameters.ParameterSet(context='mesh:marching')
-        body1 = universe.BinaryRocheStar(red_giant,orbit=orbit,mesh=mesh,pbdep=myobs1)
-        body2 = universe.BinaryRocheStar(white_dwarf,orbit=orbit,mesh=mesh.copy(),pbdep=myobs2)
-        body3 = universe.AccretionDisk(disk,pbdep=myobs3)
-        body3 = universe.BodyBag([body3],orbit=orbit.copy())#,label=white_dwarf['label'])
+        body1 = universe.BinaryRocheStar(red_giant,orbit=orbit,mesh=mesh)
+        body2 = universe.BinaryRocheStar(white_dwarf,orbit=orbit,mesh=mesh.copy())
+        body3 = universe.AccretionDisk(disk)
+        body3 = universe.BodyBag([body2, body3], label='white_dwarf_system', orbit=orbit)
         #-- if there are irradiators, we need to prepare for reflection
         #   results
         if red_giant['irradiator'] or white_dwarf['irradiator']:
@@ -1100,7 +1112,7 @@ def T_CrB(create_body=True,**kwargs):
             body2.prepare_reflection()
             body3.prepare_reflection()
         #-- put the two Bodies in a BodyBag and return it to the user.
-        output = universe.BodyBag([body1,body2,body3],solve_problems=True)
+        output = universe.BodyBag([body1,body3])
     else:
         output = red_giant,white_dwarf,disk,orbit
     
@@ -1387,9 +1399,124 @@ def vega_monnier2012():
     return star
 
 
+def GD2938(create_body=True):
+    """
+    Pulsating white dwarf with a disk
+    
+    Be sure to run the computations with ``irradiation_alg='full'``.
+    """
+    starpars = parameters.ParameterSet('star', irradiator=True,
+                                       incl=(70.,'deg'),teff=20000,
+                                       rotperiod=np.inf,
+                                       label='white_dwarf')
+    diskpars = parameters.ParameterSet('accretion_disk', Rout=(11.,'Rsol'),
+                               height=(2e-2, 'Rsol'), dmdt=(1e-6,'Msol/yr'),
+                               incl=(70.,'deg'), Rin=(2.,'Rsol'),
+                               label='accretion_disk')
+
+    puls = parameters.ParameterSet('puls', freq=0.5, l=1, m=1,
+                                   amplteff=2.0, label='f01')
+    mesh = parameters.ParameterSet(context='mesh:marching', delta=0.25)
+    meshdisk = parameters.ParameterSet(context='mesh:disk')
+    star = universe.Star(starpars, mesh=mesh, puls=[puls])
+    disk = universe.AccretionDisk(diskpars, mesh=meshdisk)
+
+    system = universe.BodyBag([star, disk], label='GD2938')
+    
+    return system
+
+
+def close_beta_cephei(create_body=True):
+    """
+    Binary system with pulsating oblique magnetic star and fast rotating star with a disk
+    """
+    long = 211.6
+
+    # Define the parameters of the star. We're inspired by [Donati1997]_,
+    # [Morel2006]_ and [Nieva2002]_.
+
+    star = parameters.ParameterSet('star',label='beta Cephei')
+    star['atm'] = 'blackbody'
+    star['ld_func'] = 'linear'
+    star['ld_coeffs'] = [0.33]
+    star['abun'] = -0.2
+    star['teff'] = 27000.,'K'
+    star['rotperiod'] =  12.001663246,'d'
+    star['incl'] = 100.,'deg'
+    star['long'] = long, 'deg'
+    star['mass'] = 14.,'Msol'
+    star['radius'] = 6.4,'Rsol'
+    #star['vgamma'] = 7.632287,'km/s'
+    star['label'] = 'betacep'
+    
+    # Just for fun, also add the parallax, the surface gravity and vsini (and define
+    # a mesh).
+    tools.add_parallax(star,parallax=4.76,unit='mas')
+    tools.add_surfgrav(star,3.70,derive='radius')
+    
+    mesh_betacep = parameters.ParameterSet('mesh:marching',delta=0.05, alg='c')
+
+    # For the parameters of the pulsation mode, we're inspired by [Telting1997]_:
+    freq1 = parameters.ParameterSet('puls', freq= 5.24965427519, phase=0.122545,
+                                    ampl=0.10525/50, l=3, m=2, amplteff=0.2,
+                                    label='f01')
+
+    # For the parameters of the magnetic dipole, we take guesses from our own
+    # research:
+    mag_field1 = parameters.ParameterSet('magnetic_field:dipole')
+    mag_field1['Bpolar'] = 276.01,'G'
+    mag_field1['beta'] = 61.29,'deg'
+    mag_field1['phi0'] = 80.522,'deg'
+    
+    #-- secondary information from Wheelwright 2009
+    be_star = parameters.ParameterSet('star',gravblaw='zeipel',label='Be-star')
+    be_star['mass'] = 4.4,"Msol"
+    be_star.get_parameter('mass').set_prior(distribution='normal',sigma=(0.7,'Msol'))
+    be_star['teff'] = 17000.
+    be_star['incl'] = 100.,'deg'
+    be_star['long'] = long, 'deg'
+    be_star['rotperiod'] = 0.7,'d'
+    be_star.get_parameter('teff').set_prior(distribution='normal',sigma=1000.)
+    tools.add_surfgrav(be_star,4.1,derive='radius',unit='[cm/s2]')
+    
+    spot = parameters.ParameterSet('circ_spot', long=0.0, colat=140., angrad=15., teffratio=0.85)
+
+    diskpars = parameters.ParameterSet(context='accretion_disk')
+    diskpars['Rin'] = 6.
+    diskpars['Rout'] = 10.,'Rsol'
+    diskpars['height'] = 1e-2,'Rsol'
+    diskpars['dmdt'] = 1e-6,'Msol/yr'
+    diskpars['label'] = 'accretion_disk'
+    diskpars['incl'] = 100.
+    diskpars['long'] = long
+    
+    mag_field2 = parameters.ParameterSet('magnetic_field:dipole',Bpolar=0., beta=0., phi0=0.)
+    mesh_bestar = parameters.ParameterSet('mesh:marching',delta=0.1,alg='c')
+    mesh_disk = parameters.ParameterSet('mesh:disk')
+
+    comp1,comp2,orbit = binary_from_stars(star, be_star, period=(10.,'d'))
+
+    orbit['ecc'] = 0.60
+    orbit['per0'] = 20.,'deg'
+    orbit['t0'] = conversions.convert('CD','JD',(1914.,8,6.15)) #1914.6
+    orbit['long_an'] = long,'deg'
+    orbit['incl'] = 100,'deg'
+    orbit['c1label'] = 'betacep'
+    orbit['c2label'] = 'Be-star_system'
+    
+    
+    betacep = universe.BinaryStar(star, mesh=mesh_betacep, puls=[freq1],
+                                magnetic_field=mag_field1, orbit=orbit)
+    bestar = universe.Star(be_star, mesh_bestar, magnetic_field=mag_field2)#, circ_spot=[spot])
+    mydisk = universe.AccretionDisk(diskpars, mesh=mesh_disk)
+    bestar = universe.BodyBag([bestar, mydisk], orbit=orbit, label='Be-star_system')
+    system = universe.BodyBag([betacep,bestar], label='system')
+    
+    return system
+
 def hierarchical_triple(create_body=True):
     """
-    Hierarchical triple system.
+    Hierarchical triple system
     """    
     # Create two binary systems, we'll use the first as the inner system, and
     # the second as the outer system
@@ -1429,7 +1556,7 @@ def hierarchical_triple(create_body=True):
 
 def pulsating_star(create_body=True):
     """
-    Pulsating star
+    Pulsating single star
     """
     star = from_library('Sun', create_body=True)
     star.set_params(parameters.ParameterSet('puls', ampl=0.1, amplteff=0.05, label='puls01'))
@@ -1438,7 +1565,7 @@ def pulsating_star(create_body=True):
 
 def binary_pulsating_primary(create_body=True, npuls=1):
     """
-    Binary with a pulsating primary.
+    Binary system with a pulsating primary component
     """
     library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'library/')
     system = os.path.join(library_dir, 'defaults.phoebe')
@@ -1450,7 +1577,7 @@ def binary_pulsating_primary(create_body=True, npuls=1):
 
 def binary_pulsating_secondary(create_body=True, npuls=1):
     """
-    Binary with a pulsating secondary
+    Binary system with a pulsating secondary component
     """
     library_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),'library/')
     system = os.path.join(library_dir, 'defaults.phoebe')

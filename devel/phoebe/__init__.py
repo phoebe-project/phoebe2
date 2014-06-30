@@ -441,7 +441,13 @@ Interstellar reddening can be taken into account in two ways:
    which is a global system parameterSet.
    The extinction law and parameters (e.g. :math:`R_v`) can then be set and the
    extinction at any wavelength can be derived from the extinction at a reference
-   wavelenght :math:`A_\lambda`.
+   wavelenght :math:`A_\lambda`. To add interstellar reddening to a Bundle,
+   simply do::
+   
+        mybundle = phoebe.Bundle()
+        reddening = phoebe.ParameterSet('reddening:interstellar')
+        mybundle.attach_ps(reddening)
+        
 2. Using custom passband extinction parameters, which should be manually added
    and given in each pbdep (see. :py:func:`add_ebv <phoebe.parameters.tools.add_ebv>`)
    
@@ -928,9 +934,9 @@ Building upon the minimal version of the Body class, we can add some of the
 features discussed above::
 
     from algorithms import marching
+    
     class PhysicalBody(Body):
-    
-    
+        
         def fix_mesh(self):
             
             # Hold a list of all dtypes of the columns to add
