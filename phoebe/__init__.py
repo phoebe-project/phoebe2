@@ -931,7 +931,9 @@ Vector quantities have a trailing underscore ``_``, which is important for the
 rotation functions (vectors are translated/rotated differently from coordinates).
 
 Building upon the minimal version of the Body class, we can add some of the
-features discussed above::
+features discussed above
+
+.. sourcecode:: python
 
     from algorithms import marching
     
@@ -960,18 +962,21 @@ features discussed above::
             
             # Now add the missing columns to the mesh, and reset it
             self.mesh = np.zeros(N, dtype=dtypes)
-            
+        
         
         def compute_mesh(self, time=None):
             mesh = marching.cdiscretize(0.1, 100000, *self.subdivision['mesh_args'][:-1])
         
+        
         def surface_gravity(self, time=None):
             self.mesh['logg'] = 4.4
+        
         
         def temperature(self, time=None):
             freq = self.params['mybodyparams']['freq']
             self.mesh['teff'] = 5777.0 + 500.0*sin(2*pi*freq*time)
-            
+        
+        
         def set_time(self, time):
             
             # Only compute the mesh if not done before, and also only check
@@ -982,15 +987,19 @@ features discussed above::
                 self.compute_mesh(time)
                 self.fix_mesh()
                 
-                            
-            
-            # 
+                # the surface gravity is always the same, so we also need
+                # to set it only once
+                self.surface_gravity(time=time)
                 
+            # We need to set the effective temperature at any time point
+            self.temperature(time=time)
             
             # Keep track of the time
             self.time = time
             
 
+The class :py:class:`PhysicalBody <phoebe.backend.universe.PhysicalBody>` is
+a good base class to start designing any custom Body you want to make. 
 
 4.5 Synthesizing data
 ------------------------

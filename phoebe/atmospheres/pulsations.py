@@ -151,7 +151,11 @@ from phoebe.utils import Ylm
 from phoebe.utils import coordinates
 from phoebe.units import constants
 from phoebe.atmospheres import limbdark
-from phoebe.atmospheres import fpulsations
+try:
+    from phoebe.atmospheres import fpulsations
+    fpulsations_success = True
+except ImportError:
+    fpulsations_success = False
 
 logger = logging.getLogger("PULS")
 logger.addHandler(logging.NullHandler())
@@ -1066,7 +1070,7 @@ def add_pulsations(self,time=None, mass=None, radius=None, rotperiod=None,
 
 
 #fpulsations_success = False
-if True:
+if fpulsations_success:
     observables = observables_fortran
     surface = surface_fortran
 else:
