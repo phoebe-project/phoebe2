@@ -34,10 +34,13 @@ sirius['teff'] = 9900,'K'
 sirius['mass'] = 2.3,'Msol'
 sirius['radius'] = 1.711,'Rsol'
 sirius['rotperiod'] = np.inf
-sirius['distance'] = 2.637,'pc'
 sirius['ld_func'] = 'claret'
 sirius['atm'] = 'kurucz'
 sirius['ld_coeffs'] = 'kurucz'
+
+# Position parameters
+pos = phoebe.ParameterSet(context='position')
+pos['distance'] = 2.637,'pc'
 
 # To compute interferometric visibilities:
 ifdep1 = phoebe.ParameterSet(context='ifdep')
@@ -71,7 +74,7 @@ data = np.array([[17.758,  0.8602,  0.0206],
 # Body setup
 # ----------
 # Build the Star body
-mesh = phoebe.Star(sirius,mesh1,pbdep=ifdep1)
+mesh = phoebe.Star(sirius,mesh1, pbdep=ifdep1, position=pos)
 
 # Computation of observables
 # --------------------------

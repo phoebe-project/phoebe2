@@ -1642,7 +1642,9 @@ class Parameter(object):
         @return: a copy of the instance
         @rtype: Parameter
         """
-        return copy.deepcopy(self)    
+        return copy.deepcopy(self)            
+            
+        
     
     #}
     
@@ -2951,8 +2953,12 @@ class ParameterSet(object):
         
         @rtype: ParameterSet
         """
-        return copy.deepcopy(self)
-    
+        new = copy.deepcopy(self)
+        # make new unique identifiers
+        for par in new:
+            new.get_parameter(par)._unique_label = str(uuid.uuid4())
+            
+        return new
     
     def save(self,filename):
         """

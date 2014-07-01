@@ -32,7 +32,7 @@ mesh = phoebe.ParameterSet(context='mesh:marching')
 
 # Definition of the spot:
 spot = phoebe.ParameterSet(context='circ_spot')
-spot['teffratio'] = 0.1
+spot['teffratio'] = 0.9
 spot['long'] = 90.,'deg'
 spot['colat'] = 45.,'deg'
 spot['angrad'] = 10.

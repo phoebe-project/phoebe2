@@ -325,12 +325,22 @@ specified. The current options are:
     grey scattering means all the passband albedos are equal. A passband albedo
     of unity means no redistribution of wavelengths. A passband albedo exceeding
     unity means that light from other wavelengths is redistributed inside the
-    current passband.
+    current passband. Passband albedo cannot be negative, you cannot reflect less
+    light than no light. Passband albedo of zero means that within that passband,
+    all the light is absorbed.
     
     Bolometric albedos need to be between 0 and 1, passband albedos can exceed 1.
 
+Note that Phoebe2 allows you to set bolometric albedo of zero (total heating,
+no reflection) and still allows you to set nonzero passband albedos. Although this
+is physically inconsistent, it is impossible to check such requirements in all
+but the easiest cases, since we do not have the full wavelength information. That is,
+if you reflect e.g. only 1% of the light, in principle you are allowed to put all
+that light in one passband. Phoebe2 does not check if the total reflected light
+in all passbands exceeds the 1% of the bolometric light.
+
 See the :ref:`reflection <reflection-algorithms>` module for more information.
-See :py:func:`generic_projected_intensity <phoebe.universe.generic_projected_intensity>`
+See :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>`
 for implementation details.
 
 Section 2.3 Beaming
@@ -354,6 +364,8 @@ options for the beaming algorithm:
 The latter two options are particularly useful for circular orbits, as the
 beaming coefficients only need to be computed once.
 
+For more information, see :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>` and :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>`.
+
 Section 2.4 Morphological constraints
 --------------------------------------
 
@@ -369,12 +381,13 @@ component ParameterSet for this purpose. It can take the following values:
     - ``morphology='overcontact'``: the component must have a potential value
       below the critical value
 
-Note that these values are not strictly enforced, and in principle do not
+Note that these values are **not strictly enforced**, and in principle do not
 interfere with any of the computations. However, a preprocessing step is added
 using :py:func:`binary_morphology <phoebe.backend.processing.binary_morphology>`,
 which adjusts the limits on the potential value parameter. Then it can be
 easily checked if the potential value satisfies the constraint, e.g. during
-fitting.
+fitting with the functions :py:func:`Bundle.get_logp <phoebe.frontend.bundle.Bundle.get_logp>`
+or :py:func:`Body.get_logp <phoebe.backend.universe.Body.get_logp>`.
 
 
 Section 2.5 Light time travel effects
@@ -382,7 +395,7 @@ Section 2.5 Light time travel effects
 
 Light time travel effects are off by default. You can enable them by setting
 ``ltt=True``. In this case, the orbit will be precomputed
-:py:func:`(barycentric orbit) <phoebe.dynamics.keplerorbit.get_barycentric_orbit>`,
+:py:func:`(barycentric orbit) <phoebe.dynamics.keplerorbit.get_barycentric_hierarchical_orbit>`,
 such that for any given barycentric time, we know what the proper time of the
 components is. Note that the relative light time travel effects *between* the
 components is not taken into account, i.e. reflection/heating effects are not
@@ -526,17 +539,32 @@ module, but here are some important notes:
 Section 2.11 Magnetic fields
 --------------------------------------
 
-TBD
+Only (oblique) dipole and quadrupole magnetic fields are supported. It is
+possible to add more than one magnetic field, with different orientations, to
+mimic more complex fields. Magnetic fields are added by adding the corresponding
+parameterSet to the appropriate Body, e.g. via the Bundle one can issue::
+
+        mybundle = phoebe.Bundle()
+        magfield = phoebe.ParameterSet('magnetic_field:dipole')
+        mybundle.attach_ps(magfield, 'primary')
+
+For more information on magnetic field equations and obliquity angles,
+see the :py:mod:`magfield <phoebe.atmospheres.magfield>` module.        
 
 Section 2.12 Spots
 --------------------------------------
 
-TBD
+You should not use spots in Phoebe2. The model is unphysical (circular) and
+contains too many unfittable parameters. Only in the case of single Stars you
+might have a shot.
 
-Section 2.13 Potential shapes
---------------------------------------
+In single Stars, spots follow the differential rotation law, if specified. Simply
+add spots to your model via::
 
-TBD
+    mybundle = phoebe.Bundle("Sun")
+    spot = phoebe.ParameterSet('circ_spot', label='myspot')
+    mybundle.attach_ps(spot)
+
 
 Section 3. Data handling
 ======================================
@@ -544,11 +572,93 @@ Section 3. Data handling
 3.1 Light curves
 ------------------
 
+Light curves are described via:
+
+    - Passband dependable :ref:`lcdep <parlabel-phoebe-lcdep>`
+    - DataSet :py:class:`LCDataSet <phoebe.parameters.datasets.LCDataSet>`
+    
+The synthetic calculations are **always** done on a Body-to-Body basis, i.e.
+each Body internally keeps track of its own light curve. Whenever the light curve
+is queried of a BodyBag (:py:func:`get_synthetic <phoebe.backend.universe.BodyBag.get_synthetic>`),
+the individual light curves of all Bodies are added together.
+
+Because BodyBags do not need to implement a light curve method, computations are
+done by the :py:func:`lc <phoebe.backend.universe.PhysicalBody.lc>` method
+of the :py:class:`PhysicalBody <phoebe.backend.universe.PhysicalBody>`. The
+method simply calls the :py:func:`projected_intensity <phoebe.backend.universe.PhysicalBody.projected_intensity>` method
+of the specific Body (:py:class:`Star <phoebe.backend.universe.Star>` etc...)
+and stores the result in the corresponding synthetic DataSet.
+
+Light curves can be added to a Bundle via any of:
+
+    - :py:func:`lc_fromfile <phoebe.frontend.bundle.Bundle.lc_fromfile>`: if your
+      light curve is a more-or-less standard ASCII file formet
+    - :py:func:`lc_fromarrays <phoebe.frontend.bundle.Bundle.lc_fromarrays>`:
+      if you want to create light curve within a script, or want to load data
+      from non-standard files manually.
+    - :py:func:`lc_fromexisting <phoebe.frontend.bundle.Bundle.lc_fromexisting>`:
+      if you want to copy the properties and data from an existing light curve,
+      but want to change particular properties (like the atmosphere tables or
+      limb darkening coefficients).
+    
+
 3.2 Radial velocity curves
 -----------------------------
 
+Radial velocity curves are described via:
+
+    - Passband dependable :ref:`rvdep <parlabel-phoebe-rvdep>`
+    - DataSet :py:class:`RVDataSet <phoebe.parameters.datasets.RVDataSet>`
+    
+In contrast to light curves the synthetic calculations are **always** done on
+the top-level Body, because a total radial velocity curve cannot be simply
+obtained via the combination of the lower-level Bodies. It is therefore also
+of vital importance to add radial velocity data **to the corresponding Body**
+and not to the total system (as done for light curves).
+
+Computations are done by the :py:func:`rv <phoebe.backend.universe.Body.rv>`
+or :py:func:`rv_nomesh <phoebe.backend.universe.Body.rv_nomesh>`
+method of the :py:class:`Body <phoebe.backend.universe.Body>`. Which one of the
+two functions is called depends on the value of the :ref:`method <label-method-rvdep-phoebe>`
+Parameter inside the :ref:`rvdep <parlabel-phoebe-rvdep>`. If it is set to
+``flux-weighted``, then a mesh is required, if it is set to ``dynamical``, then
+the ``nomesh`` version is used (which is much faster). The distinction is made
+inside :py:func:`extract_times_and_refs <phoebe.backend.observatory.extract_times_and_refs>`
+and it is thus the responsibility of the backend to make the correct call.
+
+The :py:func:`rv_nomesh <phoebe.backend.universe.Body.rv_nomesh>` simply
+calls :py:func:`get_barycentric_hierarchical_orbit <phoebe.dynamics.keplerorbit.get_barycentric_hierarchical_orbit>` and fills
+in the synthetic DataSet.
+
+The :py:func:`rv <phoebe.backend.universe.Body.rv>` method calls the
+:py:func:`radial_velocity <phoebe.backend.observatory.radial_velocity>` function
+in the observatory to compute the flux-weighted velocity average,
+and stores the result in the corresponding synthetic DataSet.
+
+Radial velocity curves can be added to a Bundle via any of:
+
+    - :py:func:`rv_fromfile <phoebe.frontend.bundle.Bundle.rv_fromfile>`: if your
+      radial velocity curve is a more-or-less standard ASCII file formet
+    - :py:func:`rv_fromarrays <phoebe.frontend.bundle.Bundle.rv_fromarrays>`:
+      if you want to create a radial velocity curve within a script, or want to load data
+      from non-standard files manually.
+    - :py:func:`rv_fromexisting <phoebe.frontend.bundle.Bundle.rv_fromexisting>`:
+      if you want to copy the properties and data from an existing radial velocity curve,
+      but want to change particular properties (like the atmosphere tables or
+      limb darkening coefficients).
+
 3.3 Multicolour photometry (SEDs)
 ------------------------------------
+
+Multicolour photometry in the form of Spectral Energy Distributions (SEDs) are
+not really separate DataSets or ParameterSets. They are merely a collection of
+light curves, :py:func:`grouped together <phoebe.parameters.tools.group>`, such
+that they can be scaled together. Every datapoint in an SED is a separate
+*lcdep* and *LCDataSet*, but the observations (*lcobs*) have an extra parameter
+``group``. SEDs can be conveniently added to the Bundle via:
+
+    - :py:func:`sed_fromfile <phoebe.frontend.bundle.Bundle.sed_fromfile>`
+    - :py:func:`sed_fromarrays <phoebe.frontend.bundle.Bundle.sed_fromarrays>`
 
 3.4 Spectra
 -----------------
@@ -929,6 +1039,18 @@ The basic columns are:
 
 Vector quantities have a trailing underscore ``_``, which is important for the
 rotation functions (vectors are translated/rotated differently from coordinates).
+If you print the mesh columns for a Body via
+
+>>> mybody.mesh.dtype.names
+
+you will see many columns appear twice, one as listed above and one prefixed with
+``_o_``. The latter stands for *original*, and gives you the quantities as
+defined in the original frame of reference, e.g. for a :envvar:`Star` that will
+have the coordinates (0,0,0) in the center of the Star. A :envvar:`BinaryRocheStar`
+will also have the (0,0,0) in its center, regardless of it being the primary or
+secondary. This is particularly useful if you want to compute the volume of a 
+Body, or if you want to mark surface features with respect to the original
+reference frame.
 
 Building upon the minimal version of the Body class, we can add some of the
 features discussed above
@@ -999,16 +1121,87 @@ features discussed above
             
 
 The class :py:class:`PhysicalBody <phoebe.backend.universe.PhysicalBody>` is
-a good base class to start designing any custom Body you want to make. 
+a good base class to start designing any custom Body you want to make. Typically,
+you'll want to override the init function, and implement your own ``set_time``
+method and any other method that is relevant. In order to neatly fit into the
+whole Phoebe2-computation framework, any subclass of PhysicalBody should implement
+at least the following two methods:
 
-4.5 Synthesizing data
+    - ``set_time``
+    - ``projected_intensity``
+
+The codes of :envvar:`BinaryRocheStar` and :envvar:`Star` are probably a good
+place to start if you want to develop your own Body.
+
+4.5. Modifying Body behaviour on-the-fly
+----------------------------------------
+
+Sometimes an existing Body provides you with nearly all the functionality you
+want, but you want to make very slight modifications to some functions. For
+example, you might want to use a map of local albedo instead of single values
+for the whole star. In that case, you can replace specific methods of a Body
+on the fly with your own method and/or add extra columns to the mesh if you
+require it. In the following example, we use a PNG image of a convection map
+of the sun to map albedo values:
+
+.. sourcecode:: python
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import phoebe
+    
+    # Define custom albedo function that maps an image on to the BinaryRocheStar
+    def albedo(self, time=None):
+        phoebe.backend.observatory.add_bitmap(self, 'texture_sun.png', select='alb',
+                                    minval=0, maxval=1, white_as_transparent=False)
+
+    # Define a function to dynamically add methods to a class instance        
+    def add_method(method, self, *args, **kwargs):
+        def the_func(*args, **kwargs):
+            return method(self, *args, **kwargs)
+        return the_func
+
+    # Initiate a default binary system
+    x = phoebe.Bundle()
+
+    # replace the existing temperature function for the secondary and albedo function
+    # for the primary
+    primary = x.get_system()[0]
+    primary.albedo = add_method(albedo, primary)
+
+    # Make sure 'alb' is added as a mesh column (this is not a mesh property in general)
+    # We specify that the 'alb' column will take float values ('f8').
+    primary._extra_mesh_columns = [('alb', 'f8')]
+
+    # Add a lightcurve
+    x.lc_fromarrays(phase=np.linspace(0,1,100))
+
+    # Now you can the Body as you would use any other Body.
+    # E.g., plot the mesh; you should see the texture
+    x.plot_mesh(phase=0)
+    plt.show()
+
+If you want to have the above behaviour permanently, you have at least two
+options:
+
+1. You define a new parameterSet and change the init method of the BinaryRocheStar
+   to add that ParameterSet to the :envvar:`params` attribute of BinaryRocheStar.
+   Then you can change the existing :envvar:`albedo` code in the BinaryRocheStar
+   to do what is described above whenever that ParameterSet is available, and
+   otherwise do nothing.
+
+2. You define a new Body, subclass BinaryRocheStar and override the albedo function
+   with the one defined above.
+
+
+4.6 Synthesizing data
 ------------------------
 
 Data computations involve a lot of steps and prerequisites. In principle, any
 type of data follows the same pattern of computations, perhaps with slight
 deviations.
 
-4.5.1 Prerequisites
+4.6.1 Prerequisites
 ~~~~~~~~~~~~~~~~~~~~~
 
 Before data can by synthesized, the Body or BodyBag needs to exist, need to be
@@ -1020,7 +1213,7 @@ Thus, the prerequisites are:
 * Body needs to have a fully computed mesh (set to a time)
 * Body needs to have observations attached
 
-4.5.2 Synthesis
+4.6.2 Synthesis
 ~~~~~~~~~~~~~~~~~~~~~
 
 The base :py:class:`Body <phoebe.backend.universe.Body>` and 
@@ -1053,16 +1246,16 @@ the separate Bodies first. Here are two examples:
    (see doc of :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
 
 
-4.6 Recipes
+4.7 Recipes
 -----------------
 
-4.6.1 How to implement a new Body
+4.7.1 How to implement a new Body
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-4.6.2 How to implement a new type of observations
+4.7.2 How to implement a new type of observations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-4.6.3 How to add physics
+4.7.3 How to add physics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """

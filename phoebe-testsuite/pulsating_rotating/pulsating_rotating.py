@@ -29,8 +29,8 @@ lac['radius'] = 8.8,'Rsol'
 lac['mass'] = 14.4,'Msol'
 lac['rotperiod'] = 2.23,'d'
 lac['ld_func'] = 'claret'
-lac['atm'] = 'kurucz'
-lac['ld_coeffs'] = 'kurucz'
+lac['atm'] = 'kurucz_p00'
+lac['ld_coeffs'] = 'kurucz_p00'
 lac['shape'] = 'sphere'
 lac['label'] = '12Lac'
 
@@ -44,7 +44,7 @@ freq_pars1['ampl'] = 0.02
 freq_pars1['l'] = 1
 freq_pars1['m'] = 0
 freq_pars1['k'] = 0.
-freq_pars1['deltateff'] = 0.2
+freq_pars1['amplteff'] = 0.2
 freq_pars1['scheme'] = 'coriolis'
 
 freq_pars2 = freq_pars1.copy()
@@ -57,8 +57,8 @@ freq_pars3['m'] = -1
 # Create a ParameterSet with parameters for the light curve
 lcdep1 = phoebe.ParameterSet(frame='phoebe',context='lcdep',ref='lc')
 lcdep1['ld_func'] = 'claret'
-lcdep1['ld_coeffs'] = 'kurucz'
-lcdep1['atm'] = 'kurucz'
+lcdep1['ld_coeffs'] = 'kurucz_p00'
+lcdep1['atm'] = 'kurucz_p00'
 
 # Body setup
 # ----------
@@ -80,8 +80,8 @@ for i,itime in enumerate(times):
     star.reset()
     star.params['star']['rotperiod'] = rotperiods[i]
     star.set_time(itime,ref='lc')
-    star.lc()
-    phoebe.image(star,select='teff',ref=0,subtype='lcdep',savefig='image_{:05d}.png'.format(i))
+    star.lc(time=itime)
+    phoebe.image(star,select='teff',ref=0,context='lcdep',savefig='image_{:05d}.png'.format(i))
 star.save('pulsating_rotating.phoebe')
 
 """
