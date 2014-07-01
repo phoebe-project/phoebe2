@@ -3222,7 +3222,14 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
     # Prepare output contexts
     ref = kwargs.get('ref', os.path.splitext(filename)[0])
     ifmdep = parameters.ParameterSet(context='ifdep', ref=ref)
-    ifmobs = IFDataSet(context='ifobs', ref=ref,
+    if include_closure_phase:
+        new_columns = ['ucoord_2', 'vcoord_2', 'closure_ampl',
+                              'sigma_closure_ampl',
+                              'closure_phase', 'sigma_closure_phase']
+        ifmobs = IFDataSet(context='ifobs', ref=ref,
+                       columns=['ucoord','vcoord','vis2','sigma_vis2','time']+new_columns)
+    else:
+        ifmobs = IFDataSet(context='ifobs', ref=ref,
                        columns=['ucoord','vcoord','vis2','sigma_vis2','time'])
     for key in kwargs:
         if key in ifmdep:
@@ -3240,18 +3247,25 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
     ifmobs['time'] = allvis2['mjd']
     ifmobs['eff_wave'] = conversions.convert('m','AA',allvis2['eff_wave'])
     
-    print ifmobs.keys()
     if include_closure_phase:
         # first add nans for everything that has been added already
         nans = np.nan*np.ones(len(ifmobs))
-        ifmobs['ucoord_2'] = 
+        for col in new_columns:
+            ifmobs[col] = nans
         
+        # Then add new data
         allt3 = templatedata.allt3
-        ifmobs['ucoord'] = allt3['u1coord']
+        phoebe_names = ['ucoord', 'vcoord', 'ucoord_2', 'vcoord_2', 'closure_ampl',
+                        'sigma_closure_ampl', 'closure_phase', 'sigma_closure_phase']
+        
+        ifmobs['ucoord'] = np.hstack([allt3['u1coord']])
         ifmobs['vcoord'] = allt3['v1coord']
         ifmobs['ucoord_2'] = allt3['u2coord']
         ifmobs['vcoord_2'] = allt3['v2coord']
-        ifmobs['time'] = 0
+        ifmobs['closure_ampl'] = allt3['t3amp']
+        ifmobs['sigma_closure_ampl'] = allt3['t3amperr']
+        ifmobs['closure_phase'] = allt3['t3phi']
+        ifmobs['sigma_closure_phase'] = allt3['t3phierr']
     
     
     output = OrderedDict()
