@@ -52,8 +52,8 @@ vega['ld_func'] = 'claret'
 vega['atm'] = 'kurucz'
 vega['ld_coeffs'] = 'kurucz'
 
-globals = phoebe.ParameterSet('position')
-globals['distance'] = 7.756, 'pc'
+globs = phoebe.ParameterSet('position')
+globs['distance'] = 7.756, 'pc'
 
 # We want to compute interferometric visibilities in the K band:
 ifdep1 = phoebe.ParameterSet(frame='phoebe', context='ifdep', ref='Fast rotator')
@@ -81,7 +81,7 @@ vega2['label'] = 'Non-rotating Vega (uniform disk)'
 theta2 = phoebe.Parameter(qualifier='angdiam', description='Angular diameter',
                           unit='mas', value=3.209)
 vega2.add(theta2)
-vega2.add_constraint('{{radius}}=0.5*{{angdiam}}*{}'.format(globals.get_value('distance','m')))
+vega2.add_constraint('{{radius}}=0.5*{{angdiam}}*{}'.format(globs.get_value('distance','m')))
 
 # 
 ifdep2 = ifdep1.copy()
@@ -98,6 +98,7 @@ ifdep3 = ifdep1.copy()
 ifdep3['ld_func'] = 'power'
 ifdep3['ld_coeffs'] = [0.341]
 ifdep3['ref'] = 'power-law LD'
+ifdep3['atm'] = 'blackbody'
 
 # The final nonrotating model has an angular diameter of 3.259 and normal
 #  Claret limbdarkening.
@@ -143,10 +144,10 @@ ifobs_simul4['ref'] = ifdep4['ref']
 # ----------
 
 # Build the Star Bodies
-star1 = phoebe.Star(vega,  mesh, pbdep=ifdep1, obs=ifobs_simul1, globals=globals)
-star2 = phoebe.Star(vega2, mesh, pbdep=ifdep2, obs=ifobs_simul2, globals=globals)
-star3 = phoebe.Star(vega3, mesh, pbdep=ifdep3, obs=ifobs_simul3, globals=globals)
-star4 = phoebe.Star(vega4, mesh, pbdep=ifdep4, obs=ifobs_simul4, globals=globals)
+star1 = phoebe.Star(vega,  mesh, pbdep=ifdep1, obs=ifobs_simul1, position=globs)
+star2 = phoebe.Star(vega2, mesh, pbdep=ifdep2, obs=ifobs_simul2, position=globs)
+star3 = phoebe.Star(vega3, mesh, pbdep=ifdep3, obs=ifobs_simul3, position=globs)
+star4 = phoebe.Star(vega4, mesh, pbdep=ifdep4, obs=ifobs_simul4, position=globs)
 
 # For convenience, we put everything in a BodyBag. Then we can set the time of
 # all bodies simultaneously and don't have to cycle through them.

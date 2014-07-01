@@ -136,7 +136,7 @@ def test_parse_phased_data():
     """
     
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
-    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'])
+    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'flux'], estimate_sigma=False)
     assert(len(obs['time']) == 0)
     assert(obs['columns'] == ['phase', 'flux'])
 
@@ -146,7 +146,7 @@ def test_parse_phased_data_mag():
     """
     
     phasedfile = os.path.join(basedir, 'HD174884/hd174884.phased.data')
-    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'])
+    obs, pbdep = phoebe.parse_lc(phasedfile, columns=['phase', 'mag'], estimate_sigma=False)
     assert(len(obs['time']) == 0)
     assert(obs['columns'] == ['phase', 'flux'])
     
@@ -201,7 +201,7 @@ def test_parse_lc_01():
     File parsing: parse_lc (5)
     """
     
-    obs, pbdep = phoebe.parse_lc(os.path.join(basedir, 'datafiles/example1.lc'))
+    obs, pbdep = phoebe.parse_lc(os.path.join(basedir, 'datafiles/example1.lc'), estimate_sigma=False)
     assert(obs['columns'] == ['time', 'flux'])
     assert(len(obs['time']) == 4)
     

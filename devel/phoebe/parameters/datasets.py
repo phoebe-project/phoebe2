@@ -242,7 +242,7 @@ class DataSet(parameters.ParameterSet):
                     self[col] = []
     
     
-    def save(self, filename=None, pretty_header=False):
+    def save(self, filename=None, pretty_header=False, mode='w'):
         """
         Save the contents of C{columns} to C{filename}.
         
@@ -279,7 +279,7 @@ class DataSet(parameters.ParameterSet):
                 
         #-- open the filename or the stream
         if isinstance(filename,str):
-            ff = open(filename,'a')
+            ff = open(filename,mode)
         else:
             ff = filename
         
@@ -1299,28 +1299,48 @@ class IFDataSet(DataSet):
     
     Addition of IFDataSet is treated as follows:
     
-    The complex visibilities :math:`V` of a system consisting of two
-    components :math:`V_1` and :math:`V_2` can be computed from the component's
-    visibilities. Suppose the normalised complex visilibities of the
+    The complex visibilities :math:`S` of a system consisting of two
+    components :math:`S_1` and :math:`S_2` can be computed from the individual
+    component's visibilities. Suppose the normalised complex visilibities of the
     components are given by
     
     .. math::
         
-        V_1 = \frac{A_1}{F_1} \exp(i\phi_1) \\
-        V_2 = \frac{A_2}{F_2} \exp(i\phi_2)
+        S_1 = \frac{A_1}{F_1} \exp(i\phi_1) \\
+        S_2 = \frac{A_2}{F_2} \exp(i\phi_2)
     
     Where :math:`A_i` is the amplitude of the components visibility computed
     in absolute flux units (i.e. not normalised to 1 at zero baseline for
-    an unresolved source). The factor :math:`F_i` is the normalisation constant required for normalisation to one at zero baseline for an unresolved
+    an unresolved source). The factor :math:`F_i` is the normalisation constant
+    required for normalisation to one at zero baseline for an unresolved
     point source.
     
     Then, the total normalised visibilities are given by
     
     .. math::
     
-        V &= \frac{F_1V_1 + F_2V_2}{F_1 + F_2} \\
+        S &= \frac{F_1S_1 + F_2S_2}{F_1 + F_2} \\
           &= \frac{A}{F} \exp(i\phi)
-      
+    
+    The **closure phase** is computed as follows:
+    
+    In each IFDataSet, two baselines :math:`(U_1,V_1)` and :math:`(U_2, V_2)` are
+    given from which the third baseline can be computed as
+    
+    .. math::
+        
+        U_3 = - (U_1 + U_2)\\
+        V_3 = - (V_1 + V_2)
+        
+    Then we compute visibilities and phases for each baseline (:envvar:`vis2`,
+    :envvar:`vis2_2` and :envvar:`vis2_3` and the same for the phases). The
+    closure phase :math:`\phi_C` and amplitude :math:`A_C` is then computed as
+    
+    .. math::
+    
+        \phi_C = &\mathrm{angle}\left(\exp\left(i(\phi_1 + \phi_2 + \phi_3)\right)\right)\\
+        A_C =&  \sqrt{S_1^2S_2^2S_3^2}
+    
     """
     def __init__(self,**kwargs):
         kwargs.setdefault('context','ifobs')
@@ -1341,27 +1361,44 @@ class IFDataSet(DataSet):
         r"""
         Add two IFDataSets together.
         
-        See class documentation for more info.
+        See class documentation for more info (double underscore methods are
+        not generated in the documentation).
         """
         # Get this dataset and the other one
         result = self.asarray() # Make a copy!
-        other = other.asarray()
+        other = other.asarray() # 
         
-        # Retrieve normalisation factors, visibility amplitudes and phases
-        flux_a = np.array(self['total_flux'])
-        flux_b = np.array(other['total_flux'])
-        vis_a = np.sqrt(self['vis2'])
-        vis_b = np.sqrt(other['vis2'])
-        phase_a = np.array(self['vphase'])
-        phase_b = np.array(other['vphase'])
+        baselines = ['']
         
-        # Compute the combined visibility
-        vis = (vis_a*np.exp(1j*phase_a) + vis_b*np.exp(1j*phase_b)) / (flux_a + flux_b)
+        if 'vis2_2' in self['columns'] and len(self['vis2_2'])==len(self['vis2']):
+            baselines += ['_2', '_3']
         
-        # Compute the normalisation compu
-        result['vis2'] = np.abs(vis)**2
-        result['vphase'] = np.angle(vis)
-        result['total_flux'] = (flux_a + flux_b)
+        for bs in baselines:
+            # Retrieve normalisation factors, visibility amplitudes and phases
+            flux_a = np.array(self['total_flux'+bs])
+            flux_b = np.array(other['total_flux'+bs])
+            vis_a = np.sqrt(self['vis2'+bs])*flux_a
+            vis_b = np.sqrt(other['vis2'+bs])*flux_b
+            phase_a = np.array(self['vphase'+bs])
+            phase_b = np.array(other['vphase'+bs])
+        
+            # Compute the combined visibility
+            vis = (vis_a*np.exp(1j*phase_a) + vis_b*np.exp(1j*phase_b)) / (flux_a + flux_b)
+        
+            # Compute the normalisation
+            result['vis2'+bs] = np.abs(vis)**2
+            result['vphase'+bs] = np.angle(vis)
+            result['total_flux'+bs] = (flux_a + flux_b)
+            
+        # Compute closure phases and amplitudes if necessary
+        if len(baselines) > 1:
+            result['closure_phase'] = np.angle(np.exp(1j*(result['vphase']+result['vphase_2']+result['vphase_3'])))
+            result['closure_ampl'] = np.sqrt(result['vis2']*result['vis2_2']*result['vis2_3']) / (result['total_flux']*result['total_flux_2']*result['total_flux_3'])
+        
+        
+        
+        
+        
         
         return result
     
@@ -1894,7 +1931,7 @@ def process_file(filename, default_column_order, ext, columns, components,\
 
 
 def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
-             full_output=False, **kwargs):
+             full_output=False, estimate_sigma=True, **kwargs):
     """
     Parse LC files to LCDataSets and lcdeps.
     
@@ -1989,7 +2026,10 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     **Uncertainties**
     
     If no ``sigma`` column is given, a column will be added with all-equal
-    values.
+    values if :envvar:`estimate_sigma` is :envvar:`True`. If a ``sigma``
+    column is available, :envvar:`estimate_sigma` is ignored. Magnitudes and
+    errors on magnitudes are converted to fluxes and error on fluxes using
+    linear error propagation.
     
     **Units**
     
@@ -2101,6 +2141,8 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     @type units: dictionary
     @param full_output: if False and there are no labels in the file, only the data from the first component will be returned, instead of the OrderedDict
     @type full_output: bool
+    @param estimate_sigma: estimate sigmas and add such a column if uncertainties are not available
+    @type estimate_sigma: bool
     @return: :ref:`lcobs <parlabel-phoebe-lcobs>`, :ref:`lcdep <parlabel-phoebe-lcdep>`) or OrderedDict with the keys the labels of the objects, and then the lists of lcobs and lcdeps.
     """
     default_column_order = ['time', 'flux', 'sigma', 'flag', 'exptime',
@@ -2116,9 +2158,9 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
     myds = output.values()[0][0][0]
     mypb = output.values()[0][1][0]
     
-    if not 'sigma' in myds['columns']:
+    if not 'sigma' in myds['columns'] and estimate_sigma:
         myds.estimate_sigma(from_col='flux', to_col='sigma')
-        #myds['columns'] = myds['columns'] + ['sigma']
+        myds['columns'] = myds['columns'] + ['sigma']
         logger.warning("Obs {}: sigma estimated (not available)".format(myds['ref']))
     
     # Convert to right units (flux and mag are not done in process_file)
@@ -2130,10 +2172,15 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
             if unit_from != unit_to:
                 passband = mypb['passband']
                 logger.warning("Obs {}: flux and sigma converted from {} to {} ({})".format(myds['ref'], unit_from, unit_to, passband))
-                f, e_f = conversions.convert(unit_from, unit_to,
+                if 'sigma' in myds['columns']:
+                    f, e_f = conversions.convert(unit_from, unit_to,
                                          myds['flux'], myds['sigma'], passband=passband)
-                myds['flux'] = f
-                myds['sigma'] = e_f
+                    myds['flux'] = f
+                    myds['sigma'] = e_f
+                else:
+                    f = conversions.convert(unit_from, unit_to,
+                                         myds['flux'], passband=passband)
+                    myds['flux'] = f
     
     # If the user didn't provide any labels (either as an argument or in the
     # file), we don't bother the user with it:
@@ -2144,8 +2191,8 @@ def parse_lc(filename, columns=None, components=None, dtypes=None, units=None,
 
 
 
-def parse_rv(filename, columns=None, components=None,
-             full_output=False, dtypes=None, units=None, **kwargs):
+def parse_rv(filename, columns=None, components=None, full_output=False,
+             dtypes=None, units=None, estimate_sigma=True, **kwargs):
     """
     Parse RV files to RVDataSets and rvdeps.
     
@@ -2175,9 +2222,9 @@ def parse_rv(filename, columns=None, components=None,
     # Add sigma if not available:
     myds = output.values()[0][0][-1]
     
-    if not 'sigma' in myds['columns']:
+    if not 'sigma' in myds['columns'] and estimate_sigma:
         myds.estimate_sigma(from_col='rv', to_col='sigma')
-        #myds['columns'] = myds['columns'] + ['sigma']
+        myds['columns'] = myds['columns'] + ['sigma']
     
     # Convert to right units
     for col in units:
@@ -3227,10 +3274,10 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
                               'sigma_closure_ampl',
                               'closure_phase', 'sigma_closure_phase']
         ifmobs = IFDataSet(context='ifobs', ref=ref,
-                       columns=['ucoord','vcoord','vis2','sigma_vis2','time']+new_columns)
+                       columns=['ucoord','vcoord','vis2','sigma_vis2','time', 'eff_wave']+new_columns)
     else:
         ifmobs = IFDataSet(context='ifobs', ref=ref,
-                       columns=['ucoord','vcoord','vis2','sigma_vis2','time'])
+                       columns=['ucoord','vcoord','vis2','sigma_vis2','time', 'eff_wave'])
     for key in kwargs:
         if key in ifmdep:
             ifmdep[key] = kwargs[key]
@@ -3256,16 +3303,17 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
         # Then add new data
         allt3 = templatedata.allt3
         phoebe_names = ['ucoord', 'vcoord', 'ucoord_2', 'vcoord_2', 'closure_ampl',
-                        'sigma_closure_ampl', 'closure_phase', 'sigma_closure_phase']
+                        'sigma_closure_ampl', 'closure_phase', 'sigma_closure_phase', 'time']
+        oifits_names = ['u1coord', 'v1coord', 'u2coord', 'v2coord', 't3amp',
+                        't3amperr', 't3phi', 't3phierr', 'mjd']
+        for pname, fname in zip(phoebe_names, oifits_names):
+            ifmobs[pname] = np.hstack([ifmobs[pname], allt3[fname]])
         
-        ifmobs['ucoord'] = np.hstack([allt3['u1coord']])
-        ifmobs['vcoord'] = allt3['v1coord']
-        ifmobs['ucoord_2'] = allt3['u2coord']
-        ifmobs['vcoord_2'] = allt3['v2coord']
-        ifmobs['closure_ampl'] = allt3['t3amp']
-        ifmobs['sigma_closure_ampl'] = allt3['t3amperr']
-        ifmobs['closure_phase'] = allt3['t3phi']
-        ifmobs['sigma_closure_phase'] = allt3['t3phierr']
+        # Special care for vis2 and eff_wave
+        nans = np.nan*np.ones(len(allt3))
+        ifmobs['vis2'] = np.hstack([ifmobs['vis2'], nans])
+        ifmobs['sigma_vis2'] = np.hstack([ifmobs['sigma_vis2'], nans])
+        ifmobs['eff_wave'] = np.hstack([ifmobs['eff_wave'], conversions.convert('m','AA',allt3['eff_wave'])])
     
     
     output = OrderedDict()

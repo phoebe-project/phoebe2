@@ -1831,7 +1831,7 @@ def compute_pot_from(mybundle, radius, component=0, relative=True,
     :param radius: polar radius to compute the potential for (relative to the
      system semi-major axis if :envvar:`relative=True`, otherwise in solar units)
     :param component: primary (0) or secondary (1) component, or component's label
-    :type component: int
+    :type component: int/str
     :param relative: flag to interpret radius as relative (default) or absolute
     :type relative: bool
     :param adopt: flag to automatically set potential value in the system (default)
@@ -1907,9 +1907,9 @@ def compute_mass_from(mybundle, primary_mass=None, secondary_mass=None, q=None, 
         {'q': 2.0, 'primary_mass': 1.0, 'period': 1.0, 'sma': 6.071063212082658, 'secondary_mass': 2.0}
 
     :param mybundle: Bundle or BodyBag containing a Binary system
-    :param primary_mass: primary mass (:math:`R_\odot` or tuple with units)
+    :param primary_mass: primary mass (:math:`M_\odot` or tuple with units)
     :type primary_mass: float or tuple
-    :param secondary_mass: secondary mass (:math:`R_\odot` or tuple with units)
+    :param secondary_mass: secondary mass (:math:`M_\odot` or tuple with units)
     :type secondary_mass: float or tuple
     :param q: mass ratio
     :type q: float
