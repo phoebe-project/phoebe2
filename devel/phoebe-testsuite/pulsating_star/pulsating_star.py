@@ -24,7 +24,7 @@ from matplotlib import pyplot as plt
 import phoebe
 from phoebe.utils import plotlib
 
-logger = phoebe.get_basic_logger()
+logger = phoebe.get_basic_logger(clevel='INFO')
 
 # Parameter preparation
 # ---------------------
@@ -47,12 +47,13 @@ print lac
 # Create a ParameterSet with Parameters for the pulsation mode
 freq_pars1 = phoebe.ParameterSet(context='puls',add_constraints=True)
 freq_pars1['freq'] = 3.97,'cy/d'
-freq_pars1['ampl'] = 0.07
+freq_pars1['ampl'] = 0.01
+freq_pars1['k'] = 0.0
 freq_pars1['l'] = sys.argv[1] # 4
 freq_pars1['m'] = sys.argv[2] # 4
 freq_pars1['ledoux_coeff'] = 0.1585
 freq_pars1['amplteff'] = 0.01
-freq_pars1['scheme'] = 'coriolis'
+freq_pars1['scheme'] = 'nonrotating'
 
 # Create a ParameterSet with parameters for the light curve
 lcdep1 = phoebe.ParameterSet(context='lcdep',ref='light curve')
@@ -84,7 +85,7 @@ def extra_func(system,time,i_time):
     xlim,ylim,p = phoebe.image(system,select='teff',vmin=25500,vmax=25700)
     plt.xlim(-9,9);plt.ylim(-9,9)
     plt.savefig('{}_teff_{:05d}.png'.format(name,i_time));plt.close()
-    xlim,ylim,p = phoebe.image(system,ref='light curve',select='proj2',vmax=1.2e8)
+    xlim,ylim,p = phoebe.image(system,ref='light curve',select='proj2',vmax=1.2e5)
     plt.xlim(-9,9);plt.ylim(-9,9)
     plt.savefig('{}_proj2_{:05d}.png'.format(name,i_time));plt.close()
 

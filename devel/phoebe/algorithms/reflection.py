@@ -60,7 +60,7 @@ Section 3. Reflection
 =====================
 
 The aspect-angle dependency of the reflected light is governed by the scattering
-phase function. The atmopsheres of hot stars mainly contain free electrons as
+phase function. The atmospheres of hot stars mainly contain free electrons as
 scattering agents, which is **Thompson scattering**. Thompson scattering is grey
 (i.e. the incoming photon doesn't change its wavelength) and is, in a very good
 approximation, isotropic.
@@ -74,7 +74,7 @@ dominated scattering through the asymmetry parameter :math:`g`. There is also
 a two-term Henyey-Greenstein phase function available that can reproduce Jupiter's
 observed phase function.
 
-The Hapke model is a multi-parameter scattering model, originally build to
+The Hapke model is a multi-parameter scattering model, originally built to
 mimic the properties of regolith.
 
 Important note: in order to have a somewhat feasible computation time, we

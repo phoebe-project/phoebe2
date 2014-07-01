@@ -94,7 +94,7 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
         
         twig_split = twig.split('@')
         
-        # If we have a new ParameterSet, we need to string-rep the old one        
+        # If we have a new ParameterSet, we need to string-rep the old one
         if item['kind'] == 'Parameter' and (current_pset is None or not current_pset.contains(it)):
             
             if not current_string and current_pset is not None and summary_type=='only_adjust':

@@ -833,7 +833,16 @@ class Bundle(Container):
         """
         Retrieve the log probability of a collection of (or all) datasets.
         
-        [FUTURE]
+        This is wrapper around :py:func:`Body.get_logp <phoebe.backend.universe.Body.get_logp>`
+        that deals with enabled/disabled datasets, possibly on the fly. The
+        probability computation include the distributions of the priors on the
+        parameters.
+        
+        To get the :math:`\chi^2`, simply do:
+        
+        .. math::
+        
+            \chi^2 = -2\log p
         """
         
         # Q <pieterdegroote>: should we check first for system.uptodate?
@@ -1588,6 +1597,7 @@ class Bundle(Container):
                             new[key] = kwargs[key]
                             processed_kwargs.append(key)
                     
+                    
                     # Make sure to clear the synthetic
                     if the_context[-3:] == 'syn':
                         new.clear()
@@ -1601,6 +1611,10 @@ class Bundle(Container):
         if unprocessed_kwargs:
             raise ValueError(("Unprocessed arguments to *_fromexisting: "
                               "{}").format(", ".join(unprocessed_kwargs)))
+        
+        # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
+        self.get_system().init_mesh()
+        self._build_trunk()
             
                 
         
@@ -1610,7 +1624,7 @@ class Bundle(Container):
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
                       pblum=None, l3=None, alb=None, beaming=None,
-                      scattering=None):
+                      scattering=None, method=None):
         """
         Create and attach light curve templates to compute the model.
         
@@ -1689,7 +1703,8 @@ class Bundle(Container):
     def lc_fromfile(self, filename, objref=None, dataref=None, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, beaming=None, scattering=None):
+                      l3=None, alb=None, beaming=None, scattering=None,
+                      method=None):
         """
         Add a lightcurve from a file.
         
@@ -1774,7 +1789,7 @@ class Bundle(Container):
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
                       pblum=None, l3=None, alb=None, beaming=None,
-                      scattering=None):
+                      scattering=None, method=None):
         """
         Duplicate an existing light curve to a new one with a different dataref.
         
@@ -4934,10 +4949,18 @@ class Bundle(Container):
                                 pl=category=='pl', save_result=False, **options)
         
         # Get the object and make an image.
-        out = self.get_object(objref).plot2D(select=select, cmap=cmap, vmin=vmin,
+        try:
+            out = self.get_object(objref).plot2D(select=select, cmap=cmap, vmin=vmin,
                      vmax=vmax, size=size, dpi=dpi, background=background,
                      savefig=savefig, with_partial_as_half=with_partial_as_half,
                      **kwargs)
+        except ValueError:
+            # Most likely, the user did not add any data, did not run_compute
+            # before or did not give a time and phase explicitly here...
+            if time is None and not len(self.get_system().mesh):
+                raise ValueError("Insufficient information to plot mesh: please specify a phase or time")
+            else:
+                raise
         return out
         
         

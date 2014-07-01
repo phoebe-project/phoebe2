@@ -3214,7 +3214,8 @@ def hstack(tup):
     return out
 
 
-def parse_oifits(filename, full_output=False, **kwargs):
+def parse_oifits(filename, full_output=False, include_closure_phase=False,
+                 **kwargs):
     """
     Parse OIFITS file to IFDataSet.
     """
@@ -3238,6 +3239,20 @@ def parse_oifits(filename, full_output=False, **kwargs):
     ifmobs['vcoord'] = allvis2['vcoord']
     ifmobs['time'] = allvis2['mjd']
     ifmobs['eff_wave'] = conversions.convert('m','AA',allvis2['eff_wave'])
+    
+    print ifmobs.keys()
+    if include_closure_phase:
+        # first add nans for everything that has been added already
+        nans = np.nan*np.ones(len(ifmobs))
+        ifmobs['ucoord_2'] = 
+        
+        allt3 = templatedata.allt3
+        ifmobs['ucoord'] = allt3['u1coord']
+        ifmobs['vcoord'] = allt3['v1coord']
+        ifmobs['ucoord_2'] = allt3['u2coord']
+        ifmobs['vcoord_2'] = allt3['v2coord']
+        ifmobs['time'] = 0
+    
     
     output = OrderedDict()
     output['__nolabel__'] = [[ifmobs], [ifmdep]]

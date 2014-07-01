@@ -334,7 +334,7 @@ def luminosity(body, ref='__bol', numerical=False):
 def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
                 beaming_alg='none', ld_func='claret', ref=0,
                 with_partial_as_half=True):
-    """
+    r"""
     Calculate local projected intensity.
     
     We can speed this up if we compute the local intensity first, keep track of
@@ -348,6 +348,28 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         1. Correction for distance to the source
         2. Correction for interstellar reddening if the passband is not bolometric
         3. Scattering phase functions
+        
+    Additionally, we can take **beaming** into account if we're using the linear
+    approximation (:envvar:`beaming_alg='local'` or :envvar:`beaming_alg='simple'`).
+    In that case the (local) intensity :math:`I` is adjusted to :math:`I_b` to
+    include beaming effects with a beaming amplitude :math:`A_b` as follows:
+    
+    .. math::
+    
+        I_b = A_b I
+    
+    with
+    
+    .. math::
+    
+        A_b = 1 + \alpha_b \frac{v(z)}{c}
+        
+    where :math:v(z) is the radial velocity of the surface element and :math:`\alpha_b`
+    is the beaming factor, computed in :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>` (see the link for more info):
+    
+    .. math::
+            
+        \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda}\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
     
     @param system: object to compute temperature of
     @type system: Body or derivative class
@@ -6853,7 +6875,7 @@ class Star(PhysicalBody):
                 to_add = circ_spot
             
             # Perhaps the user gave an empty list, then that's a bit silly
-            if len(circ_spot) > 0:
+            if len(to_add) > 0:
                 for ito_add in to_add:
                     check_input_ps(self, ito_add, ['circ_spot'], 'circ_spot', is_list=True)
                 self.params['circ_spot'] = to_add

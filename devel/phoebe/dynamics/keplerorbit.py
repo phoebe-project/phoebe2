@@ -679,7 +679,7 @@ def get_barycentric_hierarchical_orbit(bary_times, orbits, components, barycentr
         t_\mathrm{bary} = t + \frac{z(t)}{c},
         
     with :math:`c` the velocity of light. and :math:`z(t)` the location of the
-    Body in the :math:`z` direction (radial direction) at time :math:`t`. We
+    Body in the :math:`z` direction (radial direction) at proper time :math:`t`. We
     can't determine :math:`z` from this function algebraically because :math:`z`
     is a function of :math:`t`. The solution is to do a minimization of the function
     
