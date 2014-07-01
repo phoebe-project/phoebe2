@@ -2293,7 +2293,8 @@ class Bundle(Container):
     
     def if_fromfile(self, filename, objref=None, dataref=None, atm=None,
                     ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                    l3=None, alb=None, beaming=None, scattering=None):
+                    l3=None, alb=None, beaming=None, scattering=None,
+                    include_closure_phase=False):
         """
         Add interferometry data from an OIFITS file.
         
