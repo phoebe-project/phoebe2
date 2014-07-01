@@ -1831,7 +1831,8 @@ class Bundle(Container):
         """
         Create and attach radial velocity curve templates to compute the model.
         
-        In contrast to py:func:`lc_fromarrays`, this function will probably
+        In contrast to py:func:`lc_fromarrays <phoebe.frontend.bundle.Bundle.lc_fromarrays`,
+        this function will probably
         always be called with a specific :envvar:`objref`. While light curves
         typically encompass the whole system (and are thus added to the whole
         system by default), the radial velocities curves belong to a given

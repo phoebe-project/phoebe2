@@ -569,6 +569,10 @@ add spots to your model via::
 Section 3. Data handling
 ======================================
 
+.. contents:: Table of Contents
+   :depth: 4
+   :local:
+
 3.1 Light curves
 ------------------
 
@@ -585,7 +589,7 @@ the individual light curves of all Bodies are added together.
 Because BodyBags do not need to implement a light curve method, computations are
 done by the :py:func:`lc <phoebe.backend.universe.PhysicalBody.lc>` method
 of the :py:class:`PhysicalBody <phoebe.backend.universe.PhysicalBody>`. The
-method simply calls the :py:func:`projected_intensity <phoebe.backend.universe.PhysicalBody.projected_intensity>` method
+method simply calls the :py:func:`projected_intensity <phoebe.backend.universe.Star.projected_intensity>` method
 of the specific Body (:py:class:`Star <phoebe.backend.universe.Star>` etc...)
 and stores the result in the corresponding synthetic DataSet.
 
@@ -669,7 +673,38 @@ that they can be scaled together. Every datapoint in an SED is a separate
 3.6 Interferometry
 ------------------------------------
 
-3,7 Speckle interferometry
+Interferometry is described via:
+
+    - Passband dependable :ref:`ifdep <parlabel-phoebe-ifdep>`
+    - DataSet :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`
+    
+The synthetic calculations are done a Body-to-Body basis, i.e. each Body
+internally keeps track of its own interferometry calculations. Whenever the
+interferometry of a BodyBag is queried (:py:func:`get_synthetic <phoebe.backend.universe.BodyBag.get_synthetic>`),
+the individual interferometry of all Bodies are added together and the closure
+phases recomputed. This can be done because internally, the synthetic datasets
+also keep track of the total flux in the image, so the visibilities can be scaled
+to their absolute values and combined using complex addition. The closure phases
+can be recomputed for the combined system because the information from the three
+baselines is stored (see :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
+
+Even though BodyBags do not need to implement an interferometry method, computations
+are still done by the :py:func:`ifm <phoebe.backend.universe.Body.ifm>` method
+of the :py:class:`Body <phoebe.backend.universe.Body>`. Inside this method,
+a distinction is made for BodyBags, in which case the Bag is descended into. The
+method calls the :py:func:`ifm <phoebe.backend.observatory.ifm>` method
+of the observatory and stores the result in the corresponding synthetic DataSet.
+
+Interferometry can be added to a Bundle via any of:
+
+    - :py:func:`if_fromfile <phoebe.frontend.bundle.Bundle.if_fromfile>`: if your
+      light curve is in OIFITS format
+    - :py:func:`if_fromarrays <phoebe.frontend.bundle.Bundle.if_fromarrays>`:
+      if you want to create interferometry within a script, or want to load data
+      from non-standard files manually.
+
+
+3.7 Speckle interferometry
 ------------------------------------
 
 3.8 Astrometry
@@ -1133,6 +1168,7 @@ at least the following two methods:
 The codes of :envvar:`BinaryRocheStar` and :envvar:`Star` are probably a good
 place to start if you want to develop your own Body.
 
+
 4.5. Modifying Body behaviour on-the-fly
 ----------------------------------------
 
@@ -1246,16 +1282,53 @@ the separate Bodies first. Here are two examples:
    (see doc of :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
 
 
-4.7 Recipes
+4.7 Throwing it all together
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Once the user has defined all the Bodies, we can throw them together in a BodyBag
+and simply call set time and the observation-generating functions appropriately to
+reproduce the observed data. The key functions here are
+
+- :py:func:`extract_times_and_refs <phoebe.backend.observatory.extract_times_and_refs>`,
+  which runs over the whole system and keeps track of what data is available at what
+  timepoints
+- :py:func:`compute <phoebe.backend.observatory.compute>`, which calls ``set_time``
+  of the BodyBag of the appropriate times, and then calls the relevant observation-generating
+  functions. It is also here that heating and reflection effects are computed,
+  and some optimizations are done for circular systems etc..
+  
+Conceptually, the following code reproduces that behaviour:
+
+.. sourcecode:: python
+
+    times = [0, 1, 2, 3]
+    refs = [['mylc', 'myrv'], ['mylc'], ['myrv'], ['mylc, myrv']]
+    methods = [['lc', 'rv'], ['lc'], ['rv'], ['lc', 'rv']]
+    
+    for time, ref, method in zip(times, refs, methods):
+        
+        system.set_time(time, ref=ref)
+        for imethod in method:
+            getattr(system, imethod)()
+
+At the end of the previous code, the synthetic datasets are filled and the
+comparison between observations and computations can be performed.
+        
+        
+        
+        
+
+
+4.8 Recipes
 -----------------
 
-4.7.1 How to implement a new Body
+4.8.1 How to implement a new Body
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-4.7.2 How to implement a new type of observations
+4.8.2 How to implement a new type of observations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-4.7.3 How to add physics
+4.8.3 How to add physics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """

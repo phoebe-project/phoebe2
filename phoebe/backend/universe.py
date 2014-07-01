@@ -2087,6 +2087,7 @@ class Body(object):
                 sigma = np.array(obs['sigma']/constants.Rsol*(24*3.6e6))
             
             elif obs.context == 'ifobs' and 'vis2' in obs:
+                # this works if no closure phases are available
                 model = np.array(syn['vis2'])
                 obser = np.array(obs['vis2'])
                 sigma = np.array(obs['sigma_vis2'])
@@ -4364,7 +4365,7 @@ class Body(object):
             if do_closure_phases and save_result:
                 
                 # First get single baseline results
-                time = [time] * len(output[0][:n_single])
+                time_ = list(times[keep][:n_single])
                 ucoord = list(ucoord[keep][:n_single])
                 vcoord = list(vcoord[keep][:n_single])
                 vis2 = list(output[3][:n_single])
@@ -4375,29 +4376,29 @@ class Body(object):
                 # Then get the closure phases info
                 vis2_1, vis2_2, vis2_3 = output[3][n_single:].reshape((3,-1))
                 vphase_1, vphase_2, vphase_3 = output[4][n_single:].reshape((3,-1))
-                total_flux_1, total_flux_2, total_flux3 = output[-1][n_single:].reshape((3,-1))
-                time_cp = [time]*len(total_flux_1)
+                total_flux_1, total_flux_2, total_flux_3 = output[-1][n_single:].reshape((3,-1))
+                time_cp = list(times[keep][n_single:])
                 if eff_wave is not None:
                     eff_wave_cp = eff_wave[n_single:].reshape((3,-1))[0]
                     
                 # ... compute closure phases as the product of exponentials
                 #     this will be overriden when calling __add__ at ifsyn
                 closure_phase = np.angle(np.exp(1j*(vphase_1+vphase_2+vphase_3)))
+                closure_ampl = np.sqrt(vis2_1*vis2_2*vis2_3)
                 
             elif save_result:
-                time = [time] * len(output[0])
+                time_ = list(times[keep])
                 ucoord = list(ucoord[keep])
                 vcoord = list(vcoord[keep])
-                vis2 = list(output[3])
+                vis2 = list(output[3]/output[-1]**2)
                 vphase = list(output[4])
                 total_flux = list(output[-1])
                 eff_wave_ = None if eff_wave is None else list(eff_wave)
-                
-            
+                            
             # Save results if necessary
             if save_result:
                 base, ref = self.get_parset(type='syn', ref=ref)
-                base['time'] += time
+                base['time'] += time_
                 base['ucoord'] += ucoord
                 base['vcoord'] += vcoord
                 base['vis2'] += vis2
@@ -4413,7 +4414,7 @@ class Body(object):
                     for col in ['ucoord_2', 'vcoord_2', 'vis2_2', 'vis2_3',\
                                 'vphase_2', 'vphase_3', 'total_flux_2', 'total_flux_3',\
                                 'closure_phase']:
-                        base[col] += [np.nan]*len(time)
+                        base[col] += [np.nan]*len(time_)
                     
                     # Then we can add all our info on closure phases
                     base['time'] += time_cp # is already list
@@ -4421,15 +4422,16 @@ class Body(object):
                     base['vcoord'] += list(vcoord_1)
                     base['ucoord_2'] += list(ucoord_2)
                     base['vcoord_2'] += list(vcoord_2)
-                    base['vis2'] += list(vis2_1)
-                    base['vis2_2'] += list(vis2_2)
-                    base['vis2_3'] += list(vis2_3)
+                    base['vis2'] += list(vis2_1/total_flux_1**2)
+                    base['vis2_2'] += list(vis2_2/total_flux_2**2)
+                    base['vis2_3'] += list(vis2_3/total_flux_3**2)
                     base['vphase'] += list(vphase_1)
                     base['vphase_2'] += list(vphase_2)
                     base['vphase_3'] += list(vphase_3)
                     base['total_flux'] += list(total_flux_1)
                     base['total_flux_2'] += list(total_flux_2)
                     base['total_flux_3'] += list(total_flux_3)
+                    base['closure_ampl'] += list(closure_ampl)
                     base['closure_phase'] += list(closure_phase)
                     if eff_wave is not None:
                         base['eff_wave'] += list(eff_wave_cp)

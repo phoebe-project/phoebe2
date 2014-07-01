@@ -3399,16 +3399,17 @@ def download_atm(atm=None):
         #output = subprocess.check_call(['sudo']+sys.argv)
     
     if atm is None:
+        #/srv/www/phoebe/2.0/docs/_downloads
         source = 'http://www.phoebe-project.org/2.0/docs/_downloads/ldcoeffs.tar.gz'
         destin = os.path.join(destin_folder, 'ldcoeffs.tar.gz')
         try:
             urllib.urlretrieve(source, destin)
             print("Downloaded tar archive from phoebe-project.org")
         except IOError:
-            raise IOError(("Failed to download atmosphere file {} to {} (you probably "
-                           "need to create one yourself starting from the specific "
-                           "intensities)").format(source, destin))
-            
+            raise IOError(("Failed to download atmosphere file {} to {}. Are you "
+                           " connected to the internet? Otherwise, you probably "
+                           "need to create atmosphere tables yourself starting "
+                           "from the specific intensities)").format(source, destin))            
     
         tar = tarfile.open(destin)
         members = tar.getmembers()
