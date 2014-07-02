@@ -1397,7 +1397,7 @@ class IFDataSet(DataSet):
         # Compute closure phases and amplitudes if necessary
         if len(baselines) > 1:
             result['closure_phase'] = np.angle(np.exp(1j*(result['vphase']+result['vphase_2']+result['vphase_3'])))
-            result['closure_ampl'] = np.sqrt(result['vis2']*result['vis2_2']*result['vis2_3']) / (result['total_flux']*result['total_flux_2']*result['total_flux_3'])
+            result['triple_ampl'] = np.sqrt(result['vis2']*result['vis2_2']*result['vis2_3']) / (result['total_flux']*result['total_flux_2']*result['total_flux_3'])
         
         
         
@@ -3266,16 +3266,22 @@ def hstack(tup):
 
 
 def parse_oifits(filename, full_output=False, include_closure_phase=False,
+                 include_triple_amplitude=False, include_eff_wave=True,
                  **kwargs):
     """
     Parse OIFITS file to IFDataSet.
+    
+    If :envvar:`include_eff_wave` is ``False``, then the effective wavelength
+    of the passband will be used to convert baselines to spatial frequencies when
+    computing the model. The passband will be used in any case to make the
+    images and set the limb darkening properties and local intensities.
     """
     # Prepare output contexts
     ref = kwargs.get('ref', os.path.splitext(filename)[0])
     ifmdep = parameters.ParameterSet(context='ifdep', ref=ref)
     if include_closure_phase:
-        new_columns = ['ucoord_2', 'vcoord_2', 'closure_ampl',
-                              'sigma_closure_ampl',
+        new_columns = ['ucoord_2', 'vcoord_2', 'triple_ampl',
+                              'sigma_triple_ampl',
                               'closure_phase', 'sigma_closure_phase']
         ifmobs = IFDataSet(context='ifobs', ref=ref,
                        columns=['ucoord','vcoord','vis2','sigma_vis2','time', 'eff_wave']+new_columns)
@@ -3298,7 +3304,9 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
     ifmobs['time'] = allvis2['mjd']
     ifmobs['eff_wave'] = conversions.convert('m','AA',allvis2['eff_wave'])
     
-    if include_closure_phase:
+    # closure phases or triple amplitudes need to be included, first add all
+    # the info (and later remove the necessary columns)
+    if include_closure_phase or include_triple_amplitude:
         # first add nans for everything that has been added already
         nans = np.nan*np.ones(len(ifmobs))
         for col in new_columns:
@@ -3306,8 +3314,8 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
         
         # Then add new data
         allt3 = templatedata.allt3
-        phoebe_names = ['ucoord', 'vcoord', 'ucoord_2', 'vcoord_2', 'closure_ampl',
-                        'sigma_closure_ampl', 'closure_phase', 'sigma_closure_phase', 'time']
+        phoebe_names = ['ucoord', 'vcoord', 'ucoord_2', 'vcoord_2', 'triple_ampl',
+                        'sigma_triple_ampl', 'closure_phase', 'sigma_closure_phase', 'time']
         oifits_names = ['u1coord', 'v1coord', 'u2coord', 'v2coord', 't3amp',
                         't3amperr', 't3phi', 't3phierr', 'mjd']
         for pname, fname in zip(phoebe_names, oifits_names):
@@ -3319,6 +3327,15 @@ def parse_oifits(filename, full_output=False, include_closure_phase=False,
         ifmobs['sigma_vis2'] = np.hstack([ifmobs['sigma_vis2'], nans])
         ifmobs['eff_wave'] = np.hstack([ifmobs['eff_wave'], conversions.convert('m','AA',allt3['eff_wave'])])
     
+    # Remove some columns upon request of the user
+    if not include_eff_wave:
+        ifmobs.remove('eff_wave')
+    if include_closure_phase and not include_triple_amplitude:
+        ifmobs.remove('triple_ampl')
+        ifmobs.remove('sigma_triple_ampl')
+    elif not include_closure_phase and include_triple_amplitude:
+        ifmobs.remove('closure_phase')
+        ifmobs.remove('sigma_closure_phase')
     
     output = OrderedDict()
     output['__nolabel__'] = [[ifmobs], [ifmdep]]
