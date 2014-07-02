@@ -168,7 +168,7 @@ class Container(object):
             if parent is None:
                 self.set_system(value)
             
-            # Else, we need take care of *a lot* of stuff:
+            # Else, we need to take care of *a lot* of stuff:
             else:
                 # 1. Make sure the new Body has the same orbit properties as
                 #    the original one:
@@ -880,10 +880,6 @@ class Container(object):
             
         for section_name,section in self.sections.items():
             
-            if do_sectionlevel and section_name not in ['system']:
-                ris = self._get_info_from_item({item.get_value('label') if 'label' in item.keys() else item.get_value('ref'):item for item in section},section=section_name,container=container,label=-1)
-                return_items += ris
-                
             if do_pslevel:
                 for item in section:
                     
@@ -916,7 +912,10 @@ class Container(object):
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'], ref=ri['ref'])
 
-
+            if do_sectionlevel and section_name not in ['system', 'dataset']: # we'll need to fake these two later
+                ris = self._get_info_from_item({item.get_value('ref') if 'ref' in item.keys() else item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
+                return_items += ris
+                
         return return_items
         
     def _loop_through_ps(self, ps, section_name, container, label, ref):
@@ -1118,9 +1117,12 @@ class Container(object):
                 label = label
             # unless we're in one of the following sections
             # in which case we identify by ref and have no label
+            context = item.get_context()
+            if context[-3:] in ['obs','dep','syn']:
+                section = 'dataset'
             if section in ['axes','plot','figure','fitting']:
                 label = None
-            context = item.get_context()
+
             # For some contexts, we need to add labels for disambiguation
             if context in ['puls'] or section in ['fitting']:
                 ref = item.get_value('label') if 'label' in item else ref
@@ -1147,6 +1149,9 @@ class Container(object):
             else:
                 #then we're coming from a section and already know the context
                 context = context
+                
+            if context[-3:] in ['obs','dep','syn']:
+                section = 'dataset'
 
             # unless we're in one of the following sections
             # in which case we identify by ref and have no label
@@ -1292,6 +1297,24 @@ class Container(object):
         [FUTURE]
         """
         self.trunk = self._loop_through_container()
+        
+        # manually fake the dataset section dictionary
+        tis = self._get_by_search(kind='ParameterSet', section='dataset', all=True, ignore_errors=True, return_trunk_item=True)
+        if len(tis):
+            ri = self._get_info_from_item({'@'.join(ti['twig'].split('@')[:-1]): ti['item'] for ti in tis})[0]
+            ri['twig'] = 'dataset'
+            ri['twig_full'] = 'dataset@Bundle'
+            ri['section'] = 'dataset'
+            self.trunk.append(ri)
+        
+        # manually fake the system section dictionary
+        tis = self._get_by_search(kind='ParameterSet', section='system', all=True, ignore_errors=True, return_trunk_item=True)
+        if len(tis):
+            ri = self._get_info_from_item({'@'.join(ti['twig'].split('@')[:-1]): ti['item'] for ti in tis})[0]
+            ri['twig'] = 'system'
+            ri['twig_full'] = 'system@Bundle'
+            ri['section'] = 'system'
+            self.trunk.append(ri)
         
         
     def _purge_trunk(self):
@@ -1509,13 +1532,8 @@ class Container(object):
                         return_trunk_item=True)
                  
         return {ti['label'] if ti['label'] is not None else ti['ref']:ti['item'] for ti in all_ti} if all_ti is not None else {}
-        
-    def _save_json(self, filename):
-        """
-        TESTING
-        [FUTURE]
-        """
-        debug = False
+    
+    def _to_dict(self, debug=False):
         
         # We're changing stuff here, so we need to make a copy first
         this_bundle = self.copy()
@@ -1523,7 +1541,7 @@ class Container(object):
         
         this_container = this_bundle.__class__.__name__
 
-        dump_dict = {}
+        dump_dict = OrderedDict()
         
         dump_dict['PHOEBE Version'] = __version__
         
@@ -1585,27 +1603,38 @@ class Container(object):
                 # the real syns are marked as hidden, whereas the fake
                 # ones forced to match the obs are not hidden
                 dump_dict['Parameters'][ti['twig']] = info
-            
+                
+        return dump_dict
+
+    def _save_json(self, filename, debug=False):
+        """
+        TESTING
+        [FUTURE]
+        """
+
+        dump_dict = self._to_dict(debug=debug)
         f = open(filename, 'w')
         f.write(json.dumps(dump_dict, sort_keys=True, indent=4, separators=(',', ': ')))
         f.close()
 
 
-    @rebuild_trunk
+
     def _load_json(self, filename, debug=False):
         """
         TESTING
         
         [FUTURE]
         """
-        debug = False
-        
         f = open(filename, 'r')
         load_dict = json.load(f, object_pairs_hook=OrderedDict)
         # we use OrderedDict because order does matter for reattaching datasets
         # luckily alphabetical works perfectly dep, obs, then syn.
         f.close()
         
+        self._from_dict(load_dict, debug=debug)
+
+    @rebuild_trunk
+    def _from_dict(self, load_dict, debug=False):
         if hasattr(self, 'get_system'):
             self.set_system(_loads_system_structure(load_dict['Hierarchy']))
             #print self.get_system().list(summary='full')
@@ -1616,6 +1645,7 @@ class Container(object):
             where = twig.split('@').index(info['context'])
             if info['context'] not in self.sections.keys(): where+=1
             parent_twig = '@'.join(twig.split('@')[where:])
+            parent_twig = parent_twig.replace('dataset','system')
             
             # lcdeps etc are ParameterSets, lcobs/lcsyn are DataSets (which are
             # a sublcass of ParameterSets but with extra functionality)

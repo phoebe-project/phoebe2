@@ -378,6 +378,7 @@ class Bundle(Container):
         self.sections['system'] = [None] # only 1
         self.sections['compute'] = []
         self.sections['fitting'] = []
+        self.sections['dataset'] = []
         #~ self.sections['feedback'] = []
         #~ self.sections['version'] = []
         self.sections['figure'] = []
@@ -653,6 +654,9 @@ class Bundle(Container):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
             self.sections['system'] = [create.system(system)]
+        elif isinstance(system, dict):
+            self._from_dict(system)
+            file_type = 'json'
         
         # Or we could've given a filename
         else:
@@ -3418,6 +3422,8 @@ class Bundle(Container):
         
         if figref is None:
             figref = self._handle_current_figure()
+        else:
+            figref = figref.split('@')[0]
             
         self.current_figure = figref
         
@@ -3480,8 +3486,10 @@ class Bundle(Container):
         
         for axesref in axesrefs:
             if all([axesref not in ps['axesrefs'] for ps in self.sections['figure']]):
+                #~ print "*** remove_figure: removing axes", axesref
                 self.remove_axes(axesref)
-        
+            #~ else:
+                #~ print "*** remove_figure: keeping axes", axesref
         
     def _handle_current_figure(self, figref=None):
         """
@@ -3522,7 +3530,7 @@ class Bundle(Container):
         fig_ps = self.get_figure(figref)
         
         axes_ret, plot_ret = {}, {}
-        for (axesref,axesloc) in zip(fig_ps['axesrefs'], fig_ps['axeslocs']):
+        for (axesref,axesloc,axessharex,axessharey) in zip(fig_ps['axesrefs'], fig_ps['axeslocs'], fig_ps['axessharex'], fig_ps['axessharey']):
             # need to handle logic for live-plotting
             axes_ps = self.get_axes(axesref)
             plotrefs = axes_ps['plotrefs']
@@ -3532,17 +3540,64 @@ class Bundle(Container):
             # or call the plotting function
             if not (live_plot and all([(axesref.split('@')[0], plotref.split('@')[0]) in self.currently_plotted for plotref in plotrefs])):
                 # the following line will default to the current mpl ax object if we've already
-                # created this subplot - TODO this might cause issues if switching back to a preview axesref
+                # created this subplot - TODO this might cause issues if switching back to a previous axesref
                 if live_plot and axesref.split('@')[0] in [p[0] for p in self.currently_plotted]:
                     #~ print "*** plot_figure resetting ax to None"
                     ax = None # will default to plt.gca() - this could still cause some odd things
+                    xaxis_loc, yaxis_loc = None, None
                 else:
-                    ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2])
+                    axes_existing_refs = [a.split('@')[0] for a in axes_ret.keys()]
+                    #~ print "***", axesref, axes_ps.get_value('sharex'), axes_ps.get_value('sharey'), axes_existing_refs
+                    
+                    # handle axes sharing
+                    # we also need to check to see if we're in the same location, and if so
+                    # smartly move the location of the axesticks and labels
+                    axessharex = axessharex.split('@')[0]
+                    axessharey = axessharey.split('@')[0]
+                    if axessharex != '_auto_' and axessharex in axes_existing_refs:
+                        ind = axes_existing_refs.index(axessharex)
+                        sharex = axes_ret.values()[ind]
+                        if axesloc in [fig_ps.get_loc(axes_ret.keys()[ind])]: 
+                            # then we're drawing on the same location, so need to move the axes
+                            yaxis_loc = 'right'
+                    else:
+                        sharex = None
+                        yaxis_loc = None # just ignore, defaults will take over
+                    if axessharey != '_auto_' and axessharey in axes_existing_refs:
+                        ind = axes_existing_refs.index(axessharey)
+                        sharey = axes_ret.values()[ind]
+                        #~ print "*** draw_figure move xaxis_loc?", axesloc, fig_ps.get_loc(axes_ret.keys()[ind])
+                        if axesloc in [fig_ps.get_loc(axes_ret.keys()[ind])]: 
+                            # then we're drawing on the same location, so need to move the axes
+                            xaxis_loc = 'top'
+                    else:
+                        sharey = None
+                        xaxis_loc = None # just ignore, defaults will take over
+                        
+                    #~ print "***", axesref, sharex, sharey
+                        
+                    ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],sharex=sharex,sharey=sharey)
                     # we must set the current axes so that subsequent live-plotting calls will
                     # go here unless overriden by the user
                     plt.sca(ax)
 
+                #~ print "*** draw_figure calling draw_axes", figref, axesref, axesloc
                 axes_ret_new, plot_ret_new = self.draw_axes(axesref, ax=ax, live_plot=live_plot)
+                
+                #~ print "*** draw_figure", xaxis_loc, yaxis_loc
+                
+                if xaxis_loc == 'top':
+                    ax.xaxis.tick_top()
+                    ax.xaxis.set_label_position("top")
+                    #~ ax.xaxis.set_offset_position('top')
+                    ax.yaxis.set_visible(False)
+                    ax.patch.set_visible(False)
+                if yaxis_loc == 'right':
+                    ax.yaxis.tick_right()
+                    ax.yaxis.set_label_position("right")
+                    #~ ax.yaxis.set_offset_position('right')
+                    ax.xaxis.set_visible(False)
+                    ax.patch.set_visible(False)
                 
                 for k,v in axes_ret_new.items():
                     axes_ret[k] = v
@@ -3581,10 +3636,12 @@ class Bundle(Container):
         
         if axesref is None:
             axesref, figref = self._handle_current_axes()
+        else:
+            axesref = axesref.split('@')[0]
         self.current_axes = axesref
         return self._get_by_section(axesref, "axes", kind=None)
         
-    def add_axes(self, axesref=None, figref=None, loc=(1,1,1), **kwargs):
+    def add_axes(self, axesref=None, figref=None, loc=(1,1,1), sharex='_auto_', sharey='_auto_', **kwargs):
         """
         [FUTURE]
         
@@ -3629,9 +3686,9 @@ class Bundle(Container):
         
         # now attach it to a figure
         figref = self._handle_current_figure(figref=figref)
-        if loc is None: # just in case
+        if loc in [None, '_auto_']: # just in case (this is necessary and used from defaults in other functions)
             loc = (1,1,1)
-        self.get_figure(figref).add_axes(axesref, loc) # calls rebuild trunk and will also set self.current_figure
+        self.get_figure(figref).add_axes(axesref, loc, sharex, sharey) # calls rebuild trunk and will also set self.current_figure
 
         self.current_axes = axesref
         
@@ -3650,19 +3707,17 @@ class Bundle(Container):
         """
         axes_ps = self._get_by_section(axesref, "axes", kind=None)
         plotrefs = axes_ps['plotrefs']
-        self.sections['axes'].remove(axes_ps)
+
+        # we also need to check all figures, and remove this entry from any axesrefs
+        # as well as any sharex or sharey
+        for figref,fig_ps in self._get_dict_of_section('figure').items():
+            fig_ps.remove_axes(axesref)
         
+        self.sections['axes'].remove(axes_ps)
+
         for plotref in axes_ps['plotrefs']:
             if all([plotref not in ps['plotrefs'] for ps in self.sections['axes']]):
-                self.remove_plot(plotref)
-                
-        # we also need to check all figures, and remove this entry from any axesrefs
-        for figref,fig_ps in self._get_dict_of_section('figure').items():
-            axesrefs = fig_ps['axesrefs']
-            if axesref in axesrefs:
-                axesrefs.remove(axesref)
-                fig_ps['axesrefs'] = axesrefs
-                
+                self.remove_plot(plotref)            
         
     def draw_axes(self, axesref=None, ax=None, **kwargs):
         """
@@ -3714,7 +3769,7 @@ class Bundle(Container):
             
         return ({axesref: ax}, plot_ret)
             
-    def _handle_current_axes(self, axesref=None, figref=None, loc=None):
+    def _handle_current_axes(self, axesref=None, figref=None, loc=None, sharex='_auto_', sharey='_auto_', x_unit='_auto_', y_unit='_auto_'):
         """
         [FUTURE]
         this function should be called whenever the user calls a plotting function
@@ -3725,81 +3780,76 @@ class Bundle(Container):
         the created plotting parameter set should then be added later by self.get_axes(label).add_plot(plot_twig)
         """
         
-        #~ print "\n\n***", self.current_axes, axesref, figref, loc, (loc is not None and loc not in self.get_figure(figref).get_value('axeslocs'))
+        #~ print "***", self.current_axes, axesref, figref, loc, sharex, sharey
         
+        fig_ps = self.get_figure(figref)
+        
+        #~ figaxesrefs = fig_ps.get_value('axesrefs')
+        #~ figaxesrefs_ref = [ar.split('@')[0] for ar in figaxesrefs]
+        #~ figaxeslocs = fig_ps.get_value('axeslocs')
+        
+        if self.current_axes is not None:
+            curr_axes_ps = self.get_axes(self.current_axes)
+            curr_axes_loc = fig_ps.get_loc(self.current_axes)
+        else:
+            curr_axes_ps = None
+            curr_axes_loc = None
+
+        #~ print "*** _handle_current_axes", axesref, self.current_axes, loc, curr_axes_loc, loc in [None, curr_axes_loc]
+
         if not self.current_axes \
                 or (axesref is not None and axesref not in self._get_dict_of_section('axes')) \
-                or (loc is not None and loc not in self.get_figure(figref).get_value('axeslocs')):
-            axesref, figref = self.add_axes(axesref=axesref, figref=figref, loc=loc)
+                or (loc is not None and loc not in fig_ps.get_value('axeslocs')):
+            # no existing figure
+            # or new axesref for this figure
+            # or new loc for this figure (note: cannot retrieve by loc)
+            #~ print "*** _handle_current_axes calling add_axes", axesref, loc, sharex, sharey
+            axesref, figref = self.add_axes(axesref=axesref, figref=figref, loc=loc, sharex=sharex, sharey=sharey) # other stuff can be handled externally (eg by _handle_plotting_call)
+
+        # handle units
+        elif axesref is None and loc in [None, curr_axes_loc]:
+            # we do not allow axesref==self.current_axes in this case, because then we'd be overriding the axesref
+            
+            # TODO: we need to be smarter here if any of the units are _auto_ - they may be referring to
+            # different datasets with different default units, so we need to check to see what _auto_
+            # actually refers to and see if that matches... :/
+            add_axes = True
+            if x_unit != curr_axes_ps.get_value('x_unit') and y_unit != curr_axes_ps.get_value('y_unit'):
+                #~ print "*** _handle_current_axes units caseA"
+                sharex = '_auto_'
+                sharey = '_auto_'
+                loc = curr_axes_loc
+                # axes locations (moving to top & right) is handled in draw_figure
+            elif x_unit != curr_axes_ps.get_value('x_unit'):
+                #~ print "*** _handle_current_axes units caseB"
+                sharex = '_auto_'
+                sharey = self.current_axes
+                loc = curr_axes_loc
+                # axes locations (moving to top) is handled in draw_figure
+            elif y_unit != curr_axes_ps.get_value('y_unit'):
+                #~ print "*** _handle_current_axes units caseC"
+                sharex = self.current_axes
+                sharey = '_auto_'
+                loc = curr_axes_loc
+                # axes locations (moving to right) is handled in draw_figure
+            else:
+                #~ print "*** _handle_current_axes units caseD"
+                #~ sharex = '_auto_'
+                #~ sharey = '_auto_'
+                #~ loc = loc
+                add_axes = False
+                
+            if add_axes:
+                #~ print "*** _handle_current_axes calling add_axes", axesref, loc, sharex, sharey
+                axesref, figref = self.add_axes(axesref=axesref, figref=figref, loc=loc, x_unit=x_unit, y_unit=y_unit, sharex=sharex, sharey=sharey)
+                
+
+        
         if axesref is not None:
             self.current_axes = axesref
             
         return self.current_axes, self.current_figure
         
-    #~ def get_title(self, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ return self.get_axes(axesref).get_value('title')
-            #~ 
-    #~ def set_title(self, title, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ self.get_axes(axesref).set_value('title',title)
-        #~ #plt.title(title)
-        #~ 
-    #~ def get_xlabel(self, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ return self.get_axes(axesref).get_value('xlabel')
-        #~ 
-    #~ def set_xlabel(self, xlabel, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ self.get_axes(axesref).set_value('xlabel',xlabel)
-        #~ #plt.xlabel(xlabel)
-        #~ 
-    #~ def get_ylabel(self, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ return self.get_axes(axesref).get_value('ylabel')
-        #~ 
-    #~ def set_ylabel(self, ylabel, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ self.get_axes(axesref).set_value('ylabel',ylabel)
-        #~ #plt.ylabel(ylabel)
-        #~ 
-    #~ def get_xlim(self, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ return self.get_axes(axesref).get_value('xlim')
-        #~ 
-    #~ def set_xlim(self, xlim, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ self.get_axes(axesref).set_value('xlim',xlim)
-        #~ #plt.xlim(xlim)
-        #~ 
-    #~ def get_ylim(self, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ return self.get_axes(axesref).get_value('ylim')
-        #~ 
-    #~ def set_ylim(self, ylim, axesref=None):
-        #~ """
-        #~ [FUTURE]
-        #~ """
-        #~ self.get_axes(axesref).set_value('ylim',ylim)
-        #~ #plt.ylim(ylim)
 
     #}
 
@@ -3836,8 +3886,10 @@ class Bundle(Container):
 
 
         loc = kwargs.pop('loc', None)
+        sharex = kwargs.pop('sharex','_auto_')
+        sharey = kwargs.pop('sharex','_auto_')
         figref = self._handle_current_figure(figref=figref)
-        axesref, figref = self._handle_current_axes(axesref=axesref, figref=figref, loc=loc)
+        axesref, figref = self._handle_current_axes(axesref=axesref, figref=figref, loc=loc, sharex=sharex, sharey=sharey, x_unit=kwargs.get('x_unit','_auto_'), y_unit=kwargs.get('y_unit','_auto_'))
         axes_ps = self.get_axes(axesref)
         fig_ps = self.get_figure(figref)
 
@@ -3852,7 +3904,7 @@ class Bundle(Container):
                 if k not in ['plotrefs']:
                     axes_ps.set_value(k,v)
             elif k in fig_ps.keys():
-                if k not in ['axesrefs','axeslocs']:
+                if k not in ['axesrefs','axeslocs','axessharex','axessharey']:
                     fig_ps.set_value(k,v)
             elif k in ['label']:
                 raise KeyError("parameter with qualifier {} forbidden".format(k))
@@ -3896,6 +3948,7 @@ class Bundle(Container):
         """
         # TODO allow plotref=None ?
         # TODO allow passing kwargs ?
+        plotref = plotref.split('@')[0]
         return self._get_by_section(plotref,"plot",kind=None)
         
     @rebuild_trunk
@@ -3912,14 +3965,13 @@ class Bundle(Container):
         :type plotref: str
         """
         plot_ps = self._get_by_section(plotref, "plot", kind=None)
-        self.sections['plot'].remove(plot_ps)
         
         # we also need to check all axes, and remove this entry from any plotrefs
+        #~ plotref_ref = plotref.split('@')[0]
         for axesref,axes_ps in self._get_dict_of_section('axes').items():
-            plotrefs = axes_ps['plotrefs']
-            if plotref in plotrefs:
-                plotrefs.remove(plotref)
-                axes_ps['plotrefs'] = plotrefs
+            axes_ps.remove_plot(plotref)
+            
+        self.sections['plot'].remove(plot_ps)
         
     def add_plot(self, plotref=None, axesref=None, figref=None, loc=None, **kwargs):
         """
@@ -4032,7 +4084,8 @@ class Bundle(Container):
             # either way, retrieve the value from axes_ps and handle defaults
             if plot_fctn not in ['plot_custom']:
                 if key in ['x_unit', 'y_unit']:
-                    plkwargs[key] = axes_ps.get_value(key) if axes_ps.get_value(key) not in ['_auto_', u'_auto_'] else None
+                    if axes_ps.get_value(key) not in ['_auto_', u'_auto_']:
+                        plkwargs[key] = axes_ps.get_value(key) 
                 
                 elif key in ['phased']:
                     if 'x_unit' not in plkwargs.keys() or axes_ps.get_value(key) or value is not None:
@@ -4045,6 +4098,12 @@ class Bundle(Container):
                     # rather if they are not overriden here, they will receive
                     # there defaults from the output of the plotting call
                     pass
+                    
+        
+        #~ if 'x_unit' in plkwargs.keys():
+            #~ print '***', plkwargs['x_unit']
+        #~ if 'y_unit' in plkwargs.keys():
+            #~ print '***', plkwargs['y_unit']
                     
         # handle _auto_
         for key, value in plkwargs.items():
@@ -4131,7 +4190,6 @@ class Bundle(Container):
         else:
             logger.error("non-recognized plot type: {}".format(plot_fctn))
             return
-        
         
         # automatically set axes_ps plotrefs if they're not already
         # The x-label
