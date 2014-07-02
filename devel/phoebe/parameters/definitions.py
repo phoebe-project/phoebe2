@@ -684,6 +684,9 @@ defs += [dict(qualifier='np',       description='Number of nodes of any type',re
 defs += [dict(qualifier='ref',        description='identifier for the axes options',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:figure'),
          dict(qualifier='axesrefs',    description='list of axes refs to plot on the figure',repr='%s',cast_type=list,value=[],frame=["phoebe"],context='plotting:figure'),
          dict(qualifier='axeslocs',    description='list of locations (one for each in axes_refs, tuple or string) to plot the figure',repr='%s',cast_type=list,value=[],frame=["phoebe"],context='plotting:figure'),
+         dict(qualifier='axessharex',        description="list of refs of other axes already existing in the figure", repr='%s',cast_type=list,value=[],frame=["phoebe"],context='plotting:figure'),
+         dict(qualifier='axessharey',        description="list of refs of other axes already existing in the figure", repr='%s',cast_type=list,value=[],frame=["phoebe"],context='plotting:figure'),
+
         ]
 
 defs += [dict(qualifier='ref',        description='identifier for the axes options',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:axes'),
@@ -703,6 +706,8 @@ defs += [dict(qualifier='ref',        description='identifier for the axes optio
          #~ dict(qualifier='yticks',        description="list of floats to draw yticks", repr='%s',cast_type=list,value=['_auto_'],frame=["phoebe"],context='plotting:axes'),
          #~ dict(qualifier='xticklabels',        description="list of strings for labels on xticks", repr='%s',cast_type=list,value=['_auto_'],frame=["phoebe"],context='plotting:axes'),
          #~ dict(qualifier='yticklabels',        description="list of strings for labels on yticks", repr='%s',cast_type=list,value=['_auto_'],frame=["phoebe"],context='plotting:axes'),
+         #~ dict(qualifier='sharex',        description="ref of another axes already existing in the figure", repr='%s',cast_type=str,value='_auto_',frame=["phoebe"],context='plotting:axes'),
+         #~ dict(qualifier='sharey',        description="ref of another axes already existing in the figure", repr='%s',cast_type=str,value='_auto_',frame=["phoebe"],context='plotting:axes'),
         ]
 
 defs += [dict(qualifier='ref',        description='identifier for the plotting options',repr='%s',cast_type=str,value='',frame=["phoebe"],context=['plotting:plot_obs','plotting:plot_residuals']),
