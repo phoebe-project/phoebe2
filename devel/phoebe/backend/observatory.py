@@ -976,14 +976,20 @@ def bandwidth_smearing(fctn):
     """
     @functools.wraps(fctn)
     def do_bandwidth_smearing(system, *args, **kwargs):
-        # In how many parts do we need to divide the passband?
-        n_parts = kwargs.pop('bandwidth_smearing', 1)
         ref = kwargs['ref']
-        
         # We need to look up the passband; for now hardcode it to 2MASS.KS
         parset, pref = system.get_parset(ref=ref, context='ifdep')
         passband = parset['passband']
+    
+        # In how many parts do we need to divide the passband?
+        bs_alg = parset['bandwidth_smearing']
+        n_parts = parset['bandwidth_subdiv'] + 1
         
+        # We can't subdivide the passband if we don't do detailed passband
+        # smearing
+        if bs_alg != 'detailed':
+            n_parts = 1
+                
         # For each port, compute the visibilities and such.
         output = []
         proj_int = np.ones(n_parts)
@@ -994,7 +1000,7 @@ def bandwidth_smearing(fctn):
             
             # Only use this subdivision when there's more than one part to
             # subdivide the bands over
-            if n_parts>1:
+            if bs_alg == 'detailed' and n_parts > 1:
                 postfix = '{:04d}_{:04d}'.format(n_part, n_parts)
                 this_ref = ref + postfix
                 kwargs['ref'] = this_ref
@@ -1028,7 +1034,7 @@ def bandwidth_smearing(fctn):
     
 @bandwidth_smearing    
 def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
-        figname=None, bandwidth_smearing=1, keepfig=True):
+        figname=None, keepfig=True):
     """
     Compute the Fourier transform of the system along a baseline.
     
@@ -1071,14 +1077,8 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     # Information on what to compute
     data_pars, ref = the_system.get_parset(ref)
     passband = data_pars['passband']
-    
-    # Make sure we can cycle over the baselines and posangles
-    single_baseline = False
-    if not hasattr(baseline,'__iter__'):
-        single_baseline = True
-        baseline = [baseline]
-    if not hasattr(posangle,'__iter__'):
-        posangle = [posangle]
+    bandwidth_smearing_alg = data_pars['bandwidth_smearing']
+    bandwidth_subdiv = data_pars['bandwidth_subdiv']
     
     # Prepare output
     frequency_out = []
@@ -1094,15 +1094,26 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     # otherwise
     if eff_wave is None:
         eff_wave = passbands.get_info([passband])['eff_wave'][0]*np.ones(len(posangle))
+        
+    # We extract the transmission profile so that we can do some basic
+    # bandwidth smearing    
+    if bandwidth_smearing_alg == 'simple':
+        pb_wave, pb_resp = limbdark.retrieve_passband(data_pars, sampling=bandwidth_subdiv)
+        f0 = conversions.baseline_to_spatialfrequency(baseline[:,None], pb_wave)
+        logger.info('Applying simple bandwidth smearing in {} subintervals'.format(bandwidth_subdiv+1))
+    # When there is no bandwidth smearing, we assume monochromaticity, and the
+    # case of detailed bandwidth smearing is taken care of by the decorator of
+    # this function
+    else:
+        pb_wave, pb_resp = None, None    
+        f0 = conversions.baseline_to_spatialfrequency(baseline, eff_wave)
+        logger.info('No passband smearing in this image segment (passband={})'.format(passband))
+    
     logger.info("ifm: cyclic frequency to m at lambda~%.4g angstrom"%(eff_wave.mean()))
     
     # Make an image if necessary, but in any case retrieve it's dimensions
     if figname is None:
         figname = 'ifmfig_temp.png'
-        #keep_figname = False
-        #xlims,ylims,p = image(the_system,ref=ref,savefig=figname)
-        #data = pl.imread(figname)[:,:,0]
-        #os.unlink(figname)
         figdec, artdec, p = image(the_system,ref=ref, dpi=100, antialiasing=False, context='ifdep')
         xlims = figdec['xlim']
         ylims = figdec['ylim']
@@ -1118,20 +1129,13 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
     coords =np.array([[i,j] for i,j in itertools.product(xlims,ylims)])
     
     #-- cycle over all baselines and position angles
-    #d = the_system.as_point_source()['coordinates'][2]#list(the_system.params.values())[0].request_value('distance','Rsol')
     d = the_system.get_distance()
-    #dpc = conversions.convert('Rsol','pc',d)
-    dpc = d*2.253987922034374e-08
+    dpc = d*2.253987922034374e-08 # from Rsol to pc
     
-    # Note: rotation might go faster but perhaps less precise if replaced with:
-    #Nx, Ny = image.shape
-    #margin = int(Nx / 2.0)
-    # X, Y = np.ogrid[-Nx/2:Nx/2, -Ny/2:Ny/2]
-    #rotated_image = np.zeros((Nx + margin, Ny + margin))
-    #rotated_image[margin/2:-margin/2, margin/2:-margin/2] = data
     
+        
     prev_pa = None
-    for nr, (bl, pa, wl) in enumerate(zip(baseline, posangle, eff_wave)):        
+    for nr, pa in enumerate(posangle):        
         
         if keepfig:
             xlims,ylims,p = image(the_system,ref=ref,context='ifdep',savefig='{}_{:05d}.fits'.format(keepfig,nr))
@@ -1146,8 +1150,8 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
             x_toplot_ = x_toplot*np.cos(pa/180.*pi)
             y_toplot_ = x_toplot*np.sin(pa/180.*pi)
             pl.plot(x_toplot_,y_toplot_,'r-',lw=2)
-            vc = bl*np.sin(pa/180.*np.pi)
-            uc = bl*np.cos(pa/180.*np.pi)
+            vc = baseline[nr]*np.sin(pa/180.*np.pi)
+            uc = baseline[nr]*np.cos(pa/180.*np.pi)
             npix = data.shape[0]
             resol = np.abs(xlims[0]-xlims[1])/d
             #resol = conversions.convert('rad','mas',resol)/npix
@@ -1157,7 +1161,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
                        r'B={:.0f}m' +'\n'
                        r'U,V=({:.1f},{:.1f}) m' + '\n'
                        r'{:d} pix' +'\n'+ '{:.3g} mas/pix')
-            pl.annotate(an_text.format(pa,eff_wave[nr],bl,uc,vc,npix,resol),
+            pl.annotate(an_text.format(posangle[nr],eff_wave[nr],baseline[nr],uc,vc,npix,resol),
                         (0.95,0.95),va='top',ha='right',
                         xycoords='axes fraction',color='r',size=20)
         
@@ -1166,7 +1170,7 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         # We add a shortcut here not to repeat the rotation if we're at the
         # same position angle as before. That's nice because then we can easily
         # compute the whole profile as a function of baseline.
-        if pa!=prev_pa:
+        if pa != prev_pa:
             data_ = imrotate(data,-pa,reshape=True,cval=0., order=0) # was -pa
         
         prev_pa = pa
@@ -1196,87 +1200,54 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         #x = conversions.convert('rad','as',x) # arseconds
         x = x / (2 * np.pi) * 360. * 3600.
         #x -= x[0]
-        if single_baseline and bl==0: 
-            nyquist = 0.5/(x[1]-x[0])
-            f0 = 0.01/x.ptp()
-            fn = nyquist/25.
-            df = 0.01/x.ptp()
-            logger.info('ifm: single baseline equal to 0m: computation of entire profile')
-        else:
-            #f0 = conversions.convert('m','cy/arcsec',bl,wave=(wl,'angstrom'))*2*np.pi
-            f0 = conversions.baseline_to_spatialfrequency(bl, wl)
-            fn = f0
-            df = 0
-            #logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,wl))
-            if keepfig and keepfig is not True:
-                pl.annotate('f={:.3g} cy/as\n d={:.3g} pc'.format(f0,dpc),(0.95,0.05),va='bottom',ha='right',xycoords='axes fraction',color='r',size=20)
-                pl.figure()
-                pl.plot(x*1000.,signal,'k-')
-                pl.grid()
-                pl.xlabel('Coordinate [mas]')
-                pl.ylabel("Flux")
-                pl.savefig('{}_{:05d}_prof.png'.format(keepfig,nr))
-                #np.savetxt('prof.dat', np.column_stack([x*1000, signal]))
-                pl.close()
+        
+        #logger.info('ifm: computation of frequency and phase at f0={:.3g} cy/as (lam={:.3g}AA)'.format(f0,wl))
+        if keepfig and keepfig is not True:
+            pl.annotate('f={} cy/as\n d={:.3g} pc'.format(f0[nr],dpc),(0.95,0.05),va='bottom',ha='right',xycoords='axes fraction',color='r',size=20)
+            pl.figure()
+            pl.plot(x*1000.,signal,'k-')
+            pl.grid()
+            pl.xlabel('Coordinate [mas]')
+            pl.ylabel("Flux")
+            pl.savefig('{}_{:05d}_prof.png'.format(keepfig,nr))
+            #np.savetxt('prof.dat', np.column_stack([x*1000, signal]))
+            pl.close()
+        
         #-- to take band pass smearing into account, we need to let the
         #   wavelength vary over the passband, and add up all the
         #   Fourier transforms but weighted with the SED intensity
         #   times the transmission filter.
         signal = signal / signal.sum() * total_flux
-        #signal = signal/signal.sum()
-        #f1_,s1_ = pergrams.DFTpower(x,signal,full_output=True,
-        #                    f0=f0,fn=fn,df=df)
-        s1 = pergrams.DFT(x, signal, f0)
-        f1 = f0
+        if pb_wave is None:
+            s1 = pergrams.DFT(x, signal, f0[nr])
+            s1_vis = np.abs(s1)
+            s1_phs = np.angle(s1)      
+        else:
+            s1 = pergrams.DFT(x, signal, f0[nr][:,None])
+            # Compute the weighted average of the *complex* quantities
+            s1 = np.average(s1, weights=pb_resp)
+            s1_vis = np.abs(s1)
+            s1_phs = np.angle(s1)
         
-        # We could add a check for the Nyquist frequency here, but that should
-        # be always fine for realistic observations
-        #print('frequency = {:.3g}, nyquist = {:.3g} ({:.3f}%)'.format(f0, 0.5/(x[1]-x[0]),f0/0.5*(x[1]-x[0])))
-        
-        if np.angle(s1)<-np.pi:
-            print("angular diameter = {} mas, angle={}".format(x[signal>0].ptp()*1000, np.angle(s1), np.angle(s1)- x.ptp()*pi*f1))
-        
-        s1_vis = np.abs(s1)
-        s1_phs = np.angle(s1)
-        #-- correct cumulative phase
-        #s1_phs = s1_phs - x.ptp()*pi*f1
-        #s1_phs = (s1_phs % (2*pi))# -pi
-        #b1 = conversions.convert('cy/arcsec','m',f1,wave=(wl,'angstrom')) / (2*np.pi)
-        b1 = conversions.spatialfrequency_to_baseline(f1, wl)
         if keepfig and keepfig is not True:
             pl.savefig('{}_{:05d}.png'.format(keepfig,nr))
             pl.close()
                 
         #-- append to output
-        frequency_out.append(f1)
-        baseline_out.append(b1)
-        posangle_out.append(pa)
         visibility_out.append(s1_vis**2)
         phase_out.append(s1_phs)
         angular_scale_out.append(x)
         angular_profile_out.append(signal)
         total_flux_out.append(total_flux)
         
-    if single_baseline and baseline[0]==0:
-        frequency_out = frequency_out[0]
-        baseline_out = baseline_out[0]
-        posangle_out = posangle_out[0]
-        visibility_out = visibility_out[0]
-        phase_out = phase_out[0]
-        angular_scale_out = angular_scale_out[0]
-        angular_profile_out = angular_profile_out[0]
-        total_flux_out = total_flux_out[0]
-    else:
-        frequency_out = np.array(frequency_out)
-        baseline_out = np.array(baseline_out)
-        posangle_out = np.array(posangle_out)
-        visibility_out = np.array(visibility_out)
-        phase_out = np.array(phase_out)
-        total_flux_out = np.array(total_flux_out)
-        #angular_scale_out = np.array(angular_scale_out)
-        #angular_profile_out = np.array(angular_profile_out)
     
-    return frequency_out,baseline_out,posangle_out,\
+    visibility_out = np.array(visibility_out)
+    phase_out = np.array(phase_out)
+    total_flux_out = np.array(total_flux_out)
+    #angular_scale_out = np.array(angular_scale_out)
+    #angular_profile_out = np.array(angular_profile_out)
+    
+    return f0,baseline,posangle,\
            visibility_out,phase_out,\
            angular_scale_out,angular_profile_out, total_flux_out
 

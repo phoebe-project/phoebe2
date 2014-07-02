@@ -8,8 +8,14 @@ from numpy import pi
 logger = logging.getLogger('UTILS.PERGRAM')
 
 def DFT(time, x, freq):
+    """
+    Compute the Discrete Fourier Transform.
+    
+    you could try freq[:,None] for a frequency array, as long as it's
+    not too big.
+    """
     N = len(time)
-    return np.sum(x*np.exp(1j*2*np.pi*freq*time))
+    return np.sum(x*np.exp(1j*2*np.pi*freq*time),axis=-1)
 
 def DFTpower(time, signal, f0=None, fn=None, df=None, freqs=None, full_output=False):
 

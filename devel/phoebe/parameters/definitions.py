@@ -371,6 +371,17 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
 defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s',cast_type=str,value='uniform',frame=["phoebe"],context='ifdep'),
          dict(qualifier='ld_coeffs',         description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='ifdep'),
          dict(qualifier='passband',   description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context='ifdep'),
+         dict(qualifier='bandwidth_smearing',   description='Type of bandwidth smearing to use',
+                        long_description=("(1) 'off' means the image will be treated monochromatically (2) 'simple' means "
+                                          "that the image will be assumed to be the same in all wavelengths, but an average "
+                                          "of the image, weighted with the passband response function, will be made with "
+                                          "different spatial frequencies (3) 'detailed' means that separate images are made "
+                                          "in different subdivisions of the passband, and finally combined. The resolution "
+                                          "for options (2) and (3) are set via the parameter bandwidth_subdiv."),
+                        repr='%s',cast_type='choose',value='off',
+                                      choices=['off','simple','detailed'], frame=["phoebe"],context='ifdep'),
+         dict(qualifier='bandwidth_subdiv',   description='Resolution of the bandwidth smearing',
+                         long_description=("No bandwidth smearing (monochromatic) is set with bandwidth_subdiv=0"),repr='%d',cast_type=int,value=10, frame=["phoebe"],context='ifdep'),
          #dict(qualifier='baseline',   description='Length of the baseline',repr='%f',value=0.,unit='m',frame=["phoebe"],context=['ifobs','ifsyn']),
          #dict(qualifier='posangle',   description='Position angle of the baseline',repr='%f',value=0.,unit='deg',frame=["phoebe"],context=['ifobs','ifsyn']),
          #dict(qualifier='freq',  description='Cyclic frequency',repr='%s',value=[],unit='cy/arcsec',frame=["phoebe"],context=['ifobs','ifsyn']),
