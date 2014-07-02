@@ -372,14 +372,15 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
          dict(qualifier='ld_coeffs',         description='Limb darkening coefficients',repr='%s',cast_type='return_string_or_list',value=[1.],frame=["phoebe"],context='ifdep'),
          dict(qualifier='passband',   description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context='ifdep'),
          dict(qualifier='bandwidth_smearing',   description='Type of bandwidth smearing to use',
-                        long_description=("(1) 'off' means the image will be treated monochromatically (2) 'simple' means "
+                        long_description=("(1) 'off' means the image will be treated monochromatically (2) 'complex' means "
                                           "that the image will be assumed to be the same in all wavelengths, but an average "
                                           "of the image, weighted with the passband response function, will be made with "
-                                          "different spatial frequencies (3) 'detailed' means that separate images are made "
+                                          "different spatial frequencies (3) 'power' is like the previous option, but "
+                                          "the average of the power is taken (4) 'detailed' means that separate images are made "
                                           "in different subdivisions of the passband, and finally combined. The resolution "
-                                          "for options (2) and (3) are set via the parameter bandwidth_subdiv."),
+                                          "for options (2,3,4) are set via the parameter bandwidth_subdiv."),
                         repr='%s',cast_type='choose',value='off',
-                                      choices=['off','simple','detailed'], frame=["phoebe"],context='ifdep'),
+                                      choices=['off','complex','power','detailed'], frame=["phoebe"],context='ifdep'),
          dict(qualifier='bandwidth_subdiv',   description='Resolution of the bandwidth smearing',
                          long_description=("No bandwidth smearing (monochromatic) is set with bandwidth_subdiv=0"),repr='%d',cast_type=int,value=10, frame=["phoebe"],context='ifdep'),
          #dict(qualifier='baseline',   description='Length of the baseline',repr='%f',value=0.,unit='m',frame=["phoebe"],context=['ifobs','ifsyn']),
@@ -401,14 +402,14 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
          dict(qualifier='vis2_3', description='Squared Visibility of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='sigma_vis2_3', description='Error on squared visibility of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='vphase_3',   description='Phase of visibility',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifsyn']),
-         dict(qualifier='closure_ampl',   description='Closure phase amplitude',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifobs','ifsyn']),
-         dict(qualifier='sigma_closure_ampl',   description='Error on closure phase amplitude',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
+         dict(qualifier='triple_ampl',   description='Triple amplitude',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifobs','ifsyn']),
+         dict(qualifier='sigma_triple_ampl',   description='Error on triple amplitude',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='closure_phase',   description='Closure phase',repr='%s',value=[],unit='rad', frame=["phoebe"],context=['ifobs','ifsyn']),
          dict(qualifier='sigma_closure_phase',   description='Error on closure phase',repr='%s',value=[],frame=["phoebe"],context=['ifobs']),
          dict(qualifier='total_flux_3',   description='Total flux of third baseline',repr='%s',value=[],frame=["phoebe"],context=['ifsyn']),
          dict(qualifier='images',   description='Basename for files of original baseline plots',cast_type=str,repr='%s',value='',frame=["phoebe"],context=['ifobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis2','sigma_vis2','vphase','sigma_vphase',
-                                                                                       'ucoord_2','vcoord_2', 'closure_ampl', 'sigma_closure_ampl',
+                                                                                       'ucoord_2','vcoord_2', 'triple_ampl', 'sigma_triple_ampl',
                                                                                        'closure_phase', 'sigma_closure_phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifobs']),
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis2','vphase',
                                                                                        'ucoord_2','vcoord_2', 'vis2_2', 'vphase_2',

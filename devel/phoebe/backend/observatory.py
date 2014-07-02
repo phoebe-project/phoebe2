@@ -1060,11 +1060,17 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
               the rotation, there is probably some variation on this. The total
               flux factor is import for normalisation of the visibilities, 
               specifically when combining visibilities of different components.
-              The output is normalised, but the unnormalised visibilities can
-              be computed easily by scaling with the total flux.
+              The output is unnormalised, but the normalised visibilities can
+              be computed easily by division with the total flux (squared).
            4. **Fourier transform**: The Discrete Fourier transform is computed
               for the observed spatial frequencies. These are computed from the
-              baselines.
+              baselines. **Bandwidth smearing** can be taken into account
+              in this step, by computing the DFT not at one wavelength, but
+              at several, and then averaging either the complex visibilities, weighted
+              with the passband response function (``bandwidth_smearing='complex'``),
+              or averaging the squared amplitudes of the DFT (``bandwidth_smearing='power'``,
+              [Wittkowski2004]_).
+              
     
     If you give a single positional angle as a float instead of an array,
     the whole profile will be computed. Otherwise, only selected baselines
@@ -1097,10 +1103,10 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
         
     # We extract the transmission profile so that we can do some basic
     # bandwidth smearing    
-    if bandwidth_smearing_alg == 'simple':
+    if bandwidth_smearing_alg in ['complex', 'power']:
         pb_wave, pb_resp = limbdark.retrieve_passband(data_pars, sampling=bandwidth_subdiv)
         f0 = conversions.baseline_to_spatialfrequency(baseline[:,None], pb_wave)
-        logger.info('Applying simple bandwidth smearing in {} subintervals'.format(bandwidth_subdiv+1))
+        logger.info('Applying {} bandwidth smearing in {} subintervals'.format(bandwidth_smearing_alg,bandwidth_subdiv+1))
     # When there is no bandwidth smearing, we assume monochromaticity, and the
     # case of detailed bandwidth smearing is taken care of by the decorator of
     # this function
@@ -1224,10 +1230,15 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
             s1_phs = np.angle(s1)      
         else:
             s1 = pergrams.DFT(x, signal, f0[nr][:,None])
-            # Compute the weighted average of the *complex* quantities
-            s1 = np.average(s1, weights=pb_resp)
-            s1_vis = np.abs(s1)
-            s1_phs = np.angle(s1)
+            if bandwidth_smearing_alg == 'complex':
+                # Compute the weighted average of the *complex* quantities
+                s1 = np.average(s1, weights=pb_resp)
+                s1_vis = np.abs(s1)
+                s1_phs = np.angle(s1)
+            elif bandwidth_smearing_alg == 'power':
+                # Compute the weighted average of the *squared amplitude* quantities
+                s1_vis = np.sqrt(np.average(np.abs(s1)**2, weights=pb_resp))
+                s1_phs = np.angle(np.average(s1, weights=pb_resp))
         
         if keepfig and keepfig is not True:
             pl.savefig('{}_{:05d}.png'.format(keepfig,nr))

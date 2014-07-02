@@ -4431,7 +4431,7 @@ class Body(object):
                     base['total_flux'] += list(total_flux_1)
                     base['total_flux_2'] += list(total_flux_2)
                     base['total_flux_3'] += list(total_flux_3)
-                    base['closure_ampl'] += list(closure_ampl)
+                    base['triple_ampl'] += list(closure_ampl)
                     base['closure_phase'] += list(closure_phase)
                     if eff_wave is not None:
                         base['eff_wave'] += list(eff_wave_cp)

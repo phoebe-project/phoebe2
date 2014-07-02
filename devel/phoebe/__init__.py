@@ -267,8 +267,103 @@ and the minimum and maximum flux values. The different cases are:
         assert(maxim==1.10035204474)     
 
 
-Section 2.2 Passbands
------------------------
+Section 2.2 Passbands and atmosphere tables
+---------------------------------------------
+
+Supported passbands are all collected in a FITS file ``phoebe2_standardset.fits``
+in the ``phoebe/atmospheres/ptf`` directory. You can create such a file (and thus
+add custom passbands) using the ``create_passbandfits.py`` script located in
+``phoebe/atmospheres/``.
+
+The ``phoebe2_standardset.fits`` file is not strictly needed to operate Phoebe2,
+since passband integration is not done during runtime but is precomputed in the
+atmosphere tables. Also, all the passbands are included in the atmosphere tables,
+to guarantee consistency between used passbands and limb darkening coefficients
+and intensities.
+
+You can download precomputed tables via (you might require root)::
+
+    >>> import phoebe
+    >>> phoebe.download_atm()
+    
+This command downloads a tar file from the web site, and extracts it into the
+correct directory.
+
+Every set of limb darkening law and atmosphere type has a different FITS file
+listing the coefficients, and it is certainly possible that not all passbands
+are given in all files. If you want to see which passbands are available in
+which atmosphere files, it is probably easiest to construct a Bundle, add a 
+light curve and query for information on the passband::
+
+    >>> import phoebe
+    >>> mybundle = phoebe.Bundle()
+    >>> mybundle.lc_fromarrays(time=[0])
+    >>> print(mybundle.info('passband@lc01@lcdep'))
+
+If a passband is not available in the atmosphere file, it is easy to add it:
+the code will give you in the error message the command to run, i.e.::
+
+    >>> mybundle.lc_fromarrays(time=[0], passband='nonexisting')
+    >>> mybundle.run_compute()
+    ValueError: Atmosphere file /path/to/phoebe/atmospheres/tables/ld_coeffs/kurucz_logarithmic_equidist_r_leastsq_teff_logg_abun.fits does not contain required information ("Extension 'NONEXISTING_v1.0' not found.")
+    If the atmosphere files kurucz_mu_im01k2.fits, kurucz_mu_im02k2.fits, kurucz_mu_im03k2.fits, kurucz_mu_im05k2.fits, kurucz_mu_im10k2.fits, kurucz_mu_im15k2.fits, kurucz_mu_im20k2.fits, kurucz_mu_im25k2.fits, kurucz_mu_im30k2.fits, kurucz_mu_im35k2.fits, kurucz_mu_im45k2.fits, kurucz_mu_im50k2.fits, kurucz_mu_ip00k2.fits, kurucz_mu_ip02k2.fits, kurucz_mu_ip03k2.fits, kurucz_mu_ip05k2.fits, exist in directory /home/pieterd/software/phoebe-code/devel/phoebe/atmospheres/tables/spec_intens, you can add it via the command
+    >>> phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs("/path/to/phoebe/atmospheres/tables/ld_coeffs/kurucz_logarithmic_equidist_r_leastsq_teff_logg_abun.fits", passbands=("NONEXISTING_v1",))
+
+As the above message explains, you need to have :ref:`specific intensity files <limbdark-atmospheres-fileformats>`
+locally installed or created. Contact developers if you cannot create your own.
+
+To create LD tables from scratch from those intensity files, use the
+``create_atmospherefits.py`` script located in ``phoebe/atmospheres/``.
+
+Below, a step-by-step explanation is given on how to add a passband to an existing
+atmosphere file, and how to create an atmosphere file from scratch.
+
+**Adding a new passband to an existing atmosphere file**
+
+1. Make sure you have the required specific intensity tables inside ``phoebe/atmospheres/tables/spec_intens``.
+   You can find a list of the necessary files inside the primary header of the
+   atmosphere file you want to add a passband to.
+2. Create an ASCII file containing the information on the passband, and store
+   it inside ``phoebe/atmospheres/ptf/phoebe2set``. For an explanation of the file
+   format, see existing files there. Basically it's a an ASCII file with two
+   columns (wavelength (angstrom) versus response), and a small header with the
+   name of the passband.
+3. Run in a terminal, from ``phoebe/atmospheres``::
+
+    $:> python create_atmospherefits.py
+
+4. Run in a Python shell::
+
+    $:> python
+    >>> from phoebe.atmospheres import create_atmospherefits
+    >>> existing_file = "/path/to/phoebe/atmospheres/tables/ld_coeffs/kurucz_logarithmic_equidist_r_leastsq_teff_logg_abun.fits"
+    >>> nonexisting_passband = ("NONEXISTING",)
+    >>> create_atmospherefits.compute_grid_ld_coeffs(existing_file, passbands=nonexisting_passband)
+    
+The limbdarkening coefficients will be computed automatically and added to the file,
+after which the passband is available in Phoebe2.
+
+**Creating a new atmosphere tables**
+
+1. Make sure you have the required specific intensity tables inside ``phoebe/atmospheres/tables/spec_intens``
+2. Run in a terminal, from ``phoebe/atmospheres``::
+
+    $:> python create_atmospherefits.py tables/spec_intens/myfiles*.fits --passbands=JOHNSON,GENEVA --ld_func=claret --filetag=myfile
+
+3. Move the created atmosphere table to the ``phoebe/atmospheres/tables/ld_coeffs`` directory.
+4. If you're using the Bundle, you can skip this step and go to step 5 or simply
+   stop. Else, you need to call :py:func:`register_atm_table <phoebe.atmospheres.limbdark.register_atm_table>`
+   such that the code can remember what the free parameters in this grid are,
+   without actually having to open the file all the time. If you're using the
+   Bundle, any atmosphere file that is not recognised is automatically registered.
+5. If you want to have the atmosphere file globally available always, add
+   the ``filetag`` you specified above to the ``atm_props`` dictionary inside
+   the ``config.py`` module in the ``phoebe.utils`` package, and
+   specify which parameters need to be interpolated in the grid.
+
+If you completed step 5, then you can use your ``filetag`` for the ``atm`` and
+``ld_coeffs`` parameters throughout Phoebe2, both in the frontend and in the backend.
+
 
 Section 2.3 Gravity darkening
 ------------------------------
@@ -575,14 +670,16 @@ Section 2.12 Magnetic fields
 Only (oblique) dipole and quadrupole magnetic fields are supported. It is
 possible to add more than one magnetic field, with different orientations, to
 mimic more complex fields. Magnetic fields are added by adding the corresponding
-parameterSet to the appropriate Body, e.g. via the Bundle one can issue::
+parameterSet (:ref:`magnetic_field:dipole <parlabel-phoebe-magnetic_field:dipole>`,
+:ref:`magnetic_field:quadrupole <parlabel-phoebe-magnetic_field:quadrupole>`)
+to the appropriate Body, e.g. via the Bundle one can issue::
 
         mybundle = phoebe.Bundle()
         magfield = phoebe.ParameterSet('magnetic_field:dipole')
         mybundle.attach_ps(magfield, 'primary')
 
 For more information on magnetic field equations and obliquity angles,
-see the :py:mod:`magfield <phoebe.atmospheres.magfield>` module.        
+see the :py:mod:`magfield <phoebe.atmospheres.magfield>` module. 
 
 Section 2.13 Spots
 --------------------------------------
@@ -599,8 +696,6 @@ add spots to your model via::
     mybundle.attach_ps(spot)
 
 
-Section 2.14 Statistics
-----------------------------------------
 
 
 Section 3. Data handling
@@ -732,10 +827,12 @@ parameter inside the :ref:`ifdep <parlabel-phoebe-ifdep>`:
   given, those values are used for the conversion of :py:func:`baseline to spatial frequency <phoebe.units.conversions.baseline_to_spatialfrequency>`,
   otherwise the :py:func:`effective wavelength <phoebe.atmospheres.passbands.eff_wave>`
   of the passband is used.
-- ``bandwidth_smearing='simple'``: the image is assumed to be constant over the
+- ``bandwidth_smearing='complex'``: the image is assumed to be constant over the
   passband, but the passband is subdivided into different regions to convert the
   baselines to spatial frequency. An average of the complex visibilities is
   taken finally, weighted with the passband response function.
+- ``bandwidth_smearing='power'``: like the previous method, but the average
+  of the power is taken instead of the complex visibilities.
 - ``bandwidth_smearing='detailed'``: the image is made in different subdivisions
   of the passband, and then finally averaged. *(This option needs some further
   developing because the images can probably not be made in the subdivided
@@ -1347,8 +1444,55 @@ the separate Bodies first. Here are two examples:
    (see doc of :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
 
 
-4.7 Throwing it all together
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+4.7 Statistics
+----------------------------------------
+
+Once all the computations are done, any (enabled) set of observations must have
+its equivalent structure in the synthetic part of the system. Once that is done,
+one can compare the two to quantify some kind of goodness-of-fit statistic, which
+can then consecutively be used in fitting algorithms to either minimize (e.g.
+the :math:`\chi^2` in nonlinear minimization routines) or maximize (e.g. the
+logarithmic probability in MCMC routines).
+
+The key function for this is the Body's :py:func:`get_logp <phoebe.backend.universe.Body.get_logp>`,
+where you can find more details on the definitions of the fit statistic itself.
+An important note is that also the probability on every parameter is taken into
+account in the computation of the logarithmic probability.
+
+Any data type that is added by developers, must have its fit statistic defined
+inside that function.
+
+It is relatively easy to write any kind of fitting wrapper around the Body, since
+basically all you need to do is (after defining the Body and adding data):
+
+.. sourcecode:: python
+
+    while not_satisfactory:
+        #<change parameters>
+        mybody.run_compute()
+        stats = mybody.get_logp()
+        #<evaluate if satisfactory>
+
+The above code is an example of how to find an optimal solution, but does not
+include determining uncertainties (for which you need MCMC).
+
+For your convenience, there are different functions that extract useful information
+for fitting:
+
+    - :py:func:`get_logp <phoebe.backend.universe.Body.get_logp>`
+    - :py:func:`get_chi2 <phoebe.backend.universe.Body.get_chi2>`
+    - :py:func:`get_data <phoebe.backend.universe.Body.get_data>`: puts all data in one long array
+    - :py:func:`get_model <phoebe.backend.universe.Body.get_model>`: puts all models in one long array
+    - :py:func:`get_adjustable_parameters <phoebe.backend.universe.Body.get_adjustable_parameters>`
+    - :py:func:`get_parameters_with_priors <phoebe.backend.universe.Body.get_parameters_with_priors>`
+
+Also the Bundle implemented the :py:func:`get_logp <phoebe.frontend.bundle.Bundle.get_logp>`
+functionality, which is a thin wrapper around the Body's version. 
+
+
+4.8 Throwing it all together
+-------------------------------
 
 Once the user has defined all the Bodies, we can throw them together in a BodyBag
 and simply call set time and the observation-generating functions appropriately to
@@ -1384,16 +1528,16 @@ comparison between observations and computations can be performed.
         
 
 
-4.8 Recipes
+4.9 Recipes
 -----------------
 
-4.8.1 How to implement a new Body
+4.10.1 How to implement a new Body
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-4.8.2 How to implement a new type of observations
+4.11.2 How to implement a new type of observations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-4.8.3 How to add physics
+4.12.3 How to add physics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
