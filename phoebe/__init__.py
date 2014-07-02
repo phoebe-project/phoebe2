@@ -265,11 +265,44 @@ and the minimum and maximum flux values. The different cases are:
         assert(rel_depth==0.771214041978)
         assert(minim==0.848606948021)
         assert(maxim==1.10035204474)     
-        
-        
+
+
+Section 2.2 Passbands
+-----------------------
+
+Section 2.3 Gravity darkening
+------------------------------
+
+With gravity darkening (sometimes also called gravity brightening, also in the code),
+we mean bolometric gravity darkening in contrast to
+passband gravity darkening. Bolometric gravity darkening relates the effective
+temperature to the local surface gravity, whereas passband gravity darkening
+relates intensities to temperatures. The intensities in Phoebe are computed from
+the effective temperatures (and other properties), so passband gravity darkening
+is not a necessary parameter in Phoebe2. For comparison, it is possible to
+:py:func:`a posteriori <phoebe.backend.universe.PhysicalBody.get_passband_gravity_brightening>`
+compute the passband gravity darkening of a Body.
+
+When using Roche potentials, the local surface gravity can be computed from
+the masses distribution in the system, but temperatures cannot be set a priori.
+Therefore we need to resort to some kind of law or theory, or use empirical
+calibrations. Phoebe2 supports three different ways to set the gravity darkening
+coefficients, governed with :ref:`gravb <label-gravb-component-phoebe>` and
+:ref:`gravblaw <label-gravblaw-component-phoebe>`:
+
+- ``gravblaw='zeipel'``: use :py:func:`von Zeipel's law <phoebe.atmospheres.roche.temperature_zeipel>`
+  to compute temperatures. See the previous link for more information and the
+  difference between convective and radiative atmospheres. With this setting the
+  user is responsible for setting a good value for ``gravb``.
+- ``gravblaw='claret'``: use von Zeipel's law as above, but automatically derive
+  the value for the gravity brightening coefficient from a
+  :py:func:`precomputed grid <phoebe.atmospheres.roche.claret_gravb>`
+- ``gravblaw='espinosa'``: use the theory from :py:func:`Espinosa <phoebe.atmospheres.roche.temperature_espinosa>`
+  to compute temperatures. In this framework no gravity brightnening coefficient
+  is required anymore. See the docs for more information.
                    
 
-Section 2.2 Reflection and heating
+Section 2.4 Reflection and heating
 -----------------------------------
 
 You can switch on/off reflection and heating effects via ``refl=True`` and
@@ -295,7 +328,7 @@ The following parameters are important in the reflection and heating effects:
       to unity). Absorbing surfaces have a low albedo (e.g. coal). A low albedo
       implies a high heating capacity :ref:`(more info) <label-alb-lcdep-phoebe>`
     - ``redist`` heat redistribution parameter. If zero, no heat will be
-      redistribution. If unity, the heat redistribution is instantaneous.
+      redistributed. If unity, the heat redistribution is instantaneous.
       :ref:`(more info) <label-redist-star-phoebe>`
     - ``redisth``: sets the fraction of redistributed heat to be only along lines
       of constant latitude. :ref:`(more info) <label-redisth-star-phoebe>`
@@ -343,7 +376,7 @@ See the :ref:`reflection <reflection-algorithms>` module for more information.
 See :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>`
 for implementation details.
 
-Section 2.3 Beaming
+Section 2.5 Beaming
 -----------------------------------
 
 By default, beaming effects are not calculated. You can switch it on by setting
@@ -366,7 +399,7 @@ beaming coefficients only need to be computed once.
 
 For more information, see :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>` and :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>`.
 
-Section 2.4 Morphological constraints
+Section 2.6 Morphological constraints
 --------------------------------------
 
 Morphological constraints are currently only implemented for binaries. There is
@@ -390,7 +423,7 @@ fitting with the functions :py:func:`Bundle.get_logp <phoebe.frontend.bundle.Bun
 or :py:func:`Body.get_logp <phoebe.backend.universe.Body.get_logp>`.
 
 
-Section 2.5 Light time travel effects
+Section 2.7 Light time travel effects
 --------------------------------------
 
 Light time travel effects are off by default. You can enable them by setting
@@ -402,7 +435,7 @@ components is not taken into account, i.e. reflection/heating effects are not
 treated correctly.
 
 
-Section 2.6 Eclipse detection
+Section 2.8 Eclipse detection
 --------------------------------------
 
 The eclipse detection algorithm is set via the parameter ``eclipse_alg``.
@@ -419,7 +452,7 @@ Depending on the circumstances, you can choose any of the following:
       to compute eclipses during expected eclipse times, and uses ``only_horizon``
       otherwise.
 
-Section 2.7 Oversampling in time
+Section 2.9 Oversampling in time
 --------------------------------------
 
 If the exposure time of your observations is relatively long compared to the rate at which you
@@ -444,7 +477,7 @@ are :py:func:`(extract_times_and_refs) <phoebe.backend.observatory.extract_times
 :py:func:`(bin_oversampling) <phoebe.backend.universe.Body.bin_oversampling>`.
 
 
-Section 2.8 Interstellar reddening
+Section 2.10 Interstellar reddening
 --------------------------------------
 
 Interstellar reddening can be taken into account in two ways:
@@ -469,7 +502,7 @@ for implementation details.
 
 See :py:mod:`phoebe.atmospheres.reddening` for more information on reddening.
 
-Section 2.10 Pulsations
+Section 2.11 Pulsations
 --------------------------------------
 
 There are three implementation schemes available for adding pulsations to a Sta
@@ -536,7 +569,7 @@ module, but here are some important notes:
       
       
 
-Section 2.11 Magnetic fields
+Section 2.12 Magnetic fields
 --------------------------------------
 
 Only (oblique) dipole and quadrupole magnetic fields are supported. It is
@@ -551,7 +584,7 @@ parameterSet to the appropriate Body, e.g. via the Bundle one can issue::
 For more information on magnetic field equations and obliquity angles,
 see the :py:mod:`magfield <phoebe.atmospheres.magfield>` module.        
 
-Section 2.12 Spots
+Section 2.13 Spots
 --------------------------------------
 
 You should not use spots in Phoebe2. The model is unphysical (circular) and
@@ -564,6 +597,10 @@ add spots to your model via::
     mybundle = phoebe.Bundle("Sun")
     spot = phoebe.ParameterSet('circ_spot', label='myspot')
     mybundle.attach_ps(spot)
+
+
+Section 2.14 Statistics
+----------------------------------------
 
 
 Section 3. Data handling
@@ -684,10 +721,32 @@ interferometry of a BodyBag is queried (:py:func:`get_synthetic <phoebe.backend.
 the individual interferometry of all Bodies are added together and the closure
 phases recomputed. This can be done because internally, the synthetic datasets
 also keep track of the total flux in the image, so the visibilities can be scaled
-to their absolute values and combined using complex addition. The closure phases
-can be recomputed for the combined system because the information from the three
-baselines is stored (see :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
+to their absolute values and combined using complex addition. The **closure phases**
+and their amplitudes can be recomputed for the combined system because the information
+from the three baselines is stored (see :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
+**Bandwidth smearing** can be included in three ways using the :ref:`bandwidth_smearing <label-bandwidth_smearing-ifdep-phoebe>`
+parameter inside the :ref:`ifdep <parlabel-phoebe-ifdep>`:
 
+- ``bandwidth_smearing='off'``: no bandwidth smearing, the image and passband
+  is assumed to be monochromatic. If the ``eff_wave`` column of the *ifobs* are
+  given, those values are used for the conversion of :py:func:`baseline to spatial frequency <phoebe.units.conversions.baseline_to_spatialfrequency>`,
+  otherwise the :py:func:`effective wavelength <phoebe.atmospheres.passbands.eff_wave>`
+  of the passband is used.
+- ``bandwidth_smearing='simple'``: the image is assumed to be constant over the
+  passband, but the passband is subdivided into different regions to convert the
+  baselines to spatial frequency. An average of the complex visibilities is
+  taken finally, weighted with the passband response function.
+- ``bandwidth_smearing='detailed'``: the image is made in different subdivisions
+  of the passband, and then finally averaged. *(This option needs some further
+  developing because the images can probably not be made in the subdivided
+  passbands. First, the limbdarkening table needs to contain those subdivided
+  bands, and finally the compute function needs to know that this one reference
+  is actually ten references)*
+
+The resolution of the bandwidth smearing is set via :ref:`bandwidth_subdiv <label-bandwidth_subdiv-ifdep-phoebe>`.
+When it is equal to zero, no bandwidth smearing is performed regardless of the
+algorithm that is set.
+  
 Even though BodyBags do not need to implement an interferometry method, computations
 are still done by the :py:func:`ifm <phoebe.backend.universe.Body.ifm>` method
 of the :py:class:`Body <phoebe.backend.universe.Body>`. Inside this method,
@@ -703,6 +762,12 @@ Interferometry can be added to a Bundle via any of:
       if you want to create interferometry within a script, or want to load data
       from non-standard files manually.
 
+.. warning::
+
+    Even if you supply ``eff_wave`` in your obs, you still need to set the
+    passband in the *ifdep*. The ``eff_wave`` is only used to convert baselines
+    to spatial frequencies, whereas the passband is used to make the image
+    (i.e. compute local intensities and set limb darkening properties).
 
 3.7 Speckle interferometry
 ------------------------------------

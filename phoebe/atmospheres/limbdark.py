@@ -1323,9 +1323,6 @@ def fit_law(mu, Imu, law='claret', fitmethod='equidist_r_leastsq',
 #{ LD Passband coefficients
 
 
-
-
-
 def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
                            ld_func='claret',
                            fitmethod='equidist_r_leastsq'):
@@ -1449,9 +1446,30 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
                     
     # Finally we're done
 
-
-
+@decorators.memoized
+def retrieve_passband(pbdep, wavelength=None, sampling=None):
+    """
+    Retrieve the passband from an atmosphere table.
     
+    Not completely implemented yet, but minimally useful.
+    """
+    atm_table = choose_ld_coeffs_table(pbdep['atm'], ld_func=pbdep['ld_func'],
+                                        atm_kwargs=dict(teff=0, logg=0, abun=0))
+        
+    extname = '_REF_' + pbdep['passband'].rstrip('_v1.0') + '_v1.0'
+    data = pyfits.getdata(atm_table, extname=extname)
+    wave, resp = data['WAVELENGTH'], data['RESPONSE']
+    
+    if sampling is not None:
+        nonzero = resp>0
+        wavelength = np.linspace(wave[nonzero].min(), wave[nonzero].max(),
+                                 sampling)
+    
+    if wavelength is not None:
+        resp = np.interp(wavelength, wave, resp)
+        return wavelength, resp
+    else:        
+        return wave, resp
     
 
 

@@ -2294,7 +2294,8 @@ class Bundle(Container):
     
     def if_fromfile(self, filename, objref=None, dataref=None, atm=None,
                     ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                    l3=None, alb=None, beaming=None, scattering=None,
+                    l3=None, bandwidth_smearing=None, bandwidth_subdiv=None,
+                    alb=None, beaming=None, scattering=None,
                     include_closure_phase=False):
         """
         Add interferometry data from an OIFITS file.
@@ -2357,7 +2358,8 @@ class Bundle(Container):
                       eff_wave=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, beaming=None,
+                      pblum=None, l3=None, bandwidth_smearing=None,
+                      bandwidth_subdiv=None,alb=None, beaming=None,
                       scattering=None):
         """
         Create and attach light curve templates to compute the model.

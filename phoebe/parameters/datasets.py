@@ -141,18 +141,22 @@ class DataSet(parameters.ParameterSet):
             self['columns'] = columns
         
         
-    def pop_column(self, qualifier):
+    def pop(self, qualifier, *args):
         """
-        Pop a column.
+        Pop a parameter or column.
+        
+        If a data column is popped, we make sure it is also removed from
+        the ``columns`` qualifier.
         
         :param qualifier: name of the column to remove
         :type qualifier: str
         """
-        columns = self['columns']
-        columns.remove(qualifier)
-        self['columns'] = columns
+        if qualifier in self['columns']:
+            columns = self['columns']
+            columns.remove(qualifier)
+            self['columns'] = columns
         
-        return super(DataSet, self).pop(qualifier)
+        return super(DataSet, self).pop(qualifier, *args)
             
     
     def load(self, force=True):
