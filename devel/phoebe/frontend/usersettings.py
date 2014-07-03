@@ -242,7 +242,7 @@ class Settings(Container):
         @param copy: whether to return deepcopy
         @type copy: bool
         """
-        context = kwargs.pop('context', 'fitting:pymc')
+        context = kwargs.pop('context', 'fitting:emcee')
         
         if fitting is None:
             fitting = parameters.ParameterSet(context=context)
@@ -375,13 +375,8 @@ class Settings(Container):
         if True:
             self.sections['fitting'] = []
             if not self.load_cfg('fitting', basedir):
-                self.add_fitting(context='fitting:grid',label='grid')
-                self.add_fitting(context='fitting:minuit',label='minuit')
-                self.add_fitting(context='fitting:lmfit',label='lmfit')
-                self.add_fitting(context='fitting:lmfit:leastsq',label='lmfit:leastsq')
-                self.add_fitting(context='fitting:lmfit:nelder',label='lmfit:nelder')
-                self.add_fitting(context='fitting:emcee',label='emcee')
-                self.add_fitting(context='fitting:pymc',label='pymc')
+                self.add_fitting(context='fitting:lmfit', label='lmfit', computelabel='preview')
+                self.add_fitting(context='fitting:emcee', label='emcee', computelabel='preview')
 
         if devel:
             self.sections['gui'] = [] # currently assumes only 1 entry

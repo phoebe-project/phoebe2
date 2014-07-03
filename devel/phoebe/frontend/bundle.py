@@ -76,6 +76,7 @@ from phoebe.parameters import definitions
 from phoebe.parameters import datasets
 from phoebe.parameters import create
 from phoebe.parameters import tools
+from phoebe.parameters import feedback as mod_feedback
 from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
 from phoebe.atmospheres import limbdark
@@ -379,7 +380,7 @@ class Bundle(Container):
         self.sections['compute'] = []
         self.sections['fitting'] = []
         self.sections['dataset'] = []
-        #~ self.sections['feedback'] = []
+        self.sections['feedback'] = []
         #~ self.sections['version'] = []
         self.sections['figure'] = []
         self.sections['axes'] = []
@@ -597,7 +598,7 @@ class Bundle(Container):
         
         
             
-    def get_server(self,label=None):
+    def get_server(self, label=None):
         """
         Return a server by name
         
@@ -1020,6 +1021,12 @@ class Bundle(Container):
         
         pos, vel, proper_time = keplerorbit.get_barycentric_hierarchical_orbit(time,
                                                              orbits, components)
+        
+        # Correct for systemic velocity (we didn't reverse the z-axis yet!)
+        globs = self.get_globals()
+        if globs is not None:
+            vgamma = globs['vgamma']
+            vel[-1] = vel[-1] - vgamma
         
         # Convert to correct units. If positional units are angles rather than
         # length, we need to first convert the true coordinates to spherical
@@ -3178,10 +3185,11 @@ class Bundle(Container):
     #{ Fitting
     @rebuild_trunk
     @run_on_server
-    def run_fitting(self,computelabel=None,fittinglabel=None,add_feedback=None,accept_feedback=False,server=None,**kwargs):
+    def run_fitting(self, fittinglabel='lmfit', computelabel=None,
+                    add_feedback=True, accept_feedback=True, server=None,
+                    mpi=None, **kwargs):
         """
-        Run fitting for a given fitting ParameterSet
-        and store the feedback
+        Run fitting for a given fitting ParameterSet and store the feedback
         
         [FUTURE]
         
@@ -3189,8 +3197,8 @@ class Bundle(Container):
         @param computelabel: str
         @param fittinglabel: name of fitting ParameterSet
         @type fittinglabel: str
-        @param add_feedback: label to store the feedback under (retrieve with get_feedback)
-        @type add_feedback: str or None
+        @param add_feedback: flag to store the feedback (retrieve with get_feedback)
+        @type add_feedback: bool
         @param accept_feedback: whether to automatically accept the feedback into the system
         @type accept_feedback: bool
         @param server: name of server to run on, or False to force locally (will override usersettings)
@@ -3203,24 +3211,18 @@ class Bundle(Container):
             server = self.get_server(server)
             mpi = server.mpi_ps
         else:
-            mpi = None
+            mpi = mpi
         
         # get fitting params
-        if fittinglabel is None:
-            fittingoptions = parameters.ParameterSet(context='fitting:lmfit')
-        else:
-            fittingoptions = self.get_fitting(fittinglabel).copy()
-         
+        fittingoptions = self.get_fitting(fittinglabel).copy()
+        
         # get compute params
         if computelabel is None:
-            computeoptions = parameters.ParameterSet(context='compute')
-        else:
-            computeoptions = self.get_compute(computelabel).copy()
-
-        # now temporarily override with any values passed through kwargs    
-        #for k,v in kwargs.items():
-        #    if k in options.keys():
-        #        options.set_value(k,v)
+            computelabel = fittingoptions['computelabel']
+        
+        # Make sure that the fittingoptions refer to the correct computelabel
+        computeoptions = self.get_compute(computelabel).copy()
+        fittingoptions['computelabel'] = computelabel
             
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
@@ -3229,6 +3231,16 @@ class Bundle(Container):
             elif k in computeoptions.keys():
                 computeoptions.set_value(k,v)
         
+        # Check if everything is OK (parameters are inside limits and/or priors)
+        passed, errors = self.check(return_errors=True)
+        if not passed:
+            raise ValueError(("Some parameters are outside of reasonable limits or "
+                              "prior bounds").format(", ".join(errors)))
+        
+        # Remember the initial values of the adjustable parameters, we'll reset
+        # them later:
+        init_values = [par.get_value() for par in self.get_system().get_adjustable_parameters()]
+        
         # here, we should disable those obs that have no flux/rv/etc.., i.e.
         # the ones that were added just for exploration purposes. We should
         # keep track of those and then re-enstate them to their original
@@ -3236,19 +3248,62 @@ class Bundle(Container):
         # <some code>
         logger.warning("Fit options:\n{:s}".format(fittingoptions))
         logger.warning("Compute options:\n{:s}".format(computeoptions))
+        
         # Run the fitting for real
-        feedback = fitting.run(self.get_system(), params=computeoptions, fitparams=fittingoptions, mpi=mpi)
+        feedback = fitting.run(self.get_system(), params=computeoptions,
+                               fitparams=fittingoptions, mpi=mpi)
+        
+        # Reset the parameters to their initial values
+        for par, val in zip(self.get_system().get_adjustable_parameters(), init_values):
+            par.set_value(val)
         
         if add_feedback:
-            self.add_feedback(feedback)
+            # Create a Feedback class and add it to the feedback section with
+            # the same label as the fittingoptions
+            subcontext = fittingoptions.get_context().split(':')[1]
+            class_name = 'Feedback' + subcontext.title()
+            feedback = getattr(mod_feedback, class_name)(*feedback, init=self,
+                                 fitting=fittingoptions, compute=computeoptions)
+            
+            # Make sure not to duplicate entries
+            existing_fb = [fb.get_label() for fb in self.sections['feedback']]
+            if feedback.get_label() in existing_fb:
+                self.sections['feedback'][existing_fb.index(feedback.get_label())] = feedback
+            else:
+                self._add_to_section('feedback', feedback)
+            logger.info(("You can access the feedback from the fitting '{}' ) "
+                         "with the twig '{}@feedback'".format(fittinglabel, fittinglabel)))
         
         # Then re-instate the status of the obs without flux/rv/etc..
         # <some code>
         
-        if accept_feedback:
-            fitting.accept_fit(self.get_system(),feedback)
+        # Accept the feedback: set/reset the variables to their fitted values
+        # or their initial values, and in any case recompute the system such
+        # that the synthetics are up-to-date with the parameters
+        self.accept_feedback(fittingoptions['label']+'@feedback',
+                             recompute=True, revert=(not accept_feedback))
             
         return feedback
+    
+    
+    def accept_feedback(self, twig, revert=False, recompute=True):
+        """
+        Change parameters with those resulting from fitting.
+        
+        [FUTURE]
+        """
+        # Retrieve the correct feedback
+        feedback = self._get_by_search(twig, kind='Feedback')
+        feedback.apply_to(self.get_system(), revert=revert)
+        
+        # If we need to recompute, recompute with the specified label
+        if recompute:
+            computelabel = feedback.get_computelabel()
+            self.run_compute(computelabel)
+            self._build_trunk()
+        
+        return feedback
+    
     #}
     
     def set_syn_as_obs(self, dataref, sigma=0.01):
@@ -5407,7 +5462,7 @@ class Bundle(Container):
     
     #}
     
-    def check(self, qualifier=None, index=0):
+    def check(self, qualifier=None, index=0, return_errors=False):
         """
         Check if a system is OK.
         
@@ -5430,6 +5485,8 @@ class Bundle(Container):
         
         self.get_system().preprocess()
         
+        error_messages = []
+        
         if qualifier is not None:
             par = self.get_parameter(qualifier, all=True).values()[index]
             return -np.isinf(par.get_logp())
@@ -5442,7 +5499,7 @@ class Bundle(Container):
             
             for path, val in system.walk_all():
                 
-                if not were_still_OK:
+                if not were_still_OK and not return_errors:
                     continue
                 
                 # If it's not a parameter don't bother
@@ -5456,18 +5513,27 @@ class Bundle(Container):
                 # If the value has zero probability, we're not OK!
                 if val.has_prior() and np.isinf(val.get_logp()):
                     were_still_OK = False
+                    error_messages.append('{}={} is outside of prior {}'.format(val.get_qualifier().
+                                                                             val.get_value(),
+                                                                             val.get_prior()))
                     continue
                 
                 # If the value is outside of the limits (if it has any), we are
                 # not OK!
                 if not val.is_inside_limits():
                     were_still_OK = False
+                    error_messages.append('{}={} is outside of reasonable limits {}'.format(val.get_qualifier(),
+                                                                                            val.get_value(),
+                                                                                            val.get_limits()))
                     continue
                     
                 # Remember we checked this one
                 already_checked.append(val)
             
-            return were_still_OK
+            if return_errors:
+                return were_still_OK, error_messages
+            else:
+                return were_still_OK
 
             
         

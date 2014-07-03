@@ -17,6 +17,7 @@ import numpy as np
 from phoebe import __version__
 from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
+from phoebe.parameters import feedback
 from phoebe.backend import universe
 from phoebe.units import conversions
 from phoebe.units import constants
@@ -779,7 +780,7 @@ class Container(object):
         return self._get_by_section(label,"compute")    
     
     @rebuild_trunk
-    def add_compute(self,ps=None,**kwargs):
+    def add_compute(self, ps=None, **kwargs):
         """
         Add a new compute ParameterSet
         
@@ -812,7 +813,7 @@ class Container(object):
         self.sections['compute'].remove(compute)
         
     @rebuild_trunk
-    def add_fitting(self,ps=None,**kwargs):
+    def add_fitting(self, ps=None, **kwargs):
         """
         Add a new fitting ParameterSet
         
@@ -823,14 +824,15 @@ class Container(object):
         @param label: name of the fitting options (will override label in ps)
         @type label: str
         """
-        context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:pymc'
-        if fitting is None:
-            fitting = parameters.ParameterSet(context=context)
+        if ps is None:
+            context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:lmfit'
+            ps = parameters.ParameterSet(context=context)
+
         for k,v in kwargs.items():
-            fitting.set_value(k,v)
+            ps.set_value(k,v)
             
-        self._add_to_section('fitting',fitting)
-        self._attach_set_value_signals(fitting)
+        self._add_to_section('fitting',ps)
+        #self._attach_set_value_signals(ps)
             
     def get_fitting(self,label=None):
         """
@@ -912,7 +914,7 @@ class Container(object):
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'], ref=ri['ref'])
 
-            if do_sectionlevel and section_name not in ['system', 'dataset']: # we'll need to fake these two later
+            if do_sectionlevel and section_name not in ['system', 'dataset', 'feedback']: # we'll need to fake these two later
                 ris = self._get_info_from_item({item.get_value('ref') if 'ref' in item.keys() else item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
                 return_items += ris
                 
@@ -1200,6 +1202,14 @@ class Container(object):
             ref = None
             unique_label = None
             qualifier = None
+        elif isinstance(item, feedback.Feedback):
+            kind = 'Feedback'
+            label = item.get_label()
+            context = None
+            ref = None
+            unique_label = None
+            qualifier = None
+            body = False
         else:
             return []
             #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))

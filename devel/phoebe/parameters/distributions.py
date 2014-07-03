@@ -18,9 +18,9 @@ Each distribution has the following methods:
 
 .. autosummary::
 
+    BaseDistribution.pdf
+    BaseDistribution.cdf
     Normal.draw
-    Distribution.pdf
-    Distribution.cdf
     Normal.get_loc
     Normal.get_scale
     Normal.get_limits
@@ -42,9 +42,7 @@ import matplotlib.pyplot as plt
 
 class Distribution(object):
     """
-    This will become the new distribution base class.
-    
-    Now it's a factory.
+    Factory to produce new distributions
     """
     def __new__(cls, *args, **kwargs):
         if 'distribution' in kwargs:
@@ -60,19 +58,70 @@ class Distribution(object):
         elif dist_name == 'trace':
             return Trace(*args, **kwargs)    
         else:
-            return DeprecatedDistribution(dist_name, *args, **kwargs)
-    
+            raise ValueError("Do not recognise distribution {}".format(dist_name))
+
+
+class BaseDistribution(object):
+    """
+    Base class for Distributions.
+    """
     def pdf(self, domain=None, **kwargs):
         """
         Return the probability density function.
+        
+        Extra optional keyword arguments can be shrink factors etc, please see
+        the documentation of the specific distributions.
+        
+        :param domain: domain in which to evaluate the PDF
+        :type domain: array
+        :return: probability density function
+        :rtype: array
         """
         return self.get_distribution(distr_type='pdf', domain=domain, **kwargs)
     
     def cdf(self, domain=None, **kwargs):
         """
         Return the cumulative density function.
+        
+        Extra optional keyword arguments can be shrink factors etc, please see
+        the documentation of the specific distributions.
+        
+        :param domain: domain in which to evaluate the CDF
+        :type domain: array
+        :return: cumulative density function
+        :rtype: array
         """
         return self.get_distribution(distr_type='cdf', domain=domain, **kwargs)
+
+    def update_distribution_parameters(self, **distribution_parameters):
+        """
+        Update the distribution parameters.
+        
+        When a sample is updated, the values get appended to the previous ones
+        In all other cases, the keys are overwritten.
+        """
+        for key in distribution_parameters:
+            if not key in self.distr_pars:
+                raise ValueError('Distribution {} does not accept key {}'.format(self.distribution, key))
+            elif self.distribution == 'sample' and key == 'sample':
+                self.distr_pars[key] = np.hstack([self.distr_pars[key], distribution_parameters[key]])
+            else:
+                self.distr_pars[key] = distribution_parameters[key]
+     
+    def get_name(self):
+        """
+        Return the name of the distribution as a string
+        """
+        return self.distribution.title()
+    
+    
+    def __str__(self):
+        """
+        String representation of class Distribution.
+        """
+        name = self.get_name()
+        pars = ", ".join(['{}={}'.format(key,self.distr_pars[key]) for key in sorted(list(self.distr_pars.keys()))])
+        return "{}({})".format(name,pars)
 
 
 class DeprecatedDistribution(object):
@@ -439,7 +488,7 @@ class DeprecatedDistribution(object):
         return self.distribution.title()
 
 
-class Normal(DeprecatedDistribution):
+class Normal(BaseDistribution):
     """
     The Normal distribution.
     
@@ -469,10 +518,7 @@ class Normal(DeprecatedDistribution):
     
         >>> print(norm.get_grid(11))
         [ 6.38299413  5.96742157  5.67448975  5.4307273   5.21042839  5.
-          4.78957161  4.5692727   4.32551025  4.03257843  3.61700587]
-    
-    
-
+          4.78957161  4.5692727   4.32551025  4.03257843  3.61700587]        
         
     """
     def __init__(self, mu, sigma):
@@ -518,7 +564,7 @@ class Normal(DeprecatedDistribution):
         """
         Draw regularly sampled values from the distribution, spaced according to probability density.
         
-        We grid uniformly in 
+        We grid uniformly in the cumulatie probability density function.
         """
         loc = self.get_loc()
         scale = self.get_scale()
@@ -604,11 +650,24 @@ class Normal(DeprecatedDistribution):
         Get scale parameter.
         """
         return self.distr_pars['sigma']
+    
+   
+    def plot(self, on_axis='x', **kwargs):
+        """
+        Plot a normal prior to the current axes.
+        """
+        ax = kwargs.pop('ax', plt.gca())
+        lower, upper = self.get_limits()
+        domain = np.linspace(lower, upper, 500)
+        domain, mypdf = self.pdf(domain=domain)
+        if on_axis.lower()=='y':
+            domain, mypdf = mypdf, domain
+        getattr(ax, 'fill_between')(domain, mypdf, **kwargs)
         
         
         
 
-class Uniform(DeprecatedDistribution):
+class Uniform(BaseDistribution):
     """
     The Uniform distribution.
     """
@@ -713,8 +772,7 @@ class Uniform(DeprecatedDistribution):
         Get location parameter.
         """
         lower = self.distr_pars['lower']
-        upper = self.distr_pars['upper']
-        return (lower + upper) / 2.0
+        return lower
     
     
     def get_scale(self):
@@ -724,10 +782,10 @@ class Uniform(DeprecatedDistribution):
         lower = self.distr_pars['lower']
         upper = self.distr_pars['upper']
         
-        return (upper - lower) / 2.0
+        return (upper - lower)
         
 
-class Trace(DeprecatedDistribution):
+class Trace(BaseDistribution):
     """
     A distribution from a trace.
     
@@ -857,6 +915,19 @@ class Trace(DeprecatedDistribution):
         Get scale parameter.
         """
         return np.std(self.distr_pars['trace'])
+    
+    def __str__(self):
+        """
+        String representation of class Distribution.
+        """
+        old_threshold = np.get_printoptions()['threshold']
+        np.set_printoptions(threshold=8)
+        name = self.distribution.title()
+        pars = ", ".join(['{}={}'.format(key,self.distr_pars[key]) for key in sorted(list(self.distr_pars.keys()))])
+        np.set_printoptions(threshold=old_threshold) 
+        return "{}({})".format(name,pars)
+    
+    
 
         
 

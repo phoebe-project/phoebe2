@@ -424,12 +424,13 @@ def to_precision(x, p):
 
 
 def e_to_precision(x, e_x):
-    
+    if e_x is None:
+        e_x = 0
     # Special cases
     if e_x == 0:
         return '{:.6g}'.format(x), '0'
     if x == 0:
-        return '0', '{:.2g}'.format(e_x)
+        return '0', '{:.2g}'.format(e_x)    
     
     exp1 = int(np.floor(np.log10(abs(e_x))))-1
     exp2 = int(np.ceil(np.log10(abs(x))))
@@ -631,7 +632,7 @@ class Parameter(object):
     
     _valid_keys = ['qualifier', 'value', 'adjust', 'step', 'ulim', 'llim',
                    'unit', 'context', 'description', 'frame', 'cast_type',
-                   'long_description', 'repr']
+                   'long_description', 'repr', 'prior', 'posterior']
     
     #{ General methods
     def __init__(self,qualifier=None,**props):
@@ -1706,13 +1707,14 @@ class Parameter(object):
             prior_scale = prior.get_scale()
             prior_dist = prior.get_name()
             prior_loc, prior_scale = e_to_precision(prior_loc, prior_scale)
+            prior_value = "{}".format(self._initial['value'])
         else:
             prior_loc = ''
             prior_scale = ''
             prior_dist = ''
         
         row = [qualifier, unit, value, post_loc, post_scale, post_dist,\
-                                      prior_loc,prior_scale,prior_dist]
+                          prior_value, prior_loc,prior_scale,prior_dist]
         
         return {self.get_unique_label():row}
         

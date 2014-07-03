@@ -2191,8 +2191,8 @@ def extract_times_and_refs(system, params, tol=1e-8):
         if not found_obs:
             raise ValueError(("Failed to derive at which points the system needs "
                           "to be computed. I can't find any obs attached to "
-                          "the system, check if they are added properly. "
-                          "(original message: {})").format(str(msg)))
+                          "the system, check if they are added properly (and "
+                          "enabled!) (original message: {})").format(str(msg)))
         else:
             raise ValueError(("Failed to derive at which points the system needs "
                           "to be computed. I found obs attached to the system, "
@@ -2650,23 +2650,23 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # So what about heating then...: if heating is switched on and the orbit is
     # circular, heat only once
-    if heating and circular and time_per_time:
+    if heating and circular and len(time_per_time):
         heating = 1
         labl_per_time[0].append('__bol')
         
     # Else heat always
-    elif heating and time_per_time:
+    elif heating and len(time_per_time):
         for labl in labl_per_time:
             labl.append('__bol')
     
     # and uuhhh... what about reflection? Well, same as for heating: if
     # reflection is switched on, do it only once. Otherwise, reflect always.
     # If heating is not enabled, we need to add the bolometric label.
-    if reflect and circular and time_per_time:
+    if reflect and circular and len(time_per_time):
         reflect = 1
         if not heating:
             labl_per_time[0].append('__bol')
-    elif reflect and not heating and time_per_time:
+    elif reflect and not heating and len(time_per_time):
         for labl in labl_per_time:
             labl.append('__bol')
     

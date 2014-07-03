@@ -62,6 +62,8 @@ def test_interferometry(index=None):
         
         # Define the system
         binary = phoebe.Bundle()
+        binary.get_parameter('teff@primary').set_limits(0, 50000)
+        binary.get_parameter('teff@secondary').set_limits(0, 50000)
         binary['period'] = 100000000.0
         binary['t0'] = 0.0 + 0.25*binary['period'] - pa/360.0*binary['period']
         binary['distance'] = 1.0, 'kpc'

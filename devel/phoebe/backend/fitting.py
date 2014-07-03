@@ -72,12 +72,15 @@ Three remarks are in place to explain the statements in bold:
 
 """
 import os
+import sys
 import time
 import logging
 import functools
 import itertools
 import pickle
 import copy
+import tempfile
+import subprocess
 import numpy as np
 import scipy
 from matplotlib import pyplot as plt
@@ -232,88 +235,64 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
     else:
         raise NotImplementedError("Fitting context {} is not understood".format(fitparams.context))
     
-     # current style: just run the fitter
-    if False:
-        fitparams = solver(system,params=params,mpi=mpi,fitparams=fitparams)
-        
-        #-- reset the logger
-        mylogger.handlers = mylogger.handlers[:-1]
-        for handler in mylogger.handlers:
-            if not hasattr(handler,'baseFilename'):
-                if mylogger.level<logging._levelNames['WARNING']:
-                    handler.setLevel('INFO')
-        logger.info("Reset logger")
-        
-        #-- accept the best fitting model and compute the system
-        if accept:
-            accept_fit(system,fitparams)
-            system.reset()
-            system.clear_synthetic()
-            try:
-                system.compute(params=params,mpi=mpi)
-            except Exception as msg:
-                print(system.params.values()[0])
-                logger.info("Could not accept for some reason (original message: {})".format(msg))
-        
-        return fitparams
-
-        
-    # Future style: run the fitter a couple of times, perhaps with different
+    #run the fitter a couple of times, perhaps with different
     # starting points, different sampling or different noise.
-    else:
-        # Perhaps it doesn't make much sense to iterate a fit, then the 
-        # parameter might not be given. Set it by default to 1 in that case:
-        iters = fitparams.get('iters',1)
-        feedbacks = []
+    
+    # Perhaps it doesn't make much sense to iterate a fit, then the 
+    # parameter might not be given. Set it by default to 1 in that case:
+    iters = fitparams.get('iters',1) if fitparams.get_context() not in ['fitting:emcee'] else 1
+    feedbacks = []
 
-        # Cycle over all subsets if required. The system itself (i.e. the
-        # observational datasets) is changed *inside* the generator function
-        for flag, ref in subsets_via_flags(system, fitparams):
-            if flag is not None:
-                logger.warning("Selected subset from {} via flag {}".format(ref, flag))
+    # Cycle over all subsets if required. The system itself (i.e. the
+    # observational datasets) is changed *inside* the generator function
+    for flag, ref in subsets_via_flags(system, fitparams):
+        if flag is not None:
+            logger.warning("Selected subset from {} via flag {}".format(ref, flag))
+        
+        # Iterate fit if required
+        for iteration in range(iters):
+            logger.warning("Iteration {}/{}".format(iteration+1, iters))
             
-            # Iterate fit if required
-            for iteration in range(iters):
-                logger.warning("Iteration {}/{}".format(iteration+1, iters))
-                
-                # Do stuff like reinitializing the parametersets with values
-                # taken from their prior, or add MC noise to the data
-                reinitialize_from_priors(system, fitparams)
-                monte_carlo(system, fitparams)
-                
-                #system.compute()
-                
-                #  Then solve the current system
-                feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
-                feedbacks.append(feedback)
-        
-        # Sort feedbacks from worst to best fit 
-        feedbacks = sorted(feedbacks)
-        
-        # Reset the logger to get the info messages again
-        mylogger.handlers = mylogger.handlers[:-1]
-        for handler in mylogger.handlers:
-            if not hasattr(handler,'baseFilename'):
-                if mylogger.level<logging._levelNames['WARNING']:
-                    handler.setLevel('INFO')
-        logger.info("Reset logger")
-        
-        # If required, accept the fit of the best feedback
-        if accept:
-            accept_fit(system, feedbacks[-1])
-            system.reset()
-            system.clear_synthetic()
-            try:
-                system.compute(params=params, mpi=mpi)
-            except Exception as msg:
-                print(system.params.values()[0])
-                logger.info("Could not accept for some reason (original message: {})".format(msg))
-        
-        
-        if len(feedbacks)>1:
-            return feedbacks
-        else:
-            return feedbacks[0]
+            # Do stuff like reinitializing the parametersets with values
+            # taken from their prior, or add MC noise to the data
+            reinitialize_from_priors(system, fitparams)
+            monte_carlo(system, fitparams)
+            
+            #system.compute()
+            
+            #  Then solve the current system
+            feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
+            feedbacks.append(feedback)
+    
+    # Sort feedbacks from worst to best fit 
+    feedbacks = sorted(feedbacks)
+    
+    # Reset the logger to get the info messages again
+    mylogger.handlers = mylogger.handlers[:-1]
+    for handler in mylogger.handlers:
+        if not hasattr(handler,'baseFilename'):
+            if mylogger.level<logging._levelNames['WARNING']:
+                handler.setLevel('INFO')
+    logger.info("Reset logger")
+    
+    # If required, accept the fit of the best feedback
+    if accept:
+        accept_fit(system, feedbacks[-1])
+        system.reset()
+        system.clear_synthetic()
+        try:
+            system.compute(params=params, mpi=mpi)
+            logger.warning("System recomputed to match best fit")
+        except Exception as msg:
+            print(system.params.values()[0])
+            logger.info("Could not accept for some reason (original message: {})".format(msg))
+    else:
+        logger.warning("Did not recompute the system with fitting results (because you didn't ask for it)")
+    
+    if len(feedbacks)>1:
+        return feedbacks
+    else:
+        return feedbacks[0]
     
     
 
@@ -560,8 +539,10 @@ def run_pymc(system,params=None,mpi=None,fitparams=None):
     fitparams['feedback'] = feedback
     return fitparams
 
-#@decorators.mpirun_emcee
-def run_emcee(system, params=None, mpi=None, fitparams=None, pool=None):
+
+
+
+def run_emcee(system, params=None, fitparams=None, mpi=None):
     """
     Perform MCMC sampling of the parameter space of a system using emcee.
     
@@ -577,18 +558,6 @@ def run_emcee(system, params=None, mpi=None, fitparams=None, pool=None):
       parameters)
     * Beware of a burn-in period. The most conservative you can get is making
       a histogram of only the final states of all walkers.
-    * To get the original chains per walker back, and make a histogram of the
-      final states, do
-    
-    >>> chains = fitparams['feedback']['traces'][0].reshape((walkers,-1))
-    
-    Then you should be able to recover a sampling of the prior via
-    
-    >>> freqs,bins = np.hist(chains[0])
-    
-    And (hopefully) of the posterior via
-    
-    >>> freqs,bins = np.hist(chains[-1])
     
     Reference: [Foreman-Mackey2012]_
     
@@ -607,213 +576,60 @@ def run_emcee(system, params=None, mpi=None, fitparams=None, pool=None):
     @return: the MCMC sampling history (ParameterSet of context 'fitting:emcee'
     @rtype: ParameterSet
     """
-    if fitparams is None:
-        fitparams = parameters.ParameterSet(frame='phoebe',context='fitting:emcee',walkers=128,iters=10)
-    nwalkers = fitparams['walkers']
     
-    # We need unique names for the parameters that need to be fitted, we need
-    # initial values and identifiers to distinguish parameters with the same
-    # name (we'll also use the identifier in the parameter name to make sure
-    # they are unique). While we are iterating over all the parameterSets,
-    # we'll also have a look at what context they are in. From this, we decide
-    # which fitting algorithm to use.
-    ids = []
-    pars = []
-    names = []
+    # Pickle args and kwargs in NamedTemporaryFiles, which we will delete
+    # afterwards
+    if not mpi or not 'directory' in mpi or not mpi['directory']:
+        direc = os.getcwd()
+    else:
+        direc = mpi['directory']
     
-    # walk through all the parameterSets available. This needs to be via this
-    # utility function because we need to iteratively walk down through all
-    # BodyBags too.
-    frames = []
-    for parset in system.walk():
-        frames.append(parset.frame)
-        
-        # for each parameterSet, walk through all the parameters
-        for qual in parset:
-            
-            # extract those which need to be fitted
-            if parset.get_adjust(qual) and parset.has_prior(qual):
+    # The system
+    sys_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+    pickle.dump(system, sys_file)
+    sys_file.close()
+    
+    # The compute params
+    compute_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+    pickle.dump(params, compute_file)
+    compute_file.close()
+    
+    # The fit params
+    fit_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+    pickle.dump(fitparams, fit_file)
+    fit_file.close()
+    
+    # Be sure to remove any previously existing chain file
+    chain_file = fitparams['label'] + '.mcmc_chain.dat'
+    if os.path.isfile(chain_file):
+        os.unlink(chain_file)
+    
+    
+    # Create arguments to run emceerun_backend.py
+    args = " ".join([sys_file.name, compute_file.name, fit_file.name])
+    
+    # Then run emceerun_backend.py
+    cmd = decorators.construct_mpirun_command(script='emceerun_backend.py', mpirun_par=mpi,
+                                   args=args)
+    flag = subprocess.call(cmd, shell=True)
                 
-                # ask a unique ID and check if this parameter has already been
-                # treated. If so, continue to the next one.
-                parameter = parset.get_parameter(qual)
-                myid = parameter.get_unique_label()
-                if myid in ids: continue
-                
-                # and add the id
-                ids.append(myid)
-                pars.append(parameter.get_value_from_prior(size=nwalkers))
-                names.append(qual)
+    # If something went wrong, we can exit nicely here, the traceback
+    # should be printed at the end of the MPI process
+    if flag:
+        sys.exit(1)
     
-    pars = np.array(pars).T
+    # Clean up pickle files once they are loaded:
+    os.unlink(sys_file.name)
+    os.unlink(fit_file.name)
+    os.unlink(compute_file.name)
     
-    # now, if the number of walkers is smaller then twice the number of
-    # parameters, adjust that number to the required minimum and raise a warning
-    if (2*pars.shape[1]) > nwalkers:
-        logger.warning("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
-        nwalkers = 2*pars.shape[1]
-        fitparams['walkers'] = nwalkers
-    
-    def lnprob(pars, ids, system):
+    # Check if we produced the chain file
+    if not os.path.isfile(chain_file):
+        raise RuntimeError("Could not produce chain file, something must have seriously gone wrong during emcee run")
         
-        # Evaluate the system, get the results and return a probability
-        had = []
-        any_outside_limits = False
-        
-        # Walk through all the parameterSets available. Collect unique
-        # parameters and their values, but stop once a parameter value is
-        # outside it's limits or prior boundaries (raise StopIteration). In the
-        # latter case, we don't need to compute the model anymore, but can just
-        # return logp=-np.inf
-        try:
-            for parset in system.walk():
-                
-                # For each parameterSet, walk through all the parameters
-                for qual in parset:
-                    
-                    # Extract those which need to be fitted (i.e. adjustable
-                    # and having a prior)
-                    if parset.get_adjust(qual) and parset.has_prior(qual):
-                        
-                        # Ask a unique ID and update the value of the parameter
-                        this_param = parset.get_parameter(qual)
-                        myid = this_param.get_unique_label()
-                        
-                        # If we already incountered this parameter, continue
-                        # on to the next
-                        if myid in had:
-                            continue
-                        
-                        index = ids.index(myid)
-                        parset[qual] = pars[index]
-                        had.append(myid)
-                        
-                        # If this parameter is outside the limits, we know the
-                        # model is crap and forget about it immediately
-                        if not this_param.is_inside_limits():
-                            any_outside_limits = True
-                            raise StopIteration
-                        
-                        # If this parameter is outside the boundaries of the
-                        # prior, the model is crap and forget about it
-                        # immediately
-                        if np.isinf(this_param.get_logp()):
-                            any_outside_limits = True
-                            raise StopIteration
-                                      
-        # If any of the parameters is outside the bounds, we don't really
-        # compute the model
-        except StopIteration:
-            logger.warning("At least one of the parameters was outside bounds")
-            return -np.inf
-        
-        system.reset()
-        system.clear_synthetic()
-        system.compute(params=params, mpi=mpi)
-        logp, chi2, N = system.get_logp(include_priors=True)
-        #mu,sigma,model = system.get_model()
-        return logp
+    return chain_file, 
     
-    # If we need to do incremental stuff, we'll need to open a chain file if we
-    # don't have feedback already
-    start_iter = 0
-    if fitparams['incremental'] and not fitparams['feedback']:
-        chain_file = 'emcee_chain.{}'.format(fitparams['label'])
-        
-        # If the file already exists, choose the starting position to be the
-        # last position from the file
-        if os.path.isfile(chain_file):
-            
-            with open(chain_file, 'r') as ff:
-                last_lines = [line.strip().split() for line in ff.readlines()[-nwalkers:]]
-                start_iter = int(np.array(last_lines[-1])[0])+1
-                pars = np.array(last_lines, float)[:,2:]         
-            
-            logger.info("Starting from previous EMCEE chain from file")
-        else:
-            logger.info("Starting new EMCEE chain")
-        
-        f = open(chain_file, 'a')
     
-    # If we do have feedback already we can simply load the final state from the
-    # feedback
-    elif fitparams['incremental']:
-        pars = np.array(fitparams['feedback']['traces'])
-        pars = pars.reshape(pars.shape[0], -1, nwalkers)
-        pars = pars[:,-1,:].T
-        start_iter = len(fitparams['feedback']['traces'][0]) / nwalkers
-        logger.info("Starting from previous EMCEE chain from feedback")
-    
-    # run the sampler
-    sampler = emcee.EnsembleSampler(nwalkers, pars.shape[1], lnprob,
-                                    args=[ids, system],
-                                    threads=fitparams['threads'], pool=pool)
-    num_iterations = fitparams['iters']-start_iter
-    if num_iterations <= 0:
-        logger.info('EMCEE contains {} iterations already (iter={})'.format(start_iter,fitparams['iters']))
-        num_iterations = 0
-        
-    logger.warning("EMCEE: varying parameters {}".format(', '.join(names)))
-    
-    for i,result in enumerate(sampler.sample(pars,iterations=num_iterations,storechain=True)):
-        niter = i+start_iter
-        logger.info("EMCEE: Iteration {} of {} ({:.3f}% complete)".format(niter,fitparams['iters'],float(niter)/fitparams['iters']*100.))
-        #-- if we want to keep track of incremental stuff, write each iteratiion
-        #   to a file
-        if fitparams['incremental'] and not fitparams['feedback']:
-            position = result[0]
-            for k in range(position.shape[0]):
-                values = " ".join(["{:.16e}".format(l) for l in position[k]])
-                f.write("{0:9d} {1:9d} {2:s}\n".format(niter,k,values))
-            f.flush()
-    
-    if fitparams['incremental'] and not fitparams['feedback']:
-        f.close()
-    
-    #-- acceptance fraction should be between 0.2 and 0.5 (rule of thumb)
-    logger.info("Mean acceptance fraction: {0:.3f}".format(np.mean(sampler.acceptance_fraction)))
-    
-    #-- store the info in a feedback dictionary
-    try:
-        acortime = sampler.acor
-    #RuntimeError: The autocorrelation time is too long relative to the variance in dimension 
-    except RuntimeError:
-        acortime = np.nan
-        logger.warning('Probably not enough iterations for emcee')
-    
-    feedback = dict(parset=fitparams,parameters=[],traces=[],priors=[],
-                    accfrac=np.mean(sampler.acceptance_fraction),
-                    lnprobability=sampler.flatlnprobability,acortime=acortime)
-    
-    #-- add the posteriors to the parameters
-    had = []
-    #-- walk through all the parameterSets available:
-    walk = utils.traverse(system,list_types=(universe.BodyBag,universe.Body,list,tuple),dict_types=(dict,))
-    for parset in walk:
-        #-- fore ach parameterSet, walk to all the parameters
-        for qual in parset:
-            #-- extract those which need to be fitted
-            if parset.get_adjust(qual) and parset.has_prior(qual):
-                #-- ask a unique ID and update the value of the parameter
-                myid = parset.get_parameter(qual).get_unique_label()
-                if myid in had: continue
-                had.append(myid)
-                index = ids.index(myid)
-                #-- [iwalker,trace,iparam]
-                trace = sampler.flatchain[:,index]
-                this_param = parset.get_parameter(qual)
-                #this_param.set_posterior(trace.ravel())
-                feedback['parameters'].append(this_param)
-                feedback['traces'].append(trace)
-                feedback['priors'].append(this_param.get_prior(fitter=None))
-    if fitparams['feedback'] and fitparams['incremental']:
-        feedback['traces'] = np.hstack([fitparams['feedback']['traces'],feedback['traces']])
-        feedback['lnprobability'] = np.hstack([fitparams['feedback']['lnprobability'],feedback['lnprobability']])
-    fitparams['feedback'] = feedback
-    return fitparams
-
-
-
 #}
 
 #{ Nonlinear optimizers
@@ -926,29 +742,17 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         mu, sigma, model = system.get_model()
         retvalue = (model - mu) / sigma
         
-        #retvalue = np.array([system.get_logp(include_priors=True)[1]])
-        #retvalue = np.array([system.get_chi2(include_priors=True)[0]])
-        #print 'r',retvalue
-        
         #-- short log message:
-        names = [par for par in pars]
+        names = [par.get_qualifier() for par in ppars]
         vals = [pars[par].value for par in pars]
         logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
-        
-        #plt.figure()
-        #plt.plot(mu,'ko-')
-        #plt.plot(model,'ro-')
-        #plt.show()
         
         #-- keep track of trace
         traces.append(vals)
         redchis.append(np.array(retvalue**2).sum() / (len(model)-len(pars)))
         Nmodel['Nd'] = len(model)
         Nmodel['Np'] = len(pars)
-        #if fitparams['method']=='nelder':
-        #    logf = system.get_logp()[0]    
-        #    logger.warning('--- or logp = {} (min={})'.format(logf,100-logf))
-        #    return 100-logf
+
         return retvalue
     
     # The user can give fine tuning parameters if the fitting parameterSet is a
@@ -972,8 +776,10 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         try:
             result = lmfit.minimize(model_eval, pars, args=(system,),
                             method=fitparams['method'], **extra_kwargs)
-        except:
-            raise RuntimeError("Error in running lmfit. Perhaps the version is not right? (you have {} and should have >{})".format(lmfit.__version__, '0.7'))
+        except Exception as msg:
+            raise RuntimeError(("Error in running lmfit. Perhaps the version "
+                "is not right? (you have {} and should have >{}). Original "
+                "error message: {}").format(lmfit.__version__, '0.7', str(msg)))
     
     # In this case we have fine tuning parameters
     else:
@@ -1054,16 +860,10 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
             logger.error("Could not estimate CI (original error: {}".format(str(msg)))
     
     traces = np.array(traces).T
-    feedback_ = FeedbackLmfit(fitparams, ppars, result, pars,
-                              traces, redchis)
     
-    feedback = dict(parameters=ppars, values=values, sigmas=sigmas,
-                    correls=correl, redchi=redchi, success=success,
-                    traces=traces, redchis=redchis,
-                    Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
-    fitparams['feedback'] = feedback
-    #return fitparams
-    return result, pars, ppars
+    extra_info = dict(traces=traces, redchis=redchis, Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
+    
+    return result, pars, extra_info
 
 
 class MinuitMinimizer(object):
@@ -1617,138 +1417,6 @@ def load(filename):
     myclass = pickle.load(ff)
     ff.close()
     return myclass
-
-
-class FeedbackLmfit(Feedback):
-    """
-    Feedback from lmfit.
-    """
-    def __init__(self, fitparams, phoebe_pars, results, lmfit_pars,
-                 traces, redchis):
-        """
-        Initialize a Feedback instance from Lmfit.
-        
-        We have:
-        
-            - ``parameters``: the Parameter instances
-            - ``values``: values of the best fit
-            - ``sigmas``: estimated uncertainties
-            - ``correls``: correlation coefficients
-            - ``traces``: histories of the fit
-            - ``stats``: reduced chi-squares connected to the histories.
-            - ``redchi``: reduced chi-square of best fit
-            - ``n_data``: number of data points
-            - ``n_pars``: number of free parameters
-            - ``success``: message from lmfit.
-            - ``method``: method used in lmfit
-        """
-        self._keys = ['parameters', 'values', 'sigmas',
-                      'redchi', 'n_data', 'n_pars', 'fitparams', 
-                      'correls', 'traces', 'stats', 'success']
-        
-        self.index = 0
-        
-        #-- extract the best fitting values, errors and correlation coefficients
-        #   If they failed to compute for some reason, we set them to nan:
-        method = fitparams['method']
-        
-        # First check the values
-        if hasattr(results, 'success') and results.success:
-            values = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-', '_'))].value for ipar in phoebe_pars]
-        else:
-            values = [np.nan for ipar in lmfit_pars]
-            msg = "Nonlinear fit with method {} failed".format(method)
-            logger.error(msg)
-        
-        # Then check the errorbars and correlation coefficients
-        if hasattr(results, 'errorbars') and results.errorbars:
-            sigmas = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].stderr for ipar in phoebe_pars]
-            correl = [lmfit_pars['{}_{}'.format(ipar.get_qualifier(), ipar.get_unique_label().replace('-','_'))].correl for ipar in phoebe_pars]
-        else:
-            sigmas = [np.nan for ipar in lmfit_pars]
-            correl = [np.nan for ipar in lmfit_pars]
-            msg = "Could not estimate uncertainties (set to nan)"
-            logger.error(msg)        
-        
-        bounds = [(lmfit_pars[ipar].min, lmfit_pars[ipar].max) for ipar in lmfit_pars]
-                
-        self.fitparams = fitparams
-        self.parameters = phoebe_pars
-        self.bounds = bounds
-        self.values = values
-        self.sigmas = sigmas
-        self.correls = correl
-        try:
-            self.redchi = results.redchi
-            self.success = results.success
-            self.n_data = results.ndata
-            self.n_pars = results.nvarys
-            self.df = results.nfree # = result.ndata - result.nvarys
-        except AttributeError:
-            pass
-        self.traces = traces
-        self.redchis = redchis
-        
-    def get_stat(self):
-        return self.redchi
-    
-    def __str__(self):
-        """
-        String representation of a feedback.
-        """
-        
-        # The feedback parameterSet
-        method = self.fitparams['method']
-        ref = self.fitparams['label']
-        txt = "Result from lmfit ({}) {}\n".format(method, ref)
-        txt+= '-'*len(txt) + '\n\n'
-        txt+= str(self.fitparams) + '\n'
-        
-        # Some basic info on the fit:
-        txt+= 'Number of datapoints      = {:d}\n'.format(self.n_data)
-        txt+= "Number of free parameters = {:d}\n".format(self.n_pars)
-        txt+= "Degrees of freedom        = {:d}\n".format(self.df)
-        txt+= "Best chi2                 = {:.3f}\n".format(self.get_stat())
-        
-        header = ['id','name','unit','best','std','initial','min','max']
-        fmts = ['{:10s}','{:10s}','{:10s}','{:8.6g}','{:12.6g}','{:12.6g}','{:12.6g}','{:12.6g}']
-        table = [header]
-        
-        iters = self.parameters, self.values, self.sigmas, self.bounds
-        for par, val, sig, bound in zip(*iters):
-            if par.has_unit():
-                unit = par.get_unit()
-            else:
-                unit = ''
-            context = par.get_unique_label()
-            line = [context, par.get_qualifier(), unit, val, sig, 0., bound[0], bound[1]]
-            line = [fmt.format(el) for fmt,el in zip(fmts,line)]
-            table.append(line)
-        
-        col_widths = [max([len(line[col]) for line in table]) for col in range(len(table[0]))]
-        col_fmts = ['{{:<{:d}s}}'.format(cw) for cw in col_widths]
-        
-        out_table = []
-        for line in table:
-            out_table.append('| '+' | '.join([fmt.format(el) for fmt,el in zip(col_fmts,line)]) + ' |')
-        width = len(out_table[0])
-        sep = '-'*width
-        out_table = [sep,out_table[0],sep] + out_table[1:] + [sep]
-        
-        txt += '\n'.join(out_table)
-        return txt
-    
-    
-
-class FeedbackEmcee(Feedback):
-    def __init__(self,logp):
-        self._optimize = 'maximize'
-        self.index = 0
-        
-        self.logp = logp
-    
-    def get_stat(self):
-        return self.logp
 
 
 #}
