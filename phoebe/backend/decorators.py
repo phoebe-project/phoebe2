@@ -165,6 +165,96 @@ def prepare_ltt(system):
 
 
 
+def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
+    """
+    Construct mpirun command
+    """
+    if mpirun_par is None:
+        mpirun_par = parameters.ParameterSet(context='mpi')    
+    
+    # Number of nodes
+    num_proc = mpirun_par['np']
+    
+    # Byslot
+    if 'byslot' in mpirun_par and mpirun_par['byslot']:
+        byslot = '--byslot'
+    else:
+        byslot = ''
+    
+    # Python executable
+    python = mpirun_par['python']
+    
+    # Hostfile
+    if 'hostfile' in mpirun_par and mpirun_par['hostfile']:
+        hostfile = '--hostfile {}'.format(mpirun_par['hostfile'])
+    else:
+        hostfile = ''
+    
+    # Retrieve the absolute path of the mpirun program
+    mpirun_loc = os.path.abspath(__file__)
+    mpirun_loc = os.path.split(os.path.split(mpirun_loc)[0])[0]
+    mpirun_loc = os.path.join(mpirun_loc, 'backend', script)
+    
+    # Build and run the command
+    #{fctn.__name__} {sys_file.name} "
+    #       "{args_file.name} {kwargs_file.name}
+    if mpirun_par.get_context().split(':')[-1] == 'mpi':
+        cmd = ("mpiexec -np {num_proc} {hostfile} {byslot} {python} "
+           "{mpirun_loc} {args}").format(**locals())
+    elif mpirun_par.get_context().split(':')[-1] == 'slurm':
+        
+        if not mpirun_par['memory']:
+            memory = ''
+        else:
+            memory = '--mem={:.0f}'.format(mpirun_par['memory'])
+        
+        if not mpirun_par['time']:
+            time = ''
+        else:
+            time = '--time={:.0f}'.format(mpirun_par['time'])
+            
+        if not mpirun_par['partition']:
+            partition = ''
+        else:
+            partition = '--partition={:.0f}'.format(mpirun_par['partition'])    
+            
+        cmd = ("srun -n {num_proc} {time} {memory} {partition} "
+               "mpirun -np {num_proc} {hostfile} {byslot} {python} "
+           "{mpirun_loc} {args}").format(**locals())
+        
+        
+    elif mpirun_par.get_context().split(':')[-1] == 'torque':
+        
+        # Get extra arguments for Torque
+        memory = '{:.0f}'.format(mpirun_par['memory'])
+        time = '{:.0f}'.format(mpirun_par['time'])
+        
+        # We need the absolute path name to mpirun for Torque:
+        mpirun = utils.which('mpirun')
+        
+        # We also need to know whether the job is done or not.
+        
+        # Build the command:
+        cmd = ("mpirun -np {num_proc} {python} "
+               "{mpirun_loc} {args}").format(**locals())
+        
+        # Create the commands to run Torque
+        job_string = """#!/bin/bash
+#PBS -l pcput={time:.0f}
+#PBS -l mem={memory:.0f}
+#PBS -l nodes={np}
+{mpirun} -np {np} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
+                     
+        cmd = ('echo "mpirun {python} '
+           '{mpirun_loc} {args}" '
+           '| qsub -l nodes={num_proc},mem={memory},pcput={time}').format(**locals())
+        #cmd = ('qsub -I -l nodes={num_proc},mem={memory},pcput={time}'
+               #'bash -c "mpirun {python} '
+               #'{mpirun_loc} {fctn.__name__} {sys_file.name} '
+               #'{args_file.name} {kwargs_file.name}"').format(**locals())
+    
+    return cmd
+
 
 
 def mpirun(fctn):
@@ -283,89 +373,9 @@ def mpirun(fctn):
                 pickle.dump(kwargs, kwargs_file)
                 kwargs_file.close()
                 
-                # Construct mpirun command
-                # Number of nodes
-                num_proc = mpirun_par['np']
-                
-                # Byslot
-                if 'byslot' in mpirun_par and mpirun_par['byslot']:
-                    byslot = '--byslot'
-                else:
-                    byslot = ''
-                
-                # Python executable
-                python = mpirun_par['python']
-                
-                # Hostfile
-                if 'hostfile' in mpirun_par and mpirun_par['hostfile']:
-                    hostfile = '--hostfile {}'.format(mpirun_par['hostfile'])
-                else:
-                    hostfile = ''
-                
-                # Retrieve the absolute path of the mpirun program
-                mpirun_loc = os.path.abspath(__file__)
-                mpirun_loc = os.path.split(os.path.split(mpirun_loc)[0])[0]
-                mpirun_loc = os.path.join(mpirun_loc, 'backend', 'mpirun.py')
-                
-                # Build and run the command
-                if mpirun_par.get_context().split(':')[-1] == 'mpi':
-                    cmd = ("mpiexec -np {num_proc} {hostfile} {byslot} {python} "
-                       "{mpirun_loc} {fctn.__name__} {sys_file.name} "
-                       "{args_file.name} {kwargs_file.name}").format(**locals())
-                elif mpirun_par.get_context().split(':')[-1] == 'slurm':
-                    
-                    if not mpirun_par['memory']:
-                        memory = ''
-                    else:
-                        memory = '--mem={:.0f}'.format(mpirun_par['memory'])
-                    
-                    if not mpirun_par['time']:
-                        time = ''
-                    else:
-                        time = '--time={:.0f}'.format(mpirun_par['time'])
-                        
-                    if not mpirun_par['partition']:
-                        partition = ''
-                    else:
-                        partition = '--partition={:.0f}'.format(mpirun_par['partition'])    
-                        
-                    cmd = ("srun -n {num_proc} {time} {memory} {partition} "
-                           "mpirun -np {num_proc} {hostfile} {byslot} {python} "
-                       "{mpirun_loc} {fctn.__name__} {sys_file.name} "
-                       "{args_file.name} {kwargs_file.name}").format(**locals())
-                    
-                    
-                elif mpirun_par.get_context().split(':')[-1] == 'torque':
-                    
-                    # Get extra arguments for Torque
-                    memory = '{:.0f}'.format(mpirun_par['memory'])
-                    time = '{:.0f}'.format(mpirun_par['time'])
-                    
-                    # We need the absolute path name to mpirun for Torque:
-                    mpirun = utils.which('mpirun')
-                    
-                    # We also need to know whether the job is done or not.
-                    
-                    # Build the command:
-                    cmd = ("mpirun -np {num_proc} {python} "
-                           "{mpirun_loc} {fctn.__name__} {sys_file.name} "
-                           "{args_file.name} {kwargs_file.name}").format(**locals())
-                    
-                    # Create the commands to run Torque
-                    job_string = """#!/bin/bash
-#PBS -l pcput={time:.0f}
-#PBS -l mem={memory:.0f}
-#PBS -l nodes={np}
-{mpirun} -np {np} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
-                     
-                    cmd = ('echo "mpirun {python} '
-                       '{mpirun_loc} {fctn.__name__} {sys_file.name} '
-                       '{args_file.name} {kwargs_file.name}" '
-                       '| qsub -l nodes={num_proc},mem={memory},pcput={time}').format(**locals())
-                    #cmd = ('qsub -I -l nodes={num_proc},mem={memory},pcput={time}'
-                           #'bash -c "mpirun {python} '
-                           #'{mpirun_loc} {fctn.__name__} {sys_file.name} '
-                           #'{args_file.name} {kwargs_file.name}"').format(**locals())
+                args = '{fctn.__name__} {sys_file.name} {args_file.name} {kwargs_file.name}'.format(**locals())
+                cmd = construct_mpirun_command(script='mpirun.py',
+                                               mpirun_par=mpirun_par, args=args)
 
                 flag = subprocess.call(cmd, shell=True)
                 

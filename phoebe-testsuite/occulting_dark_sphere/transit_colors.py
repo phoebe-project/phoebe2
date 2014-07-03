@@ -44,6 +44,7 @@ sphere1 = phoebe.ParameterSet(frame='phoebe',context='star',add_constraints=True
 sphere1['radius'] = 1.,'Rsol'
 sphere1['teff'] = 5777.,'K'
 sphere1['atm'] = 'kurucz'
+sphere1['ld_func'] = 'claret'
 sphere1['ld_coeffs'] = 'kurucz'
 sphere1['rotperiod'] = 5.,'d'
 sphere1['shape'] = 'equipot'
@@ -74,6 +75,8 @@ sphere2['teff'] = 0,'K'
 sphere2['atm'] = 'blackbody'
 sphere2['incl'] = 0.
 sphere2['rotperiod'] = np.inf
+sphere2['ld_func'] = 'uniform'
+sphere2['ld_coeffs'] = [1]
 sphere2.add_constraint('{radius2} = %.6g'%(sphere1.get_value('radius','m')))
 
 mesh2 = phoebe.ParameterSet(frame='phoebe',context='mesh:marching')
@@ -96,7 +99,7 @@ P = ps['period']
 times = np.linspace(ps['t0']-0.06*P,ps['t0']+0.06*P,40)# was 40
 
 bbag = phoebe.BodyBag([star1,star2],solve_problems=True)
-phoebe.observe(bbag,times,subdiv_num=2,lc=True,mpi=True)
+phoebe.observe(bbag,times,subdiv_num=2,lc=True)
 
 bbag.save('transit_colors.phoebe')
 # Analysis of the results

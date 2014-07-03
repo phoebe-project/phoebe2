@@ -1880,6 +1880,8 @@ def place_in_binary_orbit(self,time):
     a1 = a / (1+1.0/q)
     a2 = a-a1
     deg2rad=pi/180.
+    dpdt = self.params['orbit']['dpdt'] / 31557600.0
+    dperdt = self.params['orbit']['dperdt'] *deg2rad /  31557600.0
     inclin = self.params['orbit']['incl'] *deg2rad
     argper = self.params['orbit']['per0'] *deg2rad
     long_an = self.params['orbit']['long_an']*deg2rad
@@ -1896,6 +1898,7 @@ def place_in_binary_orbit(self,time):
     #-- where in the orbit are we? We need everything in cartesian Rsol units
     loc, velo, euler = get_orbit(time, P, e, a_comp, T0, per0=argper, 
                                  long_an=long_an, incl=inclin,
+                                 dperdt=dperdt, dpdt=dpdt,
                                  component=component, t0type=t0type)
     
     #-- we need a new copy of the mesh

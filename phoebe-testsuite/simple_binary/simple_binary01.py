@@ -18,9 +18,9 @@ logger = phoebe.get_basic_logger()
 # Define two stars, and set some of their parameters to be not the default ones.
 
 star1 = phoebe.ParameterSet('star', mass=1.2, radius=1.1, teff=6321.,
-                            atm='kurucz', ld_coeffs='kurucz', ld_func='claret')
+                            atm='kurucz_p00', ld_coeffs='kurucz_p00', ld_func='claret')
 star2 = phoebe.ParameterSet('star', mass=0.8, radius=0.9, teff=4123.,
-                            atm='kurucz', ld_coeffs='kurucz', ld_func='claret')
+                            atm='kurucz_p00', ld_coeffs='kurucz_p00', ld_func='claret')
 
 # Derive component parameters (i.e. Roche potentials, synchronicity parameters)
 # and orbit parameters (semi-major axis) from the stellar parameters. We need
@@ -43,20 +43,29 @@ mesh = phoebe.ParameterSet('mesh:marching', delta=0.07)
 # radial velocities. We only set the reference to one of them explicitly, to
 # show the different approaches to refering to the parameterSets later.
 
-lcdep = phoebe.ParameterSet('lcdep', passband='KEPLER.V', atm='kurucz',
-                            ld_func='claret', ld_coeffs='kurucz', ref='my kepler lc')
-rvdep = phoebe.ParameterSet('rvdep', passband='JOHNSON.V', atm='kurucz',
-                            ld_func='claret', ld_coeffs='kurucz')
+lcdep = phoebe.ParameterSet('lcdep', passband='KEPLER.MEAN', atm='kurucz_p00',
+                            ld_func='claret', ld_coeffs='kurucz_p00', ref='my kepler lc')
+rvdep1 = phoebe.ParameterSet('rvdep', passband='JOHNSON.V', atm='kurucz_p00',
+                            ld_func='claret', ld_coeffs='kurucz_p00')
+rvdep2 = phoebe.ParameterSet('rvdep', passband='JOHNSON.V', atm='kurucz_p00',
+                            ld_func='claret', ld_coeffs='kurucz_p00')
+
+
+# Create observations
+times = np.linspace(0, orbit['period'],100)
+lcobs = phoebe.LCDataSet(time=times, ref=lcdep['ref'])
+rvobs1 = phoebe.RVDataSet(time=times, ref=rvdep1['ref'])
+rvobs2 = phoebe.RVDataSet(time=times, ref=rvdep2['ref'])
 
 # Body setup
 #--------------
 
 # We need two BinaryRocheStars and put them in an orbit:
 orbit['ecc'] = 0.1
-star1 = phoebe.BinaryRocheStar(comp1, mesh=mesh, pbdep=[lcdep,rvdep])
-star2 = phoebe.BinaryRocheStar(comp2, mesh=mesh, pbdep=[lcdep,rvdep])
+star1 = phoebe.BinaryRocheStar(comp1, mesh=mesh, pbdep=[lcdep,rvdep1], obs=[rvobs1], orbit=orbit)
+star2 = phoebe.BinaryRocheStar(comp2, mesh=mesh, pbdep=[lcdep,rvdep2], obs=[rvobs2], orbit=orbit)
 
-system = phoebe.BinaryBag([star1, star2], orbit=orbit)
+system = phoebe.BodyBag([star1, star2], obs=[lcobs])
 
 
 # Computation of observables
@@ -66,8 +75,7 @@ system = phoebe.BinaryBag([star1, star2], orbit=orbit)
 # the light curve and radial velocity curve. We use the binary eclipse algorithm
 # to make computations go faster.
 
-times = np.linspace(0, orbit['period'],100)
-phoebe.observatory.observe(system, times, lc=True, rv=True, eclipse_alg='binary')
+phoebe.observatory.compute(system, eclipse_alg='binary')
 
 # Analysis of results:
 #-----------------------

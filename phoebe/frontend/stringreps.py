@@ -25,7 +25,14 @@ def make_body_label(body, level, emphasize):
     return label
 
 def make_param_label(param, green):
-    label = "{}={}".format(param.get_qualifier(), param.to_str())
+    if param.has_posterior():
+        loc = param.get_posterior().get_loc()
+        scale = param.get_posterior().get_scale()
+        label = "{}={} ({:.2g}+/-{:.2g})".format(param.get_qualifier(),
+                                                param.to_str(), loc, scale)
+    else:
+        label = "{}={}".format(param.get_qualifier(), param.to_str())
+    
     if param.has_unit():
         label += ' {}'.format(param.get_unit())
     if param.get_adjust():

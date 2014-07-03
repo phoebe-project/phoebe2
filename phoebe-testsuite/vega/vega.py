@@ -200,10 +200,10 @@ plt.figure(figsize=(10,6))
 # Make the basic plot of the visibilities versus baseline
 
 plt.subplot(121)
-phoebe.plotting.plot_ifsyn(star1, '-', lw=2, x='baseline', y='vis2')
-phoebe.plotting.plot_ifsyn(star2, '-', lw=2, x='baseline', y='vis2')
-phoebe.plotting.plot_ifsyn(star3, '-', lw=2, x='baseline', y='vis2')
-phoebe.plotting.plot_ifsyn(star4, '-', lw=2, x='baseline', y='vis2')
+phoebe.plotting.plot_ifsyn(star1, '-', lw=2)
+phoebe.plotting.plot_ifsyn(star2, '-', lw=2)
+phoebe.plotting.plot_ifsyn(star3, '-', lw=2)
+phoebe.plotting.plot_ifsyn(star4, '-', lw=2)
 plt.errorbar(data_baselines, data_vis_square/100., yerr=data_evs_square/100.,
              fmt='ko')
 
@@ -218,10 +218,10 @@ plt.axis([0, 300, 0.0009, 1.01])
 # Then plot the phases versus baseline
 
 plt.subplot(122)
-phoebe.plotting.plot_ifsyn(star1, 'o-', x='baseline', y='phase')
-phoebe.plotting.plot_ifsyn(star2, 'o-', x='baseline', y='phase')
-phoebe.plotting.plot_ifsyn(star3, 'o-', x='baseline', y='phase')
-phoebe.plotting.plot_ifsyn(star4, 'o-', x='baseline', y='phase')
+phoebe.plotting.plot_ifsyn(star1, 'o-', y_quantity='vphase')
+phoebe.plotting.plot_ifsyn(star2, 'o-', y_quantity='vphase')
+phoebe.plotting.plot_ifsyn(star3, 'o-', y_quantity='vphase')
+phoebe.plotting.plot_ifsyn(star4, 'o-', y_quantity='vphase')
 
 # And the figure decorations
 
