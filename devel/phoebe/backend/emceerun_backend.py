@@ -72,7 +72,12 @@ def lnprob(values, pars, system, compute_params):
     except StopIteration:
         return -np.inf
     
-    system.compute(params=compute_params)
+    try:
+        system.compute(params=compute_params)
+    except Exception as msg:
+        print("Compute failed with message: {} --> logp=-inf".format(str(msg)))
+        return -np.inf
+    
     logp, chi2, N = system.get_logp(include_priors=True)
     # Remember the result from the simulations
     #obs = system.get_obs()

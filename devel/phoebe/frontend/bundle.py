@@ -5507,7 +5507,7 @@ class Bundle(Container):
                     continue
                 
                 # If we've already checked this parameter, don't bother
-                if val in already_checked:
+                if val.get_unique_label() in already_checked:
                     continue
                 
                 # If the value has zero probability, we're not OK!
@@ -5528,7 +5528,7 @@ class Bundle(Container):
                     continue
                     
                 # Remember we checked this one
-                already_checked.append(val)
+                already_checked.append(val.get_unique_label())
             
             if return_errors:
                 return were_still_OK, error_messages
