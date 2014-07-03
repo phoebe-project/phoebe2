@@ -2664,7 +2664,7 @@ class Body(object):
             return np.hstack(mu), np.hstack(sigma), np.hstack(model)
     
     
-    def get_adjustable_parameters(self):
+    def get_adjustable_parameters(self, with_priors=True):
         """
         Return a list of all adjustable parameters.
         """
@@ -2672,7 +2672,10 @@ class Body(object):
         for path, val in self.walk_all():
             path = list(path)
             if isinstance(val,parameters.Parameter) and val.get_adjust() and not val in mylist:
-                mylist.append(val)
+                if with_priors and not val.has_prior():
+                    continue
+                else:
+                    mylist.append(val)
         return mylist
     
     
