@@ -1026,7 +1026,7 @@ class Bundle(Container):
         globs = self.get_system().get_globals()
         if globs is not None:
             vgamma = globs['vgamma']
-            vel[-1] = vel[-1] - conversions.convert('Rsol/d', 'km/s', vgamma)
+            vel[-1] = vel[-1] - conversions.convert('km/s', 'Rsol/d', vgamma)
         
         # Convert to correct units. If positional units are angles rather than
         # length, we need to first convert the true coordinates to spherical
