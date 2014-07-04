@@ -12,6 +12,8 @@ import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
 
+mpi = True
+
 def save_pickle(data, fn):
     f = open(fn, 'w')
     pickle.dump(data, f)
@@ -23,7 +25,6 @@ def lnprob(values, pars, system, compute_params):
     system.reset_and_clear()
     
     # Set the new values of the parameters, report the rank of this walker
-    rank = MPI.COMM_WORLD.Get_rank()
     for par, value in zip(pars, values):
         par.set_value(value)
     
@@ -194,10 +195,13 @@ def update_progress(system, sampler, fitparams, last=10):
 def run(system_file, compute_params_file, fit_params_file, state=None):
     
     # Take care of the MPI pool
-    pool = MPIPool()
-    if not pool.is_master():
-        pool.wait()
-        sys.exit(0)
+    if mpi:
+        pool = MPIPool()
+        if not pool.is_master():
+            pool.wait()
+            sys.exit(0)
+    else:
+        pool = None
     
     # Load the System
     system = universe.load(system_file)
@@ -257,7 +261,7 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
     # parameters, adjust that number to the required minimum and raise a warning
     
     if (2*pars.shape[1]) > nwalkers:
-        logger.warning("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
+        print("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
         nwalkers = 2*pars.shape[1]
         fit_params['walkers'] = nwalkers
     
@@ -298,8 +302,9 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
             update_progress(system, sampler, fit_params)    
             
             #save_pickle([result, 0, sampler.chain], phoebe_file + '.mcmc_run.dat')
-        
-    pool.close()
+    
+    if mpi:
+        pool.close()
     save_pickle([result, 0, sampler.chain], label + '.mcmc_run.dat')
 
 

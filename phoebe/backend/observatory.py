@@ -2799,7 +2799,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         system.set_pblum_or_l3()
         #raise SystemExit
         try:
-            system.compute_scale_or_offset()
+            # You cannot compute scales or offsets if there aren't any observations
+            # added
+            if save_result:
+                system.compute_scale_or_offset()
             system.postprocess(time=None)            
         except:
            logger.warning("Cannot compute pblum or l3. I can think of three reasons why this would fail: (1) you're in MPI (2) you have previous results attached to the body (3) you did not give any actual observations, so there is nothing to scale the computations to.")

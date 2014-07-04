@@ -88,6 +88,7 @@ from matplotlib.collections import LineCollection
 from phoebe.utils import utils
 from phoebe.backend import universe
 from phoebe.backend import decorators
+from phoebe.backend import emceerun_backend
 from phoebe.wd import wd
 from phoebe.parameters import parameters
 try:
@@ -609,15 +610,21 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     args = " ".join([sys_file.name, compute_file.name, fit_file.name])
     
     # Then run emceerun_backend.py
-    cmd = decorators.construct_mpirun_command(script='emceerun_backend.py', mpirun_par=mpi,
-                                   args=args)
-    flag = subprocess.call(cmd, shell=True)
+    if mpi is not None:
+        emceerun_backend.mpi = True
+        cmd = decorators.construct_mpirun_command(script='emceerun_backend.py',
+                                                  mpirun_par=mpi, args=args)
+        flag = subprocess.call(cmd, shell=True)
                 
-    # If something went wrong, we can exit nicely here, the traceback
-    # should be printed at the end of the MPI process
-    if flag:
-        sys.exit(1)
+        # If something went wrong, we can exit nicely here, the traceback
+        # should be printed at the end of the MPI process
+        if flag:
+            sys.exit(1)
     
+    else:
+        emceerun_backend.mpi = False
+        emceerun_backend.run(sys_file.name, compute_file.name, fit_file.name)
+            
     # Clean up pickle files once they are loaded:
     os.unlink(sys_file.name)
     os.unlink(fit_file.name)

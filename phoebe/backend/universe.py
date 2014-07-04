@@ -851,7 +851,7 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
         sigma = sigma*np.ones_like(obs)
     elif sigma is None or not len(sigma):
         sigma = np.ones_like(obs)
-        
+    
     #   only scaling factor
     if scale and not offset:
         scale = np.average(obs / model, weights=model**2/sigma**2)
@@ -8113,7 +8113,10 @@ class BinaryRocheStar(PhysicalBody):
                 grad = (potentials[-1]-potentials[-2])/(volumes[-1]-volumes[-2])
                 oldpot = grad*(V1-volumes[-2])+potentials[-2]
         else:
-            raise ValueError(("Reprojection algorithm failed to converge. This is probably "
+            raise ValueError(("Reprojection algorithm failed to converge. If this "
+                              "happens at the first computations, probably the "
+                              "system is in overcontact status, so check the values "
+                              "of the potentials. Otherwise, this is probably "
                               "due to the inherently bad algorithm, which "
                               "builds up errors each time a reprojection is done."
                               " Possible solution is to phase the data, or replace "
