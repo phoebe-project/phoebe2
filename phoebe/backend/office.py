@@ -131,6 +131,8 @@ def summarize(system, time=None, filename=None):
                 text.append(str(parset[0]))
                 
                 proj_int = thing.projected_intensity(ref=ref)
+                total_int = sum(system.projected_intensity(ref=ref))
+                
                 mesh = thing.mesh
                 wflux = mesh['proj_'+ref]
                 wsize = mesh['size']
@@ -154,7 +156,7 @@ def summarize(system, time=None, filename=None):
                 a3 = np.average(mesh[lbl][:,3], weights=weights), np.std(mesh[lbl][:,3])
                 
                 #text.append("Projected intensity = {:.6e} erg/s/cm2/AA".format(proj_int))
-                text.append("Projected intensity = {:.6e} W/m3".format(proj_int))
+                text.append("Projected intensity = {:.6e} W/m3 ({:.3g}%)".format(proj_int,proj_int/total_int*100))
                 if ref=='__bol':
                     passband = 'BOL'
                     #app_mag = phoebe.convert('erg/s/cm2/AA','mag',

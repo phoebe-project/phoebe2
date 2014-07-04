@@ -2342,7 +2342,10 @@ class ParameterSet(object):
         @type value: dependent on qualifier
         """
         #clear_memoization(self)
-        self.get_parameter(qualifier).set_value(value, *args)
+        param = self.get_parameter(qualifier)
+        if param is None:
+            raise KeyError("Parameter '{}' not in ParameterSet of context {}".format(qualifier, self.get_context()))
+        param.set_value(value, *args)
         self.run_constraints()
     
     def set_value_from_posterior(self, qualifier):
