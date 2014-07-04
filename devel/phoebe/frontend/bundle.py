@@ -5513,7 +5513,7 @@ class Bundle(Container):
                 # If the value has zero probability, we're not OK!
                 if val.has_prior() and np.isinf(val.get_logp()):
                     were_still_OK = False
-                    error_messages.append('{}={} is outside of prior {}'.format(val.get_qualifier().
+                    error_messages.append('{}={} is outside of prior {}'.format(val.get_qualifier(),
                                                                              val.get_value(),
                                                                              val.get_prior()))
                     continue
