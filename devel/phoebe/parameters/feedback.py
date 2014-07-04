@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import copy
 from phoebe.utils import decorators
 from phoebe.units import conversions
+from phoebe.parameters import parameters
 
 logger = logging.getLogger("PAR.FB")
 
@@ -331,7 +332,7 @@ class FeedbackEmcee(Feedback):
     """
     Feedback from the emcee fitting package.
     """
-    def __init__(self, emcee_file, init, lnproblim=-np.inf,
+    def __init__(self, emcee_file, init=None, lnproblim=-np.inf,
                  burnin=0, thin=1, fitting=None, compute=None):
         
         self._emcee_file = emcee_file
@@ -356,7 +357,11 @@ class FeedbackEmcee(Feedback):
         #data = data.reshape( len(data) / nwalkers, nwalkers, -1)
     
     def check_file(self, raise_error=True):
+        """
+        Check if the emcee file is still the same one.
         
+        We check this by checking if the filesize is still the same.
+        """
         samefile = os.stat(self._emcee_file).st_size == self._checkfilesize
         
         if not samefile and raise_error:
@@ -373,6 +378,26 @@ class FeedbackEmcee(Feedback):
         init can be a system
         init can be a Bundle
         """
+        # If is in None, allow building the feedback with generic parameters
+        if init is None:
+            with open(self._emcee_file, 'r') as ff:
+                while True:
+                    line = ff.readline()
+                    if not line:
+                        raise IOError("Invalid file")
+                    if line[0] == '#':
+                        continue
+                    n_pars = len(line.strip().split())-2
+                    break
+            
+            adjustables = []
+            for i in range(n_pars):
+                adjustables.append(parameters.Parameter(qualifier=str(i), cast_type=float, value=0))
+                adjustables[-1]._unique_label = str(i)
+            return adjustables                                                                                                       
+                    
+                
+        
         if isinstance(init, list):
             return init
         
@@ -393,7 +418,7 @@ class FeedbackEmcee(Feedback):
             if adj.get_unique_label() != uid:
                 logger.warning("Parameter {} in emcee file has different unique label".format(adj.get_qualifier()))
         
-        # if a Bundle is given, set the translations
+        # if a Bundle is given, set the translations for readable labels
         if hasattr(init, 'twigs'):
             translations = dict()
             trunk = init.trunk
@@ -441,7 +466,10 @@ class FeedbackEmcee(Feedback):
     
     
     def do_reload(self, lnproblim=-np.inf, burnin=0, thin=1):
+        """
+        Reload the data from the file.
         
+        """
         # Load the emcee file and remember some properties            
         data = np.loadtxt(self._emcee_file)
         self._lnproblim = lnproblim
