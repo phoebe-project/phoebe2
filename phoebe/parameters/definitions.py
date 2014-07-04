@@ -258,7 +258,15 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='passband', description='Photometric passband',repr='%s',cast_type='make_upper',value='JOHNSON.V',frame=["phoebe"],context=['lcdep','amdep','sidep', 'analytical:binary']),
          dict(qualifier='pblum',    description='Passband luminosity',repr='%f',cast_type=float,value=-1.0,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),
          dict(qualifier='l3',       description='Third light',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcdep','amdep','spdep','ifdep','pldep']),
-         dict(qualifier='alb',      description="Passband Bond's albedo , alb=0 is no reflection",          repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep']),
+         dict(qualifier='alb',      description="Passband Bond's albedo , alb=0 is no reflection",
+                               long_description=("The passband albedo sets the "
+                                                 "fraction of reflected versus incoming light within the passband. Thus, "
+                                                 "grey scattering means all the passband albedos are equal. A passband albedo "
+                                                 "of unity means no redistribution of wavelengths. A passband albedo exceeding "
+                                                 "unity means that light from other wavelengths is redistributed inside the "
+                                                 "current passband. Passband albedo cannot be negative, you cannot reflect less "
+                                                 "light than no light. Passband albedo of zero means that within that passband,"
+                                                 "all the light is absorbed."), repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep']),
          dict(qualifier='method',   description='Method for calculation of total intensity',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context='lcdep'),
          dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type='make_label',value='',hidden=True,frame=["phoebe"],context=['puls','circ_spot']),
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
