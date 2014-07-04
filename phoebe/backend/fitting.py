@@ -212,8 +212,8 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
             if not hasattr(handler,'baseFilename'):
                 if mylogger.level<logging._levelNames['WARNING']:
                     handler.setLevel('WARNING')
-        utils.add_filehandler(mylogger,flevel='INFO',
-                filename='fitting_{}.log'.format("_".join(time.asctime().split())))
+        #utils.add_filehandler(mylogger,flevel='INFO',
+        #        filename='fitting_{}.log'.format("_".join(time.asctime().split())))
         
     # We need to know how to compute the system (i.e. how many subdivisions,
     # reflections etc...)
