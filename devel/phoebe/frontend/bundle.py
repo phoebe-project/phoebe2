@@ -1023,10 +1023,10 @@ class Bundle(Container):
                                                              orbits, components)
         
         # Correct for systemic velocity (we didn't reverse the z-axis yet!)
-        globs = self.get_globals()
+        globs = self.get_system().get_globals()
         if globs is not None:
             vgamma = globs['vgamma']
-            vel[-1] = vel[-1] - vgamma
+            vel[-1] = vel[-1] - conversions.convert('Rsol/d', 'km/s', vgamma)
         
         # Convert to correct units. If positional units are angles rather than
         # length, we need to first convert the true coordinates to spherical
