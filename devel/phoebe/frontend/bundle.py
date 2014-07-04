@@ -3235,7 +3235,7 @@ class Bundle(Container):
         passed, errors = self.check(return_errors=True)
         if not passed:
             raise ValueError(("Some parameters are outside of reasonable limits or "
-                              "prior bounds").format(", ".join(errors)))
+                              "prior bounds: {}").format(", ".join(errors)))
         
         # Remember the initial values of the adjustable parameters, we'll reset
         # them later:
