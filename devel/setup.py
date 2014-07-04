@@ -113,7 +113,9 @@ setup(
               'phoebe.frontend','phoebe.frontend.gui'],
     
     package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*','tables/ld_coeffs/README',
-                                        'tables/ld_coeffs/blackbody_uniform_none_teff.fits'],
+                                        'ptf/phoebe1set/*', 'ptf/phoebe2set/*',
+                                        'tables/ld_coeffs/blackbody_uniform_none_teff.fits',
+                                        'tables/spectra/README','tables/spec_intens/README',],
                   'phoebe.parameters':['catalogs/*.dat','library/*.par','library/*.phoebe'],
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},
