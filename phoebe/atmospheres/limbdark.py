@@ -3357,7 +3357,8 @@ def get_paths():
     @rtype: str, str
     """
     return os.path.join(basedir, 'tables','ld_coeffs'),\
-           os.path.join(basedir, 'tables','spec_intens')
+           os.path.join(basedir, 'tables','spec_intens'),\
+               os.path.join(basedir, 'tables','spectra')
 
 def get_info(path):
     with pyfits.open(path) as ff:
@@ -3447,7 +3448,42 @@ def download_atm(atm=None):
             raise IOError(("Failed to download atmosphere file {} (you probably "
                            "need to create on yourself starting from the specific "
                            "intensities)").format(atm))
+
+
+def download_spec_intens():
+    destin_folder = get_paths()[1]
+    download(destin_folder, 'http://www.phoebe-project.org/2.0/docs/_downloads/spec_intens.tar.gz')
     
+def download_spectra():
+    destin_folder = get_paths()[2]
+    download(destin_folder, 'http://www.phoebe-project.org/2.0/docs/_downloads/spectra.tar.gz')
+
+def download(destin_folder, source):
+    
+    # Perhaps we need to be sudo?
+    print("Copying to destination folder {}".format(destin_folder))
+    if not os.access(destin_folder, os.W_OK):
+        raise IOError(("User has no write priviliges in destination folder, run sudo python"
+                        "before calling this function"))
+        #output = subprocess.check_call(['sudo']+sys.argv)
+    
+    #/srv/www/phoebe/2.0/docs/_downloads
+    destin = os.path.join(destin_folder, os.path.basename(source))
+    try:
+        urllib.urlretrieve(source, destin)
+        print("Downloaded tar archive from phoebe-project.org")
+    except IOError:
+        raise IOError(("Failed to download file {} to {}. Are you "
+                       " connected to the internet? Otherwise, you probably "
+                       "need to create atmosphere tables yourself starting "
+                       "from the specific intensities)").format(source, destin))            
+    
+    tar = tarfile.open(destin)
+    members = tar.getmembers()
+    for member in members:
+        print("Extracting {}...".format(member))
+    tar.extractall(path=destin_folder)
+    tar.close()
 
 
 #}
