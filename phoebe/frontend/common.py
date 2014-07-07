@@ -1911,6 +1911,9 @@ def compute_pot_from(mybundle, radius, component=0, relative=True,
     # we need to take component=1 (primary)
     new_pot = roche.radius2potential(radius, q=q, d=d, F=syncpar, component=1)
     
+    if component == 1:
+        q, new_pot = roche.change_component(q, new_pot)
+    
     # Adopt if necessary
     if adopt:
         mysystem[component].params['component']['pot'] = new_pot

@@ -1712,6 +1712,7 @@ class Parameter(object):
             prior_loc = ''
             prior_scale = ''
             prior_dist = ''
+            prior_value = "{}".format(self._initial['value'])
         
         row = [qualifier, unit, value, post_loc, post_scale, post_dist,\
                           prior_value, prior_loc,prior_scale,prior_dist]

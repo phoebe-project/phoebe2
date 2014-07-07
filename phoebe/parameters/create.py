@@ -1399,6 +1399,20 @@ def vega_monnier2012():
     return star
 
 
+def binary(create_body=True):
+    component1 = parameters.ParameterSet('component', label='primary')
+    component2 = parameters.ParameterSet('component', label='secondary')
+    orbit = parameters.ParameterSet('orbit', c1label='primary', c2label='secondary', label='new_system')
+    comp1 = universe.BinaryRocheStar(component=component1, orbit=orbit)
+    comp2 = universe.BinaryRocheStar(component=component2, orbit=orbit)
+    position = parameters.ParameterSet('position', distance=(10.,'pc'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
+    
+    return universe.BodyBag([comp1, comp2], label='new_system', reddening=reddening,
+                            position=position)
+    
+
+
 def GD2938(create_body=True):
     """
     Pulsating white dwarf with a disk
