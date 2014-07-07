@@ -6,6 +6,7 @@ import inspect
 import pickle
 import tempfile
 import subprocess
+import time
 import os
 import sys
 from collections import OrderedDict
@@ -172,8 +173,6 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
     if mpirun_par is None:
         mpirun_par = parameters.ParameterSet(context='mpi')    
     
-    # Number of nodes
-    num_proc = mpirun_par['np']
     
     # Byslot
     if 'byslot' in mpirun_par and mpirun_par['byslot']:
@@ -199,9 +198,18 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
     #{fctn.__name__} {sys_file.name} "
     #       "{args_file.name} {kwargs_file.name}
     if mpirun_par.get_context().split(':')[-1] == 'mpi':
+        # Number of nodes
+        num_proc = mpirun_par['np']
+        
         cmd = ("mpiexec -np {num_proc} {hostfile} {byslot} {python} "
            "{mpirun_loc} {args}").format(**locals())
+        
+        flag = subprocess.call(cmd, shell=True)
+        
+        
     elif mpirun_par.get_context().split(':')[-1] == 'slurm':
+        # Number of nodes
+        num_proc = mpirun_par['np']
         
         if not mpirun_par['memory']:
             memory = ''
@@ -209,25 +217,37 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
             memory = '--mem={:.0f}'.format(mpirun_par['memory'])
         
         if not mpirun_par['time']:
-            time = ''
+            time_ = ''
         else:
-            time = '--time={:.0f}'.format(mpirun_par['time'])
+            time_ = '--time={:.0f}'.format(mpirun_par['time'])
             
         if not mpirun_par['partition']:
             partition = ''
         else:
             partition = '--partition={:.0f}'.format(mpirun_par['partition'])    
             
-        cmd = ("srun -n {num_proc} {time} {memory} {partition} "
+        cmd = ("srun -n {num_proc} {time_} {memory} {partition} "
                "mpirun -np {num_proc} {hostfile} {byslot} {python} "
            "{mpirun_loc} {args}").format(**locals())
+        print cmd
+        flag = subprocess.call(cmd, shell=True)
+        raise SystemExit
         
         
     elif mpirun_par.get_context().split(':')[-1] == 'torque':
         
         # Get extra arguments for Torque
-        memory = '{:.0f}'.format(mpirun_par['memory'])
-        time = '{:.0f}'.format(mpirun_par['time'])
+        if mpirun_par['memory']:
+            memory = ',mppmem={:.0f}M'.format(mpirun_par['memory'])
+        else:
+            memory = ''
+        time_ = '{:.0f}'.format(mpirun_par['time'])
+        nodes = '{:d}'.format(mpirun_par['nodes'])
+        if miprun_par['ppn']:
+            ppn = ':ppn={:d}'.format(mpirun_par['ppn'])
+        else:
+            ppn = ''
+        email = '{}'.format(mpirun_par['email'])
         
         # We need the absolute path name to mpirun for Torque:
         mpirun = utils.which('mpirun')
@@ -235,25 +255,63 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
         # We also need to know whether the job is done or not.
         
         # Build the command:
-        cmd = ("mpirun -np {num_proc} {python} "
+        cmd = ("mpirun -np {nodes} {python} "
                "{mpirun_loc} {args}").format(**locals())
         
         # Create the commands to run Torque
         job_string = """#!/bin/bash
 #PBS -l pcput={time:.0f}
 #PBS -l mem={memory:.0f}
-#PBS -l nodes={np}
-{mpirun} -np {np} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
+#PBS -l nodes={nodes}
+{mpirun} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
                      
         cmd = ('echo "mpirun {python} '
            '{mpirun_loc} {args}" '
-           '| qsub -l nodes={num_proc},mem={memory},pcput={time}').format(**locals())
+           '| qsub -V -l nodes={nodes}{ppn}{memory},cput={time_}').format(**locals())
+        
+        if email:
+            cmd += ' -M {}'.format(email)
+            if mpirun_par['alerts']:
+                cmd += ' -m {}'.format(mpirun_par['alerts'])
+        cmd += ' -N {}'.format(mpirun_par['jobname'])
+        
         #cmd = ('qsub -I -l nodes={num_proc},mem={memory},pcput={time}'
                #'bash -c "mpirun {python} '
                #'{mpirun_loc} {fctn.__name__} {sys_file.name} '
                #'{args_file.name} {kwargs_file.name}"').format(**locals())
-    
-    return cmd
+        
+        flag = 1
+        try:
+            jobid = subprocess.check_output(cmd, shell=True).strip()
+            
+            print("Running torque with command '{}'".format(cmd))
+            print("JobID: {}".format(jobid))
+            print("Waiting for job to finish (interrupting with CTRL+C will stop this script but not the job, use 'qdel {}' to stop the computations".format(jobid))
+            
+            time.sleep(5)
+            # Output expected start date:
+            print(subprocess.check_output('showstart '+jobid, shell=True))
+            
+            # Monitor the job until it's done:
+            while True:
+                try:
+                    output = subprocess.check_output('qstat '+jobid, shell=True)
+                    status = output.split('\n')[-2].strip().split()[-2]
+                    sys.stdout.write("\r" + output.split('\n')[-2].rstrip())
+                    sys.stdout.flush()
+                    if status == 'C':
+                        break
+                    time.sleep(5)
+                except Exception as msg:
+                    break
+            # Only if we get to here, everything worked out
+            flag = 0
+        except Exception as msg:
+            pass
+        # New line in terminal
+        print('\n')
+        
+    return flag, mpirun_par.get_context().split(':')[-1]
 
 
 
@@ -374,10 +432,8 @@ def mpirun(fctn):
                 kwargs_file.close()
                 
                 args = '{fctn.__name__} {sys_file.name} {args_file.name} {kwargs_file.name}'.format(**locals())
-                cmd = construct_mpirun_command(script='mpirun.py',
+                flag, mpitype = construct_mpirun_command(script='mpirun.py',
                                                mpirun_par=mpirun_par, args=args)
-
-                flag = subprocess.call(cmd, shell=True)
                 
                 # If something went wrong, we can exit nicely here, the traceback
                 # should be printed at the end of the MPI process

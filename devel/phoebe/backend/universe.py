@@ -2391,6 +2391,10 @@ class Body(object):
         chi2 = []  # chi squares
         n_data = 0.
         
+        # Run the check just to make sure all constraints on the parameters
+        # are set correctly
+        self.check()
+        
         # Iterate over all datasets we have
         for path, obs in self.walk_dataset():
             if not obs.get_context()[-3:] == 'obs':
@@ -2482,7 +2486,7 @@ class Body(object):
             
             logger.debug("scale = {:.3g}, offset = {:.3g}".format(scale, offset))
             #logger.info("Chi2 of {} = {}".format(obs['ref'], -term2.sum()*2))
-            logger.warning("Chi2 of {} = {} (statweight {})".format(obs['ref'], this_chi2, statweight))
+            logger.info("Chi2 of {} = {} (statweight {})".format(obs['ref'], this_chi2, statweight))
             log_f += this_logf
             chi2.append(this_chi2)
             n_data += len(obser)
@@ -2537,7 +2541,77 @@ class Body(object):
         # That's it!
         return total_chi2, total_prob, n_data, n_par
         
-    
+    def check(self, return_errors=False):
+        """
+        Check if a system is OK.
+        
+        What 'OK' is, depends on a lot of stuff. Typically this function can be
+        used to do some sanity checks when fitting, such that impossible systems
+        can be avoided.
+        
+        We check if a parameter (or all) has a finite log likelihood.
+        
+        If ``qualifier=None``, all parameters with priors are checked. If any is
+        found to be outside of bounds, ``False`` is returned. Any other parameter,
+        even the ones without priors, are checked for their limits. If any is
+        outside of the limits, ``False`` is returned. If no parameters are
+        outside of their priors and/or limits, ``True`` is returned.
+        
+        We preprocess the system first.
+        
+        """
+        
+        self.preprocess()
+        
+        error_messages = []
+        
+        already_checked = []
+        system = self.get_system()
+        were_still_OK = True
+        
+        for parset in self.walk():
+            
+            # Run constraints
+            parset.run_constraints()
+            
+            for par in parset:
+
+                if not were_still_OK and not return_errors:
+                    continue
+                
+                val = parset.get_parameter(par)
+                        
+                # If we've already checked this parameter, don't bother
+                if val.get_unique_label() in already_checked:
+                    continue
+                
+                # If the value is outside of the limits (if it has any), we are
+                # not OK!
+                if not val.is_inside_limits():
+                    were_still_OK = False
+                    error_messages.append('{}={} is outside of reasonable limits {}'.format(val.get_qualifier(),
+                                                                                            val.get_value(),
+                                                                                            val.get_limits()))
+                    continue
+                
+                # If the value has zero probability, we're not OK!
+                if val.has_prior() and np.isinf(val.get_logp()):
+                    were_still_OK = False
+                    error_messages.append('{}={} is outside of prior {}'.format(val.get_qualifier(),
+                                                                         val.get_value(),
+                                                                         val.get_prior()))
+                    continue
+            
+                
+                # Remember we checked this one
+                already_checked.append(val.get_unique_label())
+        
+        if return_errors:
+            return were_still_OK, error_messages
+        else:
+            return were_still_OK
+            
+            
     def get_data(self):
         """
         Return all data in one long chain of data.
@@ -2667,26 +2741,46 @@ class Body(object):
     def get_adjustable_parameters(self, with_priors=True):
         """
         Return a list of all adjustable parameters.
+        
+        :param with_priors: flag to take only adjustable parameters with priors (:envvar:`with_priors=True`),
+         only adjustable parameters without priors (:envvar:`with_priors=False`) or all
+         adjustable parameters(:envvar:`with_priors=None`).
         """
         mylist = []
         for path, val in self.walk_all():
             path = list(path)
             if isinstance(val,parameters.Parameter) and val.get_adjust() and not val in mylist:
-                if with_priors and not val.has_prior():
+                # If include priors but this parameters has none, continue
+                if with_priors is True and not val.has_prior():
                     continue
+                # If not include priors but this parameters has one, continue
+                elif with_priors is False and val.has_prior():
+                    continue
+                # If include priors is not set, add it anyway
                 else:
                     mylist.append(val)
+                
+                    
         return mylist
     
     
-    def get_parameters_with_priors(self):
+    def get_parameters_with_priors(self, is_adjust=None, is_derived=None):
         """
         Return a list of all parameters with priors.
         """
         mylist = []
         for path, val in self.walk_all():
             if isinstance(val,parameters.Parameter) and val.has_prior() and not val in mylist:
-                mylist.append(val)
+                if is_adjust is True and not val.get_adjust():
+                    continue
+                elif is_adjust is False and val.get_adjust():
+                    continue
+                elif is_derived is True and not val.get_replaced_by():
+                    continue
+                elif is_derived is False and val.get_replaced_by():
+                    continue
+                else:
+                    mylist.append(val)
         return mylist
     
     def get_label(self):
@@ -5894,16 +5988,16 @@ class BodyBag(Body):
         for func, args, kwargs in self._postprocessing:
             getattr(processing, func)(self, time, *args, **kwargs)
     
-    def get_adjustable_parameters(self):
+    def get_adjustable_parameters(self, with_priors=True):
         """
         Return a list of all adjustable parameters.
         """
         # First get the adjustable parameters in the BodyBag's .params attribute
-        mylist = super(BodyBag, self).get_adjustable_parameters()
+        mylist = super(BodyBag, self).get_adjustable_parameters(with_priors=with_priors)
         
         # Then the adjustable from all subbodies.
         for body in self.bodies:
-            this_adjustable = body.get_adjustable_parameters()
+            this_adjustable = body.get_adjustable_parameters(with_priors=with_priors)
             
             # Make sure not to store duplicates
             body_list = [par for par in this_adjustable if not par in mylist]

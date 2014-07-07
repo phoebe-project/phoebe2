@@ -703,6 +703,73 @@ def add_asini(orbit, asini=None, derive='sma', unit='Rsol', **kwargs):
     logger.info("orbit '{}': '{}' constrained by 'asini'".format(orbit['label'],derive))
     return orbit.get_parameter('asini'),
 
+
+def add_mass1(orbit, unit='Msol', **kwargs):
+    """
+    Add primary mass to an orbit ParameterSet.
+    
+    Primary mass can only be derived, and not used as a true parameter for now,
+    just because it gets to confusing to keep q, sma, period and perhaps also
+    secondary mass up-to-date.
+    
+    
+    """
+    if kwargs and 'mass1' in orbit:
+        raise ValueError("You cannot give extra kwargs to add_mass1 if it already exist")
+    
+    kwargs.setdefault('description', 'Primary mass')
+    kwargs.setdefault('unit', unit)
+    kwargs.setdefault('context', orbit.context)
+    kwargs.setdefault('adjust', False)
+    kwargs.setdefault('frame', 'phoebe')
+    kwargs.setdefault('cast_type', float)
+    kwargs.setdefault('repr', '%f')
+    
+    #-- remove any constraints on mass1 and add the parameter
+    orbit.pop_constraint('mass1',None)
+    if not 'mass1' in orbit:
+        orbit.add(parameters.Parameter(qualifier='mass1', **kwargs))
+        
+    orbit.pop_constraint('mass1',None)
+    orbit.add_constraint('{mass1} = 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + {q})')
+
+    logger.info("orbit '{}': '{}' derived".format(orbit['label'],'mass1'))
+    return orbit.get_parameter('mass1'),
+
+
+def add_mass2(orbit, unit='Msol', **kwargs):
+    """
+    Add secondary mass to an orbit ParameterSet.
+    
+    Secondary mass can only be derived, and not used as a true parameter for now,
+    just because it gets to confusing to keep q, sma, period and perhaps also
+    primary mass up-to-date.
+    
+    """
+    if kwargs and 'mass2' in orbit:
+        raise ValueError("You cannot give extra kwargs to add_mass2 if it already exist")
+    
+    kwargs.setdefault('description', 'Primary mass')
+    kwargs.setdefault('unit', unit)
+    kwargs.setdefault('context', orbit.context)
+    kwargs.setdefault('adjust', False)
+    kwargs.setdefault('frame', 'phoebe')
+    kwargs.setdefault('cast_type', float)
+    kwargs.setdefault('repr', '%f')
+    
+    #-- remove any constraints on mass2 and add the parameter
+    orbit.pop_constraint('mass2',None)
+    if not 'mass2' in orbit:
+        orbit.add(parameters.Parameter(qualifier='mass2', **kwargs))
+
+        
+    orbit.pop_constraint('mass2',None)
+    orbit.add_constraint('{mass2} = 4*pi**2 * {sma}**3 / {period}**2 / constants.GG / (1.0 + 1.0/{q})')
+
+    logger.info("orbit '{}': '{}' derived".format(orbit['label'],'mass2'))
+    return orbit.get_parameter('mass2'),
+
+
 def add_K1_K2(orbit, K1=None, K2=None, unit='km/s',**kwargs):
     """
     Add primary and secondary semi-amplitudes to the fit.

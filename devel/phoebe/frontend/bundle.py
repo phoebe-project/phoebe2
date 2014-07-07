@@ -491,7 +491,12 @@ class Bundle(Container):
                         
                         # now we need to attach to the correct place in the bundle
                         if isinstance(item_copy, parameters.ParameterSet):
-                            self.sections[ri['section']].append(item_copy)
+                            # The following check is added to make old(er)
+                            # Bundle files still loadable.
+                            if ri['section'] in self.sections:
+                                self.sections[ri['section']].append(item_copy)
+                            else:
+                                logger.error('Unable to load information from section {}'.format(ri['section']))
                 
                 if ri is not None:
                     return_items.append(ri) 
@@ -2614,8 +2619,22 @@ class Bundle(Container):
             else:
                 replaces_qualifier = None
                     
-            params = getattr(tools, 'add_{}'.format(qualifier))(item['item'], value,
-                         derive=replaces_qualifier)
+            # get the function that is responsible for adding this parameter
+            add_function = getattr(tools, 'add_{}'.format(qualifier))
+            argspecs = inspect.getargspec(add_function)[0]
+            # build the args for this function (only add the value and/or derive
+            # argument if that is allowed by the function)
+            add_args = [item['item']]
+            if qualifier in argspecs:
+                add_args += [value]
+            elif value is not None:
+                raise ValueError("The value of parameter '{}' can not be set explicitly, it can only be derived".format(qualifier))
+            if 'derive' in argspecs:
+                add_args += [replaces_qualifier]
+            elif replaces_qualifier is not None:
+                raise ValueError("Parameter '{}' can only be derived itself, it cannot be used to derive '{}'".format(qualifier, replaces_qualifier))
+                    
+            params = add_function(*add_args)
             
             if replaces is None:
                 for param in params:
@@ -3130,7 +3149,6 @@ class Bundle(Container):
         
         # get compute options, handling 'default' if label==None
         options = self.get_compute(label, create_default=True).copy()
-        
         mpi = kwargs.pop('mpi', None)
         
         # get server options
@@ -3285,6 +3303,43 @@ class Bundle(Container):
             
         return feedback
     
+    def feedback_fromfile(self, feedback_file, fittinglabel, accept_feedback=True):
+        """
+        Add fitting feedback from a file.
+        
+        [FUTURE]
+        """
+        fittingoptions = self.get_fitting(fittinglabel).copy()
+        computeoptions = self.get_compute(fittingoptions['computelabel']).copy()
+        
+        # Remember the initial values of the adjustable parameters, we'll reset
+        # them later:
+        init_values = [par.get_value() for par in self.get_system().get_adjustable_parameters()]
+        
+        # Create a Feedback class and add it to the feedback section with
+        # the same label as the fittingoptions
+        subcontext = fittingoptions.get_context().split(':')[1]
+        class_name = 'Feedback' + subcontext.title()
+        feedback = getattr(mod_feedback, class_name)(feedback_file, init=self,
+                             fitting=fittingoptions, compute=computeoptions)
+        
+        # Make sure not to duplicate entries
+        existing_fb = [fb.get_label() for fb in self.sections['feedback']]
+        if feedback.get_label() in existing_fb:
+            self.sections['feedback'][existing_fb.index(feedback.get_label())] = feedback
+        else:
+            self._add_to_section('feedback', feedback)
+        logger.info(("You can access the feedback from the fitting '{}' ) "
+                     "with the twig '{}@feedback'".format(fittinglabel, fittinglabel)))
+        
+        # Accept the feedback: set/reset the variables to their fitted values
+        # or their initial values, and in any case recompute the system such
+        # that the synthetics are up-to-date with the parameters
+        self.accept_feedback(fittingoptions['label']+'@feedback',
+                             recompute=True, revert=(not accept_feedback))
+        
+        return feedback
+        
     
     def accept_feedback(self, twig, revert=False, recompute=True):
         """
@@ -3299,7 +3354,7 @@ class Bundle(Container):
         # If we need to recompute, recompute with the specified label
         if recompute:
             computelabel = feedback.get_computelabel()
-            self.run_compute(computelabel)
+            self.run_compute(label=computelabel)
             self._build_trunk()
         
         return feedback
@@ -5462,7 +5517,7 @@ class Bundle(Container):
     
     #}
     
-    def check(self, qualifier=None, index=0, return_errors=False):
+    def check(self, return_errors=False):
         """
         Check if a system is OK.
         
@@ -5483,57 +5538,7 @@ class Bundle(Container):
         [FUTURE]
         """
         
-        self.get_system().preprocess()
-        
-        error_messages = []
-        
-        if qualifier is not None:
-            par = self.get_parameter(qualifier, all=True).values()[index]
-            return -np.isinf(par.get_logp())
-        
-        else:
-            
-            already_checked = []
-            system = self.get_system()
-            were_still_OK = True
-            
-            for path, val in system.walk_all():
-                
-                if not were_still_OK and not return_errors:
-                    continue
-                
-                # If it's not a parameter don't bother
-                if not isinstance(val, parameters.Parameter):
-                    continue
-                
-                # If we've already checked this parameter, don't bother
-                if val.get_unique_label() in already_checked:
-                    continue
-                
-                # If the value has zero probability, we're not OK!
-                if val.has_prior() and np.isinf(val.get_logp()):
-                    were_still_OK = False
-                    error_messages.append('{}={} is outside of prior {}'.format(val.get_qualifier(),
-                                                                             val.get_value(),
-                                                                             val.get_prior()))
-                    continue
-                
-                # If the value is outside of the limits (if it has any), we are
-                # not OK!
-                if not val.is_inside_limits():
-                    were_still_OK = False
-                    error_messages.append('{}={} is outside of reasonable limits {}'.format(val.get_qualifier(),
-                                                                                            val.get_value(),
-                                                                                            val.get_limits()))
-                    continue
-                    
-                # Remember we checked this one
-                already_checked.append(val.get_unique_label())
-            
-            if return_errors:
-                return were_still_OK, error_messages
-            else:
-                return were_still_OK
+        return self.get_system().check(return_errors=return_errors)
 
             
         

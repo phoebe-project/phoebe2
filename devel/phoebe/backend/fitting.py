@@ -276,7 +276,9 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
                 handler.setLevel('INFO')
     logger.info("Reset logger")
     
-    # If required, accept the fit of the best feedback
+    # If required, accept the fit of the best feedback (we should do this in
+    # the frontend!! --> or the fronted should set accept=False and do its own
+    # stuff)
     if accept:
         accept_fit(system, feedbacks[-1])
         system.reset()
@@ -287,8 +289,6 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
         except Exception as msg:
             print(system.params.values()[0])
             logger.info("Could not accept for some reason (original message: {})".format(msg))
-    else:
-        logger.warning("Did not recompute the system with fitting results (because you didn't ask for it)")
     
     if len(feedbacks)>1:
         return feedbacks
@@ -612,9 +612,10 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     # Then run emceerun_backend.py
     if mpi is not None:
         emceerun_backend.mpi = True
-        cmd = decorators.construct_mpirun_command(script='emceerun_backend.py',
+        flag, mpitype = decorators.construct_mpirun_command(script='emceerun_backend.py',
                                                   mpirun_par=mpi, args=args)
-        flag = subprocess.call(cmd, shell=True)
+
+        #flag = subprocess.call(cmd, shell=True)
                 
         # If something went wrong, we can exit nicely here, the traceback
         # should be printed at the end of the MPI process

@@ -1,8 +1,11 @@
 #!/usr/bin/python
 import os
 import emcee
-from emcee.utils import MPIPool
-from mpi4py import MPI
+try:
+    from emcee.utils import MPIPool
+    from mpi4py import MPI
+except ImportError:
+    pass
 import numpy
 import phoebe
 from phoebe.backend import universe
@@ -28,63 +31,34 @@ def lnprob(values, pars, system, compute_params):
     for par, value in zip(pars, values):
         par.set_value(value)
     
-    # Evaluate the system, get the results and return a probability
-    had = []
-    
     # Walk through all the parameterSets available. Collect unique
     # parameters and their values, but stop once a parameter value is
     # outside it's limits or prior boundaries (raise StopIteration). In the
     # latter case, we don't need to compute the model anymore, but can just
     # return logp=-np.inf
-    try:
-        for parset in system.walk():
-            
-            # For each parameterSet, walk through all the parameters
-            for qual in parset:
-                
-                # Don't bother if the parameter has no prior
-                if not parset.has_prior(qual):
-                    continue
-                
-                # Ask a unique ID and update the value of the parameter
-                this_param = parset.get_parameter(qual)
-                myid = this_param.get_unique_label()
-                
-                # If we already incountered this parameter, continue
-                # on to the next
-                if myid in had:
-                    continue
-                    
-                had.append(myid)
-                    
-                # If this parameter is outside the limits, we know the
-                # model is crap and forget about it immediately
-                if not this_param.is_inside_limits():
-                    raise StopIteration
-                    
-                # If this parameter is outside the boundaries of the
-                # prior, the model is crap and forget about it
-                # immediately
-                if np.isinf(this_param.get_logp()):
-                    raise StopIteration
-                                  
-    # If any of the parameters is outside the bounds, we don't really
-    # compute the model
-    except StopIteration:
-        return -np.inf
+    if not system.check():
+        return -np.inf, None
     
     try:
         system.compute(params=compute_params)
     except Exception as msg:
         print("Compute failed with message: {} --> logp=-inf".format(str(msg)))
-        return -np.inf
+        return -np.inf, None
     
     logp, chi2, N = system.get_logp(include_priors=True)
-    # Remember the result from the simulations
+    
+    # Get also the parameters that are adjustable but have no prior        
+    auto_fitted = system.get_adjustable_parameters(with_priors=False)
+    auto_fitted = [par.get_value() for par in auto_fitted]
     #obs = system.get_obs()
     #return logp, (obs['scale'], obs['offset'])
-
-    return logp
+    
+    # And finally get the parameters that are not adjustable but have a prior
+    derived = system.get_parameters_with_priors(is_adjust=False, is_derived=True)
+    derived = [par.get_value() for par in derived]
+    
+    
+    return logp, (auto_fitted, derived)
     
     
     
@@ -99,6 +73,7 @@ def rpars(mysystem, nwalkers):
     p0 = [par.get_value_from_prior(size=nwalkers) for par in pars]
     p0 = np.array(p0).T # Nwalkers x Npar
     
+    
     # we do need to check if all the combinations produce realistic models
     for i, walker in enumerate(p0):
                     
@@ -110,7 +85,8 @@ def rpars(mysystem, nwalkers):
                 par.set_value(value)
             
             # If it checks out, continue checking the next one
-            if not any([np.isinf(par.get_logp()) for par in pars]):
+            #if not any([np.isinf(par.get_logp()) for par in pars]):
+            if mysystem.check():
                 p0[i] = walker
                 break
             
@@ -215,7 +191,7 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
     # Retrieve the number of walkers and iterations
     nwalkers = fit_params['walkers']
     niters = fit_params['iters']
-    label = fit_params['label']
+    label = os.path.join(os.path.dirname(system_file), fit_params['label'])
     
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
@@ -223,39 +199,26 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
     # they are unique). While we are iterating over all the parameterSets,
     # we'll also have a look at what context they are in. From this, we decide
     # which fitting algorithm to use.
-    ids = []
-    pars = []
-    names = []
-    pars_objects = []
-    
-    # walk through all the parameterSets available. This needs to be via this
-    # utility function because we need to iteratively walk down through all
-    # BodyBags too.
-    frames = []
-    for parset in system.walk():
-        frames.append(parset.frame)
-        
-        # for each parameterSet, walk through all the parameters
-        for qual in parset:
-            
-            # extract those which need to be fitted
-            if parset.get_adjust(qual) and parset.has_prior(qual):
-                
-                # ask a unique ID and check if this parameter has already been
-                # treated. If so, continue to the next one.
-                parameter = parset.get_parameter(qual)
-                myid = parameter.get_unique_label()
-                if myid in ids:
-                    continue
-                
-                # and add the id
-                ids.append(myid)
-                pars.append(parameter.get_value_from_prior(size=nwalkers))
-                names.append(qual)
-                pars_objects.append(parameter)
+    pars_objects = system.get_adjustable_parameters(with_priors=True)
+    ids = [par.get_unique_label() for par in pars_objects]
+    names = [par.get_qualifier() for par in pars_objects]
+    prior_labels = ["".join(str(par.get_prior()).split()) for par in pars_objects]
+    pars = [par.get_value_from_prior(size=nwalkers) for par in pars_objects]
     
     pars = np.array(pars).T
     ndim = len(ids)
+    
+    # List the parameters that are auto-fitted
+    auto = system.get_adjustable_parameters(with_priors=False)
+    auto_ids = [par.get_unique_label() for par in auto]
+    auto_prior_labels = ['none' for par in auto]
+    auto = [par.get_qualifier() for par in auto]
+    
+    # List the parameters that are derived
+    derived = system.get_parameters_with_priors(is_adjust=False, is_derived=True)
+    derived_ids = [par.get_qualifier() for par in derived]
+    derived_prior_labels = ["".join(str(par.get_prior()).split()) for par in derived]
+    derived = [par.get_qualifier() for par in derived]
     
     # now, if the number of walkers is smaller then twice the number of
     # parameters, adjust that number to the required minimum and raise a warning
@@ -270,28 +233,40 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
         
     # Create the sampler
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
-                                  args=[pars_objects, system, compute_params], pool=pool)
+                                    args=[pars_objects, system, compute_params],
+                                    pool=pool)
     
     # And run!
     f = open(label + '.mcmc_chain.dat', "w")
-    f.write("# walker " + " ".join(ids) + " logp\n")
+    f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " logp\n")
+    f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " logp\n")
+    f.write("# none " + " ".join(prior_labels) +" "+ " ".join(auto_prior_labels) +" "+ " ".join(derived_prior_labels)+ " logp\n")
+    f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "LOGP\n")
     f.close()
     
     generator = sampler.sample(p0, iterations=niters, storechain=True)
     for niter, result in enumerate(generator):
         #print("Iteration {}".format(niter))
-        position, logprob, rstate  = result
+        position, logprob, rstate, blobs  = result
         
         # Write walker positions
         with open(label + '.mcmc_chain.dat', "a") as f:
             for k in range(position.shape[0]):
-                f.write("%d %s %f\n"
-                        % (k, " ".join(['%.10f' % i for i in position[k]]), logprob[k]))
-            
-                ## Write results of the simulations
-                #if blobs[k] is not None:
-                    #blobs[k].save('simuls/' + phoebe_file + '.simul_{:05d}_{:05d}.lc'.format(niter, k),
-                          #pretty_header=True)
+                # Write walkers and ordinary fitting parameters
+                f.write("%d %s"
+                        % (k, " ".join(['%.10e' % i for i in position[k]])))
+                
+                # Write auto-fitted parameters
+                f.write(" %s"
+                        % (" ".join(['%.10e' % i for i in blobs[k][0]])))
+                
+                # Write derived parameters
+                f.write(" %s"
+                        % (" ".join(['%.10e' % i for i in blobs[k][1]])))
+                
+                # Write logprob
+                f.write(" %.10e\n" % (logprob[k]))
+                
         if niter<10:
             update_progress(system, sampler, fit_params)
         elif niter<50 and niter%2 == 0:

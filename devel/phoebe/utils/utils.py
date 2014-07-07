@@ -46,7 +46,7 @@ def which(cmd):
     @return: absolute path to command
     @rtype: str
     """
-    paths = os.path.expandvard('$PATH').split(':')
+    paths = os.path.expandvars('$PATH').split(':')
     for path in paths:
         attempt = os.path.join(path, cmd)
         if os.path.isfile(attempt):

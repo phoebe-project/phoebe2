@@ -94,6 +94,8 @@ class Feedback(object):
     def get_computelabel(self):
         if self.compute is not None:
             return self.compute['label']
+        if self.fitting is not None:
+            return self.fitting['computelabel']
     
     def apply_to(self, system, revert=False):
         """
@@ -118,7 +120,8 @@ class Feedback(object):
                 else:
                     # Set priors, posteriors and values
                     system_par.set_value(this_par.get_value())
-                    system_par.prior = this_par.get_prior()
+                    if this_par.has_prior():
+                        system_par.prior = this_par.get_prior()
                     system_par.posterior = this_par.get_posterior()
     
     def draw_from_posteriors(self, size=1):
@@ -409,7 +412,9 @@ class FeedbackEmcee(Feedback):
         else:
             system = init
         
-        adjustables = system.get_adjustable_parameters()
+        adjustables = system.get_adjustable_parameters(with_priors=True)
+        adjustables+= system.get_adjustable_parameters(with_priors=False)
+        adjustables+= system.get_parameters_with_priors(is_adjust=False, is_derived=True)
         
         # Check if the adjustable's unique ID is conform what is in the chain file
         with open(self._emcee_file, 'r') as open_file:
@@ -660,6 +665,10 @@ class FeedbackEmcee(Feedback):
                     
                     avg, std = np.average(smpls_x), np.std(smpls_x)
                     out = ax.hist(smpls_x, histtype='step', bins=bins, normed=True)
+                    
+                    # Add prior information
+                    if self._parameters[row].has_prior():
+                        self._parameters[row].get_prior().plot(color='r', alpha=0.2, ax=ax)
                     #ax.plo
                     ax.autoscale() # doesn't work very well
                     ax.set_ylim(0, out[0].max()+0.1*out[0].ptp())
