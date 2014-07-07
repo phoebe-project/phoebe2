@@ -269,10 +269,10 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
     feedbacks = sorted(feedbacks)
     
     # Reset the logger to get the info messages again
-    mylogger.handlers = mylogger.handlers[:-1]
+    mylogger.handlers = mylogger.handlers#[:-1]
     for handler in mylogger.handlers:
         if not hasattr(handler,'baseFilename'):
-            if mylogger.level<logging._levelNames['WARNING']:
+            if mylogger.level>=logging._levelNames['WARNING']:
                 handler.setLevel('INFO')
     logger.info("Reset logger")
     
