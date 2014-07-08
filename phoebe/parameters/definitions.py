@@ -668,7 +668,7 @@ defs += [dict(qualifier='feedback',  description='Results from gridding procedur
 #    MPI and computation context
 defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi'),
          dict(qualifier='hostfile',     description='hostfile',repr='%s',cast_type=str,value='',frame=["phoebe"],context='mpi'),
-         dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='mpi'),
+         dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='mpi'),
          dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi'),
          dict(qualifier='directory', description='Directory for temporary files', cast_type=str, value='',frame=['phoebe'],context='mpi'),
         ]

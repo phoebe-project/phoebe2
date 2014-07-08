@@ -266,7 +266,6 @@ def run(system_file, compute_params_file, fit_params_file):
         
         # Reshape in convenient format
         chain = existing[:, 1:1+ndim]
-        lnprob= existing[:,-1]
         del existing
         chain = chain.reshape((niterations, nwalkers, ndim))
         
