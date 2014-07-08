@@ -111,18 +111,18 @@ class Feedback(object):
                 # parameters. If it's not there, don't bother
                 try:
                     index = ids.index(system_par.get_unique_label())
-                    this_par = adjustable_parameters[index]
+                    this_par = copy.deepcopy(adjustable_parameters[index])
                 except ValueError:
                     continue
                 
                 if revert:
-                    system_par.reset()
-                else:
-                    # Set priors, posteriors and values
-                    system_par.set_value(this_par.get_value())
-                    if this_par.has_prior():
-                        system_par.prior = this_par.get_prior()
-                    system_par.posterior = this_par.get_posterior()
+                    this_par.reset()
+                
+                # Set priors, posteriors and values
+                system_par.set_value(this_par.get_value())
+                if this_par.has_prior():
+                    system_par.prior = this_par.get_prior()
+                system_par.posterior = this_par.get_posterior()
     
     def draw_from_posteriors(self, size=1):
         pass
@@ -239,7 +239,7 @@ class FeedbackLmfit(Feedback):
         
         # The parameters that were used to fit (but their initial state)
         self._parameters = copy.deepcopy(init_phoebe_pars)
-        for par in init_phoebe_pars:
+        for par in self._parameters:
             par.remember()
         
         # Build correlation matrix and set posteriors at the same time
@@ -249,10 +249,15 @@ class FeedbackLmfit(Feedback):
             for j, jpar in enumerate(lmfit_pars):
                 if i==j:
                     correls[i,j] = 1.0
-                    self._parameters[i].set_value(lmfit_pars[ipar].value)
+                    value = lmfit_pars[ipar].value
+                    mu = lmfit_pars[ipar].value
+                    sigma = lmfit_pars[ipar].stderr
+                    # Standard error when not available is incredibly small
+                    if np.isnan(sigma):
+                        sigma = 1e-8*mu
+                    self._parameters[i].set_value(value)
                     self._parameters[i].set_posterior(distribution='normal',
-                                                      mu=lmfit_pars[ipar].value,
-                                                      sigma=lmfit_pars[ipar].stderr)
+                                                      mu=mu, sigma=sigma)
                 else:
                     if lmfit_pars[ipar].correl:
                         correls[i,j] = lmfit_pars[ipar].correl[jpar]
@@ -338,7 +343,7 @@ class FeedbackEmcee(Feedback):
     def __init__(self, emcee_file, init=None, lnproblim=-np.inf,
                  burnin=0, thin=1, fitting=None, compute=None):
         
-        self._emcee_file = emcee_file
+        self._emcee_file = os.path.abspath(emcee_file)
         self._translation = dict()
         
         # keep track of filesize to see if anything changed
@@ -352,8 +357,12 @@ class FeedbackEmcee(Feedback):
         
         for par in self._parameters:
             par.remember()
+            
+        self._lnproblim = lnproblim
+        self._burnin = burnin
+        self._thin = thin
         
-        self.do_reload(lnproblim, burnin, thin)
+        self.do_reload()
         self.fitting = fitting
         self.compute = compute
         # Reshape the array in a convenient format
@@ -365,6 +374,10 @@ class FeedbackEmcee(Feedback):
         
         We check this by checking if the filesize is still the same.
         """
+        # Try to locate the file in this working directory if it does not exist
+        if not os.path.isfile(self._emcee_file) and os.path.isfile(os.path.basename(self._emcee_file)):
+            self._emcee_file = os.path.basename(self._emcee_file)
+            
         samefile = os.stat(self._emcee_file).st_size == self._checkfilesize
         
         if not samefile and raise_error:
@@ -470,16 +483,16 @@ class FeedbackEmcee(Feedback):
         return adjustables
     
     
-    def do_reload(self, lnproblim=-np.inf, burnin=0, thin=1):
+    def do_reload(self):
         """
         Reload the data from the file.
         
         """
         # Load the emcee file and remember some properties            
         data = np.loadtxt(self._emcee_file)
-        self._lnproblim = lnproblim
-        self._burnin = burnin
-        self._thin = thin
+        lnproblim = self._lnproblim
+        burnin = self._burnin
+        thin = self._thin
         
         walkers, data, logp = data[burnin::thin,0], data[burnin::thin,1:-1],\
                               data[burnin::thin,-1]
@@ -532,20 +545,28 @@ class FeedbackEmcee(Feedback):
     def set_values(self, system):
         pass
     
+    def modify_chain(self, lnproblim=None, burnin=None, thin=None):
+        if lnproblim is not None:
+            self._lnproblim = lnproblim
+        if burnin is not None:
+            self._burnin = burnin
+        if thin is not None:
+            self._thin = thin
+         
+        self.do_reload()
+    
     @decorators.memoized(clear_when_different=True)
-    def get_data(self,  lnproblim=None, burnin=None, thin=None, reshape=True):
+    def get_data(self,  reshape=True):
         """
         Read in the data file.
         """
-        if lnproblim is None:
-            lnproblim = self._lnproblim
-        if burnin is None:
-            burnin = self._burnin
-        if thin is None:
-            thin = self._thin
+        lnproblim = self._lnproblim
+        burnin = self._burnin
+        thin = self._thin
         
         self.check_file()
         data = np.loadtxt(self._emcee_file)
+        logger.info("Loaded {}".format(self._emcee_file))
         walkers, data, logp = data[burnin::thin,0], data[burnin::thin,1:-1],\
                               data[burnin::thin,-1]
         nwalkers = int(walkers.max() + 1)
@@ -553,7 +574,9 @@ class FeedbackEmcee(Feedback):
         npars = data.shape[1]
         
         # mask out low probability models
-        data[logp<=lnproblim] = np.nan
+        mask = logp<=lnproblim
+        data[mask] = np.nan
+        logp[mask] = np.nan
         
         if reshape:
             # Reshape the array in a convenient format
@@ -565,20 +588,20 @@ class FeedbackEmcee(Feedback):
             
         
         
-    def plot_logp(self, lnproblim=None, burnin=None, thin=None, ax=None):
+    def plot_logp(self, ax=None):
         """
         Plot the history of logp.
         """
         if ax is None:
             ax = plt.gca()
             
-        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data(lnproblim=None, burnin=None, thin=None)
+        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()
         
         for i in range(nwalkers):
             ax.plot(logp[:,i], alpha=0.2)
     
     def plot_history(self, qualifier=None, ax=None):
-        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data(lnproblim=None, burnin=None, thin=None)
+        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()
         
         if qualifier is None:
             pars = self._parameters
@@ -603,10 +626,10 @@ class FeedbackEmcee(Feedback):
                 ax_.plot(data[:, w, i], alpha=0.2)
             
     
-    def plot_summary(self, lnproblim=None, burnin=None, thin=None, bins=20):
+    def plot_summary(self, bins=20, axes=None):
         cbins = 20
         fontsize = 8
-        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data(lnproblim=lnproblim, burnin=burnin, thin=thin)
+        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()
         #npars = 2
         # range of contour levels
         lrange = np.arange(2.5,0.0,-0.5)
@@ -620,25 +643,27 @@ class FeedbackEmcee(Feedback):
                             wspace=0.0, hspace=0.0)
         
         # First make a grid of the diagonal axes, they control the axes limits
-        axs = []
-        for row in range(npars):
-            axs.append([])
-            for col in range(npars):
-                axs[-1].append(plt.subplot(npars, npars, row*npars + col + 1))
-                axs[-1][-1].set_autoscale_on(False)
+        if not axes:
+            axs = []
+            for row in range(npars):
+                axs.append([])
+                for col in range(npars):
+                    axs[-1].append(plt.subplot(npars, npars, row*npars + col + 1))
+                    axs[-1][-1].set_autoscale_on(False)
+        else:
+            axs = axes
         
         # Then fill the axes
         for row in range(npars):
             for col in range(npars):
                 ax = axs[row][col]
                 # Get the axes, and share the axes with right diagonal axes
-                smpls_x = data[:, :, row].ravel()
-                smpls_y = data[:, :, col].ravel()
+                smpls_x = self._parameters[row].get_posterior().get_distribution()[1]['trace']#data[:, :, row].ravel()
+                smpls_y = self._parameters[col].get_posterior().get_distribution()[1]['trace']#data[:, :, col].ravel()
                 keep = -np.isnan(smpls_x) & -np.isnan(smpls_y)
                 smpls_x = smpls_x[keep]
                 smpls_y = smpls_y[keep]
-                this_logp = logp.ravel()[keep]
-            
+                this_logp = logp.ravel()[keep]            
                 if row > col:
                     m,xmin,xmax,ymin,ymax = matrixify(smpls_y, smpls_x, this_logp, cbins, cbins)
                     mx = np.max(m)
@@ -664,12 +689,16 @@ class FeedbackEmcee(Feedback):
                 elif row == col:
                     
                     avg, std = np.average(smpls_x), np.std(smpls_x)
-                    out = ax.hist(smpls_x, histtype='step', bins=bins, normed=True)
+                    out = np.histogram(smpls_x, density=True, bins=32)
+                    
+                    # Add posterior information
+                    self._parameters[row].get_posterior().plot(ax=ax, color='b')
                     
                     # Add prior information
                     if self._parameters[row].has_prior():
                         self._parameters[row].get_prior().plot(color='r', alpha=0.2, ax=ax)
-                    #ax.plo
+                    
+                    # Set axes
                     ax.autoscale() # doesn't work very well
                     ax.set_ylim(0, out[0].max()+0.1*out[0].ptp())
                     

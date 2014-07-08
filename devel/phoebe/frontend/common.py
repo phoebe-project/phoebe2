@@ -333,7 +333,8 @@ class Container(object):
         :rtype: Parameter
         :raises KeyError: if twig not available or not representing a Parameter
         """
-        return self._get_by_search(twig, kind='Parameter') # was 'Parameter*'
+        out = self._get_by_search(twig, kind='Parameter') # was 'Parameter*'
+        return out
         
     def info(self, twig):
         """
@@ -400,6 +401,7 @@ class Container(object):
         :type unit: str or None
         :raises KeyError: when twig is not available or is not a Parameter
         """
+        
         # Retrieve the parameter
         param = self.get_parameter(twig)
         
@@ -436,6 +438,7 @@ class Container(object):
             param.set_value(value)
         else:
             param.set_value(value, unit)
+        
             
     def set_value_all(self, twig, value, unit=None):
         """
@@ -1472,7 +1475,6 @@ class Container(object):
         @param use_search: whether to use substring search instead of match
         @type use_search: bool
         """
-        
         # can take kwargs for searching by any other key stored in the trunk dictionary       
         kwargs.setdefault('trunk', None)
         kwargs.setdefault('hidden', False)

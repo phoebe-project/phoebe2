@@ -840,7 +840,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
         elif key == 'phoebe_hjd0.STEP':
             orbit.get_parameter('t0').set_step(step=float(val))            
         elif key == 'phoebe_hjd0.ADJ':
-            orbit.get_parameter('hjd0').set_adjust(int(val))
+            orbit.get_parameter('t0').set_adjust(int(val))
             
         elif key == 'phoebe_incl.VAL':
             orbit['incl'] = (val,'deg') 
@@ -910,7 +910,7 @@ def legacy_to_phoebe(inputfile, create_body=False,
         elif key == 'phoebe_rm.STEP':
             orbit.get_parameter('q').set_step(step=float(val))                     
         elif key == 'phoebe_rm.ADJ':
-            orbit.get_parameter('rm').set_adjust(int(val))
+            orbit.get_parameter('q').set_adjust(int(val))
                        
         elif key == 'phoebe_vga.VAL':
             position['vgamma'] = (val,'km/s')  

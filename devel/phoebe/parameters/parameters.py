@@ -632,7 +632,8 @@ class Parameter(object):
     
     _valid_keys = ['qualifier', 'value', 'adjust', 'step', 'ulim', 'llim',
                    'unit', 'context', 'description', 'frame', 'cast_type',
-                   'long_description', 'repr', 'prior', 'posterior']
+                   'long_description', 'repr', 'prior', 'posterior',
+                   'choices']
     
     #{ General methods
     def __init__(self,qualifier=None,**props):
@@ -731,8 +732,14 @@ class Parameter(object):
         """
         Reset the parameter values to its initial values.
         """
-        for key in self._initial:
-            setattr(self,key,self._initial[key])
+        for key in self._valid_keys:
+            if key in self._initial:
+                setattr(self, key, self._initial[key])
+            elif hasattr(self, key):
+                setattr(self, key, None)
+        #for key in self._initial:
+        #    setattr(self, key, self._initial[key])
+                
     
     def remember(self):
         """
@@ -1125,7 +1132,7 @@ class Parameter(object):
         return np.log(pdf)
     
     
-    def get_value_from_prior(self,size=1):
+    def get_value_from_prior(self, size=1):
         """
         Get a random value from the prior.
         
@@ -1135,10 +1142,10 @@ class Parameter(object):
         @rtype: array[C{size}]
         """
         if not hasattr(self,'prior'):
-            raise ValueError("Parameter '{}' (context={}) has no prior".format(self.qualifier,self.get_context()))
+            raise ValueError("Parameter '{}' (context={}) has no prior".format(self.qualifier, self.get_context()))
         return self.prior.draw(size=size)
     
-    def get_value_from_posterior(self,size=1):
+    def get_value_from_posterior(self, size=1):
         """
         Get a random value from the prior.
         
@@ -1148,7 +1155,7 @@ class Parameter(object):
         @rtype: array[C{size}]
         """
         if not hasattr(self,'posterior'):
-            raise ValueError("Parameter '{}' (context={}) has no posterior".format(self.qualifier,self.get_context()))
+            raise ValueError("Parameter '{}' (context={}) has no posterior".format(self.qualifier, self.get_context()))
         return self.posterior.draw(size=size)
         
     
@@ -1519,7 +1526,7 @@ class Parameter(object):
         @return: C{True} if it has a prior, otherwise C{False}
         @rtype: bool
         """
-        if hasattr(self,'prior'):
+        if hasattr(self,'prior') and self.prior is not None:
             return True
         else:
             return False
@@ -1531,7 +1538,7 @@ class Parameter(object):
         @return: C{True} if it has a posterior, otherwise C{False}
         @rtype: bool
         """
-        if hasattr(self,'posterior'):
+        if hasattr(self,'posterior') and self.posterior is not None:
             return True
         else:
             return False
