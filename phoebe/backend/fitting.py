@@ -602,7 +602,7 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     
     # Be sure to remove any previously existing chain file
     chain_file = fitparams['label'] + '.mcmc_chain.dat'
-    if os.path.isfile(chain_file):
+    if os.path.isfile(chain_file) and not fitparams['incremental']:
         os.unlink(chain_file)
     
     

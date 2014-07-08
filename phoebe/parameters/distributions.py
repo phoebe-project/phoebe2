@@ -39,6 +39,14 @@ except ImportError:
 from scipy.stats import distributions
 import matplotlib.pyplot as plt
 
+def histogram_bins(signal):
+    """
+    Return optimal number of bins.
+    """
+    h = (3.5 * np.std(signal)) / (len(signal)**(1./3.))
+    bins = int(np.ceil((max(signal)-min(signal)) / h))*2
+    
+    return bins
 
 class Distribution(object):
     """
@@ -873,9 +881,21 @@ class Trace(BaseDistribution):
         if distr_type is None:
             return self.distribution, self.distr_pars
         
-        elif distr_type in ['pdf', 'cdf']:
+        elif distr_type == 'pdf':
             
-            raise NotImplementedError("All your bases are belong to us")
+            bins = histogram_bins(self.distr_pars['trace'][-500:])
+            counts, domain = np.histogram(self.distr_pars['trace'][-500:],
+                                          bins=bins, density=True)
+            domain = (domain[:-1] + domain[1:]) / 2.0
+            return domain, counts
+            
+        elif distr_type == 'cdf':
+            bins = histogram_bins(self.distr_pars['trace'])
+            counts, domain = np.histogram(self.distr_pars['trace'],
+                                          bins=bins, density=True)
+            cdf = np.cumsum(np.diff(domain) * counts)
+            domain = (domain[:1] + domain[1:]) / 2.0
+            return domain, cdf
            
         # Else, we don't know what to do.
         else:
@@ -927,7 +947,14 @@ class Trace(BaseDistribution):
         np.set_printoptions(threshold=old_threshold) 
         return "{}({})".format(name,pars)
     
-    
+    def plot(self, on_axis='x', **kwargs):
+        """
+        Plot a uniform prior to the current axes.
+        """
+        ax = kwargs.pop('ax', plt.gca())
+        kwargs.setdefault('where', 'mid')
+        domain, pdf = self.pdf()
+        getattr(ax, 'step')(domain, pdf, **kwargs)
 
         
 

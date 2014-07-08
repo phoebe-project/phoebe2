@@ -114,7 +114,8 @@ setup(
     
     package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*','tables/ld_coeffs/README',
                                         'tables/ld_coeffs/blackbody_uniform_none_teff.fits',
-                                        'tables/spectra/README','tables/spec_intens/README',],
+                                        'tables/spectra/README','tables/spec_intens/README',
+                                        'tables/gravb/claret.dat', 'tables/gravb/espinosa.dat',],
                   'phoebe.parameters':['catalogs/*.dat','library/*.par','library/*.phoebe'],
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},

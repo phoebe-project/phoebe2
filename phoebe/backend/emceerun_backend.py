@@ -61,22 +61,23 @@ def lnprob(values, pars, system, compute_params):
     return logp, (auto_fitted, derived)
     
     
-    
-
-
-def rpars(mysystem, nwalkers):
+def univariate_init(mysystem, nwalkers, draw_from='prior'):
     
     # What parameters need to be adjusted?
     pars = mysystem.get_adjustable_parameters()
     
+    # Draw function
+    draw_func = 'get_value_from_' + draw_from
+    
     # Create an initial set of parameters from the priors
-    p0 = [par.get_value_from_prior(size=nwalkers) for par in pars]
+    p0 = [getattr(par, draw_func)(size=nwalkers) for par in pars]
     p0 = np.array(p0).T # Nwalkers x Npar
     
     
     # we do need to check if all the combinations produce realistic models
     for i, walker in enumerate(p0):
-                    
+        max_try = 100
+        current_try = 0
         # Check the model for this set of parameters
         while True:
             
@@ -86,68 +87,103 @@ def rpars(mysystem, nwalkers):
             
             # If it checks out, continue checking the next one
             #if not any([np.isinf(par.get_logp()) for par in pars]):
-            if mysystem.check():
+            if mysystem.check() or current_try>max_try:
                 p0[i] = walker
                 break
             
-            # Else draw a new value
-            walker = [par.get_value_from_prior(size=1)[0] for par in pars]
+            current_try += 1
+            
+            # Else draw a new value: for traces, we remember the index so that
+            # we can take the parameters from the same representation always
+            index = None
+            walker = []
+            for par in pars:
+                distr = getattr(par, 'get_' + draw_from)().get_distribution()[0]
+                if distr == 'trace' and index is None:
+                    value, index = getattr(par, draw_func)(size=1)
+                    value, index = value[0], index[0]
+                elif distr == 'trace':
+                    trace = getattr(par, 'get_' + draw_from)().get_distribution()[1]['trace'][index]
+                    value = trace[index]
+                # For any other distribution we simply draw
+                else:
+                    value = getattr(par, draw_func)(size=1)[0]
+                    
+                walker.append(value)
     return p0
 
 
 
-def multivariate_priors(filename, start, lnproblim, sigmlt=1.0, nnwalkers=0):
-        """
-        Generate a new prior distribution using a subset of walkers
-        with lnprob > ``lnproblim``.
+def multivariate_init(mysystem, nwalkers, draw_from='prior'):
+    """
+    Generate a new prior distribution using a subset of walkers
 
-        :param filename:
-            Filename of the chain file.
+    :param nwalkers:
+        New number of walkers.
 
-        :param start:
-            Starting point in the chain.
-
-        :param lnproblim:
-            Limiting log probability.
-
-        :param sigmlt:
-            Rescale original sigmas for this much.
-
-        :param nnwalkers:
-            New number of walkers. If 0, use the old value.
-
-        """
-        d = np.loadtxt(filename)
-
-        nwalkers = len(set(d[:, 0]))
-        npars = len(d[0]) - 1
-
-        if start * nwalkers > len(d):
-            print '`start` is too far ahead...'
-            return None
-
-        logp = d[:, -1][start * nwalkers:]
-
-        averages = [np.average(d[:, i][start * nwalkers:][logp > lnproblim])
-                    for i in range(1, npars)]
-        sigmas = np.array([np.std(d[:, i][start * nwalkers:][logp > lnproblim])
-                           for i in range(1, npars)]) * sigmlt
-
-        cor = np.zeros((npars - 1, npars - 1))
-        for i in range(1, npars):
-            for j in range(1, npars):
-                prs = st.pearsonr(d[:, i][start * nwalkers:][logp > lnproblim],
-                                  d[:, j][start * nwalkers:][logp > lnproblim])[0]
-                cor[i - 1][j - 1] = prs * sigmas[i - 1] * sigmas[j - 1]
-
-        #~ smpls = np.random.multivariate_normal(averages, cor, nwalkers)
-        return np.random.multivariate_normal(averages, cor, nwalkers)
+    """
+    # What parameters need to be adjusted?
+    pars = mysystem.get_adjustable_parameters()
+    npars = len(pars)
+    
+    # Draw function
+    draw_func = 'get_value_from_' + draw_from
+    
+    # Getter
+    get_func = 'get_' + draw_from
+    
+    # Check if distributions are traces, otherwise we can't generate
+    # multivariate distributions
+    for par in pars:
+        this_dist = getattr(par, get_func)().get_distribution()[0]
+        if not this_dist == 'trace':
+            raise ValueError(("Only trace distributions can be used to "
+                              "generate multivariate walkers ({} "
+                              "distribution given for parameter "
+                              "{})").format(this_dist, par.get_qualifier()))
+    
+    # Extract averages and sigmas
+    averages = [getattr(par, get_func)().get_loc() for par in pars]
+    sigmas = [getattr(par, get_func)().get_scale() for par in pars]
+    
+    # Set correlation coefficients
+    cor = np.zeros((npars, npars))
+    for i, ipar in enumerate(pars):
+        for j, jpar in enumerate(pars):
+            prs = st.pearsonr(getattr(ipar, get_func)().distr_pars['trace'],
+                              getattr(jpar, get_func)().distr_pars['trace'])[0]
+            cor[i, j] = prs * sigmas[i] * sigmas[j]
+            
+    # Sample is shape nwalkers x npars
+    sample = np.random.multivariate_normal(averages, cor, nwalkers)
+    
+    # Check if all initial values satisfy the limits and priors
+    for i, walker in enumerate(sample):
+        max_try = 100
+        current_try = 0
+        while True:
+            # Adopt the values in the system
+            for par, value in zip(pars, walker):
+                par.set_value(value)
+                sample[i] = walker
+        
+            # Perform the check; if it doesn't work out, retry
+            if not mysystem.check() and current_try < max_try:
+                walker = np.random.multivariate_normal(averages, cor, 1)[:,0]                                        
+                current_try += 1
+            else:
+                break
+    
+    return sample
 
     
 
 
 def update_progress(system, sampler, fitparams, last=10):
-    adj_pars = system.get_adjustable_parameters()
+    """
+    Report the current status of the sampler.
+    """
+    adj_pars = system.get_adjustable_parameters(with_priors=True)
     k = sum(sampler.lnprobability[0]<0)
     chain = sampler.chain[:,:k,:]
     logprobs = sampler.lnprobability[:,:k]
@@ -168,7 +204,7 @@ def update_progress(system, sampler, fitparams, last=10):
 
 
 
-def run(system_file, compute_params_file, fit_params_file, state=None):
+def run(system_file, compute_params_file, fit_params_file):
     
     # Take care of the MPI pool
     if mpi:
@@ -178,7 +214,7 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
             sys.exit(0)
     else:
         pool = None
-    
+            
     # Load the System
     system = universe.load(system_file)
     system.reset_and_clear()
@@ -220,30 +256,62 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
     derived_prior_labels = ["".join(str(par.get_prior()).split()) for par in derived]
     derived = [par.get_qualifier() for par in derived]
     
-    # now, if the number of walkers is smaller then twice the number of
-    # parameters, adjust that number to the required minimum and raise a warning
-    
-    if (2*pars.shape[1]) > nwalkers:
-        print("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
-        nwalkers = 2*pars.shape[1]
-        fit_params['walkers'] = nwalkers
-    
-    # Initialize a set of parameters
-    p0 = rpars(system, nwalkers)
+    # Restart from previous state
+    existing_file = os.path.isfile(label + '.mcmc_chain.dat')
+    if fit_params['incremental'] and existing_file and fit_params['init_from'] == 'previous_run':
+        # Load in the data
+        existing = np.loadtxt(label + '.mcmc_chain.dat')
+        nwalkers = int(existing[:,0].max() + 1)
+        niterations = int(existing.shape[0] / nwalkers)
         
+        # Reshape in convenient format
+        chain = existing[:, 1:1+ndim]
+        lnprob= existing[:,-1]
+        del existing
+        chain = chain.reshape((niterations, nwalkers, ndim))
+        
+        # Get the start condition
+        p0 = chain[-1]
+        
+        print("Continuing previous run (starting at iteration {})".format(niterations))
+        
+    
+    # Or start from scratch
+    else:
+        if fit_params['init_from'] == 'previous_run':
+            print("Cannot continue from previous run, starting new one")
+        # now, if the number of walkers is smaller then twice the number of
+        # parameters, adjust that number to the required minimum and raise a warning
+        
+        if (2*pars.shape[1]) > nwalkers:
+            print("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
+            nwalkers = 2*pars.shape[1]
+            fit_params['walkers'] = nwalkers
+    
+        # Initialize a set of parameters
+        try:
+            p0 = multivariate_init(system, nwalkers, draw_from=fit_params['init_from'])
+            print("Initialised walkers from {} with multivariate normals".format(fit_params['init_from']))
+        except ValueError:
+            p0 = univariate_init(system, nwalkers, draw_from=fit_params['init_from'])
+            print("Initialised walkers from {} with univariate distributions".format(fit_params['init_from']))
+        
+        # Only start a new file if we do not require incremental changes
+        if not fit_params['incremental']:
+            f = open(label + '.mcmc_chain.dat', "w")
+            f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " logp\n")
+            f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " logp\n")
+            f.write("# none " + " ".join(prior_labels) +" "+ " ".join(auto_prior_labels) +" "+ " ".join(derived_prior_labels)+ " logp\n")
+            f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "LOGP\n")
+            f.close()
+    
+    
     # Create the sampler
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
                                     args=[pars_objects, system, compute_params],
                                     pool=pool)
     
     # And run!
-    f = open(label + '.mcmc_chain.dat', "w")
-    f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " logp\n")
-    f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " logp\n")
-    f.write("# none " + " ".join(prior_labels) +" "+ " ".join(auto_prior_labels) +" "+ " ".join(derived_prior_labels)+ " logp\n")
-    f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "LOGP\n")
-    f.close()
-    
     generator = sampler.sample(p0, iterations=niters, storechain=True)
     for niter, result in enumerate(generator):
         #print("Iteration {}".format(niter))
@@ -257,12 +325,14 @@ def run(system_file, compute_params_file, fit_params_file, state=None):
                         % (k, " ".join(['%.10e' % i for i in position[k]])))
                 
                 # Write auto-fitted parameters
-                f.write(" %s"
-                        % (" ".join(['%.10e' % i for i in blobs[k][0]])))
+                if len(auto):
+                    f.write(" %s"
+                            % (" ".join(['%.10e' % i for i in blobs[k][0]])))
                 
                 # Write derived parameters
-                f.write(" %s"
-                        % (" ".join(['%.10e' % i for i in blobs[k][1]])))
+                if len(derived):
+                    f.write(" %s"
+                            % (" ".join(['%.10e' % i for i in blobs[k][1]])))
                 
                 # Write logprob
                 f.write(" %.10e\n" % (logprob[k]))

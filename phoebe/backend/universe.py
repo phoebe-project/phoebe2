@@ -2746,10 +2746,13 @@ class Body(object):
          only adjustable parameters without priors (:envvar:`with_priors=False`) or all
          adjustable parameters(:envvar:`with_priors=None`).
         """
+        ids = []
         mylist = []
         for path, val in self.walk_all():
             path = list(path)
-            if isinstance(val,parameters.Parameter) and val.get_adjust() and not val in mylist:
+            
+            
+            if isinstance(val,parameters.Parameter) and val.get_adjust() and not val.get_unique_label() in ids:
                 # If include priors but this parameters has none, continue
                 if with_priors is True and not val.has_prior():
                     continue
@@ -2759,6 +2762,7 @@ class Body(object):
                 # If include priors is not set, add it anyway
                 else:
                     mylist.append(val)
+                    ids.append(val.get_unique_label())
                 
                     
         return mylist

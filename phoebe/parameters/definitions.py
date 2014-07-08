@@ -586,9 +586,8 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
                                                       "The best technique seems to be to start in a small ball "
                                                       "around the a priori preferred position. Don't worry, "
                                                       "the walkers quickly branch out and explore the rest of the space."),repr='%d',cast_type=int,value=6,frame=["phoebe"],context='fitting:emcee'),
-         dict(qualifier='threads',  description='Number of threads',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:emcee'),
-         dict(qualifier='incremental',description='Store results in a file emcee_chain.label and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
-         dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:emcee'),
+         dict(qualifier='init_from',     description='Initialize walkers from priors, posteriors or previous run', cast_type='choose', choices=['prior', 'posterior', 'previous_run'], value='prior', repr='%s', frame=["phoebe"],context='fitting:emcee'),
+         dict(qualifier='incremental',description='Continue from previous calculations',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context='fitting:emcee'),
         ]

@@ -243,7 +243,7 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
             memory = ''
         time_ = '{:.0f}'.format(mpirun_par['time'])
         nodes = '{:d}'.format(mpirun_par['nodes'])
-        if miprun_par['ppn']:
+        if mpirun_par['ppn']:
             ppn = ':ppn={:d}'.format(mpirun_par['ppn'])
         else:
             ppn = ''

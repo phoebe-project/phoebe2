@@ -3209,10 +3209,163 @@ class Bundle(Container):
         """
         Run fitting for a given fitting ParameterSet and store the feedback
         
+        **Prerequisites**
+        
+        First of all, you need to have *observations* added to your system and
+        have at least one of them *enabled*.
+        
+        Before you can run any fitting, you need to define *priors* on the
+        parameters that you want to include in the probability calculations, and
+        set those parameters that you want to include in the normal fitting
+        process to be *adjustable*. A limited number of parameters can be
+        estimated using a direct (linear) fit. You can mark these by setting
+        them to be adjustable, but not define a prior. Thus, there are
+        **3 types of parameters**:
+        
+        - Parameters you want to vary by virtue of the fitting algorithm. You
+          need to define a prior and set them to be adjustable, e.g.::
+          
+          >>> mybundle.set_prior('incl', distribution='uniform', lower=80, upper=100)
+          >>> mybundle.set_adjust('incl')
+          
+        - Parameters you want to estimated using a direct fitting approach. Set
+          them to be adjustable, but do not define a prior::
+          
+          >>> mybundle.set_adjust('scale@lc01@lcobs')
+        
+        - Parameters you want to include in the probability calculations, but
+          not fit directly. Only define a prior, but do not mark them for
+          adjustment For example suppose you have prior information on the mass
+          of the primary component in a binary system::
+          
+          >>> mybundle.add_parameter('mass1@orbit')
+          >>> mybundle.set_prior('mass1@orbit', distribution='normal', mu=1.2, sigma=0.1)
+       
+        .. warning::
+       
+            The fitting algorithms are very strict on priors and extreme limits
+            on parameters. Before a fitting algorithm is run, a :py:func:`check <phoebe.frontend.bundle.Bundle.check>` is performed to check if all
+            values are within the prior limits (attribute :envvar:`prior` of
+            a Parameter) and the extreme limits (attributes :envvar:`llim` and
+            :envvar:`ulim` of the Parameters). Phoebe2 will notify you if any
+            of the checks did not pass. You can adjust any of intervals through
+            :py:func:`Parameter.set_prior <phoebe.parameters.parameters.Parameter.set_prior>`
+            or :py:func:`Parameter.set_limits <phoebe.parameters.parameters.Parameter.set_limits>`.
+            
+       
+        **Setting up fitting and compute options**
+       
+        First you need to decide the fitting *context*, i.e. which fitting
+        scheme or algorithm you want to use. Every fitting algorithm has
+        different options to set, e.g. the number of iterations in an MCMC chain,
+        or details on the algorithm that needs to be used. Because every fitting
+        algorithm needs to iterate the computations of the system (and evaluate
+        it to choose a new set of parameters), it also needs to know the compute
+        options (e.g. take reflection effects into account etc.).
+        Finally you need to supply a *label* to the fitting options, for easy
+        future referencing::
+        
+            >>> mybundle.add_fitting(context='fitting:emcee', computelabel='preview',
+                                     iters=100, walkers=10, label='my_mcmc')
+        
+        You can add more than one fitting option, as long as you don't duplicate
+        the labels::
+        
+            >>> mybundle.add_fitting(context='fitting:lmfit', computelabel='preview',
+                                     method='nelder', label='simplex_method')
+            >>> mybundle.add_fitting(context='fitting:lmfit', computelabel='preview',
+                                     method='leastsq', label='levenberg-marquardt')
+                                 
+        
+        You can easily print out all the options via::
+        
+        >>> print(mybundle['my_mcmc@fitting'])
+        
+        **Running the fitter**
+        
+        You can run the fitter simply by issueing
+        
+        >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+        
+        When run like this, the results from the fitting procedure will
+        automatically be added to system and the best model will be set as the
+        current model. You can change that behaviour via the :envvar:`add_feedback`
+        and :envvar:`accept_feedback` arguments when calling this function.
+        
+        Some fitting algorithms accept an additional :envvar:`mpi` parameterSet.
+        You need to define one, set the options and supply it in the fitting
+        command::
+        
+        >>> mpi = phoebe.ParameterSet('mpi', np=4)
+        >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc', mpi=mpi)
+        
+        The fitter returns a :py:class:`Feedback <phoebe.parameters.feedback.Feedback>`
+        object, that contains a summary of the fitting results. You can simply
+        print or access the feedback via the Bundle::
+        
+        >>> print(feedback)
+        >>> print(mybundle['my_mcmc@feedback'])
+        
+        **More details on emcee**
+        
+        Probably the most general, but also most slowest fitting method is the
+        Monte Carlo Markov Chain method. Under the hood, Phoebe2 uses the
+        *emcee* Python package to this end. Several options from the *fitting:emcee*
+        context are noteworthy here:
+            
+        - :envvar:`iters`: number of iterations to run. You can set this to an
+          incredibly high number; you can interrupt the chain or assess the
+          current state at any point because the MCMC chain is incrementally
+          saved to a file. It is recommended to pickle your Bundle right before
+          running the fitting algorithm. If you do, you can in a separate script
+          or Python terminal monitor the chain like::
+          
+          >>> mybundle = phoebe.load('mypickle.pck')
+          >>> mybundle.feedback_fromfile('my_mcmc.mcmc_chain.dat')
+          >>> mybundle['my_mcmc@feedback'].plot_logp()
+          
+          You can also at any point restart a previous (perhaps
+          interrupted) chain (see :envvar:`incremental`)
+        - :envvar:`walkers`: number of different MCMC chains to run simultaneously.
+          The emcee package requires at least 2 times the number of free parameters,
+          but recommends much more (as many as feasible).
+        - :envvar:`init_from`: the walkers have to start from some point. Either
+          the starting points are drawn randomly from the priors (:envvar:`init_from='prior'`),
+          from the posteriors (:envvar:`init_from='posterior'`), or from the
+          last state of the previous run (:envvar:`init_from='previous_run'`).
+        - :envvar:`incremental`: add the results to the previous computation or
+          not. You can continue the previous chain *and* resample from the
+          posteriors or priors if you wish (via :envvar:`init_from`). Suppose you
+          ran a chain like::
+          
+          >>> mybundle.add_fitting(context='fitting:emcee', init_from='prior', label='my_mcmc', computelabel='preview')
+          >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+          
+          Then, you could just continue these computations via::
+          
+          >>> mybundle['incremental@my_mcmc@fitting'] = True
+          >>> mybundle['init_from@my_mcmc@fitting'] = 'previous_run'
+          >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+          
+          Alternatively, you can resample multivariate normals from the previous
+          posteriors to continue the chain, e.g. after clipping walkers with
+          low probability::
+          
+          >>> mybundle['my_mcmc@feedback'].modify_chain(lnproblim=-40)
+          >>> mybundle['incremental@my_mcmc@fitting'] = True
+          >>> mybundle['init_from@my_mcmc@fitting'] = 'posteriors'
+          >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+       
+          Quality control and convergence monitoring can be done via::
+        
+          >>> mybundle['my_mcmc@feedback'].plot_logp()
+          >>> mybundle['my_mcmc@feedback'].plot_summary()
+          
+        
         [FUTURE]
         
         @param computelabel: name of compute ParameterSet
-        @param computelabel: str
+        @type computelabel: str
         @param fittinglabel: name of fitting ParameterSet
         @type fittinglabel: str
         @param add_feedback: flag to store the feedback (retrieve with get_feedback)
@@ -3275,6 +3428,7 @@ class Bundle(Container):
         for par, val in zip(self.get_system().get_adjustable_parameters(), init_values):
             par.set_value(val)
         
+        
         if add_feedback:
             # Create a Feedback class and add it to the feedback section with
             # the same label as the fittingoptions
@@ -3300,7 +3454,6 @@ class Bundle(Container):
         # that the synthetics are up-to-date with the parameters
         self.accept_feedback(fittingoptions['label']+'@feedback',
                              recompute=True, revert=(not accept_feedback))
-            
         return feedback
     
     def feedback_fromfile(self, feedback_file, fittinglabel, accept_feedback=True):
@@ -3348,6 +3501,7 @@ class Bundle(Container):
         [FUTURE]
         """
         # Retrieve the correct feedback
+        
         feedback = self._get_by_search(twig, kind='Feedback')
         feedback.apply_to(self.get_system(), revert=revert)
         
