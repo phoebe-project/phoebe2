@@ -5,8 +5,8 @@ import sys
 import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
-import emcee
 try:
+    import emcee
     from emcee.utils import MPIPool
     from mpi4py import MPI
 except ImportError:
