@@ -531,8 +531,8 @@ class FeedbackEmcee(Feedback):
             for j, jpar in enumerate(self._parameters):
                 if i==j:
                     correl[i,j] = 1.0
-                    keep = -np.isnan(data[:,i]) & -np.isinf(data[:,i])
-                    self._parameters[i].set_value(data[keep,i][index])
+                    #keep = -np.isnan(data[:,i]) & -np.isinf(data[:,i])
+                    self._parameters[i].set_value(data[:,i][index])
                     self._parameters[i].set_posterior(distribution='trace',
                                                       trace=data[:,i])
                 else:
