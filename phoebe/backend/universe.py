@@ -2528,8 +2528,6 @@ class Body(object):
         # then the chi2 should probably also be large...?
         if np.isnan(log_f):
             log_f = -np.inf
-        if np.isnan(chi2):
-            chi2 = 1e300
         
         return log_f, chi2, n_data
     
