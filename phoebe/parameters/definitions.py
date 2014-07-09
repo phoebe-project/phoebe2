@@ -266,7 +266,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
                                                  "unity means that light from other wavelengths is redistributed inside the "
                                                  "current passband. Passband albedo cannot be negative, you cannot reflect less "
                                                  "light than no light. Passband albedo of zero means that within that passband,"
-                                                 "all the light is absorbed."), repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep']),
+                                                 "all the light is absorbed."), repr='%f',cast_type=float,value=0.,llim=0,ulim=5,step=0.01,adjust=False,frame=["phoebe"],context=['lcdep','amdep','rvdep','ifdep','spdep','pldep']),
          dict(qualifier='method',   description='Method for calculation of total intensity',repr='%s',cast_type='choose',choices=['analytical','numerical'],value='numerical',frame=["phoebe"],context='lcdep'),
          dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type='make_label',value='',hidden=True,frame=["phoebe"],context=['puls','circ_spot']),
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
@@ -593,8 +593,8 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
         ]
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
-         dict(qualifier='iters',     description='Number of iterations',long_description='If iters=n, then n number of iterations will be done. With `init_from_prior=True`, you can randomize the starting point for the fit.',repr='%d',cast_type=int,value=1,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
-         dict(qualifier='init_from_prior', description='Randomly draw the initial position from the priors', repr='%s',cast_type='make_bool', value=False, frame=['phoebe'], context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='iters',     description='Number of iterations',long_description='If iters=n, then n number of iterations will be done. With `init_from="prior"`, you can randomize the starting point for the fit.',repr='%d',cast_type=int,value=1,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='init_from', description='Randomly draw the initial position from the priors or keep system parameters', repr='%s',cast_type='choose', choices=['system','prior','posterior'], value='system', frame=['phoebe'], context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='compute_ci',description='Compute detailed confidence intervals',long_description="The F-test is used to compare the null model, which is the best fit we have found, with an alternate model, where one of the parameters is fixed to a specific value. The value is changed until the difference between chi2_start and chi2_final can't be explained by the loss of a degree of freedom within a certain confidence.",repr='',cast_type='make_bool',value=False,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
@@ -689,8 +689,8 @@ defs += [dict(qualifier='nodes',       description='Number of nodes of any type'
          dict(qualifier='time', description='Maximum time of one process', cast_type=float, value=60, unit='min',frame=['phoebe'],context='mpi:torque'),
          dict(qualifier='memory', description='Maximum amount of memory', cast_type=float, value=0, unit='MB', frame=['phoebe'],context='mpi:torque'),
          dict(qualifier='email', description='Email to which job alerts should be sent', cast_type=str, value='', frame=['phoebe'],context='mpi:torque'),
-         dict(qualifier='alerts', description='Job alerts to be mailed (b)egin, (e)nd, (a)bort', choices=['', 'b', 'e', 'a', 'be', 'ba', 'ea', 'bea'],\
-              cast_type='choose', value='bea', frame=['phoebe'], context='mpi:torque'),
+         dict(qualifier='alerts', description='Job alerts to be mailed (b)egin, (e)nd, (a)bort (or (n)one)', choices=['n', 'b', 'e', 'a', 'be', 'ba', 'ea', 'bea'],\
+              cast_type='choose', value='a', frame=['phoebe'], context='mpi:torque'),
          dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi:torque'),
          dict(qualifier='mpirun',   description='Mpirun executable',repr='%s',cast_type=str,value='mpirun',frame=["phoebe"],context='mpi:torque'),
          

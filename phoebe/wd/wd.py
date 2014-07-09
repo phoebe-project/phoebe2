@@ -167,7 +167,6 @@ import pylab as pl
 import numpy as np
 from scipy.optimize import nnls
 #-- own modules
-import phoebe
 from phoebe.parameters import parameters as pars
 from phoebe.parameters import definitions as defs
 from phoebe.parameters import datasets

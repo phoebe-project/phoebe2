@@ -5,8 +5,11 @@ Animate Phoebe computations interactively, or save them to a movie file.
 """
 import numpy as np
 import matplotlib.pyplot as plt
-import phoebe
 from phoebe.utils import coordinates
+from phoebe.dynamics import keplerorbit
+from phoebe.backend import plotting
+from phoebe.units import constants
+from phoebe.units import conversions
 
 def summarize(system, time=None, filename=None):
     """
@@ -27,7 +30,7 @@ def summarize(system, time=None, filename=None):
         orbit = system[0].params['orbit']
         t0type = orbit['t0type']
         if t0type == 'superior conjunction':
-            t0 = phoebe.dynamics.keplerorbit.from_supconj_to_perpass(orbit['t0'],
+            t0 = keplerorbit.from_supconj_to_perpass(orbit['t0'],
                                                      orbit['period'],
                                                      orbit['per0']/180*np.pi)
         print("Set to time of periastron passage")
@@ -53,7 +56,14 @@ def summarize(system, time=None, filename=None):
             
     
     params = {}
-    for loc, thing in phoebe.BodyBag([system]).walk_all():
+    
+    if not hasattr(system, 'bodies'):
+        iterator = zip([''], [system])
+    else:
+        iterator = system.walk_all()
+    
+    
+    for loc, thing in iterator:
         class_name = thing.__class__.__name__
         error = False
         if class_name in ['Star', 'BinaryStar', 'BinaryRocheStar',
@@ -84,7 +94,7 @@ def summarize(system, time=None, filename=None):
                 #radi = phoebe.atmospheres.roche.potential2radius(pot, q, d=1,
                 #            F=F, component=comp+1, sma=sma, loc='pole',
                 #            tol=1e-10, maxiter=50), 'm'
-                radi = (0.75/np.pi*thing.volume())**(1./3.)*phoebe.constants.Rsol, 'm'
+                radi = (0.75/np.pi*thing.volume())**(1./3.)*constants.Rsol, 'm'
                 teff = thing.params['component'].get_value('teff', 'K'), 'K'
             
             # Else, we can't do it.
@@ -98,11 +108,11 @@ def summarize(system, time=None, filename=None):
             text.append(thing.list(summary='physical', emphasize=(filename is None)))
             
             if not error:
-                M = phoebe.convert(mass[1],'Msol', mass[0])
-                L = phoebe.convert(lum[1],'Lsol', lum[0])
-                R = phoebe.convert(radi[1],'Rsol', radi[0])
-                T = phoebe.convert(teff[1],'K', teff[0])
-                G = phoebe.convert('m/s2', '[cm/s2]', phoebe.constants.GG*mass[0]/radi[0]**2)
+                M = conversions.convert(mass[1],'Msol', mass[0])
+                L = conversions.convert(lum[1],'Lsol', lum[0])
+                R = conversions.convert(radi[1],'Rsol', radi[0])
+                T = conversions.convert(teff[1],'K', teff[0])
+                G = conversions.convert('m/s2', '[cm/s2]', constants.GG*mass[0]/radi[0]**2)
                 
                 teff_min, teff_max = thing.mesh['teff'].min(), thing.mesh['teff'].max()
                 logg_min, logg_max = thing.mesh['logg'].min(), thing.mesh['logg'].max()
@@ -161,14 +171,14 @@ def summarize(system, time=None, filename=None):
                     passband = 'BOL'
                     #app_mag = phoebe.convert('erg/s/cm2/AA','mag',
                     #                                proj_int, passband='OPEN.BOL')
-                    app_mag = phoebe.convert('W/m3','mag',
+                    app_mag = conversions.convert('W/m3','mag',
                                                     proj_int, passband='OPEN.BOL')
                 else:
                     passband = passband=parset[0]['passband']
                     try:
                         #app_mag = phoebe.convert('erg/s/cm2/AA','mag',
                         #                            proj_int, passband=parset[0]['passband'])
-                        app_mag = phoebe.convert('W/m3','mag',
+                        app_mag = conversions.convert('W/m3','mag',
                                                     proj_int, passband=parset[0]['passband'])
                     except:
                         app_mag = 99.
@@ -338,7 +348,7 @@ def plot_lcsyn(*args, **kwargs):
     ax = kwargs.pop('ax')
     system = args[0]
     
-    out = phoebe.plotting.plot_lcsyn(system, ax=ax,**kwargs)
+    out = plotting.plot_lcsyn(system, ax=ax,**kwargs)
     if xlims is None:
         xlims = out[1]['time'].min(),out[1]['time'].max()
     #xlims_ = plt.xlim()
@@ -368,9 +378,9 @@ def plot_rvsyn(*args, **kwargs):
     system = args[0]
     
     kwargs['color'] = 'k'
-    out1 = phoebe.plotting.plot_rvsyn(system[0], ax=ax,**kwargs)
+    out1 = plotting.plot_rvsyn(system[0], ax=ax,**kwargs)
     kwargs['color'] = 'r'
-    out2 = phoebe.plotting.plot_rvsyn(system[1], ax=ax,**kwargs)
+    out2 = plotting.plot_rvsyn(system[1], ax=ax,**kwargs)
     if xlims is None:
         xlims = out1[1]['time'].min(),out1[1]['time'].max()
     #xlims_ = plt.xlim()
@@ -399,7 +409,7 @@ def plot_spsyn(*args, **kwargs):
     ax = kwargs.pop('ax')
     system = args[0]
     
-    out = phoebe.plotting.plot_spsyn_as_profile(system, ax=ax, index=-1, **kwargs)
+    out = plotting.plot_spsyn_as_profile(system, ax=ax, index=-1, **kwargs)
     
     if xlims is None:
         xlims = out[1]['wavelength'][0][0],out[1]['wavelength'][0][-1]

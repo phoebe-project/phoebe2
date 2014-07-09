@@ -3349,9 +3349,10 @@ class Bundle(Container):
           
           Alternatively, you can resample multivariate normals from the previous
           posteriors to continue the chain, e.g. after clipping walkers with
-          low probability::
+          low probability and/or after a burn-in period::
           
-          >>> mybundle['my_mcmc@feedback'].modify_chain(lnproblim=-40)
+          >>> mybundle['my_mcmc@feedback'].modify_chain(lnproblim=-40, burnin=10)
+          >>> mybundle.accept_feedback('my_mcmc')
           >>> mybundle['incremental@my_mcmc@fitting'] = True
           >>> mybundle['init_from@my_mcmc@fitting'] = 'posteriors'
           >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
@@ -3456,12 +3457,16 @@ class Bundle(Container):
                              recompute=True, revert=(not accept_feedback))
         return feedback
     
-    def feedback_fromfile(self, feedback_file, fittinglabel, accept_feedback=True):
+    def feedback_fromfile(self, feedback_file, fittinglabel=None,
+                          accept_feedback=True, ongoing=False):
         """
         Add fitting feedback from a file.
         
         [FUTURE]
         """
+        if fittinglabel is None:
+            fittinglabel = os.path.basename(feedback_file).rstrip('.mcmc_chain.dat')
+            
         fittingoptions = self.get_fitting(fittinglabel).copy()
         computeoptions = self.get_compute(fittingoptions['computelabel']).copy()
         
@@ -3474,7 +3479,8 @@ class Bundle(Container):
         subcontext = fittingoptions.get_context().split(':')[1]
         class_name = 'Feedback' + subcontext.title()
         feedback = getattr(mod_feedback, class_name)(feedback_file, init=self,
-                             fitting=fittingoptions, compute=computeoptions)
+                             fitting=fittingoptions, compute=computeoptions,
+                             ongoing=ongoing)
         
         # Make sure not to duplicate entries
         existing_fb = [fb.get_label() for fb in self.sections['feedback']]

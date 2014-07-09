@@ -225,7 +225,7 @@ class FeedbackLmfit(Feedback):
     Feedback from the lmfit fitting package.
     """
     def __init__(self, lmfit_result, lmfit_pars, extra_info, init, fitting=None,
-                 compute=None):
+                 compute=None, ongoing=False):
         
         self._translation = dict()
         self._info = ''
@@ -341,13 +341,15 @@ class FeedbackEmcee(Feedback):
     Feedback from the emcee fitting package.
     """
     def __init__(self, emcee_file, init=None, lnproblim=-np.inf,
-                 burnin=0, thin=1, fitting=None, compute=None):
+                 burnin=0, thin=1, fitting=None, compute=None, ongoing=False):
         
         self._emcee_file = os.path.abspath(emcee_file)
         self._translation = dict()
+        self._nwalkers = 0
+        self._niterations = 0
         
         # keep track of filesize to see if anything changed
-        self._checkfilesize = os.stat(emcee_file).st_size
+        self._checkfilesize = os.stat(emcee_file).st_size if not ongoing else None
         
         # Retrieve the (initial) parameters
         init_phoebe_pars = self.retrieve_parameters(init)
@@ -378,7 +380,7 @@ class FeedbackEmcee(Feedback):
         if not os.path.isfile(self._emcee_file) and os.path.isfile(os.path.basename(self._emcee_file)):
             self._emcee_file = os.path.basename(self._emcee_file)
             
-        samefile = os.stat(self._emcee_file).st_size == self._checkfilesize
+        samefile = (os.stat(self._emcee_file).st_size == self._checkfilesize) or (self._checkfilesize is None)
         
         if not samefile and raise_error:
             raise IOError("Emcee file {} has changed, cannot reload".format(self._emcee_file))
@@ -493,12 +495,16 @@ class FeedbackEmcee(Feedback):
         lnproblim = self._lnproblim
         burnin = self._burnin
         thin = self._thin
+        nwalkers = int(data[:,0].max() + 1)
+        walkers, data, logp = data[burnin*nwalkers::thin,0],\
+                              data[burnin*nwalkers::thin,1:-1],\
+                              data[burnin*nwalkers::thin,-1]
         
-        walkers, data, logp = data[burnin::thin,0], data[burnin::thin,1:-1],\
-                              data[burnin::thin,-1]
-        nwalkers = int(walkers.max() + 1)
         niterations = int(data.shape[0] / nwalkers)
         npars = data.shape[1]
+        
+        self._nwalkers = nwalkers
+        self._niterations = niterations
         
         myinfo = 'EMCEE {}'.format(self._emcee_file)
         myinfo += '\n' + len(myinfo)*'=' + '\n'
@@ -524,11 +530,15 @@ class FeedbackEmcee(Feedback):
             for j, jpar in enumerate(self._parameters):
                 if i==j:
                     correl[i,j] = 1.0
-                    self._parameters[i].set_value(np.median(data[:,i]))
+                    keep = -np.isnan(data[:,i]) & -np.isinf(data[:,i])
+                    self._parameters[i].set_value(np.median(data[keep,i]))
                     self._parameters[i].set_posterior(distribution='trace',
                                                       trace=data[:,i])
                 else:
-                    prs = st.spearmanr(data[:, i], data[:, j])[0]
+                    keepi = -np.isnan(data[:,i]) & -np.isinf(data[:,i])
+                    keepj = -np.isnan(data[:,j]) & -np.isinf(data[:,j])
+                    keep = keepi & keepj
+                    prs = st.spearmanr(data[keep, i], data[keep, j])[0]
                     correl[i,j] = prs #* sigmas[i] * sigmas[j]
         
         self._cormat = correl
@@ -552,7 +562,7 @@ class FeedbackEmcee(Feedback):
             self._burnin = burnin
         if thin is not None:
             self._thin = thin
-         
+        decorators.clear_memoization(keys=['phoebe.parameters.feedback'])
         self.do_reload()
     
     @decorators.memoized(clear_when_different=True)
@@ -567,9 +577,10 @@ class FeedbackEmcee(Feedback):
         self.check_file()
         data = np.loadtxt(self._emcee_file)
         logger.info("Loaded {}".format(self._emcee_file))
-        walkers, data, logp = data[burnin::thin,0], data[burnin::thin,1:-1],\
-                              data[burnin::thin,-1]
-        nwalkers = int(walkers.max() + 1)
+        nwalkers = int(data[:,0].max() + 1)
+        walkers, data, logp = data[nwalkers*burnin::thin,0],\
+                              data[nwalkers*burnin::thin,1:-1],\
+                              data[nwalkers*burnin::thin,-1]
         niterations = int(data.shape[0] / nwalkers)
         npars = data.shape[1]
         
@@ -583,6 +594,7 @@ class FeedbackEmcee(Feedback):
             data = data.reshape( len(data) / nwalkers, nwalkers, -1)
             logp = logp.reshape(-1, nwalkers)
             walkers = walkers.reshape(-1, nwalkers)
+            
         
         return (walkers, data, logp), (nwalkers, niterations, npars)
             
@@ -742,4 +754,7 @@ class FeedbackEmcee(Feedback):
                     #ax.get_xaxis().get_major_formatter().set_useOffset(False)
                     #ax.get_yaxis().get_major_formatter().set_useOffset(False)
                     
-        return axs        
+        return axs
+    
+    def __len__(self):
+        return self._niterations

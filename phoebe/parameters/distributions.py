@@ -43,8 +43,9 @@ def histogram_bins(signal):
     """
     Return optimal number of bins.
     """
-    h = (3.5 * np.std(signal)) / (len(signal)**(1./3.))
-    bins = int(np.ceil((max(signal)-min(signal)) / h))*2
+    select = -np.isnan(signal) & -np.isinf(signal)
+    h = (3.5 * np.std(signal[select])) / (len(signal[select])**(1./3.))
+    bins = int(np.ceil((max(signal[select])-min(signal[select])) / h))*2
     
     return bins
 
@@ -882,19 +883,30 @@ class Trace(BaseDistribution):
             return self.distribution, self.distr_pars
         
         elif distr_type == 'pdf':
-            
-            bins = histogram_bins(self.distr_pars['trace'][-500:])
-            counts, domain = np.histogram(self.distr_pars['trace'][-500:],
+            trace = self.distr_pars['trace']
+            keep = -np.isnan(trace) & -np.isinf(trace)
+            bins = histogram_bins(trace[keep])
+            counts, domain_ = np.histogram(trace[keep],
                                           bins=bins, density=True)
-            domain = (domain[:-1] + domain[1:]) / 2.0
+            domain_ = (domain_[:-1] + domain_[1:]) / 2.0
+            if domain is not None:
+                counts = np.interp(domain, domain_, counts)
+            else:
+                domain = domain_
             return domain, counts
             
         elif distr_type == 'cdf':
-            bins = histogram_bins(self.distr_pars['trace'])
-            counts, domain = np.histogram(self.distr_pars['trace'],
+            trace = self.distr_pars['trace']
+            keep = -np.isnan(trace) & -np.isinf(trace)
+            bins = histogram_bins(trace[keep])
+            counts, domain_ = np.histogram(trace[keep],
                                           bins=bins, density=True)
-            cdf = np.cumsum(np.diff(domain) * counts)
-            domain = (domain[:1] + domain[1:]) / 2.0
+            cdf = np.cumsum(np.diff(domain_) * counts)
+            domain_ = (domain_[:-1] + domain_[1:]) / 2.0
+            if domain is not None:
+                cdf = np.interp(domain, domain_, cdf)
+            else:
+                domain = domain_
             return domain, cdf
            
         # Else, we don't know what to do.
@@ -927,14 +939,18 @@ class Trace(BaseDistribution):
         """
         Get location parameter.
         """
-        return np.median(self.distr_pars['trace'])
+        trace = self.distr_pars['trace']
+        keep = -np.isnan(trace) & -np.isinf(trace)
+        return np.median(trace[keep])
     
     
     def get_scale(self):
         """
         Get scale parameter.
         """
-        return np.std(self.distr_pars['trace'])
+        trace = self.distr_pars['trace']
+        keep = -np.isnan(trace) & -np.isinf(trace)
+        return np.std(trace[keep])
     
     def __str__(self):
         """
