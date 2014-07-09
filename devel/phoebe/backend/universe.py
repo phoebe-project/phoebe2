@@ -2523,6 +2523,14 @@ class Body(object):
                         this_chi2 = 0.0
                     
                 chi2.append(this_chi2)
+        
+        # log_f is nan for whatever reason, it's actually -inf
+        # then the chi2 should probably also be large...?
+        if np.isnan(log_f):
+            log_f = -np.inf
+        if np.isnan(chi2):
+            chi2 = 1e300
+        
         return log_f, chi2, n_data
     
     
