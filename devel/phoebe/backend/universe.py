@@ -709,6 +709,13 @@ def init_mesh(self):
         dtypes = np.dtype(dtypes.descr + \
                  [('B_', 'f8', (3,)), ('_o_B_','f8', (3,))])
     
+    # for compatibility when loading pickled old style bundles (before July 2014)
+    # (you can remove the following line if we're sure they are not going to be
+    # used anymore):
+    if not hasattr(self, '_extra_mesh_columns'):
+        self._extra_mesh_columns = {}
+    
+    # Add any user mesh columns
     dtypes = np.dtype(dtypes.descr + [col for col in self._extra_mesh_columns if not col[0] in self.mesh.dtype.names])
     
     self.mesh = np.zeros(N, dtype=dtypes)

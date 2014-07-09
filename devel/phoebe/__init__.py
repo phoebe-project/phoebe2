@@ -982,7 +982,10 @@ Body in the Phoebe universe like::
 4.3 Description of base classes
 ---------------------------------
 
-The next sections contain more details on the most important base classes.
+The next sections contain more details on the most important base classes. The
+following list is built up bottom up, i.e. the lowest level class is described
+first and we work our way up to the BodyBag. Finally we describe also the two
+classes relevant for fitting.
 
 4.3.1 Parameter
 ~~~~~~~~~~~~~~~~~~~~~
@@ -1197,6 +1200,56 @@ The following function will thus pass silently:
 So beware of typos! This behaviour requires some discipline of the programmer.
 If at any point this behaviour is not wanted anymore, one should change the
 (short) :py:class:`CallInstruct <phoebe.backend.universe.CallInstruct>` code.
+
+
+
+
+4.3.6 Distribution
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A :py:class:`BaseDistribution <phoebe.parameters.distributions.BaseDistribution>`
+is the base class from which every Distribution inherits stuff. Distributions
+are very simple classes, which allow a convenient interface to:
+
+    - :py:func:`draw <phoebe.parameters.distributions.Normal.draw>`: draw any number of random values from it
+    - :py:func:`get_limits <phoebe.parameters.distributions.Normal.get_limits>`: retrieve reasonable or hard
+      limits on the parameters
+    - :py:func:`get_loc <phoebe.parameters.distributions.Normal.get_loc>`: get the location parameter (mean, etc)
+    - :py:func:`get_scale <phoebe.parameters.distributions.Normal.get_scale>`: get the scale parameter (std, etc)
+    - :py:func:`pdf <phoebe.parameters.distributions.BaseDistribution.pdf>`: retrieve the probability density function
+    - :py:func:`cdf <phoebe.parameters.distributions.BaseDistribution.cdf>`: retrieve the cumulative density function
+    - :py:func:`get_grid <phoebe.parameters.distributions.Normal.get_grid>`: get a regular sampling of the
+      parameter values, where the sampling rate is proportional to the probability density
+    - :py:func:`plot <phoebe.parameters.distributions.Normal.plot>`: make a plot of the distribution
+    
+A Distribution has two important attributes:
+
+    - ``distr_pars``: the distribution parameters (mu and sigma, lower and upper, trace...)
+    - ``distribution``: the name of the distribution (as a string)
+
+Currently, there are three distributions defined:
+
+    - :py:func:`Normal <phoebe.parameters.distributions.Normal>`: the normal distribution (distr pars ``mu`` and ``sigma``)
+    - :py:func:`Uniform <phoebe.parameters.distributions.Uniform>`: the uniform distribution (distr pars ``lower`` and ``upper``)
+    - :py:func:`Trace <phoebe.parameters.distributions.Trace>`: an empirical distribution from a sample of values (distr pars ``trace``)
+
+The :envvar:`prior` and :envvar:`posterior` attributes of Parameters are objects
+of type Distribution.
+
+4.3.7 Feedback
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A :py:class:`Feedback <phoebe.parameters.feedback.Feedback>` object contains
+the information obtained by a fitting algorithm.
+
+
+4.3.8 Bundle
+~~~~~~~~~~~~~~~~~
+
+Kyle, this is your part!
+
+
+
 
 4.4 Filling the mesh / setting the time
 ------------------------------------------
@@ -1445,7 +1498,7 @@ the separate Bodies first. Here are two examples:
 
 
 
-4.7 Statistics
+4.7 Statistics and fitting
 ----------------------------------------
 
 Once all the computations are done, any (enabled) set of observations must have
@@ -1470,8 +1523,19 @@ basically all you need to do is (after defining the Body and adding data):
 
     while not_satisfactory:
         #<change parameters>
-        mybody.run_compute()
+        mybody.compute()
         stats = mybody.get_logp()
+        #<evaluate if satisfactory>
+
+If you prefer to use the convenience of the Bundle (including some extra overhead),
+you can as well do:
+
+.. sourcecode:: python
+
+    while not_satisfactory:
+        #<change parameters>
+        mybundle.run_compute()
+        stats = mybundle.get_logp()
         #<evaluate if satisfactory>
 
 The above code is an example of how to find an optimal solution, but does not
@@ -1480,16 +1544,37 @@ include determining uncertainties (for which you need MCMC).
 For your convenience, there are different functions that extract useful information
 for fitting:
 
-    - :py:func:`get_logp <phoebe.backend.universe.Body.get_logp>`
-    - :py:func:`get_chi2 <phoebe.backend.universe.Body.get_chi2>`
+    - :py:func:`get_logp <phoebe.backend.universe.Body.get_logp>`: retrieve log probability value
+    - :py:func:`get_chi2 <phoebe.backend.universe.Body.get_chi2>`: retrieve :math:`\chi^2` value
     - :py:func:`get_data <phoebe.backend.universe.Body.get_data>`: puts all data in one long array
     - :py:func:`get_model <phoebe.backend.universe.Body.get_model>`: puts all models in one long array
-    - :py:func:`get_adjustable_parameters <phoebe.backend.universe.Body.get_adjustable_parameters>`
-    - :py:func:`get_parameters_with_priors <phoebe.backend.universe.Body.get_parameters_with_priors>`
+    - :py:func:`get_adjustable_parameters <phoebe.backend.universe.Body.get_adjustable_parameters>`: return a list of adjustable parameters
+    - :py:func:`get_parameters_with_priors <phoebe.backend.universe.Body.get_parameters_with_priors>`: return a list of parameters with priors
+    - :py:func:`check <phoebe.backend.universe.Body.check>`: checks if all parameter values are inside
+      their priors and reasonable limits
 
 Also the Bundle implemented the :py:func:`get_logp <phoebe.frontend.bundle.Bundle.get_logp>`
 functionality, which is a thin wrapper around the Body's version. 
 
+Interfacing with existing fitting packages happens in the :py:mod:`fitting <phoebe.backend.fitting>`
+module, in which :py:func:`run <phoebe.backend.fitting.run>` is the main function
+that runs specific solvers (e.g. :py:func:`run_emcee <phoebe.backend.fitting.run_emcee>`
+or :py:func:`run_lmfit <phoebe.backend.fitting.run_lmfit>`. The responsabilities
+of the main :py:func:`run <phoebe.backend.fitting.run>` function are:
+
+    - checking if at least one parameter is fitted and one dataset is included :py:func:`check_system <phoebe.backend.fitting.check_system>`
+    - removing any logging handler that has level INFO or lower (otherwise it clutters the screen),
+      and resetting it afterwards
+    - iterating fits (not possible with ``fitting:emcee`` context): it is possible
+      to re-iterate e.g. a nonlinear fitting algorithm, but re-initialize the
+      values of the parameters from the priors or posteriors at each step
+      (:py:func:`reinitialize <phoebe.backend.fitting.reinitialize>`), adding random noise
+      for Monte-Carlo simulations (:py:func:`monte_carlo <phoebe.backend.fitting.monte_carlo>`)
+      or choosing different subsets of data to fit according to their flags
+      (:py:func:`subsets_via_flags <phoebe.backend.fitting.subsets_via_flags>`).
+    - accept the fitting results if necessary (not done when called via the Bundle)
+    - return fitting feedback
+    
 
 4.8 Throwing it all together
 -------------------------------
@@ -1540,8 +1625,64 @@ comparison between observations and computations can be performed.
 4.12.3 How to add physics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-"""
+4.12.4 How to cycle through Parameters, ParameterSets...
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Given any Body or BodyBag, you can cycle over all ParameterSets via::
+    
+    system = Body(...)
+    for parset in system.walk():
+        print(parset)
+
+The easiest way then to walk over all Parameters is to do::
+
+    system = Body(...)
+    for parset in system.walk():
+        for par in parset:
+            print(parset.get_parameter(par))
+            
+
+4.13 Design flaws
+-------------------
+
+The following design flaws have caused me lot of headaches because they break
+intuition and are very hard to debug because of it. In principle they
+can be solved, but since there are easy workarounds, I never bothered:
+
+    1. The ``walk_*`` iterators implemented in Bodies (e.g. :py:func:`walk_all <phoebe.backend.universe.Body.walk>`)
+       **need to be exhausted** always, you cannot break it if you found what
+       you need, because otherwise the following walk will start from there.
+       At this point, I can't find an example to reproduce the behaviour, but
+       its just safest to do it anyway...
+       
+    2. Parameters implement the ``__eq__`` by checking the numerical values
+       converted to SI units if possible. That means that parameters with
+       different units are equal as long as their value in SI units is the same,
+       or that parameters can be compared to floats or parameter without units.
+       That is just awful, I realize that. An example::
+       
+        >>> ps = phoebe.parameters.parameters.ParameterSet('orbit')
+        >>> ps['long_an'] = 0
+        >>> ps['per0'] = 0
+        >>> ps['ecc'] = 0
+        >>> ps.get_parameter('long_an') == ps.get_parameter('per0')
+        True
+        >>> ps.get_parameter('long_an') == ps.get_parameter('ecc')
+        True
+        >>> ps.get_parameter('long_an') == ps.get_parameter('dperdt')
+        True
+        >>> ps.get_parameter('long_an') == 0.0
+        True
+        
+       This has an **important implication**: if you keep a list of parameters,
+       you **cannot** use ``par in mylist`` to check if a parameter is in the
+       list since it will check if that *value* is in the list only. A quick
+       solution to keep track of parameters in a list is therefore to check
+       their unique labels, or better yet, keep track of the unique labels instead
+       of the parameters themselves. In the fitting routines, you'll often see
+       this behaviour.
+        
+"""
 import os, sys
 
 # People shouldn't import Phoebe from the installation directory (inspired upon

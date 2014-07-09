@@ -1,8 +1,7 @@
 """
 make string representations of a Bundle
 """
-
-import phoebe
+from phoebe.backend import universe
 import textwrap
 from collections import OrderedDict
 import numpy as np
@@ -187,13 +186,13 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
                 current_string.append('')
             
             # Get the number of Bodies in the path
-            bodies = [body for body in path if isinstance(body, phoebe.backend.universe.Body)]
+            bodies = [body for body in path if isinstance(body, universe.Body)]
             level = len(bodies)
         
         
         # Make sure that the Bodies appear in the right order
         if item['kind'] == 'Body':
-            this_bodies = [body for body in path if isinstance(body, phoebe.backend.universe.Body)]
+            this_bodies = [body for body in path if isinstance(body, universe.Body)]
             this_level = len(this_bodies)
             this_label = make_body_label(this_bodies[this_level-1], this_level, emphasize)
                 
@@ -331,8 +330,9 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
 
 
 if __name__== "__main__":
-    x = phoebe.Bundle()
-    y = phoebe.Bundle()
+    from phoebe.frontend import bundle
+    x = bundle.Bundle()
+    y = bundle.Bundle()
     y['label@primary'] = 'prim'
     y['label@secondary'] = 'sec'
     y.get_system().params.pop('position')

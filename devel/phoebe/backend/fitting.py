@@ -115,6 +115,7 @@ except ImportError:
 
     
 logger = logging.getLogger("FITTING")
+fit_logger_level = 'WARNING'
 
 
 def run(system, params=None, fitparams=None, mpi=None, accept=False):
@@ -256,12 +257,10 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
             
             # Do stuff like reinitializing the parametersets with values
             # taken from their prior, or add MC noise to the data
-            reinitialize_from_priors(system, fitparams)
+            #reinitialize(system, fitparams)
             monte_carlo(system, fitparams)
             
-            #system.compute()
-            
-            #  Then solve the current system
+            # Then solve the current system
             feedback = solver(system, params=params, mpi=mpi, fitparams=fitparams)
             feedbacks.append(feedback)
     
@@ -301,11 +300,12 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False):
             
 #{
 
-def reinitialize_from_priors(system, fitparams):
+def reinitialize(system, fitparams):
     """
     Iterate a fit starting from different initial positions.
         
-    The initial positions are drawn randomly from the prior, but only for those
+    The initial positions are drawn randomly from the prior, posterior or just
+    kept as the one from the system, but only for those
     parameters that are adjustable and have a prior.
     
     @param system: the system to fit
@@ -313,17 +313,26 @@ def reinitialize_from_priors(system, fitparams):
     @param fitparams: fit parameters
     @type fitparams: ParameterSet
     """
-    init_from_prior = fitparams.get('init_from_prior',False)
-    if init_from_prior:
+    init_from = fitparams.get('init_from', 'system')
+    if init_from in ['prior', 'posterior']:
         # Walk over the system and set the value of all adjustable parameters
         # that have a prior to a value randomly dranw from that prior
         for parset in system.walk():
             #-- for each parameterSet, walk through all the parameters
             for qual in parset:
                 #-- extract those which need to be fitted
-                if parset.get_adjust(qual) and parset.has_prior(qual):                        
+                is_adjust = parset.get_adjust(qual)
+                has_prior = parset.has_prior(qual)
+                has_post = parset.has_posterior(qual)
+                
+                if is_adjust and has_prior and init_from == 'prior':
                     parset.get_parameter(qual).set_value_from_prior()
-    
+                elif is_adjust and has_prior and has_post and init_from == 'posterior':
+                    parset.get_parameter(qual).set_value_from_posterior()
+                elif is_adjust and has_prior and not has_post:
+                    logger.warning("Cannot re-initialize parameter {} from posterior (it has none)".format(qual))
+        logger.warning("Re-initialized values of adjustable parameters from {}".format(init_from))
+        
 
 
 
@@ -360,6 +369,7 @@ def monte_carlo(system, fitparams):
                     # Add noise to data
                     noise = np.random.normal(sigma=parset[sigma])
                     parset[meas_col] = parset[original_meas_col] + noise
+        logger.warning("Added simulated noise for Monte Carlo simulations")
 
 
 def subsets_via_flags(system, fitparams):
@@ -577,7 +587,6 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     @return: the MCMC sampling history (ParameterSet of context 'fitting:emcee'
     @rtype: ParameterSet
     """
-    
     # Pickle args and kwargs in NamedTemporaryFiles, which we will delete
     # afterwards
     if not mpi or not 'directory' in mpi or not mpi['directory']:
@@ -607,7 +616,7 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     
     
     # Create arguments to run emceerun_backend.py
-    args = " ".join([sys_file.name, compute_file.name, fit_file.name])
+    args = " ".join([sys_file.name, compute_file.name, fit_file.name, fit_logger_level])
     
     # Then run emceerun_backend.py
     if mpi is not None:
@@ -1442,8 +1451,6 @@ def check_system(system, fitparams):
     pars = []
     ids = []
     enabled = []
-    logger.info("Fit setup in context {}:\n{}".format(fitparams.get_context(),
-                                                      str(fitparams)))
     logger.info('Search for all parameters to be fitted:')
     #-- walk through all the parameterSets available. This needs to be via
     #   this utility function because we need to iteratively walk down through
@@ -1462,8 +1469,10 @@ def check_system(system, fitparams):
                 if myid in ids:
                     continue
                 ids.append(myid)
-                logger.info(('Parameter {} with prior {} (unique label: {}) '
-                            '').format(qual, parameter.get_prior(), myid))
+                #logger.info(('Parameter {} with prior {} (unique label: {}) '
+                #            '').format(qual, parameter.get_prior(), myid))
+                logger.info(('Parameter {:10s} with prior {}'
+                            '').format(qual, parameter.get_prior()))
         
         # If this parameterSet is a DataSet, check if it is enabled
         if parset.get_context()[-3:] == 'obs' and parset.get_enabled():

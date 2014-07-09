@@ -226,14 +226,13 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
         else:
             partition = '--partition={:.0f}'.format(mpirun_par['partition'])    
             
-        cmd = ("srun -n {num_proc} {time_} {memory} {partition} "
+        cmd = ("srun {time_} {memory} {partition} "
                "mpirun -np {num_proc} {hostfile} {byslot} {python} "
            "{mpirun_loc} {args}").format(**locals())
         print cmd
         flag = subprocess.call(cmd, shell=True)
-        raise SystemExit
         
-        
+    # MPI using the TORQUE scheduler    
     elif mpirun_par.get_context().split(':')[-1] == 'torque':
         
         # Get extra arguments for Torque

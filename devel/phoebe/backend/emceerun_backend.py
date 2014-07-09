@@ -1,21 +1,21 @@
 #!/usr/bin/python
 import os
+import pickle
+import sys
+import numpy as np
+import scipy.stats as st
+import matplotlib.pyplot as plt
 import emcee
 try:
     from emcee.utils import MPIPool
     from mpi4py import MPI
 except ImportError:
     pass
-import numpy
-import phoebe
 from phoebe.backend import universe
-import pickle
-import sys
-import numpy as np
-import scipy.stats as st
-import matplotlib.pyplot as plt
-
+from phoebe.utils import utils
 mpi = True
+
+logger = utils.get_basic_logger(clevel='INFO')
 
 def save_pickle(data, fn):
     f = open(fn, 'w')
@@ -42,7 +42,7 @@ def lnprob(values, pars, system, compute_params):
     try:
         system.compute(params=compute_params)
     except Exception as msg:
-        print("Compute failed with message: {} --> logp=-inf".format(str(msg)))
+        logger.warning("Compute failed with message: {} --> logp=-inf".format(str(msg)))
         return -np.inf, None
     
     logp, chi2, N = system.get_logp(include_priors=True)
@@ -56,7 +56,6 @@ def lnprob(values, pars, system, compute_params):
     # And finally get the parameters that are not adjustable but have a prior
     derived = system.get_parameters_with_priors(is_adjust=False, is_derived=True)
     derived = [par.get_value() for par in derived]
-    
     
     return logp, (auto_fitted, derived)
     
@@ -153,11 +152,14 @@ def multivariate_init(mysystem, nwalkers, draw_from='prior'):
             prs = st.pearsonr(getattr(ipar, get_func)().distr_pars['trace'],
                               getattr(jpar, get_func)().distr_pars['trace'])[0]
             cor[i, j] = prs * sigmas[i] * sigmas[j]
-            
+
     # Sample is shape nwalkers x npars
     sample = np.random.multivariate_normal(averages, cor, nwalkers)
     
-    # Check if all initial values satisfy the limits and priors
+    # Check if all initial values satisfy the limits and priors. If not,
+    # draw a new random sample and check again. Don't try more than 100 times,
+    # after that we just need to live with walkers that have zero probability
+    # to start with...
     for i, walker in enumerate(sample):
         max_try = 100
         current_try = 0
@@ -166,13 +168,14 @@ def multivariate_init(mysystem, nwalkers, draw_from='prior'):
             for par, value in zip(pars, walker):
                 par.set_value(value)
                 sample[i] = walker
-        
             # Perform the check; if it doesn't work out, retry
             if not mysystem.check() and current_try < max_try:
-                walker = np.random.multivariate_normal(averages, cor, 1)[:,0]                                        
+                walker = np.random.multivariate_normal(averages, cor, 1)[0]
                 current_try += 1
             else:
                 break
+        else:
+            logger.warning("Walker {} could not be initalised with valid parameters".format(i))
     
     return sample
 
@@ -197,7 +200,7 @@ def update_progress(system, sampler, fitparams, last=10):
                                      np.median(pos), np.std(pos), chain[best_walker, best_iter, i]))
     
     text = "\n".join(text) +'\n'
-    print(text)
+    logger.warning(text)
     
     
 
@@ -252,7 +255,7 @@ def run(system_file, compute_params_file, fit_params_file):
     
     # List the parameters that are derived
     derived = system.get_parameters_with_priors(is_adjust=False, is_derived=True)
-    derived_ids = [par.get_qualifier() for par in derived]
+    derived_ids = [par.get_unique_label() for par in derived]
     derived_prior_labels = ["".join(str(par.get_prior()).split()) for par in derived]
     derived = [par.get_qualifier() for par in derived]
     
@@ -272,28 +275,28 @@ def run(system_file, compute_params_file, fit_params_file):
         # Get the start condition
         p0 = chain[-1]
         
-        print("Continuing previous run (starting at iteration {})".format(niterations))
+        logger.warning("Continuing previous run (starting at iteration {})".format(niterations))
         
     
     # Or start from scratch
     else:
         if fit_params['init_from'] == 'previous_run':
-            print("Cannot continue from previous run, starting new one")
+            logger.warning("Cannot continue from previous run, starting new one")
         # now, if the number of walkers is smaller then twice the number of
         # parameters, adjust that number to the required minimum and raise a warning
         
         if (2*pars.shape[1]) > nwalkers:
-            print("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
+            logger.warning("Number of walkers ({}) cannot be smaller than 2 x npars: set to {}".format(nwalkers,2*pars.shape[1]))
             nwalkers = 2*pars.shape[1]
             fit_params['walkers'] = nwalkers
     
         # Initialize a set of parameters
         try:
             p0 = multivariate_init(system, nwalkers, draw_from=fit_params['init_from'])
-            print("Initialised walkers from {} with multivariate normals".format(fit_params['init_from']))
+            logger.warning("Initialised walkers from {} with multivariate normals".format(fit_params['init_from']))
         except ValueError:
             p0 = univariate_init(system, nwalkers, draw_from=fit_params['init_from'])
-            print("Initialised walkers from {} with univariate distributions".format(fit_params['init_from']))
+            logger.warning("Initialised walkers from {} with univariate distributions".format(fit_params['init_from']))
         
         # Only start a new file if we do not require incremental changes
         if not fit_params['incremental']:
@@ -324,14 +327,20 @@ def run(system_file, compute_params_file, fit_params_file):
                         % (k, " ".join(['%.10e' % i for i in position[k]])))
                 
                 # Write auto-fitted parameters
-                if len(auto):
+                if len(auto) and blobs[k] is not None:
                     f.write(" %s"
                             % (" ".join(['%.10e' % i for i in blobs[k][0]])))
+                elif len(auto):
+                    f.write(" %s"
+                            % (" ".join(['nan' for i in auto])))
                 
                 # Write derived parameters
-                if len(derived):
+                if len(derived) and blobs[k] is not None:
                     f.write(" %s"
                             % (" ".join(['%.10e' % i for i in blobs[k][1]])))
+                elif len(derived):
+                    f.write(" %s"
+                            % (" ".join(['nan' for i in derived])))
                 
                 # Write logprob
                 f.write(" %.10e\n" % (logprob[k]))
@@ -349,15 +358,18 @@ def run(system_file, compute_params_file, fit_params_file):
     
     if mpi:
         pool.close()
-    save_pickle([result, 0, sampler.chain], label + '.mcmc_run.dat')
+    #save_pickle([result, 0, sampler.chain], label + '.mcmc_run.dat')
 
 
 
 if __name__ == '__main__':
-    
     system_file = sys.argv[1]
     fit_params_file = sys.argv[2]
     compute_params_file = sys.argv[3]
+    logger_level = sys.argv[4]
+    
+    logger.setLevel(logger_level)
+    
     run(system_file, fit_params_file, compute_params_file)
     
     

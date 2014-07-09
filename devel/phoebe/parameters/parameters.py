@@ -1291,7 +1291,7 @@ class Parameter(object):
             #self.value = old_value
             logger.error('value {0} for {1} is outside of range [{2},{3}]: set to {4}'.format(value,self.qualifier,self.llim,self.ulim,self.value))
         elif has_limits and not inside_limits:
-            logger.warning('value {0} for {1} is outside of range [{2},{3}] (ignored)'.format(value,self.qualifier,self.llim,self.ulim))
+            logger.info('value {0} for {1} is outside of range [{2},{3}] (ignored)'.format(value,self.qualifier,self.llim,self.ulim))
     
     def set_value_from_prior(self):
         """
@@ -2322,7 +2322,7 @@ class ParameterSet(object):
         else:
             return adjusts
     
-    def has_prior(self,*qualifiers):
+    def has_prior(self, *qualifiers):
         """
         Return True if a parameter has a prior.
         """
@@ -2335,6 +2335,18 @@ class ParameterSet(object):
         else:
             return priors
     
+    def has_posterior(self, *qualifiers):
+        """
+        Return True if a parameter has a posterior.
+        """
+        posts = []
+        for qualifier in qualifiers:
+            qualifier = self.alias2qualifier(qualifier)
+            posts.append(self.container[qualifier].has_posterior())
+        if len(posts) == 1:
+            return posts[0]
+        else:
+            return posts
     
     #{ Accessibility to the values and units
     
@@ -3447,7 +3459,10 @@ def return_equatorial_ra(value, unit=None):
     Parse equatorial coordinates in whatever value
     """
     if not 'ephem' in globals():
-        return float(value)
+        try:
+            return float(value)
+        except:
+            raise ValueError("Cannot convert '{}' to float, perhaps you don't have pyephem? In that case, you need to give ra/dec as floats".format(value))
 
     try:
         value = float(value)
@@ -3464,7 +3479,11 @@ def return_equatorial_dec(value, unit=None):
     Parse equatorial coordinates in whatever value
     """
     if not 'ephem' in globals():
-        return float(value)
+        try:
+            return float(value)
+        except:
+            raise ValueError("Cannot convert '{}' to float, perhaps you don't have pyephem? In that case, you need to give ra/dec as floats".format(value))
+
     
     try:
         value = float(value)

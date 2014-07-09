@@ -12,7 +12,6 @@ import os
 import logging
 import glob
 import numpy as np
-import phoebe
 from phoebe.parameters import parameters
 from phoebe.parameters import tools
 from phoebe.parameters import datasets
@@ -1969,24 +1968,24 @@ def wd_to_phoebe(filename, mesh='marching', create_body=True):
     lcdep1['pblum'] = lc['hla']
     lcdep2['pblum'] = lc['cla']
     delta = 10**(-0.98359345*np.log10(ps['n1'])+0.4713824)
-    mesh1 = phoebe.ParameterSet(frame='phoebe', context='mesh:marching',
+    mesh1 = parameters.ParameterSet(frame='phoebe', context='mesh:marching',
                                 delta=delta, alg='c')
-    mesh2 = phoebe.ParameterSet(frame='phoebe', context='mesh:marching',
+    mesh2 = parameters.ParameterSet(frame='phoebe', context='mesh:marching',
                                 delta=delta, alg='c')
     curve, params = wd.lc(ps, request='curve', light_curve=lc, rv_curve=rv)
-    lcobs = phoebe.LCDataSet(columns=['time','flux','sigma'], time=curve['indeps'],
+    lcobs = datasets.LCDataSet(columns=['time','flux','sigma'], time=curve['indeps'],
                              sigma=0.001*curve['lc'],
                              flux=curve['lc'], ref=lcdep1['ref'])
-    rvobs1 = phoebe.RVDataSet(columns=['time','rv','sigma'], time=curve['indeps'],
+    rvobs1 = datasets.RVDataSet(columns=['time','rv','sigma'], time=curve['indeps'],
                              sigma=0.001*curve['rv1']*100,
                              rv=curve['rv1']*100, ref=rvdep1['ref'])
-    rvobs2 = phoebe.RVDataSet(columns=['time','rv','sigma'], time=curve['indeps'],
+    rvobs2 = datasets.RVDataSet(columns=['time','rv','sigma'], time=curve['indeps'],
                              sigma=0.001*curve['rv2']*100,
                              rv=curve['rv2']*100, ref=rvdep2['ref'])
 
-    star1 = phoebe.BinaryRocheStar(star1, orbit, mesh1, pbdep=[lcdep1, rvdep1], obs=[rvobs1])
-    star2 = phoebe.BinaryRocheStar(star2, orbit, mesh2, pbdep=[lcdep2, rvdep2], obs=[rvobs2])
-    system = phoebe.BodyBag([star1, star2], position=position, obs=[lcobs], label='system')
+    star1 = universe.BinaryRocheStar(star1, orbit, mesh1, pbdep=[lcdep1, rvdep1], obs=[rvobs1])
+    star2 = universe.BinaryRocheStar(star2, orbit, mesh2, pbdep=[lcdep2, rvdep2], obs=[rvobs2])
+    system = universe.BodyBag([star1, star2], position=position, obs=[lcobs], label='system')
     logger.info("Successfully parsed WD lcin file {}".format(filename))
     return system
 
