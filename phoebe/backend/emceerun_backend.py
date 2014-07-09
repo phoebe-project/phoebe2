@@ -281,7 +281,8 @@ def run(system_file, compute_params_file, fit_params_file):
     # Or start from scratch
     else:
         if fit_params['init_from'] == 'previous_run':
-            logger.warning("Cannot continue from previous run, starting new one")
+            logger.warning("Cannot continue from previous run, starting new one from priors")
+            fit_params['init_from'] = 'prior'
         # now, if the number of walkers is smaller then twice the number of
         # parameters, adjust that number to the required minimum and raise a warning
         

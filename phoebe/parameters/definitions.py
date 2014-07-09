@@ -570,7 +570,7 @@ defs += [dict(qualifier='iters',     description='Number of iterations',repr='%d
          dict(qualifier='burn',     description='Burn parameter',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:pymc'),
-         dict(qualifier='incremental',description='Store results in a pickle file and start from previous results',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:pymc'),
+         dict(qualifier='incremental',description='Add results to previously computed chain file',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:pymc'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:pymc'),
         ]
 
@@ -587,7 +587,7 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
                                                       "around the a priori preferred position. Don't worry, "
                                                       "the walkers quickly branch out and explore the rest of the space."),repr='%d',cast_type=int,value=6,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='init_from',     description='Initialize walkers from priors, posteriors or previous run', cast_type='choose', choices=['prior', 'posterior', 'previous_run'], value='prior', repr='%s', frame=["phoebe"],context='fitting:emcee'),
-         dict(qualifier='incremental',description='Continue from previous calculations',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
+         dict(qualifier='incremental',description='Add results to previously computed chain file',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context='fitting:emcee'),
         ]

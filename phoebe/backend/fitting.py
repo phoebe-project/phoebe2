@@ -673,6 +673,13 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         fitparams = parameters.ParameterSet(frame='phoebe',
                                             context='fitting:lmfit')
     
+    # For lmfit, the initial values need to make sense
+    # Check if everything is OK (parameters are inside limits and/or priors)
+    passed, errors = self.check(return_errors=True)
+    if not passed:
+        raise ValueError(("Some parameters are outside of reasonable limits or "
+                          "prior bounds: {}").format(", ".join(errors)))
+    
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
     # name (we'll also use the identifier in the parameter name to make sure

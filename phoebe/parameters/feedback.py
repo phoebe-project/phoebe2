@@ -522,6 +522,7 @@ class FeedbackEmcee(Feedback):
         data = data[select]
         walkers = walkers[select]
         logp = logp[select]
+        index = np.argmax(logp)
         
         sigmas = np.std(data, axis=0)
         correl = np.zeros((npars, npars))
@@ -531,7 +532,7 @@ class FeedbackEmcee(Feedback):
                 if i==j:
                     correl[i,j] = 1.0
                     keep = -np.isnan(data[:,i]) & -np.isinf(data[:,i])
-                    self._parameters[i].set_value(np.median(data[keep,i]))
+                    self._parameters[i].set_value(data[keep,i][index])
                     self._parameters[i].set_posterior(distribution='trace',
                                                       trace=data[:,i])
                 else:
@@ -687,6 +688,12 @@ class FeedbackEmcee(Feedback):
                     
                     ax.contourf(mp,origin='lower',interpolation='gaussian',extent=(xmin,xmax,ymin,ymax),aspect=(xmax-xmin)/(ymax-ymin),cmap=plt.cm.gray_r,levels=levels)
                     ax.contour(mp,origin='lower',interpolation='gaussian',extent=(xmin,xmax,ymin,ymax),aspect=(xmax-xmin)/(ymax-ymin),colors='k',levels=levels)
+                    
+                    prs = self._cormat[col, row]
+                    if np.abs(prs)>=0.75:
+                        ax.set_axis_bgcolor((0.6,1.0,0.6))
+                    elif np.abs(prs)>=0.50:
+                        ax.set_axis_bgcolor((0.9,1.0,0.9))
                     
                     #if priors is not None and i<len(priors):
                         #axs[ai].set_xlim(priors[i])
