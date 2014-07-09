@@ -364,7 +364,7 @@ def lc(binary_parameter_set,request='curve',light_curve=None,rv_curve=None,filen
             bps.add(dict(qualifier='nsp2',description='Number of spots on secondary',repr='%d',cast_type=int,value=len(bps['xlat2'])))
         
         args = [bps['mpage'],bps['nref'],bps['mref'],bps['ifsmv1'],bps['ifsmv2'],bps['icor1'],
-                bps['icor2'],bps['ld_model'],light_curve['jdphs'],bps['hjd0'],bps['period'],bps['dpdt'],
+                bps['icor2'],bps['ld_model'],light_curve['indep_type'],bps['hjd0'],bps['period'],bps['dpdt'],
                 bps['pshift'],bps['stdev'],bps['noise'],bps['seed'],light_curve['jdstrt'],light_curve['jdend'],
                 light_curve['jdinc'],light_curve['phstrt'],light_curve['phend'],light_curve['phinc'],light_curve['phnorm'],bps['model'],
                 bps['ipb'],bps['ifat1'],bps['ifat2'],bps['n1'],bps['n2'],bps['perr0'],

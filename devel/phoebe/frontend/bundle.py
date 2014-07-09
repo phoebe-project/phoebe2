@@ -3401,13 +3401,7 @@ class Bundle(Container):
             if k in fittingoptions.keys():
                 fittingoptions.set_value(k,v)
             elif k in computeoptions.keys():
-                computeoptions.set_value(k,v)
-        
-        # Check if everything is OK (parameters are inside limits and/or priors)
-        passed, errors = self.check(return_errors=True)
-        if not passed:
-            raise ValueError(("Some parameters are outside of reasonable limits or "
-                              "prior bounds: {}").format(", ".join(errors)))
+                computeoptions.set_value(k,v)        
         
         # Remember the initial values of the adjustable parameters, we'll reset
         # them later:
@@ -3465,7 +3459,7 @@ class Bundle(Container):
         [FUTURE]
         """
         if fittinglabel is None:
-            fittinglabel = os.path.basename(feedback_file).rstrip('.mcmc_chain.dat')
+            fittinglabel = os.path.basename(feedback_file).split('.mcmc_chain.dat')[0]
             
         fittingoptions = self.get_fitting(fittinglabel).copy()
         computeoptions = self.get_compute(fittingoptions['computelabel']).copy()

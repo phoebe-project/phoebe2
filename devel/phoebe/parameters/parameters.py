@@ -633,7 +633,7 @@ class Parameter(object):
     _valid_keys = ['qualifier', 'value', 'adjust', 'step', 'ulim', 'llim',
                    'unit', 'context', 'description', 'frame', 'cast_type',
                    'long_description', 'repr', 'prior', 'posterior',
-                   'choices']
+                   'choices', 'alias']
     
     #{ General methods
     def __init__(self,qualifier=None,**props):
