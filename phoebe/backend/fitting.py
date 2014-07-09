@@ -675,7 +675,7 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     
     # For lmfit, the initial values need to make sense
     # Check if everything is OK (parameters are inside limits and/or priors)
-    passed, errors = self.check(return_errors=True)
+    passed, errors = system.check(return_errors=True)
     if not passed:
         raise ValueError(("Some parameters are outside of reasonable limits or "
                           "prior bounds: {}").format(", ".join(errors)))
