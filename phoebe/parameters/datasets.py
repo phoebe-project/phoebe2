@@ -2615,7 +2615,7 @@ def parse_phot(filenames, columns=None, full_output=False, group=None,
                 #   passband, and add that dataset to the master OrderedDicts
                 for passband in passbands:
                     subselection = selection[selection['passband']==passband]
-                    ref = "{}-{}".format(passband,filename)
+                    ref = "{}-{}".format(group, passband)
                     components[label][0].append(ds.copy())
                     components[label][1].append(pb.copy())
                     #-- fill in the actual data

@@ -1043,6 +1043,211 @@ def plot_etvsyn(system,*args,**kwargs):
     
     return artists,syn
     
+
+
+def plot_sedobs(system, *args, **kwargs):
+    """
+    Plot lcobs as sed.
+    """
+    # Get parameterSets
+    group = kwargs.pop('ref')
+    time = kwargs.pop('time', None)
+    cmap = kwargs.pop('cmap', plt.cm.spectral)
+    
+    # We'll need to plot all the observations of the LC category with this group
+    all_lc_refs = system.get_refs(category='lc')
+    all_lc_refs = [ref for ref in all_lc_refs if ref[:len(group)] == group]
+        
+    kwargs.setdefault('label', group + ' (obs)')
+    simulate = kwargs.pop('simulate', False)
+    
+    # Retrieve extra information
+    x_unit = kwargs.pop('x_unit', 'nm')
+    y_unit = kwargs.pop('y_unit', 'W/m3')
+    
+    to_plot = OrderedDict()
+    
+    # Collect the points per passband system, not per passband
+    for j,ref in enumerate(all_lc_refs):
+        # Get the pbdep (for info) and the synthetics
+        dep, ref = system.get_parset(type='pbdep', ref=ref)
+        obs, ref = system.get_parset(type='obs', ref=ref)
+        
+        passband = dep['passband']
+        pass_sys = os.path.splitext(passband)[0]
+                
+        # An SED means we need the effective wavelength of the passbands
+        if time is not None:
+            right_time = (obs['time'] == time)    
+        else:
+            right_time = np.ones(len(obs['time']), bool)
+            
+        if not np.any(right_time):
+            continue    
+        
+        wave = [passbands.get_response(passband, full_output=True)[2]['WAVLEFF']]
+        wave = np.array(list(wave) * len(obs['flux'][right_time]))
+        wave = conversions.convert('AA', x_unit, wave)
+        
+        y = obs['flux'][right_time]
+        e_y = obs['sigma'][right_time]
+        
+        y, e_y = conversions.convert('W/m3', y_unit, y, e_y, passband=passband)
+        
+        if not pass_sys in to_plot:
+            to_plot[pass_sys] = dict(x=[], y=[], e_y=[], obs=[])        
+        
+        to_plot[pass_sys]['x'].append(wave)
+        to_plot[pass_sys]['y'].append(y)
+        to_plot[pass_sys]['e_y'].append(e_y)
+    
+        to_plot[pass_sys]['obs'].append(obs.asarray()) # to make a copy
+        to_plot[pass_sys]['obs'][-1]['time'] = wave # fake!
+        to_plot[pass_sys]['obs'][-1]['flux'] = y
+        to_plot[pass_sys]['obs'][-1]['sigma'] = e_y
+        
+    
+    # Decide on the colors
+    color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
+    
+    ax = kwargs.pop('ax',plt.gca())
+    
+    
+    axes_labels = [conversions.get_type(x_unit).title(),
+                   conversions.get_type(y_unit).title()]    
+    axes_units = [conversions.unit2texlabel(x_unit),
+                  conversions.unit2texlabel(y_unit)]
+    
+    if axes_labels[0] == 'Length':
+        axes_labels[0] = 'Wavelength'
+    
+    # And finally plot the points
+    artists = []
+    allobs = []
+    for key in to_plot.keys():
+        kwargs_ = kwargs.copy()
+        # Get data
+        x = np.hstack(to_plot[key]['x'])
+        y = np.hstack(to_plot[key]['y'])
+        e_y = np.hstack(to_plot[key]['e_y'])
+        
+        # Plot data
+        if kwargs['label'] and kwargs['label'] != '_nolegend_':
+            kwargs_['label'] = key + ' (obs)'
+        kwargs_.setdefault('color',color_cycle.next())
+        if not simulate:
+            artists.append(ax.errorbar(x, y, yerr=e_y, **kwargs_))
+        allobs.append(to_plot[key]['obs'])
+    
+    return artists, obs, (axes_labels, axes_units)
+
+    
+    
+def plot_sedsyn(system, *args, **kwargs):
+    """
+    Plot lcobs as sed.
+    """
+    # Get parameterSets
+    group = kwargs.pop('ref')
+    time = kwargs.pop('time', None)
+    cmap = kwargs.pop('cmap', plt.cm.spectral)
+    scale = kwargs.pop('scale', 'obs')
+    
+    # We'll need to plot all the observations of the LC category with this group
+    all_lc_refs = system.get_refs(category='lc')
+    all_lc_refs = [ref for ref in all_lc_refs if ref[:len(group)] == group]
+    
+    kwargs.setdefault('label', group + ' (syn)')
+    simulate = kwargs.pop('simulate', False)
+    
+    # Retrieve extra information
+    x_unit = kwargs.pop('x_unit', 'nm')
+    y_unit = kwargs.pop('y_unit', 'W/m3')
+    
+    to_plot = OrderedDict()
+    
+    # Collect the points per passband system, not per passband
+    for j,ref in enumerate(all_lc_refs):
+        # Get the pbdep (for info) and the synthetics
+        dep, ref = system.get_parset(type='pbdep', ref=ref)
+        syn = system.get_synthetic(ref=ref).asarray() # to make a copy
+        obs = system.get_obs(category='lc', ref=ref)
+        
+        # Try to get the observations. They don't need to be loaded, we just need
+        # the scale and offset values.
+        # We can scale the synthetic light curve using the observations
+        this_scale = 1.0
+        this_offset = 0.0
+        if scale == 'obs' and obs is not None:
+            this_scale = obs['scale']
+            this_offset = obs['offset']
+        
+        passband = dep['passband']
+        pass_sys = os.path.splitext(passband)[0]
+                
+        # An SED means we need the effective wavelength of the passbands
+        if time is not None:
+            right_time = (syn['time'] == time)    
+        else:
+            right_time = np.ones(len(syn['time']), bool)
+            
+        if not np.any(right_time):
+            continue    
+        
+        wave = [passbands.get_response(passband, full_output=True)[2]['WAVLEFF']]
+        wave = np.array(list(wave) * len(syn['flux'][right_time]))
+        wave = conversions.convert('AA', x_unit, wave)
+        
+        y = syn['flux'][right_time] * this_scale + this_offset
+        
+        y = conversions.convert('W/m3', y_unit, y,passband=passband)
+        
+        if not pass_sys in to_plot:
+            to_plot[pass_sys] = dict(x=[], y=[], syn=[])        
+        
+        to_plot[pass_sys]['x'].append(wave)
+        to_plot[pass_sys]['y'].append(y)
+    
+        to_plot[pass_sys]['syn'].append(syn) 
+        to_plot[pass_sys]['syn'][-1]['time'] = wave # fake!
+        to_plot[pass_sys]['syn'][-1]['flux'] = y
+        
+    
+    # Decide on the colors
+    color_cycle = itertools.cycle(cmap(np.linspace(0, 1, len(list(to_plot.keys())))))
+    
+    ax = kwargs.pop('ax',plt.gca())
+    
+    
+    axes_labels = [conversions.get_type(x_unit).title(),
+                   conversions.get_type(y_unit).title()]    
+    axes_units = [conversions.unit2texlabel(x_unit),
+                  conversions.unit2texlabel(y_unit)]
+    
+    if axes_labels[0] == 'Length':
+        axes_labels[0] = 'Wavelength'
+    
+    # And finally plot the points
+    artists = []
+    allsyn = []
+    for key in to_plot.keys():
+        kwargs_ = kwargs.copy()
+        # Get data
+        x = np.hstack(to_plot[key]['x'])
+        y = np.hstack(to_plot[key]['y'])
+        
+        # Plot data
+        if kwargs['label'] and kwargs['label'] != '_nolegend_':
+            kwargs_['label'] = key + ' (syn)'
+        kwargs_.setdefault('color',color_cycle.next())
+        if not simulate:
+            artists.append(ax.plot(x, y, *args, **kwargs_))
+        allsyn.append(to_plot[key]['syn'])
+    
+    return artists, syn, (axes_labels, axes_units)
+
+    
+    
 def plot_etvobs(system,errorbars=True,**kwargs):
     """
     Plot etvobs as a etv curve.
@@ -1707,11 +1912,12 @@ def plot_spobs(system, *args, **kwargs):
     # Get parameterSets
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
-    obs = system.get_obs(category='sp', ref=ref).asarray() # to make a copy
-    dep, ref = system.get_parset(category='lc', ref=ref)
+    category = kwargs.pop('category', 'sp')
+    obs = system.get_obs(category=category, ref=ref).asarray() # to make a copy
+    dep, ref = system.get_parset(category=category, ref=ref)
     kwargs.setdefault('label', obs['ref'] + ' (obs)')
     simulate = kwargs.pop('simulate', False)
-    normalised = kwargs.pop('normalised', True)
+    normalise = kwargs.pop('normalise', 'continuum') # can be False too!
     
     period, t0, shift = system.get_period()
     
@@ -1732,38 +1938,43 @@ def plot_spobs(system, *args, **kwargs):
     phased = kwargs.pop('phased', default_phased)
     x_unit = kwargs.pop('x_unit', None)
     y_unit = kwargs.pop('y_unit', None)
-    x_quantity = kwargs.pop('x_quantity', 'length')
+    x_quantity = kwargs.pop('x_quantity', 'wavelength')
     y_quantity = kwargs.pop('y_quantity', 'flux')
+    sigma_y = 'sigma' if y_quantity=='flux' else 'sigma_'+y_quantity
     
     ax = kwargs.pop('ax', plt.gca())
     
     # Get the wavelength, flux and continuum
-    wavelength = np.ravel(obs['wavelength'])
-    wavelength = wavelength.reshape(-1,len(obs['flux'][0]))
+    wavelength = np.ravel(obs[x_quantity])
+    wavelength = wavelength.reshape(-1,len(obs[y_quantity][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
-    flux = obs['flux'][index]
-    cont = obs['continuum'][index]
+    flux = obs[y_quantity][index]
+    if normalise:
+        cont = obs[normalise][index]
+    else:
+        cont = np.ones_like(flux)
+        
     
     # remember what axes we've plotted
     axes_labels = ['', '']
     axes_units = ['','']
     
-    sigm = obs['sigma'][index] if ('sigma' in obs.keys() and len(obs['sigma']) and np.all(obs['sigma'][index]>0)) else None
+    sigm = obs[sigma_y][index] if (sigma_y in obs.keys() and len(obs[sigma_y]) and np.all(obs[sigma_y][index]>0)) else None
     kwargs.setdefault('yerr', sigm)
     has_error = kwargs['yerr'] is not None
     if has_error and np.isscalar(kwargs['yerr']):
         kwargs['yerr'] = np.ones(len(flux))*kwargs['yerr']
     
-    if normalised:
-        flux = flux / cont
-    if normalised and has_error:
+    flux = flux / cont
+    if has_error:
         kwargs['yerr'] = kwargs['yerr'] / cont
     
     artists = []
     p = ax.errorbar(wavelength, flux,  **kwargs)
     artists.append(p)
     
-    if loaded: obs.unload()
+    if loaded:
+        obs.unload()
     
     return artists, obs, (axes_labels, axes_units)
     
@@ -1776,14 +1987,12 @@ def plot_spsyn(system, *args, **kwargs):
     # Get parameterSets
     ref = kwargs.pop('ref', 0)
     index = kwargs.pop('index', 0)
-    dep, ref = system.get_parset(category='sp', ref=ref)
-    syn = system.get_synthetic(category='sp', ref=ref).asarray()
+    category = kwargs.pop('category', 'sp')
+    dep, ref = system.get_parset(category=category, ref=ref)
+    syn = system.get_synthetic(category=category, ref=ref).asarray()
     kwargs.setdefault('label', syn['ref'] + ' (syn)')
     simulate = kwargs.pop('simulate', False)
-    normalised = kwargs.pop('normalised', True)
-    
-    if not normalised:
-        raise NotImplementedError("Plotting unnormalised spectra")
+    normalise = kwargs.pop('normalise', 'continuum')
     
     # catch fmt for the user that is set up by the MPL quirkiness:
     fmt = kwargs.pop('fmt', None)
@@ -1815,14 +2024,15 @@ def plot_spsyn(system, *args, **kwargs):
     y_unit = kwargs.pop('y_unit', None)
     x_quantity = kwargs.pop('x_quantity', 'wavelength')
     y_quantity = kwargs.pop('y_quantity', 'flux')
+    sigma_y = 'sigma' if y_quantity=='flux' else 'sigma_'+y_quantity
     
     # Get the wavelengths in the right shape
-    wavelength = np.ravel(np.array(syn['wavelength']))
-    wavelength = wavelength.reshape(-1,len(syn['flux'][0]))
+    wavelength = np.ravel(np.array(syn[x_quantity]))
+    wavelength = wavelength.reshape(-1,len(syn[y_quantity][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
     
     # Convert the wavelengths to the correct units
-    from_unit = syn.get_parameter('wavelength').get_unit()    
+    from_unit = syn.get_parameter(x_quantity).get_unit()    
     if x_unit is not None:
         wavelength = conversions.convert(from_unit, x_unit, wavelength,
                                    wave=(np.median(wavelength),from_unit))
@@ -1831,13 +2041,16 @@ def plot_spsyn(system, *args, **kwargs):
         x_unit = from_unit
     
     # Get the fluxes
-    wavelength = np.ravel(syn['wavelength'])
-    wavelength = wavelength.reshape(-1,len(syn['flux'][0]))
+    wavelength = np.ravel(wavelength)
+    wavelength = wavelength.reshape(-1,len(syn[y_quantity][0]))
     wavelength = wavelength[min(index,wavelength.shape[0]-1)]
-    flux = syn['flux'][index]
-    cont = syn['continuum'][index]
+    flux = syn[y_quantity][index]
+    if normalise:
+        cont = syn[normalise][index]
+    else:
+        cont = np.ones_like(flux)
     
-    if normalised:
+    if normalise:
         flux = flux / cont
     
     phased = kwargs.pop('phased', default_phased)
@@ -1854,10 +2067,15 @@ def plot_spsyn(system, *args, **kwargs):
         this_offset = obs['offset']
     
     flux = flux*this_scale + this_offset
-    print this_scale, this_offset
+    
     # remember what axes we've plotted
-    axes_labels = ['', 'Normalised flux']
-    axes_units = ['','']
+    translation = dict(length='wavelength', flux_continuum='Normalised flux',
+                       V_flux='Stokes V/I')
+    xtype = conversions.get_type(x_unit)
+    ylabel = translation.get(y_quantity+'_'+str(normalise), y_quantity).title()
+    axes_labels = [translation.get(xtype, xtype).title(), ylabel]
+    axes_units = [conversions.unit2texlabel(x_unit),
+                  conversions.unit2textlabel(y_unit) if not normalise else '']
     
     artists = []
     
@@ -1946,7 +2164,7 @@ def plot_spdep_as_profile(system,index=0,ref=0,residual=False,
     if loaded_obs: obs.unload()
     if loaded_syn: syn.unload()
     
-def plot_ifsyn(system, *args, **kwargs):
+def plot_ifsyn_old(system, *args, **kwargs):
     """
     Plot ifsyn.
     
@@ -2004,7 +2222,168 @@ def plot_ifsyn(system, *args, **kwargs):
         syn.unload()
 
 
-def plot_ifobs(system, *args, **kwargs):
+
+def plot_ifobs(system, **kwargs):
+    """
+    Plot ifobs.
+    
+    Parameter ``x`` can be any of:
+    
+        - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'time'``: plot visibilities wrt time
+    
+    Parameter ``y`` can be any of:
+    
+        - ``'vis'``: Visibilities
+        - ``'vis2'``: Squared visibilities
+        - ``'phase'``: Phases
+    
+    """
+    # Get some default parameters
+    ref = kwargs.pop('ref', 0)
+    
+    # Get parameterSets and set a default label if none is given
+    obs = system.get_obs(category='if', ref=ref).asarray() # to make a copy
+    dep, ref = system.get_parset(category='if', ref=ref)
+    kwargs.setdefault('label', obs['ref'] + ' (obs)')
+    simulate = kwargs.pop('simulate', False)    
+    
+    # Load observations: they need to be here
+    loaded = obs.load(force=False)
+    
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    x_quantity = kwargs.pop('x_quantity', 'baseline')
+    y_quantity = kwargs.pop('y_quantity', 'vis2')
+    ax = kwargs.pop('ax', plt.gca())
+    
+    # Collect X-data for plotting
+    if x_quantity == 'baseline':
+        x = np.sqrt(obs['ucoord']**2 + obs['vcoord']**2)
+        if x_unit is None:
+            x_unit = 'm'
+        x = conversions.convert('m', x_unit, x)
+    else:
+        x = obs[x]
+        x_unit_o = obs.get_parameter(x).get_unit()
+        if x_unit is None:
+            x_unit = x_unit_o
+        x = conversions.convert(x_unit_o, x_unit, x)
+    
+    # Are there uncertainties on X?
+    if 'sigma_'+x_quantity in obs:
+        e_x = obs['sigma_'+x_quantity]
+        e_x = conversions.convert(x_unit_o, x_unit, e_x)
+    else:
+        e_x = None
+    
+    # Collect Y-data for plotting
+    if y_quantity == 'vis':
+        y = np.sqrt(obs['vis2'])
+    else:
+        y = obs[y_quantity]
+    
+    if y_unit is None:
+        y_unit = ''
+    
+    # Are there uncertainties on Y?
+    if 'sigma_'+y_quantity in obs:
+        e_y = obs['sigma_'+y_quantity]
+    else:
+        e_y = None
+    
+    
+    if not simulate:
+        artists = []
+        p = ax.errorbar(x, y, xerr=e_y, yerr=e_y,**kwargs)
+        artists.append(p)
+    
+    if loaded:
+        obs.unload()
+    
+    translation = dict(vis2='Squared visibility', vis='Visibility')
+    if y_quantity in translation:
+        y_quantity = translation[y_quantity]
+        
+        
+    axes_labels = [x_quantity.title(), y_quantity.title()]
+    axes_units = [conversions.unit2texlabel(x_unit),
+                  conversions.unit2texlabel(y_unit)]
+    
+    return artists, obs, (axes_labels, axes_units)
+    
+
+def plot_ifsyn(system, *args, **kwargs):
+    """
+    Plot ifsyn.
+    
+    Keyword :envvar:`x` can be any of:
+    
+        - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'time'``: plot visibilities wrt time
+    
+    Keyword :envvar:`y` can be any of:
+    
+        - ``'vis'``: Visibilities
+        - ``'vis2'``: Squared visibilities
+        - ``'phase'``: Phases
+    
+    """
+    # Get some default parameters
+    ref = kwargs.pop('ref', 0)
+    
+    # Get parameterSets and set a default label if none is given
+    syn = system.get_synthetic(category='if', ref=ref).asarray() # to make a copy
+    dep, ref = system.get_parset(category='if', ref=ref)
+    kwargs.setdefault('label', syn['ref'] + ' (syn)')
+    simulate = kwargs.pop('simulate', False)    
+    
+    x_unit = kwargs.pop('x_unit', None)
+    y_unit = kwargs.pop('y_unit', None)
+    x_quantity = kwargs.pop('x_quantity', 'baseline')
+    y_quantity = kwargs.pop('y_quantity', 'vis2')
+    ax = kwargs.pop('ax', plt.gca())
+    
+    # Collect X-data for plotting
+    if x_quantity == 'baseline':
+        x = np.sqrt(syn['ucoord']**2 + syn['vcoord']**2)
+        if x_unit is None:
+            x_unit = 'm'
+        x = conversions.convert('m', x_unit, x)
+    else:
+        x = syn[x]
+        x_unit_o = syn.get_parameter(x).get_unit()
+        if x_unit is None:
+            x_unit = x_unit_o
+        x = conversions.convert(x_unit_o, x_unit, x)
+    
+    # Collect Y-data for plotting
+    if y_quantity == 'vis':
+        y = np.sqrt(syn['vis2'])
+    else:
+        y = syn[y_quantity]
+    
+    if y_unit is None:
+        y_unit = ''
+    
+    if not simulate:
+        artists = []
+        p = ax.plot(x, y, *args, **kwargs)
+        artists.append(p)
+    
+    translation = dict(vis2='Squared visibility', vis='Visibility')
+    if y_quantity in translation:
+        y_quantity = translation[y_quantity]
+    
+    axes_labels = [x_quantity.title(), y_quantity.title()]
+    axes_units = [conversions.unit2texlabel(x_unit),
+                  conversions.unit2texlabel(y_unit)]
+    
+    return artists, syn, (axes_labels, axes_units)
+
+
+
+def plot_ifobs_old(system, *args, **kwargs):
     """
     Plot ifobs.
     

@@ -23,7 +23,8 @@ nice_names = {'lc':'Light curve',
               'if':'Interferometry',
               'am':'Astrometry',
               'etv':'Eclipse timing variations',
-              'orb':'Synthetic orbits'}
+              'orb':'Synthetic orbits',
+              'sed':'Spectral energy distribution'}
 
 # Correspondence between data type and function to compute it
 compute_function = {'lc':'lc',
@@ -69,6 +70,7 @@ file_extension = {'lc':'lc',
 atm_props = {'blackbody': ('teff',),
              'kurucz': ('teff', 'logg', 'abun'),
              'kurucz_p00': ('teff', 'logg'),
+             'kurucz_m05': ('teff', 'logg'),
              'phoenix': ('teff', 'logg', 'abun'),
              'olivia.fits': ('teff', 'abun', 'eddy', 'uvflux'),
              'jorissen': ('teff', 'logg',),

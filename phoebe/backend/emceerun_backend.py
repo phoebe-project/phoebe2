@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import os
+import logging
 import pickle
 import sys
 import numpy as np
@@ -15,7 +16,7 @@ from phoebe.backend import universe
 from phoebe.utils import utils
 mpi = True
 
-logger = utils.get_basic_logger(clevel='INFO')
+logger = logging.getLogger("EMCEE")
 
 def save_pickle(data, fn):
     f = open(fn, 'w')
@@ -364,6 +365,8 @@ def run(system_file, compute_params_file, fit_params_file):
 
 
 if __name__ == '__main__':
+    logger = utils.get_basic_logger(clevel='INFO')
+    
     system_file = sys.argv[1]
     fit_params_file = sys.argv[2]
     compute_params_file = sys.argv[3]

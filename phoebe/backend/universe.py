@@ -6546,7 +6546,8 @@ class AccretionDisk(PhysicalBody):
     
     http://www.google.be/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&cad=rja&ved=0CDcQFjAB&url=http%3A%2F%2Fwww.springer.com%2Fcda%2Fcontent%2Fdocument%2Fcda_downloaddocument%2F9783319006116-c2.pdf%3FSGWID%3D0-0-45-1398306-p175157874&ei=30JtUsDYCqqX1AWEk4GQCQ&usg=AFQjCNFImeW-EOIauLtmoNqrBw7voYJNRg&sig2=RdoxaZJletpNNkEeyiIm2w&bvm=bv.55123115,d.d2k
     """
-    def __init__(self,accretion_disk, mesh=None, pbdep=None,reddening=None,**kwargs):
+    def __init__(self,accretion_disk=None, mesh=None, pbdep=None,
+                 reddening=None, label=None, **kwargs):
         """
         Initialize a flaring accretion disk.
         
@@ -6555,6 +6556,9 @@ class AccretionDisk(PhysicalBody):
         """
         # Basic initialisation
         super(AccretionDisk,self).__init__(dim=3,**kwargs)
+        
+        if accretion_disk is None:
+            accretion_disk = parameters.ParameterSet('accretion_disk')
         
         # Prepare basic parameterSets and Ordered dictionaries
         check_input_ps(self, accretion_disk, ['accretion_disk'], 1)
@@ -6571,6 +6575,9 @@ class AccretionDisk(PhysicalBody):
         #-- add the parameters to compute dependables
         if pbdep is not None:
             _parse_pbdeps(self,pbdep)
+        
+        if label is not None:
+            self.set_label(label)
     
     def set_label(self,label):
         self.params['disk']['label'] = label
@@ -6695,6 +6702,7 @@ class AccretionDisk(PhysicalBody):
  
         self.mesh['triangle'] = self.mesh['_o_triangle']
         self.compute_centers()
+        self.compute_sizes('_o_')
         self.compute_sizes()
         self.compute_normals()
         #self.rotate(incl=45.,Omega=1.)

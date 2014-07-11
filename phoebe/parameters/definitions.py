@@ -516,7 +516,10 @@ defs += [dict(qualifier='cells', description='Number of granulation cells', cast
          dict(qualifier='vgran_ampl', description='Amplitude of granulation velocity', cast_type=float, repr='%f',adjust=False,value=2.0,unit='km/s',frame=['phoebe'], context='granulation'),
          dict(qualifier='vgran_angle', description='Maximum perturbation on rad. comp. velocity', cast_type=float, repr='%f',adjust=False,value=-1,unit='deg',frame=['phoebe'], context='granulation'),
          dict(qualifier='teff_ampl', description='Amplitude of effective temperature variation', cast_type=float, repr='%f',adjust=False,value=10.0,unit='K',frame=['phoebe'], context='granulation'),
-         dict(qualifier='pattern', description='Type of pattern to apply', cast_type='choose', choices=['f1', 'f2', 'f2-f1', 'f1-f2'], repr='%s',value='f2-f1',frame=['phoebe'], context='granulation'),
+         dict(qualifier='pattern', description='Type of pattern to apply',
+              long_description=('The granulation pattern is determined by the metric used to add the '
+                                'Worley noise. "f1" corresponds to Gaussian bubbles on the surface '
+                                'while "f2-f1" resembles granulation cells.'), cast_type='choose', choices=['f1', 'f2', 'f2-f1', 'f1-f2'], repr='%s',value='f2-f1',frame=['phoebe'], context='granulation'),
          ]
 
 # SCATTERING contexts
