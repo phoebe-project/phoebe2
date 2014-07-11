@@ -664,9 +664,6 @@ class Bundle(Container):
             self.sections['system'] = [system]
         elif isinstance(system, list) or isinstance(system, tuple):
             self.sections['system'] = [create.system(system)]
-        elif isinstance(system, dict):
-            self._from_dict(system)
-            file_type = 'json'
         
         # Or we could've given a filename
         else:
@@ -693,16 +690,22 @@ class Bundle(Container):
                         self.sections['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
+                        self.sections = contents.sections
                
                 else:
                     self._load_json(system)
                     file_type = 'json'                    
 
-        
-            # As a last resort, we pass it on to 'body_from_string' in the
-            # create module:
             else:
-                system = create.body_from_string(system)
+                try:
+                #~ if True:
+                    self._from_dict(system)
+                except:
+                    # As a last resort, we pass it on to 'body_from_string' in the
+                    # create module:                    
+                    system = create.body_from_string(system)
+                else:
+                    file_type = 'json'
             
             if file_type is not 'json': 
                 # if it was json, then we've already attached the system
@@ -5754,6 +5757,9 @@ class Bundle(Container):
         if not save_usersettings:
             settings = self.usersettings
             self.usersettings = None
+            
+        trunk = self.trunk
+        self._purge_trunk()
         
         # pickle
         ff = open(filename,'w')
@@ -5764,6 +5770,8 @@ class Bundle(Container):
         # reset user settings
         if not save_usersettings:
             self.usersettings = settings
+            
+        self.trunk = trunk
         
         # call set_system so that purged (internal) signals are reconnected
         self.set_system(self.get_system())

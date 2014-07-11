@@ -917,7 +917,7 @@ class Container(object):
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'], ref=ri['ref'])
 
-            if do_sectionlevel and section_name not in ['system', 'dataset', 'feedback']: # we'll need to fake these two later
+            if do_sectionlevel and section_name not in ['system', 'dataset', 'feedback']: # we'll need to fake these later since they're not actually stored as a list of PSs  TODO: remove feedback from this list once names don't clash
                 ris = self._get_info_from_item({item.get_value('ref') if 'ref' in item.keys() else item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
                 return_items += ris
                 
@@ -1123,7 +1123,7 @@ class Container(object):
             # unless we're in one of the following sections
             # in which case we identify by ref and have no label
             context = item.get_context()
-            if context[-3:] in ['obs','dep','syn']:
+            if context[-3:] in ['obs','dep','syn'] and context.split(':')[0] != 'plotting':
                 section = 'dataset'
             if section in ['axes','plot','figure','fitting']:
                 label = None
@@ -1155,7 +1155,7 @@ class Container(object):
                 #then we're coming from a section and already know the context
                 context = context
                 
-            if context[-3:] in ['obs','dep','syn']:
+            if context[-3:] in ['obs','dep','syn'] and context.split(':')[0] != 'plotting':
                 section = 'dataset'
 
             # unless we're in one of the following sections
@@ -1545,7 +1545,7 @@ class Container(object):
                  
         return {ti['label'] if ti['label'] is not None else ti['ref']:ti['item'] for ti in all_ti} if all_ti is not None else {}
     
-    def _to_dict(self, debug=False):
+    def _to_dict(self, return_str=False, debug=False):
         
         # We're changing stuff here, so we need to make a copy first
         this_bundle = self.copy()
@@ -1615,8 +1615,11 @@ class Container(object):
                 # the real syns are marked as hidden, whereas the fake
                 # ones forced to match the obs are not hidden
                 dump_dict['Parameters'][ti['twig']] = info
-                
-        return dump_dict
+        
+        if return_str:
+            return json.dumps(dump_dict, sort_keys=True, separators=(',', ': '))
+        else:
+            return dump_dict
 
     def _save_json(self, filename, debug=False):
         """
@@ -1647,6 +1650,8 @@ class Container(object):
 
     @rebuild_trunk
     def _from_dict(self, load_dict, debug=False):
+        if isinstance(load_dict, str):
+            load_dict = json.loads(load_dict, object_pairs_hook=OrderedDict)
         if hasattr(self, 'get_system'):
             self.set_system(_loads_system_structure(load_dict['Hierarchy']))
             #print self.get_system().list(summary='full')
