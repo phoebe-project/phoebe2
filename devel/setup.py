@@ -120,7 +120,8 @@ setup(
                   'phoebe.wd':['*.dat'],
                   'phoebe.frontend.gui':['icons/*','html/*']},
     scripts=['phoebe/frontend/gui/phoebe_gui.py'],
-    install_requires=['numpy','scipy','matplotlib','pyfits','uncertainties'],
+    install_requires=['numpy','scipy','matplotlib','pyfits','uncertainties',
+                      'emcee', 'lmfit', 'pyephem'],
     #~ entry_points = {
         #~ "gui_scripts": ["phoebe_gui = phoebe.frontend.phoebe_gui"]},
 

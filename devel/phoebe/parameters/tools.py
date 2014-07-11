@@ -214,7 +214,7 @@ def add_surfgrav(star,surfgrav=None,derive='mass',unit='[cm/s2]',**kwargs):
     else:
         raise ValueError("Cannot derive {} from surface gravity".format(derive))
     
-    return star.get_parameter('surfgrav')
+    return star.get_parameter('surfgrav'),
 
 
 def add_luminosity(star, luminosity=None, derive=None,unit='[Lsol]',**kwargs):
@@ -257,7 +257,7 @@ def add_luminosity(star, luminosity=None, derive=None,unit='[Lsol]',**kwargs):
     else:
         raise ValueError("Cannot derive {} from luminosity".format(derive))
 
-    return star.get_parameter('luminosity')
+    return star.get_parameter('luminosity'),
    
 def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
     r"""
@@ -332,7 +332,7 @@ def add_vsini(star,vsini,derive='rotperiod',unit='km/s',**kwargs):
         star.add_constraint('{vsini} = (2*np.pi*{radius})/{rotperiod}*np.sin({incl})')
         logger.info("star '{}': 'vsini' constrained by 'radius', 'rotperiod' and 'incl'".format(star['label']))
     
-    return star.get_parameter('vsini')
+    return star.get_parameter('vsini'),
     
     
 def add_rotfreqcrit(star,rotfreqcrit=None,derive='rotperiod',**kwargs):

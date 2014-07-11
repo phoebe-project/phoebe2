@@ -149,7 +149,7 @@ def image(the_system, ref='__bol', context='lcdep',
     * ``proj``: projected flux (default)
     * ``teff``: effective temperature (K)
     * ``logg``: surface gravity (cm/s2 dex)
-    * ``rv``: radial velocity (Rsol/d)
+    * ``rv``: radial velocity (Rsol/d) (cmap defaults to ``RdBu`` but you can also use ``proj``)
     * ``B``: strength of the magnetic field (G)
     * ``Bx``, ``By`` and ``Bz`` : magnetic field components (G)
     
@@ -421,7 +421,23 @@ def image(the_system, ref='__bol', context='lcdep',
             cmap_ = cmap
             cmap = plotlib.blackbody_cmap()
             vmin_, vmax_ = 2000, 20000
-            colors = (values-vmin_) / (vmax_-vmin_)     
+            colors = (values-vmin_) / (vmax_-vmin_)
+        # Limbdarkened velocity map
+        if select == 'rv' and cmap == 'proj':
+            proj = mesh['proj_'+ref]
+            proj = proj / proj.max()
+            rvmax = values.max()
+            offset = -rvmax
+            values = values - offset
+            scale = 2*rvmax
+            values = values/scale
+            colors = pl.cm.RdBu_r(values)*proj[:,None]
+            values = values.reshape((-1,1))
+            colors[:,3] = 1.0
+            if vmin is None:
+                vmin_ = offset
+            if vmax is None:
+                vmax_ = -offset
     
     # Check for nans or all zeros, that usually means the user did something
     # wrong (OK, there's also a tiny chance that there's a bug somewhere)
@@ -1343,8 +1359,10 @@ def spectrum(the_system, obs, pbdep, rv_grav=True):
     depth = pbdep.get('depth', 0.4)
     alphaT = pbdep.get('alphaT', 0.0)
     
-    # System velocity offset
+    # System velocity and offset
     vgamma = obs.get('vgamma_offset', 0.0)
+    
+    
     
     # Information on dependable set: we need the limb darkening function and
     # the method
@@ -1866,14 +1884,13 @@ def stokes(the_system, obs, pbdep, rv_grav=True):
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,mytemplate)
             #- third version: weak field approximation
             #stokes_V -= costh*delta_nu_zeemans[i]*utils.deriv(nus,spec)
-            
             #-- Stokes Q and U: this must be in weak field approximation for now
             if do_Q or do_U:
                 sec_deriv = utils.deriv(nus, utils.deriv(nus, spec))
             if do_Q:
-                stokes_Q -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
+                stokes_Q -= 0.25*sin2theta[i]*cos22chi[i]*delta_nu_zeemans2[i]*sec_deriv
             if do_U:
-                stokes_U -= 0.25*sin2th*cos22chi*delta_nu_zeemans2[i]*sec_deriv
+                stokes_U -= 0.25*sin2theta[i]*cos22chi[i]*delta_nu_zeemans2[i]*sec_deriv
             
             stokes_I += spec
             
@@ -2818,7 +2835,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
         
         
-def observe(system, times, lc=False, rv=False, sp=False, pl=False, mpi=None,
+def observe(system, times, lc=False, rv=False, sp=False, pl=False, ifm=False,
+            mpi=None,
             extra_func=[], extra_func_kwargs=[{}], animate=None,
             save_result=True, **kwargs):
     """
@@ -2878,12 +2896,14 @@ def observe(system, times, lc=False, rv=False, sp=False, pl=False, mpi=None,
     refs = []
     typs = []
     smps = []
-    if not lc and not rv and not sp and not pl:
-        raise ValueError("You need to compute at least one of lc, rv, sp, pl")
+    if not lc and not rv and not sp and not pl and not ifm:
+        raise ValueError("You need to compute at least one of lc, rv, sp, pl, ifm")
     
+    given_types = ['lc', 'rv', 'sp', 'pl', 'if']
+    given_values = [lc, rv, sp, pl, ifm]
     # Derive all lc/rv/...dep parameterset references
-    for type in ['lc', 'rv', 'sp', 'pl']:
-        if locals()[type] is True:
+    for type, value in zip(given_types, given_values):
+        if value:
             if hasattr(system, 'bodies'):
                 bodies = system.get_bodies()
             else:

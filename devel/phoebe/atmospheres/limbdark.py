@@ -1453,8 +1453,13 @@ def retrieve_passband(pbdep, wavelength=None, sampling=None):
     
     Not completely implemented yet, but minimally useful.
     """
+    atm_args = config.atm_props[pbdep['atm']]
+    atm_kwargs = dict()
+    for arg in atm_args:
+        atm_kwargs[arg] = 0
+    
     atm_table = choose_ld_coeffs_table(pbdep['atm'], ld_func=pbdep['ld_func'],
-                                        atm_kwargs=dict(teff=0, logg=0, abun=0))
+                                        atm_kwargs=atm_kwargs)
         
     extname = '_REF_' + pbdep['passband'].rstrip('_v1.0') + '_v1.0'
     data = pyfits.getdata(atm_table, extname=extname)
@@ -1506,7 +1511,6 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
     # the grid are z=0.0, this function will not complain and just give you the
     # z=0.0 interpolation results!
     n_dim = 1
-    
     for i, label in enumerate(labels):
         
         # if the label is an atmosphere keyword and has a length, determine its
@@ -1551,30 +1555,41 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
         #pars = interp_nDgrid.cinterpolate(values.T, axis_values, pixelgrid).T
         #else:
         pars = interp_nDgrid.interpolate(values, axis_values, pixelgrid, order=order, mode=mode, cval=cval)
-        if safe and np.any(np.isnan(pars[-1])) or np.any(np.isinf(pars[-1])):
+        pars[-1][np.isinf(pars[-1])] = 0.0
+        if safe and np.any(np.isnan(pars[-1])):# or np.any(np.isinf(pars[-1])):
             raise IndexError
     
     # Things can go outside the grid
     except IndexError:
         msg = ", ".join(['{:.3f}<{}<{:.3f}'.format(values[i].min(), labels[i],\
                                  values[i].max()) for i in range(len(labels))])
-        msg = ("Parameters outside of grid {}: {}. Consider using a different "
-               "atmosphere/limbdarkening grid, or use the black body "
-               "approximation.").format(atm, msg)
+        msg = ("Parameters outside of grid {} (passband {}): {}. Consider "
+               "using a different atmosphere/limbdarkening grid, or use the "
+               "black body approximation.").format(atm, passband, msg)
         
         if False:
             print(msg)
             import matplotlib.pyplot as plt
+            plt.figure()
+            plt.title(passband)
             with pyfits.open(atm) as ff:
                 extensions = [ext.header['extname'] for ext in ff[1:]]
                 if not passband in extensions:
                     passband = passband + '_v1.0'
-                plt.plot(ff[passband].data.field('teff'),
-                         ff[passband].data.field('logg'), 'ko')
+                #plt.plot(ff[passband].data.field('teff'),
+                #         ff[passband].data.field('logg'), 'ko')
+                print ff[passband].data.dtype.names
+                plt.plot(ff[passband].data.field('teff'), ff[passband].data.field('Imu1'), 'ko')
+            plt.show()
+                
             wrong = np.isnan(np.array(pars)[0])
-            plt.plot(values[0][wrong], values[1][wrong], 'rx', mew=2, ms=10)
+            #plt.plot(values[0][wrong], values[1][wrong], 'rx', mew=2, ms=10)
+            plt.plot(values[0][wrong], 'rx', mew=2, ms=10)
+            
             wrong = np.isinf(np.array(pars)[0])
-            plt.plot(values[0][wrong], values[1][wrong], 'ro')
+            #plt.plot(values[0][wrong], values[1][wrong], 'ro')
+            plt.plot(values[0][wrong], 'ro')
+            plt.show()
             plt.xlim(plt.xlim()[::-1])
             plt.ylim(plt.ylim()[::-1])
             plt.show()
@@ -1956,7 +1971,7 @@ def _prepare_grid(passband,atm, data_columns=None, log_columns=None,
             extra_msg+= 'exist in directory {}, '.format(get_paths()[1])
             extra_msg+= 'you can add it via the command\n'
             passband_name = ".".join(str(msg).split("\'")[-2].split('.')[:-1])
-            extra_msg+= '>>> phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs("{}", passbands=("{}",))'.format(atm, passband_name)
+            extra_msg+= '>>> from phoebe.atmospheres import create_atmospherefits\n>>> create_atmospherefits.compute_grid_ld_coeffs("{}", passbands=("{}",))'.format(atm, passband_name)
             raise ValueError("Atmosphere file {} does not contain required information ({:s})\n{}".format(atm,str(msg),extra_msg))
         #-- remove columns that are not available and derive which parameters
         #   need to be interpolated

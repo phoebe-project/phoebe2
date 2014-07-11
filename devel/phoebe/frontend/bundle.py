@@ -197,75 +197,6 @@ class Bundle(Container):
     """
     Class representing a collection of systems and stuff related to it.
     
-    **Initialization**
-    
-    You can initiate a bundle in different ways:
-    
-      1. Using the default binary parameters::
-      
-          mybundle = Bundle()
-          
-      2. Via a PHOEBE 2.0 file in JSON format::
-      
-          mybundle = Bundle('newbundle.json')
-    
-      3. Via a Phoebe Legacy ASCII parameter file::
-      
-          mybundle = Bundle('legacy.phoebe')
-    
-      4. Via a Body or BodyBag::
-      
-          mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
-          mybundle = Bundle(mysystem)
-      
-      5. Via the predefined systems in the library::
-      
-          mybundle = Bundle('V380_Cyg')            
-        
-    For more details, see :py:func:`set_system`.
-    
-    **Interface**
-    
-    The interaction with a Bundle is much alike interaction with a Python
-    dictionary. The following functionality is implemented and behaves as
-    expected::
-            
-            # return the value of the period if it exists, raises error if 'period' does not exist
-            period = mybundle['period']
-            
-            # set the value of the period if it exists, raises error otherwise
-            mybundle['period'] = 5.0
-            
-            # return the value of the period if it exists, else returns None
-            period = mybundle.get('period')
-            
-            # return the value of the period if it exists, else returns default_value (whatever it is)
-            period = mybundle.get('period', default_value)
-            
-            # returns a list of available keys
-            keys = mybundle.keys()
-            
-            # returns a list of values
-            values = mybundle.values()
-            
-            # iterate over the keys in the Bundle
-            for key in mybundle:
-                print(key, mybundle[key])
-    
-    .. important::
-    
-        *keys* are referred to as *twigs* in the context of Bundles. They behave
-        much like dictionary keys, but are much more flexible to account for the
-        plethora of available parameters (and possible duplicates!) in the
-        Bundle. For example, both stars in a binary need atmosphere tables in
-        order to compute their bolometric luminosities. This is done via the
-        parameter named ``atm``, but since it is present in both components,
-        you need to ``@`` operator to be more specific:
-        
-            >>> mybundle['atm@primary'] = 'kurucz'
-            >>> mybundle['atm@secondary'] = 'blackbody'
-             
-    
     Accessing and changing parameters via twigs:
     
     .. autosummary::
@@ -282,6 +213,7 @@ class Bundle(Container):
         phoebe.frontend.common.Container.set_adjust
         phoebe.frontend.common.Container.set_prior
         phoebe.frontend.common.Container.attach_ps
+        Bundle.add_parameter
         phoebe.frontend.common.Container.twigs
         phoebe.frontend.common.Container.search
     
@@ -354,6 +286,78 @@ class Bundle(Container):
     
         Bundle.summary
         Bundle.info
+        
+        
+    **Initialization**
+    
+    You can initiate a bundle in different ways:
+    
+      1. Using the default binary parameters::
+      
+          mybundle = Bundle()
+          
+      2. Via a PHOEBE 2.0 file in JSON format::
+      
+          mybundle = Bundle('newbundle.json')
+    
+      3. Via a Phoebe Legacy ASCII parameter file::
+      
+          mybundle = Bundle('legacy.phoebe')
+    
+      4. Via a Body or BodyBag::
+      
+          mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
+          mybundle = Bundle(mysystem)
+      
+      5. Via the predefined systems in the library::
+      
+          mybundle = Bundle('V380_Cyg')            
+        
+    For more details, see :py:func:`set_system`.
+    
+    **Interface**
+    
+    The interaction with a Bundle is much alike interaction with a Python
+    dictionary. The following functionality is implemented and behaves as
+    expected::
+            
+            # return the value of the period if it exists, raises error if 'period' does not exist
+            period = mybundle['period']
+            
+            # set the value of the period if it exists, raises error otherwise
+            mybundle['period'] = 5.0
+            
+            # return the value of the period if it exists, else returns None
+            period = mybundle.get('period')
+            
+            # return the value of the period if it exists, else returns default_value (whatever it is)
+            period = mybundle.get('period', default_value)
+            
+            # returns a list of available keys
+            keys = mybundle.keys()
+            
+            # returns a list of values
+            values = mybundle.values()
+            
+            # iterate over the keys in the Bundle
+            for key in mybundle:
+                print(key, mybundle[key])
+    
+    .. important::
+    
+        *keys* are referred to as *twigs* in the context of Bundles. They behave
+        much like dictionary keys, but are much more flexible to account for the
+        plethora of available parameters (and possible duplicates!) in the
+        Bundle. For example, both stars in a binary need atmosphere tables in
+        order to compute their bolometric luminosities. This is done via the
+        parameter named ``atm``, but since it is present in both components,
+        you need to ``@`` operator to be more specific:
+        
+            >>> mybundle['atm@primary'] = 'kurucz'
+            >>> mybundle['atm@secondary'] = 'blackbody'
+             
+    
+    
         
     **Structure of the Bundle**
         
@@ -1289,10 +1293,13 @@ class Bundle(Container):
         
         elif category == 'sp':
             if subcategory is None:
-                output = datasets.parse_spec_timeseries(filename, columns=columns,
+                try:
+                    output = datasets.parse_spec_timeseries(filename, columns=columns,
                                        components=objref, units=units,
                                        full_output=True, ref=dataref,
                                        **kwargs)
+                except IOError:
+                    raise IOError("Either the file '{}' does not exist or you've specified a snapshot spectrum as a timeseries (set snapshot=True in sp_fromfile)".format(filename))
             # Then this is a shapshot
             else:
                 output = datasets.parse_spec_as_lprof(filename, columns=columns,
@@ -1303,7 +1310,7 @@ class Bundle(Container):
         elif category == 'sed':
             scale, offset = kwargs.pop('adjust_scale', False), kwargs.pop('adjust_offset', False)
             output = datasets.parse_phot(filename, columns=columns,
-                  units=units, group=filename, 
+                  units=units, group=dataref, 
                   group_kwargs=dict(scale=scale, offset=offset),
                   full_output=True, **kwargs)
             
@@ -1323,6 +1330,7 @@ class Bundle(Container):
         if output is not None:
             self._attach_datasets(output, skip_defaults_from_body=kwargs.keys())
             return dataref
+                       
                        
     #rebuild_trunk done by _attach_datasets
     def data_fromarrays(self, category='lc', objref=None, dataref=None,
@@ -1456,7 +1464,7 @@ class Bundle(Container):
         # Suppose the user did not specifiy the object to attach anything to
         if objref is None:
             # then attempt to make smart prediction
-            if category in ['lc','if','sp']:
+            if category in ['lc','if','sp', 'pl']:
                 # then top-level
                 components = [self.get_system()]
                 #logger.warning('components not provided - assuming {}'.format([comp.get_label() for comp in components]))
@@ -1534,6 +1542,7 @@ class Bundle(Container):
             output[component.get_label()] = [[ds],[pb]]
         self._attach_datasets(output, skip_defaults_from_body=skip_defaults_from_body)
         return dataref
+    
     
     def data_fromexisting(self, to_dataref, from_dataref=None, category=None,
                           **kwargs):
@@ -2191,12 +2200,14 @@ class Bundle(Container):
         # We can pass everything now to the main function
         return self.data_fromfile(category='sed', **set_kwargs)
     
+    
     def sp_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       wavelength=None, flux=None, continuum=None, sigma=None,
                       flag=None, R_input=None, offset=None, scale=None,
-                      profile=None, R=None, vmicro=None, depth=None, atm=None,
-                      ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, beaming=None):
+                      vgamma_offset=None, profile=None, R=None, vmicro=None,
+                      depth=None, atm=None, ld_func=None, ld_coeffs=None,
+                      passband=None, pblum=None, l3=None, alb=None,
+                      beaming=None):
         """
         Create and attach spectral templates to compute the model.
         
@@ -2251,6 +2262,8 @@ class Bundle(Container):
         :envvar:`samprate` should all be arrays of equal length (unless left to
         ``None``).
         
+        [FUTURE]
+        
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
         :param dataref: name for ref for all returned datasets
@@ -2272,7 +2285,7 @@ class Bundle(Container):
     
     
     def sp_fromfile(self, filename, objref=None, time=None,
-                      clambda=None, wrange=None,
+                      clambda=None, wrange=None, vgamma_offset=None, 
                       dataref=None, snapshot=False, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       R_input=None, vmacro=None, vmicro=None, depth=None,
@@ -2307,6 +2320,31 @@ class Bundle(Container):
         # We can pass everything now to the main function
         return self.data_fromfile(category=category, **set_kwargs)
         
+    def pl_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
+                      wavelength=None, flux=None, continuum=None, sigma=None,
+                      V=None, sigma_V=None, Q=None, sigma_Q=None, U=None,
+                      sigma_U=None,
+                      flag=None, R_input=None, offset=None, scale=None,
+                      vgamma_offset=None, profile=None, R=None, vmicro=None,
+                      depth=None, atm=None, ld_func=None, ld_coeffs=None,
+                      passband=None, pblum=None, l3=None, alb=None,
+                      beaming=None):
+        """
+        Create and attach spectrapolarimetry templates to compute the model.
+        
+        See :py:func:`sp_fromarrays` for more information.
+        """
+        # retrieve the arguments with which this function is called
+        set_kwargs, posargs = utils.arguments()
+        
+        # filter the arguments according to not being "None" nor being "self"
+        set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
+                  if set_kwargs[key] is not None and key != 'self'}
+        
+        # We can pass everything now to the main function
+        return self.data_fromarrays(category='pl', **set_kwargs)
+    
+    
     
     def if_fromfile(self, filename, objref=None, dataref=None,
                     include_closure_phase=False, include_triple_amplitude=False,
@@ -2434,8 +2472,8 @@ class Bundle(Container):
         .. note:: More information
         
             - For a list of acceptable values for each parameter, see
-              :ref:`lcdep <parlabel-phoebe-ifdep>` and
-              :ref:`lcobs <parlabel-phoebe-ifobs>`.
+              :ref:`ifdep <parlabel-phoebe-ifdep>` and
+              :ref:`ifobs <parlabel-phoebe-ifobs>`.
         
         :param objref: component for each column in file
         :type objref: None, str, list of str or list of bodies
@@ -4831,10 +4869,34 @@ class Bundle(Container):
         """
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+        
+        # It's possible that we need to plot an SED: in that case, we have
+        # more than one dataset but they are all light curves that are grouped
+        if len(dsti) > 1:
+            # Check if they are all lightcurves and collect group name
+            groups = []
+            for idsti in dsti:
+                correct_category = idsti['item'].get_context()[:-3] == 'lc'
+                is_grouped = 'group' in idsti['item']
+                if not correct_category or not is_grouped:
+                    # raise the correct error:
+                    self._get_by_search(twig, context='*obs', class_name='*DataSet',
                                    return_trunk_item=True)
-        ds = dsti['item']
-        obj = self.get_object(dsti['label'])
-        context = ds.get_context()
+                else:
+                    groups.append(idsti['item']['group'])
+            # check if everything belongs to the same group
+            if not len(set(groups)) == 1:
+                raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
+            
+            obj = self.get_object(dsti[0]['label'])
+            context = 'sed' + dsti[0]['item'].get_context()[-3:]
+            ds = dict(ref=groups[0])
+        else:       
+            dsti = dsti[0]
+            ds = dsti['item']
+            obj = self.get_object(dsti['label'])
+            context = ds.get_context()
         
         # Do we need automatic/custom xlabel, ylabel and/or title? We need to
         # pop the kwargs here because they cannot be passed to the lower level
@@ -4937,10 +4999,45 @@ class Bundle(Container):
         """
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+        # retrieve obs for sed grouping
+        dstiobs = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+        
+        # It's possible that we need to plot an SED: in that case, we have
+        # more than one dataset but they are all light curves that are grouped
+        if len(dsti) > 1:
+            # Check if they are all lightcurves and collect group name
+            groups = []
+            if not len(dsti) == len(dstiobs):
+                raise ValueError("Cannot plot synthetics of SED '{}'".format(twig))
+            
+            for idsti, jdsti in zip(dsti, dstiobs):
+                correct_category = idsti['item'].get_context()[:-3] == 'lc'
+                is_grouped = 'group' in jdsti['item']                
+                if not correct_category or not is_grouped:
+                    # raise the correct error:
+                    self._get_by_search(twig, context='*syn', class_name='*DataSet',
                                    return_trunk_item=True)
-        ds = dsti['item']
-        obj = self.get_object(dsti['label'])
-        context = ds.get_context()
+                else:
+                    groups.append(jdsti['item']['group'])
+            # check if everything belongs to the same group
+            if not len(set(groups)) == 1:
+                raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
+            
+            obj = self.get_object(dsti[0]['label'])
+            context = 'sed' + dsti[0]['item'].get_context()[-3:]
+            ds = dict(ref=groups[0])
+        else:
+            dsti = dsti[0]
+            ds = dsti['item']
+            obj = self.get_object(dsti['label'])
+            context = ds.get_context()
+        
+        # For the pl context we just use the sp context
+        if context[:-3] == 'pl':
+            context = 'sp' + context[-3:]
+            kwargs['category'] = 'pl'
         
         # Do we need automatic/custom xlabel, ylabel and/or title? We need to
         # pop the kwargs here because they cannot be passed to the lower level
@@ -5334,9 +5431,11 @@ class Bundle(Container):
         # Observe the system with the right computations
         if time is not None:
             options = self.get_compute(label, create_default=True).copy()
+            options['irradiation_alg'] = 'full'
             observatory.observe(self.get_system(), [time], lc=category=='lc',
                                 rv=category=='rv', sp=category=='sp',
-                                pl=category=='pl', save_result=False, **options)
+                                pl=category=='pl', ifm=category=='if',
+                                save_result=False, **options)
         
         # Get the object and make an image.
         try:

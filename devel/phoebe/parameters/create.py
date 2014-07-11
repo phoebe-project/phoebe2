@@ -1309,7 +1309,7 @@ def KOI126_alternate(create_body=True,**kwargs):
     return systemA_BC
 
 
-def vega_aufdenberg2006():
+def vega_aufdenberg2006(create_body=True):
     """
     Vega model from Aufdenberg (2006).
     """
@@ -1328,6 +1328,8 @@ def vega_aufdenberg2006():
     star.get_parameter('incl').set_prior(distribution='normal', sigma=0.3)
     star.get_parameter('rotperiod').set_prior(distribution='normal', sigma=0.03)
     star.get_parameter('surfgrav').set_prior(distribution='normal', sigma=0.1)
+    
+    star = universe.Star(star)
     
     return star
 

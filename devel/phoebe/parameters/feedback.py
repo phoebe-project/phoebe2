@@ -612,6 +612,10 @@ class FeedbackEmcee(Feedback):
         
         for i in range(nwalkers):
             ax.plot(logp[:,i], alpha=0.2)
+        
+        plt.xlabel("Iteration number")
+        plt.ylabel("log(Probability) [dex]")
+        plt.title("Probability history")
     
     def plot_history(self, qualifier=None, ax=None):
         (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()

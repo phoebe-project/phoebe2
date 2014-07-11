@@ -80,8 +80,11 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
     for item in x.trunk:       
         
         last_two = item['twig_full'].split('@')[-2:]
+        if not len(last_two) == len(correct_level):
+            continue
         
-        if not last_two == correct_level:
+        # Because the datasets are added in a new level
+        if not last_two == correct_level and not (last_two[-2]=='dataset' and correct_level[-2]=='system'):
             continue
         
         if item['hidden'] is True:
@@ -100,6 +103,13 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
         
         twig_split = twig.split('@')
         
+        if 'bandpass' in twig:
+            print twig
+            print current_pset
+            print it
+            print corrent_pset.contains(it)
+            print item['kind']
+            
         # If we have a new ParameterSet, we need to string-rep the old one
         if item['kind'] == 'Parameter' and (current_pset is None or not current_pset.contains(it)):
             

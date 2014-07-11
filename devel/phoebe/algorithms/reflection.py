@@ -479,6 +479,7 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
                                                 irradiator, ref=ref,
                                                 third_bodies=third_bodies,
                                                 irradiation_alg=irradiation_alg)
+    
     #-- heating part:
     if heating:
         # update luminosities and temperatures: we need to copy and replace the
