@@ -690,7 +690,7 @@ class Bundle(Container):
                         self.sections['compute'].append(contents[1])
                     elif file_type == 'pickle_bundle':
                         system = contents.get_system()
-                        self.sections = contents.sections
+                        self.sections = contents.sections.copy()
                
                 else:
                     self._load_json(system)
