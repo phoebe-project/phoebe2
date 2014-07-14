@@ -1737,7 +1737,7 @@ from phoebe.io import parsers
 from .parameters.tools import add_rotfreqcrit
 from .backend.observatory import compute,observe,add_bitmap,image,ifm
 from .backend.fitting import run
-from .atmospheres.limbdark import download_atm
+from .atmospheres.limbdark import download_atm, download_spec_intens, download_spectra
 
 #-- common modules
 from .backend import observatory,universe,plotting,fitting

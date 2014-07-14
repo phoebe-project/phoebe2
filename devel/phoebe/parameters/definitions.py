@@ -428,7 +428,7 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
 defs += [dict(qualifier='eclx', description='Ecliptic Cartesian x-coordinates of observer', repr='%s', cast_type=np.array, value=[], unit='au',frame='phoebe', context='amobs'),
          dict(qualifier='ecly', description='Ecliptic Cartesian y-coordinates of observer', repr='%s', cast_type=np.array, value=[], unit='au',frame='phoebe', context='amobs'),
          dict(qualifier='eclz', description='Ecliptic Cartesian z-coordinates of observer', repr='%s', cast_type=np.array, value=[], unit='au',frame='phoebe', context='amobs'),
-         dict(qualifier='t0',     description='Zeropoint date for observations',unit='JD',repr='%f',llim=-2e10,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context='amobs'),
+         dict(qualifier='t0',     description='Zeropoint date for observations',unit='JD',repr='%f',llim=-2e10,ulim=2e10,step=0.001,adjust=False,cast_type=float,value=0.,alias=['hjd0'],frame=["phoebe"],context=['amobs', 'lcobs', 'rvobs', 'spobs', 'plobs', 'ifobs']),
          dict(qualifier='delta_ra', description='Right ascension offset coordinate', repr='%s', value=[],frame=['phoebe'], context=['amsyn','amobs']),
          dict(qualifier='delta_dec', description='Declination offset coordinate', repr='%s', value=[],frame=['phoebe'], context=['amsyn','amobs']),
          dict(qualifier='plx_lambda', description='Longitude of parallax circle in ecliptic coordinates', repr='%s', value=[],frame=['phoebe'], context=['amsyn']),

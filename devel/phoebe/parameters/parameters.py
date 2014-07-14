@@ -1436,6 +1436,16 @@ class Parameter(object):
         Set the posterior distribution.
         
         """
+        #-- do unit conversions if necessary:
+        for key in kwargs:
+            if isinstance(kwargs[key],tuple):
+                value,unit = kwargs[key]
+                kwargs[key] = conversions.convert(unit,self.unit,value)
+        #-- if only sigma is set for normal priors, take the mu equal to the
+        #   current value of the parameter
+        if 'distribution' in kwargs and kwargs['distribution']=='normal' and not 'mu' in kwargs:
+            kwargs['mu'] = self.get_value()
+            
         if not hasattr(self,'posterior') or 'distribution' in kwargs:
             self.posterior = distrib.Distribution(**kwargs)
         else:

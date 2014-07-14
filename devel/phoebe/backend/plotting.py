@@ -178,8 +178,8 @@ def plot_lcsyn(system, *args, **kwargs):
     this_offset = 0.0
     if scale == 'obs' and obs is not None:
         this_scale = obs['scale']
-        this_offset = obs['offset']
-        
+        this_offset = obs['offset']    
+    
     # Now take third light and passband luminosity contributions into account
     time = syn['time']
     flux = syn['flux']
@@ -353,6 +353,10 @@ def plot_lcobs(system, **kwargs):
         time = obs['time']
     else:
         raise IOError("No times or phases defined")
+    
+    # Is there a time offset?
+    if 't0' in obs:
+        time += obs['t0']
     
     # Retrieve extra information
     repeat = kwargs.pop('repeat', 0)
@@ -760,6 +764,10 @@ def plot_rvobs(system, **kwargs):
         time = obs['time']
     else:
         raise IOError("No times or phases defined")
+    
+    # Is there a time offset?
+    if 't0' in obs:
+        time += obs['t0']    
     
     # Retrieve extra information
     repeat = kwargs.pop('repeat', 0)

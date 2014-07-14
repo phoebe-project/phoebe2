@@ -2155,6 +2155,10 @@ def extract_times_and_refs(system, params, tol=1e-8):
         else:
             mytimes = parset['time']
         
+        # Adjust for time zeropoint in dataset
+        if 't0' in parset:
+            mytimes += parset['t0']
+        
         # If a mesh is required add the info to the right lists
         if require_mesh:
             for itime, iexp, isamp in zip(mytimes, exps, samp):
@@ -2525,10 +2529,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             for iref in no_mesh_required[category]:
                 itime = no_mesh_required[category][iref]['time']
                 isamp = no_mesh_required[category][iref]['samprate']
+                logger.info("Computing {} for dataref {} without mesh".format(category, iref))
                 getattr(system, category + '_nomesh')(ref=iref, time=itime,
                                     correct_oversampling=isamp,
                                     save_result=save_result)
-    
     
     # separate times and refs for datasets that don't need to compute intensities 
     # (ivo = independent_variable_other)

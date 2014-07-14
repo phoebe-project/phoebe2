@@ -737,7 +737,7 @@ def dep_from_object(myobject,context,**kwargs):
 
 def binary_from_stars(star1, star2, sma=None, period=None,\
                       kwargs1=None, kwargs2=None, orbitkwargs=None,\
-                      create_body=False, **kwargs):
+                      create_body=False):
     """
     Create a binary system from two separate stars.
     
@@ -759,9 +759,6 @@ def binary_from_stars(star1, star2, sma=None, period=None,\
     ``kwargs2`` for the secondary :ref:`component <parlabel-phoebe-component>`,
     and ``orbitkwargs`` does the same for the creation of the
     :ref:`orbit <parlabel-phoebe-orbit>`.
-    
-    Extra kwargs are used to create observables if C{create_body=True}. Else,
-    they are ignored.
     
     @param star1: ParameterSet of context 'star' representing star 1
     @type star1: ParameterSet

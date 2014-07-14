@@ -441,7 +441,7 @@ def mpirun(fctn):
                 
                 # Load the results from the function from the pickle file
                 with open(sys_file.name, 'r') as open_file:
-                    results = cPickle.load(open_file)
+                    results = pickle.load(open_file)
                 
                 # Merge the original system with the results from the function
                 merge_synthetic([system, results])
