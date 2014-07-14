@@ -3427,7 +3427,7 @@ def download_atm(atm=None, force=False):
     destin_folder = get_paths()[0]
         
     # Perhaps we need to be sudo?
-    print("Copying to destination folder {}".format(destin_folder))
+    print("Downloading/copying atmosphere tables to destination folder {}".format(destin_folder))
     if not os.access(destin_folder, os.W_OK):
         raise IOError(("User has no write priviliges in destination folder, run sudo python"
                         "before calling this function"))
@@ -3475,18 +3475,18 @@ def download_spec_intens(force=False):
     destin_folder = get_paths()[1]
     download(destin_folder,
              'http://www.phoebe-project.org/2.0/docs/_downloads/spec_intens.tar.gz',
-             force=force, estimated_size='580 MB')
+             force=force, estimated_size='580 MB (can take a while!)')
     
 def download_spectra(force=False):
     destin_folder = get_paths()[2]
     download(destin_folder,
              'http://www.phoebe-project.org/2.0/docs/_downloads/spectra.tar.gz',
-             force=force, estimated_size='1.3 GB')
+             force=force, estimated_size='1.3 GB (can take a while!)')
 
 def download(destin_folder, source, force=False, estimated_size=None):
     
     # Perhaps we need to be sudo?
-    print("Copying to destination folder {}".format(destin_folder))
+    print("Downloading/copying {} to destination folder {}".format(source, destin_folder))
     if estimated_size:
         print("Estimated size: {}".format(estimated_size))
     if not os.access(destin_folder, os.W_OK):
