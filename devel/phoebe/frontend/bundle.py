@@ -5439,7 +5439,6 @@ class Bundle(Container):
         # Observe the system with the right computations
         if time is not None:
             options = self.get_compute(label, create_default=True).copy()
-            options['irradiation_alg'] = 'full'
             observatory.observe(self.get_system(), [time], lc=category=='lc',
                                 rv=category=='rv', sp=category=='sp',
                                 pl=category=='pl', ifm=category=='if',
