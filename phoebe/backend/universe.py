@@ -4598,7 +4598,12 @@ class Body(object):
                 continue
             
             orbits, comps = self.get_orbits()
-            obj, vel, ptimes = keplerorbit.get_barycentric_hierarchical_orbit(time,
+            # Phase shift in orbits:
+            t0 = 0.0
+            for orbit in orbits:
+                t0 += orbit['phshift']*orbit['period']
+
+            obj, vel, ptimes = keplerorbit.get_barycentric_hierarchical_orbit(time-t0,
                                                  orbits, comps)
             # retrieve the systemic velocity
             pos = self.get_globals()

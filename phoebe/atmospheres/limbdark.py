@@ -3024,6 +3024,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
                                         ld_func=ld_func,
                                         fitmethod=fitmethod)
             
+            # Interpolate the limb darkening coefficients
             coeffs = interp_ld_coeffs(atm_file, passband, atm_kwargs=atm_kwargs,
                                             red_kwargs=red_kwargs, vgamma=vgamma)
             
@@ -3421,7 +3422,7 @@ def add_file(filename):
         print("sudo cp {} {}".format(filename, destination))
 
 
-def download_atm(atm=None):
+def download_atm(atm=None, force=False):
     
     destin_folder = get_paths()[0]
         
@@ -3436,21 +3437,26 @@ def download_atm(atm=None):
         #/srv/www/phoebe/2.0/docs/_downloads
         source = 'http://www.phoebe-project.org/2.0/docs/_downloads/ldcoeffs.tar.gz'
         destin = os.path.join(destin_folder, 'ldcoeffs.tar.gz')
-        try:
-            urllib.urlretrieve(source, destin)
-            print("Downloaded tar archive from phoebe-project.org")
-        except IOError:
-            raise IOError(("Failed to download atmosphere file {} to {}. Are you "
+        
+        if not force and os.path.isfile(destin):
+            logger.info("File '{}' already exists, not forcing redownload (force=False)".format(destin))
+        
+        else:
+            try:
+                urllib.urlretrieve(source, destin)
+                print("Downloaded tar archive from phoebe-project.org")
+            except IOError:
+                raise IOError(("Failed to download atmosphere file {} to {}. Are you "
                            " connected to the internet? Otherwise, you probably "
                            "need to create atmosphere tables yourself starting "
                            "from the specific intensities)").format(source, destin))            
     
-        tar = tarfile.open(destin)
-        members = tar.getmembers()
-        for member in members:
-            print("Extracting {}...".format(member))
-        tar.extractall(path=destin_folder)
-        tar.close()
+            tar = tarfile.open(destin)
+            members = tar.getmembers()
+            for member in members:
+                print("Extracting {}...".format(member))
+            tar.extractall(path=destin_folder)
+            tar.close()
     
     else:
         source = 'http://www.phoebe-project.org/2.0/docs/_downloads/{}'.format(atm)
@@ -3465,18 +3471,24 @@ def download_atm(atm=None):
                            "intensities)").format(atm))
 
 
-def download_spec_intens():
+def download_spec_intens(force=False):
     destin_folder = get_paths()[1]
-    download(destin_folder, 'http://www.phoebe-project.org/2.0/docs/_downloads/spec_intens.tar.gz')
+    download(destin_folder,
+             'http://www.phoebe-project.org/2.0/docs/_downloads/spec_intens.tar.gz',
+             force=force, estimated_size='580 MB')
     
-def download_spectra():
+def download_spectra(force=False):
     destin_folder = get_paths()[2]
-    download(destin_folder, 'http://www.phoebe-project.org/2.0/docs/_downloads/spectra.tar.gz')
+    download(destin_folder,
+             'http://www.phoebe-project.org/2.0/docs/_downloads/spectra.tar.gz',
+             force=force, estimated_size='1.3 GB')
 
-def download(destin_folder, source):
+def download(destin_folder, source, force=False, estimated_size=None):
     
     # Perhaps we need to be sudo?
     print("Copying to destination folder {}".format(destin_folder))
+    if estimated_size:
+        print("Estimated size: {}".format(estimated_size))
     if not os.access(destin_folder, os.W_OK):
         raise IOError(("User has no write priviliges in destination folder, run sudo python"
                         "before calling this function"))
@@ -3484,21 +3496,24 @@ def download(destin_folder, source):
     
     #/srv/www/phoebe/2.0/docs/_downloads
     destin = os.path.join(destin_folder, os.path.basename(source))
-    try:
-        urllib.urlretrieve(source, destin)
-        print("Downloaded tar archive from phoebe-project.org")
-    except IOError:
-        raise IOError(("Failed to download file {} to {}. Are you "
+    if not force and os.path.isfile(destin):
+        logger.info("File '{}' already exists, not forcing redownload (force=False)".format(destin))
+    else:
+        try:
+            urllib.urlretrieve(source, destin)
+            print("Downloaded tar archive from phoebe-project.org")
+        except IOError:
+            raise IOError(("Failed to download file {} to {}. Are you "
                        " connected to the internet? Otherwise, you probably "
                        "need to create atmosphere tables yourself starting "
                        "from the specific intensities)").format(source, destin))            
     
-    tar = tarfile.open(destin)
-    members = tar.getmembers()
-    for member in members:
-        print("Extracting {}...".format(member))
-    tar.extractall(path=destin_folder)
-    tar.close()
+        tar = tarfile.open(destin)
+        members = tar.getmembers()
+        for member in members:
+            print("Extracting {}...".format(member))
+        tar.extractall(path=destin_folder)
+        tar.close()
 
 
 #}

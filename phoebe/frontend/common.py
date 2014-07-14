@@ -820,6 +820,11 @@ class Container(object):
         """
         Add a new fitting ParameterSet
         
+        **Example usage:**
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_fitting(context='fitting:emcee', iters=1000, walkers=100)
+        
         [FUTURE]
         
         @param ps: fitting ParameterSet

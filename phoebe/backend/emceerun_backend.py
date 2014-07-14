@@ -107,8 +107,7 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
                     value = trace[index]
                 # For any other distribution we simply draw
                 else:
-                    value = getattr(par, draw_func)(size=1)[0]
-                    
+                    value = getattr(par, draw_func)(size=1)[0]                    
                 walker.append(value)
     return p0
 

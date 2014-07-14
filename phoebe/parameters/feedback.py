@@ -48,7 +48,7 @@ def matrixify(x,y,z,Nx,Ny,limits=False,border=10.0):
             c[yi][xi] += 1
         except IndexError:
             pass
-    
+        
     return c,xmin,xmax,ymin,ymax
 
 class Feedback(object):
@@ -680,8 +680,14 @@ class FeedbackEmcee(Feedback):
                 keep = -np.isnan(smpls_x) & -np.isnan(smpls_y)
                 smpls_x = smpls_x[keep]
                 smpls_y = smpls_y[keep]
+                
+                # Skip if parameter did not vary over run
+                do_skip = False
+                if smpls_x.std()==0 or smpls_y.std()==0:
+                    do_skip = True
+                
                 this_logp = logp.ravel()[keep]            
-                if row > col:
+                if row > col and not do_skip:
                     m,xmin,xmax,ymin,ymax = matrixify(smpls_y, smpls_x, this_logp, cbins, cbins)
                     mx = np.max(m)
                     levels = [int(mx*(1-sp.erf(k/np.sqrt(2.0)))) for k in lrange]
@@ -709,7 +715,7 @@ class FeedbackEmcee(Feedback):
                     ax.set_xticks([])
                     ax.set_yticks([])
                 
-                elif row == col:
+                elif row == col and not do_skip:
                     
                     avg, std = np.average(smpls_x), np.std(smpls_x)
                     out = np.histogram(smpls_x, density=True, bins=32)

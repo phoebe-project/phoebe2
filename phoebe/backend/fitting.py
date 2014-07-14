@@ -593,6 +593,15 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
         direc = os.getcwd()
     else:
         direc = mpi['directory']
+        
+    # Check if nonadjustables with priors are inside their limits:
+    for par in system.get_parameters_with_priors(is_adjust=False):
+        if np.isinf(par.get_logp()):
+            raise ValueError(("At least one parameter that is not adjustable has "
+                              "an impossible value according to its prior or limits: "
+                              "qualifier={}, prior={}, limits={}".format(par.get_qualifier(),
+                              par.get_prior(), par.get_limits())))
+            
     
     # The system
     sys_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)

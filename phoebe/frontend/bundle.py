@@ -2680,7 +2680,7 @@ class Bundle(Container):
             if replaces is None:
                 for param in params:
                     param.set_replaced_by(True)
-            else:
+            elif replaces is not False:
                 for param in params:
                     param.set_replaced_by(None)
                 replaces_param.set_replaced_by(params)
@@ -3374,6 +3374,10 @@ class Bundle(Container):
           the starting points are drawn randomly from the priors (:envvar:`init_from='prior'`),
           from the posteriors (:envvar:`init_from='posterior'`), or from the
           last state of the previous run (:envvar:`init_from='previous_run'`).
+          When you draw randomly from priors or posteriors, there is some
+          checking performed if all parameters are valid, e.g. if you set the
+          morphology to be detached, it checks whether all walkers start from
+          such a scenario regardless of the actual priors on the potentials.
         - :envvar:`incremental`: add the results to the previous computation or
           not. You can continue the previous chain *and* resample from the
           posteriors or priors if you wish (via :envvar:`init_from`). Suppose you
@@ -5003,13 +5007,14 @@ class Bundle(Container):
         # Retrieve the obs DataSet and the object it belongs to
         dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
                                    return_trunk_item=True, all=True)
-        # retrieve obs for sed grouping
-        dstiobs = self._get_by_search(twig, context='*obs', class_name='*DataSet',
-                                   return_trunk_item=True, all=True)
         
         # It's possible that we need to plot an SED: in that case, we have
         # more than one dataset but they are all light curves that are grouped
         if len(dsti) > 1:
+            # retrieve obs for sed grouping.
+            dstiobs = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+            
             # Check if they are all lightcurves and collect group name
             groups = []
             if not len(dsti) == len(dstiobs):
