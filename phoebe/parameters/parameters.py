@@ -3505,6 +3505,11 @@ def return_equatorial_dec(value, unit=None):
     
     return value
    
+def require_even(value):
+    value = int(value)
+    if value%2==1:
+        raise ValueError("Value {} should be even, but it is odd".format(value))
+    return value
     
 def make_upper(value):
     return str(value).upper()

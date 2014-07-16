@@ -51,8 +51,6 @@ def lnprob(values, pars, system, compute_params):
     # Get also the parameters that are adjustable but have no prior        
     auto_fitted = system.get_adjustable_parameters(with_priors=False)
     auto_fitted = [par.get_value() for par in auto_fitted]
-    #obs = system.get_obs()
-    #return logp, (obs['scale'], obs['offset'])
     
     # And finally get the parameters that are not adjustable but have a prior
     derived = system.get_parameters_with_priors(is_adjust=False, is_derived=True)
@@ -66,11 +64,19 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
     # What parameters need to be adjusted?
     pars = mysystem.get_adjustable_parameters()
     
-    # Draw function
-    draw_func = 'get_value_from_' + draw_from
+    # Draw function: if it's from posteriors and a par has no posterior, fall
+    # back to prior
+    if draw_from == 'posterior':
+        draw_funcs = ['get_value_from_posterior' if par.has_posterior() \
+                                    else 'get_value_from_prior' for par in pars]
+        get_funcs = ['get_posterior' if par.has_posterior() \
+                                    else 'get_prior' for par in pars]
+    else:
+        draw_funcs = ['get_value_from_prior' for par in pars]
+        get_funcs = ['get_prior' for par in pars]
     
     # Create an initial set of parameters from the priors
-    p0 = [getattr(par, draw_func)(size=nwalkers) for par in pars]
+    p0 = [getattr(par, draw_func)(size=nwalkers) for par, draw_func in zip(pars, draw_funcs)]
     p0 = np.array(p0).T # Nwalkers x Npar
     
     
@@ -97,17 +103,17 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
             # we can take the parameters from the same representation always
             index = None
             walker = []
-            for par in pars:
-                distr = getattr(par, 'get_' + draw_from)().get_distribution()[0]
+            for ii, par in enumerate(pars):
+                distr = getattr(par, get_funcs[ii])().get_distribution()[0]
                 if distr == 'trace' and index is None:
-                    value, index = getattr(par, draw_func)(size=1)
+                    value, index = getattr(par, draw_funcs[ii])(size=1)
                     value, index = value[0], index[0]
                 elif distr == 'trace':
-                    trace = getattr(par, 'get_' + draw_from)().get_distribution()[1]['trace'][index]
+                    trace = getattr(par, get_funcs[ii])().get_distribution()[1]['trace'][index]
                     value = trace[index]
                 # For any other distribution we simply draw
                 else:
-                    value = getattr(par, draw_func)(size=1)[0]                    
+                    value = getattr(par, draw_funcs[ii])(size=1)[0]                    
                 walker.append(value)
     return p0
 
@@ -188,12 +194,21 @@ def update_progress(system, sampler, fitparams, last=10):
     """
     adj_pars = system.get_adjustable_parameters(with_priors=True)
     k = sum(sampler.lnprobability[0]<0)
+    if not k:
+        logger.warning("No valid models available (chain shape = {})".format(sampler.chain.shape))
+        return None
     chain = sampler.chain[:,:k,:]
     logprobs = sampler.lnprobability[:,:k]
     best_iter = np.argmax(logprobs.max(axis=0))
     best_walker = np.argmax(logprobs[:,best_iter])
     text = ["EMCEE Iteration {:>6d}/{:<6d}: {} walkers, {} parameters".format(k-1, fitparams['iters'], fitparams['walkers'], chain.shape[-1])]
     text+= ["      best logp = {:.6g} (reached at iter {}, walker {})".format(logprobs.max(axis=0)[best_iter],best_iter, best_walker)]
+    try:
+        acc_frac = sampler.acceptance_fraction
+        acor = sampler.acor
+    except:
+        acc_frac = np.array([np.nan])        
+    text+= ["      acceptance_fraction ({}->{} (median {}))".format(acc_frac.min(), acc_frac.max(), np.median(acc_frac))]
     for i, par in enumerate(adj_pars):
         pos = chain[:,-last:,i].ravel()
         text.append("  {:15s} = {:.6g} +/- {:.6g} (best={:.6g})".format(par.get_qualifier(),
@@ -208,7 +223,25 @@ def update_progress(system, sampler, fitparams, last=10):
 
 
 def run(system_file, compute_params_file, fit_params_file):
+    """
+    Run the emcee algorithm.
     
+    Following steps need to be taken:
+    
+    1. The system and parameters need to be loaded from the pickle file
+    2. We need to figure out which parameters need to be included in the chain,
+       which ones are automatically fitted and which ones are automatically
+       derived
+    3. Initiate the walkers. This can be done in three ways:
+        - starting from the previous run
+        - starting from posteriors
+        - starting from priors
+       This is governed by the "init_from" parameter, and the list above is also
+       the order of priority that is used when the init_from option is invalid:
+       if there is no previous run, it will be checked if we can start from
+       posteriors. If there are no posteriors, we'll start from the priors.
+    4. Create the sampler and run!    
+    """
     # Take care of the MPI pool
     if mpi:
         pool = MPIPool()
@@ -217,20 +250,27 @@ def run(system_file, compute_params_file, fit_params_file):
             sys.exit(0)
     else:
         pool = None
-            
+    
+    # +---------------------------------------+
+    # |   STEP 1: load system and parameters  |
+    # +---------------------------------------+
+    
     # Load the System
     system = universe.load(system_file)
     system.reset_and_clear()
     
     # Load the fit and compute ParameterSets
     compute_params = universe.load(compute_params_file)
-    fit_params = universe.load(fit_params_file)
-    
+    fit_params = universe.load(fit_params_file)    
     
     # Retrieve the number of walkers and iterations
     nwalkers = fit_params['walkers']
     niters = fit_params['iters']
     label = os.path.join(os.path.dirname(system_file), fit_params['label'])
+    
+    # +--------------------------------------------+
+    # |   STEP 2: get all the relevant parameters  |
+    # +--------------------------------------------+
     
     # We need unique names for the parameters that need to be fitted, we need
     # initial values and identifiers to distinguish parameters with the same
@@ -259,9 +299,14 @@ def run(system_file, compute_params_file, fit_params_file):
     derived_prior_labels = ["".join(str(par.get_prior()).split()) for par in derived]
     derived = [par.get_qualifier() for par in derived]
     
-    # Restart from previous state
+    # +-----------------------------------------+
+    # |   STEP 3: setup the initial parameters  |
+    # +-----------------------------------------+
+    
+    # Restart from previous state if asked for and if possible
     existing_file = os.path.isfile(label + '.mcmc_chain.dat')
-    if fit_params['incremental'] and existing_file and fit_params['init_from'] == 'previous_run':
+    logger.warning("Using chain file {}".format(label + '.mcmc_chain.dat'))
+    if existing_file and fit_params['init_from'] == 'previous_run':
         # Load in the data
         existing = np.loadtxt(label + '.mcmc_chain.dat')
         nwalkers = int(existing[:,0].max() + 1)
@@ -280,9 +325,12 @@ def run(system_file, compute_params_file, fit_params_file):
     
     # Or start from scratch
     else:
+        # if previous_run was requested, if we end up here it was not possible.
+        # Therefore we set to start from posteriors
         if fit_params['init_from'] == 'previous_run':
-            logger.warning("Cannot continue from previous run, starting new one from priors")
-            fit_params['init_from'] = 'prior'
+            logger.warning("Cannot continue from previous run, falling back to start from posteriors")
+            fit_params['init_from'] = 'posterior'
+        
         # now, if the number of walkers is smaller then twice the number of
         # parameters, adjust that number to the required minimum and raise a warning
         
@@ -299,15 +347,19 @@ def run(system_file, compute_params_file, fit_params_file):
             p0 = univariate_init(system, nwalkers, draw_from=fit_params['init_from'])
             logger.warning("Initialised walkers from {} with univariate distributions".format(fit_params['init_from']))
         
-        # Only start a new file if we do not require incremental changes
-        if not fit_params['incremental']:
-            f = open(label + '.mcmc_chain.dat', "w")
-            f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " logp\n")
-            f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " logp\n")
-            f.write("# none " + " ".join(prior_labels) +" "+ " ".join(auto_prior_labels) +" "+ " ".join(derived_prior_labels)+ " logp\n")
-            f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "LOGP\n")
-            f.close()
+    # Only start a new file if we do not require incremental changes, or
+    # if we start a new file
+    if not fit_params['incremental'] or not existing_file:
+        f = open(label + '.mcmc_chain.dat', "w")
+        f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " acc logp\n")
+        f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " acc logp\n")
+        f.write("# none " + " ".join(prior_labels) +" "+ " ".join(auto_prior_labels) +" "+ " ".join(derived_prior_labels)+ " acc logp\n")
+        f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "ACC LOGP\n")
+        f.close()
     
+    # +--------------------------------------------+
+    # |   STEP 4: create the sampler and run!      |
+    # +--------------------------------------------+
     
     # Create the sampler
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
@@ -317,8 +369,14 @@ def run(system_file, compute_params_file, fit_params_file):
     # And run!
     generator = sampler.sample(p0, iterations=niters, storechain=True)
     for niter, result in enumerate(generator):
+        
         #print("Iteration {}".format(niter))
         position, logprob, rstate, blobs  = result
+        
+        try:
+            acc_frac = sampler.acceptance_fraction
+        except:
+            acc_frac = np.array([np.nan]*position.shape[0])  
         
         # Write walker positions
         with open(label + '.mcmc_chain.dat', "a") as f:
@@ -342,6 +400,9 @@ def run(system_file, compute_params_file, fit_params_file):
                 elif len(derived):
                     f.write(" %s"
                             % (" ".join(['nan' for i in derived])))
+                
+                # Write acceptance fraction
+                f.write(" %.10e" % (acc_frac[k]))
                 
                 # Write logprob
                 f.write(" %.10e\n" % (logprob[k]))

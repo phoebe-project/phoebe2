@@ -619,7 +619,7 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     fit_file.close()
     
     # Be sure to remove any previously existing chain file
-    chain_file = fitparams['label'] + '.mcmc_chain.dat'
+    chain_file = os.path.join(direc, fitparams['label'] + '.mcmc_chain.dat')
     if os.path.isfile(chain_file) and not fitparams['incremental']:
         os.unlink(chain_file)
     
@@ -651,7 +651,7 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     
     # Check if we produced the chain file
     if not os.path.isfile(chain_file):
-        raise RuntimeError("Could not produce chain file, something must have seriously gone wrong during emcee run")
+        raise RuntimeError("Could not produce chain file {}, something must have seriously gone wrong during emcee run".format(chain_file))
         
     return chain_file, 
     

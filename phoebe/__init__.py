@@ -272,7 +272,7 @@ Section 2.2 Passbands and atmosphere tables
 
 Supported passbands are all collected in a FITS file ``phoebe2_standardset.fits``
 in the ``phoebe/atmospheres/ptf`` directory. You can create such a file (and thus
-add custom passbands) using the ``create_passbandfits.py`` script located in
+add custom passbands) using the the :py:mod:`create_passbandfits.py <phoebe.atmospheres.create_passbandfits>` script located in
 ``phoebe/atmospheres/``.
 
 The ``phoebe2_standardset.fits`` file is not strictly needed to operate Phoebe2,
@@ -321,6 +321,10 @@ atmosphere file, and how to create an atmosphere file from scratch.
 **Adding a new passband to an existing atmosphere file**
 
 1. Make sure you have the required specific intensity tables inside ``phoebe/atmospheres/tables/spec_intens``.
+   If not, you could try to download a default set of files via::
+   
+   >>> phoebe.download_spec_intens()
+
    You can find a list of the necessary files inside the primary header of the
    atmosphere file you want to add a passband to.
 2. Create an ASCII file containing the information on the passband, and store
@@ -328,11 +332,13 @@ atmosphere file, and how to create an atmosphere file from scratch.
    format, see existing files there. Basically it's a an ASCII file with two
    columns (wavelength (angstrom) versus response), and a small header with the
    name of the passband.
-3. Run in a terminal, from ``phoebe/atmospheres``::
+3. Run in a terminal, from ``phoebe/atmospheres`` the :py:mod:`create_passbandfits <phoebe.atmospheres.create_passbandfits>`
+   script::
 
-    $:> python create_atmospherefits.py
+    $:> python create_passbandfits.py
 
-4. Run in a Python shell::
+4. Run in a Python shell the :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>`
+   function with the following arguments::
 
     $:> python
     >>> from phoebe.atmospheres import create_atmospherefits
@@ -345,8 +351,12 @@ after which the passband is available in Phoebe2.
 
 **Creating a new atmosphere tables**
 
-1. Make sure you have the required specific intensity tables inside ``phoebe/atmospheres/tables/spec_intens``
-2. Run in a terminal, from ``phoebe/atmospheres``::
+1. Make sure you have the required specific intensity tables inside ``phoebe/atmospheres/tables/spec_intens``.
+   If not, you can try to download a standard set of files via::
+   
+   >>> phoebe.download_spec_intens()
+   
+2. Run in a terminal, from ``phoebe/atmospheres`` the :py:mod:`create_atmospherefits <phoebe.atmospheres.create_atmospherefits>` script::
 
     $:> python create_atmospherefits.py tables/spec_intens/myfiles*.fits --passbands=JOHNSON,GENEVA --ld_func=claret --filetag=myfile
 
@@ -363,6 +373,7 @@ after which the passband is available in Phoebe2.
 
 If you completed step 5, then you can use your ``filetag`` for the ``atm`` and
 ``ld_coeffs`` parameters throughout Phoebe2, both in the frontend and in the backend.
+Otherwise, you need to give the name of the file you've created.
 
 
 Section 2.3 Gravity darkening

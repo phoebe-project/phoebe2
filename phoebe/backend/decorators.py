@@ -9,6 +9,7 @@ import subprocess
 import time
 import os
 import sys
+import datetime
 from collections import OrderedDict
 from phoebe.parameters import parameters
 from phoebe.parameters import datasets
@@ -240,12 +241,10 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
             memory = ',mppmem={:.0f}M'.format(mpirun_par['memory'])
         else:
             memory = ''
-        time_ = '{:.0f}'.format(mpirun_par['time'])
+        dt = datetime.timedelta(minutes=mpirun_par['time'])
+        time_ = "%02d:%02d:%02d" % (dt.total_seconds()/3600, dt.total_seconds()%3600/60, dt.total_seconds()%60)
         nodes = '{:d}'.format(mpirun_par['nodes'])
-        if mpirun_par['ppn']:
-            ppn = ':ppn={:d}'.format(mpirun_par['ppn'])
-        else:
-            ppn = ''
+        ppn = '{:d}'.format(mpirun_par['ppn'])
         email = '{}'.format(mpirun_par['email'])
         
         # We need the absolute path name to mpirun for Torque:
@@ -264,9 +263,12 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
 #PBS -l nodes={nodes}
 {mpirun} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
                      
-        cmd = ('echo "mpirun {python} '
+        #cmd = ('echo "mpirun {python} '
+        #   '{mpirun_loc} {args}" '
+        #   '| qsub -V -l nodes={nodes}{ppn}{memory},walltime=00:10:00').format(**locals())
+        cmd = ('echo "mpirun -np {ppn} {python} '
            '{mpirun_loc} {args}" '
-           '| qsub -V -l nodes={nodes}{ppn}{memory},cput={time_}').format(**locals())
+           '| qsub -V -l nodes={nodes}:ppn={ppn},walltime={time_}').format(**locals())
         
         if email:
             cmd += ' -M {}'.format(email)
@@ -281,20 +283,23 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
         
         flag = 1
         try:
-            jobid = subprocess.check_output(cmd, shell=True).strip()
-            
             print("Running torque with command '{}'".format(cmd))
+            time.sleep(1) # give everything some time to fall into place
+            jobid = subprocess.check_output(cmd, shell=True).strip()
             print("JobID: {}".format(jobid))
             print("Waiting for job to finish (interrupting with CTRL+C will stop this script but not the job, use 'qdel {}' to stop the computations".format(jobid))
             
             time.sleep(5)
             # Output expected start date:
-            print(subprocess.check_output('showstart '+jobid, shell=True))
+            try:
+                print(subprocess.check_output('showstart '+jobid, shell=True))
+            except Exception as msg:
+                print("Job started")
             
             # Monitor the job until it's done:
             while True:
                 try:
-                    output = subprocess.check_output('qstat '+jobid, shell=True)
+                    output = subprocess.check_output('qstat -a '+jobid, shell=True)
                     status = output.split('\n')[-2].strip().split()[-2]
                     sys.stdout.write("\r" + output.split('\n')[-2].rstrip())
                     sys.stdout.flush()
@@ -305,10 +310,12 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
                     break
             # Only if we get to here, everything worked out
             flag = 0
+            print("\nJob finished correctly")
         except Exception as msg:
-            pass
+            print("\nSomething failed during torque submission: {}".format(str(msg)))
         # New line in terminal
         print('\n')
+        
         
     return flag, mpirun_par.get_context().split(':')[-1]
 
