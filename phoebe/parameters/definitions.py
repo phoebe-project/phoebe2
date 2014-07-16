@@ -572,7 +572,6 @@ defs += [dict(qualifier='flux_cont', description='Continuum flux level', repr='%
 defs += [dict(qualifier='iters',     description='Number of iterations',repr='%d',cast_type=int,value=1000,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='burn',     description='Burn parameter',repr='%d',cast_type=int,value=0,frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='thin',     description='Thinning parameter',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='fitting:pymc'),
-         dict(qualifier='feedback', description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:pymc'),
          dict(qualifier='incremental',description='Add results to previously computed chain file',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:pymc'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:pymc'),
         ]
@@ -634,7 +633,6 @@ defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr
                                                        'is not fully explored. On the other hand, prelminary tests '
                                                        'suggest that using max and min to set clearly outlandish '
                                                        'bounds does not greatly affect performance or results.'),repr='',cast_type=float,value=True,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
-         dict(qualifier='feedback',  description='Results from fitting procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
         dict(qualifier='xtol',     description='Relative error in parameter values acceptable for convergence',repr='%f',cast_type=float,value=0.0001,frame=["phoebe"],context=['fitting:lmfit:nelder']),
         dict(qualifier='ftol',     description='Relative error in model acceptable for convergence',repr='%f',cast_type=float,value=0.0001,frame=["phoebe"],context=['fitting:lmfit:nelder']),
         dict(qualifier='maxfun',     description='Maximum number of function evaluations to make',repr='%s',cast_type='return_none_or_float',value=None,frame=["phoebe"],context=['fitting:lmfit:nelder']),
@@ -652,13 +650,11 @@ defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr
         ]
         
 
-defs += [dict(qualifier='feedback',  description='Results from MINUIT',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:minuit'),
-         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:minuit'),
+defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:minuit'),
          dict(qualifier='bounded',   description='Include boundaries in fit',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='fitting:minuit'),
         ]
         
-defs += [dict(qualifier='feedback',  description='Results from gridding procedure',repr='%s',cast_type=dict,value={},frame=["phoebe"],context='fitting:grid'),
-         dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:grid'),
+defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:grid'),
          dict(qualifier='sampling',  description='Number of points to sample per parameter for non-bin priors',repr='%d',cast_type=int,value=5,frame=["phoebe"],context='fitting:grid'),
          dict(qualifier='iterate',   description='Type of iteration: list or product of priors',repr='%s',cast_type='choose',
                                      long_description=("Determines the type of iterations. Suppose the prior on parameter 'a' is [0,1,2] and "
@@ -766,7 +762,7 @@ defs += [dict(qualifier='ref',        description='identifier for the plotting o
          dict(qualifier='datatwig',          description='twig to the dataset',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot_mesh'),
          #~ dict(qualifier='active',          description='whether to draw this plot on the axes',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='plotting:plot_mesh'),
          dict(qualifier='objref',         description='',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot_mesh'),
-         dict(qualifier='compute_label',         description='',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot_mesh'),
+         dict(qualifier='computelabel',         description='',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot_mesh'),
          #~ dict(qualifier='time',         description='',repr='%f',cast_type=float,value=None,frame=["phoebe"],context='plotting:plot_mesh'),
          #~ dict(qualifier='phase',         description='',repr='%f',cast_type=float,value=None,frame=["phoebe"],context='plotting:plot_mesh'),
          dict(qualifier='size',         description='',repr='%d',cast_type=int,value=800,frame=["phoebe"],context='plotting:plot_mesh'),

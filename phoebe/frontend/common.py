@@ -922,8 +922,8 @@ class Container(object):
                         elif ri['kind']=='ParameterSet': # these should be coming from the sections
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'], ref=ri['ref'])
 
-            if do_sectionlevel and section_name not in ['system', 'dataset', 'feedback']: # we'll need to fake these later since they're not actually stored as a list of PSs  TODO: remove feedback from this list once names don't clash
-                ris = self._get_info_from_item({item.get_value('ref') if 'ref' in item.keys() else item.get_value('label'):item for item in section},section=section_name,container=container,label=-1)
+            if do_sectionlevel and section_name not in ['system', 'dataset']: # we'll need to fake these later since they're not actually stored as a list of PSs
+                ris = self._get_info_from_item({item.get_value('ref') if (hasattr(item, 'keys') and 'ref' in item.keys()) else item.get_value('label') if hasattr(item, 'get_value') else item.get_label():item for item in section},section=section_name,container=container,label=-1)
                 return_items += ris
                 
         return return_items

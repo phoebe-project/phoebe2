@@ -4465,7 +4465,7 @@ class Bundle(Container):
             with_partial_as_half = plkwargs.pop('with_partial_as_half', False)
             time = plkwargs.pop('time', None)
             phase = plkwargs.pop('phase', None)
-            compute_label = plkwargs.pop('compute_label', None)
+            computelabel = plkwargs.pop('computelabel', None)
             objref = plkwargs.pop('objref', None)
             category = context[:-3] if context is not None else 'lc'
             
@@ -4483,7 +4483,7 @@ class Bundle(Container):
             
             # Observe the system with the right computations
             if time is not None:
-                options = self.get_compute(compute_label, create_default=True).copy()
+                options = self.get_compute(computelabel, create_default=True).copy()
                 observatory.observe(self.get_system(), [time], lc=category=='lc',
                                     rv=category=='rv', sp=category=='sp',
                                     pl=category=='pl', save_result=False, **options)
@@ -5347,7 +5347,7 @@ class Bundle(Container):
         ax = kwargs.pop('ax', None)
         fig = kwargs.pop('fig', None)
         
-        kwargs['compute_label'] = label
+        kwargs['computelabel'] = label
         kwargs['objref'] = objref
         plotref, axesref, figref = self._handle_plotting_call('plot_mesh', dsti, **kwargs)
 
