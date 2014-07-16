@@ -37,7 +37,7 @@ Section 2. Operation details
    :local:
 
 Section 2.1 Limb darkening, local intensities and absolute fluxes
-------------------------------------------------------------------
+-------------------------------------------------------------------
 
 Three parameters are important for setting limbdarkening options and local intensity values:
     
