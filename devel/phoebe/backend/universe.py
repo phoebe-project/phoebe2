@@ -2497,6 +2497,7 @@ class Body(object):
             log_f += this_logf
             chi2.append(this_chi2)
             n_data += len(obser)
+            
             if loaded:
                 obs.unload()
             

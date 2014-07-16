@@ -12,6 +12,7 @@ def test_fitting():
     """
     Test lmfit and emcee + resampling from posteriors on RV
     """
+    run_as_main = __name__ == "__main__"
 
     # Initiate a Bundle, change some parameters and compute an rv curve
     mybundle = bundle.Bundle('binary')
@@ -64,17 +65,18 @@ def test_fitting():
     mybundle['q'] = 0.5
 
     # Specify two fitting routines
-    mybundle.add_fitting(context='fitting:emcee', iters=20, walkers=20,
+    iters = 40 if run_as_main else 20
+    mybundle.add_fitting(context='fitting:emcee', iters=40, walkers=20,
                         init_from='prior', label='mcmc',
                         computelabel='preview', incremental=False)
     mybundle.add_fitting(context='fitting:lmfit', label='leastsq', method='leastsq',
                         computelabel='preview')
 
     # Run least square but do not accept results (just a test run)
-    mybundle.run_fitting(fittinglabel='leastsq', accept_feedback=False)
+    #mybundle.run_fitting(fittinglabel='leastsq', accept_feedback=False)
 
     # Run mcmc fitting first time
-    mpi = None#parameters.ParameterSet('mpi', np=6)
+    mpi = None if not run_as_main else parameters.ParameterSet('mpi', np=6)
     mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
 
     # Run fitting after resampling from posterior, but with a cutoff in lnproblim
@@ -85,10 +87,17 @@ def test_fitting():
     mybundle.accept_feedback('mcmc')
 
     ## And plot results
-    #plt.figure()
-    #mybundle['mcmc@feedback'].plot_logp()
-    #mybundle['mcmc@feedback'].plot_summary()
-    #plt.show()
+    if run_as_main:
+        plt.figure()
+        mybundle['mcmc@feedback'].plot_logp()
+        mybundle['mcmc@feedback'].plot_summary()
+        plt.figure()
+        mybundle['mcmc@feedback'].plot_acceptance_fraction()
+        plt.figure()
+        mybundle['mcmc@feedback'].plot_history()
+        
+        
+        plt.show()
     
     # If we get here, that's fine enough for us
     assert(True)

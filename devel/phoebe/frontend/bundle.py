@@ -7,6 +7,25 @@ plotted and observations computed. It does not contain any implementation of
 physics; that is the responsibility of the backend and the associated
 library.
 
+**Initialisation**
+
+Simply initialize a Bundle with default parameters via::
+
+    >>> mybundle = Bundle()
+
+Or use other predefined systems as a starting point::
+
+    >>> mybundle = Bundle('binary')
+    >>> mybundle = Bundle('overcontact')
+    >>> mybundle = Bundle('hierarchical_triple')
+    >>> mybundle = Bundle('binary_pulsating_primary')
+    >>> mybundle = Bundle('pulsating_star')
+    >>> mybundle = Bundle('sun')
+    >>> mybundle = Bundle('vega')
+    
+For a complete list, see the documentation of the :py:mod:`create <phoebe.parameters.create>`
+module (section *Generic systems* and *specific targets*).
+
 **Phoebe1 compatibility**
     
 Phoebe2 can be used in a Phoebe1 compatibility mode ('legacy' mode), which is
@@ -1759,7 +1778,7 @@ class Bundle(Container):
         Note that extra parameters can be given in the file itself, but can
         also be overriden in the function call:
         
-        >>> bundle.lc_fromfile('myfile.lc', atm='kurucz')
+        >>> bundle.lc_fromfile('myfile.lc', passband='JOHNSON.V')
         
         If you have a non-standard file (non-default column order or non-default
         units), you have some liberty in specifying the file-format here. You
@@ -3534,7 +3553,7 @@ class Bundle(Container):
         # or their initial values, and in any case recompute the system such
         # that the synthetics are up-to-date with the parameters
         self.accept_feedback(fittingoptions['label']+'@feedback',
-                             recompute=True, revert=(not accept_feedback))
+                             recompute=accept_feedback, revert=(not accept_feedback))
         
         return feedback
         

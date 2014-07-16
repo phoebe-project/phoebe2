@@ -456,7 +456,7 @@ class FeedbackEmcee(Feedback):
                     continue
                 
                 # We got it!
-                translations[adj_ids[index]] = item['twig']
+                translations[adj_ids[index]] = '@'.join(item['twig'].split('@')[:-1])
             
             # Now strip the common parts of the twig, in order not too make the
             # name too long
@@ -496,9 +496,10 @@ class FeedbackEmcee(Feedback):
         burnin = self._burnin
         thin = self._thin
         nwalkers = int(data[:,0].max() + 1)
-        walkers, data, logp = data[burnin*nwalkers::thin,0],\
-                              data[burnin*nwalkers::thin,1:-1],\
-                              data[burnin*nwalkers::thin,-1]
+        walkers, data, acc, logp = data[burnin*nwalkers::thin,0],\
+                                   data[burnin*nwalkers::thin,1:-2],\
+                                   data[burnin*nwalkers::thin,-2],\
+                                   data[burnin*nwalkers::thin,-1]
         
         niterations = int(data.shape[0] / nwalkers)
         npars = data.shape[1]
@@ -515,6 +516,7 @@ class FeedbackEmcee(Feedback):
         myinfo += ("Cut-off lnprob: {}".format(lnproblim)) + '\n'
         myinfo += ("Burn-in: {}".format(burnin)) + '\n'
         myinfo += ("Thinning: {}".format(thin)) + '\n'
+        myinfo += ("Median acceptance fraction: {}".format(np.median(acc))) + '\n'
                    
         self._info = myinfo
         
@@ -522,6 +524,7 @@ class FeedbackEmcee(Feedback):
         data = data[select]
         walkers = walkers[select]
         logp = logp[select]
+        acc = acc[select]
         index = np.argmax(logp)
         
         sigmas = np.std(data, axis=0)
@@ -579,9 +582,10 @@ class FeedbackEmcee(Feedback):
         data = np.loadtxt(self._emcee_file)
         logger.info("Loaded {}".format(self._emcee_file))
         nwalkers = int(data[:,0].max() + 1)
-        walkers, data, logp = data[nwalkers*burnin::thin,0],\
-                              data[nwalkers*burnin::thin,1:-1],\
-                              data[nwalkers*burnin::thin,-1]
+        walkers, data, acc, logp = data[nwalkers*burnin::thin,0],\
+                                   data[nwalkers*burnin::thin,1:-2],\
+                                   data[nwalkers*burnin::thin,-2],\
+                                   data[nwalkers*burnin::thin,-1]
         niterations = int(data.shape[0] / nwalkers)
         npars = data.shape[1]
         
@@ -589,15 +593,17 @@ class FeedbackEmcee(Feedback):
         mask = logp<=lnproblim
         data[mask] = np.nan
         logp[mask] = np.nan
+        acc[mask] = np.nan
         
         if reshape:
             # Reshape the array in a convenient format
             data = data.reshape( len(data) / nwalkers, nwalkers, -1)
             logp = logp.reshape(-1, nwalkers)
+            acc = acc.reshape(-1, nwalkers)
             walkers = walkers.reshape(-1, nwalkers)
             
         
-        return (walkers, data, logp), (nwalkers, niterations, npars)
+        return (walkers, data, acc, logp), (nwalkers, niterations, npars)
             
         
         
@@ -608,7 +614,7 @@ class FeedbackEmcee(Feedback):
         if ax is None:
             ax = plt.gca()
             
-        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()
+        (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
         
         for i in range(nwalkers):
             ax.plot(logp[:,i], alpha=0.2)
@@ -617,8 +623,27 @@ class FeedbackEmcee(Feedback):
         plt.ylabel("log(Probability) [dex]")
         plt.title("Probability history")
     
+    def plot_acceptance_fraction(self, ax=None):
+        """
+        Plot the acceptance fraction vs iteration number.
+        """
+        if ax is None:
+            ax = plt.gca()
+            
+        (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
+        
+        for i in range(nwalkers):
+            ax.plot(acc[:,i], alpha=0.3)
+        
+        plt.axhspan(0.2, 0.5, color='g', alpha=0.1)
+        
+        plt.xlabel("Iteration number")
+        plt.ylabel("Acceptance fraction")
+        plt.title("Acceptance fraction")
+        
+    
     def plot_history(self, qualifier=None, ax=None):
-        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()
+        (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
         
         if qualifier is None:
             pars = self._parameters
@@ -633,6 +658,9 @@ class FeedbackEmcee(Feedback):
                 ax_ = plt.gca()
             else:
                 ax_ = ax
+            
+            if par.has_prior():
+                par.get_prior().plot(on_axis='y', alpha=0.1, color='r')
                 
             ylabel = self._translate(par.get_unique_label())
             if par.has_unit():
@@ -646,7 +674,7 @@ class FeedbackEmcee(Feedback):
     def plot_summary(self, bins=20, axes=None):
         cbins = 20
         fontsize = 8
-        (walkers, data, logp), (nwalkers, niterations, npars) = self.get_data()
+        (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
         #npars = 2
         # range of contour levels
         lrange = np.arange(2.5,0.0,-0.5)

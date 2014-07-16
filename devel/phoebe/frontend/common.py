@@ -1223,9 +1223,10 @@ class Container(object):
             #~ raise ValueError("building trunk failed when trying to parse {}".format(kind))
             
         # now let's do specific overrides
-        if context == 'orbit':
+        if context == 'orbit' and self._get_object(label).get_parent():
             # we want to hide the fact to the user that these exist at the component level
-            # and instead fake its label to be that of its parent BodyBag
+            # and instead fake its label to be that of its parent BodyBag (if it
+            # has any, an overcontact might not!)
             #~ label = self.get_parent(label).get_label()
             label = self._get_object(label).get_parent().get_label()
             ref = None

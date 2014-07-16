@@ -27,10 +27,12 @@ L{binary_from_spectroscopy} or a separation via L{binary_from_stars}).
     binary_from_spectroscopy
     dep_from_object
     
-**Generic system**
+**Generic systems**
 
 .. autosummary::
 
+    binary
+    overcontact
     hierarchical_triple
     pulsating_star
     binary_pulsating_primary
@@ -1399,6 +1401,9 @@ def vega_monnier2012():
 
 
 def binary(create_body=True):
+    """
+    Default Phoebe2 binary system
+    """
     component1 = parameters.ParameterSet('component', label='primary')
     component2 = parameters.ParameterSet('component', label='secondary')
     orbit = parameters.ParameterSet('orbit', c1label='primary', c2label='secondary', label='new_system')
@@ -1410,6 +1415,23 @@ def binary(create_body=True):
     return universe.BodyBag([comp1, comp2], label='new_system', reddening=reddening,
                             position=position)
     
+
+def overcontact(create_body=True):
+    """
+    Overcontact system
+    """
+    component1 = parameters.ParameterSet('component', label='overcontact')
+    component1['pot'] = 2.75
+    component1['morphology'] = 'overcontact'
+    orbit = parameters.ParameterSet('orbit', c1label='overcontact', c2label='<unknown>', label='new_system')
+    orbit['q'] = 0.5
+    position = parameters.ParameterSet('position', distance=(10.,'pc'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
+    
+    comp1 = universe.BinaryRocheStar(component=component1, orbit=orbit)
+    
+    return universe.BodyBag([comp1], label='new_system', reddening=reddening,
+                            position=position)
 
 
 def GD2938(create_body=True):

@@ -588,9 +588,10 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
                                                       "ensemble. See Goodman & Weare (2010) for more details. "
                                                       "The best technique seems to be to start in a small ball "
                                                       "around the a priori preferred position. Don't worry, "
-                                                      "the walkers quickly branch out and explore the rest of the space."),repr='%d',cast_type=int,value=6,frame=["phoebe"],context='fitting:emcee'),
+                                                      "the walkers quickly branch out and explore the rest of the space."),repr='%d',cast_type='require_even',value=6,frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='init_from',     description='Initialize walkers from priors, posteriors or previous run', cast_type='choose', choices=['prior', 'posterior', 'previous_run'], value='prior', repr='%s', frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='incremental',description='Add results to previously computed chain file',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='fitting:emcee'),
+         dict(qualifier='acc_frac',description='Acceptance fraction',repr='%f',cast_type=float,value=0.0,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context='fitting:emcee'),
         ]
