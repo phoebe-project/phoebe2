@@ -1582,7 +1582,7 @@ def hierarchical_triple(create_body=True):
                                 label='outer_secondary')
     
     # And put the outer primary and inner system in a BodyBag
-    system = universe.BodyBag([bodybag2[0], bodybag1])
+    system = universe.BodyBag([bodybag2[0], bodybag1], label='outer_system')
     
     # That's it!
     return system
