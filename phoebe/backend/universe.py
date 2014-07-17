@@ -1515,6 +1515,16 @@ class Body(object):
         """
         return None
     
+    def add_mesh_columns(self, dtypes):
+        """
+        Add empty columns to an existing mesh
+        """
+        existing_cols = self.mesh.dtype.names
+        dtypes = np.dtype(self.mesh.dtype.descr + dtypes)
+        mesh = np.zeros(len(self.mesh), dtype=dtypes)
+        for col in existing_cols:
+            mesh[col] = self.mesh[col]
+        self.mesh = mesh
     
     def to_string(self,only_adjustable=False):
         """

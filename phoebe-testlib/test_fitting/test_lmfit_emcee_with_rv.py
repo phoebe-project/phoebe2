@@ -1,3 +1,10 @@
+"""
+For testing purposes (if run with nosetests -v), the chain that is run is very
+very short, we are just interested to see if everything goes through.
+
+If you run this script as a main script, the number of iterations and walkers
+are much larger.
+"""
 from phoebe.frontend import bundle
 from phoebe.backend import fitting
 from phoebe.parameters import parameters
@@ -65,26 +72,41 @@ def test_fitting():
     mybundle['q'] = 0.5
 
     # Specify two fitting routines
-    iters = 40 if run_as_main else 20
-    mybundle.add_fitting(context='fitting:emcee', iters=40, walkers=20,
-                        init_from='prior', label='mcmc',
-                        computelabel='preview', incremental=False)
+    iters = 100 if run_as_main else 20
+    walkers = 30 if run_as_main else 10
+    mybundle.add_fitting(context='fitting:emcee', iters=iters, walkers=walkers,
+                        init_from='previous_run', label='mcmc',
+                        computelabel='preview', incremental=True)
     mybundle.add_fitting(context='fitting:lmfit', label='leastsq', method='leastsq',
                         computelabel='preview')
 
-    # Run least square but do not accept results (just a test run)
-    #mybundle.run_fitting(fittinglabel='leastsq', accept_feedback=False)
+    if not run_as_main:
+        # Run least square but do not accept results (just a test run)
+        mybundle.run_fitting(fittinglabel='leastsq', accept_feedback=False)
 
     # Run mcmc fitting first time
     mpi = None if not run_as_main else parameters.ParameterSet('mpi', np=6)
     mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
-
-    # Run fitting after resampling from posterior, but with a cutoff in lnproblim
-    mybundle['mcmc@feedback'].modify_chain(lnproblim=-60)#-35)
-    mybundle.accept_feedback('mcmc')
-    mybundle['init_from@mcmc@fitting'] = 'posterior'
-    feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
-    mybundle.accept_feedback('mcmc')
+    
+    if not run_as_main:
+        # Run fitting after resampling from posterior, but with a cutoff in lnproblim
+        mybundle['mcmc@feedback'].modify_chain(lnproblim=-60)#-35)
+        mybundle.accept_feedback('mcmc')
+        mybundle['init_from@mcmc@fitting'] = 'posterior'
+        # Continue fitter
+        mybundle['init_from@mcmc@fitting'] = 'previous_run'
+        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)    
+    else:
+        # Resample from posteriors with a lnproblim cutoff
+        mybundle['mcmc@feedback'].modify_chain(lnproblim=-35)
+        mybundle.accept_feedback('mcmc')
+        mybundle['init_from@mcmc@fitting'] = 'posterior'
+        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
+        # Continue fitter (see what the acceptance fraction does)
+        mybundle['init_from@mcmc@fitting'] = 'previous_run'
+        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
+        
+    
 
     ## And plot results
     if run_as_main:
