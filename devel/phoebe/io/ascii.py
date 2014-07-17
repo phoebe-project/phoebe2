@@ -266,3 +266,26 @@ def loadtxt(filename, *args, **kwargs):
     data = np.loadtxt(c, *args, **kwargs)
     return data
     
+    
+def read_obj2recarray(filename):
+    """
+    Read an obj 3D file to a mesh that is understood by a Body.
+    """
+    data = np.loadtxt(filename, dtype=str)
+    is_vertex = data[:,0] == 'v'
+    is_face = data[:,0] == 'f'
+    
+    vertices = np.array(data[is_vertex,1:], float)
+    faces = np.array(data[is_face,1:], int)
+    
+    triangles = np.rec.fromarrays([np.zeros((len(faces),9))],
+                                  dtype=[('triangle','f8',(9,)),])
+    for i, face in enumerate(faces):
+        triangles['triangle'][i][0:3] = vertices[face[2]-1]
+        triangles['triangle'][i][3:6] = vertices[face[1]-1]
+        triangles['triangle'][i][6:9] = vertices[face[0]-1]
+    
+    return triangles
+        
+    
+    

@@ -618,12 +618,6 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     pickle.dump(fitparams, fit_file)
     fit_file.close()
     
-    # Be sure to remove any previously existing chain file
-    chain_file = os.path.join(direc, fitparams['label'] + '.mcmc_chain.dat')
-    if os.path.isfile(chain_file) and not fitparams['incremental']:
-        os.unlink(chain_file)
-    
-    
     # Create arguments to run emceerun_backend.py
     args = " ".join([sys_file.name, compute_file.name, fit_file.name, fit_logger_level])
     
@@ -650,6 +644,8 @@ def run_emcee(system, params=None, fitparams=None, mpi=None):
     os.unlink(compute_file.name)
     
     # Check if we produced the chain file
+    chain_file = os.path.join(direc, fitparams['label'] + '.mcmc_chain.dat')
+    
     if not os.path.isfile(chain_file):
         raise RuntimeError("Could not produce chain file {}, something must have seriously gone wrong during emcee run".format(chain_file))
         
@@ -678,6 +674,9 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     @return: the MCMC sampling history (ParameterSet of context 'fitting:pymc'
     @rtype: ParameterSet
     """
+    
+    # We need some information on how to fit exactly; if the user didn't give
+    # it we'll use the defaults
     if fitparams is None:
         fitparams = parameters.ParameterSet(frame='phoebe',
                                             context='fitting:lmfit')
@@ -740,53 +739,79 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
                 ppars.append(parameter)
                 init_ppars.append(parameter.copy())
     
+    # Current state: we know all the parameters that need to be fitted (and
+    # their values), and we have unique string labels to refer to them.
+    
+    # Next up: define a function to evaluate the model given a set of
+    # parameter values. You'll see that a lot of the code is similar as the
+    # one above; but instead of just keeping track of the parameters, we
+    # change the value of each parameter. This function will be called by the
+    # fitting algorithm itself.
+    
     traces = []
     redchis = []
     Nmodel = dict()
     
-    
     def model_eval(pars, system):
-        #-- evaluate the system, get the results and return a probability
+        # Evaluate the system, get the results and return a probability
+        
+        # Remember the parameters we already set
         had = []
         
-        #-- walk through all the parameterSets available:
+        # walk through all the parameterSets available:
         for parset in system.walk():
             
             # If the parameterSet is not enabled, skip it
             if not parset.get_enabled():
                 continue
             
-            #-- for each parameterSet, walk to all the parameters
+            # for each parameterSet, walk to all the parameters
             for qual in parset:
                 
-                #-- extract those which need to be fitted
+                # extract those which need to be fitted
                 if parset.get_adjust(qual) and parset.has_prior(qual):
                     
-                    #-- ask a unique ID and update the value of the parameter
+                    # ask a unique ID and update the value of the parameter
                     myid = parset.get_parameter(qual).get_unique_label().replace('-', '_')
                     if myid in had:
                         continue
                     parset[qual] = pars['{}_{}'.format(qual, myid)].value
                     had.append(myid)
                     
+        # Current state: the system has been updated with the newly proposed
+        # values.
+        
+        # Next up: compute the model given the current (new) parameter values
         system.reset()
         system.clear_synthetic()
         system.compute(params=params, mpi=mpi)
+        
+        # The fitting algorithm needs the model as one long array of data.
+        # The 'get_model' does exactly that: even if you have 10 light curves,
+        # they will all be concatenated. It does the same with the observations
+        # themself (mu, sigma)
         mu, sigma, model = system.get_model()
         retvalue = (model - mu) / sigma
         
-        #-- short log message:
+        # short log message to report to the user:
         names = [par.get_qualifier() for par in ppars]
         vals = [pars[par].value for par in pars]
         logger.warning("Current values: {} (chi2={:.6g})".format(", ".join(['{}={}'.format(name,val) for name,val in zip(names,vals)]),(retvalue**2).mean()))
         
-        #-- keep track of trace
+        # keep track of trace value and chi2 value for future reference and
+        # introspection
         traces.append(vals)
         redchis.append(np.array(retvalue**2).sum() / (len(model)-len(pars)))
         Nmodel['Nd'] = len(model)
         Nmodel['Np'] = len(pars)
 
+        # That's it concerning model evaluation!
         return retvalue
+    
+    # Current state: we know which parameters to fit, and we have a function
+    # that returns a fit statistic given a proposed set of parameter values.
+    
+    # Next up: run the fitting algorithm!
     
     # The user can give fine tuning parameters if the fitting parameterSet is a
     # subcontext of fitting:lmfit
@@ -805,7 +830,8 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         extra_kwargs = {}
         if fitparams['method'] == 'leastsq':
             extra_kwargs['epsfcn'] = 1e-3
-    
+        
+        # Then we can safely run the fitter.
         try:
             result = lmfit.minimize(model_eval, pars, args=(system,),
                             method=fitparams['method'], **extra_kwargs)
@@ -855,8 +881,12 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
         elif method in _scalar_methods:
             getattr(result, _scalar_methods[method])(**fitoptions)
         else:
-            raise ValueError("Unknown method '{}'".format(method))
-        
+            raise ValueError("Unknown method '{}'".format(method))        
+    
+    # Current state: we found the best set of parameters! The system is fitted!
+    
+    # Next up: some bookkeeping and reporting
+    
     lmfit.report_errors(pars)
 
     # Extract the values to put them in the feedback

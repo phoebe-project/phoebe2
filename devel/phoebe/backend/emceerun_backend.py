@@ -81,6 +81,9 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
     
     
     # we do need to check if all the combinations produce realistic models
+    exceed_max_try = 0
+    difficult_try = 0
+    
     for i, walker in enumerate(p0):
         max_try = 100
         current_try = 0
@@ -94,6 +97,10 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
             # If it checks out, continue checking the next one
             #if not any([np.isinf(par.get_logp()) for par in pars]):
             if mysystem.check() or current_try>max_try:
+                if current_try>max_try:
+                    exceed_max_try += 1
+                elif current_try>50:
+                    difficult_try += 1
                 p0[i] = walker
                 break
             
@@ -115,6 +122,14 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
                 else:
                     value = getattr(par, draw_funcs[ii])(size=1)[0]                    
                 walker.append(value)
+    
+    # Perhaps it was difficult to initialise walkers, warn the user
+    if exceed_max_try or difficult_try:
+        logger.warning(("Out {} walkers, {} were difficult to initialise, and "
+                        "{} were impossible: probably your priors are very "
+                        "wide and allow many unphysical combinations of "
+                        "parameters.").format(len(p0), difficult_try, exceed_max_try))
+    
     return p0
 
 
@@ -140,7 +155,12 @@ def multivariate_init(mysystem, nwalkers, draw_from='prior'):
     # Check if distributions are traces, otherwise we can't generate
     # multivariate distributions
     for par in pars:
-        this_dist = getattr(par, get_func)().get_distribution()[0]
+        origin = getattr(par, get_func)()
+        if origin is None:
+            raise ValueError(("No {} defined for parameter {}, cannot "
+                              "initialise "
+                              "multivariately").format(draw_from, par.get_qualifier))
+        this_dist = origin.get_distribution()[0]
         if not this_dist == 'trace':
             raise ValueError(("Only trace distributions can be used to "
                               "generate multivariate walkers ({} "
@@ -314,14 +334,31 @@ def run(system_file, compute_params_file, fit_params_file):
         
         # Reshape in convenient format
         chain = existing[:, 1:1+ndim]
-        del existing
         chain = chain.reshape((niterations, nwalkers, ndim))
         
         # Get the start condition
         p0 = chain[-1]
         
+        # Get the starting lnprob0's
+        lnprob0 = existing[-nwalkers:, -1]
+        
+        # Get the starting blobs (we need to know the autofitteds and autoderiveds)
+        with open(label + '.mcmc_chain.dat', 'r') as open_file:
+            while True:
+                line = open_file.readline()
+                if not line:
+                    break
+                if line[:8] == '# WALKER':
+                    line = np.array(line[1:].strip().split(), str)
+                    n_auto = np.sum(line=='AUTO')
+                    n_derv = np.sum(line=='DERIVED')
+                    break
+        blobs0 = list(existing[:, -2-n_auto-n_derv:-2])
+        blobs0 = [(entry[:n_auto], entry[n_auto:]) for entry in blobs0]
+        
         logger.warning("Continuing previous run (starting at iteration {})".format(niterations))
         
+        del existing
     
     # Or start from scratch
     else:
@@ -341,21 +378,29 @@ def run(system_file, compute_params_file, fit_params_file):
     
         # Initialize a set of parameters
         try:
+            logger.warning("Attempting multivariate initialisation from {}".format(fit_params['init_from']))
             p0 = multivariate_init(system, nwalkers, draw_from=fit_params['init_from'])
             logger.warning("Initialised walkers from {} with multivariate normals".format(fit_params['init_from']))
         except ValueError:
+            logger.warning("Attempting univariate initialisation")
             p0 = univariate_init(system, nwalkers, draw_from=fit_params['init_from'])
             logger.warning("Initialised walkers from {} with univariate distributions".format(fit_params['init_from']))
+            
+        # We don't know the probability of the initial sample (yet)
+        lnprob0 = None
+        blobs0 = None
         
     # Only start a new file if we do not require incremental changes, or
-    # if we start a new file
+    # if we start a new file. This overwrites/removes any existing file
     if not fit_params['incremental'] or not existing_file:
         f = open(label + '.mcmc_chain.dat', "w")
         f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " acc logp\n")
         f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " acc logp\n")
         f.write("# none " + " ".join(prior_labels) +" "+ " ".join(auto_prior_labels) +" "+ " ".join(derived_prior_labels)+ " acc logp\n")
         f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "ACC LOGP\n")
-        f.close()
+        f.close()    
+    
+    
     
     # +--------------------------------------------+
     # |   STEP 4: create the sampler and run!      |
@@ -367,7 +412,9 @@ def run(system_file, compute_params_file, fit_params_file):
                                     pool=pool)
     
     # And run!
-    generator = sampler.sample(p0, iterations=niters, storechain=True)
+    generator = sampler.sample(p0, iterations=niters, storechain=True,
+                               lnprob0=lnprob0, blobs0=blobs0)
+    
     for niter, result in enumerate(generator):
         
         #print("Iteration {}".format(niter))

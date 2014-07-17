@@ -90,7 +90,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     points. It defaults to :envvar:`np.logspace(1,7,10000)`.
     
     The temperature range for blackbody can be set via :envvar:`blackbody_teff_range`.
-    It defaults to :envvar:`np.logspace(1, 5, 200) (10-100kK in 200 steps).
+    It defaults to :envvar:`np.logspace(1, 5, 200)` (10-100kK in 200 steps).
         
     Case 0: plain black body
     

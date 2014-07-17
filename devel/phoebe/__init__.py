@@ -1630,6 +1630,133 @@ comparison between observations and computations can be performed.
 4.10.1 How to implement a new Body
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+(*Inspired upon* `this press release <http://svs.gsfc.nasa.gov/vis/a010000/a011500/a011568/>`_)
+
+Download the 3D OBJ file `here <http://svs.gsfc.nasa.gov/vis/a010000/a011500/a011568/Eta_Car_Homunuculus_3D_model.zip>`_.
+
+The following recipe shows you an example of how to implement a completely new
+Body. We'll use Eta Carinae as an example to generate an image and interferometric
+visibilities of a precomputed mesh:
+
++--------------------------------------+-------------------------------------------+
+| .. image:: images/eta_carinae.png    | .. image:: images/eta_carinae_ifm.png     |
+|    :scale: 50%                       |    :scale: 50%                            |
+|    :width: 266px                     |    :width: 266px                          |
+|    :height: 266px                    |    :height: 266px                         |
++--------------------------------------+-------------------------------------------+
+
+.. sourcecode:: python
+
+    class EtaCar(phoebe.backend.universe.Star):
+    #
+    # Model of Eta Carinae
+    # 
+    # To create a basic model of Eta Carinae, we load in a 3D obj file containing
+    # the mesh, scale it, rotate it, and set the local temperature to some
+    # pattern such that it's brighter in the middle and dimmer near the outer
+    # edges.
+    #
+    # We let EtaCar inherit everything from the Star class. That is certainly not
+    # strictly needed, but it allows us to leave basic bookkeeping to that class.
+    # In fact, if you would be serious about implementing a class like the one
+    # below, you should start from the PhysicalBody, and perhaps copy and adapt
+    # everything you need. Indeed, this class now
+    # also has a lot of features and properties that do not have any physical
+    # meaning!
+    
+    def __init__(self, filename):
+        #
+        # Basic initialisation.
+        #
+        # We're pretending we're a Star, add positional information and keep track
+        # of the filename containing the mesh.
+        
+        self.filename = filename
+        super(EtaCar, self).__init__()
+        self.params['position'] = phoebe.ParameterSet('position',
+                                                      distance=(7500, 'ly'))
+        
+        
+    def compute_mesh(self):
+        #
+        # Load the mesh from an OBJ file.
+        #
+        
+        # Load the triangles
+        triangles = phoebe.io.ascii.read_obj2recarray(self.filename)
+        
+        # Initiate the mesh
+        self.mesh = np.zeros(len(triangles), dtype=self.mesh.dtype)
+        # scale to half a light year
+        zmax = triangles['triangle'][:,2].max()
+        scale = 0.5*phoebe.constants.ly/phoebe.constants.Rsol/zmax
+        self.mesh['triangle'] = triangles['triangle']*scale
+        self.mesh['_o_triangle'] = triangles['triangle']*scale
+        
+        # Make sure to compute centers, normals and sizes
+        self.compute_centers()
+        self.compute_normals()
+        self.compute_sizes()
+    
+    
+    def temperature(self):
+        #
+        # Set the temperature of the Eta Carinae shell.
+        # 
+        
+        # We set it 10000K in the center, and go to 9000 at the top and bottom.
+        z = np.abs(self.mesh['_o_center'][:,2])
+        self.mesh['teff'] = 10000 - z/z.max()*1000
+    
+    
+    def set_time(self, time=None, ref='all', beaming_alg='none'):
+        # 
+        # Set the time of Eta Carinae.
+        #
+        # Eta Car is mostly time-independent, so only when the time is not set
+        # before, we need to change stuff. All we need to do is compute the
+        # mesh, rotate it in the correct orientation, compute eclipsed parts,
+        # set the temperature and compute the intensity.
+        # 
+        if self.time is None:
+            self.compute_mesh()
+            self.rotate_and_translate(incl=-50/180.*np.pi, Omega=-10/180.*np.pi)
+            self.detect_eclipse_horizon(eclipse_detection='hierarchical')
+            self.temperature()
+            self.intensity(ref=ref, beaming_alg=beaming_alg)
+        self.time = time
+
+
+    if __name__ == "__main__":
+        # Make Eta Car into a Bundle    
+        etacar = EtaCar('Eta_Car_Homunuculus_model.obj')
+        mybundle = phoebe.Bundle(etacar)
+    
+        # Use a linear limb darkening law
+        mybundle['ld_func'] = 'linear'
+        mybundle['ld_coeffs'] = [0.6]
+
+        # Add interferometry
+        mybundle.if_fromarrays(time=np.zeros(100), ucoord=np.zeros(100),
+                            vcoord=np.linspace(0,0.02,100), passband='JOHNSON.U')
+        print(mybundle)
+
+        # Plot the mesh
+        mybundle.plot_mesh(time=0, select='proj', dataref='if01', antialiasing=False)
+
+        # Compute interferometry
+        mybundle.run_compute()
+
+        # Plot interferometry
+        plt.figure()
+        mybundle.plot_syn('if01')
+        plt.show()
+    
+        # Plot the mesh in 3D
+        mlab.figure()
+        etacar.plot3D()
+        mlab.show()
+
 4.11.2 How to implement a new type of observations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
