@@ -329,9 +329,10 @@ def to_str(x, summary_type='full', emphasize=True, width=79):
         output_string_.append('* Other')
         if len(x._get_dict_of_section("fitting")):
             output_string_.append("{} fitting options".format(len(x._get_dict_of_section("fitting"))))
-            
-        if len(x._get_dict_of_section("axes")):
-            output_string_.append("{} axes".format(len(x._get_dict_of_section("axes"))))
+        
+        for sect in ['figure', 'axes', 'plot']:
+            if len(x._get_dict_of_section(sect)):
+                output_string_.append("{} {}".format(len(x._get_dict_of_section("axes")), sect))
         
         output_string = output_string_ + output_string
     
