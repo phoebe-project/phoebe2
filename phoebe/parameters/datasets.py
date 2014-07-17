@@ -325,15 +325,14 @@ class DataSet(parameters.ParameterSet):
                 self.load()
                 did_load = True
             sigma = np.diff(self[from_col])/np.sqrt(2)
-            sigma = np.ones(len(self)) * np.std(sigma) 
+            sigma = np.ones(len(self)) * np.std(sigma)
         else:
             sigma = -1*np.ones(len(self))
         
         # contruct parameter if not present
         if not to_col in self:
             if 'sigma_'+str(from_col) in self:
-                to_col = 'sigma_'+str(from_col)
-            
+                to_col = 'sigma_'+str(from_col)            
             
             #else:
                 
