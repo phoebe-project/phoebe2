@@ -3435,7 +3435,7 @@ def download_atm(atm=None, force=False):
     
     if atm is None:
         #/srv/www/phoebe/2.0/docs/_downloads
-        source = 'http://www.phoebe-project.org/2.0/docs/_downloads/ldcoeffs.tar.gz'
+        source = 'http://www.phoebe-project.org/docs/auxil/ldcoeffs.tar.gz'
         destin = os.path.join(destin_folder, 'ldcoeffs.tar.gz')
         
         if not force and os.path.isfile(destin):
@@ -3459,7 +3459,7 @@ def download_atm(atm=None, force=False):
             tar.close()
     
     else:
-        source = 'http://www.phoebe-project.org/2.0/docs/_downloads/{}'.format(atm)
+        source = 'http://www.phoebe-project.org/docs/auxil/{}'.format(atm)
         destin = os.path.join(destin_folder, atm)
 
         try:
@@ -3474,13 +3474,13 @@ def download_atm(atm=None, force=False):
 def download_spec_intens(force=False):
     destin_folder = get_paths()[1]
     download(destin_folder,
-             'http://www.phoebe-project.org/2.0/docs/_downloads/spec_intens.tar.gz',
+             'http://www.phoebe-project.org/docs/auxil/spec_intens.tar.gz',
              force=force, estimated_size='580 MB (can take a while!)')
     
 def download_spectra(force=False):
     destin_folder = get_paths()[2]
     download(destin_folder,
-             'http://www.phoebe-project.org/2.0/docs/_downloads/spectra.tar.gz',
+             'http://www.phoebe-project.org/docs/auxil/spectra.tar.gz',
              force=force, estimated_size='1.3 GB (can take a while!)')
 
 def download(destin_folder, source, force=False, estimated_size=None):
