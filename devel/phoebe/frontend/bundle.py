@@ -1234,6 +1234,14 @@ class Bundle(Container):
             for ds in dss:
                 #~ ds.load()
                 #ds.estimate_sigma(force=False)
+                
+                # if there is a time column in the dataset, sort according to
+                # time
+                if 'time' in ds and not np.all(np.diff(ds['time'])>=0):
+                    logger.warning("The observations are not sorted in time -- sorting now")
+                    sa = np.argsort(ds['time'])
+                    ds = ds[sa]                    
+                
                 comp.add_obs(ds)
         
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
