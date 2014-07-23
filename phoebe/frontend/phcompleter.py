@@ -87,7 +87,7 @@ class Completer:
                         
                         }
         
-        search_kwargs = None
+        expr = None
         for cmd,kwargs in tb_compl_commands.items():
             if cmd in text:
                 expr, attr = text.rsplit(cmd, 1)
@@ -100,9 +100,9 @@ class Completer:
                     stringchar = attr[0]
                     attr = attr[1:]
                     break
-                    
-                
-        else:
+        
+        if expr is None:
+            # then we haven't found a match
             return []
         
         try:
