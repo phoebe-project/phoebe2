@@ -1,13 +1,18 @@
 import phoebe
-import nose.tools
 import numpy as np
 import matplotlib.pyplot as plt
+import nose.tools
+import os
+
+
+basedir = os.path.dirname(os.path.abspath(__file__))
 
 def test_01():
     """
     Test online tutorial 01
     """
-    eb = phoebe.Bundle('UWLMi.phoebe')
+    filename = os.path.join(basedir, 'UWLMi.phoebe')
+    eb = phoebe.Bundle(filename)
 
     print(eb.summary())
     print(eb.tree())
@@ -75,7 +80,8 @@ def test_02():
     """
     Test online tutorial 01 (error 01)
     """
-    eb = phoebe.Bundle('UWLMi.phoebe')
+    filename = os.path.join(basedir, 'UWLMi.phoebe')
+    eb = phoebe.Bundle(filename)
     ps = eb.get_ps('primary')
     
 @nose.tools.raises(KeyError)            
@@ -83,7 +89,8 @@ def test_03():
     """
     Test online tutorial 01 (error 02)
     """
-    eb = phoebe.Bundle('UWLMi.phoebe')
+    filename = os.path.join(basedir, 'UWLMi.phoebe')
+    eb = phoebe.Bundle(filename)
     print(eb['teff'])
 
 if __name__ == "__main__":

@@ -287,5 +287,77 @@ def read_obj2recarray(filename):
     
     return triangles
         
+        
+def write_obj(body, filename, material_name=''):
+    """
+    Write a Body to an OBJ file.
     
+    .. note::
     
+        Thanks to Rafal Konrad Pawlaszek. He is not responsible for bugs or
+        errors.
+        
+    """
+    ASCII_VERTEX = """v {vert[0]:.6f} {vert[1]:.6f} {vert[2]:.6f}"""
+    ASCII_FACE_VERTEX_POSITION   = """f {face[0]} {face[1]} {face[2]}"""
+    
+    invertices = body.mesh['triangle']
+    
+    vertices = []
+    faces    = []
+    lines = []
+
+    for v_idx in range(0, len(invertices)):
+        v = invertices[v_idx]
+        vertices.append(v[6:9])
+        vertices.append(v[3:6])
+        vertices.append(v[0:3])
+        faces.append([v_idx * 3 + 1,v_idx * 3 + 2,v_idx * 3 + 3])
+
+    for v in vertices:
+        lines.append(ASCII_VERTEX.format(vert = v))
+
+    for f in faces:
+        lines.append(ASCII_FACE_VERTEX_POSITION.format(face = f))
+    
+    with open(filename, 'w') as outfile:
+        outfile.writelines(["%s\n" % ln for ln in lines])
+        
+        
+def write_stl(body, filename):
+    """
+    Write a body to an STL file.
+    
+     .. note::
+    
+        Thanks to Rafal Konrad Pawlaszek. He is not responsible for bugs or
+        errors.
+        
+    """
+    ASCII_FACET = """  facet normal  {norm[0]:e}  {norm[1]:e}  {norm[2]:e}
+    outer loop
+      vertex    {face[3]:e}  {face[4]:e}  {face[5]:e}
+      vertex    {face[0]:e}  {face[1]:e}  {face[2]:e}
+      vertex    {face[6]:e}  {face[7]:e}  {face[8]:e}
+    endloop
+  endfacet"""
+    
+    name = body.get_label()
+    facets = body.mesh['triangle']
+    
+    lines = ['solid ' + name,]
+
+    for facet in facets: 
+        p2 = facet[6:9]
+        p1 = facet[3:6]
+        p0 = facet[0:3]
+        v0 = p0 - p1
+        v1 = p2 - p1
+        normal = np.cross(v1,v0)
+        normal = normal/np.linalg.norm(normal)
+        lines.append(ASCII_FACET.format(norm=normal, face=facet))
+
+    lines.append('endsolid ' + name)
+
+    with open(filename, 'w') as outfile:
+        outfile.writelines(["%s\n" % ln for ln in lines])

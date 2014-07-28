@@ -284,7 +284,7 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
         flag = 1
         try:
             print("Running torque with command '{}'".format(cmd))
-            time.sleep(1) # give everything some time to fall into place
+            time.sleep(2) # give everything some time to fall into place
             jobid = subprocess.check_output(cmd, shell=True).strip()
             print("JobID: {}".format(jobid))
             print("Waiting for job to finish (interrupting with CTRL+C will stop this script but not the job, use 'qdel {}' to stop the computations".format(jobid))
