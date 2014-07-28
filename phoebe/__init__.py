@@ -861,6 +861,11 @@ of the :py:class:`Body <phoebe.backend.universe.Body>`. Inside this method,
 a distinction is made for BodyBags, in which case the Bag is descended into. The
 method calls the :py:func:`ifm <phoebe.backend.observatory.ifm>` method
 of the observatory and stores the result in the corresponding synthetic DataSet.
+To ensure the highest possible resolution, complex quantities are computed for
+each Body separately, and then later added to construct the visibilities and
+phases of the whole system.
+
+For more details on the algorithm, see :py:func:`ifm <phoebe.backend.universe.Body.ifm>`.
 
 Interferometry can be added to a Bundle via any of:
 

@@ -1087,10 +1087,10 @@ def ifm(the_system, posangle=0.0, baseline=0.0, eff_wave=None, ref=0,
               or averaging the squared amplitudes of the DFT (``bandwidth_smearing='power'``,
               [Wittkowski2004]_).
               
-    
-    If you give a single positional angle as a float instead of an array,
-    the whole profile will be computed. Otherwise, only selected baselines
-    will be computed, to e.g. match observed data.
+    When this function is called from a BodyBag (e.g. a binary system), the
+    visibilities for each component are computed separately to reach the highest
+    possible resolution in the images. When the visiblities and phases of the
+    total system are required, they are :py:class:`added in the complex plane <phoebe.parameters.datasets.IFDataSet>`.
     
     .. note::
     
@@ -2151,13 +2151,21 @@ def extract_times_and_refs(system, params, tol=1e-8):
                 raise ValueError("Don't know how to unphase observations")
             
             mytimes = (parset['phase'] * period) + t0
-        
+            
+            # If the times of observations are derived, add them to the
+            # DataSet -- there might be functions that need to inspect the
+            # DataSet (like Body.ifm, which needs to know the UV coordinates at
+            # the request time point)
+            if 'time' in parset:
+                parset['time'] = mytimes
+            else:
+                parset.add(parameters.Parameter(qualifier='time', value=mytimes, description='Times of observation', unit='JD'))
         else:
             mytimes = parset['time']
         
         # Adjust for time zeropoint in dataset
-        if 't0' in parset:
-            mytimes += parset['t0']
+        if 'time_offset' in parset:
+            mytimes += parset['time_offset']
         
         # If a mesh is required add the info to the right lists
         if require_mesh:
