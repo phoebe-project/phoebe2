@@ -2272,8 +2272,8 @@ def plot_ifobs(system, **kwargs):
             x_unit = 'm'
         x = conversions.convert('m', x_unit, x)
     else:
-        x = obs[x]
-        x_unit_o = obs.get_parameter(x).get_unit()
+        x = obs[x_quantity]
+        x_unit_o = obs.get_parameter(x_quantity).get_unit()
         if x_unit is None:
             x_unit = x_unit_o
         x = conversions.convert(x_unit_o, x_unit, x)
@@ -2303,7 +2303,7 @@ def plot_ifobs(system, **kwargs):
     
     if not simulate:
         artists = []
-        p = ax.errorbar(x, y, xerr=e_y, yerr=e_y,**kwargs)
+        p = ax.errorbar(x, y, xerr=e_x, yerr=e_y,**kwargs)
         artists.append(p)
     
     if loaded:
@@ -2352,15 +2352,15 @@ def plot_ifsyn(system, *args, **kwargs):
     y_quantity = kwargs.pop('y_quantity', 'vis2')
     ax = kwargs.pop('ax', plt.gca())
     
-    # Collect X-data for plotting
+    # Collect X-data for plotting    
     if x_quantity == 'baseline':
         x = np.sqrt(syn['ucoord']**2 + syn['vcoord']**2)
         if x_unit is None:
             x_unit = 'm'
         x = conversions.convert('m', x_unit, x)
     else:
-        x = syn[x]
-        x_unit_o = syn.get_parameter(x).get_unit()
+        x = syn[x_quantity]
+        x_unit_o = syn.get_parameter(x_quantity).get_unit()
         if x_unit is None:
             x_unit = x_unit_o
         x = conversions.convert(x_unit_o, x_unit, x)

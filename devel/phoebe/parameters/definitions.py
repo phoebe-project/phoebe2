@@ -422,7 +422,7 @@ defs += [dict(qualifier='ld_func',   description='Limb darkening model',repr='%s
          dict(qualifier='columns',  description='Data columns',repr='%s',value=['time','ucoord','vcoord','vis2','vphase',
                                                                                        'ucoord_2','vcoord_2', 'vis2_2', 'vphase_2',
                                                                                        'vis2_3', 'closure_phase'],cast_type='return_list_of_strings',frame=["phoebe"],context=['ifsyn']),
-         dict(qualifier='time',     description='Timepoint',repr='%s',value=[],frame=["phoebe"],context='ifsyn'),
+         dict(qualifier='time',     description='Timepoint',repr='%s',value=[],unit='JD',frame=["phoebe"],context='ifsyn'),
         ]
 
 defs += [dict(qualifier='eclx', description='Ecliptic Cartesian x-coordinates of observer', repr='%s', cast_type=np.array, value=[], unit='au',frame='phoebe', context='amobs'),

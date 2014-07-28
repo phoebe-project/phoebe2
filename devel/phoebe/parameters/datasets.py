@@ -1425,7 +1425,17 @@ class IFDataSet(DataSet):
     
     
     def add_baseline(self):
+        r"""
+        Add baseline as a parameter in the IFDataSet.
         
+        In terms of :math:`(U,V)` coordinates, the baseline :math:`B` is defined
+        as:
+        
+        .. math::
+        
+            B = \sqrt{U^2 + V^2}
+         
+        """
         # Prepare new parameter
         par = parameters.Parameter(qualifier='baseline', unit='m',
                                    description='Baseline')
@@ -1438,6 +1448,18 @@ class IFDataSet(DataSet):
         self.add(par)
         
     def add_position_angle(self):
+        r"""
+        Add positional angle as a parameter in the IFDataSet.
+        
+        In terms of :math:`(U,V)` coordinates, the position angle :math:`PA`
+        is defined as:
+        
+        .. math::
+        
+            PA = \arctan\left(\frac{V}{U}\right)
+            
+         
+        """
         # Prepare new parameter
         par = parameters.Parameter(qualifier='position_angle', unit='deg',
                                    description='Position angle')
