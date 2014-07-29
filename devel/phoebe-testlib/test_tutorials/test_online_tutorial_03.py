@@ -47,12 +47,7 @@ def test_01():
     
     if __name__ == "__main__":
         plt.show()
-    else:
-        plt.close('all')
-    
-    
-    
-    
+        
     assert(True)
 
 
@@ -101,18 +96,17 @@ def test_02():
     eb.plot_syn('if01', 'rx', ms=10, mew=2, x_quantity='time', y_quantity='closure_phase')
     
     
-    if __name__ == "__main__":
-        plt.show()
-    else:
-        plt.close('all')
-    
-    
     print(eb.get_logp())
     
     observed = eb['vis2@if01@ifobs']
     simulated = eb['vis2@if01@ifsyn']
     error = eb['sigma_vis2@if01@ifobs']
     print( np.nansum((observed-simulated)**2 / error**2))
+    
+    if __name__ == "__main__":
+        plt.show()
+    else:
+        plt.close('all')
     
     assert(True)
     

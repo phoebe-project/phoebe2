@@ -828,8 +828,8 @@ the individual interferometry of all Bodies are added together and the closure
 phases recomputed. This can be done because internally, the synthetic datasets
 also keep track of the total flux in the image, so the visibilities can be scaled
 to their absolute values and combined using complex addition. The **closure phases**
-and their amplitudes can be recomputed for the combined system because the information
-from the three baselines is stored (see :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
+and their **triple amplitudes** can be recomputed for the combined system because
+the information from the three baselines is stored (see :py:class:`IFDataSet <phoebe.parameters.datasets.IFDataSet>`).
 **Bandwidth smearing** can be included in three ways using the :ref:`bandwidth_smearing <label-bandwidth_smearing-ifdep-phoebe>`
 parameter inside the :ref:`ifdep <parlabel-phoebe-ifdep>`:
 
@@ -1517,8 +1517,8 @@ the separate Bodies first. Here are two examples:
 4.7 Statistics and fitting
 ----------------------------------------
 
-Once all the computations are done, any (enabled) set of observations must have
-its equivalent structure in the synthetic part of the system. Once that is done,
+Once all the computations are done, any (enabled) set of observations should
+have its equivalent structure in the synthetic part of the system. Then,
 one can compare the two to quantify some kind of goodness-of-fit statistic, which
 can then consecutively be used in fitting algorithms to either minimize (e.g.
 the :math:`\chi^2` in nonlinear minimization routines) or maximize (e.g. the
@@ -1526,8 +1526,8 @@ logarithmic probability in MCMC routines).
 
 The key function for this is the Body's :py:func:`get_logp <phoebe.backend.universe.Body.get_logp>`,
 where you can find more details on the definitions of the fit statistic itself.
-An important note is that also the probability on every parameter is taken into
-account in the computation of the logarithmic probability.
+An important note is that also the probability on every parameter can be taken
+into account in the computation of the logarithmic probability (:envvar:`include_priors`).
 
 Any data type that is added by developers, must have its fit statistic defined
 inside that function.
@@ -1553,6 +1553,34 @@ you can as well do:
         mybundle.run_compute()
         stats = mybundle.get_logp()
         #<evaluate if satisfactory>
+
+A more complete prototype of the evaluation function is given below, and a real
+life example cound be found in emcee's :py:func:`lnprob <phoebe.backend.emceerun_backend.lnprob>`.
+Note that function below only uses the frontend, does not require any parameters
+to be set adjustable, but it does check if all current values are inside any
+predefined priors.
+
+.. sourcecode:: python
+    
+    def evaluate(par_values, twigs, mybundle):
+        # Change parameters
+        for twig, value in zip(twigs, par_values):
+            mybundle.set_value(twig, value)
+        
+        # Don't bother to compute the model if the parameters are unrealistic
+        if not mybundle.check():
+            logp = -np.inf
+        else:
+            # Catch any unexpected error during computations, this must mean
+            # some parameters are still unphysical but inside their priors
+            try:
+                mybundle.run_compute()
+                logp = mybundle.get_logp()
+            except:
+                logp = -np.inf
+                
+        return logp
+   
 
 The above code is an example of how to find an optimal solution, but does not
 include determining uncertainties (for which you need MCMC).
@@ -1762,11 +1790,57 @@ visibilities of a precomputed mesh:
         etacar.plot3D()
         mlab.show()
 
+
 4.11.2 How to implement a new type of observations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Suppose we want to implement a new type of observation called `xx`. Several
+steps need to be taken.
+
+    - Add the definitions of the parameters of ``xxdep``, ``xxobs`` and ``xxsyn``
+      to the :py:mod:`phoebe.parameters.definitions` module (see examples there).
+    - Create a new subclass :envvar:`XXDataSet` inside :py:mod:`phoebe.parameters.datasets`.
+      (see examples there, you could subclass existing ones)
+    - Implement an 'xx' method to the PhysicalBody or Body. See the existing ones (e.g. :py:func:`phoebe.backend.universe.PhysicalBody.lc`)
+      for a prototype of the calling function and methodology. This function
+      should fill in the synthetic dataset given a certain time point. You might
+      hide the true implementation to the observatory module.
+    - Add the probability calculation to the source of :py:func:`phoebe.backend.universe.Body.get_logp`
+    - Fill in nice names and compute function names in :py:mod:`phoebe.utils.config`
+      (see examples there).
+
+To provide Bundle support:
+
+    - Write a data parser and add it to the :py:mod:`phoebe.parameters.datasets`
+      module. See the examples there.
+    - Add ``xx_fromarrays`` and ``xx_fromfile`` functions to the Bundle. See the
+      examples there.
+
 4.12.3 How to add physics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Well, this is very general question... 
+
+* If you want to change e.g. how the effective temperature is set, just change
+  the code in those definitions (e.g. :py:func:`phoebe.backend.universe.BinaryRocheStar.temperature`).
+* If you need extra parameters to quantify the new physics, just add them to 
+  the correct parameterSet in the :py:mod:`phoebe.parameters.definitions` module
+  (see examples there).
+* If you require a whole new ParameterSet context, add it to the :py:mod:`phoebe.parameters.definitions` module
+  and adapt the initialisation routine for the relevant Body (see example in the
+  :envvar:``__init__`` functions in each Body type).
+* If you require a whole new mesh quantity (e.g. magnetic field vectors), adapt the
+  code in the ``compute_mesh`` functions. E.g. have a look at the Star's example
+  :py:func:`phoebe.backend.universe.Star.compute_mesh`, where the magnetic field
+  is added. Then add a new method to the Body (e.g. :py:func:`phoebe.backend.universe.Star.magnetic_field`)
+  and call it appropriately in the Body's :envvar:`set_time` method.
+
+In general, be aware of the :envvar:`set_time` method. This function is responsible
+for calling any function that fills in the mesh, but sometimes it tries to be
+smart and does not recompute values once the time has been set. If you want to
+override this behaviour, just change it there (but beware of performance loss in
+other cases).
+
 
 4.12.4 How to cycle through Parameters, ParameterSets...
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

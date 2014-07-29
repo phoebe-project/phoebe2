@@ -1236,11 +1236,11 @@ class Parameter(object):
         @parameter value: whatever value
         @type value: whatever value
         """
-        if self.is_write_protected():
-            if hasattr(self, 'why_protected'):
-                raise ValueError("Variable {} is write-protected ({})".format(self.qualifier, self.why_protected))
-            else:
-                raise ValueError("Variable {} is write-protected".format(self.qualifier))
+        #if self.is_write_protected():
+            #if hasattr(self, 'why_protected'):
+                #raise ValueError("Variable {} is write-protected ({})".format(self.qualifier, self.why_protected))
+            #else:
+                #raise ValueError("Variable {} is write-protected".format(self.qualifier))
         #clear_memoization(self)
         old_value = self.value
         if args:

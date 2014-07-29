@@ -410,6 +410,13 @@ class Container(object):
         if param.get_replaced_by():
             raise ValueError("Cannot change value of parameter '{}', it is derived from other parameters".format(twig))
         
+        # Perhaps the parameter is write-protected in the frontend
+        if param.is_write_protected():
+            if hasattr(param, 'why_protected'):
+                raise ValueError("Variable {} is write-protected ({})".format(param.qualifier, param.why_protected))
+            else:
+                raise ValueError("Variable {} is write-protected".format(param.qualifier))
+                
         # special care needs to be taken when setting labels and refs
         qualifier = param.get_qualifier()
         
@@ -2105,3 +2112,29 @@ def compute_from_spectroscopy(mybundle, period, ecc, K1=None, K2=None,
     Set mass ratio q, asini, syncpar...
     """
     raise NotImplementedError
+
+
+def evaluate(par_values, twigs, mybundle, computelabel='preview'):
+    """
+    Generic evaluate function example.
+    
+    This function can be used as a prototype or implementation example for
+    custom fitting functions. You could use this in your own optimizers. This
+    function returns logp, so optimizers need to *maximize* the return value of
+    this function. To use it on minimizers, just do -2*logp. Then you are
+    *minimizing* the chi2.
+    """
+    for twig, value in zip(twigs, par_values):
+        mybundle.set_value(twig, value)
+    
+    if not mybundle.check():
+        logp = -np.inf
+    else:
+        try:
+            mybundle.run_compute(computelabel)
+            logp = mybundle.get_logp()
+        except:
+            logp = -np.inf
+    
+    return logp
+        
