@@ -170,6 +170,7 @@ from phoebe.units import conversions
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import utils
+from phoebe.utils import config
 from phoebe.utils import fgeometry
 from phoebe.utils.decorators import memoized, clear_memoization
 try:
@@ -926,11 +927,9 @@ def _parse_pbdeps(body, pbdep, take_defaults=None):
     @rtype: list of str
     """
     # Map pbdeps to DataSets
-    result_sets = dict(lcdep=datasets.LCDataSet,
-                       rvdep=datasets.RVDataSet,
-                       spdep=datasets.SPDataSet,
-                       pldep=datasets.PLDataSet,
-                       ifdep=datasets.IFDataSet)
+    result_sets = dict()
+    for key in config.pbdep_context:
+        result_sets[config.pbdep_context[key]] = getattr(datasets, config.dataset_class[key])
     
     # Pbdep have to be given!
     #if not pbdep:
@@ -1040,11 +1039,10 @@ def _parse_obs(body, data):
     @param data: data to add to the Body
     @type data: list
     """
-    result_sets = dict(lcobs=datasets.LCDataSet,
-                       rvobs=datasets.RVDataSet,
-                       spobs=datasets.SPDataSet,
-                       plobs=datasets.PLDataSet,
-                       ifobs=datasets.IFDataSet)
+    # Map obs to DataSets
+    result_sets = dict()
+    for key in config.pbdep_context:
+        result_sets[config.pbdep_context[key][:-3]+'obs'] = getattr(datasets, config.dataset_class[key])
     
     # Data needs to be a list. If not, make it one
     if not isinstance(data, list):
@@ -2398,6 +2396,13 @@ class Body(object):
             :py:func:`get_chi2 <Body.get_chi2>` to compute the
             :math:`\chi^2` statistic and probability
         
+        Each type of dataset (lc, rv, if...) can have a different treatment
+        for the computation of the probabilities here. Usually, it is the
+        straightforward 'model', 'observations' and 'uncertainty', but e.g. in
+        the case of closure phases, we do some complex exponential tricks to
+        make sure a phase of 179 degrees is as near to 1 degree as it is to
+        176 degrees.
+                
         References: [Hogg2009]_.
         
         @return: log probability, chi square, Ndata
@@ -4507,10 +4512,16 @@ class Body(object):
             # order as the observations
             if do_closure_phases and save_result:
                 
+                # This part is a little bit ugly because the observations might
+                # be given mixed (i.e. closure phases and single baselines all
+                # scrambled up), and we computed everything in the order
+                # "single baselines first", "closure baselines last". Thus, we
+                # need to reorder them to match the data structure.
                 vis2_1, vis2_2, vis2_3 = output[3][n_single:].reshape((3,-1))
                 vphase_1, vphase_2, vphase_3 = output[4][n_single:].reshape((3,-1))
                 total_flux_1, total_flux_2, total_flux_3 = output[-1][n_single:].reshape((3,-1))
                 
+                # First, we prepare the total arrays
                 Ntotal = len(obs[keep])
                 
                 time_ = times[keep]
@@ -4528,6 +4539,7 @@ class Body(object):
                 total_flux_2_ = np.zeros(Ntotal)
                 total_flux_3_ = np.zeros(Ntotal)
                 
+                # Next we fill in the parts with and without closure phases
                 ucoord_1_[has_closure_phase] = ucoord_1
                 ucoord_1_[-has_closure_phase] = ucoord[keep_s]
                 ucoord_2_[has_closure_phase] = ucoord_2
@@ -4558,14 +4570,15 @@ class Body(object):
                 total_flux_3_[has_closure_phase] = total_flux_3
                 total_flux_3_[-has_closure_phase] = np.nan
                 
-                
-                
                 if eff_wave is not None:
                     eff_wave_ = np.zeros(Ntotal)
                     eff_wave_[has_closure_phase] = eff_wave[n_single:].reshape((3,-1))[0]
                     eff_wave_[-has_closure_phase] = eff_wave[:n_single]
+                
                 # ... compute closure phases as the product of exponentials
                 #     this can possibly be overriden when calling __add__ at ifsyn
+                #     If you change the code here, you probably want to do it
+                #     there as well!
                 closure_phase = np.angle(np.exp(1j*(vphase_1_+vphase_2_+vphase_3_)))
                 closure_ampl = np.sqrt(vis2_1_*vis2_2_*vis2_3_)                                
                 
