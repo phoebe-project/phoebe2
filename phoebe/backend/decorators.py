@@ -241,34 +241,18 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
             memory = ',mppmem={:.0f}M'.format(mpirun_par['memory'])
         else:
             memory = ''
+            
         dt = datetime.timedelta(minutes=mpirun_par['time'])
         time_ = "%02d:%02d:%02d" % (dt.total_seconds()/3600, dt.total_seconds()%3600/60, dt.total_seconds()%60)
-        nodes = '{:d}'.format(mpirun_par['nodes'])
-        ppn = '{:d}'.format(mpirun_par['ppn'])
+        nodes = mpirun_par['nodes']
         email = '{}'.format(mpirun_par['email'])
         
         # We need the absolute path name to mpirun for Torque:
         mpirun = utils.which('mpirun')
         
-        # We also need to know whether the job is done or not.
-        
-        # Build the command:
-        cmd = ("mpirun -np {nodes} {python} "
-               "{mpirun_loc} {args}").format(**locals())
-        
         # Create the commands to run Torque
-        job_string = """#!/bin/bash
-#PBS -l pcput={time:.0f}
-#PBS -l mem={memory:.0f}
-#PBS -l nodes={nodes}
-{mpirun} {python} """ .format(mpirun_loc=mpirun_loc, **mpirun_par)
-                     
-        #cmd = ('echo "mpirun {python} '
-        #   '{mpirun_loc} {args}" '
-        #   '| qsub -V -l nodes={nodes}{ppn}{memory},walltime=00:10:00').format(**locals())
-        cmd = ('echo "mpirun -np {ppn} {python} '
-           '{mpirun_loc} {args}" '
-           '| qsub -V -l nodes={nodes}:ppn={ppn},walltime={time_}').format(**locals())
+        cmd = ('echo "mpirun {python} {mpirun_loc} {args}" '
+           '| qsub -V -l nodes={nodes},walltime={time_}').format(**locals())
         
         if email:
             cmd += ' -M {}'.format(email)

@@ -683,8 +683,7 @@ defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast
          dict(qualifier='directory', description='Directory for temporary files', cast_type=str, value='',frame=['phoebe'],context='mpi:slurm'),
         ]
 
-defs += [dict(qualifier='nodes',       description='Number of nodes of any type',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi:torque'),
-         dict(qualifier='ppn',       description='Number of processors per node',repr='%d',cast_type=int,value=1,frame=["phoebe"],context='mpi:torque'),
+defs += [dict(qualifier='nodes',       description='Node specification string',repr='%d',cast_type=str,value='48:big',frame=["phoebe"],context='mpi:torque'),
          dict(qualifier='jobname',       description='Jobname',repr='%s',cast_type=str,value='Phoebe2',frame=["phoebe"],context='mpi:torque'),
          dict(qualifier='time', description='Maximum time of one process', cast_type=float, value=60, unit='min',frame=['phoebe'],context='mpi:torque'),
          dict(qualifier='memory', description='Maximum amount of memory', cast_type=float, value=0, unit='MB', frame=['phoebe'],context='mpi:torque'),

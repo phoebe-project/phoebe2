@@ -4103,7 +4103,7 @@ class Body(object):
         """
         # Add data to params
         parsed_refs = _parse_obs(self, obs)
-        logger.info('added obs {0}'.format(parsed_refs))
+        logger.info('Added obs {} to {}'.format(", ".join(parsed_refs), self.get_label()))
         return parsed_refs
     
     
@@ -5078,7 +5078,7 @@ class PhysicalBody(Body):
                 new_cols = np.zeros(len(self.mesh),dtype=dtypes)
                 for i,field in enumerate(new_cols.dtype.names):
                     self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field],dtypes=dtypes[i])
-        logger.info('added pbdeps {0}'.format(parsed_refs))
+        logger.info('Added pbdeps {} to {}'.format(", ".join(parsed_refs), self.get_label()))
         return parsed_refs
     
     

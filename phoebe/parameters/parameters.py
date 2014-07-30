@@ -1334,7 +1334,7 @@ class Parameter(object):
             unit = conversions.change_convention(unit,self.unit)
         
         if self.unit != unit:
-            logger.info("Converting parameter {} from {} to {}".format(self.qualifier,self.unit,unit))
+            logger.debug("Converting parameter {} from {} to {}".format(self.qualifier,self.unit,unit))
             #-- the prior
             if convert:
                 if hasattr(self,'prior'):

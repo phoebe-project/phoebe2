@@ -98,8 +98,10 @@ from phoebe.parameters import tools
 from phoebe.parameters import feedback as mod_feedback
 from phoebe.backend import fitting, observatory, plotting
 from phoebe.backend import universe
+from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.io import parsers
+from phoebe.io import ascii
 from phoebe.dynamics import keplerorbit
 from phoebe.frontend.plotting import Axes, Figure
 from phoebe.frontend.usersettings import Settings
@@ -5179,13 +5181,15 @@ class Bundle(Container):
         
         
     
-    def write_syn(self, dataref, output_file, use_user_units=True, fmt='%.18e',
-                  delimiter=' ', newline='\n', footer=''):
+    def write_syn(self, dataref, output_file=None, use_user_units=True,
+                  include_obs=True, include_header=True, fmt='%25.18e',
+                  delimiter=' ', newline='\n', footer='', simulate=False):
         """
         Write synthetic datasets to an ASCII file.
         
         By default, this function writes out the model in the same units as the
-        data (:envvar:`use_user_units=True`). It will then also attempt to use
+        data (:envvar:`use_user_units=True`), which are included as well
+        (:envvar:`include_obs=True`). It will then also attempt to use
         the same columns as the observations were given in. It is possible to
         override these settings and write out the synthetic data in the internal
         model units of Phoebe. In that case, set :envvar:`use_user_units=False`
@@ -5194,9 +5198,12 @@ class Bundle(Container):
         supported as they are auto-generated to give information on column names
         and units.
         
-        [FUTURE]
+        This probably only works for lc and rv right now, and perhaps if.
+        The data structure for sp is too complicated (wavelength + time as
+        independent variables) to be automatically handled like this. Also
+        sed is a bit difficult.
         
-        Export the contents of a synthetic parameterset to a file
+        [FUTURE]
         
         :param dataref: the dataref of the dataset to write out
         :type dataref: str
@@ -5207,7 +5214,8 @@ class Bundle(Container):
         this_syn = self.get_syn(dataref)
         this_obs = self.get_obs(dataref)
         
-        # Which columns to write out?
+        # Which columns to write out? First check if we user units are requested
+        # and available. If they are not, use the columns from the obs
         user_columns = this_obs['user_columns'] and use_user_units
         columns = this_obs['user_columns'] if user_columns else this_obs['columns']
         
@@ -5227,11 +5235,6 @@ class Bundle(Container):
             for col in this_obs['user_units']:
                 units[columns.index(col)] = this_obs['user_units'][col]
         
-        # Create header
-        header = [" ".join(columns)]
-        header+= [" ".join(units)]
-        header = "\n".join(header)
-        
         # Create data
         data = []
         
@@ -5241,6 +5244,7 @@ class Bundle(Container):
         except KeyError:
             passband = None
         
+        # Synthetic columns
         for col, unit in zip(columns, units):
             this_col_data = this_syn[col]
             
@@ -5254,15 +5258,117 @@ class Bundle(Container):
             
             data.append(this_col_data)
         
+        # Observed columns
+        if include_obs:
+            data_obs = []
+            columns_obs = []
+            units_obs = []
+            # Collect them but put them in the right units
+            for col in this_obs['columns']:
+                this_col_data = this_obs[col]
+                # Skip if data array length does not match
+                if not len(this_col_data) == len(this_syn):
+                    continue
+                this_col_par = this_obs.get_parameter(col)
+                this_col_unit = this_col_par.get_unit() if this_col_par.has_unit() else None
+                if this_col_unit and user_columns and col in this_obs['user_units']:
+                    unit = this_obs['user_units'][col]
+                    if unit != this_col_unit:
+                        this_col_data = conversions.convert(this_col_unit, unit,
+                                                this_col_data, passband=passband)
+                    this_col_unit = unit
+                    
+                # Remember the names
+                data_obs.append(this_col_data)
+                columns_obs.append(col+'(OBS)')
+                units_obs.append(this_col_unit if this_col_unit else '--')
+            
+            # Add them to the previous results
+            data += data_obs
+            columns += columns_obs
+            units += units_obs
+        
+        # Create header
+        if include_header:
+            header = [" ".join(['{:>25s}'.format(col) for col in columns])]
+            header+= [" ".join(['{:>25s}'.format(unit) for unit in units])]
+            # strip first two spaces from first entry to make space for the '# '
+            # character later
+            header[0] = header[0][2:]
+            header[1] = header[1][2:]
+            header = "\n".join(header)
+        else:
+            header = ''
+        
+        if output_file is None:
+            output_file = '.'.join([dataref, this_syn.get_context()[:-3]])
+        
         # Write out file
-        np.savetxt(output_file, np.column_stack(data), header=header,
+        if not simulate:
+            np.savetxt(output_file, np.column_stack(data), header=header,
+                   footer=footer, comments='# ', fmt=fmt, delimiter=delimiter,
+                   newline=newline)
+        
+            # Report to the user
+            info = ", ".join(['{} ({})'.format(col, unit) for col, unit in zip(columns, units)])
+            logger.info("Wrote columns {} to file '{}'".format(info, output_file))
+        else:
+            return np.column_stack(data), columns, units, passband
+    
+    
+    def write_sedsyn(self, group_name, output_file=None,
+                  include_obs=True, include_header=True, fmt='%25.18e',
+                  delimiter=' ', newline='\n', footer='', simulate=False):
+        """
+        Special case for writing SED output to a file.
+        
+        User units not possible because that could complicate things: each
+        measurement can be given in different units!
+        
+        [FUTURE]
+        """
+        system = self.get_system()
+        all_lc_refs = system.get_refs(category='lc')
+        all_lc_refs = [ref for ref in all_lc_refs if ref[:len(group_name)] == group_name]
+        
+        if output_file is None:
+            output_file = '.'.join([group_name,'sed'])
+        
+        # Simulate the writing of each file separately, and append the results
+        alldata = []
+        for ii, dataref in enumerate(all_lc_refs):
+            data, cols, units, passband = self.write_syn(dataref, output_file,
+                         include_obs=include_obs,
+                         include_header=(ii==0), fmt=fmt, delimiter=delimiter,
+                         newline=newline, footer=footer, simulate=True)
+            
+            # Add extra cols: effective wavelength + bandpass
+            eff_wave = passbands.get_response(passband, full_output=True)[2]['WAVLEFF']
+            eff_wave = np.ones(data.shape[0])*eff_wave
+            data = np.hstack([data, eff_wave[:,None]])
+            alldata.append(data)
+        
+        if include_header:
+            header = [" ".join(['{:>25s}'.format(col) for col in cols+['wavleff']])]
+            header+= [" ".join(['{:>25s}'.format(unit) for unit in units+['AA']])]
+            # strip first two spaces from first entry to make space for the '# '
+            # character later
+            header[0] = header[0][2:]
+            header[1] = header[1][2:]
+            header = "\n".join(header)
+        else:
+            header = ''
+        
+        print np.vstack(alldata).shape
+        np.savetxt(output_file, np.vstack(alldata), header=header,
                    footer=footer, comments='# ', fmt=fmt, delimiter=delimiter,
                    newline=newline)
         
         # Report to the user
-        info = ", ".join(['{} ({})'.format(col, unit) for col, unit in zip(columns, units)])
+        info = ", ".join(['{} ({})'.format(col, unit) for col, unit in zip(cols, units)])
         logger.info("Wrote columns {} to file '{}'".format(info, output_file))
-        
+            
+    
         
     def set_select_time(self,time=None):
         """
