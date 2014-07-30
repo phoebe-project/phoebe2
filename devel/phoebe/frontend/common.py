@@ -543,7 +543,7 @@ class Container(object):
     @rebuild_trunk
     def attach_ps(self, value=None, twig=None, ):
         """
-        Add a new ParameterSet.
+        Attach a new ParameterSet.
         
         **Example usage**::
         
@@ -553,16 +553,18 @@ class Container(object):
         
         [FUTURE]
         
-        :param value: new ParameterSet to be added
-        :type value: ParameterSet
+        :param value: new ParameterSet to be added (or context)
+        :type value: ParameterSet (or string)
         :param twig: location in the system to add it to (defaults to the root system)
         :type twig: str or None
         """
+        # If the value is a string, create a default parameterSet here
+        if isinstance(value, str):
+            value = parameters.ParameterSet(value)
         
         # By default, add the ParameterSet to the entire system
         if twig is None:
             twig = self.get_system().get_label()
-            logger.warning("The new ParameterSet will be added to the root system ({})".format(twig))
             
         # Get all the info we can get
         this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
@@ -592,6 +594,8 @@ class Container(object):
             raise ValueError(("You can only attach ParameterSets to a Body or "
                               "Section ('{}' refers to a "
                               "{})").format(twig, this_trunk['kind']))
+        
+        logger.info("ParameterSet {} added to {}".format(value.get_context(), twig))
         
     def get_adjust(self, twig):
         """
@@ -1045,6 +1049,7 @@ class Container(object):
                                         out = system.get_period()
                                         syn['phase'] = (syn['time'] - out[1]) / out[0]
                                         syn['time'] = []
+                                        syn['columns'][syn['columns'].index('time')] = 'phase'
                                 
                                 # add phase to synthetic
                                 #if 'time' in syn and len(syn['time']) and not 'phase' in syn:

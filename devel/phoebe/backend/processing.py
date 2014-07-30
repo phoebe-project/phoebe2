@@ -125,7 +125,7 @@ def binary_morphology(self, time):
             potpar.set_value(critpot)
             # Don't report if nothing changed:
             if oldcritpot != critpot:
-                logger.info('{} potential set to critical (semi-detached): pot={}'.format('Primary' if comp==1 else 'Secondary',critpot))
+                logger.debug('{} potential set to critical (semi-detached): pot={}'.format('Primary' if comp==1 else 'Secondary',critpot))
             
         # Detached: lower limit on potential
         elif morphology == 'detached':
@@ -133,12 +133,12 @@ def binary_morphology(self, time):
             potpar.set_limits(llim=critpot,ulim=1e10)
             # Don't report if nothing changed:
             if (critpot, 1e10) != oldlimits:
-                logger.info('{} lower limit on potential set to critical (detached): pot>={}'.format('Primary' if comp==1 else 'Secondary',critpot))
+                logger.debug('{} lower limit on potential set to critical (detached): pot>={}'.format('Primary' if comp==1 else 'Secondary',critpot))
         
         # Overcontact: upper limit on potential
         elif morphology == 'overcontact':
             potpar.set_limits(llim=0, ulim=critpot)
-            logger.info('{} upper limit on potential set to critical (overcontact): pot<={}'.format('Primary' if comp==1 else 'Secondary',critpot))
+            logger.debug('{} upper limit on potential set to critical (overcontact): pot<={}'.format('Primary' if comp==1 else 'Secondary',critpot))
   
   
   

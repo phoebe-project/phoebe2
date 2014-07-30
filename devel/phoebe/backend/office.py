@@ -3,6 +3,7 @@ Aminations and reporting.
 
 Animate Phoebe computations interactively, or save them to a movie file.
 """
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from phoebe.utils import coordinates
@@ -11,11 +12,14 @@ from phoebe.backend import plotting
 from phoebe.units import constants
 from phoebe.units import conversions
 
+logger = logging.getLogger('OFFICE')
+
 def summarize(system, time=None, filename=None):
     """
     Summarize a system's parameters in human readable form.
     
     """
+    logger.info("Creating copy of system to compute and summarize quantities")
     text = []
     system = system.copy()
     
@@ -33,7 +37,7 @@ def summarize(system, time=None, filename=None):
             t0 = keplerorbit.from_supconj_to_perpass(orbit['t0'],
                                                      orbit['period'],
                                                      orbit['per0']/180*np.pi)
-        print("Set to time of periastron passage")
+        #print("Set to time of periastron passage")
     except:
         pass
     
