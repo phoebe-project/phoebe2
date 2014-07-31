@@ -591,17 +591,25 @@ Interstellar reddening can be taken into account in two ways:
 1. Assuming a known reddening law (Cardelli, Fitzpatrick, Seaton...),
    described in the parameterSet :ref:`(reddening:interstellar) <parlabel-phoebe-reddening:interstellar>`,
    which is a global system parameterSet.
-   The extinction law and parameters (e.g. :math:`R_v`) can then be set and the
-   extinction at any wavelength can be derived from the extinction at a reference
-   wavelenght :math:`A_\lambda`. To add interstellar reddening to a Bundle,
-   simply do::
+   The extinction law (qualifier ``law``, defaults to [Fitzpatrick2004]_) and
+   parameters (e.g. :math:`R_v`, qualifier ``Rv``, defaults to 3.1, the average
+   value of the Milky Way) can then be set and the extinction at any wavelength
+   can be derived from the extinction at a reference wavelenght :math:`A_\lambda`
+   (set via qualifier ``passband``, defaults to Johnson(V)). To add interstellar
+   reddening to a Bundle, simply do::
    
         mybundle = phoebe.Bundle()
         reddening = phoebe.ParameterSet('reddening:interstellar')
         mybundle.attach_ps(reddening)
         
 2. Using custom passband extinction parameters, which should be manually added
-   and given in each pbdep (see. :py:func:`add_ebv <phoebe.parameters.tools.add_ebv>`)
+   and given in each pbdep (see. :py:func:`add_ebv <phoebe.parameters.tools.add_ebv>`).
+
+In contrast to everything else in Phoebe2, the unit of ``extinction`` is magnitude!
+   
+The global interstellar reddening is applied first (if present), and then augmented
+with the passband extinction parameters. If you want one but not the other, be sure
+to set the corresponding ``extinction`` parameter to zero.
    
 See :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>`
 for implementation details.

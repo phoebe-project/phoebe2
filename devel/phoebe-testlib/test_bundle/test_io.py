@@ -10,7 +10,7 @@ def test_json():
     mybundle = phoebe.Bundle()
     
     # attach a non-standard  parameter set
-    mybundle.attach_ps(phoebe.PS('reddening:interstellar'))
+    #mybundle.attach_ps(phoebe.PS('reddening:interstellar'))
     mybundle.set_value('passband@reddening', 'JOHNSON.K')
     
     # change a value

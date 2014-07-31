@@ -130,7 +130,15 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
                         "wide and allow many unphysical combinations of "
                         "parameters.").format(len(p0), difficult_try, exceed_max_try))
     
-    return p0
+    # report what was used to draw from:
+    if np.all(np.array(get_funcs)=='get_prior'):
+        drew_from = 'prior'
+    elif np.all(np.array(get_funcs)=='get_posterior'):
+        drew_from = 'posterior'
+    else:
+        drew_from = 'mixture of priors and posteriors'
+    
+    return p0, drew_from
 
 
 
@@ -203,7 +211,7 @@ def multivariate_init(mysystem, nwalkers, draw_from='prior'):
         else:
             logger.warning("Walker {} could not be initalised with valid parameters".format(i))
     
-    return sample
+    return sample, draw_from
 
     
 
@@ -379,12 +387,12 @@ def run(system_file, compute_params_file, fit_params_file):
         # Initialize a set of parameters
         try:
             logger.warning("Attempting multivariate initialisation from {}".format(fit_params['init_from']))
-            p0 = multivariate_init(system, nwalkers, draw_from=fit_params['init_from'])
-            logger.warning("Initialised walkers from {} with multivariate normals".format(fit_params['init_from']))
+            p0, drew_from = multivariate_init(system, nwalkers, draw_from=fit_params['init_from'])
+            logger.warning("Initialised walkers from {} with multivariate normals".format(drew_from))
         except ValueError:
             logger.warning("Attempting univariate initialisation")
-            p0 = univariate_init(system, nwalkers, draw_from=fit_params['init_from'])
-            logger.warning("Initialised walkers from {} with univariate distributions".format(fit_params['init_from']))
+            p0, drew_from = univariate_init(system, nwalkers, draw_from=fit_params['init_from'])
+            logger.warning("Initialised walkers from {} with univariate distributions".format(drew_from))
             
         # We don't know the probability of the initial sample (yet)
         lnprob0 = None

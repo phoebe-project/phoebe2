@@ -83,6 +83,7 @@ def legacy_to_phoebe2(inputfile):
     comps = [parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='primary'),
              parameters.ParameterSet('component', ld_coeffs=[0.5,0.5], label='secondary')]
     position = parameters.ParameterSet('position', distance=(1.,'Rsol'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
     compute = parameters.ParameterSet('compute', beaming_alg='none', refl=False,
                                       heating=True, label='legacy',
                                       eclipse_alg='binary', subdiv_num=3)
@@ -134,8 +135,8 @@ def legacy_to_phoebe2(inputfile):
                 raise IOError("Cannot parse phoebe file '{}': line '{}'".format(inputfile, l[:-1]))
              
             key = key.strip()
-
-			# Start with parameters that determine container sizes:
+            
+            # Start with parameters that determine container sizes:
             if key == 'phoebe_lcno':
                 all_lcobs = [datasets.LCDataSet(user_columns=['time','flux','sigma'], user_units=dict(time='JD',flux='W/m3',sigma='W/m3')) for i in range(int(val))]
                 all_lcdeps[0] = [parameters.ParameterSet('lcdep', ld_coeffs=[0.5,0.5]) for i in range(int(val))]
@@ -193,7 +194,7 @@ def legacy_to_phoebe2(inputfile):
                         
             # Ignore obsolete or inapplicable qualifiers:
             if leg_qualifier in [
-				'opsf', 'spots_no', 'spno', 'logg', 'sbr', 'mass', 'radius',
+                'opsf', 'spots_no', 'spno', 'logg', 'sbr', 'mass', 'radius',
                 'plum', 'mbol', 'indep', 'spots_corotate', 'spots_units',
                 'synscatter_seed', 'synscatter_switch', 'synscatter_sigma',
                 'synscatter_levweight',
@@ -352,6 +353,21 @@ def legacy_to_phoebe2(inputfile):
                             this_param.set_limits(ulim=float(val))
                     continue
             
+            if leg_qualifier == 'ie_factor':
+                # Phoebe Legacy defines IE excess, i.e. E(B-V).
+                # Phoebe2 defines A(\lambda), with lambda set by passband
+                # Thus we need to set the passband to JOHNSON.V, and translate
+                # E(B-V) to A(V)
+                reddening['law'] = 'cardelli1989'
+                reddening['passband'] = 'JOHNSON.V'
+                reddening['Rv'] = val
+                
+            if leg_qualifier == 'ie_excess':
+                # Phoebe Legacy defines IE excess, i.e. E(B-V).
+                # Phoebe2 defines A(\lambda), with lambda set by passband
+                # Thus we need to set the passband to JOHNSON.V, and translate
+                # E(B-V) to A(V)
+                reddening['extinction'] = reddening['Rv'] * float(val)
             
             if compno is not None:
                 if leg_qualifier == 'ld_xbol':
@@ -641,7 +657,7 @@ def legacy_to_phoebe2(inputfile):
         star1.add_pbdeps(all_lcdeps[0][i])
         star2.add_pbdeps(all_lcdeps[1][i])
     
-    bodybag = universe.BodyBag([star1, star2], position=position)
+    bodybag = universe.BodyBag([star1, star2], position=position, reddening=reddening)
     
     # Add data
     for i in range(len(all_lcobs)):
