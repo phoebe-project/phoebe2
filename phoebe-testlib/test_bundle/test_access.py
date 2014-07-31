@@ -11,7 +11,7 @@ def test_access():
     mybundle = phoebe.Bundle(filename)
     
     # set a new parameterSet
-    mybundle.attach_ps(phoebe.PS('reddening:interstellar'), 'Detached_1')
+    #mybundle.attach_ps(phoebe.PS('reddening:interstellar'), 'Detached_1')
     
     # test get value
     assert(mybundle.get_value('vgamma@position')==-12.5)

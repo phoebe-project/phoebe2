@@ -214,7 +214,7 @@ defs += [dict(qualifier='alb',    description='Bolometric albedo (1-alb heating,
 
 #    INTERSTELLAR REDDENING
 defs += [dict(qualifier='law',       description='Interstellar reddening law',repr='%s',cast_type='choose',choices=['chiar2006','fitzpatrick1999','fitzpatrick2004','donnel1994','cardelli1989','seaton1979'],value='fitzpatrick2004',frame=["phoebe"],context=['reddening:interstellar']),
-         dict(qualifier='extinction',description='Passband extinction',repr='%f',cast_type=float,value=0,adjust=False,frame=["phoebe"],context=['reddening:interstellar']),
+         dict(qualifier='extinction',description='Passband extinction',repr='%f', unit='mag', cast_type=float,value=0,adjust=False,frame=["phoebe"],context=['reddening:interstellar']),
          dict(qualifier='passband',  description='Reference bandpass for extinction parameter',repr='%s',cast_type=str,value='JOHNSON.V',frame=["phoebe"],context=['reddening:interstellar']),
          dict(qualifier='Rv',        description='Total-to-selective extinction',repr='%f',cast_type=float,value=3.1,adjust=False,frame=["phoebe"],context=['reddening:interstellar']),
         ]

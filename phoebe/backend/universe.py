@@ -543,7 +543,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
             logger.info("Projected intensity is reddened with E(B-V)={} following {}".format(ebv, red_parset['law']))
         
         # if there is passband reddening
-        elif 'extinction' in idep and (idep['extinction'] > 0):
+        if 'extinction' in idep and (idep['extinction'] > 0):
             extinction = idep['extinction']
             proj_intens = proj_intens / 10**(extinction/2.5)
             logger.info("Projected intensity is reddened with extinction={} (passband reddening)".format(extinction))
