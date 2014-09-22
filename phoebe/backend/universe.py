@@ -1200,10 +1200,10 @@ class Body(object):
     """
     Base class representing a Body in the Universe.
     
-    A Body represent the base properties an object can have. It basically has
+    The ``Body`` class contains the basic properties of an object. It stores
     a minimal mesh (record array ``mesh``), a container to hold parameters
     (OrderedDict ``params``) and a time stamp (float ``time`` or None). It also
-    provides basic manipulations and calculations of a mesh:
+    provides methods for rudimental manipulation and mesh computation.
     
     **Input and output**
     
@@ -1273,22 +1273,22 @@ class Body(object):
         sp
 
     
-    The equality operator (``==`` and ``!=``) is implemented and will return
-    True only if the left and right hand side are of the same class and have
-    the exact same structure and variables.
+    Identity operators (``==`` and ``!=``) are implemented and will return
+    True if the two operands are instances of the same class and have the
+    identical structure and variables.
     
-    Iterating over a Body with the ``for element in body`` paradigm will iterate
+    Iterating over a Body with the ``for element in body`` loop will iterate
     over all ParameterSets in the ``params`` attribute.
     
     Adding to Bodies will create a BodyBag.
     
     The point is to initialize it with a record array. Then, extra information
-    can be added, such as the com (centre-of-mass), angles. Functions
+    can be added, such as the com (center-of-mass), angles, ... Functions
     representing the surface and doing surface subdivisions should be added
     by subclassing.
     
     Basic fields are C{center, size, triangle, normal_} and C{mu}. Additional
-    fields are C{visible, hidden} and C{partial}.
+    fields are C{visible}, C{hidden} and C{partial}.
     
     The original values are stored in fields preceded with C{_o_}, except for
     the limb angles C{mu}.
@@ -1367,8 +1367,7 @@ class Body(object):
         be left to the default value anyway. Have a look at examples in this
         very module for more info.
         
-        @param eclipse_detection: takes a name of an algorithm
-        (e.g. 'hierarchical' or 'simple')
+        @param eclipse_detection: takes a name of an algorithm (e.g. 'hierarchical' or 'simple')
         @type eclipse_detection: str
         """
         # We need to know the time and the dimensions (*sigh*... that'll be 3
