@@ -1017,6 +1017,14 @@ def plot_etvsyn(system,*args,**kwargs):
     period = kwargs.pop('period',None)
     phased = kwargs.pop('phased',False)
     ax = kwargs.pop('ax',plt.gca())
+    
+    # catch fmt for the user that is set up by the MPL quirkiness:
+    fmt = kwargs.pop('fmt', None)
+    if fmt is not None:
+        if args:
+            raise TypeError("There is no line property 'fmt'")
+        else:
+            args = (fmt,)
 
     #-- get parameterSets
     syn = system.get_synthetic(category='etv',ref=ref)
@@ -1049,7 +1057,13 @@ def plot_etvsyn(system,*args,**kwargs):
 
     if loaded: syn.unload()
     
-    return artists,syn
+    # TODO: make these automated
+    axes_labels = ['','']
+    axes_units = ['','']
+    this_scale = 1
+    this_offset = 0
+    
+    return artists, syn, (axes_labels, axes_units), (this_scale, this_offset)
     
 
 
@@ -1316,8 +1330,12 @@ def plot_etvobs(system,errorbars=True,**kwargs):
             artists.append(p)
 
     if loaded: obs.unload()
+
+    # TODO: make these automated
+    axes_labels = ['','']
+    axes_units = ['','']
     
-    return artists,obs
+    return artists, obs, (axes_labels, axes_units)
 
 
 #}
