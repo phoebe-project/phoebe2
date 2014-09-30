@@ -326,7 +326,7 @@ defs += [dict(qualifier='wavelength',description='Wavelengths of observed spectr
          dict(qualifier='flux',  description='Flux of the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='sigma',  description='Noise in the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
          dict(qualifier='snr',  description='Signal to noise of the spectrum',repr='%s',value=[],frame=["phoebe"],context='spobs'),
-         dict(qualifier='offset',       description='Linear scaling constant to match obs with syn',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
+         dict(qualifier='offset',       description='Linear scaling constant to match obs with syn',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs','etvobs']),
          dict(qualifier='scale',    description='Linear scaling factor to match obs with syn',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs']),
          dict(qualifier='vgamma_offset',       description='Offset in systemic velocity',repr='%f',cast_type=float,value=0.,adjust=False,frame=["phoebe"],context=['rvobs'],alias=['offset']),
          dict(qualifier='statweight',    description='Statistical weight in overall fitting',repr='%f',cast_type=float,value=1.0,adjust=False,frame=["phoebe"],context=['lcobs','spobs','ifobs','plobs','rvobs']),
