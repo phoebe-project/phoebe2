@@ -4327,10 +4327,10 @@ class Body(object):
             orbits, components = self.get_orbits() 
             
             for lbl in ref:
-                etvsyn,lbl = self.get_parset(type='syn',ref=lbl)
-                etvobs,lbl = self.get_parset(type='obs',ref=lbl)
+                etvsyn,l = self.get_parset(context='etvsyn',ref=lbl)
+                etvobs,l = self.get_parset(context='etvobs',category='etv',ref=lbl)
                 
-                if etvsyn is (None, None) or etvobs is (None, None):
+                if etvsyn is None or etvobs is None:
                     continue
                 
                 if times is None: # then default to what is in the etvobs
@@ -4339,10 +4339,18 @@ class Body(object):
                 # get true observed times of eclipse (with LTTE, etc)
                 objs, vels, t = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits, components, barycentric=ltt)
                 
+                etv = times-t
+                
+                if etvobs.get_adjust('offset'):
+                    scale, offset = compute_scale_or_offset(model=etv, obs=etvobs['etv'], sigma=etvobs['sigma'], scale=False, offset=True)
+                    etvobs['offset'] = offset
+                else:
+                    offset = etvobs['offset']
+                
                 # append to etvsyn
                 etvsyn['time'] = np.append(etvsyn['time'],times)
                 etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
-                etvsyn['etv'] = np.append(etvsyn['etv'],times-t)
+                etvsyn['etv'] = np.append(etvsyn['etv'],etv+offset)
            
 
     

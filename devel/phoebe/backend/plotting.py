@@ -1032,8 +1032,27 @@ def plot_etvsyn(system,*args,**kwargs):
     #-- load synthetics: they need to be here
     loaded = syn.load(force=False)
     
+    # Phases are default only when obs are present and given in phase
+    try:
+        #~ obs = system.get_obs(category='etv', ref=ref)  # bug in get_obs?
+        obs = system.get_parset(context='etvobs', ref=ref)[0]
+        default_phased = not 'time' in obs['columns'] and 'phase' in obs['columns']
+    except ValueError:
+        obs = None
+        default_phased = False
+    except TypeError:
+        obs = None
+        default_phased = False
+      
+    # Try to get the observations. They don't need to be loaded, we just need
+    # the offset value.
+    #~ this_offset = 0.0
+    #~ if scale == 'obs' and obs is not None:
+        #~ this_offset = obs['offset']    
+
     #-- take third light and passband luminosity contributions into account
     time = np.array(syn['time'])
+    #~ etv = np.array(syn['etv']) + this_offset
     etv = np.array(syn['etv'])
     
     #-- get the period to repeat the RV with
