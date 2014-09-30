@@ -1877,7 +1877,7 @@ class Bundle(Container):
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key not in ['self', 'to_dataref']}
         
-        self.data_fromexisting(to_dataref, category='lc', **set_kwargs)
+        self.data_fromexisting(category='lc', **set_kwargs)
         
     def rv_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       rv=None, sigma=None, flag=None, weight=None,
@@ -2060,7 +2060,7 @@ class Bundle(Container):
         return self.data_fromfile(category='rv', **set_kwargs)
     
     
-    def rv_fromexisting(to_dataref, from_dataref=None, time=None, phase=None,
+    def rv_fromexisting(self, to_dataref, from_dataref=None, time=None, phase=None,
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
@@ -2093,7 +2093,7 @@ class Bundle(Container):
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key != 'self'}
         
-        self.data_fromexisting(to_dataref,  category='rv', **set_kwargs)
+        self.data_fromexisting(category='rv', **set_kwargs)
         
     def etv_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       etv=None, sigma=None, flag=None, weight=None):
@@ -2252,7 +2252,7 @@ class Bundle(Container):
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key not in ['self', 'to_dataref']}
         
-        self.data_fromexisting(to_dataref, category='etv', **set_kwargs)
+        self.data_fromexisting(category='etv', **set_kwargs)
     
     
     def sed_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
@@ -2700,7 +2700,7 @@ class Bundle(Container):
                 
         See :py:func:`Bundle.lc_fromexisting` for more info.
         
-        Additionally, you can easiyl remove closure phases, triple amplitudes
+        Additionally, you can easily remove closure phases, triple amplitudes
         and/or effective wavelength, if you ever so wish.
         
         :param objref: component to add data to
@@ -2722,7 +2722,7 @@ class Bundle(Container):
                   if set_kwargs[key] is not None and key not in ignore}
         
         # We can pass everything now to the main function
-        out = self.data_fromexisting(to_dataref, category='if', **set_kwargs)
+        out = self.data_fromexisting(category='if', **set_kwargs)
         
         # Remove closure phases, triple amplitudes or effective wavelengths
         # if necessary
