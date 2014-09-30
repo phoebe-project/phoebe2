@@ -4342,7 +4342,7 @@ class Body(object):
                 # append to etvsyn
                 etvsyn['time'] = np.append(etvsyn['time'],times)
                 etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
-                etvsyn['etv'] = np.append(etvsyn['etv'],t-times)
+                etvsyn['etv'] = np.append(etvsyn['etv'],times-t)
            
 
     
