@@ -3132,6 +3132,32 @@ class Bundle(Container):
         all_lc_refs = [ref for ref in all_lc_refs if dataref in ref]
         for dataref in all_lc_refs:
             self.enable_data(dataref, 'lc', False)
+            
+    def enable_etv(self, dataref=None):
+        """
+        Enable an ETV dataset so that it will be considered during run_compute
+        
+        If no dataref is given and there is only one ETV added, there
+        is no ambiguity and that one will be enabled.
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        :raises ValueError: when the dataref is ambiguous
+        :raises KeyError: when dataref does not exist
+        """
+        self.enable_data(dataref, 'etv', True)
+        
+    def disable_etv(self, dataref=None):
+        """
+        Disable an ETV dataset so that it will not be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info.
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'etv', False)
+        
         
     def reload_obs(self, twig=None):
         """
