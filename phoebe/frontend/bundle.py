@@ -867,7 +867,7 @@ class Bundle(Container):
     #}
     #{ Parameters/ParameterSets
             
-    def get_logp(self, dataset=None):
+    def get_logp(self, dataset=None, usercosts=None):
         """
         Retrieve the log probability of a collection of (or all) datasets.
         
@@ -895,13 +895,14 @@ class Bundle(Container):
                 old_state.append(obs.get_enabled())
                 this_state = False
                 if dataset == obs['ref'] or dataset == obs.get_context():
-                    if index is None or index == location:
+                    #~ if index is None or index == location:
+                    if True:
                         this_state = True
                     location += 1
                 obs.set_enabled(this_state)
         
         # Then compute statistics
-        logf, chi2, n_data = self.get_system().get_logp(include_priors=True)
+        logf, chi2, n_data = self.get_system().get_logp(include_priors=True, usercosts=usercosts)
         
         # Then reset the enable property
         if dataset is not None:
@@ -3460,7 +3461,7 @@ class Bundle(Container):
     @run_on_server
     def run_fitting(self, fittinglabel='lmfit', computelabel=None,
                     add_feedback=True, accept_feedback=True, server=None,
-                    mpi=None, **kwargs):
+                    mpi=None, usercosts=None, **kwargs):
         """
         Run fitting for a given fitting ParameterSet and store the feedback
         
@@ -3676,7 +3677,8 @@ class Bundle(Container):
         
         # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions,
-                               fitparams=fittingoptions, mpi=mpi)
+                               fitparams=fittingoptions, mpi=mpi,
+                               usercosts=usercosts)
         
         # Reset the parameters to their initial values
         for par, val in zip(self.get_system().get_adjustable_parameters(), init_values):
@@ -4964,7 +4966,7 @@ class Bundle(Container):
         return output, (plotref, axesref, figref)
         #~ return obs
         
-    def new_plot_custom(self, function, args=None, **kwargs):
+    def new_plot_custom(self, function, args=(), **kwargs):
         """
         [FUTURE]
         

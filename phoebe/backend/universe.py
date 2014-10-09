@@ -2263,7 +2263,7 @@ class Body(object):
             if loaded:
                 syn.unload()
     
-    def get_logp(self, include_priors=False):
+    def get_logp(self, include_priors=False, usercosts=None):
         r"""
         Retrieve probability or goodness-of-fit.
         
@@ -2478,6 +2478,11 @@ class Body(object):
                 obser = np.array(obs['rv'])
                 sigma = np.array(obs['sigma'])
                 
+            elif obs.context == 'etvobs':
+                model = np.array(modelset['etv'])
+                obser = np.array(obs['etv'])
+                sigma = np.array(obs['sigma'])
+                
             else:
                 raise NotImplementedError(("probability for "
                              "{}").format(obs.context))
@@ -2552,6 +2557,11 @@ class Body(object):
                         this_chi2 = 0.0
                     
                 chi2.append(this_chi2)
+                
+        # now call any user-provided functions
+        # usercosts MUST be a subclass of fitting.UserCosts
+        if usercosts is not None:
+            log_f, chi2, n_data = usercosts.run(self, log_f, chi2, n_data)
         
         # log_f is nan for whatever reason, it's actually -inf
         # then the chi2 should probably also be large...?
@@ -5029,7 +5039,7 @@ class PhysicalBody(Body):
             if len(bary_time) == 0:
                 return time
             index = np.searchsorted(bary_time, time)
-            if bary_time[index] == time:
+            if index < len(bary_time) and bary_time[index] == time:
                 logger.info("Barycentric time {:.10f} corrected to proper time {:.10f} ({:.6e} sec)".format(time, prop_time[index], (time-prop_time[index])*24*3600))
                 return prop_time[index]
             # If not precalculated, we need to calculate it now
