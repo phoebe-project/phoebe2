@@ -23,7 +23,7 @@ def save_pickle(data, fn):
     pickle.dump(data, f)
     f.close()
 
-def lnprob(values, pars, system, compute_params):
+def lnprob(values, pars, system, compute_params, usercosts):
     
     # Make sure there are no previous calculations left
     system.reset_and_clear()
@@ -46,7 +46,7 @@ def lnprob(values, pars, system, compute_params):
         logger.warning("Compute failed with message: {} --> logp=-inf".format(str(msg)))
         return -np.inf, None
     
-    logp, chi2, N = system.get_logp(include_priors=True)
+    logp, chi2, N = system.get_logp(include_priors=True, usercosts=usercosts)
     
     # Get also the parameters that are adjustable but have no prior        
     auto_fitted = system.get_adjustable_parameters(with_priors=False)
@@ -250,7 +250,7 @@ def update_progress(system, sampler, fitparams, last=10):
 
 
 
-def run(system_file, compute_params_file, fit_params_file):
+def run(system_file, compute_params_file, fit_params_file, usercosts_file):
     """
     Run the emcee algorithm.
     
@@ -290,6 +290,9 @@ def run(system_file, compute_params_file, fit_params_file):
     # Load the fit and compute ParameterSets
     compute_params = universe.load(compute_params_file)
     fit_params = universe.load(fit_params_file)    
+    
+    # Load the usercosts class
+    usercosts = universe.load(usercosts_file)
     
     # Retrieve the number of walkers and iterations
     nwalkers = fit_params['walkers']
@@ -416,7 +419,7 @@ def run(system_file, compute_params_file, fit_params_file):
     
     # Create the sampler
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
-                                    args=[pars_objects, system, compute_params],
+                                    args=[pars_objects, system, compute_params, usercosts],
                                     pool=pool)
     
     # And run!
@@ -485,10 +488,11 @@ if __name__ == '__main__':
     system_file = sys.argv[1]
     fit_params_file = sys.argv[2]
     compute_params_file = sys.argv[3]
-    logger_level = sys.argv[4]
+    usercosts_file = sys.argv[4]
+    logger_level = sys.argv[5]
     
     logger.setLevel(logger_level)
     
-    run(system_file, fit_params_file, compute_params_file)
+    run(system_file, fit_params_file, compute_params_file, usercosts_file)
     
     
