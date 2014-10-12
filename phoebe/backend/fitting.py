@@ -83,6 +83,8 @@ import tempfile
 import subprocess
 import numpy as np
 import scipy
+#import marshal
+import inspect
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from phoebe.utils import utils
@@ -622,17 +624,26 @@ def run_emcee(system, params=None, fitparams=None, mpi=None, usercosts=None):
     fit_file.close()
     
     # The user costs
-    if usercosts is None:
-        usercosts = UserCosts([])
-    usercosts_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
-    pickle.dump(usercosts, usercosts_file)
-    usercosts_file.close()
-    
-    # Create arguments to run emceerun_backend.py
-    args = " ".join([sys_file.name, compute_file.name, fit_file.name, usercosts_file.name, fit_logger_level])
+    #if usercosts is not None:
+    #    #usercosts_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+    #    usercosts_file = open(os.path.abspath('tmpusercosts.marshal'), 'wb')
+    #    marshal.dump(usercosts.func_code, usercosts_file)
+    #    usercosts_file.close()
+
+    if usercosts is not None:
+        usercosts_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+        pickle.dump(usercosts, usercosts_file)
+        usercosts_file.close()
+
+        usercosts_dir = os.path.dirname(os.path.abspath(inspect.getfile(usercosts)))
+    else:
+        usercosts_dir = 'None'
     
     # Then run emceerun_backend.py
     if mpi is not None:
+        # Create arguments to run emceerun_backend.py
+        args = " ".join([sys_file.name, compute_file.name, fit_file.name, usercosts_file.name if usercosts is not None else 'None', usercosts_dir, fit_logger_level])
+
         emceerun_backend.mpi = True
         flag, mpitype = decorators.construct_mpirun_command(script='emceerun_backend.py',
                                                   mpirun_par=mpi, args=args)
@@ -646,12 +657,14 @@ def run_emcee(system, params=None, fitparams=None, mpi=None, usercosts=None):
     
     else:
         emceerun_backend.mpi = False
-        emceerun_backend.run(sys_file.name, compute_file.name, fit_file.name, usercosts_file.name)
+        emceerun_backend.run(sys_file.name, compute_file.name, fit_file.name, usercosts_file.name if usercosts is not None else 'None')
             
     # Clean up pickle files once they are loaded:
     os.unlink(sys_file.name)
     os.unlink(fit_file.name)
     os.unlink(compute_file.name)
+    if usercosts is not None:
+        os.unlink(usercosts_file.name)
     
     # Check if we produced the chain file
     chain_file = os.path.join(direc, fitparams['label'] + '.mcmc_chain.dat')
@@ -1851,74 +1864,7 @@ def longitudinal_field(times,Bl=None,rotperiod=1.,
         return final_model
     else:
         return params, final_model
-        
-        
-        
-class UserCosts(object):
-    """
-    [FUTURE]
-    This class allows the user an interface for creating their own penalties to the cost-function used in fitting.
-    
-    In order to include your own functions, you must subclass this class, write function(s) using the correct format,
-    and send your class initialized with the function names you'd like the cost function to call.
-    
-    NOTE: this currently only works for fitting:emcee and will be IGNORED for all other fitting types
-    
-    Example
-    import numpy as np
-    from phoebe.backend.fitting import UserCost:
-    class AdditionalCosts(UserCost):
-        def my_cost(self, system, log_f, chi2, n_data):
-            if np.random.random() > 0.5:
-                log_f = -np.inf
-                chi2.append(np.inf)
-                n_data += 1
-            return log_f, chi2, n_data
-            
-    additional_funcs = AdditionalCosts(['my_cost'])
-    
-    """
-    def __init__(self, funcnames=[]):
-        """
-        [FUTURE]
-        set the functions that need to be called in the cost function
-        """
-        if isinstance(funcnames, str):
-            funcnames = [funcnames]
-        self.funcs = funcnames
-        
-    def run(self, system, log_f, chi2, n_data):
-        """
-        [FUTURE]
-        run each of the desired functions.  Each overwrites the previous values for
-        log_f, chi2, n_data and will return the resulting values after looping over
-        all functions.
-        
-        This function shouldn't be called by the user, but will be called by 
-        BodyBag.get_logp
-        """
-        for func in self.funcs:
-            log_f, chi2, n_data = getattr(self, func)(system, log_f, chi2, n_data)
-            
-        return log_f, chi2, n_data
-        
-    def example_cost_function(self, system, log_f, chi2, n_data):
-        """
-        [FUTURE]
-        This is an example of a cost-function which could be created by the user.
-        Notice that the input arguments must be self, system, log_f, chi2, n_data.
-        
-        In this case those values are penalized randomly, but in either case the final
-        values for log_f, chi2, n_data are returned by the function.
-        """
-        
-        if np.random.random() > 0.5:
-            log_f = -np.inf
-            chi2.append(np.inf)
-            n_data += 1
-        
-        return log_f, chi2, n_data
-        
+       
 
 #if __name__=="__main__":
     #import sys

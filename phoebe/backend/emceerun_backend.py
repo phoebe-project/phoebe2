@@ -6,6 +6,7 @@ import sys
 import numpy as np
 import scipy.stats as st
 import matplotlib.pyplot as plt
+import marshal, types
 try:
     import emcee
     from emcee.utils import MPIPool
@@ -22,8 +23,20 @@ def save_pickle(data, fn):
     f = open(fn, 'w')
     pickle.dump(data, f)
     f.close()
+    
+def load_pickle(fn):
+    ff = open(fn, 'r')
+    myclass = pickle.load(ff)
+    ff.close()
+    return myclass
 
-def lnprob(values, pars, system, compute_params, usercosts):
+def load_marshal(fn):
+    ff = open(fn, 'r')
+    code_str = marshal.load(ff)
+    ff.close()
+    return types.FunctionType(code_str, globals(), "some_func_name")
+
+def lnprob(values, pars, system, compute_params, usercosts=None):
     
     # Make sure there are no previous calculations left
     system.reset_and_clear()
@@ -250,7 +263,7 @@ def update_progress(system, sampler, fitparams, last=10):
 
 
 
-def run(system_file, compute_params_file, fit_params_file, usercosts_file):
+def run(system_file, compute_params_file, fit_params_file, usercosts_file='None'):
     """
     Run the emcee algorithm.
     
@@ -292,7 +305,10 @@ def run(system_file, compute_params_file, fit_params_file, usercosts_file):
     fit_params = universe.load(fit_params_file)    
     
     # Load the usercosts class
-    usercosts = universe.load(usercosts_file)
+    if usercosts_file != 'None':
+        usercosts = load_pickle(usercosts_file)
+    else:
+        usercosts = None
     
     # Retrieve the number of walkers and iterations
     nwalkers = fit_params['walkers']
@@ -411,8 +427,6 @@ def run(system_file, compute_params_file, fit_params_file, usercosts_file):
         f.write("# WALKER " + "FITTED "*len(ids) + "AUTO "*len(auto) + "DERIVED "*len(derived) + "ACC LOGP\n")
         f.close()    
     
-    
-    
     # +--------------------------------------------+
     # |   STEP 4: create the sampler and run!      |
     # +--------------------------------------------+
@@ -421,11 +435,11 @@ def run(system_file, compute_params_file, fit_params_file, usercosts_file):
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
                                     args=[pars_objects, system, compute_params, usercosts],
                                     pool=pool)
-    
+
     # And run!
     generator = sampler.sample(p0, iterations=niters, storechain=True,
                                lnprob0=lnprob0, blobs0=blobs0)
-    
+
     for niter, result in enumerate(generator):
         
         #print("Iteration {}".format(niter))
@@ -489,10 +503,16 @@ if __name__ == '__main__':
     fit_params_file = sys.argv[2]
     compute_params_file = sys.argv[3]
     usercosts_file = sys.argv[4]
-    logger_level = sys.argv[5]
+    usercosts_dir = sys.argv[5]
+    logger_level = sys.argv[6]
     
     logger.setLevel(logger_level)
     
+    if usercosts_dir is not 'None': 
+        # need usercosts dir on the sys path in order to unpickle usercosts_file
+        import sys
+        sys.path.append(usercosts_dir)
+
     run(system_file, fit_params_file, compute_params_file, usercosts_file)
     
     

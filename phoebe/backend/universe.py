@@ -2561,7 +2561,7 @@ class Body(object):
         # now call any user-provided functions
         # usercosts MUST be a subclass of fitting.UserCosts
         if usercosts is not None:
-            log_f, chi2, n_data = usercosts.run(self, log_f, chi2, n_data)
+            log_f, chi2, n_data = usercosts(self, log_f, chi2, n_data)
         
         # log_f is nan for whatever reason, it's actually -inf
         # then the chi2 should probably also be large...?
