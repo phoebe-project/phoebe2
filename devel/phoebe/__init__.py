@@ -56,7 +56,7 @@ that case, supply a list with coefficients to ``ld_coeffs``.
 
 .. warning::
 
-    In Phoebe2, this set of three parameters occur many times. First of all,
+    In PHOEBE 2.0, this set of three parameters occur many times. First of all,
     the main body itself (parameterSets component and star) contain them. These
     represent the *bolometric* atmospheric properties, and are mainly relevant
     for reflection/heating effects.
@@ -275,7 +275,7 @@ in the ``phoebe/atmospheres/ptf`` directory. You can create such a file (and thu
 add custom passbands) using the the :py:mod:`create_passbandfits.py <phoebe.atmospheres.create_passbandfits>` script located in
 ``phoebe/atmospheres/``.
 
-The ``phoebe2_standardset.fits`` file is not strictly needed to operate Phoebe2,
+The ``phoebe2_standardset.fits`` file is not strictly needed to operate PHOEBE 2.0,
 since passband integration is not done during runtime but is precomputed in the
 atmosphere tables. Also, all the passbands are included in the atmosphere tables,
 to guarantee consistency between used passbands and limb darkening coefficients
@@ -347,7 +347,7 @@ atmosphere file, and how to create an atmosphere file from scratch.
     >>> create_atmospherefits.compute_grid_ld_coeffs(existing_file, passbands=nonexisting_passband)
     
 The limbdarkening coefficients will be computed automatically and added to the file,
-after which the passband is available in Phoebe2.
+after which the passband is available in PHOEBE 2.0.
 
 **Creating a new atmosphere tables**
 
@@ -372,7 +372,7 @@ after which the passband is available in Phoebe2.
    specify which parameters need to be interpolated in the grid.
 
 If you completed step 5, then you can use your ``filetag`` for the ``atm`` and
-``ld_coeffs`` parameters throughout Phoebe2, both in the frontend and in the backend.
+``ld_coeffs`` parameters throughout PHOEBE 2.0, both in the frontend and in the backend.
 Otherwise, you need to give the name of the file you've created.
 
 
@@ -385,14 +385,14 @@ passband gravity darkening. Bolometric gravity darkening relates the effective
 temperature to the local surface gravity, whereas passband gravity darkening
 relates intensities to temperatures. The intensities in Phoebe are computed from
 the effective temperatures (and other properties), so passband gravity darkening
-is not a necessary parameter in Phoebe2. For comparison, it is possible to
+is not a necessary parameter in PHOEBE 2.0. For comparison, it is possible to
 :py:func:`a posteriori <phoebe.backend.universe.PhysicalBody.get_passband_gravity_brightening>`
 compute the passband gravity darkening of a Body.
 
 When using Roche potentials, the local surface gravity can be computed from
 the masses distribution in the system, but temperatures cannot be set a priori.
 Therefore we need to resort to some kind of law or theory, or use empirical
-calibrations. Phoebe2 supports three different ways to set the gravity darkening
+calibrations. PHOEBE 2.0 supports three different ways to set the gravity darkening
 coefficients, governed with :ref:`gravb <label-gravb-component-phoebe>` and
 :ref:`gravblaw <label-gravblaw-component-phoebe>`:
 
@@ -454,7 +454,7 @@ specified. The current options are:
 
 .. warning::
 
-    Just as for the atmospheric parameters, Phoebe2 distinguishes *bolometric*
+    Just as for the atmospheric parameters, PHOEBE 2.0 distinguishes *bolometric*
     (part of star, component...) and *passband* albedos (part of lcdep, rvdep...).
     The bolometric albedo is used only to govern heating effects: with a bolometric
     albedo of 0.25, 75% of the incoming light will be used to heat the object,
@@ -470,12 +470,12 @@ specified. The current options are:
     
     Bolometric albedos need to be between 0 and 1, passband albedos can exceed 1.
 
-Note that Phoebe2 allows you to set bolometric albedo of zero (total heating,
+Note that PHOEBE 2.0 allows you to set bolometric albedo of zero (total heating,
 no reflection) and still allows you to set nonzero passband albedos. Although this
 is physically inconsistent, it is impossible to check such requirements in all
 but the easiest cases, since we do not have the full wavelength information. That is,
 if you reflect e.g. only 1% of the light, in principle you are allowed to put all
-that light in one passband. Phoebe2 does not check if the total reflected light
+that light in one passband. PHOEBE 2.0 does not check if the total reflected light
 in all passbands exceeds the 1% of the bolometric light.
 
 See the :ref:`reflection <reflection-algorithms>` module for more information.
@@ -605,7 +605,7 @@ Interstellar reddening can be taken into account in two ways:
 2. Using custom passband extinction parameters, which should be manually added
    and given in each pbdep (see. :py:func:`add_ebv <phoebe.parameters.tools.add_ebv>`).
 
-In contrast to everything else in Phoebe2, the unit of ``extinction`` is magnitude!
+In contrast to everything else in PHOEBE 2.0, the unit of ``extinction`` is magnitude!
    
 The global interstellar reddening is applied first (if present), and then augmented
 with the passband extinction parameters. If you want one but not the other, be sure
@@ -646,7 +646,7 @@ module, but here are some important notes:
   
   With :math:`C_{n\ell}` the Ledoux coefficient ([Ledoux1952]_, [Hansen1978]_)
   and :math:`f_\mathrm{rot}` the stellar rotation frequency. For a Star, this
-  translates in Phoebe2-parameter-names to:
+  translates in PHOEBE 2.0-parameter-names to:
   
   .. math::
     
@@ -703,7 +703,7 @@ see the :py:mod:`magfield <phoebe.atmospheres.magfield>` module.
 Section 2.13 Spots
 --------------------------------------
 
-You should not use spots in Phoebe2. The model is unphysical (circular) and
+You should not use spots in PHOEBE 2.0. The model is unphysical (circular) and
 contains too many unfittable parameters. Only in the case of single Stars you
 might have a shot.
 
@@ -910,51 +910,57 @@ Section 4. Code structure
 4.1 Introduction
 -------------------
 
-*Punchline: The Universe of Phoebe2 consists of fully opaque Bodies, represented by collections
-of triangles (mesh) that contain all the information (by virtue of
-Parameters) needed to replicate observations (velocities, intensities, positions, etc).*
+*The Universe of PHOEBE 2.0 consists of fully opaque 
+:py:class:`Bodies <phoebe.backend.universe.Body>`, represented by 
+collections of triangles (meshes) that contain all information 
+(stored in Parameters) needed to replicate observations (velocities, 
+intensities, positions, etc).*
 
-Each :py:class:`Body <phoebe.backend.universe.Body>` keeps track of all the
-information it needs to put itself at its location given a certain time. Bodies
-can be collected in super-Bodies, also named
-:py:class:`BodyBags <phoebe.backend.universe.BodyBag>`. Each Body in a BodyBag
-keeps it independence (and can thus always be taken out of the BodyBag), but
-BodyBags can be manipulated (translated, rotated, evolved) as a whole.
+Each :py:class:`Body <phoebe.backend.universe.Body>` keeps track of 
+all the information it needs to put itself at its location given a 
+certain time. Bodies can be collected in larger structures called 
+:py:class:`BodyBags <phoebe.backend.universe.BodyBag>`. Each Body in 
+a BodyBag retains its independence (and can thus always be taken out of 
+the BodyBag), but BodyBags can be manipulated (translated, rotated, 
+evolved) as a whole.
 
-Once Bodies are setup and put in place, they can also interact through irradiation.
-Separate functions are responsible for adapting the local properties given such
-processes.
+Once Bodies are set up and put in place, they can also interact 
+through irradiation. Separate functions are responsible for adapting 
+the local properties given such processes.
 
 4.2 Code hierarchy
 ---------------------
 
-The basic building block of Phoebe2 is a :py:class:`Parameter <phoebe.parameters.parameters.Parameter>`.
-Sets of parameters that are logically connected (i.e. have the same *context*) are collected into
-an advanced dictionary-style class dubbed a :py:class:`ParameterSet <phoebe.parameters.parameters.ParameterSet>`.
-ParameterSets have two flavors: one is the base ParameterSet class for ordinary
-parameters, the other is the :py:class:`DataSet <phoebe.parameters.datasets.DataSet>`,
-which provides extra functionality to treat observations or synthetic calculations.
-On its turn , DataSets have many different flavors, one for each of the different
-type of data (light curves, radial velocity curves, spectra etc).
+The basic building block of PHOEBE 2.0 is a :py:class:`Parameter 
+<phoebe.parameters.parameters.Parameter>`. Sets of parameters that 
+are logically connected (i.e. have the same *context*) are collected 
+into an advanced dictionary-style class :py:class:`ParameterSet 
+<phoebe.parameters.parameters.ParameterSet>`. ParameterSets come in 
+two flavors: the base ParameterSet class for ordinary parameters, 
+and the :py:class:`DataSet <phoebe.parameters.datasets.DataSet>`, 
+which provides extra functionality to treat data curves. DataSets 
+come in many varieties, one for each type of data (light curves, 
+radial velocity curves, spectra etc).
 
-ParameterSets and DataSets are organised in the :envvar:`params` attribute of a
-Body. This attribute is a dictionary, where the context of the ParameterSet is
-the key, and the value is the ParameterSet itself. If there can be more than
-one ParameterSet of the same context (e.g. pulsations), then the value is a list
-of ParameterSets. The only exception to this rule are the contexts that describe
-data.
+ParameterSets and DataSets are organized in the :envvar:`params` 
+attribute of a Body. This attribute is a dictionary, where the 
+context of the ParameterSet is the key, and the value is the 
+ParameterSet itself. If there can be more than one ParameterSet of 
+the same context (i.e. pulsations), then the value will be a list of 
+ParameterSets.
 
-Each type of observations, whether it is a light curve or something else, is described
-by three different contexts, of which two need to be user-supplied, and the third
-one is automatically generated:
-    - a *pbdep* (passband dependable, e.g. *lcdep*): this collects all information
-      that the codes needs to simulate observations. This includes passbands,
+Each DataSet is described by three different contexts, of which two 
+need to be user-supplied, and the third one is automatically 
+generated:
+
+    - *pbdep* (passband dependent, i.e. *lcdep*): this collects all information
+      that the code needs to simulate observations. This includes passbands,
       passband albedos, passband limb darkening coefficients, the atmosphere
       tables to use in this passband, passband scattering properties etc...
-    - an *obs* (observation, e.g. *lcobs*): this collects all information on the
+    - *obs* (observation, e.g. *lcobs*): this collects all information on the
       data that is not contained in the pbdep: times of observations, observed
       fluxes, instrumental resolution, exposure times...
-    - a *syn* (synthetic, e.g. *lcsyn*): this is a mirror of the obs, where
+    - *syn* (synthetic, e.g. *lcsyn*): this is a mirror of the obs, where
       instead of observed fluxes the model fluxes are stored.
 
 Each type of context has a separate entry in the :envvar:`params` attribute.
@@ -1014,31 +1020,36 @@ classes relevant for fitting.
 4.3.1 Parameter
 ~~~~~~~~~~~~~~~~~~~~~
 
-A :py:class:`Parameter <phoebe.parameters.parameters.Parameter>` is a self-contained
-representation of any value, switch or option that can be accessed or changed by
-the user. The most important properties that a Parameter holds are:
+A :py:class:`Parameter <phoebe.parameters.parameters.Parameter>` is 
+a self-contained representation of any value, switch or option that 
+can be accessed or changed by the user. The most important Parameter 
+properties are:
 
-- the parameter's name (called :envvar:`qualifier`)
-- the parameter's data type (float, integer, string, array), which is actually a *caster* (see below)
-- the parameter's value
-- the parameter's unit (if applicable)
-- the parameter's context (e.g. *orbit*, *component*..) and frame (always *phoebe* if you use predefined parameters)
+- parameter name (called :envvar:`qualifier`)
+- parameter data type (float, integer, string, array), which is actually a *caster* (see below)
+- parameter value
+- parameter unit (if applicable)
+- parameter context (e.g. *orbit*, *component*..) and frame (always *phoebe* if you use predefined parameters)
 - a boolean to mark it for inclusion in fitting procedures (:envvar:`adjust`)
-- the parameter's prior and posterior (if applicable)
+- parameter prior and posterior (if applicable)
 
-A list of all available setters and getters is given in the documentation of the
-:py:class:`Parameter <phoebe.parameters.parameters.Parameter>` class itself.
+A list of all available methods is provided in the documentation for the
+:py:class:`Parameter <phoebe.parameters.parameters.Parameter>` class.
 
-Parameters don't need to implement all properties. For example, a filename can
-be a Parameter, but it doesn't make sense to implement adjust flags or priors
-and posteriors for a filename. It is the responsibility of the code that deals
-with Parameters to treat them correctly. Some query-functionality exists to
-facilitate such coding, like :py:func:`Parameter.has_prior <phoebe.parameters.parameters.Parameter.has_prior>`
-or :py:func:`Parameter.has_unit <phoebe.parameters.parameters.Parameter.has_unit>`.
-In other cases, the getters return enough information. For example for the
-adjust flag, you can just query :py:func:`Parameter.get_adjust <phoebe.parameters.parameters.Parameter.get_adjust>`:
-if there is an adjust flag, it will return :envvar:`True` or :envvar:`False`,
-if it has no such flag, it will return :envvar:`None`.
+Parameters do not need to implement all properties. For example, a 
+filename can be a Parameter, but it doesn't make sense to implement 
+adjust flags or priors and posteriors for a filename. It is the 
+responsibility of the code that deals with Parameters to treat them 
+correctly. Some query-functionality exists to facilitate such 
+coding, like :py:func:`Parameter.has_prior 
+<phoebe.parameters.parameters.Parameter.has_prior>` or 
+:py:func:`Parameter.has_unit 
+<phoebe.parameters.parameters.Parameter.has_unit>`. In other cases, 
+the getters return enough information. For example for the adjust 
+flag, you can just query :py:func:`Parameter.get_adjust 
+<phoebe.parameters.parameters.Parameter.get_adjust>`: if there is an 
+adjust flag, it will return :envvar:`True` or :envvar:`False`, if it 
+has no such flag, it will return :envvar:`None`.
 
 By virtue of the data type, which is actually a function that casts a value to
 the correct data type, the user does not need to worry about giving integers
@@ -1122,7 +1133,7 @@ inclination angle, e.g. in magnetic fields, pulsations, misalignments... Putting
 while still allowing a great deal of flexibility.
 
 Aside from a *context*, a ParameterSet also has a *frame*. However, the latter
-is usually unimportant since in the case of Phoebe2, the frame is always ``phoebe``.
+is usually unimportant since in the case of PHOEBE 2.0, the frame is always ``phoebe``.
 An example of an predefined frame is ``wd`` for Wilson-Devinney. the only reason
 for its existence is that one can apply the Parameter philosophy also to other
 codes. Defining the frame then solves possible ambiguities in predefined parameters.
@@ -1172,7 +1183,7 @@ rotating and translating.
 
 A :py:class:`BodyBag <phoebe.backend.universe.BodyBag>` is a container for Bodies
 that is itself a Body. This design holds most of the power and flexibility of
-Phoebe2. So listen up!
+PHOEBE 2.0. So listen up!
 
 A BodyBag has one additional basic attribute with respect to a Body: a list of
 Bodies under the attribute name ``BodyBag.bodies``. Thus a BodyBag has four
@@ -1398,7 +1409,7 @@ The class :py:class:`PhysicalBody <phoebe.backend.universe.PhysicalBody>` is
 a good base class to start designing any custom Body you want to make. Typically,
 you'll want to override the init function, and implement your own ``set_time``
 method and any other method that is relevant. In order to neatly fit into the
-whole Phoebe2-computation framework, any subclass of PhysicalBody should implement
+whole PHOEBE 2.0 computation framework, any subclass of PhysicalBody should implement
 at least the following two methods:
 
     - ``set_time``
