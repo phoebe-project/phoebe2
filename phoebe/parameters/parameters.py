@@ -638,11 +638,11 @@ class Parameter(object):
     #{ General methods
     def __init__(self,qualifier=None,**props):
         """
-        Specify parameter properties via the dictionary C{props}. It has to
-        contain the follliming fields:
+        Specify parameter properties via the dictionary 
+        C{props}. The following fields are mandatory:
         
             1. C{qualifier}: name of the parameter
-            2. C{description}: a description of the parameter
+            2. C{description}: description of the parameter
             3. C{repr}: string representation of the parameter
             4. C{cast_type}: type to cast the value to (str,float,int,list...)
             5. C{value}: value of the parameter
