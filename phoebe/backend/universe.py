@@ -1480,8 +1480,7 @@ class Body(object):
         self._clear_when_reset = dict()
         self._main_period = dict()
         self._extra_mesh_columns = [] # e.g. ['B_', 'f8', (3,))] or [('abun','f8')]
-        
-    
+
     def __eq__(self, other):
         """
         Two Bodies are equal if all of their attributes are equal.
@@ -1500,8 +1499,7 @@ class Body(object):
         String representation of a Body.
         """
         return self.to_string()
-    
-    
+
     def fix_mesh(self):
         """
         Fix the mesh.
@@ -1575,8 +1573,7 @@ class Body(object):
         """
         for param in list(self.params.values()):
             yield param
-    
-    
+
     def reset(self):
         """
         Reset the Body but do not clear the synthetic calculations.
@@ -1593,8 +1590,7 @@ class Body(object):
         # Forget about the volume in binary stars
         if 'component' in self.params:
             _ = self.params['component'].pop_constraint('volume', None)
-    
-    
+
     def set_params(self, params, force=True):
         """
         Assign a parameterSet to a Body
@@ -1645,16 +1641,14 @@ class Body(object):
                 else:
                     raise ValueError('Cannot set PS to Body since it already exists (set force=True if you want to add it')
                 return None
-        
-        
+
     def reset_and_clear(self):
         """
         Reset the Body and clear the synthetic calculations.
         """
         self.reset()
         self.clear_synthetic()
-        
-        
+
     def remove_ref(self, ref=None):
         """
         Remove all pbdep, syn and obs with a given reference.
@@ -1696,8 +1690,7 @@ class Body(object):
         """
         return utils.traverse(self,list_types=(BodyBag,Body,list,tuple),
                               dict_types=(dict,))
-    
-    
+
     def walk_type(self,type='syn'):
         """
         Walk through all types of a certain parameterSet.
@@ -1845,8 +1838,7 @@ class Body(object):
         shift = self._main_period.get('shift', parameters.Parameter(qualifier='shift', value=0.0, unit='d'))
         t0 = self._main_period.get('t0', parameters.Parameter(qualifier='t0', value=0.0, unit='d'))
         return period.get_value('d'), t0.get_value('d'), shift.get_value('d')
-    
-    
+
     def set_period(self, period=None, t0=None, shift=None):
         """
         Set new Parameters for the system's period, t0 or shift.
@@ -1905,8 +1897,7 @@ class Body(object):
             while components:
                 components.pop()
             return retvalue
-            
-    
+
     def compute(self, *args, **kwargs):
         """
         Compute synthetics to match the attached observations.
@@ -1915,8 +1906,7 @@ class Body(object):
         for a thorough discussion of the arguments and keyword arguments.
         """
         observatory.compute(self,*args,**kwargs)
-    
-    
+
     def compute_pblum_or_l3(self):
         # Run over all pbdeps and see for which stars the pblum needs to be
         # computed
@@ -1975,8 +1965,6 @@ class Body(object):
                     pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(reference_plum[this_ref]*passband_lum))
                     pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(reference_plum[this_ref]))
 
-                
-    
     def set_pblum_or_l3(self):
         do_continue = False
         for path, pbdep in self.walk_pbdep():
@@ -2027,10 +2015,7 @@ class Body(object):
                 
                 # Convert back to a list
                 syn[scale_column] = list(the_scale_column)            
-            
-    
-    
-                
+
     def compute_scale_or_offset(self):
         """
         Compute and set passband luminosity and third light if required.
@@ -2569,8 +2554,7 @@ class Body(object):
             log_f = -np.inf
         
         return log_f, chi2, n_data
-    
-    
+
     def get_chi2(self, include_priors=False):
         r"""
         Return the :math:`\chi^2` and resulting probability of the model.
@@ -2592,7 +2576,7 @@ class Body(object):
         total_prob = scipy.stats.distributions.chi2.cdf(total_chi2, 2*len(prob))
         # That's it!
         return total_chi2, total_prob, n_data, n_par
-        
+
     def check(self, return_errors=False):
         """
         Check if a system is OK.
@@ -2662,8 +2646,7 @@ class Body(object):
             return were_still_OK, error_messages
         else:
             return were_still_OK
-            
-            
+
     def get_data(self):
         """
         Return all data in one long chain of data.
@@ -2701,8 +2684,7 @@ class Body(object):
                     observations.unload()
         
         return np.hstack(mu), np.hstack(sigma)
-    
-    
+
     def get_model(self):
         """
         Return all data and complete model in one long chain of data.
@@ -2788,8 +2770,7 @@ class Body(object):
             return mu, sigma, model
         else:
             return np.hstack(mu), np.hstack(sigma), np.hstack(model)
-    
-    
+
     def get_adjustable_parameters(self, with_priors=True):
         """
         Return a list of all adjustable parameters.
@@ -2818,8 +2799,7 @@ class Body(object):
                 
                     
         return mylist
-    
-    
+
     def get_parameters_with_priors(self, is_adjust=None, is_derived=None):
         """
         Return a list of all parameters with priors.
@@ -2847,8 +2827,16 @@ class Body(object):
         @rtype: str
         """
         return self.label
-    
-    
+
+    def get_mesh(self):
+        """
+        Return the mesh of the class instance.
+        
+        @return: the mesh of the class instance
+        @rtype: str
+        """
+        return self.mesh
+
     def set_label(self,label):
         """
         Set the label of the class instance.
@@ -2857,8 +2845,7 @@ class Body(object):
         @type label: str
         """
         self.label = label
-    
-    
+
     def add_preprocess(self, func, *args, **kwargs):
         """
         Add a preprocess to the Body.
@@ -2892,7 +2879,6 @@ class Body(object):
         if func in available:
             index = available.index(func)
             thrash = self._preprocessing.pop(index)
-        
 
     def add_postprocess(self, func, *args, **kwargs):
         """
@@ -2902,8 +2888,7 @@ class Body(object):
         @type func: str
         """
         self._postprocessing.append((func, args, kwargs))
-    
-        
+
     def preprocess(self, time=None, **kwargs):
         """
         Run the preprocessors.
@@ -2913,17 +2898,14 @@ class Body(object):
         """
         for func, arg, kwargs in self._preprocessing:
             getattr(processing, func)(self, time, *arg, **kwargs)
-        
-    
-    
+
     def postprocess(self, time=None):
         """
         Run the postprocessors.
         """
         for func, args, kwargs in self._postprocessing:
             getattr(processing, func)(self, time, *args, **kwargs)
-    
-    
+
     def set_values_from_priors(self):
         """
         Set values from adjustable parameters with a prior to a random value
@@ -2939,10 +2921,7 @@ class Body(object):
                 # Extract those which need to be fitted
                 if parset.get_adjust(qual) and parset.has_prior(qual):
                     parset.get_parameter(qual).set_value_from_prior()
-    
-    
-    
-    
+
     #{ Functions to manipulate the mesh    
     def detect_eclipse_horizon(self, eclipse_detection=None, **kwargs):
         r"""

@@ -910,11 +910,10 @@ Section 4. Code structure
 4.1 Introduction
 -------------------
 
-*The Universe of PHOEBE 2.0 consists of fully opaque 
-:py:class:`Bodies <phoebe.backend.universe.Body>`, represented by 
-collections of triangles (meshes) that contain all information 
-(stored in Parameters) needed to replicate observations (velocities, 
-intensities, positions, etc).*
+*The Universe of PHOEBE 2.0 consists of fully opaque Bodies, 
+represented by collections of triangles (meshes) that contain all 
+information (stored in Parameters) needed to replicate observations 
+(velocities, intensities, positions, etc).*
 
 Each :py:class:`Body <phoebe.backend.universe.Body>` keeps track of 
 all the information it needs to put itself at its location given a 
