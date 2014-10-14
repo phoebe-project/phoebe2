@@ -271,7 +271,6 @@ def get_binary_orbit(self, time):
     # That's it, thank you for your attention
     return list(loc1) + list(velo1), list(loc2) + list(velo1), d
 
-    
 def luminosity(body, ref='__bol', numerical=False):
     r"""
     Calculate the total luminosity of an object.
@@ -330,7 +329,6 @@ def luminosity(body, ref='__bol', numerical=False):
         emer_Ibolmu = ld_disk(ld[:,:-1].T) * ld[:,-1]
         
     return (emer_Ibolmu * sizes).sum()
-    
 
 def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
                 beaming_alg='none', ld_func='claret', ref=0,
@@ -551,8 +549,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
     
     # That's all folks!
     return proj_intens
-    
-    
+
 def load(filename):
     """
     Load a class from a file.
@@ -568,7 +565,6 @@ def load(filename):
     myclass = pickle.load(ff)
     ff.close()
     return myclass
-
 
 def keep_only_results(system):
     """
@@ -595,7 +591,6 @@ def keep_only_results(system):
     system.remove_mesh()
     return system
 
-
 def remove_disabled_data(system):
     """
     Remove disabled data.
@@ -614,8 +609,6 @@ def remove_disabled_data(system):
         for body in system.bodies:
             remove_disabled_data(body)
     return system
-    
-
 
 def merge_results(list_of_bodies):
     """
@@ -655,7 +648,6 @@ def merge_results(list_of_bodies):
                         iteration[0][key] += value
     return list_of_bodies[0]
 
-   
 def init_mesh(self):
     """
     Initialize a mesh.
@@ -782,8 +774,6 @@ def check_input_ps(self, ps, contexts, narg, is_list=False):
                           self.__class__.__name__, extra1, context_msg, extra3,
                           ps.get_context()))
 
-
-
 def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
                         type='nnls'):
     r"""
@@ -877,10 +867,6 @@ def compute_scale_or_offset(model, obs, sigma=None, scale=False, offset=False,
     
     return scale, offset
 
-
-
-                    
-                    
 def _parse_pbdeps(body, pbdep, take_defaults=None):
     """
     Attach passband dependables to a body.
@@ -1018,8 +1004,7 @@ def _parse_pbdeps(body, pbdep, take_defaults=None):
     
     # That's it
     return parsed_refs
-    
-    
+
 def _parse_obs(body, data):
     """
     Attach obs to a body.
@@ -1195,7 +1180,7 @@ class CallInstruct:
                     else None \
                     for body in self.bodies]    
                     
-                    
+# Subclassing the python object class is for pre-python 2.2 compatibility.
 class Body(object):
     """
     Base class representing a Body in the Universe.
@@ -1287,15 +1272,15 @@ class Body(object):
     representing the surface and doing surface subdivisions should be added
     by subclassing.
     
-    Basic fields are C{center, size, triangle, normal_} and C{mu}. Additional
-    fields are C{visible}, C{hidden} and C{partial}.
+    The basic fields in a mesh are C{center, size, triangle, 
+    normal_} and C{mu}. Additional fields are C{visible}, C{hidden} 
+    and C{partial}.
     
-    The original values are stored in fields preceded with C{_o_}, except for
-    the limb angles C{mu}.
-    
-    Limb angles are computed when L{rotate} is called, which has the
-    line-of-sight as an input argument (aside from the Euler angles and rotation
-    convention name).
+    The original values are stored in fields preceded with C{_o_}, 
+    except for the limb angles C{mu}. Limb angles are computed when 
+    L{rotate} is called, which takes the line-of-sight as an input 
+    argument (aside from the Euler angles and rotation convention 
+    name).
     
     **Example usage:**
     
@@ -1363,13 +1348,28 @@ class Body(object):
         """
         Initialize a Body.
         
-        I'm too lazy to explain all the parameters here. Most of them can
-        be left to the default value anyway. Have a look at examples in this
-        very module for more info.
+        @param data:
+        @type data:
+        
+        @param dim:
+        @type dim:
+        
+        @param orientation:
+        @type orientation:
         
         @param eclipse_detection: takes a name of an algorithm (e.g. 'hierarchical' or 'simple')
         @type eclipse_detection: str
+
+        @param compute_centers:
+        @type compute_centers: bool
+        
+        @param compute_normals:
+        @type compute_normals: bool
+        
+        @param compute_sizes:
+        @type compute_sizes: bool
         """
+        
         # We need to know the time and the dimensions (*sigh*... that'll be 3
         # always. I thought I was being general by foreseeing the possibility
         # to model 2D objects, but seriously... who does that?)
@@ -1471,10 +1471,8 @@ class Body(object):
         self._preprocessing = []
         self._postprocessing = []
         
-        # We definitely need signals and a label, even if it's empty
+        # Initialize the signals container:
         self.signals = {}
-        self.label = None
-        self.parent = None
         
         # Add a dict that we can use to store temporary information
         self._clear_when_reset = dict()
@@ -2963,8 +2961,7 @@ class Body(object):
         # Maybe we don't understand
         else:
             raise ValueError("don't know how to detect eclipses/horizon (set via parameter 'eclipse_detection'")
-    
-    
+
     def rotate_and_translate(self,theta=0, incl=0, Omega=0,
               pivot=(0, 0, 0), loc=(0, 0, 0), los=(0, 0, +1), incremental=False,
               subset=None):
@@ -3002,8 +2999,7 @@ class Body(object):
         self.orientation['pivot'] = pivot
         self.orientation['los'] = los
         self.orientation['vector'] = loc
-    
-    
+
     def rotate(self, theta=0,incl=0,Omega=0,
               pivot=(0,0,0),los=(0,0,+1),incremental=False,
               subset=None):
@@ -3013,16 +3009,14 @@ class Body(object):
         return self.rotate_and_translate(theta=theta, incl=incl,
                Omega=Omega, pivot=pivot, los=los, incremental=incremental,
                subset=subset)
-    
-    
+
     def translate(self,loc=(0,0,0), los=(0,0,+1),incremental=False, subset=None):
         """
         Translate a Body to another location.
         """
         return self.rotate_and_translate(loc=loc, los=los,
                 incremental=incremental, subset=subset)
-    
-    
+
     def compute_centers(self):
         """
         Compute the centers of the triangles.
@@ -3079,8 +3073,7 @@ class Body(object):
         ## And finally the size
         #self.mesh[prefix+'size'] = sqrt( k*(k-a)*(k-b)*(k-c))
         self.mesh[prefix+'size'] = fgeometry.compute_sizes(self.mesh[prefix+'triangle'])
-    
-    
+
     def compute_normals(self,prefixes=('','_o_')):
         r"""
         Compute normals from the triangle vertices.
@@ -3128,7 +3121,6 @@ class Body(object):
             
             # Compute the corss product
             self.mesh[prefix+'normal_'] = -np.cross(side1, side2)
-
 
     def area(self):
         """
@@ -3258,8 +3250,7 @@ class Body(object):
                     ret_dict[cat] = [ref]
             
             return ret_dict
-                
-    
+
     def get_parset(self, ref=None, context=None, type='pbdep', category=None):
         """
         Return the parameter set with the given reference from the C{params}
@@ -4059,8 +4050,7 @@ class Body(object):
                     check =True
                 
         #logger.info('Removed previous synthetic calculations where present')
-        
-        
+
     def get_synthetic(self, category=None, ref=0, cumulative=True):
         """
         Retrieve results from synethetic calculations.
@@ -4081,7 +4071,6 @@ class Body(object):
         
         return base
 
-    
     def add_obs(self, obs):
         """
         Add a list of DataSets to the Body.
@@ -4093,8 +4082,7 @@ class Body(object):
         parsed_refs = _parse_obs(self, obs)
         logger.info('Added obs {} to {}'.format(", ".join(parsed_refs), self.get_label()))
         return parsed_refs
-    
-    
+
     def remove_obs(self, refs):
         """
         Remove observation (and synthetic) ParameterSets from the Body.
@@ -4127,8 +4115,7 @@ class Body(object):
                          '_o_velo_{0}'.format(ref)
                 self.mesh = pl.mlab.rec_drop_fields(self.mesh, fields)
                 logger.info('removed obs {0}'.format(ref))
-    
-    
+
     def __add__(self, other):
         """
         Combine two bodies in a BodyBag.
@@ -4145,8 +4132,7 @@ class Body(object):
         For more information, see :py:func:`phoebe.backend.observatory.image`.
         """
         return observatory.image(self, **kwargs)
-        
-        
+
     def plot3D(self,select=None,normals=False,scalars=None,centers=False,
                   velos=False,B=False,offset=(0,0,0),savefig=False,coframe='',**kwargs):
         """
@@ -4282,8 +4268,7 @@ class Body(object):
             mlab.savefig(savefig)
             mlab.close()
         #mlab.view(focalpoint=)
-    
-    
+
     def save(self, filename):
         """
         Save a class to an file.
@@ -4340,9 +4325,7 @@ class Body(object):
                 etvsyn['time'] = np.append(etvsyn['time'],times)
                 etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
                 etvsyn['etv'] = np.append(etvsyn['etv'],etv+offset)
-           
 
-    
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, obs=None, correct_oversampling=1,
            beaming_alg='none', save_result=True):
@@ -4620,7 +4603,6 @@ class Body(object):
                 if eff_wave is not None:
                     base['eff_wave'] += list(eff_wave_)
 
-    
     @decorators.parse_ref
     def rv(self,correct_oversampling=1,ref='allrvdep', time=None,
            beaming_alg='none', save_result=True):
@@ -4681,10 +4663,7 @@ class Body(object):
             base['time'] = time
             base['rv'] = -vel[2] / kms_2_rsold + pos['vgamma']
             base['samprate'] = correct_oversampling
-        
-    
-    
-    
+
     @decorators.parse_ref
     def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1,
            beaming_alg='none', save_result=True):
@@ -4945,8 +4924,6 @@ class Body(object):
                 base['plx_beta'].append(output['plx_beta'][0])
     
     #}
-    
-    
 
 class PhysicalBody(Body):
     """
