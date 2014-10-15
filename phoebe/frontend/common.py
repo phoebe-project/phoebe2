@@ -1415,7 +1415,7 @@ class Container(object):
         [FUTURE]
         """
         if not isinstance(twiglet, str):
-            raise ValueError("search twig must be of type str, found {}".format(twiglet))
+            raise TypeError("search twig must be of type str, found {}".format(twiglet))
             
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
         
