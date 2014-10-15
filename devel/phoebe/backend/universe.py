@@ -1351,13 +1351,19 @@ class Body(object):
         @param data:
         @type data:
         
-        @param dim:
-        @type dim:
+        @param dim: mathematical dimension of the body. Always 3.
+        @type dim: int
         
-        @param orientation:
-        @type orientation:
+        @param orientation: body orientation in native coordinate system.
+        This dictionary must include theta (1D), incl (1D), Omega (1D),
+        pivot (3D), los (3D; line-of-sight), conv (str) and vector (3D).
+        Example:
         
-        @param eclipse_detection: takes a name of an algorithm (e.g. 'hierarchical' or 'simple')
+        orientation = dict(theta=0, incl=0, Omega=0, pivot=(0, 0, 0),
+                           los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
+        @type orientation: dict
+                               
+        @param eclipse_detection: algorithm name ('hierarchical' or 'simple')
         @type eclipse_detection: str
 
         @param compute_centers:
@@ -1456,8 +1462,11 @@ class Body(object):
         
         # Keep track of the current orientation, the original (unsubdivided)
         # mesh and all the parameters of the object.
-        self.orientation = dict(theta=0, incl=0, Omega=0, pivot=(0, 0, 0),
-                           los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
+        if orientation is not None:
+            self.orientation = orientation
+        else:
+            self.orientation = dict(theta=0, incl=0, Omega=0, pivot=(0, 0, 0),
+                               los=[0, 0, +1], conv='YXZ', vector=[0, 0, 0])
         self.subdivision = dict(orig=None, mesh_args=None, N=None)
         self.params = OrderedDict()
         
