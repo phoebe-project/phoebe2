@@ -878,7 +878,59 @@ class Container(object):
         """
         fitting = self.get_fitting(label)
         self.sections['fitting'].remove(fitting)
-    
+
+    @rebuild_trunk
+    def add_mpi(self, ps=None, **kwargs):
+        """
+        Add a new MPI ParameterSet
+        
+        **Example usage:**
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_mpi(context='fitting:emcee', iters=1000, walkers=100)
+        
+        [FUTURE]
+        
+        @param ps: fitting ParameterSet
+        @type ps:  None, or ParameterSet
+        @param label: name of the fitting options (will override label in ps)
+        @type label: str
+        """
+        if ps is None:
+            context = kwargs.pop('context', 'mpi')
+            ps = parameters.ParameterSet(context=context)
+
+        for k,v in kwargs.items():
+            ps.set_value(k,v)
+            
+        self._add_to_section('mpi',ps)
+            
+    def get_mpi(self, label=None):
+        """
+        Get an MPI ParameterSet by name
+        
+        [FUTURE]
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: mpi ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label, "mpi")
+
+    @rebuild_trunk
+    def remove_mpi(self, label):
+        """
+        Remove a given MPI ParameterSet
+        
+        [FUTURE]
+        
+        @param label: name of mpi ParameterSet
+        @type label: str
+        """
+        mpi = self.get_fitting(label)
+        self.sections['mpi'].remove(mpi)
+
     ## internal methods
     
     def _loop_through_container(self, container=None, label=None, ref=None,

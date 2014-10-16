@@ -593,6 +593,7 @@ defs += [dict(qualifier='iters',    description='Number of iterations',repr='%d'
          dict(qualifier='acc_frac',description='Acceptance fraction',repr='%f',cast_type=float,value=0.0,frame=['phoebe'],context='fitting:emcee'),
          dict(qualifier='label',    description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:emcee'),
          dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context='fitting:emcee'),
+         dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None (trumps those in the compute PS)',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='fitting:emcee'),
         ]
         
 defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr='%s',cast_type='choose',value='leastsq',choices=['leastsq','nelder','lbfgsb','anneal','powell','cg','newton','cobyla','slsqp'],frame=["phoebe"],context='fitting:lmfit'),
@@ -600,6 +601,7 @@ defs += [dict(qualifier='method',    description='Nonlinear fitting method',repr
          dict(qualifier='init_from', description='Randomly draw the initial position from the priors or keep system parameters', repr='%s',cast_type='choose', choices=['system','prior','posterior'], value='system', frame=['phoebe'], context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
+         dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None (trumps those in compute PS)',repr='%s',cast_type=str,value='None',frame=["phoebe"],context=['fitting:lmfit', 'fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='compute_ci',description='Compute detailed confidence intervals',long_description="The F-test is used to compare the null model, which is the best fit we have found, with an alternate model, where one of the parameters is fixed to a specific value. The value is changed until the difference between chi2_start and chi2_final can't be explained by the loss of a degree of freedom within a certain confidence.",repr='',cast_type='make_bool',value=False,frame=["phoebe"],context=['fitting:lmfit','fitting:lmfit:nelder', 'fitting:lmfit:leastsq']),
          dict(qualifier='bounded',   description='Include boundaries in fit',
                                      long_description=('This float allows you to constrain the fit '
@@ -666,7 +668,8 @@ defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_t
         ]
 
 #    MPI and computation context
-defs += [dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi'),
+defs += [dict(qualifier='label',                description='label for the MPI options',repr='%s',cast_type='make_label',value='default_mpi',frame=["phoebe"],context='mpi'),
+         dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi'),
          dict(qualifier='hostfile',     description='hostfile',repr='%s',cast_type=str,value='',frame=["phoebe"],context='mpi'),
          dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='mpi'),
          dict(qualifier='python',   description='Python executable',repr='%s',cast_type=str,value='python',frame=["phoebe"],context='mpi'),
@@ -858,6 +861,7 @@ defs += [dict(qualifier='label',                description='label for the compu
                                                                    "'point_source':  approximate irradiator as point source"),
                                                                    cast_type='choose',value='point_source',frame=['phoebe'],context='compute'),
          
+        dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='compute'),
         ] 
 
 # Globals context
