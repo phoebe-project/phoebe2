@@ -1121,7 +1121,22 @@ class Bundle(Container):
         # TODO: handle default if twig is None
         return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
         
+    def get_mesh(self, twig=None):
+        """
+        [FUTURE]
         
+        Retrieve the mesh (np record array) for a given object
+        
+        If no twig is provided, the mesh for the entire system will be returned
+        
+        @param twig: the twig/twiglet of the object
+        @type twig: str or None
+        @return: mesh
+        @rtype: np record array 
+        """
+        return self.get_object(twig=twig).get_mesh()
+
+
     def get_meshps(self, twig=None):
         """
         [FUTURE]
