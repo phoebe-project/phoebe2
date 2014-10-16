@@ -404,6 +404,7 @@ class Bundle(Container):
         self.sections['system'] = [None] # only 1
         self.sections['compute'] = []
         self.sections['fitting'] = []
+        self.sections['mpi'] = []
         self.sections['dataset'] = []
         self.sections['feedback'] = []
         #~ self.sections['version'] = []
@@ -3300,15 +3301,16 @@ class Bundle(Container):
     
     @rebuild_trunk
     @run_on_server
-    def run_compute(self, label=None, objref=None, animate=False, **kwargs):
+    def run_compute(self, computelabel=None, objref=None, animate=False, **kwargs):
     #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Perform calculations to mirror any enabled attached observations.
         
-        Main arguments: :envvar:`label`, :envvar:`objref`, :envvar:`anim`.
+        Main arguments: :envvar:`computelabel`, :envvar:`objref`, :envvar:`animate`.
         
         Extra keyword arguments are passed to the
-        :ref:`compute <parlabel-phoebe-compute>` ParameterSet.
+        :ref:`compute <parlabel-phoebe-compute>` or 
+        :ref:`mpi <parlabel-phoebe-mpi>` ParameterSet.
         
         **Example usage**
         
@@ -3342,8 +3344,8 @@ class Bundle(Container):
         If you want to store new options before hand for later usage you can
         issue:
         
-            >>> mybundle.add_compute(label='no_heating', heating=False)
-            >>> options = mybundle.run_compute(label='no_heating')
+            >>> mybundle.add_compute(computelabel='no_heating', heating=False)
+            >>> options = mybundle.run_compute(computelabel='no_heating')
            
         **Keyword 'objref'**
         
@@ -3393,8 +3395,10 @@ class Bundle(Container):
         This frontend function wraps the backend function
         :py:func:`observatory.compute <phoebe.backend.observatory.compute>`.
         
-        :param label: name of one of the compute ParameterSets stored in bundle
-        :type label: str
+        :param computelabel: name of one of the compute ParameterSets stored in bundle
+        :type computelabel: str
+        :param mpilabel: name of one of the MPI ParameterSets stored in bundle
+        :type mpilabel: str
         :param objref: name of the top-level object used when observing
         :type objref: str
         :param anim: whether to animate the computations
@@ -3419,20 +3423,17 @@ class Bundle(Container):
         #system.clear_synthetic()
         
         # get compute options, handling 'default' if label==None
-        options = self.get_compute(label, create_default=True).copy()
-        mpi = kwargs.pop('mpi', None)
+        computeoptions = self.get_compute(label, create_default=True).copy()
+        mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
+        mpioptions = self.get_mpi(mpilabel).copy()
         
-        # get server options
-        if server is not None:
-            server = self.get_server(server)
-            mpi = server.mpi_ps
-            
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
-            #if k in options.keys(): # otherwise nonexisting kwargs can be given
-            try:
+            if k in options.keys(): # otherwise nonexisting kwargs can be given
                 options.set_value(k,v)
-            except AttributeError:
+            elif k in mpioptions.keys():
+                mpioptions.set_value(k,v)
+            else:
                 raise ValueError("run_compute does not accept keyword '{}'".format(k))
         
         # Q <pieterdegroote>: should we first set system.uptodate to False and
@@ -3460,8 +3461,6 @@ class Bundle(Container):
             #for ext in ['.gif','.avi']:
                 #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
-        system.uptodate = label
-        
         #~ if add_version is not False:
             #~ self.add_version(name=None if add_version==True else add_version)
 
@@ -3474,9 +3473,9 @@ class Bundle(Container):
     #{ Fitting
     @rebuild_trunk
     @run_on_server
-    def run_fitting(self, fittinglabel='lmfit', computelabel=None,
-                    add_feedback=True, accept_feedback=True, server=None,
-                    mpi=None, usercosts=None, **kwargs):
+    def run_fitting(self, fittinglabel='lmfit', add_feedback=True, 
+                    accept_feedback=True, server=None,
+                    usercosts=None, **kwargs):
         """
         Run fitting for a given fitting ParameterSet and store the feedback
         
@@ -3640,10 +3639,12 @@ class Bundle(Container):
         
         [FUTURE]
         
-        @param computelabel: name of compute ParameterSet
-        @type computelabel: str
         @param fittinglabel: name of fitting ParameterSet
         @type fittinglabel: str
+        @param computelabel: name of compute ParameterSet
+        @type computelabel: str
+        @param mpilabel: name of MPI ParameterSet
+        @type mpilabel: str
         @param add_feedback: flag to store the feedback (retrieve with get_feedback)
         @type add_feedback: bool
         @param accept_feedback: whether to automatically accept the feedback into the system
@@ -3651,33 +3652,42 @@ class Bundle(Container):
         @param server: name of server to run on, or False to force locally (will override usersettings)
         @type server: string
         """
-        if add_feedback is None:
-            add_feedback = self.settings['add_feedback_on_fitting']
-    
-        if server is not None:
-            server = self.get_server(server)
-            mpi = server.mpi_ps
-        else:
-            mpi = mpi
-        
         # get fitting params
         fittingoptions = self.get_fitting(fittinglabel).copy()
         
         # get compute params
-        if computelabel is None:
-            computelabel = fittingoptions['computelabel']
+        computelabel = kwargs.pop('computelabel', fittingoptions.get_value('computelabel'))
+        computeoptions = self.get_compute(computelabel).copy()
         
         # Make sure that the fittingoptions refer to the correct computelabel
-        computeoptions = self.get_compute(computelabel).copy()
         fittingoptions['computelabel'] = computelabel
+        
+        # get mpi params
+        mpilabel = kwargs.pop('mpilabel', None)
+        if mpilabel is None:
+            mpilabel = fittingoptions['mpilabel']
+        if mpilabel in [None, 'None', '']:
+            mpilabel = computeoptions['mpilabel']
+        
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
+        else:
+            mpioptions = self.get_mpi(mpilabel).copy()
             
+        # Make sure that the fittingoptions refer to the correct mpilabel
+        fittingoptions['mpilabel'] = '' if mpilabel is None else mpilabel
+        
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
             if k in fittingoptions.keys():
                 fittingoptions.set_value(k,v)
             elif k in computeoptions.keys():
-                computeoptions.set_value(k,v)        
-        
+                computeoptions.set_value(k,v)
+            elif k in mpioptions.keys():
+                mpioptions.set_value(k,v)
+            else:
+                raise ValueError("run_fitting does not accept keyword '{}'".format(k))
+                
         # Remember the initial values of the adjustable parameters, we'll reset
         # them later:
         init_values = [par.get_value() for par in self.get_system().get_adjustable_parameters()]
