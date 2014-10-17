@@ -3431,6 +3431,8 @@ class Bundle(Container):
         # get compute options, handling 'default' if label==None
         computeoptions = self.get_compute(computelabel, create_default=True).copy()
         mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
         mpioptions = self.get_mpi(mpilabel).copy()
         
         # now temporarily override with any values passed through kwargs    
