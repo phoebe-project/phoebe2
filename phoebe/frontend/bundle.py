@@ -563,8 +563,14 @@ class Bundle(Container):
         txt += "============ Other ============\n"
         if len(self._get_dict_of_section("fitting")):
             txt += "{} fitting options\n".format(len(self._get_dict_of_section("fitting")))
+        if len(self._get_dict_of_section("mpi")):
+            txt += "{} MPI options\n".format(len(self._get_dict_of_section("mpi")))
+        if len(self._get_dict_of_section("plot")):
+            txt += "{} plots\n".format(len(self._get_dict_of_section("plot")))
         if len(self._get_dict_of_section("axes")):
             txt += "{} axes\n".format(len(self._get_dict_of_section("axes")))
+        if len(self._get_dict_of_section("figure")):
+            txt += "{} figures\n".format(len(self._get_dict_of_section("figure")))
         txt += "============ System ============\n"
         txt += self.list(summary='full')
         
@@ -3423,7 +3429,7 @@ class Bundle(Container):
         #system.clear_synthetic()
         
         # get compute options, handling 'default' if label==None
-        computeoptions = self.get_compute(label, create_default=True).copy()
+        computeoptions = self.get_compute(computelabel, create_default=True).copy()
         mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
         mpioptions = self.get_mpi(mpilabel).copy()
         
