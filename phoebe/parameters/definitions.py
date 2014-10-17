@@ -141,13 +141,13 @@ defs +=[dict(qualifier='teff', description="Effective temperature"        ,repr=
         dict(qualifier='mass', description='Stellar mass',repr='%g',cast_type=float,value=1., unit='Msol', adjust=False,frame=["phoebe"],context='star'),
         dict(qualifier='atm',    description='Atmosphere model',long_description=("Atmosphere models can be given in three ways: (1) using a short alias (e.g. 'kurucz') in which "
                                                                                   "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
-                                                                                  "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                  "other information like reddening, boosting etc... (2) using a relative filename, in which case "
                                                                                   "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
                                                                                   " or (3) via an absolute filename"), repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['lcdep','rvdep','ifdep','spdep','pldep','amdep']),
         dict(qualifier='atm',    description='Bolometric Atmosphere model',long_description=("The bolometric atmosphere table is used to look up the bolometric intensities, which are "
                                                                                              "typically used for heating processes. Atmosphere models can be given in three ways: (1) using a short alias (e.g. 'kurucz') in which "
                                                                                              "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
-                                                                                             "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                             "other information like reddening, boosting etc... (2) using a relative filename, in which case "
                                                                                              "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"   
                                                                                              " or (3) via an absolute filename"),repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['star','component','accretion_disk']),
         dict(qualifier='rotperiod', description='Polar rotation period',repr='%f',cast_type=float,value=22.,adjust=False,frame=["phoebe"],unit='d',context='star'),
@@ -245,13 +245,13 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='ld_func', description='Bolometric limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','power','claret', 'hillen', 'prsa'],value='uniform',frame=["phoebe"],context=['component','star','accretion_disk']),
          dict(qualifier='ld_coeffs',       description='Limb darkening coefficients',long_description=("Limb darkening coefficients can be given in four ways: (1) using a short alias (e.g. 'kurucz') in which "
                                                                                   "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
-                                                                                  "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                  "other information like reddening, boosting etc... (2) using a relative filename, in which case "
                                                                                   "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
                                                                                   " (3) via an absolute filename or (4) via a list of user-specified floats. In the latter case, "
                                                                                   "you need to have as many coefficients as the 'ld_func' requires"),repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['lcdep','amdep']),
          dict(qualifier='ld_coeffs',       description='Bolometric limb darkening coefficients',long_description=("Bolometric limb darkening coefficients can be given in four ways: (1) using a short alias (e.g. 'kurucz') in which "
                                                                                   "case the FITS-table's filename will be derived from the alias, the limb darkening function and "
-                                                                                  "other information like reddening, beaming etc... (2) using a relative filename, in which case "
+                                                                                  "other information like reddening, boosting etc... (2) using a relative filename, in which case "
                                                                                   "the file will be looked up in the ld_coeffs directory in src/phoebe/atmospheres/tables/ld_coeffs/"
                                                                                   " (3) via an absolute filename or (4) via a list of user-specified floats. In the latter case, "
                                                                                   "you need to have as many coefficients as the 'ld_func' requires"),repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['component','star','accretion_disk']),
@@ -271,7 +271,7 @@ defs += [dict(qualifier='ld_func', description='Limb darkening model',repr='%s',
          dict(qualifier='label',    description='Name of the observable',repr='%s',cast_type='make_label',value='',hidden=True,frame=["phoebe"],context=['puls','circ_spot']),
          dict(qualifier='ref',    description='Name of the observable',repr='%s',cast_type=str,value='',frame=["wd"],context=['lc','rv']),
          dict(qualifier='ref',      description='Name of the observable',repr='%s',cast_type=str,value='',frame=["phoebe"],hidden=True,context=['lcdep','amdep','rvdep','ifdep','spdep','pldep','etvdep','sidep']),
-         dict(qualifier='beaming',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
+         dict(qualifier='boosting',  description='Take photometric doppler shifts into account',repr='',value=True,cast_type='make_bool',frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='scattering',  description='Scattering phase function',repr='',value='isotropic',cast_type='choose',choices=['isotropic','henyey','henyey2', 'rayleigh','hapke'], frame=['phoebe'],context=['lcdep','amdep','ifdep','spdep','pldep','rvdep']),
          dict(qualifier='time',     description='Timepoint LC',repr='%s',unit='JD',value=[],frame=["phoebe"],context='lcsyn'),
          dict(qualifier='phase',     description='Phasepoint LC',repr='%s',unit='cy',value=[],frame=["phoebe"],context='lcsyn'),
@@ -850,8 +850,8 @@ defs += [dict(qualifier='label',                description='label for the compu
                                                                    "'graham': uses Graham scan in conjunction with binary search trees to detect eclipsed triangles and label the ones which are partially visible //"
                                                                    "'binary': uses only_horizon outside of predicted eclipses, graham inside eclipses"
                                                                    "'auto': let (a) God decide which algorithm to use. I have no idea what it does."),cast_type='choose',value='graham',frame=['phoebe'],context='compute'),
-         dict(qualifier='boosting_alg',          description='Type of beaming algorithm',choices=['none','simple','local','full'],
-                                                 long_description=("'none': no beaming correction // "
+         dict(qualifier='boosting_alg',          description='Type of boosting algorithm',choices=['none','simple','local','full'],
+                                                 long_description=("'none': no boosting correction // "
                                                                    "'simple': global increase/decrease of projected intensity according to mean stellar parameters // "
                                                                    "'local': local increase/decrease of projected intensity according to local stellar parameters //"
                                                                    "'full': adjust local intensity and limb darkening coefficients according to local stellar parameters"),

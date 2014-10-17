@@ -495,7 +495,7 @@ options for the boosting algorithm:
     - ``boosting_alg='full'`` (slowest): local intensities and limb darkening
       coefficients are consistently computed via velocity shifts in the original
       specific intensity grids
-    - ``boosting_alg='local'`` (moderate): beaming is computed by setting local
+    - ``boosting_alg='local'`` (moderate): boosting is computed by setting local
       boosting factors on the star
     - ``boosting_alg='simple'`` (fast): boosting  is computed by setting a
       global boosting factor.
@@ -1092,7 +1092,7 @@ collection of Parameters of the same context. `Context` is a general term, it
 can mean physical entity (e.g. parameters necessary to describe the properties
 of a Star -- mass, radius, effective temperature...), observations (time and
 observed fluxes of a light curve...), or computational options (take into
-account beaming, reflection...). ParameterSets are, from a user-point perspective,
+account boosting, reflection...). ParameterSets are, from a user-point perspective,
 the basic building blocks to build Bodies, add physics, add observations and
 specify computational options. Because they are so vital and thus need to be
 easy to create and modify, ParameterSets have the look and feel of a basic Python

@@ -8,7 +8,7 @@
 # alb = 0.000000
 # method = numerical
 # ref = mylc
-# beaming = False
+# boosting = False
 # filename = 
 # ref = mylc
 # NAME time  flux  sigma 

@@ -173,37 +173,37 @@
         "atm@component@secondary@system": {
             "value": "kurucz"
         },
-        "beaming@APT_B@lcdep@primary@system": {
+        "boosting@APT_B@lcdep@primary@system": {
             "value": true
         },
-        "beaming@APT_B@lcdep@secondary@system": {
+        "boosting@APT_B@lcdep@secondary@system": {
             "value": true
         },
-        "beaming@APT_Ic@lcdep@primary@system": {
+        "boosting@APT_Ic@lcdep@primary@system": {
             "value": true
         },
-        "beaming@APT_Ic@lcdep@secondary@system": {
+        "boosting@APT_Ic@lcdep@secondary@system": {
             "value": true
         },
-        "beaming@APT_V@lcdep@primary@system": {
+        "boosting@APT_V@lcdep@primary@system": {
             "value": true
         },
-        "beaming@APT_V@lcdep@secondary@system": {
+        "boosting@APT_V@lcdep@secondary@system": {
             "value": true
         },
-        "beaming@Griffin_(2001)_RV1@rvdep@primary@system": {
+        "boosting@Griffin_(2001)_RV1@rvdep@primary@system": {
             "value": true
         },
-        "beaming@Griffin_(2001)_RV2@rvdep@primary@system": {
+        "boosting@Griffin_(2001)_RV2@rvdep@primary@system": {
             "value": true
         },
-        "beaming_alg@detailed@compute": {
+        "boosting_alg@detailed@compute": {
             "value": "local"
         },
-        "beaming_alg@from_legacy@compute": {
+        "boosting_alg@from_legacy@compute": {
             "value": "none"
         },
-        "beaming_alg@preview@compute": {
+        "boosting_alg@preview@compute": {
             "value": "none"
         },
         "c1label@orbit@UW_LMi@system": {

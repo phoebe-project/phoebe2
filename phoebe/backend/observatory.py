@@ -2277,7 +2277,7 @@ def extract_times_and_refs(system, params, tol=1e-8):
 
 
 def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflect,
-                          circular, heating, beaming, params, ltt, save_result,
+                          circular, heating, boosting, params, ltt, save_result,
                           extra_func, extra_func_kwargs):
     """
     Compute a system on one given time step.
@@ -2314,15 +2314,15 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     # Set the time of the system: this will put everything in the right place,
     # and compute the necessary physical quantities.
-    system.set_time(time, ref=ref, boosting_alg=beaming)
+    system.set_time(time, ref=ref, boosting_alg=boosting)
     
     # Compute intensities: it is possible that this is already taken care of
     # in set_time. It doesn't hurt to do it again, but this might be optimized.
-    if circular and (not beaming == 'full') and not ref in system.__had_refs:
-        system.intensity(ref=ref, boosting_alg=beaming)
+    if circular and (not boosting == 'full') and not ref in system.__had_refs:
+        system.intensity(ref=ref, boosting_alg=boosting)
         system.__had_refs.append(ref)
-    elif (not circular) or (beaming == 'full'):
-        system.intensity(ref=ref, boosting_alg=beaming)
+    elif (not circular) or (boosting == 'full'):
+        system.intensity(ref=ref, boosting_alg=boosting)
     
     # Compute pblum
     if i == 0:
@@ -2340,7 +2340,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Recompute the intensities, temperatures might have changed due to
     # reflection)
     if update_intensity:
-        system.intensity(ref=ref, boosting_alg=beaming)
+        system.intensity(ref=ref, boosting_alg=boosting)
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
@@ -2365,7 +2365,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
         logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
         getattr(system, itype[:-3])(ref=iref, time=time,
                                     correct_oversampling=isamp,
-                                    boosting_alg=beaming,
+                                    boosting_alg=boosting,
                                     save_result=save_result)
 
     # Call extra funcs if necessary
@@ -2377,13 +2377,13 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     
 def animate_one_time_step(i, system, times, refs, types, samprate, reflect, nreflect,
-            circular, heating, beaming, params, ltt, save_result, extra_func,
+            circular, heating, boosting, params, ltt, save_result, extra_func,
             extra_func_kwargs, anim):
     """
     Compute one time step and animate it.
     """
     compute_one_time_step(system, i, times[i], refs[i], types[i], samprate[i], reflect, nreflect,
-                          circular, heating, beaming, params, ltt, save_result, extra_func,
+                          circular, heating, boosting, params, ltt, save_result, extra_func,
                           extra_func_kwargs)
     anim.draw()
     # Close the window once the animation has finished.
@@ -2422,7 +2422,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
       subdiv_alg edge   --   phoebe Subdivision algorithm
       subdiv_num 3      --   phoebe Number of subdivisions
      eclipse_alg auto   --   phoebe Type of eclipse algorithm
-     boosting_alg full   --   phoebe Type of beaming algorithm
+     boosting_alg full   --   phoebe Type of boosting algorithm
 
     But for convenience, all parameters in this parameterSet can also be
     given as keyword arguments (kwargs).
@@ -2649,7 +2649,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     reflect = params['refl']
     nreflect = params['refl_num']
     ltt = params['ltt']
-    beaming = params['boosting_alg']
+    boosting = params['boosting_alg']
     mesh_scale = params['mesh_rescale']
     
     # Heating and reflection are by default switched on. However, if there are
@@ -2731,30 +2731,30 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             body.params['syn']['orbsyn'] = OrderedDict()
             body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
     
-    # And don't forget beaming! If the user switches of beaming, we don't
-    # care. Else, we check if beaming needs to be computed. Thus, the user can
-    # set the beaming algorithm to be switched on, but still disable beaming in
+    # And don't forget boosting! If the user switches of boosting, we don't
+    # care. Else, we check if boosting needs to be computed. Thus, the user can
+    # set the boosting algorithm to be switched on, but still disable boosting in
     # some (or all) of the bodies separately.
-    beaming_is_relevant = (beaming != 'none')
-    if beaming_is_relevant:
+    boosting_is_relevant = (boosting != 'none')
+    if boosting_is_relevant:
         for parset in system.walk():
-            if 'beaming' in parset and parset['beaming']:
-                beaming_is_relevant = True
-                logger.info("Figured out that the system requires beaming")
+            if 'boosting' in parset and parset['boosting']:
+                boosting_is_relevant = True
+                logger.info("Figured out that the system requires boosting")
                 break
         else:
-            logger.warning(("Beaming algorithm = {} but no beaming Bodies "
-                            "found. Check the 'beaming' parameter in the "
-                            "Bodies".format(beaming)))
+            logger.warning(("boosting algorithm = {} but no boosting Bodies "
+                            "found. Check the 'boosting' parameter in the "
+                            "Bodies".format(boosting)))
     else:
-        logger.info("No beaming included")
+        logger.info("No boosting included")
         
-    # If beaming is not relevant, don't take it into account. Else, if the
-    # beaming algorithm is not the "full" one, prepare to store beaming factors
-    if not beaming_is_relevant:
-        beaming = 'none'
+    # If boosting is not relevant, don't take it into account. Else, if the
+    # boosting algorithm is not the "full" one, prepare to store boosting factors
+    if not boosting_is_relevant:
+        boosting = 'none'
     else:
-        system.prepare_beaming(ref='all')
+        system.prepare_boosting(ref='all')
     
     # If we include reflection, we need to reserve space in the mesh for the
     # reflected light. We need to fix the mesh afterwards because each body can
@@ -2771,8 +2771,8 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
         logger.info("{} mesh density with a factor {}".format('Increased' if mesh_scale>1 else 'Decreased', mesh_scale))
     
     # Make sure all Bodies have the same columns in the mesh (we might have
-    # added different columns for reflection/beaming for different bodies).
-    if system_is_bbag and ((reflect and len(system)>1) or (beaming_is_relevant and not beaming == 'full')):
+    # added different columns for reflection/boosting for different bodies).
+    if system_is_bbag and ((reflect and len(system)>1) or (boosting_is_relevant and not boosting == 'full')):
         system.fix_mesh()
     
     logger.info("Number of subdivision stages: {}".format(params['subdiv_num']))
@@ -2789,7 +2789,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     if not animate:
         for i, (time, ref, typ, samp) in enumerate(iterator):
             compute_one_time_step(system, i, time, ref, typ, samp, reflect, nreflect,
-                                circular, heating, beaming, params, ltt, save_result,
+                                circular, heating, boosting, params, ltt, save_result,
                                 extra_func, extra_func_kwargs)
     
     else:
@@ -2810,7 +2810,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                                   fargs=(system, time_per_time, labl_per_time,
                                          type_per_time, samp_per_time,
                                          reflect, nreflect, circular, heating,
-                                         beaming, params, ltt, save_result, extra_func,
+                                         boosting, params, ltt, save_result, extra_func,
                                          extra_func_kwargs, animate),
                                   init_func=animate.init_func,
                                   interval=25, repeat=animate.repeat)
