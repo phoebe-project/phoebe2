@@ -676,7 +676,7 @@ def init_mesh(self):
     
     # Velocities and passband intensities. Actually we don't need the
     # velocities. The bolometric velocities should be combined with the
-    # passband luminosities to  compute the passband velocities. I still
+    # passband luminosities to compute the passband velocities. I still
     # retain them here because I don't know if the code will crash if I
     # remove them. That can be tested once we have an extensive automatic
     # test suite
@@ -1404,26 +1404,34 @@ class Body(object):
         # The basic float type is 'f8'
         ft = 'f8'
         
-        # Initialise the mesh
-        mesh = np.zeros(n_mesh, dtype=[('_o_center', ft, (dim, )),
+        # Initialise the mesh with a custom dtype:
+        mesh = np.zeros(n_mesh, dtype=[
+                                  ('_o_center', ft, (dim, )),
                                   ('_o_size', ft),
                                   ('_o_triangle', ft, (3*dim, )),
                                   ('_o_normal_', ft,(dim, )),
-                                  ('center', ft, (dim, )), ('size', ft),
+                                  ('center', ft, (dim, )),
+                                  ('size', ft),
                                   ('triangle', ft, (3*dim, )),
                                   ('normal_', ft, (dim, )),
                                   ('_o_velo___bol_', ft, (dim, )),
-                                  ('velo___bol_', ft, (dim, )), ('mu', ft),
-                                  ('partial', bool), ('hidden',bool),
-                                  ('visible', bool)])
+                                  ('velo___bol_', ft, (dim, )),
+                                  ('mu', ft),
+                                  ('partial', bool),
+                                  ('hidden',bool),
+                                  ('visible', bool)
+                                  ])
         
         # We allow the user to supply a custom mesh. In that case it needs to
-        # be a record array
+        # be a record array.
         if data is not None:
             # Only copy basic fields
             init_fields = set(mesh.dtype.names)
             fields_given = set(data.dtype.names)
             fields_given_extra = list(fields_given - init_fields)
+            
+            # The '&' operator between the sets is the overlap
+            # (i.e. set([1,2,3]) & set([3,4,5]) = set([3]) ):
             fields_given_basic = fields_given & init_fields
             
             # Append extra fields
@@ -4131,8 +4139,7 @@ class Body(object):
         """
         return BodyBag([self, other])
     #}
-    
-    
+
     #{ Input and output
     def plot2D(self, **kwargs):
         """
@@ -4988,7 +4995,9 @@ class PhysicalBody(Body):
         """
         Convert barycentric time to proper time for this object.
         
-        The proper times need to be precomputed and stored in the ``orbsyn``
+        Proper time is LTTE-corrected barycentric time.
+        
+        Proper times need to be precomputed and stored in the ``orbsyn``
         parameterSet in the ``syn`` section of the ``params`` attribute.
         
         @param time: barycentric time
@@ -5017,8 +5026,7 @@ class PhysicalBody(Body):
                 #raise ValueError('Proper time corresponding to barycentric time {} not found'.format(time))
         else:
             return time
-    
-    
+
     def get_barycenter(self):
         """
         Numerically computes the center of the body from the mesh (at the current time)
@@ -5062,8 +5070,7 @@ class PhysicalBody(Body):
                     self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field],dtypes=dtypes[i])
         logger.info('Added pbdeps {} to {}'.format(", ".join(parsed_refs), self.get_label()))
         return parsed_refs
-    
-    
+
     def remove_pbdeps(self,refs):
         """
         Remove dependable ParameterSets from the Body.
@@ -5092,12 +5099,10 @@ class PhysicalBody(Body):
         self.mesh = np.zeros(N,dtype=dtypes)
         if N>0:
             self.mesh[onames] = omesh[onames]
-        
-    
+
     def remove_mesh(self):
         self.mesh = np.zeros(0,dtype=self.mesh.dtype)
-    
-    
+
     @decorators.parse_ref
     def prepare_reflection(self, ref=None):
         """
@@ -5117,8 +5122,7 @@ class PhysicalBody(Body):
             new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
             self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
             logger.info('added reflection column {} for pbdep {} to {}'.format(field, iref, self.get_label()))
-    
-    
+
     @decorators.parse_ref
     def clear_reflection(self,ref='all'):
         """
@@ -5143,9 +5147,7 @@ class PhysicalBody(Body):
             new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
             self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
             logger.debug('added beamin column for pbdep {}'.format(iref))
-    
-    
-    
+
     def as_point_source(self,only_coords=False,ref=0):
         """
         Return a point-source representation of the PhysicalBody.
@@ -5267,8 +5269,7 @@ class PhysicalBody(Body):
         
         #print("passband gravity darkening, {}+{}*{}={}".format(dlnI_dlng,dlnT_dlng,dlnI_dlnT, passband_gravb))
         return passband_gravb
-    
-    
+
     def init_mesh(self):
         init_mesh(self)
     
@@ -5297,8 +5298,7 @@ class PhysicalBody(Body):
         self.mesh['partial'] = False
         self.mesh['visible'] = False
         self.mesh['hidden'] = True
-    
-    
+
     def update_mesh(self,subset=None):
         """
         Update the mesh for a subset of triangles or the whole mesh
@@ -5369,9 +5369,7 @@ class PhysicalBody(Body):
         self.compute_sizes(prefix='_o_')
         self.mesh['size'] = self.mesh['_o_size']
         #self.compute_sizes(prefix='')
-        
-        
-    
+
     def subdivide(self,subtype=0,threshold=1e-6,algorithm='edge'):
         """
         Subdivide the partially visible triangles.
@@ -5424,8 +5422,7 @@ class PhysicalBody(Body):
                 self.rotate_and_translate(subset=self.mesh['partial'])
                 logger.debug('rotated subdivided mesh')
         return len(subdivided)
-    
-    
+
     def unsubdivide(self):
         """
         Revert to the original, unsubdivided mesh.
@@ -5458,9 +5455,7 @@ class PhysicalBody(Body):
             radius = coordinates.norm(self.mesh['center'], axis=1)*constants.Rsol
             rv_grav = constants.GG*self.get_mass()*constants.Msol/radius/constants.cc / constants.Rsol*24*3600.
             self.mesh['velo___bol_'][:,2] += rv_grav
-        
-        
-    
+
     def remove_systemic_velocity(self, grav=False):
         """
         Remove the systemic velocity component and gravitational redshift from
@@ -5550,10 +5545,6 @@ class PhysicalBody(Body):
         
         return params    
 
-    
-    
-
-    
     def get_obs(self,category=None,ref=0):
         """
         Retrieve data.
@@ -5562,8 +5553,7 @@ class PhysicalBody(Body):
         #    pbdeptype = pbdeptype[:-3]+'obs'
         base,ref = self.get_parset(ref=ref,type='obs',category=category)
         return base
-    
-        
+
     @decorators.parse_ref
     def lc(self, correct_oversampling=1, ref='alllcdep', time=None,
            beaming_alg='none', save_result=True):
@@ -5586,9 +5576,7 @@ class PhysicalBody(Body):
                 base['time'].append(time)
                 base['flux'].append(proj_intens)
                 base['samprate'].append(correct_oversampling)
-    
 
-    
     @decorators.parse_ref
     def ps(self,correct_oversampling=1, ref='alllcdep',time=None, beaming_alg='none'):
         """
@@ -5601,9 +5589,7 @@ class PhysicalBody(Body):
                 #base,lbl = self.get_parset(ref=lbl,type='syn')
                 for qualifier in myps:
                     self.params['pbdep']['psdep'][lbl]['syn']['time'].append(time)
-                    
-    
-    
+
 class BodyBag(Body):
     """
     Body representing a group of bodies.
@@ -5918,8 +5904,7 @@ class BodyBag(Body):
         # can be called from BodyBag or from each object individually.
         else:
             return CallInstruct(name, self.bodies)
-    
-    
+
     def __iter__(self):
         """
         Makes the class iterable.
@@ -5932,8 +5917,7 @@ class BodyBag(Body):
     def __iadd__(self, other):
         self.bodies.append(other)
         return self
-    
-    
+
     def walk_bodies(self):
         """
         Walk over all Bodies and BodyBags.
@@ -5948,8 +5932,7 @@ class BodyBag(Body):
                     yield sub_body
             else:
                 yield body
-            
-    
+
     def walk_type(self, type='syn'):
         """
         Walk through parameterSets of a certain type.
@@ -5970,8 +5953,7 @@ class BodyBag(Body):
         for body in self.bodies:
             for x in body.walk_type(type=type):
                 yield x
-    
-    
+
     def __len__(self):
         """
         The length of a BodyBag is the number of bodies it contains.
@@ -5980,8 +5962,7 @@ class BodyBag(Body):
         @rtype: int
         """
         return len(self.bodies)
-    
-    
+
     def __getitem__(self, key):
         """
         Implements various ways to get individual bodies.
@@ -6082,8 +6063,7 @@ class BodyBag(Body):
             mylist += body_list
             
         return mylist
-        
-    
+
     def fix_mesh(self):
         """
         Make sure all bodies in a list have the same mesh columns.
@@ -6132,13 +6112,11 @@ class BodyBag(Body):
         # time independent). This function effectively puts all values in the
         # columns to zero!
         self.reset()
-    
-    
+
     def remove_mesh(self):
         for body in self.bodies:
             body.remove_mesh()
-        
-        
+
     def get_bodies(self):
         """
         Return all possibly hierarchically stored bodies in a flatted list.
@@ -6173,8 +6151,7 @@ class BodyBag(Body):
             period, t0, shift = super(BodyBag, self).get_period(self)
        
         return period, t0, shift
-            
-    
+
     def to_string(self,only_adjustable=False):
         """
         Human readable string representation of a BodyBag.
@@ -6206,7 +6183,6 @@ class BodyBag(Body):
         for body in self.bodies:
             body.remove_ref(ref=ref)
 
-    
     def change_ref(self, from_, to_):
         """
         We need to reimplement change_ref here.
@@ -6216,7 +6192,6 @@ class BodyBag(Body):
         for body in self.bodies:
             body.change_ref(from_, to_)
 
-    
     def append(self,other):
         """
         Append a new Body to the BodyBag.
@@ -6286,9 +6261,7 @@ class BodyBag(Body):
             mesh = self.mesh
             mesh['velo___bol_'] = mesh['velo___bol_'] + velo
             self.mesh = mesh
-    
 
-    
     def get_mass(self):
         """
         Return the total mass of the BodyBag.
@@ -6312,8 +6285,7 @@ class BodyBag(Body):
         #else:
             #distance = 10*constants.pc/constants.Rsol
         #return distance
-        
-    
+
     def set_label(self,label):
         """
         Set label of the BodyBag.
@@ -6328,8 +6300,7 @@ class BodyBag(Body):
             logger.debug(str(msg))
         
         self.label = label
-            
-    
+
     def get_label(self):
         if self.label is None and len(self.bodies)==1:
             return self.bodies[0].get_label()
@@ -6337,8 +6308,7 @@ class BodyBag(Body):
             raise ValueError("BodyBag has no label and consists of more than one Bodies")
         else:
             return self.label
-   
-    
+
     def get_component(self):
         """
         Check which component this is.
@@ -6421,8 +6391,7 @@ class BodyBag(Body):
         super(BodyBag,self).clear_synthetic(*args,**kwargs)
         for body in self.bodies:
             body.clear_synthetic(*args,**kwargs)
-    
-    
+
     def get_model(self):
         mu,sigma,model = super(BodyBag,self).get_model()
         for body in self.bodies:
@@ -6431,8 +6400,7 @@ class BodyBag(Body):
             sigma = np.hstack([sigma,sigma_])
             model = np.hstack([model,model_])
         return mu,sigma,model
-    
-    
+
     def as_point_source(self,only_coords=False):
         coords = self.mesh['center'].mean(axis=0)
         #if 'orbit' in self.params:
@@ -6507,7 +6475,6 @@ class BodyBag(Body):
     
     mesh = property(get_mesh,set_mesh)
 
-    
 class BinaryBag(BodyBag):
     """
     Convenience class for making a binary out of non-binary bodies.
@@ -6585,7 +6552,6 @@ class BinaryBag(BodyBag):
             return BodyBag(system,solve_problems=solve_problems, **kwargs)
         else:
             return system[0]
-        
 
 class AccretionDisk(PhysicalBody):
     """
@@ -6882,19 +6848,17 @@ class AccretionDisk(PhysicalBody):
                                       incremental=True)
             
         self.time = time
-        
-        
-        
+
 class Star(PhysicalBody):
     """
     Body representing a Star.
     
-    A Star Body only has one obligatory ParameterSet: context ``star``. It sets
-    the basic properties such as mass, radius and temperature. The ParameterSet
-    also contains some atmosphere and limbdarkening parameters, which are all
-    bolometric quantities.
+    A Star Body only has one obligatory ParameterSet: context 
+    ``star``. It sets the basic properties such as mass, radius and 
+    temperature. The ParameterSet also contains some atmosphere and 
+    limbdarkening parameters, which are all bolometric quantities.
     
-    Optional parameterSets:
+    Optional ParameterSets:
     
         - ``mesh``: determines mesh properties, such as mesh density and algorithm
         - ``reddening``: set interstellar reddening properties (law, extinction)
@@ -7001,26 +6965,40 @@ class Star(PhysicalBody):
         """
         Initialize a Star.
         
-        What needs to be done? Well, sit down and let me explain. Are you
-        sitting down? Yes, then let's begin our journey through the birth
-        stages of a Star. In many ways, the birth of a Star can be regarded as
-        the growth of a human child. First of all, the basic properties
-        need to be set. Properties of a star include physical properties,
-        but also computational properties such as mesh density and algorithm.
-        This is also the place where the details on dependables, data and
-        results will be initialised.
+        What needs to be done? Well, sit down and let me explain. 
+        Are you sitting down? Yes, then let's begin our journey 
+        through the birth stages of a Star. In many ways, the birth 
+        of a Star can be regarded as the growth of a human child. 
+        First of all, the basic properties need to be set. 
+        Properties of a star include physical properties, but also 
+        computational properties such as mesh density and algorithm. 
+        This is also the place where the details on dependables, 
+        data and results will be initialised.
         
-        If we have information on spots and pulsations, we attach them to the
-        root here too.
-        """
-        # Basic initialisation
+        If we have information on spots and pulsations, we attach 
+        them to the root here too.
+        
+        @param star: ``star`` ParameterSet. If None, it will be created automatically.
+        @type ParameterSet
+        
+        @param mesh: ``mesh`` ParameterSet. If None, it will be created automatically.
+        @type ParameterSet
+        
+        @param position: ``position`` ParameterSet. If None, it will be omitted.
+        @type ParameterSet
+        
+        @param reddening: ``reddening:interstellar`` ParameterSet. If None, it will be omitted.
+        @type ParameterSet
+        """ 
+        
+        # Basic initialization:
         super(Star, self).__init__(dim=3)
         
-        # If there is no star, create default one
+        # If star ParameterSet is not passed, create a default one:
         if star is None:
             star = parameters.ParameterSet('star')
         
-        # If there is no mesh, create default one
+        # If mesh ParameterSet is not passed, create a default one:
         if mesh is None:
             mesh = parameters.ParameterSet('mesh:marching')
         
@@ -7034,13 +7012,7 @@ class Star(PhysicalBody):
         self.params['obs'] = OrderedDict()
         self.params['syn'] = OrderedDict()
         
-        # Shortcut to make a binaryStar
-        #if 'orbit' in kwargs:
-        #   myorbit = kwargs.pop('orbit')
-        #    check_input_ps(self, myorbit, ['orbit'], 'orbit')
-        #    self.params['orbit'] = myorbit
-        
-        # Add globals parameters, but only if given. DO NOT add default ones,
+        # Add positional parameters, but only if given. DO NOT add default ones,
         # that can be confusing
         if position is not None:
             check_input_ps(self, position, ['position'], 'position')
@@ -7132,7 +7104,7 @@ class Star(PhysicalBody):
         if kwargs:
             raise ValueError("Unused keyword arguments {} upon initialization of Star".format(kwargs.keys()))
         
-        # Initialise the mesh
+        # Initialize the mesh:
         init_mesh(self)
         
         # Generate a comprehensive log message, that explains what has been
@@ -7602,10 +7574,10 @@ class Star(PhysicalBody):
         #-- check for sphere-approximation
         diffrot = 0.
         surface = 'RotateRoche'
-        self.subdivision['mesh_args'] = surface,Omega,1.0,r_pole_sol
+        self.subdivision['mesh_args'] = surface, Omega, 1.0, r_pole_sol
         if self.params['star']['shape']=='sphere':
             Omega = 0.
-            self.subdivision['mesh_args'] = surface,Omega,1.0,r_pole_sol
+            self.subdivision['mesh_args'] = surface, Omega, 1.0, r_pole_sol
             logger.info("using non-rotating surface approximation")
         #-- check for the presence of differential rotation
         elif 'diffrot' in self.params['star'] and self.params['star']['diffrot']!=0:
@@ -7624,9 +7596,9 @@ class Star(PhysicalBody):
             #-- sanity check: remove these statements when tested enough.
             r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), surface, b1,b2,b3,1.0).r[0]
             assert(np.allclose(Omega_eq,(b1+b2*r0**2)/0.54433105395181736))
-            self.subdivision['mesh_args'] = surface,b1,b2,b3,1.0,r_pole_sol
-        elif Omega>=1:
-            raise ValueError("Star goes boom! (due to rotation rate being over the critical one [{:.3f}%]".format(Omega*100.))
+            self.subdivision['mesh_args'] = surface, b1, b2, b3, 1.0, r_pole_sol
+        elif Omega >= 1:
+            raise ValueError("Faster than critical rotation encountered, aborting. [w/wcrit={:.3f}%]".format(Omega*100.))
         
         gridstyle = self.params['mesh'].context
         max_triangles = np.inf # not all algorithms have a limit
@@ -7664,6 +7636,8 @@ class Star(PhysicalBody):
                               "not closed.").format(N))
         
         if not 'logg' in self.mesh.dtype.names:
+            # Andrej's remark:
+            # This should never happen -- init_mesh() should take care of it?
             lds = [('ld___bol','f8',(Nld_law,)),('proj___bol','f8')]
             for pbdeptype in self.params['pbdep']:
                 for ipbdep in self.params['pbdep'][pbdeptype]:
@@ -7797,8 +7771,7 @@ class Star(PhysicalBody):
         #-- remember the time... 
         self.time = time
         self.postprocess(time)
-    
-    
+
 class BinaryRocheStar(PhysicalBody):    
     """
     Body representing a binary Roche surface.
@@ -8772,8 +8745,6 @@ class BinaryRocheStar(PhysicalBody):
         self.add_systemic_velocity()
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
-        
-
 
 class PulsatingBinaryRocheStar(BinaryRocheStar):
     
@@ -8821,7 +8792,6 @@ class PulsatingBinaryRocheStar(BinaryRocheStar):
         
         pulsations.add_pulsations(self, time=time, mass=mass, radius=radius,
                                   rotperiod=rotperiod, mesh_phase=mesh_phase)
-
 
 class MisalignedBinaryRocheStar(BinaryRocheStar):
     
@@ -9233,8 +9203,6 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
             self.intensity(ref='__bol', beaming_alg=beaming_alg)
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
-    
-        
 
 class BinaryStar(Star):
     """
@@ -9379,8 +9347,6 @@ class BinaryStar(Star):
                 return proj_intens*pblum + l3
             else:
                 return proj_intens + l3
-            
-
 
 def serialize(body, description=True, color=True, only_adjust=False,
               filename=None, skip_data=True):
