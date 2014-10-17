@@ -482,26 +482,26 @@ See the :ref:`reflection <reflection-algorithms>` module for more information.
 See :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>`
 for implementation details.
 
-Section 2.5 Beaming
+Section 2.5 Boosting
 -----------------------------------
 
-By default, beaming effects are not calculated. You can switch it on by setting
-the ``beaming_alg`` accordingly (i.e. not equal to ``none``). If you decide that
-the beaming contribution of a particular component is not worth it, you can set
-``beaming=False`` in the Body parameterSet (star, component). There are four
-options for the beaming algorithm:
+By default, boosting effects are not calculated. You can switch it on by setting
+the ``boosting_alg`` accordingly (i.e. not equal to ``none``). If you decide that
+the boosting contribution of a particular component is not worth it, you can set
+``boosting=False`` in the Body parameterSet (star, component). There are four
+options for the boosting algorithm:
 
-    - ``beaming_alg='none'`` (immediate): no beaming is computed.
-    - ``beaming_alg='full'`` (slowest): local intensities and limb darkening
+    - ``boosting_alg='none'`` (immediate): no boosting is computed.
+    - ``boosting_alg='full'`` (slowest): local intensities and limb darkening
       coefficients are consistently computed via velocity shifts in the original
       specific intensity grids
-    - ``beaming_alg='local'`` (moderate): beaming is computed by setting local
-      beaming factors on the star
-    - ``beaming_alg='simple'`` (fast): beaming  is computed by setting a
-      global beaming factor.
+    - ``boosting_alg='local'`` (moderate): beaming is computed by setting local
+      boosting factors on the star
+    - ``boosting_alg='simple'`` (fast): boosting  is computed by setting a
+      global boosting factor.
 
 The latter two options are particularly useful for circular orbits, as the
-beaming coefficients only need to be computed once.
+boosting coefficients only need to be computed once.
 
 For more information, see :py:func:`generic_projected_intensity <phoebe.backend.universe.generic_projected_intensity>` and :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>`.
 
@@ -1760,7 +1760,7 @@ visibilities of a precomputed mesh:
         self.mesh['teff'] = 10000 - z/z.max()*1000
     
     
-    def set_time(self, time=None, ref='all', beaming_alg='none'):
+    def set_time(self, time=None, ref='all', boosting_alg='none'):
         # 
         # Set the time of Eta Carinae.
         #
@@ -1774,7 +1774,7 @@ visibilities of a precomputed mesh:
             self.rotate_and_translate(incl=-50/180.*np.pi, Omega=-10/180.*np.pi)
             self.detect_eclipse_horizon(eclipse_detection='hierarchical')
             self.temperature()
-            self.intensity(ref=ref, beaming_alg=beaming_alg)
+            self.intensity(ref=ref, boosting_alg=boosting_alg)
         self.time = time
 
 

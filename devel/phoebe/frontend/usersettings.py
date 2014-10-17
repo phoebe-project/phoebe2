@@ -369,7 +369,7 @@ class Settings(Container):
         self.sections['compute'] = []
         if not self.load_cfg('compute', basedir):
             self.add_compute(label='preview',refl=False,heating=False,eclipse_alg='binary',subdiv_num=1)
-            self.add_compute(label='detailed',ltt=True,eclipse_alg='binary',beaming_alg='local')
+            self.add_compute(label='detailed',ltt=True,eclipse_alg='binary',boosting_alg='local')
         
         #~ if devel:
         if True:

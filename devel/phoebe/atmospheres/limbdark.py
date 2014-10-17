@@ -1714,7 +1714,7 @@ def interp_boosting(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
 
 
 
-def local_boosting(system, parset_pbdep, parset_isr={}, beaming_alg='simple'):
+def local_boosting(system, parset_pbdep, parset_isr={}, boosting_alg='simple'):
     """
     Calculate local boosting coefficients.
     
@@ -1753,7 +1753,7 @@ def local_boosting(system, parset_pbdep, parset_isr={}, beaming_alg='simple'):
     ld_func = parset_pbdep['ld_func']
     
     # Find the possible interpolation parameters
-    if beaming_alg == 'simple':
+    if boosting_alg == 'simple':
         atm_kwargs = {key:system.mesh[key][0] for key in config.atm_props[atm]}
     else:
         atm_kwargs = {key:system.mesh[key] for key in config.atm_props[atm]}
@@ -2924,7 +2924,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
 
 #{ Phoebe interface
 
-def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
+def local_intensity(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     """
     Calculate local intensity.
     
@@ -2959,7 +2959,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
     # Doppler beaming: include it if there is such a keyword and it is turned on
     # and the algorithm is "full"
     include_vgamma = parset_pbdep.get('beaming', False)
-    if not beaming_alg == 'full':
+    if not boosting_alg == 'full':
         include_vgamma = False
     
     # The reference we need to take to compute stuff (if not available, it's
@@ -3098,8 +3098,8 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
         # logg (or anything else for that matter).
         elif atm == 'true_blackbody':
             
-            if beaming_alg and beaming_alg != 'full':
-                raise ValueError("With atm=true_blackbody you can only use beaming_alg='full' or beaming_alg='none'.")
+            if boosting_alg and boosting_alg != 'full':
+                raise ValueError("With atm=true_blackbody you can only use boosting_alg='full' or boosting_alg='none'.")
             
             wave_ = np.logspace(1, 5, 10000)
             log_msg += (', intens via atm=true_blackbody (this is going to take '
@@ -3154,26 +3154,26 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
         system.mesh[tag][index,-1] = (g/g[index])**pbgravb * Imax
     
     # 5. Take care of boosting option
-    if beaming_alg == 'simple':
+    if boosting_alg == 'simple':
         alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma,
                                       interp_all=False)
         system.mesh['alpha_b_' + ref] = alpha_b
         log_msg += ' (simple boosting)'
     
-    elif beaming_alg == 'local':
+    elif boosting_alg == 'local':
         alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma)
         system.mesh['alpha_b_' + ref] = alpha_b
         log_msg += ' (local boosting)'
         
-    elif beaming_alg == 'global':
+    elif boosting_alg == 'global':
         alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
                                       red_kwargs=red_kwargs, vgamma=vgamma)
         system.mesh['alpha_b_' + ref] = alpha_b
         log_msg += ' (global boosting (currently still implemented as local))'
     
-    elif beaming_alg == 'none' or not beaming_alg:
+    elif boosting_alg == 'none' or not boosting_alg:
         log_msg += " (no boosting)"
     
     logger.info(log_msg)
@@ -3181,7 +3181,7 @@ def local_intensity(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
 
 
 
-def ld_intensity_prsa(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
+def ld_intensity_prsa(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     """
     Calculate projected LD intensity with the Prsa law.
     
@@ -3212,7 +3212,7 @@ def ld_intensity_prsa(system, parset_pbdep, parset_isr={}, beaming_alg='full'):
     # Doppler beaming: include it if there is such a keyword and it is turned on
     # and the algorithm is "full"
     include_vgamma = parset_pbdep.get('beaming', False)
-    if not beaming_alg == 'full':
+    if not boosting_alg == 'full':
         include_vgamma = False
     
     # The reference we need to take to compute stuff (if not available, it's
