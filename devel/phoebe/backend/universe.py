@@ -2906,9 +2906,11 @@ class Body(object):
 
     def preprocess(self, time=None, **kwargs):
         """
-        Run the preprocessors.
+        Run the preprocessors that are defined in the calling class'
+        _preprocessing attribute (a list).
         
-        @param time: time to which the Body will be set
+        @param time: pre-processing functions (may) depend on the timestamp
+        of calculations; this is that timestamp.
         @type time: float or None
         """
         for func, arg, kwargs in self._preprocessing:
@@ -2916,7 +2918,12 @@ class Body(object):
 
     def postprocess(self, time=None):
         """
-        Run the postprocessors.
+        Run the postprocessors that are defined in the calling class'
+        _postprocessing attribute (a list).
+        
+        @param time: post-processing functions (may) depend on the timestamp
+        of calculations; this is that timestamp.
+        @type time: float or None
         """
         for func, args, kwargs in self._postprocessing:
             getattr(processing, func)(self, time, *args, **kwargs)
@@ -7698,42 +7705,49 @@ class Star(PhysicalBody):
         #-- insert the updated values in the original mesh
         self.mesh[subset] = old_mesh
 
-    def set_time(self,time,ref='all', beaming_alg='none'):
+    def set_time(self, time, ref='all', boosting_alg='none'):
         """
         Set the time of the Star object.
         
-        @param time: time
+        @param time: timestamp for computations.
         @type time: float
-        @param label: select columns to fill (i.e. bolometric, lcs)
-        @type label: str
+        
+        @param ref: select columns to fill (i.e. bolometric, lcs)
+        @type ref: str
+        
+        @param boosting_alg: Doppler boosting algorithm for intensity computation.
+        @type boosting_alg: str
         """
-        logger.info('===== SET TIME TO %.3f ====='%(time))
-        # Convert the barycentric time to propertime
+        logger.info('===== SET TIME TO %.3f =====' % (time))
+        # Convert the barycentric time to propertime:
         time = self.get_proper_time(time)
-        #-- first execute any external constraints:
+        
+        # First execute any external constraints:
         self.preprocess(time)
-        #-- this mesh is mostly independent of time! We collect some values
-        #   that could be handy later on: inclination and rotation frequency
+        
+        # The Star mesh is mostly independent of time. We collect some values
+        # that could be handy later on: inclination and rotation frequency.
         rotperiod = self.params['star'].request_value('rotperiod','d')
         t0 = self.params['star']['t0'] if 't0' in self.params['star'] else 0.0        
         Omega_rot = 2*pi*(time-t0)/rotperiod
         inclin = self.params['star'].request_value('incl','rad')
         longit = self.params['star'].request_value('long','rad')
         
-        #-- check if this Star has spots or is pulsating
+        # Check for additional optional features on the Star:
         has_spot = 'circ_spot' in self.params
         has_freq = 'puls' in self.params
-        
         has_magnetic_field = 'magnetic_field' in self.params
-        #-- if time is not set, compute the mesh
+
+        # If time is not set, compute the mesh
         if self.time is None:
             self.compute_mesh(time)
-        #-- else, reset to the original values
+        
+        # else, reset to the original values
         elif has_freq:# or has_spot:
             self.reset_mesh()
         
-        #-- only compute the velocity if there are spots, pulsations or it was
-        #   not computed before
+        # only compute the velocity if there are spots, pulsations or it was
+        # not computed before
         if self.time is None or has_freq or has_spot:
             self.velocity(ref=ref)
             #-- set the abundance
@@ -7766,7 +7780,7 @@ class Star(PhysicalBody):
         
         self.add_systemic_velocity()
         if self.time is None or has_freq or has_spot:
-            self.intensity(ref=ref, beaming_alg=beaming_alg)
+            self.intensity(ref=ref, beaming_alg=boosting_alg)
         
         #-- remember the time... 
         self.time = time
