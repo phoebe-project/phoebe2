@@ -3453,10 +3453,10 @@ class Bundle(Container):
         # etc...
         if computeoptions['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            if mpi is not None and animate:
+            if mpioptions is not None and animate:
                 raise ValueError("You cannot animate and use MPI simultaneously")
-            elif mpi is not None:
-                obj.compute(mpi=mpi, **computeoptions)
+            elif mpioptions is not None:
+                obj.compute(mpi=mpioptions, **computeoptions)
             else:
                 obj.compute(animate=animate, **computeoptions)
             
@@ -3710,10 +3710,11 @@ class Bundle(Container):
         # <some code>
         logger.warning("Fit options:\n{:s}".format(fittingoptions))
         logger.warning("Compute options:\n{:s}".format(computeoptions))
+        logger.warning("MPI options:\n{:s}".format(mpioptions))
         
         # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions,
-                               fitparams=fittingoptions, mpi=mpi,
+                               fitparams=fittingoptions, mpi=mpioptions,
                                usercosts=usercosts)
         
         # Reset the parameters to their initial values
