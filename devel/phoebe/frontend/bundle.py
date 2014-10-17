@@ -3432,7 +3432,7 @@ class Bundle(Container):
         computeoptions = self.get_compute(computelabel, create_default=True).copy()
         mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
         if mpilabel in [None, 'None', '']:
-            mpioptions = None
+            mpilabel = None
         if mpilabel in [None, 'None', '']:
             mpioptions = None
         else:
@@ -3440,8 +3440,8 @@ class Bundle(Container):
         
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
-            if k in options.keys(): # otherwise nonexisting kwargs can be given
-                options.set_value(k,v)
+            if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
+                computeoptions.set_value(k,v)
             elif k in mpioptions.keys():
                 mpioptions.set_value(k,v)
             else:
@@ -3451,14 +3451,14 @@ class Bundle(Container):
         # then try/except the computations? Though we should keep track of
         # why things don't work out.. how to deal with out-of-grid interpolation
         # etc...
-        if options['time'] == 'auto':
+        if computeoptions['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
             if mpi is not None and animate:
                 raise ValueError("You cannot animate and use MPI simultaneously")
             elif mpi is not None:
-                obj.compute(mpi=mpi, **options)
+                obj.compute(mpi=mpi, **computeoptions)
             else:
-                obj.compute(animate=animate, **options)
+                obj.compute(animate=animate, **computeoptions)
             
         #else:
             #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
@@ -3477,7 +3477,7 @@ class Bundle(Container):
 
         self.attach_system_signals()
         
-        return options
+        return computeoptions
         
     #}
             
