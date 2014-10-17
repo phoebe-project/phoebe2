@@ -37,7 +37,7 @@ def do_mercury(redist):
     mercury = phoebe.BinaryStar(mercury, mesh=mesh2, orbit=orbit, pbdep=[lcdep2])
 
     system = phoebe.BodyBag([sun, mercury], obs=[obs], position=globals)
-    system.compute(heating=True, refl=True, refl_num=1, beaming_alg='none')
+    system.compute(heating=True, refl=True, refl_num=1, boosting_alg='none')
     return system
 
 
