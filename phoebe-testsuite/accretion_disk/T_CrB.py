@@ -11,7 +11,6 @@ Initialisation
 """
 
 import matplotlib.pyplot as plt
-from mayavi import mlab
 from phoebe.parameters import create
 from phoebe.backend import observatory
 from phoebe.algorithms import reflection

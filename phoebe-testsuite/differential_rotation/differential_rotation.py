@@ -53,11 +53,11 @@ star.add_constraint('{diffrot} = {eqrotperiod} - {rotperiod}')
 
 # For the mesh, we take a low-density grid, sampled using the marching method.
 star_mesh = phoebe.ParameterSet(context='mesh:marching')
-star_mesh['delta'] = 0.05
+star_mesh['delta'] = 0.02
 
 # In the spectrum that we calculate, we set the parameters for the atmosphere
 # and limb-darkening coefficients as realistic as possible (i.e., Claret
-# limbdarkening and Kurucz atmospheres). However, for the calculation of the
+# limb darkening and Kurucz atmospheres). However, for the calculation of the
 # spectrum, we require no knowledge of the the true line profile, but use a
 # generic Gaussian line.
 spdep = phoebe.ParameterSet(context='spdep')
@@ -98,12 +98,12 @@ for i,polar_period in enumerate(polar_periods):
     
     # and plot the spectra
     plt.figure(100)
-    phoebe.plotting.plot_spsyn_as_profile(mesh1, '-', lw=2, label='P$_{{pl}}$={:.1f} h'.format(polar_periods[i]))
+    phoebe.plotting.plot_spsyn_as_profile(mesh1, '-', lw=2, label='$P_\mathrm{{pol}} : P_\mathrm{{eq}} = {:.2f}$'.format(polar_periods[i]/22.8))
 
-plt.xlabel('Wavelength [A]')
-plt.ylabel("Normalised flux")
-plt.grid()
-leg = plt.legend()
+plt.xlabel('Wavelength [$\AA$]')
+plt.ylabel("Normalized flux")
+#~ plt.grid()
+leg = plt.legend(loc='lower right')
 leg.get_frame().set_alpha(0.5)
 plt.savefig('diff_rotator_spectrum.png')
 plt.gcf().frameon = False

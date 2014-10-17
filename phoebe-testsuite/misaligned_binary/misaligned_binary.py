@@ -29,8 +29,8 @@ logger = phoebe.get_basic_logger()
 # Let us start from a massive and cool star, and create a binary from them with
 # an orbital period of 1 day.
 
-star1 = phoebe.create.star_from_spectral_type('B9V',atm='kurucz',ld_coeffs='kurucz',ld_func='claret')
-star2 = phoebe.create.star_from_spectral_type('M1V',atm='kurucz',ld_coeffs='kurucz',ld_func='claret')
+star1 = phoebe.create.star_from_spectral_type('B9V',atm='blackbody',ld_coeffs=[0.5],ld_func='linear')
+star2 = phoebe.create.star_from_spectral_type('M1V',atm='blackbody',ld_coeffs=[0.5],ld_func='linear')
 comp1,comp2,orbit = phoebe.create.binary_from_stars(star1,star2,period=(1.,'d'))
 
 # To make the orbit misaligned, we need to add a few extra parameters: these are
@@ -45,8 +45,8 @@ tools.make_misaligned(orbit,theta=0.0,phi0=90.0,precperiod=np.inf)
 
 # Define the parameters to compute light curve and the mesh
 
-lcdep = phoebe.ParameterSet('lcdep',atm='kurucz',ld_coeffs='kurucz',ld_func='claret')
-mesh = phoebe.ParameterSet('mesh:marching',delta=0.1,alg='python')
+lcdep = phoebe.ParameterSet('lcdep',atm='blackbody',ld_coeffs=[0.5],ld_func='linear')
+mesh = phoebe.ParameterSet('mesh:marching',delta=0.05,alg='python')
 
 # We only consider the primary to be misaligned. For reference, we also make a
 # version of the primary that *is* aligned.
@@ -62,7 +62,7 @@ system1 = phoebe.BodyBag([star1a,star2])
 system2 = phoebe.BodyBag([star1b,star2])
 
 # We want to observe the star during one full orbital period
-times = np.linspace(0.,orbit['period'],20)[:-1]
+times = np.linspace(0., orbit['period'], 100)[:-1]
 
 # Observe the reference system, compute the light curve and make some check images.
 phoebe.observe(system2,times,lc=True,extra_func=[phoebe.observatory.ef_binary_image,

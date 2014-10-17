@@ -47,7 +47,7 @@ freq_pars1['freq'] = 1.0,'cy/d' # so that K0=0.1
 freq_pars1['ampl'] = 0.015
 freq_pars1['l'] = 4
 freq_pars1['m'] = -3
-freq_pars1['amplteff'] = 0.2
+freq_pars1['amplteff'] = 0.0
 freq_pars1['ledoux_coeff'] = 0.5
 freq_pars1['scheme'] = 'coriolis'
 
@@ -94,7 +94,7 @@ system = phoebe.BodyBag([pulsating_star,rotating_star])
 # Now calculate the light curves numerically and analytically:
     
 P = orbit['period']
-times = np.linspace(-0.2*P,+0.2*P,100)
+times = np.linspace(-0.2*P,+0.8*P,200)
 
 extra_funcs = [observatory.ef_binary_image]*4
 extra_funcs_kwargs = [dict(select='teff',cmap=plt.cm.spectral,name='pulsbin_teff',ref='Light curve'),
@@ -114,8 +114,7 @@ times = np.array(pulsating_star.params['syn']['lcsyn'].values()[0]['time'])
 flux = np.array(pulsating_star.params['syn']['lcsyn'].values()[0]['flux'])+\
         np.array(rotating_star.params['syn']['lcsyn'].values()[0]['flux'])
 
-    
-#-- plot light curve: I ommit comments because frankly, it's just plotting
+#-- plot the light curve:
 plt.figure()
 plt.plot(times,flux,'ko-')
 plt.xlim(times[0],times[-1])
@@ -146,7 +145,7 @@ plt.savefig('pulsbin_lc.png')
 .. image:: images_tut/pulsbin_lc.png
    :scale: 75 %
 """            
-                        
+
 c2 = time.time()
 print "Finished!"
 print "Computation time:    %10.3f min"%((c1-c0)/60.)
@@ -154,6 +153,6 @@ print "Analysis of results: %10.3f sec"%((c2-c1))
 print "-----------------------------------"
 print "Total time:          %10.3f min"%((c2-c0)/60.)
 
-for ext in ['.gif','.avi']:
-    for root in ['bb','rv','teff','proj']:
-        plotlib.make_movie('pulsbin_{}*.png'.format(root),output='pulsbin_{}{}'.format(root,ext))
+#~ for ext in ['.gif','.avi']:
+    #~ for root in ['bb','rv','teff','proj']:
+        #~ plotlib.make_movie('pulsbin_{}*.png'.format(root),output='pulsbin_{}{}'.format(root,ext))

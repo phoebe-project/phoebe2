@@ -301,7 +301,7 @@ def luminosity(body, ref='__bol', numerical=False):
     ld = body.mesh['ld_' + ref]
     
     if np.all(ld==0):
-        body.intensity(ref=ref, beaming_alg='none')
+        body.intensity(ref=ref, boosting_alg='none')
         
     # Get a reference to the mesh, and get the sizes of the triangles in real
     # units
@@ -331,7 +331,7 @@ def luminosity(body, ref='__bol', numerical=False):
     return (emer_Ibolmu * sizes).sum()
 
 def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
-                beaming_alg='none', ld_func='claret', ref=0,
+                boosting_alg='none', ld_func='claret', ref=0,
                 with_partial_as_half=True):
     r"""
     Calculate local projected intensity.
@@ -349,7 +349,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         3. Scattering phase functions
         
     Additionally, we can take **beaming** into account if we're using the linear
-    approximation (:envvar:`beaming_alg='local'` or :envvar:`beaming_alg='simple'`).
+    approximation (:envvar:`boosting_alg='local'` or :envvar:`boosting_alg='simple'`).
     In that case the (local) intensity :math:`I` is adjusted to :math:`I_b` to
     include beaming effects with a beaming amplitude :math:`A_b` as follows:
     
@@ -423,7 +423,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         
         
         # Do the beaming correction
-        if beaming_alg == 'simple' or beaming_alg == 'local':
+        if boosting_alg == 'simple' or boosting_alg == 'local':
             # Retrieve beming factor
             alpha_b = vis_mesh['alpha_b_' + ref]
             # light speed in Rsol/d
@@ -4351,7 +4351,7 @@ class Body(object):
 
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, obs=None, correct_oversampling=1,
-           beaming_alg='none', save_result=True):
+           boosting_alg='none', save_result=True):
         """
         Compute interferometry.
         
@@ -4377,7 +4377,7 @@ class Body(object):
                 # Compute the IFM profiles for this reference
                 self.ifm(ref=lbl, time=time, obs=ifobs,
                          correct_oversampling=correct_oversampling,
-                         beaming_alg=beaming_alg, save_result=save_result)
+                         boosting_alg=boosting_alg, save_result=save_result)
         
         # If no obs are given and there are no obs attached, assume we're a
         # BodyBag and descend into ourselves:
@@ -4386,7 +4386,7 @@ class Body(object):
                 for body in self.bodies:
                     body.ifm(ref=ref, time=time, obs=obs,
                          correct_oversampling=correct_oversampling,
-                         beaming_alg=beaming_alg, save_result=save_result)
+                         boosting_alg=boosting_alg, save_result=save_result)
             except AttributeError:
                 pass
         
@@ -4404,7 +4404,7 @@ class Body(object):
                     for body in self.bodies:
                         body.ifm(ref=ref, time=time, obs=obs,
                          correct_oversampling=correct_oversampling,
-                         beaming_alg=beaming_alg, save_result=save_result)
+                         boosting_alg=boosting_alg, save_result=save_result)
                 except AttributeError:
                     pass
                 
@@ -4628,7 +4628,7 @@ class Body(object):
 
     @decorators.parse_ref
     def rv(self,correct_oversampling=1,ref='allrvdep', time=None,
-           beaming_alg='none', save_result=True):
+           boosting_alg='none', save_result=True):
         """
         Compute integrated radial velocity and add results to the pbdep ParameterSet.
         """
@@ -4641,7 +4641,7 @@ class Body(object):
                 if hasattr(self,'bodies'):
                     for body in self.bodies:
                         body.rv(correct_oversampling=correct_oversampling,
-                                ref=ref, time=time, beaming_alg=beaming_alg)
+                                ref=ref, time=time, boosting_alg=boosting_alg)
                 continue
             
             base,lbl = self.get_parset(ref=lbl,type='syn')
@@ -4689,7 +4689,7 @@ class Body(object):
 
     @decorators.parse_ref
     def pl(self, ref='allpldep', time=None, obs=None, correct_oversampling=1,
-           beaming_alg='none', save_result=True):
+           boosting_alg='none', save_result=True):
         """
         Compute Stokes profiles and add results to the pbdep ParameterSet.
         
@@ -4783,7 +4783,7 @@ class Body(object):
     
     @decorators.parse_ref
     def sp(self, ref='allspdep', time=None, obs=None, correct_oversampling=1,
-           beaming_alg='none', save_result=True):
+           boosting_alg='none', save_result=True):
         """
         Compute spectrum and add results to the pbdep ParameterSet.
         
@@ -4873,7 +4873,7 @@ class Body(object):
     
     @decorators.parse_ref
     def am(self, ref='allamdep', time=None, obs=None, correct_oversampling=1,
-           beaming_alg='none', save_result=True):
+           boosting_alg='none', save_result=True):
         """
         Compute astrometry and add results to the pbdep ParameterSet.
         
@@ -5563,7 +5563,7 @@ class PhysicalBody(Body):
 
     @decorators.parse_ref
     def lc(self, correct_oversampling=1, ref='alllcdep', time=None,
-           beaming_alg='none', save_result=True):
+           boosting_alg='none', save_result=True):
         """
         Compute projected intensity and add results to the pbdep ParameterSet.
         
@@ -5575,7 +5575,7 @@ class PhysicalBody(Body):
             #-- compute the projected intensities for all light curves.
             for lbl in ref:
                 base,lbl = self.get_parset(ref=lbl,type='syn')
-                proj_intens = self.projected_intensity(ref=lbl, beaming_alg=beaming_alg)
+                proj_intens = self.projected_intensity(ref=lbl, boosting_alg=boosting_alg)
                 
                 if not save_result:
                     continue
@@ -5585,7 +5585,7 @@ class PhysicalBody(Body):
                 base['samprate'].append(correct_oversampling)
 
     @decorators.parse_ref
-    def ps(self,correct_oversampling=1, ref='alllcdep',time=None, beaming_alg='none'):
+    def ps(self,correct_oversampling=1, ref='alllcdep',time=None, boosting_alg='none'):
         """
         Compute point-source representation of Body.
         """
@@ -6805,15 +6805,15 @@ class AccretionDisk(PhysicalBody):
         Calculate local intensity and limb darkening coefficients.
         """
         ref = kwargs.pop('ref',['all'])
-        beaming_alg = kwargs.get('beaming_alg', 'full')
+        boosting_alg = kwargs.get('boosting_alg', 'full')
         parset_isr = dict()#self.params['reddening']
         #-- now run over all labels and compute the intensities
         for iref in ref:
             parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
-            limbdark.local_intensity(self,parset_pbdep,parset_isr, beaming_alg=beaming_alg)
+            limbdark.local_intensity(self,parset_pbdep,parset_isr, boosting_alg=boosting_alg)
             
     def projected_intensity(self,los=[0.,0.,+1],ref=0,method='numerical',with_partial_as_half=True,
-                            beaming_alg='none'):
+                            boosting_alg='none'):
         """
         Calculate local intensity of an AccretionDisk.
         """
@@ -6827,7 +6827,7 @@ class AccretionDisk(PhysicalBody):
         
         return proj_int
     
-    def set_time(self,time, ref='all', beaming_alg='none'):
+    def set_time(self,time, ref='all', boosting_alg='none'):
         """
         Set the time of the AccretionDisk object
         """
@@ -6838,7 +6838,7 @@ class AccretionDisk(PhysicalBody):
             self.compute_mesh()
             self.surface_gravity()
             self.temperature()
-            self.intensity(beaming_alg=beaming_alg)
+            self.intensity(boosting_alg=boosting_alg)
             
             incl = self.params['disk']['incl']/180.*np.pi
             Omega = self.params['disk']['long']/180.*np.pi
@@ -7313,7 +7313,7 @@ class Star(PhysicalBody):
     
     
     @decorators.parse_ref
-    def intensity(self, ref='all', beaming_alg='none'):
+    def intensity(self, ref='all', boosting_alg='none'):
         """
         Calculate local intensity and limb darkening coefficients of a Star.
         """
@@ -7321,7 +7321,7 @@ class Star(PhysicalBody):
         parset_isr = dict() #self.params['reddening']
         for iref in ref:
             parset_pbdep, ref = self.get_parset(ref=iref, type='pbdep')
-            limbdark.local_intensity(self, parset_pbdep, parset_isr, beaming_alg=beaming_alg)
+            limbdark.local_intensity(self, parset_pbdep, parset_isr, boosting_alg=boosting_alg)
         
     
     @decorators.parse_ref
@@ -7417,7 +7417,7 @@ class Star(PhysicalBody):
         
     
     def projected_intensity(self, los=[0.,0.,+1], ref=0, method=None,
-                            with_partial_as_half=True, beaming_alg='none'):
+                            with_partial_as_half=True, boosting_alg='none'):
         """
         Calculate projected intensity of a Star.
         
@@ -7438,7 +7438,7 @@ class Star(PhysicalBody):
         # Compute projected intensity, and correct for the distance and
         # reddening
         proj_int = generic_projected_intensity(self, method=method,
-                ld_func=ld_func, ref=ref, beaming_alg=beaming_alg,
+                ld_func=ld_func, ref=ref, boosting_alg=boosting_alg,
                 with_partial_as_half=with_partial_as_half)
             
         # Take passband luminosity into account
@@ -7780,7 +7780,7 @@ class Star(PhysicalBody):
         
         self.add_systemic_velocity()
         if self.time is None or has_freq or has_spot:
-            self.intensity(ref=ref, beaming_alg=boosting_alg)
+            self.intensity(ref=ref, boosting_alg=boosting_alg)
         
         #-- remember the time... 
         self.time = time
@@ -8319,7 +8319,7 @@ class BinaryRocheStar(PhysicalBody):
         
     
     @decorators.parse_ref
-    def intensity(self,ref='all', beaming_alg='none'):
+    def intensity(self,ref='all', boosting_alg='none'):
         """
         Calculate local intensity and limb darkening coefficients.
         """
@@ -8327,7 +8327,7 @@ class BinaryRocheStar(PhysicalBody):
         #-- now run over all labels and compute the intensities
         for iref in ref:
             parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
-            limbdark.local_intensity(self,parset_pbdep,parset_isr, beaming_alg=beaming_alg)
+            limbdark.local_intensity(self,parset_pbdep,parset_isr, boosting_alg=boosting_alg)
             
         
         
@@ -8569,7 +8569,7 @@ class BinaryRocheStar(PhysicalBody):
         
     def projected_intensity(self, los=[0.,0.,+1],
                             ref=0, method='numerical', with_partial_as_half=True,
-                            beaming_alg='none'):
+                            boosting_alg='none'):
         """
         Calculate local intensity of a BinaryRocheStar.
         
@@ -8578,10 +8578,10 @@ class BinaryRocheStar(PhysicalBody):
         
         Beaming correction (this is done in limbdark.local_intensity):
         
-            - ``beaming_alg='none'``: no beaming correction (possibly taken into account by local_intensity)
-            - ``beaming_alg='full'``: no beaming correction (possibly taken into account by local_intensity)
-            - ``beaming_alg='local'``: local beaming correction (no limb darkening correction)
-            - ``beaming_alg='simple'``: uniform beaming correction
+            - ``boosting_alg='none'``: no beaming correction (possibly taken into account by local_intensity)
+            - ``boosting_alg='full'``: no beaming correction (possibly taken into account by local_intensity)
+            - ``boosting_alg='local'``: local beaming correction (no limb darkening correction)
+            - ``boosting_alg='simple'``: uniform beaming correction
         
         
         """
@@ -8602,13 +8602,13 @@ class BinaryRocheStar(PhysicalBody):
         proj_int = generic_projected_intensity(self, method=method,
                              ld_func=ld_func, ref=ref_, los=los, 
                              with_partial_as_half=with_partial_as_half,
-                             beaming_alg=beaming_alg)
+                             boosting_alg=boosting_alg)
         
         return proj_int
     
     
     
-    def set_time(self, time, ref='all', beaming_alg='none'):
+    def set_time(self, time, ref='all', boosting_alg='none'):
         """
         Set the time of a BinaryRocheStar.
         
@@ -8715,8 +8715,8 @@ class BinaryRocheStar(PhysicalBody):
                     self.abundance(time)
                     self.temperature(time)
                     self.albedo(time)
-                    self.intensity(ref=ref, beaming_alg=beaming_alg)
-                    self.projected_intensity(beaming_alg=beaming_alg)
+                    self.intensity(ref=ref, boosting_alg=boosting_alg)
+                    self.projected_intensity(boosting_alg=boosting_alg)
                     self.conserve_volume(time,max_iter=max_iter_volume)
                 #-- else we still need to compute the mesh at *this* time!
                 else:
@@ -8737,7 +8737,7 @@ class BinaryRocheStar(PhysicalBody):
             
             if has_freq:
                 self.add_pulsations(time=time)
-            self.intensity(ref=ref, beaming_alg=beaming_alg)
+            self.intensity(ref=ref, boosting_alg=boosting_alg)
             
             if has_magnetic_field:
                 self.magnetic_field(time)
@@ -8745,13 +8745,13 @@ class BinaryRocheStar(PhysicalBody):
             # Compute projected intensity if not done before, to have the
             # passband luminosity
             if self.time is None:
-                self.projected_intensity(beaming_alg=beaming_alg)
+                self.projected_intensity(boosting_alg=boosting_alg)
             
             #-- once we have the mesh, we need to place it into orbit
             keplerorbit.place_in_binary_orbit(self,time)
             
             if do_reflection:
-                self.intensity(ref='__bol', beaming_alg=beaming_alg)
+                self.intensity(ref='__bol', boosting_alg=boosting_alg)
         else:
             self.reset_mesh()
             #-- once we have the mesh, we need to place it into orbit
@@ -9141,7 +9141,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         
         return list(x1)+list(x2)
         
-    def set_time(self,time,ref='all', beaming_alg='none'):
+    def set_time(self,time,ref='all', boosting_alg='none'):
         """
         Set the time of a BinaryRocheStar.
         
@@ -9212,9 +9212,9 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         #-- compute polar radius and logg!
         self.surface_gravity()
         self.temperature()
-        self.intensity(ref=ref, beaming_alg=beaming_alg)
+        self.intensity(ref=ref, boosting_alg=boosting_alg)
         if do_reflection:
-            self.intensity(ref='__bol', beaming_alg=beaming_alg)
+            self.intensity(ref='__bol', boosting_alg=boosting_alg)
         self.detect_eclipse_horizon(eclipse_detection='simple')
         self.time = time
 
@@ -9289,7 +9289,7 @@ class BinaryStar(Star):
     
     
     def projected_intensity(self,los=[0.,0.,+1],ref=0,method=None,
-                            with_partial_as_half=True, beaming_alg='none'):
+                            with_partial_as_half=True, boosting_alg='none'):
         """
         Calculate local intensity.
         """

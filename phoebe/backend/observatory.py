@@ -87,7 +87,7 @@ logger.addHandler(logging.NullHandler())
     
 def image(the_system, ref='__bol', context='lcdep',
             cmap=None, select='proj', background=None, vmin=None, vmax=None,
-            beaming_alg='none', antialiasing=True,
+            boosting_alg='none', antialiasing=True,
             size=800, ax=None, savefig=False, nr=0, zorder=1, dpi=80,
             fourier=False, with_partial_as_half=True, coords='cartesian'):
     """
@@ -306,7 +306,7 @@ def image(the_system, ref='__bol', context='lcdep',
     # set the time.
     logger.info('Making image of dependable set {}: plotting {}'.format(ref, select))    
     try:
-        total_flux = the_system.projected_intensity(ref=ref,beaming_alg=beaming_alg,
+        total_flux = the_system.projected_intensity(ref=ref,boosting_alg=boosting_alg,
                                       with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
@@ -2314,15 +2314,15 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     # Set the time of the system: this will put everything in the right place,
     # and compute the necessary physical quantities.
-    system.set_time(time, ref=ref, beaming_alg=beaming)
+    system.set_time(time, ref=ref, boosting_alg=beaming)
     
     # Compute intensities: it is possible that this is already taken care of
     # in set_time. It doesn't hurt to do it again, but this might be optimized.
     if circular and (not beaming == 'full') and not ref in system.__had_refs:
-        system.intensity(ref=ref, beaming_alg=beaming)
+        system.intensity(ref=ref, boosting_alg=beaming)
         system.__had_refs.append(ref)
     elif (not circular) or (beaming == 'full'):
-        system.intensity(ref=ref, beaming_alg=beaming)
+        system.intensity(ref=ref, boosting_alg=beaming)
     
     # Compute pblum
     if i == 0:
@@ -2340,7 +2340,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     # Recompute the intensities, temperatures might have changed due to
     # reflection)
     if update_intensity:
-        system.intensity(ref=ref, beaming_alg=beaming)
+        system.intensity(ref=ref, boosting_alg=beaming)
     
     # Detect eclipses/horizon, and remember the algorithm that was chosen. It
     # will be re-used after subdivision
@@ -2365,7 +2365,7 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
         logger.info('Calling {} for ref {}'.format(itype[:-3], iref))
         getattr(system, itype[:-3])(ref=iref, time=time,
                                     correct_oversampling=isamp,
-                                    beaming_alg=beaming,
+                                    boosting_alg=beaming,
                                     save_result=save_result)
 
     # Call extra funcs if necessary
@@ -2422,7 +2422,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
       subdiv_alg edge   --   phoebe Subdivision algorithm
       subdiv_num 3      --   phoebe Number of subdivisions
      eclipse_alg auto   --   phoebe Type of eclipse algorithm
-     beaming_alg full   --   phoebe Type of beaming algorithm
+     boosting_alg full   --   phoebe Type of beaming algorithm
 
     But for convenience, all parameters in this parameterSet can also be
     given as keyword arguments (kwargs).
@@ -2649,7 +2649,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     reflect = params['refl']
     nreflect = params['refl_num']
     ltt = params['ltt']
-    beaming = params['beaming_alg']
+    beaming = params['boosting_alg']
     mesh_scale = params['mesh_rescale']
     
     # Heating and reflection are by default switched on. However, if there are

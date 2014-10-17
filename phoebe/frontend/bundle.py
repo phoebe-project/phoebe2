@@ -47,7 +47,7 @@ excluded so if you try this, you'll see more parameters)
                 ltt False         --   Correct for light time travel effects       
          subdiv_num 3             --   Number of subdivisions                      
         eclipse_alg binary        --   Type of eclipse algorithm                   
-        beaming_alg none          --   Type of beaming algorithm                   
+       boosting_alg none          --   Type of beaming algorithm                   
     irradiation_alg point_source  --   Type of irradiation algorithm
 
 The irradiation algorithm and reflection iterations will be adjust to match the
