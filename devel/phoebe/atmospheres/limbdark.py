@@ -881,7 +881,7 @@ def disk_power(coeffs):
 
 
 def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun'),
-                        beaming=False):
+                        boosting=False):
     """
     Retrieve all gridpoints from a specific intensity grid or LD coeffs file.
     
@@ -897,7 +897,7 @@ def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun'),
     if not isinstance(atm, str):
         atm = choose_ld_coeffs_table(atm['atm'], ld_func=atm['ld_func'],
                                atm_kwargs={key:[] for key in atm_pars},
-                               vgamma=0.0 if not beaming else 1.0)
+                               vgamma=0.0 if not boosting else 1.0)
     
     # Now open the file and go
     with pyfits.open(atm) as ff:
@@ -921,7 +921,7 @@ def get_grid_dimensions(atm, atm_pars=('teff', 'logg', 'abun'),
 
 
 def get_passbands(atm, atm_pars=('teff', 'logg', 'abun'),
-                        beaming=False):
+                        boosting=False):
     """
     Retrieve all passbands from a LD coeffs file.
     
@@ -937,7 +937,7 @@ def get_passbands(atm, atm_pars=('teff', 'logg', 'abun'),
     if not isinstance(atm, str):
         atm = choose_ld_coeffs_table(atm['atm'], ld_func=atm['ld_func'],
                                atm_kwargs={key:[] for key in atm_pars},
-                               vgamma=0.0 if not beaming else 1.0)
+                               vgamma=0.0 if not boosting else 1.0)
     # Now open the file and go
     with pyfits.open(atm) as ff:
         passbands = [ext.header['EXTNAME'] for ext in ff[1:] if not ext.header['EXTNAME'][:4]=='_REF']
@@ -1000,7 +1000,7 @@ def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
     
     C{vgamma} is radial velocity: positive is redshift, negative is blueshift
     (m/s!). This shifts the spectrum and does a first order correction for
-    beaming effects:
+    boosting effects:
     
         1. First the spectrum :math:`F(\lambda)` is
            :py:func:`doppler shifted <phoebe.atmospheres.tools.doppler_shift>`
@@ -1082,7 +1082,7 @@ def get_specific_intensities(atm, atm_kwargs={}, red_kwargs={}, vgamma=0):
     if isinstance(atm, str):
         ff.close()
     
-    # Velocity shift for Doppler beaming if necessary
+    # Velocity shift for Doppler boosting if necessary
     if vgamma is not None and vgamma != 0:
         cc = constants.cc / 1000. #speed of light in km/s
         for i in range(len(mu)):
@@ -1392,7 +1392,7 @@ def choose_ld_coeffs_table(atm, atm_kwargs={}, red_kwargs={}, vgamma=0.,
             postfix.append('abun')
             
         # <-- insert reddening parameters here -->    
-        # Beaming: only if the velocity is not zero   
+        # boosting: only if the velocity is not zero   
         try:
             if vgamma != 0:
                 postfix.append('vgamma')
@@ -1797,7 +1797,7 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     Remarks:
     
         - reddening (C{red_kwargs}) is not implemented
-        - doppler beaming (C{vgamma}) is not implemented
+        - doppler boosting (C{vgamma}) is not implemented
     
     Compare with native `Phoebe` LD support:
     
@@ -2040,11 +2040,11 @@ def compute_grid_ld_coeffs_deprecated(atm_files,atm_pars=('teff', 'logg'),\
     disk which scale the fluxes in an absolute way).
     
     Boosting can be included in two ways, which can be easily combined if
-    necessary. The first method is the physically most precise: beaming is
+    necessary. The first method is the physically most precise: boosting is
     then included by shifting the SED according the radial velocity ``vgamma``,
     and then computing intensities and limb darkening coefficients (see
     :py:func:`get_limbdarkening`). The other way is to compute the (linear)
-    beaming factor :math:`\alpha_b` of an SED (:math:`(\lambda, F_\lambda)`) via
+    boosting factor :math:`\alpha_b` of an SED (:math:`(\lambda, F_\lambda)`) via
     (set :envvar:`add_boosting_factor` to ``True``):
     
     .. math::
@@ -2072,7 +2072,7 @@ def compute_grid_ld_coeffs_deprecated(atm_files,atm_pars=('teff', 'logg'),\
     do is use the :py:func:`black body <phoebe.atmospheres.sed.blackbody>`
     approximation. Then you have no choice in interpolation parameters (i.e.
     the only free parameter is effective temperature), nor limb darkening law
-    (uniform), but you can add reddening or beaming:
+    (uniform), but you can add reddening or boosting:
     
     **Black body examples**
     
@@ -2085,7 +2085,7 @@ def compute_grid_ld_coeffs_deprecated(atm_files,atm_pars=('teff', 'logg'),\
     
         >>> compute_grid_ld_coeffs('blackbody')
         
-    Case 1: black body with beaming
+    Case 1: black body with boosting
     
         >>> vgamma = np.linspace(-500, 500, 21) # km/s
         >>> compute_grid_ld_coeffs('blackbody', vgamma=vgamma)
@@ -2134,7 +2134,7 @@ def compute_grid_ld_coeffs_deprecated(atm_files,atm_pars=('teff', 'logg'),\
         >>> atm_file = 'kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits'
         >>> compute_grid_ld_coeffs(atm_file, passbands=['2MASS.J'])
     
-    **Case 3**: Like Case 1, but with Doppler beaming included:
+    **Case 3**: Like Case 1, but with Doppler boosting included:
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
         >>> compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
@@ -2197,7 +2197,7 @@ def compute_grid_ld_coeffs_deprecated(atm_files,atm_pars=('teff', 'logg'),\
      be fixed. The keys are the names of the parameters, the values the
      corresponding fixed values.
     @type red_pars_fixed: dictionary
-    @param vgamma: list of values to use for Doppler beaming (i.e. velocity in
+    @param vgamma: list of values to use for Doppler boosting (i.e. velocity in
      km/s)
     @type vgamma: list of floats
     @param passbands: list of passbands to include. You are allowed to use
@@ -2935,16 +2935,16 @@ def local_intensity(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     Small but perhaps important note: we do not take reddening into account
     for OPEN.BOL calculations, if the reddening is interstellar.
     
-    Beaming options:
+    boosting options:
     
-        - :envvar:`beaming_al='full'`: intensity and limb darkening coefficients
+        - :envvar:`boosting_alg='full'`: intensity and limb darkening coefficients
           are corrected for local velocity
-        - :envvar:`beaming_al='local'`: local linear beaming coefficient is added
+        - :envvar:`boosting_alg='local'`: local linear boosting coefficient is added
           to the mesh
-        - :envvar:`beaming_al='simple': global linear beaming coefficients is added
+        - :envvar:`boosting_alg='simple': global linear boosting coefficients is added
           to the mesh
-        - :envvar:`beaming_al='none'` or beaming parameter evaluates to False:
-          beaming is not taken into account
+        - :envvar:`boosting_alg='none'` or boosting parameter evaluates to False:
+          boosting is not taken into account
     """
     # Get the arguments we need concerning normal emergent intensities (atm),
     # LD coefficients and the LD function.
@@ -2956,9 +2956,9 @@ def local_intensity(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     # take the bolometric passband
     passband = parset_pbdep.get('passband', 'OPEN.BOL')
     
-    # Doppler beaming: include it if there is such a keyword and it is turned on
+    # Doppler boosting: include it if there is such a keyword and it is turned on
     # and the algorithm is "full"
-    include_vgamma = parset_pbdep.get('beaming', False)
+    include_vgamma = parset_pbdep.get('boosting', False)
     if not boosting_alg == 'full':
         include_vgamma = False
     
@@ -3188,16 +3188,16 @@ def ld_intensity_prsa(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     Small but perhaps important note: we do not take reddening into account
     for OPEN.BOL calculations, if the reddening is interstellar.
     
-    Beaming options:
+    boosting options:
     
-        - :envvar:`beaming_al='full'`: intensity and limb darkening coefficients
+        - :envvar:`boosting_alg='full'`: intensity and limb darkening coefficients
           are corrected for local velocity
-        - :envvar:`beaming_al='local'`: local linear beaming coefficient is added
+        - :envvar:`boosting_alg='local'`: local linear boosting coefficient is added
           to the mesh
-        - :envvar:`beaming_al='simple': global linear beaming coefficients is added
+        - :envvar:`boosting_alg='simple': global linear boosting coefficients is added
           to the mesh
-        - :envvar:`beaming_al='none'` or beaming parameter evaluates to False:
-          beaming is not taken into account
+        - :envvar:`boosting_alg='none'` or boosting parameter evaluates to False:
+          boosting is not taken into account
     """
     # Get the arguments we need concerning normal emergent intensities (atm),
     # LD coefficients and the LD function.
@@ -3209,9 +3209,9 @@ def ld_intensity_prsa(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     # take the bolometric passband
     passband = parset_pbdep.get('passband', 'OPEN.BOL')
     
-    # Doppler beaming: include it if there is such a keyword and it is turned on
+    # Doppler boosting: include it if there is such a keyword and it is turned on
     # and the algorithm is "full"
-    include_vgamma = parset_pbdep.get('beaming', False)
+    include_vgamma = parset_pbdep.get('boosting', False)
     if not boosting_alg == 'full':
         include_vgamma = False
     

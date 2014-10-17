@@ -47,7 +47,7 @@ excluded so if you try this, you'll see more parameters)
                 ltt False         --   Correct for light time travel effects       
          subdiv_num 3             --   Number of subdivisions                      
         eclipse_alg binary        --   Type of eclipse algorithm                   
-       boosting_alg none          --   Type of beaming algorithm                   
+       boosting_alg none          --   Type of boosting algorithm                   
     irradiation_alg point_source  --   Type of irradiation algorithm
 
 The irradiation algorithm and reflection iterations will be adjust to match the
@@ -1703,7 +1703,7 @@ class Bundle(Container):
                       flux=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, beaming=None,
+                      pblum=None, l3=None, alb=None, boosting=None,
                       scattering=None, method=None):
         """
         Create and attach light curve templates to compute the model.
@@ -1783,7 +1783,7 @@ class Bundle(Container):
     def lc_fromfile(self, filename, objref=None, dataref=None, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, beaming=None, scattering=None,
+                      l3=None, alb=None, boosting=None, scattering=None,
                       method=None):
         """
         Add a lightcurve from a file.
@@ -1868,7 +1868,7 @@ class Bundle(Container):
                       flux=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, beaming=None,
+                      pblum=None, l3=None, alb=None, boosting=None,
                       scattering=None, method=None):
         """
         Duplicate an existing light curve to a new one with a different dataref.
@@ -1906,7 +1906,7 @@ class Bundle(Container):
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       method=None, atm=None, ld_func=None, ld_coeffs=None,
-                      passband=None, pblum=None, l3=None, alb=None, beaming=None,
+                      passband=None, pblum=None, l3=None, alb=None, boosting=None,
                       scattering=None):
         """
         Create and attach radial velocity curve templates to compute the model.
@@ -2004,7 +2004,7 @@ class Bundle(Container):
     def rv_fromfile(self, filename, objref=None, dataref=None, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, beaming=None, scattering=None,
+                      l3=None, alb=None, boosting=None, scattering=None,
                       method=None):
         """
         Add a radial velocity curve from a file.
@@ -2087,7 +2087,7 @@ class Bundle(Container):
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, beaming=None,
+                      pblum=None, l3=None, alb=None, boosting=None,
                       scattering=None):
         """
         Duplicate an existing radial velocity curve to a new one with a different dataref.
@@ -2421,7 +2421,7 @@ class Bundle(Container):
                       vgamma_offset=None, profile=None, R=None, vmicro=None,
                       depth=None, atm=None, ld_func=None, ld_coeffs=None,
                       passband=None, pblum=None, l3=None, alb=None,
-                      beaming=None):
+                      boosting=None):
         """
         Create and attach spectral templates to compute the model.
         
@@ -2505,7 +2505,7 @@ class Bundle(Container):
                       R_input=None, vmacro=None, vmicro=None, depth=None,
                       profile=None, alphaT=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, beaming=None, scattering=None):
+                      l3=None, alb=None, boosting=None, scattering=None):
         """
         Add spectral templates from a file.
         
@@ -2542,7 +2542,7 @@ class Bundle(Container):
                       vgamma_offset=None, profile=None, R=None, vmicro=None,
                       depth=None, atm=None, ld_func=None, ld_coeffs=None,
                       passband=None, pblum=None, l3=None, alb=None,
-                      beaming=None):
+                      boosting=None):
         """
         Create and attach spectrapolarimetry templates to compute the model.
         
@@ -2566,7 +2566,7 @@ class Bundle(Container):
                     atm=None, ld_func=None, ld_coeffs=None, passband=None,
                     pblum=None, l3=None, bandwidth_smearing=None,
                     bandwidth_subdiv=None,  alb=None,
-                    beaming=None, scattering=None):
+                    boosting=None, scattering=None):
         """
         Add interferometry data from an OIFITS file.
         
@@ -2641,7 +2641,7 @@ class Bundle(Container):
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
                       pblum=None, l3=None, bandwidth_smearing=None,
-                      bandwidth_subdiv=None,alb=None, beaming=None,
+                      bandwidth_subdiv=None,alb=None, boosting=None,
                       scattering=None):
         """
         Create and attach light curve templates to compute the model.
@@ -2717,7 +2717,7 @@ class Bundle(Container):
                     atm=None, ld_func=None, ld_coeffs=None, passband=None,
                     pblum=None, l3=None, bandwidth_smearing=None,
                     bandwidth_subdiv=None,  alb=None,
-                    beaming=None, scattering=None):
+                    boosting=None, scattering=None):
         """
         Duplicate an existing interferometry set to a new one with a different dataref.
                 
@@ -6174,13 +6174,13 @@ class Bundle(Container):
         for atm_type, ld_coeff in zip(atm_types, ld_coeffs):
             ld_coeff.set_value(atm_type)
     
-    def set_beaming(self, on=True):
+    def set_boosting(self, on=True):
         """
         Include/exclude the boosting effect.
         
         [FUTURE]
         """
-        self.set_value('beaming', on, apply_to='all')
+        self.set_value('boosting', on, apply_to='all')
         
     def set_ltt(self, on=True):
         """

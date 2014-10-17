@@ -116,7 +116,7 @@ def doppler_shift(wave,vrad,vrad_units='km/s',flux=None):
         return wave_out
 
 
-def beaming():
+def boosting():
     pass
 
 

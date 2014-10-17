@@ -44,18 +44,18 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     disk which scale the fluxes in an absolute way).
     
     Boosting can be included in two ways, which can be easily combined if
-    necessary. The first method is the physically most precise: beaming is
+    necessary. The first method is the physically most precise: boosting is
     then included by shifting the SED according the radial velocity ``vgamma``,
     and then computing intensities and limb darkening coefficients (see
     :py:func:`get_specific_intensities() <phoebe.atmospheres.limbdark.get_specific_intensities>`).
-    The other way is to compute the (linear) beaming factor :math:`\alpha_b` of
+    The other way is to compute the (linear) boosting factor :math:`\alpha_b` of
     an SED (:math:`(\lambda, F_\lambda)`) via:
     
     .. math::
             
         \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda}\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
     
-    Then the beaming amplitude in the passband :math:`P` can be computed as:
+    Then the boosting amplitude in the passband :math:`P` can be computed as:
     
     .. math::
     
@@ -82,7 +82,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     do is use the :py:func:`black body <phoebe.atmospheres.sed.blackbody>`
     approximation. Then you have no choice in interpolation parameters (i.e.
     the only free parameter is effective temperature), nor limb darkening law
-    (uniform), but you can add reddening or beaming:
+    (uniform), but you can add reddening or boosting:
     
     **Black body examples**
     
@@ -96,7 +96,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
         >>> compute_grid_ld_coeffs('blackbody')
         
-    Case 1: black body with beaming
+    Case 1: black body with boosting
     
         >>> vgamma = np.linspace(-500, 500, 21) # km/s
         >>> compute_grid_ld_coeffs('blackbody', vgamma=vgamma)
@@ -145,7 +145,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
         >>> atm_file = 'kurucz_p00_claret_equidist_r_leastsq_teff_logg.fits'
         >>> compute_grid_ld_coeffs(atm_file, passbands=['2MASS.J'])
     
-    **Case 3**: Like Case 1, but with Doppler beaming included:
+    **Case 3**: Like Case 1, but with Doppler boosting included:
     
         >>> atm_files = ['spec_intens/kurucz_mu_ip00k2.fits']
         >>> compute_grid_ld_coeffs(atm_files, atm_pars=('teff','logg'),
@@ -208,7 +208,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
      be fixed. The keys are the names of the parameters, the values the
      corresponding fixed values.
     @type red_pars_fixed: dictionary
-    @param vgamma: list of values to use for Doppler beaming (i.e. velocity in
+    @param vgamma: list of values to use for Doppler boosting (i.e. velocity in
      km/s)
     @type vgamma: list of floats
     @param passbands: list of passbands to include. You are allowed to use
@@ -605,7 +605,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
                                                limb_zero=limb_zero,
                                                debug_plot=(i+1 if debug_plot else False))
                     # Compute disk integrated value: this seems better than the
-                    # thing attempted above during beaming calculations
+                    # thing attempted above during boosting calculations
                     if 'disk_{}'.format(law) in globals():
                         disk_integrateds[i] = globals()['disk_{}'.format(law)](csol)*Imu[0,i]
                     to_append = list(val) + [extra[i], disk_integrateds[i]] + \

@@ -1,8 +1,8 @@
 """
-KPD1946+4340 (beaming)
+KPD1946+4340 (boosting)
 ==================================
 
-Compute the light curve of a beaming binary, with and without beaming.
+Compute the light curve of a boosting binary, with and without boosting.
 
 This example is only a crude approximation, we use no dedicated WD or sdB
 atmosphere grids but approximate with a blackbody.
@@ -28,24 +28,24 @@ logger = phoebe.get_basic_logger()
 
 # Create the system: we'll use black bodies to compute the light curves just
 # in case the Kurucz grid does not cover a wide enough parameter space.
-# First the case with doppler beaming:
+# First the case with doppler boosting:
 comp1, comp2, orbit = create.from_library('KPD1946+4340_bis')
 mesh = phoebe.PS('mesh:marching')
 lcdep1 = phoebe.PS('lcdep', atm=comp1['atm'], ld_coeffs=comp1['ld_coeffs'],
-                  ld_func=comp1['ld_func'], passband='KEPLER.V', beaming=True)
+                  ld_func=comp1['ld_func'], passband='KEPLER.V', boosting=True)
 lcdep2 = phoebe.PS('lcdep', atm=comp2['atm'], ld_coeffs=comp2['ld_coeffs'],
-                  ld_func=comp2['ld_func'], passband='KEPLER.V', beaming=True)
+                  ld_func=comp2['ld_func'], passband='KEPLER.V', boosting=True)
 
 star1 = phoebe.BinaryRocheStar(comp1, mesh=mesh, orbit=orbit, pbdep=[lcdep1])
 star2 = phoebe.BinaryRocheStar(comp2, mesh=mesh, orbit=orbit, pbdep=[lcdep2])
 system1 = phoebe.BodyBag([star1, star2])
 
-# Then without doppler beaming:
+# Then without doppler boosting:
 comp1, comp2, orbit = create.from_library('KPD1946+4340_bis')
 lcdep1 = phoebe.PS('lcdep', atm=comp1['atm'], ld_coeffs=comp1['ld_coeffs'],
-                  ld_func=comp1['ld_func'], passband='KEPLER.V', beaming=False)
+                  ld_func=comp1['ld_func'], passband='KEPLER.V', boosting=False)
 lcdep2 = phoebe.PS('lcdep', atm=comp2['atm'], ld_coeffs=comp2['ld_coeffs'],
-                  ld_func=comp2['ld_func'], passband='KEPLER.V', beaming=False)
+                  ld_func=comp2['ld_func'], passband='KEPLER.V', boosting=False)
 star1 = phoebe.BinaryRocheStar(comp1, mesh=mesh, orbit=orbit, pbdep=[lcdep1])
 star2 = phoebe.BinaryRocheStar(comp2, mesh=mesh, orbit=orbit, pbdep=[lcdep2])
 system2 = phoebe.BodyBag([star1, star2])
@@ -75,23 +75,23 @@ flux2 = np.array(lc2['flux'])
 
 plt.figure()
 norm = flux1.mean()
-plt.plot(times1,flux1/norm,'r-',lw=2,label='With beaming')
-plt.plot(times2,flux2/norm,'k-',lw=2,label='Without beaming')
+plt.plot(times1,flux1/norm,'r-',lw=2,label='With boosting')
+plt.plot(times2,flux2/norm,'k-',lw=2,label='Without boosting')
 plt.xlabel('Time [JD]')
 plt.ylabel('Flux [erg/s/cm2/AA]')
 plt.legend(loc='best')
 plt.grid()
-plt.savefig('KPD1946_beaming.png')
+plt.savefig('KPD1946_boosting.png')
 plt.gcf().frameon = False
-plt.savefig('KPD1946_beaming.pdf')
+plt.savefig('KPD1946_boosting.pdf')
 
 """
 
-.. figure:: images_tut/KPD1946_beaming.png
+.. figure:: images_tut/KPD1946_boosting.png
    :scale: 75 %
    :align: center
    :alt: map to buried treasure
 
-   Light curve of KPD1946+4340 with and without doppler beaming.
+   Light curve of KPD1946+4340 with and without doppler boosting.
    
 """

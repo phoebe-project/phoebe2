@@ -14,9 +14,9 @@ def test_oversampling():
     #print bundle1
     assert(np.allclose(b1dat['time'][0],0.))
 
-def test_beaming():
+def test_boosting():
     """
-    Beaming: amplitude match
+    Boosting: amplitude match
     """
     phases = [0.75]
     bundle1 = phoebe.Bundle('KPD1946+4340')
@@ -38,4 +38,4 @@ def test_beaming():
 if __name__ == "__main__":
     logger = phoebe.get_basic_logger()
     test_oversampling()
-    test_beaming()
+    test_boosting()

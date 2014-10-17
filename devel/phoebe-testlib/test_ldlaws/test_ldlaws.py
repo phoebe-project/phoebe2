@@ -10,9 +10,9 @@ def do_ldlaw(atm='kurucz', ld_func='linear', ld_coeffs=None):
         ld_coeffs = atm
     star = phoebe.PS('star', atm=atm, ld_coeffs=ld_coeffs, ld_func=ld_func, shape='sphere')
     mesh = phoebe.PS('mesh:marching', delta=0.07)
-    lcdep1 = phoebe.PS('lcdep', passband='OPEN.BOL', atm=atm, beaming=False,
+    lcdep1 = phoebe.PS('lcdep', passband='OPEN.BOL', atm=atm, boosting=False,
                     ld_coeffs=ld_coeffs, ld_func=ld_func, ref='bol')
-    lcdep2 = phoebe.PS('lcdep', passband='JOHNSON.V', atm=atm, beaming=False,
+    lcdep2 = phoebe.PS('lcdep', passband='JOHNSON.V', atm=atm, boosting=False,
                     ld_coeffs=ld_coeffs, ld_func=ld_func, ref='visual')
     
     globals = phoebe.ParameterSet(context='position')

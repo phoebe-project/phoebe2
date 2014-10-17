@@ -348,10 +348,10 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         2. Correction for interstellar reddening if the passband is not bolometric
         3. Scattering phase functions
         
-    Additionally, we can take **beaming** into account if we're using the linear
+    Additionally, we can take **boosting** into account if we're using the linear
     approximation (:envvar:`boosting_alg='local'` or :envvar:`boosting_alg='simple'`).
     In that case the (local) intensity :math:`I` is adjusted to :math:`I_b` to
-    include beaming effects with a beaming amplitude :math:`A_b` as follows:
+    include boosting effects with a boosting amplitude :math:`A_b` as follows:
     
     .. math::
     
@@ -364,7 +364,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
         A_b = 1 + \alpha_b \frac{v(z)}{c}
         
     where :math:v(z) is the radial velocity of the surface element and :math:`\alpha_b`
-    is the beaming factor, computed in :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>` (see the link for more info):
+    is the boosting factor, computed in :py:func:`compute_grid_ld_coeffs <phoebe.atmospheres.create_atmospherefits.compute_grid_ld_coeffs>` (see the link for more info):
     
     .. math::
             
@@ -422,7 +422,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
             Imu = limbdark.ld_intensity_prsa(system, idep)
         
         
-        # Do the beaming correction
+        # Do the boosting correction
         if boosting_alg == 'simple' or boosting_alg == 'local':
             # Retrieve beming factor
             alpha_b = vis_mesh['alpha_b_' + ref]
@@ -5116,7 +5116,7 @@ class PhysicalBody(Body):
         Prepare the mesh to handle reflection from an other body.
         
         We only need one extra column with the incoming flux divided by pi
-        to account for isotropic scattering. Doppler beaming and such should
+        to account for isotropic scattering. Doppler boosting and such should
         be taken into account in the reflection algorithm. In the isotropic case,
         reflections is aspect indepedent.
         
@@ -5142,9 +5142,9 @@ class PhysicalBody(Body):
                 logger.info('Emptied reflection column {}'.format(iref))
                     
     @decorators.parse_ref
-    def prepare_beaming(self,ref=None):
+    def prepare_boosting(self,ref=None):
         """
-        Prepare the mesh to handle beaming.
+        Prepare the mesh to handle boosting.
         """
         for iref in ref:
             field = 'alpha_b_{}'.format(iref)
@@ -8576,12 +8576,12 @@ class BinaryRocheStar(PhysicalBody):
         We can speed this up if we compute the local intensity first, keep track of the limb darkening
         coefficients and evaluate for different angles. Then we only have to do a table lookup once.
         
-        Beaming correction (this is done in limbdark.local_intensity):
+        boosting correction (this is done in limbdark.local_intensity):
         
-            - ``boosting_alg='none'``: no beaming correction (possibly taken into account by local_intensity)
-            - ``boosting_alg='full'``: no beaming correction (possibly taken into account by local_intensity)
-            - ``boosting_alg='local'``: local beaming correction (no limb darkening correction)
-            - ``boosting_alg='simple'``: uniform beaming correction
+            - ``boosting_alg='none'``: no boosting correction (possibly taken into account by local_intensity)
+            - ``boosting_alg='full'``: no boosting correction (possibly taken into account by local_intensity)
+            - ``boosting_alg='local'``: local boosting correction (no limb darkening correction)
+            - ``boosting_alg='simple'``: uniform boosting correction
         
         
         """

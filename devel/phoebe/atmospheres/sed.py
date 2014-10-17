@@ -94,7 +94,7 @@ def blackbody(wl,T,vrad=0):
        :scale: 75 %
        :align: center
 
-    Doppler beaming can be taken into account by giving a radial velocity of 
+    Doppler boosting can be taken into account by giving a radial velocity of 
     star star. In that case:
     
     .. math::
@@ -111,13 +111,13 @@ def blackbody(wl,T,vrad=0):
     >>> f2 = blackbody(wl,T,vrad=-vrad)
     
     >>> p = plt.figure()
-    >>> p = plt.title('Doppler beaming')
+    >>> p = plt.title('Doppler boosting')
     >>> p = plt.plot(wl,f0,'k-')
     >>> p = plt.plot(wl,f1,'r-')
     >>> p = plt.plot(wl,f2,'b-')
     
     >>> p = plt.figure()
-    >>> p = plt.title('Doppler beaming (normalised to maximum flux)')
+    >>> p = plt.title('Doppler boosting (normalised to maximum flux)')
     >>> p = plt.plot(wl,f0/f0.max(),'k-')
     >>> p = plt.plot(wl,f1/f1.max(),'r-')
     >>> p = plt.plot(wl,f2/f2.max(),'b-')
@@ -132,7 +132,7 @@ def blackbody(wl,T,vrad=0):
     >>> p = plt.plot(wl,g2,'b-')
     
     +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
-    | Doppler beaming                                             | Doppler beaming (normalised)                                | Doppler shift                                               |
+    | Doppler boosting                                            | Doppler boosting (normalised)                                | Doppler shift                                              |
     +-------------------------------------------------------------+-------------------------------------------------------------+-------------------------------------------------------------+
     | .. image:: images/atmospheres_sed_blackbody_beaming01.png   | .. image:: images/atmospheres_sed_blackbody_beaming02.png   | .. image:: images/atmospheres_sed_blackbody_beaming03.png   |
     |    :align: center                                           |    :align: center                                           |    :align: center                                           |

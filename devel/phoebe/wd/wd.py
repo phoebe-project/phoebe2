@@ -602,8 +602,8 @@ def wd_to_phoebe(ps_wd,lc,rv,ignore_errors=True):
     #-- limb darkening laws need manual tweaking
     lcdep1['ld_coeffs'] = [lc['ld_lcx1'],lc['ld_lcy1']]
     lcdep2['ld_coeffs'] = [lc['ld_lcx2'],lc['ld_lcy2']]
-    lcdep1['beaming'] = False
-    lcdep2['beaming'] = False
+    lcdep1['boosting'] = False
+    lcdep2['boosting'] = False
     rvdep1['ld_coeffs'] = [rv['ld_rvx1'],rv['ld_rvy1']]
     rvdep2['ld_coeffs'] = [rv['ld_rvx2'],rv['ld_rvy2']]
     
