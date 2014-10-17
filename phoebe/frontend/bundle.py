@@ -3433,7 +3433,10 @@ class Bundle(Container):
         mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
         if mpilabel in [None, 'None', '']:
             mpioptions = None
-        mpioptions = self.get_mpi(mpilabel).copy()
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
+        else:
+            mpioptions = self.get_mpi(mpilabel).copy()
         
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
