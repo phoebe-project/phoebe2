@@ -453,10 +453,11 @@ class Bundle(Container):
         
         # Next we'll set the system, which will parse the string sent
         # to init and will handle attaching all necessary signals
-        if system is not None:
+        #~ if system is not None:
             # then for now (even though its hacky), we'll initialize
             # everything by setting the default first
-            self.set_system()
+            #~ self.set_system()
+        self.system = None
         self.set_system(system, remove_dataref=remove_dataref)
         
         # Lastly, make sure all atmosphere tables are registered
@@ -721,12 +722,16 @@ class Bundle(Container):
                         self.sections = contents.sections.copy()
                
                 else:
+                    if self.system is None:
+                        self.set_system() # here we'll have to initialize first
                     self._load_json(system)
                     file_type = 'json'                    
 
             else:
                 try:
                 #~ if True:
+                    if self.system is None:
+                        self.set_system() # here we'll have to initialize first
                     self._from_dict(system)
                 except:
                     # As a last resort, we pass it on to 'body_from_string' in the
@@ -4599,6 +4604,7 @@ class Bundle(Container):
         we need to be careful about weird behavior here, or maybe we need to 
         be more clever and try to find (one of?) its parent axes if the plot_ps is already attached
         """
+        logger.info('drawing {}'.format(plotref))
         plkwargs = {k:v for k,v in self.get_plot(plotref).items() if v is not ''}
         
         if ax is None:
