@@ -206,13 +206,13 @@ class GenericBody(object):
     """
     Automatically build the right body from the input.
     
-    Try to derive which is Body needs to be instantiated from the given set of
-    arguments, and return it.
+    Try to derive which Body needs to be instantiated from the given 
+    set of arguments, and return it.
     
-    This class tries to be a smart as possible, and should return useful
-    information if no body can be created:
+    This class tries to be as smart as possible, and should return 
+    useful information if no body can be created:
     
-        - the list of arguments could be not unique. Then, the list of ambiguous
+        - the list of arguments could be non-unique. Then, the list of ambiguous
           bodies will be returned, and you are required to create them explicitly
         - the list of arguments is not enough to create any Body: the closest
           match will be returned, stating which arguments were given, which are

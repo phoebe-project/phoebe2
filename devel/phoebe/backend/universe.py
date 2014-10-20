@@ -7261,7 +7261,7 @@ class Star(PhysicalBody):
             gravblaw = 'zeipel'
             
         # Compute the temperature
-        getattr(roche,'temperature_{}'.format(gravblaw))(self)
+        getattr(roche, 'temperature_{}'.format(gravblaw))(self)
         
         # Perhaps we want to add spots.
         self.add_spots(time)
@@ -7578,31 +7578,37 @@ class Star(PhysicalBody):
         self.params['star'].add_constraint('{{g_pole}} = {0:.16g}'.format(g_pole))
         self.params['star'].add_constraint('{{Omega_rot}} = {0:.16g}'.format(Omega))
         
-        #-- check for sphere-approximation
+        # Set subdivision parameters for the rotating Roche equipotential:
         diffrot = 0.
         surface = 'RotateRoche'
         self.subdivision['mesh_args'] = surface, Omega, 1.0, r_pole_sol
+
+        # If the star is set to be spherical, define Omega=0:
         if self.params['star']['shape']=='sphere':
             Omega = 0.
             self.subdivision['mesh_args'] = surface, Omega, 1.0, r_pole_sol
             logger.info("using non-rotating surface approximation")
-        #-- check for the presence of differential rotation
-        elif 'diffrot' in self.params['star'] and self.params['star']['diffrot']!=0:
-            #-- retrieve equatorial rotation period and convert to angular
-            #   frequency
+
+        # Differential rotation:
+        elif 'diffrot' in self.params['star'] and self.params['star']['diffrot'] != 0:
+            # Convert differential rotation factor into angular velocity:
             diffrot = self.params['star'].get_value('diffrot','s')
             Period_eq = diffrot + self.params['star'].request_value('rotperiod','s')
             Omega_eq = 2*pi/Period_eq/Omega_crit
             logger.info('rotation frequency (eq) = %.6f Omega_crit'%(Omega_eq))
-            surface = 'DiffRotateRoche'
+
             #-- convert the rotation period values to the coefficients needed
             #   by the marching method
             b1 = Omega*0.54433105395181736
             b2 = roche.diffrotlaw_to_internal(Omega,Omega_eq)
             b3 = 0.
+
+            surface = 'DiffRotateRoche'
+
             #-- sanity check: remove these statements when tested enough.
-            r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), surface, b1,b2,b3,1.0).r[0]
-            assert(np.allclose(Omega_eq,(b1+b2*r0**2)/0.54433105395181736))
+            r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), surface, b1, b2, b3, 1.0).r[0]
+            assert(np.allclose(Omega_eq, (b1+b2*r0**2)/0.54433105395181736))
+
             self.subdivision['mesh_args'] = surface, b1, b2, b3, 1.0, r_pole_sol
         elif Omega >= 1:
             raise ValueError("Faster than critical rotation encountered, aborting. [w/wcrit={:.3f}%]".format(Omega*100.))
@@ -7764,6 +7770,7 @@ class Star(PhysicalBody):
                 self.add_pulsations(time)
             if has_magnetic_field:
                 self.magnetic_field()
+
             #-- compute intensity, rotate to the right position and set default
             #   visible/hidden stuff (i.e. assuming convex shape)
             self.rotate_and_translate(incl=inclin,Omega=longit,theta=Omega_rot,incremental=True)
