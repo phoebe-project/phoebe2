@@ -95,14 +95,16 @@ def image(the_system, ref='__bol', context='lcdep',
     
     You can make an image from basically any defined quantity in a mesh.
     
-    To make a true image, you need intensities. By default, he *bolometric*
-    intensities are used, but you can use the intensities from any observable,
-    if you pass the correct ``ref`` and ``context``. Bolometric ones are the 
-    default because this allows you to make an image of something for which no
+    To make a true image, you need intensities. By default, 
+    *bolometric* intensities are used, but you can use the 
+    intensities from any observable, if you pass the correct ``ref`` 
+    and ``context``. Bolometric intensities are the default because 
+    this allows you to make an image of something for which no 
     pbdeps are defined. 
     
-    All the default parameters are set to make a true flux image of the system,
-    in linear grayscale such that white=maximum flux and black=zero flux:
+    All the default parameters are set to make a true flux image of 
+    the system, in linear grayscale such that white=maximum flux and 
+    black=zero flux:
     
     >>> vega = phoebe.create.from_library('vega',create_body=True)
     >>> vega.set_time(0.)
