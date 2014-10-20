@@ -3009,6 +3009,8 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
     # Perhaps we don't want eclipsed
     if algorithm == 'none':
         return algorithm, False
+    elif not hasattr(all_systems, 'bodies'):
+        raise ValueError("eclipse algorithm must be 'none' for single object systems\nchange eclipse_alg in compute ParameterSet or as a keyword argument to compute")
     
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
