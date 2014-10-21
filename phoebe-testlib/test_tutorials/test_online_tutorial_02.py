@@ -54,7 +54,7 @@ def test_01():
     eb.disable_data('rv02')
     eb.enable_data('rv02')
      
-    eb.save('my_1st_binary.phoebe')
+    eb.save_pickle('my_1st_binary.phoebe')
     eb = phoebe.Bundle('my_1st_binary.phoebe')
     
     if __name__ == "__main__":

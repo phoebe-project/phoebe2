@@ -36,9 +36,11 @@ def test_json():
     assert(len(mybundle['time@mylc_time@lcobs@new_system'])==10)
     
 
-    mybundle.save('test_io.json')
+    #~ mybundle.save('test_io.json')
+    mybundle.save_pickle('test_io.pickle')
 
-    mybundle = phoebe.Bundle('test_io.json')
+    #~ mybundle = phoebe.Bundle('test_io.json')
+    mybundle = phoebe.Bundle('test_io.pickle')
     
     # make sure the non-standard PS was restored with the changed value
     assert(mybundle.get_value('passband@reddening') == 'JOHNSON.K')

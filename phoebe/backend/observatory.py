@@ -3008,12 +3008,14 @@ def choose_eclipse_algorithm(all_systems, algorithm='auto'):
         
         return algorithm, found_partial
     
+    if algorithm not in ['none', 'only_horizon'] and not hasattr(all_systems, 'bodies'):
+        logger.warning("eclipse algorithm is being ignored, using only_horizon for single object system")
+        algorithm = 'only_horizon'
+
     # Perhaps we don't want eclipsed
     if algorithm == 'none':
         return algorithm, False
-    elif not hasattr(all_systems, 'bodies'):
-        raise ValueError("eclipse algorithm must be 'none' for single object systems\nchange eclipse_alg in compute ParameterSet or as a keyword argument to compute")
-    
+
     # Perhaps we know there are no eclipses
     if algorithm == 'only_horizon':
         found_partial = eclipse.horizon_via_normal(all_systems)

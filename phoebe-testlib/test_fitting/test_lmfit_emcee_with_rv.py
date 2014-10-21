@@ -85,8 +85,11 @@ def test_fitting():
         mybundle.run_fitting(fittinglabel='leastsq', accept_feedback=False)
 
     # Run mcmc fitting first time
-    mpi = None if not run_as_main else parameters.ParameterSet('mpi', np=6)
-    mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
+    
+    mybundle.add_mpi(label='np6', np=6)
+    #~ mpi = None if not run_as_main else parameters.ParameterSet('mpi', np=6)
+    mpilabel = 'np6' if run_as_main else 'None'
+    mybundle.run_fitting(fittinglabel='mcmc', mpilabel=mpilabel)
     
     if not run_as_main:
         # Run fitting after resampling from posterior, but with a cutoff in lnproblim
@@ -95,16 +98,16 @@ def test_fitting():
         mybundle['init_from@mcmc@fitting'] = 'posterior'
         # Continue fitter
         mybundle['init_from@mcmc@fitting'] = 'previous_run'
-        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)    
+        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpilabel=mpilabel)    
     else:
         # Resample from posteriors with a lnproblim cutoff
         mybundle['mcmc@feedback'].modify_chain(lnproblim=-35)
         mybundle.accept_feedback('mcmc')
         mybundle['init_from@mcmc@fitting'] = 'posterior'
-        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
+        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpilabel=mpilabel)
         # Continue fitter (see what the acceptance fraction does)
         mybundle['init_from@mcmc@fitting'] = 'previous_run'
-        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpi=mpi)
+        feedback = mybundle.run_fitting(fittinglabel='mcmc', mpilabel=mpilabel)
         
     
 

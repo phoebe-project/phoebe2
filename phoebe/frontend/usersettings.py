@@ -14,7 +14,6 @@ from phoebe.backend import universe
 from phoebe.frontend.common import Container, rebuild_trunk
 from phoebe.frontend import phcompleter
 
-
 class Settings(Container):
     """
     Class representing settings for phoebe on a particular machine.
