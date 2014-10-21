@@ -47,7 +47,7 @@ excluded so if you try this, you'll see more parameters)
                 ltt False         --   Correct for light time travel effects       
          subdiv_num 3             --   Number of subdivisions                      
         eclipse_alg binary        --   Type of eclipse algorithm                   
-       boosting_alg none          --   Type of boosting algorithm                   
+        beaming_alg none          --   Type of beaming algorithm                   
     irradiation_alg point_source  --   Type of irradiation algorithm
 
 The irradiation algorithm and reflection iterations will be adjust to match the
@@ -84,11 +84,13 @@ from collections import OrderedDict
 from datetime import datetime
 from time import sleep
 import matplotlib.pyplot as plt
+from matplotlib import collections
 import copy
 import os
 import re
 import readline
 import json
+import marshal, types
 from phoebe.utils import callbacks, utils, plotlib, coordinates, config
 from phoebe.parameters import parameters
 from phoebe.parameters import definitions
@@ -96,123 +98,23 @@ from phoebe.parameters import datasets
 from phoebe.parameters import create
 from phoebe.parameters import tools
 from phoebe.parameters import feedback as mod_feedback
-from phoebe.backend import fitting, observatory, plotting
+from phoebe.backend import fitting, observatory
+from phoebe.backend import  plotting as beplotting
 from phoebe.backend import universe
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.io import parsers
 from phoebe.io import ascii
 from phoebe.dynamics import keplerorbit
-from phoebe.frontend.plotting import Axes, Figure
 from phoebe.frontend.usersettings import Settings
 from phoebe.frontend.common import Container, rebuild_trunk
-#~ from phoebe.frontend.figures import Axes
 from phoebe.units import conversions
 from phoebe.frontend import phcompleter
 from phoebe.frontend import stringreps
+from phoebe.frontend import plotting
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
-
-def run_on_server(fctn):
-    """
-    Parse usersettings to determine whether to run a function locally
-    or submit it to a server
-    
-    [FUTURE]
-    """
-    @functools.wraps(fctn)
-    def parse(bundle,*args,**kwargs):
-        """
-        Real parser.
-        """
-        # first we need to reconstruct the arguments passed to the original function
-        callargs = inspect.getcallargs(fctn,bundle,*args,**kwargs)
-        dump = callargs.pop('self')
-        callargstr = ','.join(["%s=%s" % (key, "\'%s\'" % callargs[key]\
-            if isinstance(callargs[key],str) else callargs[key]) for key in callargs.keys()])
-
-        # determine if the function is supposed to be run on a server
-        servername = kwargs['server'] if 'server' in kwargs.keys() else None
-
-        # is_server is a kwarg that will be True in the script running on a server
-        # itself - this just simply avoids the server resending to itself, without
-        # having to remove server from the kwargs
-        is_server = kwargs.pop('is_server',False)
-
-        # now, if this function is supposed to run on a server, let's prepare
-        # the script and files and submit the job.  Otherwise we'll just return
-        # with the original function as called.
-        if servername is not False and servername is not None and not is_server:
-            # first we need to retrieve the requested server using get_server
-            server =  bundle.get_server(servername)
-            
-            # servers can be local (only have mpi settings) - in these cases we
-            # don't need to submit a script, and the original function can handle
-            # retrieving and applying the mpi settings
-            if server.is_external():
-                
-                # now we know that we are being asked to run on an external server,
-                # so let's do a quick check to see if the server seems to be online
-                # and responding.  If it isn't we'll provide an error message and abort
-                if server.check_status():
-                    
-                    # The external server seems to be responding, so now we need to
-                    # prepare all files and the script to run on the server
-                    mount_dir = server.server_ps.get_value('mount_dir')
-                    server_dir = server.server_ps.get_value('server_dir')
-                    
-                    # Copy the bundle to the mounted directory, without removing
-                    # usersettings (so that the server can have access to everything)
-                    logger.info('copying bundle to {}'.format(mount_dir))
-                    timestr = str(datetime.now()).replace(' ','_')
-                    in_f = '%s.bundle.in.phoebe' % timestr
-                    out_f = '%s.bundle.out.phoebe' % timestr
-                    script_f = '%s.py' % timestr
-                    bundle.save(os.path.join(mount_dir,in_f),save_usersettings=True) # might have a problem here if threaded!!
-                    
-                    # Now we write a script file to the mounted directory which will
-                    # load the saved bundle file, call the original function with the
-                    # same arguments, and save the bundle to a new file
-                    #
-                    # we'll also provide some status updates so that we can see when
-                    # the script has started/failed/completed
-                    logger.info('creating script to run on {}'.format(servername))
-                    f = open(os.path.join(mount_dir,script_f),'w')
-                    f.write("#!/usr/bin/python\n")
-                    f.write("try:\n")
-                    f.write("\timport os\n")
-                    f.write("\tfrom phoebe.frontend.bundle import load\n")
-                    f.write("\tbundle = load('%s',load_usersettings=False)\n" % os.path.join(server_dir,in_f))
-                    f.write("\tbundle.%s(%s,is_server=True)\n" % (fctn.func_name, callargstr))
-                    f.write("\tbundle.save('%s')\n" % (os.path.join(server_dir,out_f)))
-                    f.write("except:\n")
-                    f.write("\tos.system(\"echo 'failed' > %s.status\")\n" % (script_f))
-                    f.close()
-                    
-                    # create job and submit
-                    logger.info('running script on {}'.format(servername))
-                    server.run_script_external(script_f)
-                    
-                    # lock the bundle and store information about the job
-                    # so it can be retrieved later
-                    # the bundle returned from the server will not have this lock - so we won't have to manually reset it
-                    bundle.lock = {'locked': True, 'server': servername, 'script': script_f, 'command': "bundle.%s(%s)\n" % (fctn.func_name, callargstr), 'files': [in_f, out_f, script_f], 'rfile': out_f}
-                                        
-                    return
-
-                else:
-                    logger.warning('{} server not available'.format(servername))
-                    return
-
-        # run locally by calling the original function
-        return fctn(bundle, *args, **kwargs)
-    
-    return parse
-    
-     
-    
-    
 
 class Bundle(Container):
     """
@@ -407,52 +309,26 @@ class Bundle(Container):
         self.sections['mpi'] = []
         self.sections['dataset'] = []
         self.sections['feedback'] = []
-        #~ self.sections['version'] = []
         self.sections['figure'] = []
         self.sections['axes'] = []
         self.sections['plot'] = []
-        #~ self.sections['meshview'] = [parameters.ParameterSet(context='plotting:mesh')] # only 1
-        #~ self.sections['orbitview'] = [parameters.ParameterSet(context='plotting:orbit')] # only 1
         
         self.current_axes = None
         self.current_figure = None
         self.currently_plotted = [] # this will hold (axesref, plotref) pairs of items already plotted on-the-fly
-        
-        # self.select_time controls at which time to draw the meshview and
-        # the 'selector' on axes (if enabled)
-        self.select_time = None
-        
-        # we need to keep track of all attached signals so that they can 
-        # be purged before pickling the bundle, and can be restored
-        self.signals = {}
-        self.attached_signals = []
-        self.attached_signals_system = [] #these will be purged when making copies of the system and can be restored through set_system
         
         # Now we load a copy of the usersettings into self.usersettings
         # Note that by default these will be removed from the bundle before
         # saving, and reimported when the bundle is loaded
         self.set_usersettings()
         
-        # self.lock simply keeps track of whether the bundle is waiting
-        # on a job to complete on a server.  If a lock is in place, it can
-        # manually be removed by self.server_cancel()
-        self.lock = {'locked': False, 'server': '', 'script': '', 'command': '', 'files': [], 'rfile': None}
-
         # Let's keep track of the filename whenever saving the bundle -
         # if self.save() is called without a filename but we have one in
         # memory, we'll try to save to that location.
         self.filename = None
         
-        # self.settings are bundle-level settings that control defaults
-        # for bundle functions.  These do not belong in either individual
-        # ParameterSets or the usersettings
-        self.settings = {}
-        self.settings['add_version_on_compute'] = False
-        self.settings['add_feedback_on_fitting'] = False
-        self.settings['update_mesh_on_select_time'] = False
-        
         # Next we'll set the system, which will parse the string sent
-        # to init and will handle attaching all necessary signals
+        # to init
         #~ if system is not None:
             # then for now (even though its hacky), we'll initialize
             # everything by setting the default first
@@ -564,14 +440,8 @@ class Bundle(Container):
         txt += "============ Other ============\n"
         if len(self._get_dict_of_section("fitting")):
             txt += "{} fitting options\n".format(len(self._get_dict_of_section("fitting")))
-        if len(self._get_dict_of_section("mpi")):
-            txt += "{} MPI options\n".format(len(self._get_dict_of_section("mpi")))
-        if len(self._get_dict_of_section("plot")):
-            txt += "{} plots\n".format(len(self._get_dict_of_section("plot")))
         if len(self._get_dict_of_section("axes")):
             txt += "{} axes\n".format(len(self._get_dict_of_section("axes")))
-        if len(self._get_dict_of_section("figure")):
-            txt += "{} figures\n".format(len(self._get_dict_of_section("figure")))
         txt += "============ System ============\n"
         txt += self.list(summary='full')
         
@@ -618,34 +488,6 @@ class Bundle(Container):
         @type basedir: str or None
         """
         self.get_usersettings().save()
-        
-    def restart_logger(self, label='default_logger', **kwargs):
-        """
-        [FUTURE]
-        
-        restart the logger
-        
-        any additional arguments passed will temporarily override the settings
-        in the stored logger.  These can include style, clevel, flevel, filename, filemode
-        
-        @param label: the label of the logger (will default if not provided)
-        @type label: str
-        """
-        
-        self.get_usersettings().restart_logger(label, **kwargs)
-        
-        
-            
-    def get_server(self, label=None):
-        """
-        Return a server by name
-        
-        [FUTURE]
-        
-        @param servername: name of the server
-        @type servername: string
-        """
-        return self._get_by_section(label,"server")
         
     #}    
     #{ System
@@ -722,16 +564,16 @@ class Bundle(Container):
                         self.sections = contents.sections.copy()
                
                 else:
-                    if self.system is None:
-                        self.set_system() # here we'll have to initialize first
+                    if not self.system:
+                        self.set_system()
                     self._load_json(system)
                     file_type = 'json'                    
 
             else:
                 try:
                 #~ if True:
-                    if self.system is None:
-                        self.set_system() # here we'll have to initialize first
+                    if not self.system:
+                        self.set_system()
                     self._from_dict(system)
                 except:
                     # As a last resort, we pass it on to 'body_from_string' in the
@@ -754,12 +596,6 @@ class Bundle(Container):
                 remove_dataref = None
             system.remove_ref(remove_dataref)
             
-        # initialize uptodate
-        #~ print system.get_label()
-        system.uptodate = False
-        
-        # connect signals
-        #self.attach_system_signals()
         self._build_trunk()
         
     def get_system(self):
@@ -814,7 +650,6 @@ class Bundle(Container):
         """
         return self.get_system().list(summary,*args)
     
-    
     def clear_syn(self):
         """
         Clear all synthetic datasets.
@@ -826,6 +661,8 @@ class Bundle(Container):
         
     def set_time(self, time=0.0, computelabel=None, **kwargs):
         """
+        [FUTURE]
+        
         Set the time of a system, taking compute options into account.
                 
         Any kwargs will be used to override parameters in the compute 
@@ -867,21 +704,7 @@ class Bundle(Container):
         computeoptions['samprate'] = [[0]]
         system.compute(mpi=mpioptions, **computeoptions)
                 
-    def get_uptodate(self):
-        """
-        Check whether the synthetic model is uptodate
         
-        If any parameters in the system have changed since the latest
-        run_compute this will return False.
-        If not, this will return the label of the latest compute options
-        
-        [FUTURE]
-        
-        @return: uptodate
-        @rtype: bool or str
-        """
-        return self.get_system().uptodate
-            
     #}
     #{ Parameters/ParameterSets
             
@@ -900,9 +723,6 @@ class Bundle(Container):
         
             \chi^2 = -2\log p
         """
-        
-        # Q <pieterdegroote>: should we check first for system.uptodate?
-        # Perhaps the run_compute didn't work out?
         
         if dataset is not None:
             # First disable/enabled correct datasets
@@ -1139,6 +959,7 @@ class Bundle(Container):
         # TODO: handle default if twig is None
         return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
         
+        
     def get_mesh(self, twig=None):
         """
         [FUTURE]
@@ -1153,8 +974,8 @@ class Bundle(Container):
         @rtype: np record array 
         """
         return self.get_object(twig=twig).get_mesh()
-
-
+        
+        
     def get_meshps(self, twig=None):
         """
         [FUTURE]
@@ -1283,6 +1104,71 @@ class Bundle(Container):
         # Initialize the mesh after adding stuff (i.e. add columns ld_new_ref...
         self.get_system().init_mesh()
         self._build_trunk()
+        
+    def write_fromfile(self, filename, outfilename, category='lc', objref=None, dataref=None,
+                          columns=None, units=None, **kwargs):
+
+        """
+        [FUTURE] - IN DEVELOPMENT
+        """
+        
+        # the plan here is to have a function which can take a file and 
+        # user passed kwargs and write the file in a phoebe-parsable format
+        # so that it can then be attached to this (or in theory another)
+        # bundle with just the filename
+
+        #~ output = self._parse_fromfile(filename, category, objref, dataref, columns, units)
+        #~ return output
+        #~ (columns,components,datatypes,units,ncols),(pbdep,dataset) = stuff
+        
+        
+        (p_columns,p_components,p_datatypes,p_units,p_ncols),(pbdep,dataset) = datasets.parse_header(filename)
+        
+        # deal with args
+        if columns is None:
+            columns = p_columns
+        if objref is None:
+            components = p_components
+        else:
+            components = objref
+        if units is None:
+            units = p_units
+        
+        # deal with kwargs
+        if dataref is not None:
+            pbdep['ref'] = dataref
+        for k,v in kwargs.items():
+            if k in pbdep.keys():
+                pbdep[k] = v
+        
+        # filter to only used columns
+        column_inds = [i for i,col in enumerate(columns) if col is not None]
+        
+        f = open(outfilename, 'w')
+        f.write('#-----------------\n')
+        # begin header
+        
+        # pbdep entries
+        for k,v in pbdep.items():
+            f.write('# {} = {}\n'.format(k,v))
+        
+        # column info
+        f.write('# NAME {}\n'.format(" ".join([columns[i] for i in column_inds])))
+        #~ f.write('# UNIT {}\n'.format())
+        #~ f.write('# COMPONENT {}\n'.format())
+        
+        
+        f.write('#-----------------\n')  
+        # end header
+        
+        # data
+        data_rows = np.loadtxt(filename)
+        for i,row in enumerate(data_rows):
+            f.write('{}\n'.format('\t'.join([str(row[i]) for i in column_inds])))
+        
+        f.close()
+        
+        return outfilename            
     
     #rebuild_trunk done by _attach_datasets
     def data_fromfile(self, filename, category='lc', objref=None, dataref=None,
@@ -1312,6 +1198,7 @@ class Bundle(Container):
         :return: dataref of added observations (perhaps it was autogenerated!)
         :rtype: str
         """
+
         if units is None:
             units = {}
             
@@ -1714,7 +1601,7 @@ class Bundle(Container):
                       flux=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, boosting=None,
+                      pblum=None, l3=None, alb=None, beaming=None,
                       scattering=None, method=None):
         """
         Create and attach light curve templates to compute the model.
@@ -1794,7 +1681,7 @@ class Bundle(Container):
     def lc_fromfile(self, filename, objref=None, dataref=None, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, boosting=None, scattering=None,
+                      l3=None, alb=None, beaming=None, scattering=None,
                       method=None):
         """
         Add a lightcurve from a file.
@@ -1879,7 +1766,7 @@ class Bundle(Container):
                       flux=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, boosting=None,
+                      pblum=None, l3=None, alb=None, beaming=None,
                       scattering=None, method=None):
         """
         Duplicate an existing light curve to a new one with a different dataref.
@@ -1917,7 +1804,7 @@ class Bundle(Container):
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       method=None, atm=None, ld_func=None, ld_coeffs=None,
-                      passband=None, pblum=None, l3=None, alb=None, boosting=None,
+                      passband=None, pblum=None, l3=None, alb=None, beaming=None,
                       scattering=None):
         """
         Create and attach radial velocity curve templates to compute the model.
@@ -2015,7 +1902,7 @@ class Bundle(Container):
     def rv_fromfile(self, filename, objref=None, dataref=None, columns=None,
                       units=None, offset=None, scale=None, atm=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, boosting=None, scattering=None,
+                      l3=None, alb=None, beaming=None, scattering=None,
                       method=None):
         """
         Add a radial velocity curve from a file.
@@ -2098,7 +1985,7 @@ class Bundle(Container):
                       rv=None, sigma=None, flag=None, weight=None,
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
-                      pblum=None, l3=None, alb=None, boosting=None,
+                      pblum=None, l3=None, alb=None, beaming=None,
                       scattering=None):
         """
         Duplicate an existing radial velocity curve to a new one with a different dataref.
@@ -2432,7 +2319,7 @@ class Bundle(Container):
                       vgamma_offset=None, profile=None, R=None, vmicro=None,
                       depth=None, atm=None, ld_func=None, ld_coeffs=None,
                       passband=None, pblum=None, l3=None, alb=None,
-                      boosting=None):
+                      beaming=None):
         """
         Create and attach spectral templates to compute the model.
         
@@ -2516,7 +2403,7 @@ class Bundle(Container):
                       R_input=None, vmacro=None, vmicro=None, depth=None,
                       profile=None, alphaT=None,
                       ld_func=None, ld_coeffs=None, passband=None, pblum=None,
-                      l3=None, alb=None, boosting=None, scattering=None):
+                      l3=None, alb=None, beaming=None, scattering=None):
         """
         Add spectral templates from a file.
         
@@ -2553,7 +2440,7 @@ class Bundle(Container):
                       vgamma_offset=None, profile=None, R=None, vmicro=None,
                       depth=None, atm=None, ld_func=None, ld_coeffs=None,
                       passband=None, pblum=None, l3=None, alb=None,
-                      boosting=None):
+                      beaming=None):
         """
         Create and attach spectrapolarimetry templates to compute the model.
         
@@ -2577,7 +2464,7 @@ class Bundle(Container):
                     atm=None, ld_func=None, ld_coeffs=None, passband=None,
                     pblum=None, l3=None, bandwidth_smearing=None,
                     bandwidth_subdiv=None,  alb=None,
-                    boosting=None, scattering=None):
+                    beaming=None, scattering=None):
         """
         Add interferometry data from an OIFITS file.
         
@@ -2652,7 +2539,7 @@ class Bundle(Container):
                       exptime=None, samprate=None, offset=None, scale=None,
                       atm=None, ld_func=None, ld_coeffs=None, passband=None,
                       pblum=None, l3=None, bandwidth_smearing=None,
-                      bandwidth_subdiv=None,alb=None, boosting=None,
+                      bandwidth_subdiv=None,alb=None, beaming=None,
                       scattering=None):
         """
         Create and attach light curve templates to compute the model.
@@ -2728,7 +2615,7 @@ class Bundle(Container):
                     atm=None, ld_func=None, ld_coeffs=None, passband=None,
                     pblum=None, l3=None, bandwidth_smearing=None,
                     bandwidth_subdiv=None,  alb=None,
-                    boosting=None, scattering=None):
+                    beaming=None, scattering=None):
         """
         Duplicate an existing interferometry set to a new one with a different dataref.
                 
@@ -2976,6 +2863,22 @@ class Bundle(Container):
         [FUTURE]
         """
         return self.get_datarefs(objref=objref, category='rv')
+        
+    def get_etv_datarefs(self, objref=None):
+        """
+        Return all datarefs of category etv.
+        
+        [FUTURE]
+        """
+        return self.get_datarefs(objref=objref, category='etv')
+        
+    def get_sp_datarefs(self, objref=None):
+        """
+        Return all datarefs of category sp.
+        
+        [FUTURE]
+        """
+        return self.get_sp_datarefs(objref=objref, category='sp')
     
     def get_syn(self, twig=None):
         """
@@ -3137,6 +3040,29 @@ class Bundle(Container):
         """
         self.enable_data(dataref, 'sp', False)
         
+    def enable_etv(self, dataref=None):
+        """
+        Enable an ETV dataset so that it will be considered during run_compute
+        
+        See :py:func:`Bundle.enable_lc` for more info
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'etv', True)
+        
+    def disable_etv(self, dataref=None):
+        """
+        Disable an ETV dataset so that it will not be considered during run_compute
+        
+        See :py:func:`Bundle.enable_etv` for more info
+        
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'etv', False)
+        
+        
     def enable_sed(self, dataref=None):
         """
         Enable LC datasets belonging to an sed so that it will be considered during run_compute
@@ -3166,32 +3092,6 @@ class Bundle(Container):
         all_lc_refs = [ref for ref in all_lc_refs if dataref in ref]
         for dataref in all_lc_refs:
             self.enable_data(dataref, 'lc', False)
-            
-    def enable_etv(self, dataref=None):
-        """
-        Enable an ETV dataset so that it will be considered during run_compute
-        
-        If no dataref is given and there is only one ETV added, there
-        is no ambiguity and that one will be enabled.
-        
-        @param dataref: reference of the dataset
-        @type dataref: str
-        :raises ValueError: when the dataref is ambiguous
-        :raises KeyError: when dataref does not exist
-        """
-        self.enable_data(dataref, 'etv', True)
-        
-    def disable_etv(self, dataref=None):
-        """
-        Disable an ETV dataset so that it will not be considered during run_compute
-        
-        See :py:func:`Bundle.enable_lc` for more info.
-        
-        @param dataref: reference of the dataset
-        @type dataref: str
-        """
-        self.enable_data(dataref, 'etv', False)
-        
         
     def reload_obs(self, twig=None):
         """
@@ -3317,16 +3217,15 @@ class Bundle(Container):
     #{ Compute
     
     @rebuild_trunk
-    @run_on_server
-    def run_compute(self, computelabel=None, objref=None, animate=False, **kwargs):
+    def run_compute(self, label=None, objref=None, animate=False, **kwargs):
+    #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Perform calculations to mirror any enabled attached observations.
         
-        Main arguments: :envvar:`computelabel`, :envvar:`objref`, :envvar:`animate`.
+        Main arguments: :envvar:`label`, :envvar:`objref`, :envvar:`anim`.
         
         Extra keyword arguments are passed to the
-        :ref:`compute <parlabel-phoebe-compute>` or 
-        :ref:`mpi <parlabel-phoebe-mpi>` ParameterSet.
+        :ref:`compute <parlabel-phoebe-compute>` ParameterSet.
         
         **Example usage**
         
@@ -3360,8 +3259,8 @@ class Bundle(Container):
         If you want to store new options before hand for later usage you can
         issue:
         
-            >>> mybundle.add_compute(computelabel='no_heating', heating=False)
-            >>> options = mybundle.run_compute(computelabel='no_heating')
+            >>> mybundle.add_compute(label='no_heating', heating=False)
+            >>> options = mybundle.run_compute(label='no_heating')
            
         **Keyword 'objref'**
         
@@ -3411,10 +3310,8 @@ class Bundle(Container):
         This frontend function wraps the backend function
         :py:func:`observatory.compute <phoebe.backend.observatory.compute>`.
         
-        :param computelabel: name of one of the compute ParameterSets stored in bundle
-        :type computelabel: str
-        :param mpilabel: name of one of the MPI ParameterSets stored in bundle
-        :type mpilabel: str
+        :param label: name of one of the compute ParameterSets stored in bundle
+        :type label: str
         :param objref: name of the top-level object used when observing
         :type objref: str
         :param anim: whether to animate the computations
@@ -3424,7 +3321,6 @@ class Bundle(Container):
         :raises ValueError: if there are no observations (or only empty ones) attached to the object.
         :raises KeyError: if a label of a compute options is set that was not added before
         """
-        server = None # server support deferred 
         system = self.get_system()
         system.fix_mesh()
         
@@ -3432,43 +3328,30 @@ class Bundle(Container):
         #~ if add_version is None:
             #~ add_version = self.settings['add_version_on_compute']
                 
-        self.purge_signals(self.attached_signals_system)
-            
         # clear all previous models and create new model
         system.reset_and_clear()
         #system.clear_synthetic()
         
         # get compute options, handling 'default' if label==None
-        computeoptions = self.get_compute(computelabel, create_default=True).copy()
-        mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
-        if mpilabel in [None, 'None', '']:
-            mpilabel = None
-        if mpilabel in [None, 'None', '']:
-            mpioptions = None
-        else:
-            mpioptions = self.get_mpi(mpilabel).copy()
+        options = self.get_compute(label, create_default=True).copy()
+        mpi = kwargs.pop('mpi', None)
         
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
-            if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
-                computeoptions.set_value(k,v)
-            elif k in mpioptions.keys():
-                mpioptions.set_value(k,v)
-            else:
+            #if k in options.keys(): # otherwise nonexisting kwargs can be given
+            try:
+                options.set_value(k,v)
+            except AttributeError:
                 raise ValueError("run_compute does not accept keyword '{}'".format(k))
         
-        # Q <pieterdegroote>: should we first set system.uptodate to False and
-        # then try/except the computations? Though we should keep track of
-        # why things don't work out.. how to deal with out-of-grid interpolation
-        # etc...
-        if computeoptions['time'] == 'auto':
+        if options['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            if mpioptions is not None and animate:
+            if mpi is not None and animate:
                 raise ValueError("You cannot animate and use MPI simultaneously")
-            elif mpioptions is not None:
-                obj.compute(mpi=mpioptions, **computeoptions)
+            elif mpi is not None:
+                obj.compute(mpi=mpi, **options)
             else:
-                obj.compute(animate=animate, **computeoptions)
+                obj.compute(animate=animate, **options)
             
         #else:
             #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
@@ -3482,21 +3365,15 @@ class Bundle(Container):
             #for ext in ['.gif','.avi']:
                 #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
-        #~ if add_version is not False:
-            #~ self.add_version(name=None if add_version==True else add_version)
-
-        self.attach_system_signals()
-        
-        return computeoptions
+        return options
         
     #}
             
     #{ Fitting
     @rebuild_trunk
-    @run_on_server
-    def run_fitting(self, fittinglabel='lmfit', add_feedback=True, 
-                    accept_feedback=True, server=None,
-                    usercosts=None, **kwargs):
+    def run_fitting(self, fittinglabel='lmfit', computelabel=None,
+                    add_feedback=True, accept_feedback=True,
+                    mpi=None, usercosts=None, **kwargs):
         """
         Run fitting for a given fitting ParameterSet and store the feedback
         
@@ -3660,55 +3537,34 @@ class Bundle(Container):
         
         [FUTURE]
         
-        @param fittinglabel: name of fitting ParameterSet
-        @type fittinglabel: str
         @param computelabel: name of compute ParameterSet
         @type computelabel: str
-        @param mpilabel: name of MPI ParameterSet
-        @type mpilabel: str
+        @param fittinglabel: name of fitting ParameterSet
+        @type fittinglabel: str
         @param add_feedback: flag to store the feedback (retrieve with get_feedback)
         @type add_feedback: bool
         @param accept_feedback: whether to automatically accept the feedback into the system
         @type accept_feedback: bool
-        @param server: name of server to run on, or False to force locally (will override usersettings)
-        @type server: string
         """
+        
         # get fitting params
         fittingoptions = self.get_fitting(fittinglabel).copy()
         
         # get compute params
-        computelabel = kwargs.pop('computelabel', fittingoptions.get_value('computelabel'))
-        computeoptions = self.get_compute(computelabel).copy()
+        if computelabel is None:
+            computelabel = fittingoptions['computelabel']
         
         # Make sure that the fittingoptions refer to the correct computelabel
+        computeoptions = self.get_compute(computelabel).copy()
         fittingoptions['computelabel'] = computelabel
-        
-        # get mpi params
-        mpilabel = kwargs.pop('mpilabel', None)
-        if mpilabel is None:
-            mpilabel = fittingoptions['mpilabel']
-        if mpilabel in [None, 'None', '']:
-            mpilabel = computeoptions['mpilabel']
-        
-        if mpilabel in [None, 'None', '']:
-            mpioptions = None
-        else:
-            mpioptions = self.get_mpi(mpilabel).copy()
             
-        # Make sure that the fittingoptions refer to the correct mpilabel
-        fittingoptions['mpilabel'] = '' if mpilabel is None else mpilabel
-        
         # now temporarily override with any values passed through kwargs    
         for k,v in kwargs.items():
             if k in fittingoptions.keys():
                 fittingoptions.set_value(k,v)
             elif k in computeoptions.keys():
-                computeoptions.set_value(k,v)
-            elif k in mpioptions.keys():
-                mpioptions.set_value(k,v)
-            else:
-                raise ValueError("run_fitting does not accept keyword '{}'".format(k))
-                
+                computeoptions.set_value(k,v)        
+        
         # Remember the initial values of the adjustable parameters, we'll reset
         # them later:
         init_values = [par.get_value() for par in self.get_system().get_adjustable_parameters()]
@@ -3720,11 +3576,10 @@ class Bundle(Container):
         # <some code>
         logger.warning("Fit options:\n{:s}".format(fittingoptions))
         logger.warning("Compute options:\n{:s}".format(computeoptions))
-        logger.warning("MPI options:\n{:s}".format(mpioptions))
         
         # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions,
-                               fitparams=fittingoptions, mpi=mpioptions,
+                               fitparams=fittingoptions, mpi=mpi,
                                usercosts=usercosts)
         
         # Reset the parameters to their initial values
@@ -3846,1576 +3701,6 @@ class Bundle(Container):
             obs['rv'] = syn['rv'] + np.random.normal(size=len(obs), scale=sigma)
             obs['sigma'] = sigma
             
-    
-    #{ Figures
-    def show(self, twig=None, attach=None, **kwargs):
-        """
-        [FUTURE]
-        
-        Draw and show a figure, axes, or plot that is attached to the bundle.
-        
-        If :envvar:`twig` is None, then the current figure will be plotted.
-        All kwargs are passed to :py:func`Bundle.draw`
-        
-        :param twig: twig pointing the the figure, axes, or plot options
-        :type twig: str or None
-        :param attach: whether to attach these options to the bundle
-        :type attach: bool
-        """
-        ax_or_fig = self.draw(twig, attach=attach, **kwargs)
-        plt.show()
-        
-    def savefig(self, twig=None, filename=None, attach=None, **kwargs):
-        """
-        [FUTURE]
-
-        Draw and save a figure, axes, or plot that is attached to the bundle
-        to file.
-        
-        If :envvar:`twig` is None, then the current figure will be plotted.
-        All kwargs are passed to :py:func`Bundle.draw`
-        
-        :param twig: twig pointing the the figure, axes, or plot options
-        :type twig: str or None
-        :param attach: whether to attach these options to the bundle
-        :type attach: bool
-        :param filename: filename for the resulting image
-        :type filename: str
-        """
-        ax_or_fig = self.draw(twig, attach=attach **kwargs)
-        plt.savefig(filename)
-        
-    def draw(self, twig=None, attach=None, **kwargs):
-        """
-        [FUTURE]
-        
-        Draw a figure, axes, or plot that is attached to the bundle.
-        
-        If :envvar:`twig` is None, then the current figure will be plotted.
-        
-        If you do not provide a value for :envvar:`attach`, it will default to True
-        if you provide a value for :envvar:`twig`, or False if you do not.  In this 
-        way, simply calling draw() with no arguments will not retain a copy in the 
-        bundle - you must either explicitly provide a twig or set attach to True.
-        
-        If you don't provide :envvar:`fig` or :envvar:`ax`, then the the 
-        figure/axes will be drawn to plt.gcf() or plt.gca()
-        
-        If you provide :envvar:`fig` but :envvar:`twig` points to a plot or 
-        axes instead of a figure, then the axes will be drawn to fig.gca()
-        
-        :param twig: twig pointing the the figure, axes, or plot options
-        :type twig: str or None
-        :param attach: whether to attach these options to the bundle
-        :type attach: bool
-        :param ax: mpl axes used for plotting (optional, overrides :envvar:`fig`)
-        :type ax: mpl.Axes
-        :param fig: mpl figure used for plotting (optional)
-        :type fig: mpl.Figure
-        :param clf: whether to call plt.clf() before plotting
-        :type clf: bool
-        :param cla: whether to call plt.cal() before plotting
-        :type cla: bool
-        """
-        if attach is None:
-            attach = twig is not None
-        
-        if twig is None:
-            ps = self.get_figure()
-        else:
-            ps = self._get_by_search(twig, section=['plot','axes','figure'])
-        
-        ax = kwargs.pop('ax', None)
-        fig = kwargs.pop('fig', None)
-        clf = kwargs.pop('clf', False)
-        cla = kwargs.pop('cla', False)
-        
-        ref = ps.get_value('ref')
-        level = ps.context.split(':')[1].split('_')[0] # will be plot, axes, or figure
-        
-        if level=='figure':
-            if fig is None:
-                fig = plt.gcf()
-            if clf:
-                fig.clf()
-            
-            ret = self.draw_figure(ref, fig=fig, **kwargs)
-            
-            if not attach:
-                self.remove_figure(ref if ref is not None else self.current_figure)
-        
-        elif level=='axes':
-            if ax is None:
-                if fig is None:
-                    ax = plt.gca()
-                else:
-                    ax = fig.gca()
-            if cla:
-                ax.cla()
-        
-            ret = self.draw_axes(ref, ax=ax, **kwargs)
-            
-            if not attach:
-                self.remove_axes(ref if ref is not None else self.current_axes)
-            
-        else:
-            if ax is None:
-                if fig is None:
-                    ax = plt.gca()
-                else:
-                    ax = fig.gca()
-            if cla:
-                ax.cla()
-            
-            ret = self.draw_plot(ref, ax=ax, **kwargs)
-            
-            if not attach:
-                self.remove_plot(ref)
-            
-        
-        return ret
-
-    def get_figure(self, figref=None):
-        """
-        [FUTURE]
-        
-        Get the ParameterSet object for a figure attached to the bundle
-        
-        If :envvar:`figref` is None, then the current figure will be retrieved 
-        if one exists.  If one does not exist, an empty will first be created
-        and attached to the bundle.
-        
-        :param figref: ref to the figure
-        :type figref: str or None
-        :return: the figure
-        :rtype: frontend.plotting.Figure (ParameterSet)
-        """
-        # TODO: allow passing kwargs
-        
-        if figref is None:
-            figref = self._handle_current_figure()
-        else:
-            figref = figref.split('@')[0]
-            
-        self.current_figure = figref
-        
-        fig_ps = self._get_by_section(figref, "figure", kind=None)
-        
-        if self.current_axes is None and len(fig_ps['axesrefs']):
-            self.current_axes = fig_ps['axesrefs'][-1]
-        
-        return fig_ps
-    
-    def add_figure(self, figref=None, **kwargs):
-        """
-        [FUTURE]
-        
-        Add a new figure to the bundle, and set it as the current figure 
-        for any subsequent plotting calls
-        
-        If :envvar:`figref` is None, a default will be created
-        
-        Any kwargs will get passed to the plotting:figure ParameterSet.
-        
-        :param figref: ref for the figure
-        :type figref: str or None
-        :return: the figref
-        :rtype: str
-        """
-        
-        if figref is None:
-            figref = "fig{:02}".format(len(self.sections['figure'])+1)
-        fig = Figure(self, ref=figref, **kwargs)
-
-        for k,v in kwargs.items():
-            fig.set_value(k,v)
-            
-        if figref not in self._get_dict_of_section('figure').keys():
-            self._add_to_section('figure',fig) #calls rebuild trunk
-        
-        self.current_figure = figref
-        self.current_axes = None
-        
-        return self.current_figure
-    
-    @rebuild_trunk
-    def remove_figure(self, figref=None):
-        """
-        [FUTURE]
-        
-        Remove a figure and all of its children axes (and their children plots)
-        that are not referenced elsewhere.
-        
-        :param figref: ref of the figure
-        :type figref: str
-        """
-        if figref is None:
-            figref = self.current_figure
-            
-        fig_ps = self._get_by_section(figref, "figure", kind=None)
-        axesrefs = fig_ps['axesrefs']
-        self.sections['figure'].remove(fig_ps)
-        
-        for axesref in axesrefs:
-            if all([axesref not in ps['axesrefs'] for ps in self.sections['figure']]):
-                #~ print "*** remove_figure: removing axes", axesref
-                self.remove_axes(axesref)
-            #~ else:
-                #~ print "*** remove_figure: keeping axes", axesref
-        
-    def _handle_current_figure(self, figref=None):
-        """
-        [FUTURE]
-        
-        similar to _handle_current_axes - except perhaps we shouldn't be creating figures by default,
-        but only creating up to the axes level unless the user specifically requests a figure to be made?
-        """
-        if not self.current_figure or (figref is not None and figref not in self._get_dict_of_section('figure').keys()):
-            figref = self.add_figure(figref=figref)
-        if figref is not None:
-            self.current_figure = figref
-            
-        return self.current_figure
-        
-    def draw_figure(self, figref=None, fig=None, **kwargs):
-        """
-        [FUTURE]
-        
-        Draw a figure that is attached to the bundle.
-        
-        If :envvar:`figref` is None, then the current figure will be plotted.
-        
-        If you don't provide :envvar:`fig` then the figure will be drawn to plt.gcf().
-        
-        :param figref: ref of the figure
-        :type figref: str or None
-        :param fig: mpl figure used for plotting (optional)
-        :type fig: mpl.Figure
-        """
-        # TODO move clf option from self.draw to here
-
-        if fig is None:
-            fig = plt.gcf()
-        
-        live_plot = kwargs.pop('live_plot', False)
-            
-        fig_ps = self.get_figure(figref)
-        
-        axes_ret, plot_ret = {}, {}
-        for (axesref,axesloc,axessharex,axessharey) in zip(fig_ps['axesrefs'], fig_ps['axeslocs'], fig_ps['axessharex'], fig_ps['axessharey']):
-            # need to handle logic for live-plotting
-            axes_ps = self.get_axes(axesref)
-            plotrefs = axes_ps['plotrefs']
-            # the following line will check (if we're live-plotting) to 
-            # see if all the plots in this axes have already been drawn,
-            # and if they have, then we have no need to make a new subplot
-            # or call the plotting function
-            if not (live_plot and all([(axesref.split('@')[0], plotref.split('@')[0]) in self.currently_plotted for plotref in plotrefs])):
-                # the following line will default to the current mpl ax object if we've already
-                # created this subplot - TODO this might cause issues if switching back to a previous axesref
-                if live_plot and axesref.split('@')[0] in [p[0] for p in self.currently_plotted]:
-                    #~ print "*** plot_figure resetting ax to None"
-                    ax = None # will default to plt.gca() - this could still cause some odd things
-                    xaxis_loc, yaxis_loc = None, None
-                else:
-                    axes_existing_refs = [a.split('@')[0] for a in axes_ret.keys()]
-                    #~ print "***", axesref, axes_ps.get_value('sharex'), axes_ps.get_value('sharey'), axes_existing_refs
-                    
-                    # handle axes sharing
-                    # we also need to check to see if we're in the same location, and if so
-                    # smartly move the location of the axesticks and labels
-                    axessharex = axessharex.split('@')[0]
-                    axessharey = axessharey.split('@')[0]
-                    if axessharex != '_auto_' and axessharex in axes_existing_refs:
-                        ind = axes_existing_refs.index(axessharex)
-                        sharex = axes_ret.values()[ind]
-                        if axesloc in [fig_ps.get_loc(axes_ret.keys()[ind])]: 
-                            # then we're drawing on the same location, so need to move the axes
-                            yaxis_loc = 'right'
-                    else:
-                        sharex = None
-                        yaxis_loc = None # just ignore, defaults will take over
-                    if axessharey != '_auto_' and axessharey in axes_existing_refs:
-                        ind = axes_existing_refs.index(axessharey)
-                        sharey = axes_ret.values()[ind]
-                        #~ print "*** draw_figure move xaxis_loc?", axesloc, fig_ps.get_loc(axes_ret.keys()[ind])
-                        if axesloc in [fig_ps.get_loc(axes_ret.keys()[ind])]: 
-                            # then we're drawing on the same location, so need to move the axes
-                            xaxis_loc = 'top'
-                    else:
-                        sharey = None
-                        xaxis_loc = None # just ignore, defaults will take over
-                        
-                    #~ print "***", axesref, sharex, sharey
-                        
-                    ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],sharex=sharex,sharey=sharey)
-                    # we must set the current axes so that subsequent live-plotting calls will
-                    # go here unless overriden by the user
-                    plt.sca(ax)
-
-                #~ print "*** draw_figure calling draw_axes", figref, axesref, axesloc
-                axes_ret_new, plot_ret_new = self.draw_axes(axesref, ax=ax, live_plot=live_plot)
-                
-                #~ print "*** draw_figure", xaxis_loc, yaxis_loc
-                
-                if xaxis_loc == 'top':
-                    ax.xaxis.tick_top()
-                    ax.xaxis.set_label_position("top")
-                    #~ ax.xaxis.set_offset_position('top')
-                    ax.yaxis.set_visible(False)
-                    ax.patch.set_visible(False)
-                if yaxis_loc == 'right':
-                    ax.yaxis.tick_right()
-                    ax.yaxis.set_label_position("right")
-                    #~ ax.yaxis.set_offset_position('right')
-                    ax.xaxis.set_visible(False)
-                    ax.patch.set_visible(False)
-                
-                for k,v in axes_ret_new.items():
-                    axes_ret[k] = v
-                for k,v in plot_ret_new.items():
-                    plot_ret[k] = v
-            #~ else:
-                #~ print "*** plot_figure skipping axesref {} entirely".format(axesref)
-            
-        if not live_plot:
-            self.current_figure = None
-            self.current_axes = None
-            self.currently_plotted = []
-            
-        return ({figref: fig}, axes_ret, plot_ret)
-        
-    
-    #}
-    
-    #{ Axes
-    def get_axes(self, axesref=None):
-        """
-        [FUTURE]
-        
-        Get the ParameterSet object for an axes attached to the bundle
-        
-        If :envvar:`axesref` is None, then the current axes will be retrieved 
-        if one exists.  If one does not exist, an empty will first be created
-        and attached to the bundle as well as the current figure.
-        
-        :param axesref: ref to the axes
-        :type axesref: str or None
-        :return: the axes
-        :rtype: frontend.plotting.Axes (ParameterSet)
-        """
-        # TODO allow passing kwargs
-        
-        if axesref is None:
-            axesref, figref = self._handle_current_axes()
-        else:
-            axesref = axesref.split('@')[0]
-        self.current_axes = axesref
-        return self._get_by_section(axesref, "axes", kind=None)
-        
-    def add_axes(self, axesref=None, figref=None, loc=(1,1,1), sharex='_auto_', sharey='_auto_', **kwargs):
-        """
-        [FUTURE]
-        
-        Add a new axes to the bundle, and set it as the current axes
-        for any subsequent plotting calls.
-        
-        If :envvar:`axesref` is None, a default will be created.
-        
-        If :envvar:`figref` is None, the axes will be attached to the current figure.
-        If :envvar:`figref` points to an existing figure, the axes will be attached
-        to that figure and it will become the current figure.
-        If :envvar:`figure` does not point to an existing figure, the figure will
-        be created, attached, and will become the current figure.
-        
-        Any kwargs will get passed to the plotting:axes ParameterSet.
-        
-        :param axesref: ref for the axes
-        :type axesref: str
-        :param figref: ref to a parent figure
-        :type figref: str or None
-        :param loc: location in the figure to attach the axes (see matplotlib.figure.Figure.add_subplot)
-        :type loc: tuple with length 3
-        :return: (axesref, figref)
-        :rtype: tuple of strings
-        """
-        #~ axesref = kwargs.pop('axesref', None)
-        #~ figref = kwargs.pop('figref', None)
-        add_to_section = True
-        if axesref is None or axesref not in self._get_dict_of_section('axes').keys():
-            if axesref is None:
-                axesref = "axes{:02}".format(len(self.sections['axes'])+1)
-            axes_ps = Axes(self, ref=axesref, **kwargs)
-        else:
-            add_to_section = False
-            axes_ps = self.get_axes(axesref)
-
-        for k,v in kwargs.items():
-            axes_ps.set_value(k,v)
-
-        if add_to_section:
-            self._add_to_section('axes',axes_ps)
-        
-        # now attach it to a figure
-        figref = self._handle_current_figure(figref=figref)
-        if loc in [None, '_auto_']: # just in case (this is necessary and used from defaults in other functions)
-            loc = (1,1,1)
-        self.get_figure(figref).add_axes(axesref, loc, sharex, sharey) # calls rebuild trunk and will also set self.current_figure
-
-        self.current_axes = axesref
-        
-        return self.current_axes, self.current_figure
-
-    @rebuild_trunk
-    def remove_axes(self, axesref=None):
-        """
-        [FUTURE]
-        
-        Remove an axes and all of its children plots that are not referenced
-        by other axes.
-        
-        :param axesref: ref of the axes
-        :type axesref: str
-        """
-        axes_ps = self._get_by_section(axesref, "axes", kind=None)
-        plotrefs = axes_ps['plotrefs']
-
-        # we also need to check all figures, and remove this entry from any axesrefs
-        # as well as any sharex or sharey
-        for figref,fig_ps in self._get_dict_of_section('figure').items():
-            fig_ps.remove_axes(axesref)
-        
-        self.sections['axes'].remove(axes_ps)
-
-        for plotref in axes_ps['plotrefs']:
-            if all([plotref not in ps['plotrefs'] for ps in self.sections['axes']]):
-                self.remove_plot(plotref)            
-        
-    def draw_axes(self, axesref=None, ax=None, **kwargs):
-        """
-        [FUTURE]
-        
-        Draw an axes that is attached to the bundle.
-        
-        If :envvar:`axesref` is None, then the current axes will be plotted.
-        
-        If you don't provide :envvar:`ax` then the figure will be drawn to plt.gca().
-        
-        :param axesref: ref of the axes
-        :type axesref: str or None
-        :param ax: mpl axes used for plotting (optional, overrides :envvar:`fig`)
-        :type ax: mpl.Axes
-        """
-        # TODO move cla here from self.draw
-
-        axes_ps = self.get_axes(axesref) #also sets to current
-        axesref = self.current_axes
-        
-        if ax is None:
-            ax = plt.gca()
-            
-        live_plot = kwargs.pop('live_plot', False)
- 
-        # right now all axes options are being set for /each/ draw_plot
-        # call, which will work, but is overkill.  The reason for this is
-        # so that draw_plot(plot_label) is smart enough to handle also setting
-        # the axes options for the one single call
-        
-        plot_ret = {}
-        for plotref in axes_ps['plotrefs']:
-            # handle logic for live-plotting - don't duplicate something that has already been called
-            #~ print "*** draw_axes", live_plot, (axesref.split('@')[0], plotref.split('@')[0]), self.currently_plotted
-            if not (live_plot and (axesref.split('@')[0], plotref.split('@')[0]) in self.currently_plotted):
-                #~ print "*** draw_axes CALLING draw_plot for", axesref, plotref
-                plot_ret_new = self.draw_plot(plotref, axesref=axesref, ax=ax, live_plot=live_plot)
-            
-                for k,v in plot_ret_new.items():
-                    plot_ret[k] = v
-            #~ else:
-                #~ print "*** draw_axes skipping draw_plot for", axesref, plotref
-            
-        if not live_plot:
-            self.current_axes = None
-            #~ self.current_figure = None
-            self.currently_plotted = []
-            
-        return ({axesref: ax}, plot_ret)
-            
-    def _handle_current_axes(self, axesref=None, figref=None, loc=None, sharex='_auto_', sharey='_auto_', x_unit='_auto_', y_unit='_auto_'):
-        """
-        [FUTURE]
-        this function should be called whenever the user calls a plotting function
-        
-        it will check to see if the current axes is defined, and if it isn't it will
-        create a new axes instance with an intelligent default label
-        
-        the created plotting parameter set should then be added later by self.get_axes(label).add_plot(plot_twig)
-        """
-        
-        #~ print "***", self.current_axes, axesref, figref, loc, sharex, sharey
-        
-        fig_ps = self.get_figure(figref)
-        
-        #~ figaxesrefs = fig_ps.get_value('axesrefs')
-        #~ figaxesrefs_ref = [ar.split('@')[0] for ar in figaxesrefs]
-        #~ figaxeslocs = fig_ps.get_value('axeslocs')
-        
-        if self.current_axes is not None:
-            curr_axes_ps = self.get_axes(self.current_axes)
-            curr_axes_loc = fig_ps.get_loc(self.current_axes)
-        else:
-            curr_axes_ps = None
-            curr_axes_loc = None
-
-        #~ print "*** _handle_current_axes", axesref, self.current_axes, loc, curr_axes_loc, loc in [None, curr_axes_loc]
-
-        if not self.current_axes \
-                or (axesref is not None and axesref not in self._get_dict_of_section('axes')) \
-                or (loc is not None and loc not in fig_ps.get_value('axeslocs')):
-            # no existing figure
-            # or new axesref for this figure
-            # or new loc for this figure (note: cannot retrieve by loc)
-            #~ print "*** _handle_current_axes calling add_axes", axesref, loc, sharex, sharey
-            axesref, figref = self.add_axes(axesref=axesref, figref=figref, loc=loc, sharex=sharex, sharey=sharey) # other stuff can be handled externally (eg by _handle_plotting_call)
-
-        # handle units
-        elif axesref is None and loc in [None, curr_axes_loc]:
-            # we do not allow axesref==self.current_axes in this case, because then we'd be overriding the axesref
-            
-            # TODO: we need to be smarter here if any of the units are _auto_ - they may be referring to
-            # different datasets with different default units, so we need to check to see what _auto_
-            # actually refers to and see if that matches... :/
-            add_axes = True
-            if x_unit != curr_axes_ps.get_value('x_unit') and y_unit != curr_axes_ps.get_value('y_unit'):
-                #~ print "*** _handle_current_axes units caseA"
-                sharex = '_auto_'
-                sharey = '_auto_'
-                loc = curr_axes_loc
-                # axes locations (moving to top & right) is handled in draw_figure
-            elif x_unit != curr_axes_ps.get_value('x_unit'):
-                #~ print "*** _handle_current_axes units caseB"
-                sharex = '_auto_'
-                sharey = self.current_axes
-                loc = curr_axes_loc
-                # axes locations (moving to top) is handled in draw_figure
-            elif y_unit != curr_axes_ps.get_value('y_unit'):
-                #~ print "*** _handle_current_axes units caseC"
-                sharex = self.current_axes
-                sharey = '_auto_'
-                loc = curr_axes_loc
-                # axes locations (moving to right) is handled in draw_figure
-            else:
-                #~ print "*** _handle_current_axes units caseD"
-                #~ sharex = '_auto_'
-                #~ sharey = '_auto_'
-                #~ loc = loc
-                add_axes = False
-                
-            if add_axes:
-                #~ print "*** _handle_current_axes calling add_axes", axesref, loc, sharex, sharey
-                axesref, figref = self.add_axes(axesref=axesref, figref=figref, loc=loc, x_unit=x_unit, y_unit=y_unit, sharex=sharex, sharey=sharey)
-                
-
-        
-        if axesref is not None:
-            self.current_axes = axesref
-            
-        return self.current_axes, self.current_figure
-        
-
-    #}
-
-    #{ Plots
-    def _handle_plotting_call(self, func_name, dsti=None, **kwargs):
-        """
-        [FUTURE]
-        this function should be called by any plot_* function.
-        
-        It essentially handles storing all of the arguments passed to the 
-        function inside a parameterset, attaches it to the bundle, and attaches
-        it to the list of plots of the current axes.
-        """
-        plotref = kwargs.pop('plotref', None)
-        axesref = kwargs.pop('axesref', None)
-        figref = kwargs.pop('figref', None)
-        
-        if plotref is None:
-
-            if func_name in ['plot_mesh', 'plot_custom']:
-                plotref_base = func_name.split('_')[1]
-            else:
-                # then we need an intelligent default
-                plotref_base = "_".join([dsti['ref'], dsti['context'], dsti['label']])
-                
-            plotref = plotref_base
-
-            # change the ref if it already exists in the bundle
-            existing_plotrefs = [pi['ref'] for pi in self.sections['plot']]
-            i=1
-            while plotref in existing_plotrefs:
-                i+=1
-                plotref = "{}_{:02}".format(plotref_base, i)
-
-
-        loc = kwargs.pop('loc', None)
-        sharex = kwargs.pop('sharex','_auto_')
-        sharey = kwargs.pop('sharex','_auto_')
-        figref = self._handle_current_figure(figref=figref)
-        axesref, figref = self._handle_current_axes(axesref=axesref, figref=figref, loc=loc, sharex=sharex, sharey=sharey, x_unit=kwargs.get('x_unit','_auto_'), y_unit=kwargs.get('y_unit','_auto_'))
-        axes_ps = self.get_axes(axesref)
-        fig_ps = self.get_figure(figref)
-
-        # TODO: plot_obs needs to be generalized to pull from the function called
-        kwargs['datatwig'] = dsti.pop('twig',None) if dsti is not None else None
-        ps = parameters.ParameterSet(context='plotting:{}'.format(func_name), ref=plotref)
-        for k,v in kwargs.items():
-            # try plot_ps first, then axes_ps and fig_ps
-            if k in ps.keys():
-                ps.set_value(k,v)
-            elif k in axes_ps.keys():
-                if k not in ['plotrefs']:
-                    axes_ps.set_value(k,v)
-            elif k in fig_ps.keys():
-                if k not in ['axesrefs','axeslocs','axessharex','axessharey']:
-                    fig_ps.set_value(k,v)
-            elif k in ['label']:
-                raise KeyError("parameter with qualifier {} forbidden".format(k))
-            else:
-                if isinstance(v, float):
-                    _cast_type = float
-                    _repr = '%f'
-                elif isinstance(v, int):
-                    _cast_type = int
-                    _repr = '%d'
-                elif isinstance(v, bool):
-                    _cast_type = 'make_bool'
-                    _repr = ''
-                else:
-                    _cast_type = str
-                    _repr = '%s'
-                
-                new_parameter = parameters.Parameter(qualifier=k,
-                        description = 'user added parameter: see matplotlib',
-                        repr = _repr,
-                        cast_type = _cast_type,
-                        value = v)
-                ps.add(new_parameter, with_qualifier=k)
-        
-        self._add_to_section('plot', ps)
-
-        axes_ps.add_plot(plotref)
-        
-        return plotref, axesref, figref
-        
-    def get_plot(self, plotref):
-        """
-        [FUTURE]
-        
-        Get the ParameterSet object for a plot attached to the bundle
-        
-        :param plotref: ref to the axes
-        :type plotref: str
-        :return: the plot
-        :rtype: ParameterSet
-        """
-        # TODO allow plotref=None ?
-        # TODO allow passing kwargs ?
-        plotref = plotref.split('@')[0]
-        return self._get_by_section(plotref,"plot",kind=None)
-        
-    @rebuild_trunk
-    def remove_plot(self, plotref=None):
-        """
-        [FUTURE]
-        
-        Remove a plot from the bundle.
-        
-        This does not check to make sure the plot is not referenced in
-        any existing axes, so use with caution.
-        
-        :param plotref: ref of the plot
-        :type plotref: str
-        """
-        plot_ps = self._get_by_section(plotref, "plot", kind=None)
-        
-        # we also need to check all axes, and remove this entry from any plotrefs
-        #~ plotref_ref = plotref.split('@')[0]
-        for axesref,axes_ps in self._get_dict_of_section('axes').items():
-            axes_ps.remove_plot(plotref)
-            
-        self.sections['plot'].remove(plot_ps)
-        
-    def add_plot(self, plotref=None, axesref=None, figref=None, loc=None, **kwargs):
-        """
-        [FUTURE]
-        
-        Add an existing plot (created through plot_obs, plot_syn, plot_residuals, plot_mesh, etc)
-        to an axes and figure in the bundle.
-
-        If :envvar:`loc` points to a location in the :envvar:`figref` figure
-        that is empty, a new axes will be created
-                
-        If :envvar:`axesref` is None and :envvar:`loc` is None, the plot will be attached to the current axes.
-        If :envvar:`axesref` points to an existing axes, the plot will be attached 
-        to that axes and it will become the current axes.
-        If :envvar:`axesref` does not point to an existing axes, the axes will be
-        created, attached, and will become the current axes.
-        
-        If :envvar:`figref` is None, the axes will be attached to the current figure.
-        If :envvar:`figref` points to an existing figure, the axes will be attached
-        to that figure and it will become the current figure.
-        If :envvar:`figure` does not point to an existing figure, the figure will
-        be created, attached, and will become the current figure.
-        
-        Any kwargs will get passed to the :envvar:`plotref` ParameterSet.
-        
-        :param plotref: ref of the plot
-        :type plotref: str
-        :param axesref: ref to a parent axes
-        :type axesref: str
-        :param figref: ref to a parent figure
-        :type figref: str or None
-        :param loc: location in the figure to attach the axes (see matplotlib.figure.Figure.add_subplot)
-        :type loc: tuple with length 3
-        :return: (axesref, figref)
-        :rtype: tuple of strings
-        """
-        
-        figref = self._handle_current_figure(figref)
-        axesref, figref = self._handle_current_axes(axesref, figref, loc=loc)
-        
-        axes_ps = self.get_axes(axesref)
-        axes_ps.add_plot(plotref)
-        plot_ps = self.get_plot(plotref)
-        
-        for k,v in kwargs.items():
-            if k in axes_ps.keys():
-                axes_ps.set_value(k,v)
-            else:
-                plot_ps.set_value(k,v)
-                
-        return plotref, axesref, figref
-
-        
-    def draw_plot(self, plotref, axesref=None, ax=None, **kwargs):
-        """
-        [FUTURE]
-        
-        this function should make all the calls to mpl, and can either 
-        be called by the user for a previously created plot, or by the 
-        functions that created the plot initially.
-        
-        this function /technically/ draws this one single plot on the current axes - 
-        we need to be careful about weird behavior here, or maybe we need to 
-        be more clever and try to find (one of?) its parent axes if the plot_ps is already attached
-        """
-        logger.info('drawing {}'.format(plotref))
-        plkwargs = {k:v for k,v in self.get_plot(plotref).items() if v is not ''}
-        
-        if ax is None:
-            ax = plt.gca()
-        
-        axes_ps = self.get_axes(axesref)
-        # will default to gca if axesref is None
-        # in this case we may get unexpected behavior - either odd plotrefs
-        # that we previously set or overriding axes options that were _auto_
-        
-        # this plot needs to be attached as a member of the axes if it is not
-        #~ if plotref not in axes_ps['plotrefs']:
-            #~ axes_ps.add_plot(plotref)
-            
-        plot_fctn = self.get_plot(plotref).context.split(':')[1]
-
-        # Retrieve the obs/syn and the object it belongs to
-        datatwig = plkwargs.pop('datatwig', None)
-
-        # when passing to mpl, plotref will be used for legends so we'll override that with the ref of the plot_ps
-        plkwargs['label'] = plkwargs.pop('ref')
-
-        # and we need to pass the mpl axes
-        if plot_fctn not in ['plot_custom']:
-            plkwargs['ax'] = ax
-        
-        if datatwig is not None and plot_fctn not in ['plot_custom']:
-            dsti = self._get_by_search(datatwig, return_trunk_item=True)
-            ds = dsti['item']
-            obj = self.get_object(dsti['label'])
-            context = ds.get_context()
-        
-            # when passing to mpl the backend plotting function needs ref to be the dataset ref
-            plkwargs['ref'] = ds['ref']
-        
-        axkwargs = {}
-        for key in ['x_unit', 'y_unit', 'phased', 'xlabel', 'ylabel', 'title']:
-            value = plkwargs.pop(key, None)
-
-            # if provided by the plotting call, rewrite the value stored
-            # in the axes_ps
-            if value is not None:
-                axes_ps.set_value(key, value)
-
-            # either way, retrieve the value from axes_ps and handle defaults
-            if plot_fctn not in ['plot_custom']:
-                if key in ['x_unit', 'y_unit']:
-                    if axes_ps.get_value(key) not in ['_auto_', u'_auto_']:
-                        plkwargs[key] = axes_ps.get_value(key) 
-                
-                elif key in ['phased']:
-                    if 'x_unit' not in plkwargs.keys() or axes_ps.get_value(key) or value is not None:
-                        # TODO: the if statement above is hideous
-                        plkwargs[key] = axes_ps.get_value(key)
-                    # else it won't exist in plkwargs and will use the backend defaults
-                
-                elif key in ['xlabel', 'ylabel', 'title']:
-                    # these don't get passed to the plotting call
-                    # rather if they are not overriden here, they will receive
-                    # there defaults from the output of the plotting call
-                    pass
-                    
-        
-        #~ if 'x_unit' in plkwargs.keys():
-            #~ print '***', plkwargs['x_unit']
-        #~ if 'y_unit' in plkwargs.keys():
-            #~ print '***', plkwargs['y_unit']
-                    
-        # handle _auto_
-        for key, value in plkwargs.items():
-            if value=='_auto_':
-                dump = plkwargs.pop(key)
-       
-        if plot_fctn in ['plot_obs', 'plot_syn']:
-            output = getattr(plotting, 'plot_{}'.format(context))(obj, **plkwargs)
-            
-            artists = output[0]
-            ds_ret = output[1]
-            fig_decs = output[2]
-
-        elif plot_fctn in ['plot_residuals']:
-            category = context[:-3]
-            output = getattr(plotting, 'plot_{}res'.format(category))(obj, **plkwargs)
-            
-            artists = output[0]
-            ds_ret = output[1]
-            fig_decs = output[2]
-            
-        elif plot_fctn in ['plot_mesh']:
-            select = plkwargs.pop('select', None)
-            cmap = plkwargs.pop('cmap', None)
-            vmin = plkwargs.pop('vmin', None)
-            vmax = plkwargs.pop('vmax', None)
-            size = plkwargs.pop('size', None)
-            dpi = plkwargs.pop('dpi', None)
-            background = plkwargs.pop('background', None)
-            savefig = plkwargs.pop('savefig', False)
-            with_partial_as_half = plkwargs.pop('with_partial_as_half', False)
-            time = plkwargs.pop('time', None)
-            phase = plkwargs.pop('phase', None)
-            computelabel = plkwargs.pop('computelabel', None)
-            objref = plkwargs.pop('objref', None)
-            category = context[:-3] if context is not None else 'lc'
-            
-            # get rid of unused kwargs
-            for k in ['x_unit', 'y_unit', 'phased', 'label']:
-                dump = plkwargs.pop(k, None)
-            
-            # Set the configuration to the correct time/phase, but only when one
-            # (and only one) of them is given.
-            if time is not None and phase is not None:
-                raise ValueError("You cannot set both time and phase, please choose one")
-            elif phase is not None:
-                period, t0, shift = self.get_system().get_period()
-                time = phase * period + t0
-            
-            # Observe the system with the right computations
-            if time is not None:
-                options = self.get_compute(computelabel, create_default=True).copy()
-                observatory.observe(self.get_system(), [time], lc=category=='lc',
-                                    rv=category=='rv', sp=category=='sp',
-                                    pl=category=='pl', save_result=False, **options)
-            
-            # Get the object and make an image.
-            self.get_object(objref).plot2D(select=select, cmap=cmap, vmin=vmin,
-                         vmax=vmax, size=size, dpi=dpi, background=background,
-                         savefig=savefig, with_partial_as_half=with_partial_as_half,
-                         **plkwargs)
-                         
-            fig_decs = [['changeme','changeme'],['changeme','changeme']]
-            artists = None
-
-            
-        elif plot_fctn in ['plot_custom']:
-            function = plkwargs.pop('function', None)
-            args = plkwargs.pop('args', [])
-            if hasattr(ax, function):
-                output = getattr(ax, function)(*args, **plkwargs)
-                
-            else:
-                logger.error("{} not an available function for plt.axes.Axes".format(function))
-                return
-
-            # fake things for the logger 
-            # TODO handle this better
-            fig_decs = [['changeme','changeme'],['changeme','changeme']]
-            artists = None
-            context = 'changeme'                
-            ds = {'ref': 'changeme'}
-            
-        else:
-            logger.error("non-recognized plot type: {}".format(plot_fctn))
-            return
-        
-        # automatically set axes_ps plotrefs if they're not already
-        # The x-label
-        if axes_ps.get_value('xlabel') in ['_auto_', u'_auto_']:
-            axes_ps.set_value('xlabel', r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
-        
-        ax.set_xlabel(axes_ps.get_value('xlabel'))
-        
-        # The y-label
-        if axes_ps.get_value('ylabel') in ['_auto_', u'_auto_']:
-            axes_ps.set_value('ylabel', r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
-
-        ax.set_ylabel(axes_ps.get_value('ylabel'))
-        
-        # The plot title
-        if axes_ps.get_value('title') in ['_auto_', u'_auto_']:
-            axes_ps.set_value('title', '{}'.format('mesh' if plot_fctn=='plot_mesh' else config.nice_names[context[:-3]]))
-        
-        ax.set_title(axes_ps.get_value('title'))  
-        
-        # The limits
-        if axes_ps.get_value('xlim') not in [(None,None), '_auto_', u'_auto_']:
-            ax.set_xlim(axes_ps.get_value('xlim'))
-        if axes_ps.get_value('ylim') not in [(None,None), '_auto_', u'_auto_']:
-            ax.set_ylim(axes_ps.get_value('ylim'))
-            
-        # The ticks
-        #~ if axes_ps.get_value('xticks') != ['_auto_', u'_auto_']:
-            #~ ax.set_xticks(axes_ps.get_value('xticks')
-        #~ if axes_ps.get_value('yticks') != ['_auto_', u'_auto_']:
-            #~ ax.set_xticks(axes_ps.get_value('yticks')
-        #~ if axes_ps.get_value('xticklabels') != ['_auto_', u'_auto_']:
-            #~ ax.set_xticklabels(axes_ps.get_value('xticklabels')
-        #~ if axes_ps.get_value('yticklabels') != ['_auto_', u'_auto_']:
-            #~ ax.set_xticklabels(axes_ps.get_value('yticklabels')
-        
-        logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
-                                   fig_decs[0][1], context, ds['ref']))
-                                   
-        #~ return ds_ret
-        return {plotref: artists}
-
-
-    
-    def new_plot_obs(self, twig=None, **kwargs):
-        """
-        Make a plot of the attached observations (wraps pyplot.errorbar).
-        
-        This function is designed to behave like matplotlib's
-        `plt.errorbar() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_
-        function, with additional options.
-        
-        Thus, all kwargs (there are no args) are passed on to matplotlib's
-        `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
-        except:
-    
-            - :envvar:`repeat=0`: handy if you are actually fitting a phase
-              curve, and you want to repeat the phase curve a couple of times.
-            - :envvar:`x_unit=None`: allows you to override the default units
-              for the x-axis. If you plot times, you can set the unit to any
-              time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
-              you plot in phase, you can switch from cycle (``cy``) to radians
-              (``rad``).
-            - :envvar:`y_unit=None`: allows you to override the default units
-              for the y-axis. Allowable values depend on the type of
-              observations.
-            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
-              active axes.
-    
-        Some of matplotlib's defaults are overriden. If you do not specify any
-        of the following keywords, they will take the values:
-    
-            - :envvar:`ref`: the ref of the stored plotoptions.  This is the value
-              that will also be passed on to matplotlib for the label of this curve
-              in legends.
-            - :envvar:`yerr`: defaults to the uncertainties from the obs if they
-              are available.
-        
-        The DataSet that is returned is a copy of the original DataSet, but with the
-        units of the columns the same as the ones plotted.
-    
-        **Example usage**
-            
-        Suppose you have the following setup::
-        
-            bundle = phoebe.Bundle()
-            bundle.lc_fromarrays(dataref='mylc', time=np.linspace(0, 1, 100),
-            ...                  flux=np.random.normal(size=100))
-            bundle.rv_fromarrays(dataref='myrv', objref='secondary',
-            ...                  phase=np.linspace(0, 1, 100),
-            ...                  rv=np.random.normal(size=100),
-            ...                  sigma=np.ones(100))
-       
-        Then you can plot these observations with any of the following commands::
-            
-            bundle.plot_obs('mylc')
-            bundle.plot_obs('mylc', phased=True)
-            bundle.plot_obs('mylc', phased=True, repeat=1)
-            bundle.plot_obs('myrv@secondary')
-            bundle.plot_obs('myrv@secondary', fmt='ko-')
-            plt.legend()
-            bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
-            plt.legend()
-            bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
-        
-        For more explanations and a list of defaults for each type of
-        observaitons, see:
-        
-            - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
-            - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
-        
-        The arguments are passed to the appropriate functions in
-        :py:mod:`plotting`.
-        
-        For more info on :envvar:`kwargs`, see the
-        pyplot documentation on `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
-        
-        :param twig: the twig/twiglet to use when searching
-        :type twig: str
-        :return: observations used for plotting
-        :rtype: DataSet
-        :raises IOError: when observations are not available
-        :raises ValueError: when x/y unit is not allowed
-        :raises ValueError: when y-axis not available (flux, rv...)
-        """
-        # Retrieve the obs DataSet and the object it belongs to
-        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
-                                   return_trunk_item=True)
-        
-        ax = kwargs.pop('ax', None)
-        fig = kwargs.pop('fig', None)
-        
-        plotref, axesref, figref = self._handle_plotting_call('plot_obs', dsti, **kwargs)
-
-        # now call the command to plot
-        if ax is None:
-            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
-        else:
-            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
-        
-        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
-        
-        #~ return None, (plotref, axesref, figref)
-        return output, (plotref, axesref, figref)
-        #~ return obs
-
-        
-    def new_plot_syn(self, twig=None, *args, **kwargs):
-        """
-        Plot simulated/computed observations (wraps pyplot.plot).
-        
-        This function is designed to behave like matplotlib's
-        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
-        function, with additional options.
-        
-        Thus, all args and kwargs are passed on to matplotlib's
-        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
-        except:
-        
-            - :envvar:`dataref=0`: the reference of the lc to plot
-            - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
-              and you want to repeat the phase curve a couple of times.
-            - :envvar:`x_unit=None`: allows you to override the default units for
-              the x-axis. If you plot times, you can set the unit to any time unit
-              (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
-              in phase, you switch from cycle (``cy``) to radians (``rad``). 
-            - :envvar:`y_unit=None`: allows you to override the default units for
-              the y-axis.
-            - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
-              from the observations. If ``obs``, they will effectively be scaled to
-              the level/units of the observations (if that was specified in the
-              computations as least). If you want to plot the synthetics in the
-              model units, set ``scale=None``.
-            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
-              active axes.
-        
-        Some of matplotlib's defaults are overriden. If you do not specify any of
-        the following keywords, they will take the values:
-        
-            - :envvar:`ref`: the ref of the stored plotoptions.  This is the value
-              that will also be passed on to matplotlib for the label of this curve
-              in legends.
-        
-            
-        Example usage:
-        
-        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
-        >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
-        
-        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
-        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
-        
-        More information on arguments and keyword arguments:
-        
-        - :py:func:`phoebe.backend.plotting.plot_lcsyn`
-        - :py:func:`phoebe.backend.plotting.plot_rvsyn`
-        
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        """
-        # Retrieve the obs DataSet and the object it belongs to
-        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
-                                   return_trunk_item=True)
-        
-        ax = kwargs.pop('ax', None)
-        fig = kwargs.pop('fig', None)
-        
-        plotref, axesref, figref = self._handle_plotting_call('plot_syn', dsti, **kwargs)
-
-        # now call the command to plot
-        if ax is None:
-            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
-        else:
-            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
-        
-        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
-        
-        #~ return None, (plotref, axesref, figref)
-        return output, (plotref, axesref, figref)
-        #~ return obs
-        
-    def new_plot_residuals(self, twig=None, **kwargs):
-        """
-        Plot the residuals between computed and observed for a given dataset
-        
-        [FUTURE]
-        
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        """
-        # Retrieve the obs DataSet and the object it belongs to
-        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
-                                   return_trunk_item=True)
-        
-        ax = kwargs.pop('ax', None)
-        fig = kwargs.pop('fig', None)
-        
-        plotref, axesref, figref = self._handle_plotting_call('plot_residuals', dsti, **kwargs)
-
-        # now call the command to plot
-        if ax is None:
-            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
-        else:
-            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
-        
-        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
-        
-        #~ return None, (plotref, axesref, figref)
-        return output, (plotref, axesref, figref)
-        #~ return obs
-        
-    def new_plot_custom(self, function, args=(), **kwargs):
-        """
-        [FUTURE]
-        
-        **VERY EXPERIMENTAL**
-        Add a custom call through matplotlib and attach it to the bundle
-        
-        accepts function, args, and kwargs
-        
-        :param function: name of the matplotlib function to call, must be an attribute of matplotlib.axes.Axes
-        :type function: str
-        :param args: args to pass to the function
-        """
-        if not hasattr(plt.gca(), function):
-            logger.error("{} not an available function for plt.axes.Axes".format(function))
-            
-        kwargs['function'] = function
-        kwargs['args'] = args
-        
-        ax = kwargs.pop('ax', None)
-        fig = kwargs.pop('fig', None)
-        
-        plotref, axesref, figref = self._handle_plotting_call('plot_custom', None, **kwargs)
-        
-        # now call the command to plot
-        if ax is None:
-            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
-        else:
-            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
-        
-        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
-        
-        #~ return None, (plotref, axesref, figref)
-        return output, (plotref, axesref, figref)
-        #~ return obs
-
-    def plot_obs(self, twig=None, **kwargs):
-        """
-        Make a plot of the attached observations (wraps pyplot.errorbar).
-        
-        This function is designed to behave like matplotlib's
-        `plt.errorbar() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_
-        function, with additional options.
-        
-        Thus, all kwargs (there are no args) are passed on to matplotlib's
-        `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
-        except:
-    
-        - :envvar:`phased=False`: decide whether to phase the data or not.
-          The default is ``True`` when the observations are phased. You can
-          unphase them in that case by setting :envvar:`phased=False`
-          explicitly. This setting is trumped by :envvar:`x_unit` (see
-          below).
-        - :envvar:`repeat=0`: handy if you are actually fitting a phase
-          curve, and you want to repeat the phase curve a couple of times.
-        - :envvar:`x_unit=None`: allows you to override the default units
-          for the x-axis. If you plot times, you can set the unit to any
-          time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
-          you plot in phase, you can switch from cycle (``cy``) to radians
-          (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
-          of type phase, the data will be phased and if they are time, they
-          will be in time units.
-        - :envvar:`y_unit=None`: allows you to override the default units
-          for the y-axis. Allowable values depend on the type of
-          observations.
-        - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
-          active axes.
-    
-        Some of matplotlib's defaults are overriden. If you do not specify any
-        of the following keywords, they will take the values:
-    
-        - :envvar:`label`: the label for the legend defaults to
-          ``<ref> (obs)``. If you don't want a label for this curve, set
-          :envvar:`label='_nolegend_'`.
-        - :envvar:`yerr`: defaults to the uncertainties from the obs if they
-          are available.
-        
-        The DataSet that is returned is a copy of the original DataSet, but with the
-        units of the columns the same as the ones plotted.
-    
-        **Example usage**
-            
-        Suppose you have the following setup::
-        
-            bundle = phoebe.Bundle()
-            bundle.lc_fromarrays(dataref='mylc', time=np.linspace(0, 1, 100),
-            ...                  flux=np.random.normal(size=100))
-            bundle.rv_fromarrays(dataref='myrv', objref='secondary',
-            ...                  phase=np.linspace(0, 1, 100),
-            ...                  rv=np.random.normal(size=100),
-            ...                  sigma=np.ones(100))
-       
-        Then you can plot these observations with any of the following commands::
-            
-            bundle.plot_obs('mylc')
-            bundle.plot_obs('mylc', phased=True)
-            bundle.plot_obs('mylc', phased=True, repeat=1)
-            bundle.plot_obs('myrv@secondary')
-            bundle.plot_obs('myrv@secondary', fmt='ko-')
-            plt.legend()
-            bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
-            plt.legend()
-            bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
-        
-        For more explanations and a list of defaults for each type of
-        observations, see:
-        
-        - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
-        - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
-        
-        The arguments are passed to the appropriate functions in
-        :py:mod:`plotting`.
-        
-        For more info on :envvar:`kwargs`, see the
-        pyplot documentation on `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
-        
-        :param twig: the twig/twiglet to use when searching
-        :type twig: str
-        :return: observations used for plotting
-        :rtype: DataSet
-        :raises IOError: when observations are not available
-        :raises ValueError: when x/y unit is not allowed
-        :raises ValueError: when y-axis not available (flux, rv...)
-        """
-        # Retrieve the obs DataSet and the object it belongs to
-        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
-                                   return_trunk_item=True, all=True)
-        
-        # It's possible that we need to plot an SED: in that case, we have
-        # more than one dataset but they are all light curves that are grouped
-        if len(dsti) > 1:
-            # Check if they are all lightcurves and collect group name
-            groups = []
-            for idsti in dsti:
-                correct_category = idsti['item'].get_context()[:-3] == 'lc'
-                is_grouped = 'group' in idsti['item']
-                if not correct_category or not is_grouped:
-                    # raise the correct error:
-                    self._get_by_search(twig, context='*obs', class_name='*DataSet',
-                                   return_trunk_item=True)
-                else:
-                    groups.append(idsti['item']['group'])
-            # check if everything belongs to the same group
-            if not len(set(groups)) == 1:
-                raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
-            
-            obj = self.get_object(dsti[0]['label'])
-            context = 'sed' + dsti[0]['item'].get_context()[-3:]
-            ds = dict(ref=groups[0])
-        else:       
-            dsti = dsti[0]
-            ds = dsti['item']
-            obj = self.get_object(dsti['label'])
-            context = ds.get_context()
-        
-        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
-        # pop the kwargs here because they cannot be passed to the lower level
-        # plotting function
-        xlabel = kwargs.pop('xlabel', '_auto_')
-        ylabel = kwargs.pop('ylabel', '_auto_')
-        title = kwargs.pop('title', '_auto_')
-        
-        # Now pass everything to the correct plotting function in the backend
-        kwargs['ref'] = ds['ref']
-        output = getattr(plotting, 'plot_{}'.format(context))(obj, **kwargs)
-        
-        # Now take care of figure decorations
-        fig_decs = output[2]
-        artists = output[0]
-        obs = output[1]
-        
-        # The x-label
-        if xlabel == '_auto_':
-            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
-        elif xlabel:
-            plt.xlabel(xlabel)
-        
-        # The y-label
-        if ylabel == '_auto_':
-            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
-        elif ylabel:
-            plt.ylabel(ylabel)
-        
-        # The plot title
-        if title == '_auto_':
-            plt.title('{}'.format(config.nice_names[context[:-3]]))
-        elif title:
-            plt.title(title)        
-        
-        logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
-                                   fig_decs[0][1], context, ds['ref']))
-        
-        return obs
-
-        
-    def plot_syn(self, twig=None, *args, **kwargs):
-        """
-        Plot simulated/computed observations (wraps pyplot.plot).
-        
-        This function is designed to behave like matplotlib's
-        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
-        function, with additional options.
-        
-        Thus, all args and kwargs are passed on to matplotlib's
-        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
-        except:
-        
-            - :envvar:`ref=0`: the reference of the lc to plot
-            - :envvar:`phased=False`: decide whether to phase the data or not. If
-              there are observations corresponding to :envvar:`ref`, the default
-              is ``True`` when those are phased. The setting is overridden
-              completely by ``x_unit`` (see below).
-            - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
-              and you want to repeat the phase curve a couple of times.
-            - :envvar:`x_unit=None`: allows you to override the default units for
-              the x-axis. If you plot times, you can set the unit to any time unit
-              (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
-              in phase, you switch from cycle (``cy``) to radians (``rad``). The
-              :envvar:`x_unit` setting has preference over the :envvar:`phased`
-              flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
-              the plot will be made in time, not in phase.
-            - :envvar:`y_unit=None`: allows you to override the default units for
-              the y-axis.
-            - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
-              from the observations. If ``obs``, they will effectively be scaled to
-              the level/units of the observations (if that was specified in the
-              computations as least). If you want to plot the synthetics in the
-              model units, set ``scale=None``.
-            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
-              active axes.
-        
-        Some of matplotlib's defaults are overriden. If you do not specify any of
-        the following keywords, they will take the values:
-        
-            - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
-              If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
-        
-            
-        Example usage:
-        
-        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
-        >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
-        
-        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
-        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
-        
-        More information on arguments and keyword arguments:
-        
-        - :py:func:`phoebe.backend.plotting.plot_lcsyn`
-        - :py:func:`phoebe.backend.plotting.plot_rvsyn`
-        
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        """
-        # Retrieve the obs DataSet and the object it belongs to
-        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
-                                   return_trunk_item=True, all=True)
-        
-        # It's possible that we need to plot an SED: in that case, we have
-        # more than one dataset but they are all light curves that are grouped
-        if len(dsti) > 1:
-            # retrieve obs for sed grouping.
-            dstiobs = self._get_by_search(twig, context='*obs', class_name='*DataSet',
-                                   return_trunk_item=True, all=True)
-            
-            # Check if they are all lightcurves and collect group name
-            groups = []
-            if not len(dsti) == len(dstiobs):
-                raise ValueError("Cannot plot synthetics of SED '{}'".format(twig))
-            
-            for idsti, jdsti in zip(dsti, dstiobs):
-                correct_category = idsti['item'].get_context()[:-3] == 'lc'
-                is_grouped = 'group' in jdsti['item']                
-                if not correct_category or not is_grouped:
-                    # raise the correct error:
-                    self._get_by_search(twig, context='*syn', class_name='*DataSet',
-                                   return_trunk_item=True)
-                else:
-                    groups.append(jdsti['item']['group'])
-            # check if everything belongs to the same group
-            if not len(set(groups)) == 1:
-                raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
-            
-            obj = self.get_object(dsti[0]['label'])
-            context = 'sed' + dsti[0]['item'].get_context()[-3:]
-            ds = dict(ref=groups[0])
-        else:
-            dsti = dsti[0]
-            ds = dsti['item']
-            obj = self.get_object(dsti['label'])
-            context = ds.get_context()
-        
-        # For the pl context we just use the sp context
-        if context[:-3] == 'pl':
-            context = 'sp' + context[-3:]
-            kwargs['category'] = 'pl'
-        
-        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
-        # pop the kwargs here because they cannot be passed to the lower level
-        # plotting function
-        xlabel = kwargs.pop('xlabel', '_auto_')
-        ylabel = kwargs.pop('ylabel', '_auto_')
-        title = kwargs.pop('title', '_auto_')
-        
-        # Now pass everything to the correct plotting function
-        kwargs['ref'] = ds['ref']
-        try:
-            output = getattr(plotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
-        except ValueError:
-            logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
-            return None
-        except IndexError:
-            logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
-            return None
-        syn = output[1]
-        fig_decs = output[2]
-        
-        # The x-label
-        if xlabel == '_auto_':
-            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
-        elif xlabel:
-            plt.xlabel(xlabel)
-        
-        # The y-label
-        if ylabel == '_auto_':
-            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
-        elif ylabel:
-            plt.ylabel(ylabel)
-        
-        # The plot title
-        if title == '_auto_':
-            plt.title('{}'.format(config.nice_names[context[:-3]]))
-        elif title:
-            plt.title(title)
-            
-        return syn
-        
-    def plot_residuals(self, twig=None, **kwargs):
-        """
-        Plot the residuals between computed and observed for a given dataset
-        
-        [FUTURE]
-        
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        """
-        # Retrieve the obs DataSet and the object it belongs to
-        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
-                                   return_trunk_item=True)
-        ds = dsti['item']
-        obj = self.get_object(dsti['label'])
-        category = ds.get_context()[:-3]
-        
-        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
-        # pop the kwargs here because they cannot be passed to the lower level
-        # plotting function
-        xlabel = kwargs.pop('xlabel', '_auto_')
-        ylabel = kwargs.pop('ylabel', '_auto_')
-        title = kwargs.pop('title', '_auto_')
-        
-        # Now pass everything to the correct plotting function
-        kwargs['ref'] = ds['ref']
-        try:
-            output = getattr(plotting, 'plot_{}res'.format(category))(obj, **kwargs)
-        except ValueError:
-            logger.warning("Cannot plot residuals {}: no calculations found".format(kwargs['ref']))
-            return None
-        res = output[1]
-        fig_decs = output[2]
-        
-        # The x-label
-        if xlabel == '_auto_':
-            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
-        elif xlabel:
-            plt.xlabel(xlabel)
-        
-        # The y-label
-        if ylabel == '_auto_':
-            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
-        elif ylabel:
-            plt.ylabel(ylabel)
-        
-        # The plot title
-        if title == '_auto_':
-            plt.title('{}'.format(config.nice_names[category]))
-        elif title:
-            plt.title(title)
-            
-        return res
-    
-    
-    def plot_prior(self, twig=None, **kwargs):
-        """
-        Plot a prior.
-        
-        [FUTURE]
-        """
-        prior = self.get_prior(twig)
-        prior.plot(**kwargs)
-        
-        
-    
     def write_syn(self, dataref, output_file=None, use_user_units=True,
                   include_obs=True, include_header=True, fmt='%25.18e',
                   delimiter=' ', newline='\n', footer='', simulate=False):
@@ -5603,115 +3888,364 @@ class Bundle(Container):
         info = ", ".join(['{} ({})'.format(col, unit) for col, unit in zip(cols, units)])
         logger.info("Wrote columns {} to file '{}'".format(info, output_file))
             
+            
+    #}
     
-        
-    def set_select_time(self,time=None):
+    #{ Live-Plotting
+    
+    def plot_obs(self, twig=None, **kwargs):
         """
-        Set the highlighted time to be shown in all plots
+        Make a plot of the attached observations (wraps pyplot.errorbar).
         
-        set to None to not draw a highlighted time
+        This function is designed to behave like matplotlib's
+        `plt.errorbar() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_
+        function, with additional options.
+        
+        Thus, all kwargs (there are no args) are passed on to matplotlib's
+        `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+        except:
+    
+        - :envvar:`phased=False`: decide whether to phase the data or not.
+          The default is ``True`` when the observations are phased. You can
+          unphase them in that case by setting :envvar:`phased=False`
+          explicitly. This setting is trumped by :envvar:`x_unit` (see
+          below).
+        - :envvar:`repeat=0`: handy if you are actually fitting a phase
+          curve, and you want to repeat the phase curve a couple of times.
+        - :envvar:`x_unit=None`: allows you to override the default units
+          for the x-axis. If you plot times, you can set the unit to any
+          time unit (days (``d``), seconds (``s``), years (``yr``) etc.). If
+          you plot in phase, you can switch from cycle (``cy``) to radians
+          (``rad``). This setting trumps :envvar:`phased`: if the x-unit is
+          of type phase, the data will be phased and if they are time, they
+          will be in time units.
+        - :envvar:`y_unit=None`: allows you to override the default units
+          for the y-axis. Allowable values depend on the type of
+          observations.
+        - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+          active axes.
+    
+        Some of matplotlib's defaults are overriden. If you do not specify any
+        of the following keywords, they will take the values:
+    
+        - :envvar:`label`: the label for the legend defaults to
+          ``<ref> (obs)``. If you don't want a label for this curve, set
+          :envvar:`label='_nolegend_'`.
+        - :envvar:`yerr`: defaults to the uncertainties from the obs if they
+          are available.
+        
+        The DataSet that is returned is a copy of the original DataSet, but with the
+        units of the columns the same as the ones plotted.
+    
+        **Example usage**
+            
+        Suppose you have the following setup::
+        
+            bundle = phoebe.Bundle()
+            bundle.lc_fromarrays(dataref='mylc', time=np.linspace(0, 1, 100),
+            ...                  flux=np.random.normal(size=100))
+            bundle.rv_fromarrays(dataref='myrv', objref='secondary',
+            ...                  phase=np.linspace(0, 1, 100),
+            ...                  rv=np.random.normal(size=100),
+            ...                  sigma=np.ones(100))
+       
+        Then you can plot these observations with any of the following commands::
+            
+            bundle.plot_obs('mylc')
+            bundle.plot_obs('mylc', phased=True)
+            bundle.plot_obs('mylc', phased=True, repeat=1)
+            bundle.plot_obs('myrv@secondary')
+            bundle.plot_obs('myrv@secondary', fmt='ko-')
+            plt.legend()
+            bundle.plot_obs('myrv@secondary', fmt='ko-', label='my legend label')
+            plt.legend()
+            bundle.plot_obs('myrv@secondary', fmt='ko-', x_unit='s', y_unit='nRsol/d')
+        
+        For more explanations and a list of defaults for each type of
+        observations, see:
+        
+        - :py:func:`plot_lcobs <phoebe.backend.plotting.plot_lcobs>`: for light curve plots
+        - :py:func:`plot_rvobs <phoebe.backend.plotting.plot_rvobs>`: for radial velocity plots
+        
+        The arguments are passed to the appropriate functions in
+        :py:mod:`plotting`.
+        
+        For more info on :envvar:`kwargs`, see the
+        pyplot documentation on `plt.errorbars() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.errorbar>`_,
+        
+        :param twig: the twig/twiglet to use when searching
+        :type twig: str
+        :return: observations used for plotting
+        :rtype: DataSet
+        :raises IOError: when observations are not available
+        :raises ValueError: when x/y unit is not allowed
+        :raises ValueError: when y-axis not available (flux, rv...)
+        """
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+        
+        # It's possible that we need to plot an SED: in that case, we have
+        # more than one dataset but they are all light curves that are grouped
+        if len(dsti) > 1:
+            # Check if they are all lightcurves and collect group name
+            groups = []
+            for idsti in dsti:
+                correct_category = idsti['item'].get_context()[:-3] == 'lc'
+                is_grouped = 'group' in idsti['item']
+                if not correct_category or not is_grouped:
+                    # raise the correct error:
+                    self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True)
+                else:
+                    groups.append(idsti['item']['group'])
+            # check if everything belongs to the same group
+            if not len(set(groups)) == 1:
+                raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
+            
+            obj = self.get_object(dsti[0]['label'])
+            context = 'sed' + dsti[0]['item'].get_context()[-3:]
+            ds = dict(ref=groups[0])
+        else:       
+            dsti = dsti[0]
+            ds = dsti['item']
+            obj = self.get_object(dsti['label'])
+            context = ds.get_context()
+        
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
+        # Now pass everything to the correct plotting function in the backend
+        kwargs['ref'] = ds['ref']
+        output = getattr(beplotting, 'plot_{}'.format(context))(obj, **kwargs)
+        
+        # Now take care of figure decorations
+        fig_decs = output[2]
+        artists = output[0]
+        obs = output[1]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[context[:-3]]))
+        elif title:
+            plt.title(title)        
+        
+        logger.info("Plotted {} vs {} of {}({})".format(fig_decs[0][0],
+                                   fig_decs[0][1], context, ds['ref']))
+        
+        return obs
+
+        
+    def plot_syn(self, twig=None, *args, **kwargs):
+        """
+        Plot simulated/computed observations (wraps pyplot.plot).
+        
+        This function is designed to behave like matplotlib's
+        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_
+        function, with additional options.
+        
+        Thus, all args and kwargs are passed on to matplotlib's
+        `plt.plot() <http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot>`_,
+        except:
+        
+            - :envvar:`ref=0`: the reference of the lc to plot
+            - :envvar:`phased=False`: decide whether to phase the data or not. If
+              there are observations corresponding to :envvar:`ref`, the default
+              is ``True`` when those are phased. The setting is overridden
+              completely by ``x_unit`` (see below).
+            - :envvar:`repeat=0`: handy if you are actually fitting a phase curve,
+              and you want to repeat the phase curve a couple of times.
+            - :envvar:`x_unit=None`: allows you to override the default units for
+              the x-axis. If you plot times, you can set the unit to any time unit
+              (days (``d``), seconds (``s``), years (``yr``) etc.). If you plot
+              in phase, you switch from cycle (``cy``) to radians (``rad``). The
+              :envvar:`x_unit` setting has preference over the :envvar:`phased`
+              flag: if :envvar:`phased=True` but :envvar:`x_unit='s'`, then still
+              the plot will be made in time, not in phase.
+            - :envvar:`y_unit=None`: allows you to override the default units for
+              the y-axis.
+            - :envvar:`scale='obs'`: correct synthetics for ``scale`` and ``offset``
+              from the observations. If ``obs``, they will effectively be scaled to
+              the level/units of the observations (if that was specified in the
+              computations as least). If you want to plot the synthetics in the
+              model units, set ``scale=None``.
+            - :envvar:`ax=plt.gca()`: the axes to plot on. Defaults to current
+              active axes.
+        
+        Some of matplotlib's defaults are overriden. If you do not specify any of
+        the following keywords, they will take the values:
+        
+            - :envvar:`label`: the label for the legend defaults to ``<ref> (syn)``.
+              If you don't want a label for this curve, set :envvar:`label=_nolegend_`.
+        
+            
+        Example usage:
+        
+        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
+        >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
+        
+        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
+        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
+        
+        More information on arguments and keyword arguments:
+        
+        - :py:func:`phoebe.backend.plotting.plot_lcsyn`
+        - :py:func:`phoebe.backend.plotting.plot_rvsyn`
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        """
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+        
+        # It's possible that we need to plot an SED: in that case, we have
+        # more than one dataset but they are all light curves that are grouped
+        if len(dsti) > 1:
+            # retrieve obs for sed grouping.
+            dstiobs = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+                                   return_trunk_item=True, all=True)
+            
+            # Check if they are all lightcurves and collect group name
+            groups = []
+            if not len(dsti) == len(dstiobs):
+                raise ValueError("Cannot plot synthetics of SED '{}'".format(twig))
+            
+            for idsti, jdsti in zip(dsti, dstiobs):
+                correct_category = idsti['item'].get_context()[:-3] == 'lc'
+                is_grouped = 'group' in jdsti['item']                
+                if not correct_category or not is_grouped:
+                    # raise the correct error:
+                    self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True)
+                else:
+                    groups.append(jdsti['item']['group'])
+            # check if everything belongs to the same group
+            if not len(set(groups)) == 1:
+                raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
+            
+            obj = self.get_object(dsti[0]['label'])
+            context = 'sed' + dsti[0]['item'].get_context()[-3:]
+            ds = dict(ref=groups[0])
+        else:
+            dsti = dsti[0]
+            ds = dsti['item']
+            obj = self.get_object(dsti['label'])
+            context = ds.get_context()
+        
+        # For the pl context we just use the sp context
+        if context[:-3] == 'pl':
+            context = 'sp' + context[-3:]
+            kwargs['category'] = 'pl'
+        
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
+        
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = ds['ref']
+        try:
+            output = getattr(beplotting, 'plot_{}'.format(context))(obj, *args, **kwargs)
+        except ValueError:
+            logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
+            return None
+        except IndexError:
+            logger.warning("Cannot plot synthetics {}: no calculations found".format(kwargs['ref']))
+            return None
+        syn = output[1]
+        fig_decs = output[2]
+        
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
+        
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
+        
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[context[:-3]]))
+        elif title:
+            plt.title(title)
+            
+        return syn
+        
+    def plot_residuals(self, twig=None, **kwargs):
+        """
+        Plot the residuals between computed and observed for a given dataset
         
         [FUTURE]
         
-        @param time: the time to highlight
-        @type time: float or None
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
         """
-        self.select_time = time
-        #~ self.system.set_time(time)
+        # Retrieve the obs DataSet and the object it belongs to
+        dsti = self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                                   return_trunk_item=True)
+        ds = dsti['item']
+        obj = self.get_object(dsti['label'])
+        category = ds.get_context()[:-3]
         
-    def new_plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
-                  select='proj', cmap=None, vmin=None, vmax=None, size=800,
-                  dpi=80, background=None, savefig=False,
-                  with_partial_as_half=False, **kwargs):
-        """
-        Plot the mesh at a particular time or phase.
+        # Do we need automatic/custom xlabel, ylabel and/or title? We need to
+        # pop the kwargs here because they cannot be passed to the lower level
+        # plotting function
+        xlabel = kwargs.pop('xlabel', '_auto_')
+        ylabel = kwargs.pop('ylabel', '_auto_')
+        title = kwargs.pop('title', '_auto_')
         
-        This function has a lot of different use cases, which are all explained
-        below.
+        # Now pass everything to the correct plotting function
+        kwargs['ref'] = ds['ref']
+        try:
+            output = getattr(beplotting, 'plot_{}res'.format(category))(obj, **kwargs)
+        except ValueError:
+            logger.warning("Cannot plot residuals {}: no calculations found".format(kwargs['ref']))
+            return None
+        res = output[1]
+        fig_decs = output[2]
         
-        **Plotting the mesh at an arbitrary time or phase point**
+        # The x-label
+        if xlabel == '_auto_':
+            plt.xlabel(r'{} ({})'.format(fig_decs[0][0], fig_decs[1][0]))
+        elif xlabel:
+            plt.xlabel(xlabel)
         
-        If you want to plot the mesh at a particular phase, give
-        :envvar:`time` or :envvar:`phase` as a single float (but not both!):
+        # The y-label
+        if ylabel == '_auto_':
+            plt.ylabel(r'{} ({})'.format(fig_decs[0][1], fig_decs[1][1]))
+        elif ylabel:
+            plt.ylabel(ylabel)
         
-            >>> mybundle.plot_mesh(time=0.12)
-            >>> mybundle.plot_mesh(phase=0.25, select='teff')
-            >>> mybundle.plot_mesh(phase=0.25, objref='secondary', dataref='lc01')
-        
-        You can use this function to plot the mesh of the entire system, or just
-        one component (eclipses will show in projected light!). Any scalar
-        quantity that is present in the mesh (effective temperature, logg ...)
-        can be used as color values. For some of these quantities, there are
-        smart defaults for the color maps.
-        
-        
-        **Plotting the current status of the mesh after running computations**
-        
-        If you've just ran :py:func`Bundle.run_compute` for some observations,
-        and you want to see what the mesh looks like after the last calculations
-        have been performed, then this is what you need to do::
-        
-            >>> mybundle.plot_mesh()
-            >>> mybundle.plot_mesh(objref='primary')
-            >>> mybundle.plot_mesh(select='teff')
-            >>> mybundle.plot_mesh(dataref='lc01')
-        
-        Giving a :envvar:`dataref` and/or setting :envvar:`select='proj'` plots
-        the mesh coloured with the projected flux of that dataref.
-        
-        .. warning::
+        # The plot title
+        if title == '_auto_':
+            plt.title('{}'.format(config.nice_names[category]))
+        elif title:
+            plt.title(title)
             
-            1. It is strongly advised only to use this function this way when
-               only one set of observations has been added: otherwise it is not
-               guarenteed that the dataref has been computed for the last time
-               point.
-            
-            2. Although it can sometimes be convenient to use this function
-               plainly without arguments or with just the the dataref after
-               computations, you need to be careful for the dataref that is used
-               to make the plot. The dataref will show up in the logger
-               information.
-        
-        :param objref: object/system label of which you want to plot the mesh.
-         The default means the top level system.
-        :type objref: str
-        :param label: compute label which you want to use to calculate the mesh
-         and its properties. The default means the ``default`` set.
-        :type label: str
-        """
-        if dataref is not None:
-            # Return just one pbdep, we only need the reference and context
-            dsti = self._get_by_search(dataref, context='*dep',
-                            class_name='ParameterSet', all=True, return_trunk_item=True)[0]
-            deps = dsti['item']
-            #~ ref = deps['ref']
-            context = deps.get_context()
-            #~ category = context[:-3]
-            #~ kwargs.setdefault('dataref', ref)
-            kwargs.setdefault('context', context)
-        else:
-            # meh, let's fake the information we need for the plotting call
-            dsti = {'context': 'lcdep', 'ref': 'lc', 'label': self.get_system().get_label()}
-
-        ax = kwargs.pop('ax', None)
-        fig = kwargs.pop('fig', None)
-        
-        kwargs['computelabel'] = label
-        kwargs['objref'] = objref
-        plotref, axesref, figref = self._handle_plotting_call('plot_mesh', dsti, **kwargs)
-
-        # now call the command to plot
-        if ax is None:
-            output = self.draw_figure(figref, fig=fig, live_plot=True, attach=True)
-        else:
-            output = self.draw_axes(axesref, ax=ax, live_plot=True, attach=True)
-        
-        self.currently_plotted.append((axesref.split('@')[0], plotref.split('@')[0]))
-        
-        #~ return None, (plotref, axesref, figref)
-        return output, (plotref, axesref, figref)
-        #~ return obs
-        
+        return res
         
     def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
                   select='teff', cmap=None, vmin=None, vmax=None, size=800,
@@ -5826,7 +4360,529 @@ class Bundle(Container):
             else:
                 raise
         return out
+
+    
+    
+    def plot_prior(self, twig=None, **kwargs):
+        """
+        Plot a prior.
         
+        [FUTURE]
+        """
+        prior = self.get_prior(twig)
+        prior.plot(**kwargs)
+
+
+    #{ Plots
+    def _plotting_set_defaults(self, kwargs, plot_ps, axes_ps, fig_ps=None, override=False):
+        """
+        [FUTURE]
+        
+        helper function that takes a input dictionary (kwargs) and sets those 
+        as defaults across the different plotting PSs with priority being given
+        in the following order:
+        
+        1. plot_ps
+        2. axes_ps
+        3. fig_ps
+        4. new parameter in plot_ps
+        """
+        for k,v in kwargs.items():
+            value = v['value'] if isinstance(v,dict) else v
+            # try plot_ps first, then axes_ps and fig_ps
+            if k in plot_ps.keys():
+                if plot_ps.get_value(k)=='_auto_' or override:
+                    plot_ps.set_value(k,value)
+            elif k in axes_ps.keys():
+                if k not in ['plotrefs']:
+                    if axes_ps.get_value(k)=='_auto_' or override:
+                        axes_ps.set_value(k,value)
+            elif fig_ps is not None and k in fig_ps.keys():
+                if k not in ['axesrefs','axeslocs','axessharex','axessharey']:
+                    if fig_ps.get_value(k)=='_auto_' or override:
+                        fig_ps.set_value(k,value)
+            elif k in ['label']:
+                #~ raise KeyError("parameter with qualifier {} forbidden".format(k))
+                pass
+            else:
+                if (isinstance(v,dict) and v.get('cast_type',False)=='float') or isinstance(v, float):
+                    _cast_type = float
+                    _repr = '%f'
+                elif (isinstance(v,dict) and v.get('cast_type',False)=='int') or isinstance(v, int):
+                    _cast_type = int
+                    _repr = '%d'
+                elif (isinstance(v,dict) and v.get('cast_type',False) in ['bool', 'make_bool']) or isinstance(v, bool):
+                    _cast_type = 'make_bool'
+                    _repr = ''
+                elif (isinstance(v,dict) and v.get('cast_type',False)=='list') or isinstance(v, list) or isinstance(v, tuple):
+                    _cast_type = 'return_string_or_list'
+                    _repr = ''
+                else:
+                    _cast_type = str
+                    _repr = '%s'
+                
+                new_parameter = parameters.Parameter(qualifier=k,
+                        description = v['description'] if isinstance(v,dict) and 'description' in v.keys() else 'func added this parameter but failed to provide a description',
+                        repr = _repr,
+                        cast_type = _cast_type,
+                        value = value)
+                
+                ps = v.get('ps', 'plot') if isinstance(v,dict) else 'plot'
+                if ps == 'figure':
+                    fig_ps.add(new_parameter, with_qualifier=k)
+                elif ps == 'axes':
+                    axes_ps.add(new_parameter, with_qualifier=k)
+                else:
+                    plot_ps.add(new_parameter, with_qualifier=k)
+                
+        return plot_ps, axes_ps, fig_ps
+        
+    def _run_plot_process_func(self, func_str, time=None, func_args=[], func_kwargs={}):
+        if func_str[:19] == 'marshaled function:':
+            func_str = func_str[19:]
+            func_code = marshal.loads(func_str)
+            func = types.FunctionType(func_code, globals(), "_tmp_plot_func")
+            
+        else:
+            func = getattr(plotting, func_str)
+            
+        # run the function with the args
+        func_args_list = [func_args] if isinstance(func_args, str) else list(func_args) if func_args is not None else []
+        func_args = [self, time] + func_args_list
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = func(*func_args, **func_kwargs)
+        return mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults
+        
+    def attach_plot(self, twigs=None, func=None, plotref=None, axesref=None, figref=None, axesloc=None, **kwargs):
+        """
+        [FUTURE]
+        
+        This is the most generic of functions that allows you to attach a 
+        plotting "recipe" to the bundle.  By doing so, you will simply be
+        allowed to re-draw figures or plots after changing your model.
+        
+        The calling signature of this function may seem odd - but gives this 
+        function its power and generality.  Several wrapping functions exist
+        which allow you to do the most common plotting tasks through more 
+        specialized calling signatures:
+        
+        :py:func:`Bundle.attach_plot_obs`
+        :py:func:`Bundle.attach_plot_syn`
+        :py:func:`Bundle.attach_plot_mesh`
+        
+        At the most basic level, this function stores the arguments to 
+        send to either an matplotlib function (that must be an attribute 
+        of ax) or a preprocessing function defined by func.
+        
+        Below is a list of simple examples that all accomplish plotting 
+        an lcobs and lcsyn (with the dataref lc01):
+        
+        >>> from phoebe.frontend import plotting
+        
+        >>> b.attach_plot('lc01', func=plotting.obs)
+        >>> b.attach_plot('lc01', func=plotting.syn)
+        or
+        >>> b.attach_plot('lc01@lcobs')
+        >>> b.attach_plot('lc01@lcsyn')
+        or
+        >>> b.attach_plot(('time@lc01@lcobs', 'flux@lc01@lcobs'))
+        >>> b.attach_plot(('time@lc01@lcsyn', 'flux@lc01@lcsyn'))
+        
+        Here you'll notice that the first argument is either a single twig,
+        or a list of twigs.  If func is not defined, we try to determine
+        which processing function should be used based on the context of the
+        twig(s).  Either way, these twig(s) are passed as args to the func,
+        which then returns the matplotlib function, args, and defaults.  These
+        values are then stored in the plot, axes, and figure ParameterSets
+        for recreation.
+        
+        To draw a plot you must call draw, draw_plot, draw_axes, or draw_figure:
+        
+        >>> import matplotlib.pyplot as plt
+        >>> b.attach_plot('lc01@lcobs', fmt='k.', figref='myfig')
+        >>> b.draw('myfig')
+        >>> plt.show()
+        
+        If you need something more flexible than the functions provided
+        in phoebe.frontend.plotting, your function must follow the format:
+        
+        def my_processing_func(bundle, *args, **kwargs):
+            # insert magic here
+            return mpl_func_name, args_for_mpl_func, kwargs_for_mpl_func, dictionary_of_defaults
+        
+        where the input args are provided by twigs from attach_plot
+        and kwargs are any other keyword arguments sent through attach_plot.
+        Using the bundle that is passed as the first argument and these args (which
+        must be strings, preferably twigs), you can do whatever you'd like
+        so long as your return three items: the string of the matplotlib function to 
+        call (must be an attribute of ax not plt), the arguments to send to
+        that function, the kwargs to send to that function, and a dictionary of default kwargs.  
+        These default kwargs will be sent to the following places in this order:
+        
+            1. plot parameterset (existing parameters)
+            2. axes parameterset
+            3. figure parameterset
+            4. plot parameterset (new parameters)
+
+        Note that kwargs_for_mpl_func above will directly be sent to the function.
+        If these are options that you would like to change later through the parameterset,
+        you should instead send through dictionary_of_defaults and they should find their
+        way in the plot parameterset.
+                
+        :param twigs: the args to send to the plotting call (or through func)
+        :type twigs: list of twigs (strings), or single twig (string)
+        :param func: a function that processes args and return (x,y) or (x,y,z)
+        :type func: function
+        :param plotref: the reference to assign to the stored plot parameterset
+        :type plotref: str
+        :param axesref: the reference of a new or existing axes parameterset
+        :type axesref: str
+        :param figref: the reference of a new or existing figure parameterset
+        :type figref: str
+        :param axesloc: the matplotlib subplot location to add the axes to the figure
+        :type axesloc: list of 3 ints
+        """
+        # handle the correct type for twigs since we'll be passing it as *args
+        if twigs is None:
+            twigs = []
+        elif not isinstance(twigs, str):
+            twigs = list(twigs) # in case it was a tuple
+            
+        # determine plotref if not provided
+        if plotref is None:
+            plotref = "plot01"
+            existing_plotrefs = [pi['ref'] for pi in self.sections['plot']]
+            i=1
+            while plotref in existing_plotrefs:
+                i+=1
+                plotref = "plot{:02}".format(i)
+        
+        if func is None:
+            # let's try to guess the correct func to use
+            if isinstance(twigs, str):
+                # the following should raise an error if not a unique match
+                dsti = self._get_by_search(twigs, class_name='*DataSet',
+                                return_trunk_item=True, all=False)
+
+                # update args to be full twig
+                twigs = dsti['twig']
+                
+                # get context for guessing func
+                context = dsti['context']
+                
+                typ = context[-3:]
+                    
+                if typ=='obs':
+                    func = 'obs'
+                elif typ=='syn':
+                    func = 'syn'
+                else:
+                    raise ValueError("could not determine function to parse args")
+
+            else:
+                # then we assume we have args=(x,y) or (x,y,z), so let's try to guess
+                # from the context of y
+                
+                # let's update all twigs to full version
+                for i,t in enumerate(twigs):
+                    ti = self._get_by_search(t, return_trunk_item=True, all=False)
+                    twigs[i] = ti['twig']
+                    
+                if len(twigs)==2:
+                    func = 'xy'
+                elif len(twigs)==3:
+                    func = 'xyz'
+                else:
+                    raise ValueError("could not determine function to parse args")
+
+        # func is now either passed by the user or guessed automatically above
+        func_str = func if isinstance(func, str) else func.func_name
+        
+        if func_str not in dir(plotting):
+            # we need to store as a str in the PS, so let's marshal
+            func_str = "marshaled function:"+marshal.dumps(func.func_code)
+        
+        # now let's run func to get the default_kwargs to add to plot_ref, etc
+        # and also to make sure that it runs before allowing to attach the PS
+        time = kwargs.pop('time', None)
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
+        
+        # we'll set up the axes based on kwargs - if they aren't provided
+        # and remain at auto, then we won't split into a new axes_ps anyways
+    
+        sharex = kwargs.pop('sharex','_auto_')
+        sharey = kwargs.pop('sharex','_auto_')
+        xunit = kwargs.get('xunit','_auto_')
+        yunit = kwargs.get('yunit','_auto_')
+
+        # at this point, all of kwargs passed by the user have either been
+        # popped before the previous call, or processed, so we should be
+        # using func_kwargs_defaults from now on
+
+        figref = self._handle_current_figure(figref=figref)
+        axesref, figref = self._handle_current_axes(axesref=axesref, figref=figref, 
+                axesloc=axesloc, sharex=sharex, sharey=sharey, xunit=xunit, yunit=yunit)
+                
+        axes_ps = self.get_axes(axesref)
+        fig_ps = self.get_figure(figref)
+
+        # if axes_ps already existed then we want to pass some of those arguments
+        # on as well so they aren't reset
+        for k in ['phased', 'xlim', 'ylim', 'xunit', 'yunit', 'scroll', 'scroll_xlim']:
+            if k in axes_ps.keys() and (type(axes_ps[k])==bool or '_auto_' not in axes_ps[k]):
+                kwargs.setdefault(k, axes_ps[k])
+
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = self._run_plot_process_func(func_str, time, func_args=twigs, func_kwargs=kwargs)
+
+        # create plot_ps and retrieve existing axes_ps and fig_ps
+        plot_ps = parameters.ParameterSet(context='plotting:plot', twigs=twigs, func=func_str, ref=plotref)
+
+
+        # we don't need mpl_func, mpl_args, or mpl_kwargs - they'll be regenerated
+        # by the processing function when draw is called, but we *do* want 
+        # to store func_kwargs_defaults in the plot_ps, axes_ps, or fig_ps
+        plot_ps, axes_ps, fig_ps = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps, override=True)
+        
+        logger.info("Attaching {}@plot to {}@axes and {}@figure".format(plotref, axes_ps['ref'], fig_ps['ref']))
+        self._add_to_section('plot', plot_ps)
+
+        axes_ps.add_plot(plotref)
+        
+        return plotref, axesref, figref
+        
+    def attach_plot_obs(self, datatwig, **kwargs):
+        """
+        [FUTURE]
+        
+        """
+        return self.attach_plot(datatwig, plotting.obs, **kwargs)
+        
+    def attach_plot_syn(self, datatwig, **kwargs):
+        """
+        [FUTURE]
+        
+        """
+        return self.attach_plot(datatwig, plotting.syn, **kwargs)
+       
+    def attach_plot_mesh(self, objref, dataref, **kwargs):
+        """
+        [FUTURE]
+        """
+        return self.attach_plot((objref, dataref), plotting.mesh, **kwargs)
+        
+    def attach_plot_orbit(self, objref, dataref, **kwargs):
+        """
+        [FUTURE]
+        """
+        return self.attach_plot((objref, dataref), plotting.orbit, **kwargs)
+       
+    def attach_plot_mplcmd(self, funcname, args=(), **kwargs):
+        """
+        [FUTURE]
+        """
+        return self.attach_plot((funcname, args), plotting.mplcmd, **kwargs)
+    
+        
+    def get_plot(self, plotref):
+        """
+        [FUTURE]
+        
+        Get the ParameterSet object for a plot attached to the bundle
+        
+        :param plotref: ref to the axes
+        :type plotref: str
+        :return: the plot
+        :rtype: ParameterSet
+        """
+        # TODO allow plotref=None ?
+        # TODO allow passing kwargs and return a copy with those changes?
+        plotref = plotref.split('@')[0]
+        return self._get_by_section(plotref,"plot",kind=None)
+        
+    @rebuild_trunk
+    def remove_plot(self, plotref=None):
+        """
+        [FUTURE]
+        
+        Remove a plot from the bundle.
+        
+        This does not check to make sure the plot is not referenced in
+        any existing axes, so use with caution.
+        
+        :param plotref: ref of the plot
+        :type plotref: str
+        """
+        plot_ps = self._get_by_section(plotref, "plot", kind=None)
+        
+        # we also need to check all axes, and remove this entry from any plotrefs
+        #~ plotref_ref = plotref.split('@')[0]
+        for axesref,axes_ps in self._get_dict_of_section('axes').items():
+            axes_ps.remove_plot(plotref)
+            
+        self.sections['plot'].remove(plot_ps)
+        
+    def add_plot(self, plotref=None, axesref=None, figref=None, axesloc=None, **kwargs):
+        """
+        [FUTURE]
+        
+        Add an existing plot (created through attach_plot, attach_funcplot, attach_mplcmd etc)
+        to an axes and figure in the bundle.
+
+        If :envvar:`loc` points to a location in the :envvar:`figref` figure
+        that is empty, a new axes will be created
+                
+        If :envvar:`axesref` is None and :envvar:`loc` is None, the plot will be attached to the current axes.
+        If :envvar:`axesref` points to an existing axes, the plot will be attached 
+        to that axes and it will become the current axes.
+        If :envvar:`axesref` does not point to an existing axes, the axes will be
+        created, attached, and will become the current axes.
+        
+        If :envvar:`figref` is None, the axes will be attached to the current figure.
+        If :envvar:`figref` points to an existing figure, the axes will be attached
+        to that figure and it will become the current figure.
+        If :envvar:`figure` does not point to an existing figure, the figure will
+        be created, attached, and will become the current figure.
+        
+        Any kwargs will get passed to the :envvar:`plotref` ParameterSet.
+        
+        :param plotref: ref of the plot
+        :type plotref: str
+        :param axesref: ref to a parent axes
+        :type axesref: str
+        :param figref: ref to a parent figure
+        :type figref: str or None
+        :param axesloc: location in the figure to attach the axes (see matplotlib.figure.Figure.add_subplot)
+        :type axesloc: tuple with length 3
+        :return: (axesref, figref)
+        :rtype: tuple of strings
+        """
+        
+        figref = self._handle_current_figure(figref)
+        axesref, figref = self._handle_current_axes(axesref, figref, axesloc=axesloc)
+        
+        axes_ps = self.get_axes(axesref)
+        axes_ps.add_plot(plotref)
+        plot_ps = self.get_plot(plotref)
+        
+        for k,v in kwargs.items():
+            if k in axes_ps.keys():
+                axes_ps.set_value(k,v)
+            else:
+                plot_ps.set_value(k,v)
+                
+        return plotref, axesref, figref
+
+        
+    def draw_plot(self, plotref, time=None, axesref=None, ax=None, **kwargs):
+        """
+        [FUTURE]
+
+        """
+        logger.info('Drawing {}'.format(plotref))
+        if ax is None:
+            ax = plt.gca()
+        
+        # we'll get a copy of the plot_ps and axes_ps since we may be making temporary changes
+        plot_ps = self.get_plot(plotref).copy()
+        axes_ps = self.get_axes(axesref).copy()
+        axesref = axes_ps['ref']
+        
+        # this plot needs to be attached as a member of the axes if it is not
+        #~ if plotref not in axes_ps['plotrefs']:
+            #~ axes_ps.add_plot(plotref)
+
+        # retrieve the function from the plot PS
+        func_str = plot_ps.get_value('func')
+        func_args = plot_ps.get_value('twigs')
+
+        # and now we'll overwrite (temporarily) from any user-sent
+        # kwargs.  These trump any values set in the PS or defaults
+        # set by the function
+        plot_ps, axes_ps, dump = self._plotting_set_defaults(kwargs, plot_ps, axes_ps, fig_ps=None, override=True)
+        
+        func_kwargs = {}
+        
+        # now from the plot_ps we need to build kwargs to pass to the processing func
+        for k,v in plot_ps.items():
+            if v not in ['', '_auto_']:
+                func_kwargs[k] = v
+        # and we even need some (like xunit, yunit) from axes_ps
+        for k in ['phased', 'xunit', 'yunit']:
+            v = axes_ps[k]
+            if k not in kwargs and v not in ['', '_auto_']:
+                # note: here we're overriding func_kwargs but not user-sent kwargs
+                func_kwargs[k] = v
+        
+        # and remove items that we don't want to pass
+        dump = func_kwargs.pop('func', None)
+        dump = func_kwargs.pop('twigs', None)
+
+        # the dataref becomes mpl's label (used for legends)
+        func_kwargs['label'] = func_kwargs.pop('ref')
+        
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = self._run_plot_process_func(func_str, time, func_args, func_kwargs)
+        
+        # func_kwargs_defaults may also apply to axes_ps, so let's update the PSs anyways
+        plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
+
+        # and now let's finally call the matplotlib function(s)
+        if isinstance(mpl_func, str):
+            # then we just have one call, but for generality let's list everything
+            mpl_func = [mpl_func]
+            mpl_args = [mpl_args]
+            mpl_kwargs = [mpl_kwargs]
+        
+        for m_func, m_args, m_kwargs in zip(mpl_func, mpl_args, mpl_kwargs):
+            # check to make sure all kwargs in mpl_kwargs are allowed
+
+            if hasattr(ax, m_func):
+                line2D_attrs = ['aa', 'agg', 'alpha', 'animated', 'antialiased', 'axes', 'c', 'children', 'clip', 'clip', 'clip', 'color', 'contains', 'dash', 'dash', 'data', 'drawstyle', 'figure', 'fillstyle', 'gid', 'label', 'linestyle', 'linewidth', 'ls', 'lw', 'marker', 'markeredgecolor', 'markeredgewidth', 'markerfacecolor', 'markerfacecoloralt', 'markersize', 'markevery', 'mec', 'mew', 'mfc', 'mfcalt', 'ms', 'path', 'picker', 'pickradius', 'rasterized', 'snap', 'solid', 'solid', 'transform', 'transformed', 'url', 'visible', 'window', 'xdata', 'xydata', 'ydata', 'zorder']
+                line2D_attrs.append('fmt')
+                m_kwargs = {k:v for k,v in m_kwargs.items() if k in line2D_attrs}
+                if m_func == 'plot' and 'fmt' in m_kwargs:
+                    # manually move fmt from kwargs to args
+                    m_args = list(m_args) # cannot append to tuple
+                    m_args.append(m_kwargs.pop('fmt'))
+                output = getattr(ax, m_func)(*m_args, **m_kwargs)
+            elif hasattr(collections, m_func):
+                #~ print "*", m_func, m_args, m_kwargs
+                
+                background = m_kwargs.pop('background', 'k')
+                
+                p = getattr(collections, m_func)(*m_args, **m_kwargs)
+                ax.add_collection(p)
+                
+                ax.set_axis_bgcolor(background)
+                ax.set_aspect('equal')
+                ax.set_xlim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
+                ax.set_ylim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
+                
+            else:
+                logger.error("could not call mpl function: {}".format(m_func))
+        
+        # now we need to make any necessary changes to the axes
+        # TODO: make this more automated by checking getattr(ax, 'set_'+key)?
+        # TODO: we also need to check getattr when setting new values in the PSs (in _plotting_set_defaults)
+        if axes_ps.get_value('xlabel') != '_auto_':
+            ax.set_xlabel(axes_ps.get_value('xlabel'))
+        if axes_ps.get_value('ylabel') != '_auto_':
+            ax.set_ylabel(axes_ps.get_value('ylabel'))
+        if axes_ps.get_value('title') != '_auto_':
+            ax.set_title(axes_ps.get_value('title'))  
+        
+        if axes_ps.get_value('xlim') not in [(None,None), '_auto_', u'_auto_']:
+            ax.set_xlim(axes_ps.get_value('xlim'))
+        if axes_ps.get_value('ylim') not in [(None,None), '_auto_', u'_auto_']:
+            ax.set_ylim(axes_ps.get_value('ylim'))
+            
+        # override any xlimits if the axes_ps scroll is set and we were passed a time
+        if 'scroll' in axes_ps.keys() and axes_ps.get_value('scroll') and time:
+            sxlim = axes_ps.get_value('scroll_xlim')
+            ax.set_xlim(time+sxlim[0], time+sxlim[1])
+            
+        # TODO: fix this return statement
+        return {plotref: []}
+
         
     def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
         """
@@ -5885,203 +4941,545 @@ class Bundle(Container):
         axes.set_xlabel(po['xaxis'])
         axes.set_ylabel(po['yaxis'])
         
+        
+    def add_axes_to_figure(self, figref, axesref, axesloc):
+        """
+        [FUTURE]
+        """
+        # TODO: handle new figref
+        fig = self.get_figure(figref)
+        
+        axesrefs = fig.get_value('axesrefs')
+        axeslocs = fig.get_value('axeslocs')
+        
+        axesrefs.append(axesref)
+        axeslocs.append(axesloc)
+        
+        fig.set_value('axesrefs', axesrefs)
+        fig.set_value('axeslocs', axeslocs)
+        
+        
+    #}
+
+    #{ Axes
+    def get_axes(self, axesref=None):
+        """
+        [FUTURE]
+        
+        Get the ParameterSet object for an axes attached to the bundle
+        
+        If :envvar:`axesref` is None, then the current axes will be retrieved 
+        if one exists.  If one does not exist, an empty will first be created
+        and attached to the bundle as well as the current figure.
+        
+        :param axesref: ref to the axes
+        :type axesref: str or None
+        :return: the axes
+        :rtype: frontend.plotting.Axes (ParameterSet)
+        """
+        # TODO allow passing kwargs
+        
+        if axesref is None:
+            axesref, figref = self._handle_current_axes()
+        else:
+            axesref = axesref.split('@')[0]
+        self.current_axes = axesref
+        return self._get_by_section(axesref, "axes", kind=None)
+        
+    def add_axes(self, axesref=None, figref=None, axesloc=(1,1,1), sharex='_auto_', sharey='_auto_', **kwargs):
+        """
+        [FUTURE]
+        
+        Add a new axes to the bundle, and set it as the current axes
+        for any subsequent plotting calls.
+        
+        If :envvar:`axesref` is None, a default will be created.
+        
+        If :envvar:`figref` is None, the axes will be attached to the current figure.
+        If :envvar:`figref` points to an existing figure, the axes will be attached
+        to that figure and it will become the current figure.
+        If :envvar:`figure` does not point to an existing figure, the figure will
+        be created, attached, and will become the current figure.
+        
+        Any kwargs will get passed to the plotting:axes ParameterSet.
+        
+        :param axesref: ref for the axes
+        :type axesref: str
+        :param figref: ref to a parent figure
+        :type figref: str or None
+        :param loc: location in the figure to attach the axes (see matplotlib.figure.Figure.add_subplot)
+        :type loc: tuple with length 3
+        :return: (axesref, figref)
+        :rtype: tuple of strings
+        """
+        #~ axesref = kwargs.pop('axesref', None)
+        #~ figref = kwargs.pop('figref', None)
+        add_to_section = True
+        if axesref is None or axesref not in self._get_dict_of_section('axes').keys():
+            if axesref is None:
+                axesref = "axes{:02}".format(len(self.sections['axes'])+1)
+            axes_ps = plotting.Axes(self, ref=axesref, **kwargs)
+        else:
+            add_to_section = False
+            axes_ps = self.get_axes(axesref)
+
+        for k,v in kwargs.items():
+            axes_ps.set_value(k,v)
+
+        if add_to_section:
+            self._add_to_section('axes',axes_ps)
+        
+        # now attach it to a figure
+        figref = self._handle_current_figure(figref=figref)
+        if axesloc in [None, '_auto_']: # just in case (this is necessary and used from defaults in other functions)
+            axesloc = (1,1,1)
+        self.get_figure(figref).add_axes(axesref, axesloc, sharex, sharey) # calls rebuild trunk and will also set self.current_figure
+
+        self.current_axes = axesref
+        
+        return self.current_axes, self.current_figure
+
+    @rebuild_trunk
+    def remove_axes(self, axesref=None):
+        """
+        [FUTURE]
+        
+        Remove an axes and all of its children plots that are not referenced
+        by other axes.
+        
+        :param axesref: ref of the axes
+        :type axesref: str
+        """
+        axes_ps = self._get_by_section(axesref, "axes", kind=None)
+        plotrefs = axes_ps['plotrefs']
+
+        # we also need to check all figures, and remove this entry from any axesrefs
+        # as well as any sharex or sharey
+        for figref,fig_ps in self._get_dict_of_section('figure').items():
+            fig_ps.remove_axes(axesref)
+        
+        self.sections['axes'].remove(axes_ps)
+
+        for plotref in axes_ps['plotrefs']:
+            if all([plotref not in ps['plotrefs'] for ps in self.sections['axes']]):
+                self.remove_plot(plotref)            
+        
+    def draw_axes(self, axesref=None, time=None, ax=None, **kwargs):
+        """
+        [FUTURE]
+        
+        Draw an axes that is attached to the bundle.
+        
+        If :envvar:`axesref` is None, then the current axes will be plotted.
+        
+        If you don't provide :envvar:`ax` then the figure will be drawn to plt.gca().
+        
+        :param axesref: ref of the axes
+        :type axesref: str or None
+        :param ax: mpl axes used for plotting (optional, overrides :envvar:`fig`)
+        :type ax: mpl.Axes
+        """
+        # TODO move cla here from self.draw
+
+        axes_ps = self.get_axes(axesref) #also sets to current
+        axesref = self.current_axes
+        
+        if ax is None:
+            ax = plt.gca()
+            
+        # right now all axes options are being set for /each/ draw_plot
+        # call, which will work, but is overkill.  The reason for this is
+        # so that draw_plot(plot_label) is smart enough to handle also setting
+        # the axes options for the one single call
+        
+        plot_ret = {}
+        for plotref in axes_ps['plotrefs']:
+            plot_ret_new = self.draw_plot(plotref, time=time, axesref=axesref, ax=ax, **kwargs)
+        
+            for k,v in plot_ret_new.items():
+                plot_ret[k] = v
+            
+        self.current_axes = None
+        #~ self.current_figure = None
+        self.currently_plotted = []
+            
+        return ({axesref: ax}, plot_ret)
+            
+    def _handle_current_axes(self, axesref=None, figref=None, axesloc=None, sharex='_auto_', sharey='_auto_', xunit='_auto_', yunit='_auto_'):
+        """
+        [FUTURE]
+        this function should be called whenever the user calls a plotting function
+        
+        it will check to see if the current axes is defined, and if it isn't it will
+        create a new axes instance with an intelligent default label
+        
+        the created plotting parameter set should then be added later by self.get_axes(label).add_plot(plot_twig)
+        """
+        
+        fig_ps = self.get_figure(figref)
+        
+        if self.current_axes is not None:
+            curr_axes_ps = self.get_axes(self.current_axes)
+            curr_axes_loc = fig_ps.get_loc(self.current_axes)
+        else:
+            curr_axes_ps = None
+            curr_axes_loc = None
+
+        if not self.current_axes \
+                or (axesref is not None and axesref not in self._get_dict_of_section('axes')) \
+                or (axesloc is not None and axesloc not in fig_ps.get_value('axeslocs')):
+            # no existing figure
+            # or new axesref for this figure
+            # or new loc for this figure (note: cannot retrieve by loc)
+            #~ print "*** _handle_current_axes calling add_axes", axesref, loc, sharex, sharey
+            axesref, figref = self.add_axes(axesref=axesref, figref=figref, axesloc=axesloc, sharex=sharex, sharey=sharey) # other stuff can be handled externally
+
+        # handle units
+        elif axesref is None and axesloc in [None, curr_axes_loc]:
+            # we do not allow axesref==self.current_axes in this case, because then we'd be overriding the axesref
+            
+            # TODO: we need to be smarter here if any of the units are _auto_ - they may be referring to
+            # different datasets with different default units, so we need to check to see what _auto_
+            # actually refers to and see if that matches... :/
+            add_axes = True
+            if (xunit != curr_axes_ps.get_value('xunit') and xunit != '_auto_') and (yunit != curr_axes_ps.get_value('yunit') and yunit != '_auto_'):
+                #~ print "*** _handle_current_axes units caseA"
+                sharex = '_auto_'
+                sharey = '_auto_'
+                axesloc = curr_axes_loc
+                # axes locations (moving to top & right) is handled in draw_figure
+            elif xunit != curr_axes_ps.get_value('xunit') and xunit != '_auto_':
+                #~ print "*** _handle_current_axes units caseB"
+                sharex = '_auto_'
+                sharey = self.current_axes
+                axesloc = curr_axes_loc
+                # axes locations (moving to top) is handled in draw_figure
+            elif yunit != curr_axes_ps.get_value('yunit') and yunit != '_auto_':
+                #~ print "*** _handle_current_axes units caseC"
+                sharex = self.current_axes
+                sharey = '_auto_'
+                axesloc = curr_axes_loc
+                # axes locations (moving to right) is handled in draw_figure
+            else:
+                #~ print "*** _handle_current_axes units caseD"
+                #~ sharex = '_auto_'
+                #~ sharey = '_auto_'
+                #~ loc = loc
+                add_axes = False
+                
+            if add_axes:
+                #~ print "*** _handle_current_axes calling add_axes", axesref, loc, sharex, sharey
+                axesref, figref = self.add_axes(axesref=axesref, figref=figref, axesloc=axesloc, xunit=xunit, yunit=yunit, sharex=sharex, sharey=sharey)
+                
+
+        
+        if axesref is not None:
+            self.current_axes = axesref
+            
+        return self.current_axes, self.current_figure
+
     #}
     
-    #{Server
-    def server_job_status(self):
+    #{ Figures
+
+    def draw(self, twig=None, time=None, **kwargs):
         """
-        check whether the job is finished on the server and ready for 
-        the new bundle to be reloaded
-        
         [FUTURE]
-        """
-        server = self.get_server(self.lock['server'])
-        script = self.lock['script']
         
-        if server is not None:
-            return server.check_script_status(script)
+        Draw a figure, axes, or plot that is attached to the bundle.
+        
+        If :envvar:`twig` is None, then the current figure will be plotted.
+        
+        If you don't provide :envvar:`fig` or :envvar:`ax`, then the the 
+        figure/axes will be drawn to plt.gcf() or plt.gca()
+        
+        If you provide :envvar:`fig` but :envvar:`twig` points to a plot or 
+        axes instead of a figure, then the axes will be drawn to fig.gca()
+        
+        :param twig: twig pointing the the figure, axes, or plot options
+        :type twig: str or None
+        :param attach: whether to attach these options to the bundle
+        :type attach: bool
+        :param ax: mpl axes used for plotting (optional, overrides :envvar:`fig`)
+        :type ax: mpl.Axes
+        :param fig: mpl figure used for plotting (optional)
+        :type fig: mpl.Figure
+        :param clf: whether to call plt.clf() before plotting
+        :type clf: bool
+        :param cla: whether to call plt.cal() before plotting
+        :type cla: bool
+        """
+        
+        if twig is None:
+            ps = self.get_figure()
         else:
-            return 'no job'
+            ps = self._get_by_search(twig, section=['plot','axes','figure'])
         
-    def server_cancel(self):
-        """
-        unlock the bundle and remove information about the running job
-        NOTE: this will not actually kill the job on the server, but will remove files that have already been created
+        ax = kwargs.pop('ax', None)
+        fig = kwargs.pop('fig', None)
+        clf = kwargs.pop('clf', False)
+        cla = kwargs.pop('cla', False)
         
-        [FUTURE]
-        """
-        server = self.get_server(self.lock['server'])
-        script = self.lock['script']
-        lock_files = self.lock['files']
+        ref = ps.get_value('ref')
+        level = ps.context.split(':')[1].split('_')[0] # will be plot, axes, or figure
         
-        mount_dir = server.server_ps.get_value('mount_dir')
-        
-        if server.check_mount():
-            logger.info('cleaning files in {}'.format(mount_dir))
-            for fname in lock_files:
-                try:
-                    os.remove(os.path.join(mount_dir,fname))
-                except:
-                    pass
+        if level=='figure':
+            if fig is None:
+                fig = plt.gcf()
+            if clf:
+                fig.clf()
             
-        self.lock = {'locked': False, 'server': '', 'script': '', 'command': '', 'files': [], 'rfile': None}
+            ret = self.draw_figure(ref, time=time, fig=fig, **kwargs)
+        
+        elif level=='axes':
+            if ax is None:
+                if fig is None:
+                    ax = plt.gca()
+                else:
+                    ax = fig.gca()
+            if cla:
+                ax.cla()
+        
+            ret = self.draw_axes(ref, time=time, ax=ax, **kwargs)
             
-    def server_loop(self):
-        """
-        enter a loop to check the status of a job on a server and load
-        the results when finished.
-        
-        You can always kill this loop and reenter (even after saving and loading the bundle)        
-        
-        [FUTURE]
-        """
-        server = self.get_server(self.lock['server'])
-        script = self.lock['script']
-        
-        servername = server.server_ps.get_value('label')
-        
-        while True:
-            logger.info('checking {} server'.format(servername))
-            if self.server_job_status()=='complete':
-                self.server_get_results()
-                return
-            sleep(5)
-    
-    def server_get_results(self):
-        """
-        reload the bundle from a finished job on the server
-        
-        [FUTURE]
-        """
-        
-        server = self.get_server(self.lock['server'])
-        script = self.lock['script']
-        lock_files = self.lock['files']
-        
-        if self.server_job_status()!='complete':
-            return False
-
-        mount_dir = server.server_ps.get_value('mount_dir')
-        
-        logger.info('retrieving updated bundle from {}'.format(mount_dir))
-        self_new = load(os.path.join(mount_dir,self.lock['rfile']))
-
-        # reassign self_new -> self
-        # (no one said it had to be pretty)
-        for attr in ["__class__","__dict__"]:
-                setattr(self, attr, getattr(self_new, attr))
-
-        # alternatively we could just set the system, but 
-        # then we lose flexibility in adjusting things outside
-        # of bundle.get_system()
-        #~ bundle.set_system(bundle_new.get_system()) # note: anything changed outside system will be lost
-
-        # cleanup files
-        logger.info('cleaning files in {}'.format(mount_dir))
-        for fname in lock_files:
-            os.remove(os.path.join(mount_dir,fname))
-        os.remove(os.path.join(mount_dir,'%s.status' % script))
-        os.remove(os.path.join(mount_dir,'%s.log' % script))
-        
-        return
-    
-    #}
-        
-    #{ Attached Signals
-    def attach_signal(self,param,funcname,callbackfunc,*args):
-        """
-        Attaches a callback signal and keeps list of attached signals
-        
-        [FUTURE]
-        
-        @param param: the object to attach something to
-        @type param: some class
-        @param funcname: name of the class's method to add a callback to
-        @type funcname: str
-        @param callbackfunc: the callback function
-        @type callbackfunc: callable function
-        """
-        system = self.get_system()
-        
-        # for some reason system.signals is becoming an 'instance' and 
-        # is giving the error that it is not iterable
-        # for now this will get around that, until we can find the source of the problem
-        if system is not None and not isinstance(system.signals, dict):
-            #~ print "*system.signals not dict"
-            system.signals = {}
-        callbacks.attach_signal(param,funcname,callbackfunc,*args)
-        self.attached_signals.append(param)
-        
-    def purge_signals(self,signals=None):
-        """
-        Purges all signals created through Bundle.attach_signal()
-        
-        [FUTURE]
-        
-        @param signals: a list of signals to purge
-        @type signals: list
-        """
-        
-        if signals is None:
-            signals = self.attached_signals
-        #~ print "* purge_signals", signals
-        for param in signals:
-            callbacks.purge_signals(param)
-        if signals == self.attached_signals:
-            self.attached_signals = []
-        elif signals == self.attached_signals_system:
-            self.attached_signals_system = []
-        #~ elif signals == self.attached_signals + self.attached_signals_system:
-            #~ self.attached_signals = []
-            #~ self.attached_signals_system = []
-            
-    def attach_system_signals(self):
-        """
-        this function attaches signals to:
-            - set_value (for all parameters)
-            - load_data/remove_data
-            - enable_obs/disable_obs/adjust_obs
-            
-        when any of these signals are emitted, _on_param_changed will be called
-        
-        [FUTURE]
-        """
-
-        self.purge_signals(self.attached_signals_system) # this will also clear the list
-        # get_system_structure is not implemented yet
-        
-        # these might already be attached?
-        self.attach_signal(self,'data_fromfile',self._on_param_changed)
-        self.attach_signal(self,'remove_data',self._on_param_changed)
-        self.attach_signal(self,'enable_data',self._on_param_changed)
-        self.attach_signal(self,'disable_data',self._on_param_changed)
-        #~ self.attach_signal(self,'adjust_obs',self._on_param_changed)
-        #~ self.attach_signal(self,'restore_version',self._on_param_changed)
-        
-    def _attach_set_value_signals(self,ps):
-        """
-        [FUTURE]
-        """
-        for key in ps.keys():
-            param = ps.get_parameter(key)
-            self.attach_signal(param,'set_value',self._on_param_changed,ps)
-            self.attached_signals_system.append(param)
-    
-    def _on_param_changed(self,param,ps=None):
-        """
-        this function is called whenever a signal is emitted that was attached
-        in attach_system_signals
-        
-        [FUTURE]
-        """
-        system = self.get_system()
-        
-        if ps is not None and ps.context == 'compute': # then we only want to set the changed compute to uptodate
-            if system.uptodate is not False and self.get_compute(system.uptodate) == ps:
-                system.uptodate=False
         else:
-            system.uptodate = False
+            if ax is None:
+                if fig is None:
+                    ax = plt.gca()
+                else:
+                    ax = fig.gca()
+            if cla:
+                ax.cla()
             
+            ret = self.draw_plot(ref, time=time, ax=ax, **kwargs)
+
+        return ret
+    
+    def draw_figure(self, figref=None, time=None, fig=None, **kwargs):
+        """
+        [FUTURE]
+        
+        Draw a figure that is attached to the bundle.
+        
+        If :envvar:`figref` is None, then the current figure will be plotted.
+        
+        If you don't provide :envvar:`fig` then the figure will be drawn to plt.gcf().
+        
+        :param figref: ref of the figure
+        :type figref: str or None
+        :param fig: mpl figure used for plotting (optional)
+        :type fig: mpl.Figure
+        """
+        # TODO move clf option from self.draw to here
+
+        if fig is None:
+            fig = plt.gcf()
+        
+        fig_ps = self.get_figure(figref)
+        
+        axes_ret, plot_ret = {}, {}
+        for (axesref,axesloc,axessharex,axessharey) in zip(fig_ps['axesrefs'], fig_ps['axeslocs'], fig_ps['axessharex'], fig_ps['axessharey']):
+            # need to handle logic for live-plotting
+            axes_ps = self.get_axes(axesref)
+            plotrefs = axes_ps['plotrefs']
+            
+            axes_existing_refs = [a.split('@')[0] for a in axes_ret.keys()]
+            # handle axes sharing
+            # we also need to check to see if we're in the same location, and if so
+            # smartly move the location of the axesticks and labels
+            axessharex = axessharex.split('@')[0]
+            axessharey = axessharey.split('@')[0]
+            if axessharex != '_auto_' and axessharex in axes_existing_refs:
+                ind = axes_existing_refs.index(axessharex)
+                sharex = axes_ret.values()[ind]
+                if axesloc in [fig_ps.get_loc(axes_ret.keys()[ind])]: 
+                    # then we're drawing on the same location, so need to move the axes
+                    yaxis_loc = 'right'
+            else:
+                sharex = None
+                yaxis_loc = None # just ignore, defaults will take over
+            if axessharey != '_auto_' and axessharey in axes_existing_refs:
+                ind = axes_existing_refs.index(axessharey)
+                sharey = axes_ret.values()[ind]
+                #~ print "*** draw_figure move xaxis_loc?", axesloc, fig_ps.get_loc(axes_ret.keys()[ind])
+                if axesloc in [fig_ps.get_loc(axes_ret.keys()[ind])]: 
+                    # then we're drawing on the same location, so need to move the axes
+                    xaxis_loc = 'top'
+            else:
+                sharey = None
+                xaxis_loc = None # just ignore, defaults will take over
+                
+                
+            ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],sharex=sharex,sharey=sharey)
+            # we must set the current axes so that subsequent live-plotting calls will
+            # go here unless overriden by the user
+            plt.sca(ax)
+
+            axes_ret_new, plot_ret_new = self.draw_axes(axesref, time=time, ax=ax)
+            
+            if xaxis_loc == 'top':
+                ax.xaxis.tick_top()
+                ax.xaxis.set_label_position("top")
+                #~ ax.xaxis.set_offset_position('top')
+                ax.yaxis.set_visible(False)
+                ax.patch.set_visible(False)
+            if yaxis_loc == 'right':
+                ax.yaxis.tick_right()
+                ax.yaxis.set_label_position("right")
+                #~ ax.yaxis.set_offset_position('right')
+                ax.xaxis.set_visible(False)
+                ax.patch.set_visible(False)
+            
+            for k,v in axes_ret_new.items():
+                axes_ret[k] = v
+            for k,v in plot_ret_new.items():
+                plot_ret[k] = v
+            
+        self.current_figure = None
+        self.current_axes = None
+        self.currently_plotted = []
+            
+        return ({figref: fig}, axes_ret, plot_ret)
+        
+    def show(self, twig=None, attach=None, **kwargs):
+        """
+        [FUTURE]
+        
+        Draw and show a figure, axes, or plot that is attached to the bundle.
+        
+        If :envvar:`twig` is None, then the current figure will be plotted.
+        All kwargs are passed to :py:func`Bundle.draw`
+        
+        :param twig: twig pointing the the figure, axes, or plot options
+        :type twig: str or None
+        :param attach: whether to attach these options to the bundle
+        :type attach: bool
+        """
+        ax_or_fig = self.draw(twig, attach=attach, **kwargs)
+        plt.show()
+        
+    def savefig(self, twig=None, filename=None, attach=None, **kwargs):
+        """
+        [FUTURE]
+
+        Draw and save a figure, axes, or plot that is attached to the bundle
+        to file.
+        
+        If :envvar:`twig` is None, then the current figure will be plotted.
+        All kwargs are passed to :py:func`Bundle.draw`
+        
+        :param twig: twig pointing the the figure, axes, or plot options
+        :type twig: str or None
+        :param attach: whether to attach these options to the bundle
+        :type attach: bool
+        :param filename: filename for the resulting image
+        :type filename: str
+        """
+        ax_or_fig = self.draw(twig, attach=attach **kwargs)
+        plt.savefig(filename)
+
+    def get_figure(self, figref=None):
+        """
+        [FUTURE]
+        
+        Get the ParameterSet object for a figure attached to the bundle
+        
+        If :envvar:`figref` is None, then the current figure will be retrieved 
+        if one exists.  If one does not exist, an empty will first be created
+        and attached to the bundle.
+        
+        :param figref: ref to the figure
+        :type figref: str or None
+        :return: the figure
+        :rtype: frontend.plotting.Figure (ParameterSet)
+        """
+        # TODO: allow passing kwargs
+        
+        if figref is None:
+            figref = self._handle_current_figure()
+        else:
+            figref = figref.split('@')[0]
+            
+        self.current_figure = figref
+        
+        fig_ps = self._get_by_section(figref, "figure", kind=None)
+        
+        if self.current_axes is None and len(fig_ps['axesrefs']):
+            self.current_axes = fig_ps['axesrefs'][-1]
+        
+        return fig_ps
+    
+    def add_figure(self, figref=None, **kwargs):
+        """
+        [FUTURE]
+        
+        Add a new figure to the bundle, and set it as the current figure 
+        for any subsequent plotting calls
+        
+        If :envvar:`figref` is None, a default will be created
+        
+        Any kwargs will get passed to the plotting:figure ParameterSet.
+        
+        :param figref: ref for the figure
+        :type figref: str or None
+        :return: the figref
+        :rtype: str
+        """
+        
+        if figref is None:
+            figref = "fig{:02}".format(len(self.sections['figure'])+1)
+        fig = plotting.Figure(self, ref=figref, **kwargs)
+
+        for k,v in kwargs.items():
+            fig.set_value(k,v)
+            
+        if figref not in self._get_dict_of_section('figure').keys():
+            self._add_to_section('figure',fig) #calls rebuild trunk
+        
+        self.current_figure = figref
+        self.current_axes = None
+        
+        return self.current_figure
+    
+    @rebuild_trunk
+    def remove_figure(self, figref=None):
+        """
+        [FUTURE]
+        
+        Remove a figure and all of its children axes (and their children plots)
+        that are not referenced elsewhere.
+        
+        :param figref: ref of the figure
+        :type figref: str
+        """
+        if figref is None:
+            figref = self.current_figure
+            
+        fig_ps = self._get_by_section(figref, "figure", kind=None)
+        axesrefs = fig_ps['axesrefs']
+        self.sections['figure'].remove(fig_ps)
+        
+        for axesref in axesrefs:
+            if all([axesref not in ps['axesrefs'] for ps in self.sections['figure']]):
+                #~ print "*** remove_figure: removing axes", axesref
+                self.remove_axes(axesref)
+            #~ else:
+                #~ print "*** remove_figure: keeping axes", axesref
+        
+    def _handle_current_figure(self, figref=None):
+        """
+        [FUTURE]
+        
+        similar to _handle_current_axes - except perhaps we shouldn't be creating figures by default,
+        but only creating up to the axes level unless the user specifically requests a figure to be made?
+        """
+        if not self.current_figure or (figref is not None and figref not in self._get_dict_of_section('figure').keys()):
+            figref = self.add_figure(figref=figref)
+        if figref is not None:
+            self.current_figure = figref
+            
+        return self.current_figure
+
     #}
     
     #{ Saving
@@ -6102,10 +5500,9 @@ class Bundle(Container):
         """
         self._save_json(filename)
     
-    def save_pickle(self,filename=None,purge_signals=True,save_usersettings=False):
+    def save_pickle(self,filename=None,save_usersettings=False):
         """
         Save a class to an file.
-        Will automatically purge all signals attached through bundle
         
         [FUTURE]
         
@@ -6121,10 +5518,6 @@ class Bundle(Container):
         else:
             self.filename = filename
         
-        if purge_signals:
-            #~ self_copy = self.copy()
-            self.purge_signals()
-            
         # remove user settings
         if not save_usersettings:
             settings = self.usersettings
@@ -6145,9 +5538,6 @@ class Bundle(Container):
             
         self.trunk = trunk
         
-        # call set_system so that purged (internal) signals are reconnected
-        self.set_system(self.get_system())
-    
     #}
     
     def check(self, return_errors=False):
@@ -6186,13 +5576,13 @@ class Bundle(Container):
         for atm_type, ld_coeff in zip(atm_types, ld_coeffs):
             ld_coeff.set_value(atm_type)
     
-    def set_boosting(self, on=True):
+    def set_beaming(self, on=True):
         """
         Include/exclude the boosting effect.
         
         [FUTURE]
         """
-        self.set_value('boosting', on, apply_to='all')
+        self.set_value('beaming', on, apply_to='all')
         
     def set_ltt(self, on=True):
         """
@@ -6354,7 +5744,7 @@ def info():
     # Remove some experimental stuff
     ignore = 'analytical:binary', 'derived', 'gui', 'logger', 'plotting:axes',\
              'plotting:mesh', 'plotting:orbit', 'plotting:plot',\
-             'plotting:selector', 'point_source', 'pssyn', 'server', 'root',\
+             'plotting:selector', 'point_source', 'pssyn', 'root',\
              'circ_orbit'
     for ign in ignore:
         if ign in contexts:
