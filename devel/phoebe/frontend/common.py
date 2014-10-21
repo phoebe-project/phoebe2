@@ -771,28 +771,6 @@ class Container(object):
             self.set_value(twig, values[twig][0])
         
     
-    def get_compute(self,label=None,create_default=False):
-        """
-        Get a compute ParameterSet by name
-        
-        @param label: name of ParameterSet
-        @type label: str
-        @param create_default: whether to create and attach defaults if label is None
-        @type create_default: bool
-        @return: compute ParameterSet
-        @rtype: ParameterSet
-        """
-        if label is None and create_default:
-            # then see if the compute options 'default' is available
-            if 'default' not in self._get_dict_of_section('compute').keys():
-                # then create a new compute options from the backend
-                # and attach it to the bundle with label 'default'
-                self.add_compute(label='default')
-                self._build_trunk()
-            label = 'default'
-
-        return self._get_by_section(label,"compute")    
-    
     @rebuild_trunk
     def add_compute(self, ps=None, **kwargs):
         """
@@ -815,8 +793,30 @@ class Container(object):
         # the Container class but only within Bundle
         #~ self._attach_set_value_signals(ps)
     
+    def get_compute(self, label=None, create_default=False):
+        """
+        Get a compute ParameterSet by name
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @param create_default: whether to create and attach defaults if label is None
+        @type create_default: bool
+        @return: compute ParameterSet
+        @rtype: ParameterSet
+        """
+        if label is None and create_default:
+            # then see if the compute options 'default' is available
+            if 'default' not in self._get_dict_of_section('compute').keys():
+                # then create a new compute options from the backend
+                # and attach it to the bundle with label 'default'
+                self.add_compute(label='default')
+                self._build_trunk()
+            label = 'default'
+
+        return self._get_by_section(label,"compute")    
+        
     @rebuild_trunk
-    def remove_compute(self,label):
+    def remove_compute(self, label):
         """
         Remove a given compute ParameterSet
         
@@ -851,9 +851,8 @@ class Container(object):
             ps.set_value(k,v)
             
         self._add_to_section('fitting',ps)
-        #self._attach_set_value_signals(ps)
             
-    def get_fitting(self,label=None):
+    def get_fitting(self, label=None):
         """
         Get a fitting ParameterSet by name
         
@@ -867,7 +866,7 @@ class Container(object):
         return self._get_by_section(label,"fitting")
 
     @rebuild_trunk
-    def remove_fitting(self,label):
+    def remove_fitting(self, label):
         """
         Remove a given fitting ParameterSet
         
@@ -931,6 +930,58 @@ class Container(object):
         mpi = self.get_fitting(label)
         self.sections['mpi'].remove(mpi)
 
+    @rebuild_trunk
+    def add_mpi(self, ps=None, **kwargs):
+        """
+        Add a new MPI ParameterSet
+        
+        **Example usage:**
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_mpi(context='fitting:emcee', iters=1000, walkers=100)
+        
+        [FUTURE]
+        
+        @param ps: fitting ParameterSet
+        @type ps:  None, or ParameterSet
+        @param label: name of the fitting options (will override label in ps)
+        @type label: str
+        """
+        if ps is None:
+            context = kwargs.pop('context', 'mpi')
+            ps = parameters.ParameterSet(context=context)
+
+        for k,v in kwargs.items():
+            ps.set_value(k,v)
+            
+        self._add_to_section('mpi',ps)
+            
+    def get_mpi(self, label=None):
+        """
+        Get an MPI ParameterSet by name
+        
+        [FUTURE]
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: mpi ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label, "mpi")
+
+    @rebuild_trunk
+    def remove_mpi(self, label):
+        """
+        Remove a given MPI ParameterSet
+        
+        [FUTURE]
+        
+        @param label: name of mpi ParameterSet
+        @type label: str
+        """
+        mpi = self.get_fitting(label)
+        self.sections['mpi'].remove(mpi)
+    
     ## internal methods
     
     def _loop_through_container(self, container=None, label=None, ref=None,
@@ -1098,7 +1149,7 @@ class Container(object):
                                         logger.critical('Auto-scaling in Bundle of {} synthetics is not implemented yet'.format(category))
                                     
                                     # Remove times and insert phases if phases
-                                    # where given before
+                                    # were given before
                                     if user_columns is not None and 'phase' in user_columns:
                                         out = system.get_period()
                                         syn['phase'] = (syn['time'] - out[1]) / out[0]
@@ -1445,10 +1496,8 @@ class Container(object):
         """
         trunk = self.trunk if trunk is None else trunk
         
-        if 'hidden' not in kwargs:
-            kwargs['hidden'] = False
+        kwargs.setdefault('hidden', False)
         for key in kwargs.keys():
-            #~ print "*** Container._filter_twigs_by_kwargs", key, kwargs[key]
             if len(trunk) and key in trunk[0].keys() and kwargs[key] is not None:
                 trunk = [ti for ti in trunk if ti[key] is not None and 
                     (ti[key]==kwargs[key] or 
