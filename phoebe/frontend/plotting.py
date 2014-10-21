@@ -287,7 +287,7 @@ def mesh(b, t, objref, dataref, **kwargs):
     kwargs_defaults = {}
         
     # TODO: make these options:
-    beaming_alg = 'none'
+    boosting_alg = 'none'
     with_partial_as_half = True
     antialiasing = True
     
@@ -296,7 +296,7 @@ def mesh(b, t, objref, dataref, **kwargs):
     if t:
         obj.set_time(t)
     try:
-        total_flux = obj.projected_intensity(ref=dataref,beaming_alg=beaming_alg,
+        total_flux = obj.projected_intensity(ref=dataref,boosting_alg=boosting_alg,
                                       with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')

@@ -877,7 +877,7 @@ class Container(object):
         """
         fitting = self.get_fitting(label)
         self.sections['fitting'].remove(fitting)
-
+    
     @rebuild_trunk
     def add_mpi(self, ps=None, **kwargs):
         """
@@ -886,59 +886,7 @@ class Container(object):
         **Example usage:**
         
         >>> mybundle = phoebe.Bundle()
-        >>> mybundle.add_mpi(context='fitting:emcee', iters=1000, walkers=100)
-        
-        [FUTURE]
-        
-        @param ps: fitting ParameterSet
-        @type ps:  None, or ParameterSet
-        @param label: name of the fitting options (will override label in ps)
-        @type label: str
-        """
-        if ps is None:
-            context = kwargs.pop('context', 'mpi')
-            ps = parameters.ParameterSet(context=context)
-
-        for k,v in kwargs.items():
-            ps.set_value(k,v)
-            
-        self._add_to_section('mpi',ps)
-            
-    def get_mpi(self, label=None):
-        """
-        Get an MPI ParameterSet by name
-        
-        [FUTURE]
-        
-        @param label: name of ParameterSet
-        @type label: str
-        @return: mpi ParameterSet
-        @rtype: ParameterSet
-        """
-        return self._get_by_section(label, "mpi")
-
-    @rebuild_trunk
-    def remove_mpi(self, label):
-        """
-        Remove a given MPI ParameterSet
-        
-        [FUTURE]
-        
-        @param label: name of mpi ParameterSet
-        @type label: str
-        """
-        mpi = self.get_fitting(label)
-        self.sections['mpi'].remove(mpi)
-
-    @rebuild_trunk
-    def add_mpi(self, ps=None, **kwargs):
-        """
-        Add a new MPI ParameterSet
-        
-        **Example usage:**
-        
-        >>> mybundle = phoebe.Bundle()
-        >>> mybundle.add_mpi(context='fitting:emcee', iters=1000, walkers=100)
+        >>> mybundle.add_mpi(context='mpi', np=6)
         
         [FUTURE]
         
@@ -1515,9 +1463,6 @@ class Container(object):
         
         [FUTURE]
         """
-        if not isinstance(twiglet, str):
-            raise TypeError("search twig must be of type str, found {}".format(twiglet))
-            
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
         
         twig_split = twiglet.split('@')
