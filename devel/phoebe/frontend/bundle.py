@@ -824,43 +824,49 @@ class Bundle(Container):
         self.get_system().clear_synthetic()
         self._build_trunk()
         
-    def set_time(self, time, label=None, server=None, **kwargs):
+    def set_time(self, time=0.0, computelabel=None, **kwargs):
         """
         Set the time of a system, taking compute options into account.
                 
-        [FUTURE]
+        Any kwargs will be used to override parameters in the compute 
+        options - including mpilabel.
         
         @param time: time
         @type time: float
+        @param computelabel: label to compute options to use (optional)
+        @type computelabel: str
         """
         system = self.get_system()
         
         # clear all previous models and create new model
         system.clear_synthetic()
 
-        # <pieterdegroote> Necessary?
-        system.set_time(0)
-        
         # get compute options, handling 'default' if label==None
-        options = self.get_compute(label, create_default=True).copy()
+        computeoptions = self.get_compute(computelabel, create_default=True).copy()
         
-        # get server options
-        # <kyle> this is dangerous and won't always work (if server is not local)
-        if server is not None:
-            server = self.get_server(server)
-            mpi = server.mpi_ps
+        mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
+        if mpilabel in [None, 'None', '']:
+            mpilabel = None
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
         else:
-            mpi = kwargs.pop('mpi', None)
+            mpioptions = self.get_mpi(mpilabel).copy()
         
-        options['time'] = [time]
-        options['types'] = ['lc']
-        options['refs'] = ['all']
-        options['samprate'] = [[0]]
-        system.compute(mpi=mpi, **options)
+        # now temporarily override with any values passed through kwargs    
+        for k,v in kwargs.items():
+            if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
+                computeoptions.set_value(k,v)
+            elif k in mpioptions.keys():
+                mpioptions.set_value(k,v)
+            else:
+                raise ValueError("set_time does not accept keyword '{}'".format(k))
+        
+        computeoptions['time'] = [time]
+        computeoptions['types'] = ['lc']
+        computeoptions['refs'] = [['all']]
+        computeoptions['samprate'] = [[0]]
+        system.compute(mpi=mpioptions, **computeoptions)
                 
-        #~ system.uptodate = label
-        #~ self.attach_system_signals()
-        
     def get_uptodate(self):
         """
         Check whether the synthetic model is uptodate
@@ -3313,7 +3319,6 @@ class Bundle(Container):
     @rebuild_trunk
     @run_on_server
     def run_compute(self, computelabel=None, objref=None, animate=False, **kwargs):
-    #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Perform calculations to mirror any enabled attached observations.
         
