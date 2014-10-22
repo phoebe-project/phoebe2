@@ -32,6 +32,7 @@ L{binary_from_spectroscopy} or a separation via L{binary_from_stars}).
 .. autosummary::
 
     binary
+    binary_stars
     overcontact
     hierarchical_triple
     pulsating_star
@@ -1414,6 +1415,23 @@ def binary(create_body=True):
     
     return universe.BodyBag([comp1, comp2], label='new_system', reddening=reddening,
                             position=position)
+                            
+def binary_stars(create_body=True):
+    """
+    Default Pheobe2 Binary system with Stars, not Roche Stars
+    """
+    component1 = parameters.ParameterSet('star')
+    component2 = parameters.ParameterSet('star')
+    mesh  = parameters.ParameterSet('mesh:marching')
+    orbit = parameters.ParameterSet('orbit', period=(1.,'d'), c1label='primary', c2label='secondary', label='new_system')
+    
+    comp1 = universe.Star(component1,mesh,label='primary')
+    comp2 = universe.Star(component2,mesh,label='secondary')
+    position  = parameters.ParameterSet('position', distance=(10.,'pc'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
+    
+    return universe.BinaryBag([comp1, comp2], label='new_system', reddening=reddening,
+                            position=position,orbit=orbit)
     
 
 def overcontact(create_body=True):
