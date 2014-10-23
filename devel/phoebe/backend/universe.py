@@ -5341,7 +5341,7 @@ class PhysicalBody(Body):
             for prefix in ['_o_','']:
                 old_mesh[prefix+'center'] = old_mesh_table[:,0:3]
                 old_mesh[prefix+'triangle'] = old_mesh_table[:,4:13]
-                old_mesh[prefix+'normal_'] = -old_mesh_table[:,13:16]
+                old_mesh[prefix+'normal_'] = -old_mesh_table[:,13:16]/scale
             
             
         #-- Pure Python (old): I keep it because there might be issues with the
