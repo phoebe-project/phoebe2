@@ -149,7 +149,6 @@ def d2BinaryRochedx2(r, D, q, F):
           q*(2*(r[0]-D)*(r[0]-D)-r[1]*r[1]-r[2]*r[2])/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**2.5 +\
           F*F*(1+q)
 
-
 def dBinaryRochedy (r, D, q, F):
     """
     Computes a derivative of the potential with respect to y.
@@ -298,7 +297,6 @@ def DistortedBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
     factor-= 0.5*(1-v**2)**2*r**4 * (a[0]*b[0]**2 + a[1]*b[1]**2 + a[2]*b[2]**2)
     return 1./r + q + q*np.sum(r**j*p) + 0.5*r**2*(1-v**2)*factor - Omega
 
-
 def DiffRotateBinaryRoche (r, D, q, F, theta, phi, Omega=0.0):
     r"""
     Computes a value of the differentially rotating Roche potential.
@@ -345,7 +343,6 @@ def RotateRoche(r, Omega, Rpole):
     Omega = Omega*0.54433105395181736
     r_ = (r[0]**2+r[1]**2+r[2]**2)**0.5
     return 1./Rpole - 1/r_ -0.5*Omega**2*(r[0]**2+r[1]**2)
-    
 
 def dRotateRochedx(r, Omega):
     Omega = Omega*0.54433105395181736
@@ -384,7 +381,6 @@ def DiffRotateRoche(r, b1, b2, b3, Rpole):
                                   1./3.*(2*b1*b2+b2**2) * x2y2**3 + \
                                   0.5*b2*b3             * x2y2**4 + \
                                   1./5. * b3**2         * x2y2**5)
-    
 
 def dDiffRotateRochedx(r, b1, b2, b3,):
     x2y2 = r[0]**2 + r[1]**2
@@ -411,7 +407,6 @@ def dDiffRotateRochedy(r, b1, b2, b3,):
                                                         fac3*3*x2y2**2*2*r[1] + \
                                                         fac4*4*x2y2**3*2*r[1] +\
                                                         fac5*5*2*r[1])
-
 
 def dDiffRotateRochedz(r, b1, b2, b3,):
     return r[2]*(r[0]**2+r[1]**2+r[2]**2)**-1.5
@@ -512,7 +507,6 @@ def projectOntoPotential(r, pot_name, *args):
         print('warning: projection did not converge')
     return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
 
-    
 def inverse(a11, a12, a13, a21, a22, a23, a31, a32, a33):
     detA = a11*a22*a33-a13*a22*a31+a12*a23*a31-a11*a23*a32+a13*a21*a32-a12*a21*a33
 
@@ -555,7 +549,6 @@ def local2cart (v, r):
     x, y, z = v.n[0]*r[0]+v.t1[0]*r[1]+v.t2[0]*r[2], v.n[1]*r[0]+v.t1[1]*r[1]+v.t2[1]*r[2], v.n[2]*r[0]+v.t1[2]*r[1]+v.t2[2]*r[2]
     return np.array((x, y, z))
 
-    
 def gridsize_to_delta(gridsize):
     """
     Estimate the marching stepsize delta parameter from the WD gridsize parameter.
@@ -638,7 +631,6 @@ def precision_to_delta(eps):
     """
     n = 6.23/eps
     return nelements_to_delta(n)
-    
 
 def nelements_to_delta(n):
     """
@@ -686,13 +678,15 @@ def nelements_to_precision(n,alg='marching'):
 #{ Main interface
     
 def discretize_wd_style(N=30, potential='BinaryRoche', *args):
-    # WD computes the center-point of the rectangle and projects it onto
-    # the potential. It then computes the four vertices but does nothing
-    # with them, i.e. they do *not* lie on the equipotential.
-    #
-    # Since we cannot use rectangles and need to use triangles, we must
-    # modify the original approach so that the vertices do lie on the
-    # equipotential.
+    """
+    WD computes the center-point of the rectangle and projects it onto
+    the potential. It then computes the four vertices but does nothing
+    with them, i.e. they do *not* lie on the equipotential.
+    
+    Since we cannot use rectangles and need to use triangles, we must
+    modify the original approach so that the vertices do lie on the
+    equipotential.
+    """
 
     Ts = []
     r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
@@ -701,8 +695,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     dpdx = globals()['d%sdx'%(pot_name)]
     dpdy = globals()['d%sdy'%(pot_name)]
     dpdz = globals()['d%sdz'%(pot_name)]
-
-
+    
     #theta = [pi/2*(k-0.5)/N for k in range(1,N+1)]
     theta = [pi/2*(k-0.5)/N for k in range(1,2*N+1)]
     for th in theta:
@@ -716,12 +709,10 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
             r3 = (r0*sin(th+pi/4/N)*cos(ph+pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph+pi/2/Mk), r0*cos(th+pi/4/N))
             r4 = (r0*sin(th+pi/4/N)*cos(ph-pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph-pi/2/Mk), r0*cos(th+pi/4/N))                      
             
-            
             v1 = projectOntoPotential(r1, potential, *args)
             v2 = projectOntoPotential(r2, potential, *args)
             v3 = projectOntoPotential(r3, potential, *args)
             v4 = projectOntoPotential(r4, potential, *args)
-            
             
             Ts += [(v1, v2, v4), (v2, v3, v4)]
     
@@ -757,7 +748,6 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
 
     return table
 
-
 def cdiscretize2(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
     """
     Discretize using c module written by Joe Giammarco.
@@ -777,7 +767,6 @@ def cdiscretize(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args)
     #print delta,max_triangles,potential,args
     table = cmarching.discretize(delta,max_triangles,potential,*args)
     return table[:-2]
-
 
 def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
     """
@@ -920,8 +909,7 @@ def reproject(table,*new_mesh_args):
         new_table[tri,13:16] = p0.n
    
     return new_table  
-  
-  
+
 def creproject(table,*new_mesh_args):
     new_table = cmarching.reproject(table, *new_mesh_args)
     return new_table
