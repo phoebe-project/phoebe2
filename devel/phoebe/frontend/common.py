@@ -28,6 +28,44 @@ from phoebe.utils import config
 
 logger = logging.getLogger("FRONT.COMMON")
 
+def to_time(phase, ephem=None, **kwargs):
+    """
+    [FUTURE]
+    
+    converts phases to times based on an ephemeris.  The ephemeris can be
+    sent as a dictionary to ephem (ie the output from bundle.get_ephem), 
+    or as kwargs.  Either will recognize the following (optional) keys: 
+    period, t0, phshift, dpdt.
+    
+    @param phase: phases to convert to times
+    @type phase: float or list of floats
+    @param period: period (in days)
+    @type period: float
+    @param t0: t0
+    @type t0: float
+    @param phshift: phase shift
+    @type phshift: float
+    @param dpdt: rate of change of period
+    @type dpdt: float
+    @return: time
+    @rtype: float or list of floats
+    """
+    if ephem is not None:
+        for k,v in ephem.items():
+            kwargs.setdefault(k,v)
+    
+    period  = kwargs.get('period', 0.0)
+    t0      = kwargs.get('t0', 0.0)
+    phshift = kwargs.get('phshift', 0.0)
+    dpdt    = kwargs.get('dpdt', 0.0)
+    
+    if isinstance(phase, list):
+        phase = np.array(phase)
+    
+    # t = t0 + (phase - phshift) * (period + dpdt(t - t0)) 
+    return t0 + ((phase - phshift) * period) / (1 - (phase - phshift) * dpdt)
+
+
 def rebuild_trunk(fctn):
     """
     Rebuild the cached trunk *after* running the original function
