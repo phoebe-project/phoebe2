@@ -7204,17 +7204,11 @@ class Star(PhysicalBody):
         """
         Compute volume of the convex mesh of the Star.
         """
-        #~ Pieter's code:
         #~ norm = coordinates.norm(self.mesh['_o_center'],axis=1)
         #~ return np.sum(self.mesh['_o_size']*norm/3.)
-        
-        #~ Kyle's code:
-        #~ the volume of a slanted triangular cone is A_triangle * (r_vec dot norm_vec) / 3.
-        #~ norm_along_normal = np.array([np.dot(c,n) for c,n in zip(self.mesh['_o_center'], self.mesh['_o_normal_'])])
-        #~ return np.sum(self.mesh['_o_size']*norm_along_normal/3.)
 
-        #~ Andrej's code:
-        return np.sum(self.mesh['_o_size']*((self.mesh['_o_center']*self.mesh['_o_normal_']).sum(axis=1))**0.5/3)
+        # the volume of a slanted triangular cone is A_triangle * (r_vec dot norm_vec) / 3.
+        return np.sum(self.mesh['_o_size']*((self.mesh['_o_center']*self.mesh['_o_normal_']).sum(axis=1))/3)
     
     def surface_gravity(self):
         """
@@ -8330,17 +8324,12 @@ class BinaryRocheStar(PhysicalBody):
         """
         Compute volume of a BinaryRocheStar.
         """
-        #~ Pieter's code:
         #~ norm = coordinates.norm(self.mesh['_o_center'],axis=1)
         #~ return np.sum(self.mesh['_o_size']*norm/3.)
         
-        #~ Kyle's code:
-        #~ the volume of a slanted triangular cone is A_triangle * (r_vec dot norm_vec) / 3.
-        #~ norm_along_normal = np.array([np.dot(c,n) for c,n in zip(self.mesh['_o_center'], self.mesh['_o_normal_'])])
-        #~ return np.sum(self.mesh['_o_size']*norm_along_normal/3.)
-
-        #~ Andrej's code:
-        return np.sum(self.mesh['_o_size']*((self.mesh['_o_center']*self.mesh['_o_normal_']).sum(axis=1))**0.5/3)
+        # the volume of a slanted triangular cone is A_triangle * (r_vec dot norm_vec) / 3.
+        return np.sum(self.mesh['_o_size']*((self.mesh['_o_center']*self.mesh['_o_normal_']).sum(axis=1))/3)
+        
     
     @decorators.parse_ref
     def intensity(self,ref='all', boosting_alg='none'):
