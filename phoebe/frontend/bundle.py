@@ -658,26 +658,27 @@ class Bundle(Container):
         self.get_system().clear_synthetic()
         self._build_trunk()
         
-    def set_time(self, time=0.0, phase=None, objref=None):
+    def set_time(self, time=0.0, computelabel=False, **kwargs):
         """
         [FUTURE]
         
-        Update the mesh of the entire system to a specific time
+        Update the mesh of the entire system to a specific time.
+        
+        To set the system to a specific phase do:
+        >>> from phoebe.frontend.common import to_time
+        >>> bundle.set_time(time=to_time(phase, bundle.get_ephem(objref)))
+        
+        If you'd like your datasets to be computed at the single time and
+        fill the values in the mesh, either set computelabel to True or None
+        (to use default compute options) or the label of a compute PS stored
+        in the bundle.  (See :py:func:`run_compute`)
         
         @param time: time (ignored if phase provided)
         @type time: float
-        @param phase: phase
-        @type phase: float
-        @param objref: objref of the object to use to convert phase to time (if not provided, will assume the top-level orbit)
-        @type objref: str or None
+        @param computelabel: computelabel (or False to skip computation
+                and only update the mesh
+        @type computelabel: bool or string or None
         """
-        
-        # determine the time we want
-        if phase is not None:
-            period, t0 = self.get_ephem(objref)
-            time = t0 + phase*period
-        
-        logger.info("setting system time to {}".format(time))
         
         system = self.get_system()
         
@@ -686,9 +687,26 @@ class Bundle(Container):
         # has changed the equipotentials (q, e, omega, etc)
         system.reset()
         
-        # calling system.set_time() will now for the mesh to be computed
-        # from scratch
-        system.set_time(time)
+        
+        if computelabel is False:
+            # calling system.set_time() will now for the mesh to be computed
+            # from scratch
+            system.set_time(time)
+
+        else:
+            options = self.get_compute(label, create_default=True).copy()
+            mpi = kwargs.pop('mpi', None)
+
+            # now temporarily override with any values passed through kwargs    
+            for k,v in kwargs.items():
+                #if k in options.keys(): # otherwise nonexisting kwargs can be given
+                try:
+                    options.set_value(k,v)
+                except AttributeError:
+                    raise ValueError("run_compute does not accept keyword '{}'".format(k))
+            
+            
+            raise NotImplementedError
         
     #}
     #{ Parameters/ParameterSets
@@ -972,37 +990,64 @@ class Bundle(Container):
         """
         return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
         
-    def get_ephem(self, twig=None):
+    def get_ephem(self, objref=None):
         """
         [FUTURE]
         
-        Get the ephemeris of an object in the system
+        Get the ephemeris of an object in the system.  Not objref should
+        be the object containing that ephemeris.  Asking for the ephemeris
+        of a star will return (computing from syncpar if necessary) the 
+        rotation period of the star.  Asking for the ephemeris of an inner-
+        binary in an hierarchical system will return the period of the inner-
+        binary, NOT the period of the inner-binary in the outer-orbit.
         
-        if twig is None, will return for the top-level of the system
+        The ephemeris of a star returns the rotation period and t0 of its 
+        parent orbit (if any).
         
-        @param twig: the twig/twiglet to use when searching
-        @type twig: str
-        @return: period, t0
-        @rtype: float, float
+        The ephemeris of an orbit returns its period, t0, phshift, and dpdt.
+        
+        If objref is None, this will return for the top-level of the system
+        
+        @param objref: the object whose *child* orbit contains the ephemeris
+        @type objref: str
+        @return: period, t0, (phshift, dpdt)
+        @rtype: dict
         """
 
-        if twig is not None and twig.split('@')[0]=='orbit':
-            period = self.get_ps(twig).get_value('period', 'd')
-            t0 = self.get_ps(twig).get_value('t0', 'JD')
-        elif twig is not None and self.twigs('orbit@'+twig):
-            # NOTE: this coming before the following else means that if
-            # you pass the twig to an inner-binary object, we will still
-            # default to the child ephemeris rather than its ephemeris
-            # in the outer orbit.  Is this the desired behavior???
-            period = self.get_ps('orbit@'+twig).get_value('period', 'd')
-            t0 = self.get_ps('orbit@'+twig).get_value('t0', 'JD')            
-        else:
-            # we were hopefully passed a component, so we'll get the orbit 
-            # that it is IN
-            period, t0, shift = self.get_object(twig).get_period()
+        ephem = {}
 
-        return period, t0
-    
+        if objref is None:
+            objref = self.get_system().get_label()
+            
+        # first check if we're an orbit - that's the easiest case
+        orb_ps = self._get_by_search(label=objref, kind='ParameterSet', 
+                      context='orbit', all=True, ignore_errors=True)
+
+        if len(orb_ps):
+            for k in ['period', 't0', 'phshift', 'dpdt']:
+                ephem[k] = orb_ps[0].get_value(k)
+            return ephem
+            
+        # not an orbit - let's check for a component
+        comp_ps = self._get_by_search(label=objref, kind='ParameterSet', 
+                      context='component', all=True, ignore_errors=True)
+            
+        if len(comp_ps):
+            logger.warning("retrieving rotational period of {}".format(objref))
+            # let's see if it has a parent orbit
+            period, t0, shift = self.get_object(objref).get_period()
+            # we'll ignore the period, but will use the t0
+            ephem['t0'] = t0
+
+            if 'rotperiod' in comp_ps[0].keys():
+                ephem['period'] = comp_ps[0].get_value('rotperiod')
+            elif 'syncpar' in comp_ps[0].keys():
+                # then let's compute rotation period from the orbital
+                # period and synchronicity
+                ephem['period'] = period/comp_ps[0].get_value('syncpar')
+                
+            return ephem
+        
     def set_main_period(self, period=None, objref=None):
         """
         Set the main period of the system.
@@ -3231,7 +3276,6 @@ class Bundle(Container):
     
     @rebuild_trunk
     def run_compute(self, label=None, objref=None, animate=False, **kwargs):
-    #~ def run_compute(self,label=None,anim=False,add_version=None,server=None,**kwargs):
         """
         Perform calculations to mirror any enabled attached observations.
         
@@ -3286,8 +3330,8 @@ class Bundle(Container):
             
             1. Even if you only compute the light curve of the secondary in a
                binary system, the system geometry is still determined by the entire
+               If you don't want this behaviour, either turn off eclipse computations
                system. Thus, eclipses will occur if the secondary gets eclipsed!
-               If you don't want this behaviour, either turn of eclipse computations
                entirely (via :envvar:`eclipse_alg='none'`) or create a new
                binary system with the other component removed.
             
@@ -3346,47 +3390,54 @@ class Bundle(Container):
         #system.clear_synthetic()
         
         # get compute options, handling 'default' if label==None
-        options = self.get_compute(label, create_default=True).copy()
-        mpi = kwargs.pop('mpi', None)
-        
-        # now temporarily override with any values passed through kwargs    
+        computeoptions = self.get_compute(label, create_default=True).copy()
+        mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
+        if mpilabel in [None, 'None', '']:
+            mpilabel = None
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
+        else:
+            mpioptions = self.get_mpi(mpilabel).copy()
+        # now temporarily override with any values passed through kwargs
         for k,v in kwargs.items():
-            #if k in options.keys(): # otherwise nonexisting kwargs can be given
-            try:
-                options.set_value(k,v)
-            except AttributeError:
+            if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
+                computeoptions.set_value(k,v)
+            elif k in mpioptions.keys():
+                mpioptions.set_value(k,v)
+            else:
                 raise ValueError("run_compute does not accept keyword '{}'".format(k))
         
-        if options['time'] == 'auto':
+        
+        # Q <pieterdegroote>: should we first set system.uptodate to False and
+        # then try/except the computations? Though we should keep track of
+        # why things don't work out.. how to deal with out-of-grid interpolation
+        # etc...
+        if computeoptions['time'] == 'auto':
             #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            if mpi is not None and animate:
+            if mpioptions is not None and animate:
                 raise ValueError("You cannot animate and use MPI simultaneously")
-            elif mpi is not None:
-                obj.compute(mpi=mpi, **options)
+            elif mpioptions is not None:
+                obj.compute(mpi=mpioptions, **computeoptions)
             else:
-                obj.compute(animate=animate, **options)
-            
+                obj.compute(animate=animate, **computeoptions)
         #else:
             #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
             #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
-                #extra_func=[observatory.ef_binary_image] if anim!=False else [],
-                #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
-                #mpi=mpi,**options
-                #)
-        
+            #extra_func=[observatory.ef_binary_image] if anim!=False else [],
+            #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
+            #mpi=mpi,**options
+            #)
         #if anim != False:
             #for ext in ['.gif','.avi']:
-                #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
-            
-        return options
-        
+            #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
+
+        return computeoptions 
     #}
             
     #{ Fitting
     @rebuild_trunk
-    def run_fitting(self, fittinglabel='lmfit', computelabel=None,
-                    add_feedback=True, accept_feedback=True,
-                    mpi=None, usercosts=None, **kwargs):
+    def run_fitting(self, label='lmfit', add_feedback=True, accept_feedback=True,
+                    usercosts=None, **kwargs):
         """
         Run fitting for a given fitting ParameterSet and store the feedback
         
@@ -3466,7 +3517,7 @@ class Bundle(Container):
         
         You can run the fitter simply by issueing
         
-        >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+        >>> feedback = mybundle.run_fitting(label='my_mcmc')
         
         When run like this, the results from the fitting procedure will
         automatically be added to system and the best model will be set as the
@@ -3478,7 +3529,7 @@ class Bundle(Container):
         command::
         
         >>> mpi = phoebe.ParameterSet('mpi', np=4)
-        >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc', mpi=mpi)
+        >>> feedback = mybundle.run_fitting(label='my_mcmc', mpi=mpi)
         
         The fitter returns a :py:class:`Feedback <phoebe.parameters.feedback.Feedback>`
         object, that contains a summary of the fitting results. You can simply
@@ -3530,7 +3581,7 @@ class Bundle(Container):
           
           >>> mybundle['incremental@my_mcmc@fitting'] = True
           >>> mybundle['init_from@my_mcmc@fitting'] = 'previous_run'
-          >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+          >>> feedback = mybundle.run_fitting(label='my_mcmc')
           
           Alternatively, you can resample multivariate normals from the previous
           posteriors to continue the chain, e.g. after clipping walkers with
@@ -3540,7 +3591,7 @@ class Bundle(Container):
           >>> mybundle.accept_feedback('my_mcmc')
           >>> mybundle['incremental@my_mcmc@fitting'] = True
           >>> mybundle['init_from@my_mcmc@fitting'] = 'posteriors'
-          >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+          >>> feedback = mybundle.run_fitting(label='my_mcmc')
        
           Quality control and convergence monitoring can be done via::
         
@@ -3550,33 +3601,48 @@ class Bundle(Container):
         
         [FUTURE]
         
-        @param computelabel: name of compute ParameterSet
-        @type computelabel: str
-        @param fittinglabel: name of fitting ParameterSet
-        @type fittinglabel: str
+        @param label: name of fitting ParameterSet
+        @type label: str
         @param add_feedback: flag to store the feedback (retrieve with get_feedback)
         @type add_feedback: bool
         @param accept_feedback: whether to automatically accept the feedback into the system
         @type accept_feedback: bool
         """
         
-        # get fitting params
-        fittingoptions = self.get_fitting(fittinglabel).copy()
+         # get fitting params
+        fittingoptions = self.get_fitting(label).copy()
         
         # get compute params
-        if computelabel is None:
-            computelabel = fittingoptions['computelabel']
+        computelabel = kwargs.pop('computelabel', fittingoptions.get_value('computelabel'))
+        computeoptions = self.get_compute(computelabel).copy()
         
         # Make sure that the fittingoptions refer to the correct computelabel
-        computeoptions = self.get_compute(computelabel).copy()
         fittingoptions['computelabel'] = computelabel
-            
-        # now temporarily override with any values passed through kwargs    
+        
+        # get mpi params
+        mpilabel = kwargs.pop('mpilabel', None)
+        if mpilabel is None:
+            mpilabel = fittingoptions['mpilabel']
+        if mpilabel in [None, 'None', '']:
+            mpilabel = computeoptions['mpilabel']
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
+        else:
+            mpioptions = self.get_mpi(mpilabel).copy()
+        
+        # Make sure that the fittingoptions refer to the correct mpilabel
+        fittingoptions['mpilabel'] = '' if mpilabel is None else mpilabel
+        
+        # now temporarily override with any values passed through kwargs
         for k,v in kwargs.items():
             if k in fittingoptions.keys():
                 fittingoptions.set_value(k,v)
             elif k in computeoptions.keys():
-                computeoptions.set_value(k,v)        
+                computeoptions.set_value(k,v)
+            elif mpioptions and k in mpioptions.keys():
+                mpioptions.set_value(k,v)
+            else:
+                raise ValueError("run_fitting does not accept keyword '{}'".format(k))
         
         # Remember the initial values of the adjustable parameters, we'll reset
         # them later:
@@ -3589,16 +3655,16 @@ class Bundle(Container):
         # <some code>
         logger.warning("Fit options:\n{:s}".format(fittingoptions))
         logger.warning("Compute options:\n{:s}".format(computeoptions))
+        logger.warning("MPI options:\n{:s}".format(mpioptions))
         
         # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions,
-                               fitparams=fittingoptions, mpi=mpi,
-                               usercosts=usercosts)
+                            fitparams=fittingoptions, mpi=mpioptions,
+                            usercosts=usercosts)
         
         # Reset the parameters to their initial values
         for par, val in zip(self.get_system().get_adjustable_parameters(), init_values):
             par.set_value(val)
-        
         
         if add_feedback:
             # Create a Feedback class and add it to the feedback section with
@@ -3606,27 +3672,27 @@ class Bundle(Container):
             subcontext = fittingoptions.get_context().split(':')[1]
             class_name = 'Feedback' + subcontext.title()
             feedback = getattr(mod_feedback, class_name)(*feedback, init=self,
-                                 fitting=fittingoptions, compute=computeoptions)
-            
+            fitting=fittingoptions, compute=computeoptions)
             # Make sure not to duplicate entries
             existing_fb = [fb.get_label() for fb in self.sections['feedback']]
             if feedback.get_label() in existing_fb:
                 self.sections['feedback'][existing_fb.index(feedback.get_label())] = feedback
             else:
                 self._add_to_section('feedback', feedback)
+            
             logger.info(("You can access the feedback from the fitting '{}' ) "
-                         "with the twig '{}@feedback'".format(fittinglabel, fittinglabel)))
+                "with the twig '{}@feedback'".format(label, label)))
         
         # Then re-instate the status of the obs without flux/rv/etc..
         # <some code>
-        
         # Accept the feedback: set/reset the variables to their fitted values
         # or their initial values, and in any case recompute the system such
         # that the synthetics are up-to-date with the parameters
         self.accept_feedback(fittingoptions['label']+'@feedback',
-                             recompute=True, revert=(not accept_feedback))
-        return feedback
-    
+                    recompute=True, revert=(not accept_feedback))
+        
+        return feedback 
+        
     def feedback_fromfile(self, feedback_file, fittinglabel=None,
                           accept_feedback=True, ongoing=False):
         """
