@@ -189,22 +189,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     if phased != 'False':
         # the phase array probably isn't filled, so we need to compute phase now
 
-        # In order to do that we need to know the orbit
-        # let's first try to see if we have a twig to an orbit
-        if phased.split('@')[0]=='orbit':
-            period = b.get_ps(phased).get_value('period', 'd')
-            t0 = b.get_ps(phased).get_value('t0', 'JD')
-        elif b.twigs('orbit@'+phased):
-            # NOTE: this coming before the following else means that if
-            # you pass the twig to an inner-binary object, we will still
-            # default to the child ephemeris rather than its ephemeris
-            # in the outer orbit.
-            period = b.get_ps('orbit@'+phased).get_value('period', 'd')
-            t0 = b.get_ps('orbit@'+phased).get_value('t0', 'JD')            
-        else:
-            # we were hopefully passed a component, so we'll get the orbit 
-            # that it is IN
-            period, t0, shift = b.get_object(phased).get_period()
+        period, t0 = b.get_ephem(phased)
         
         # TODO: allow passing different orbital levels (maybe take twig to orbit or to period and t0?)
         x = ((x-t0) % period) / period

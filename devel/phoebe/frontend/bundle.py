@@ -608,7 +608,6 @@ class Bundle(Container):
         # we have to handle system slightly differently since building
         # the trunk requires calling this function
         return self.sections['system'][0]
-        #~ return self._get_by_search(section='system', ignore_errors=True)
     
     def summary(self, objref=None):
         """
@@ -659,51 +658,37 @@ class Bundle(Container):
         self.get_system().clear_synthetic()
         self._build_trunk()
         
-    def set_time(self, time=0.0, computelabel=None, **kwargs):
+    def set_time(self, time=0.0, phase=None, objref=None):
         """
         [FUTURE]
         
-        Set the time of a system, taking compute options into account.
-                
-        Any kwargs will be used to override parameters in the compute 
-        options - including mpilabel.
+        Update the mesh of the entire system to a specific time
         
-        @param time: time
+        @param time: time (ignored if phase provided)
         @type time: float
-        @param computelabel: label to compute options to use (optional)
-        @type computelabel: str
+        @param phase: phase
+        @type phase: float
+        @param objref: objref of the object to use to convert phase to time (if not provided, will assume the top-level orbit)
+        @type objref: str or None
         """
+        
+        # determine the time we want
+        if phase is not None:
+            period, t0 = self.get_ephem(objref)
+            time = t0 + phase*period
+        
+        logger.info("setting system time to {}".format(time))
+        
         system = self.get_system()
         
-        # clear all previous models and create new model
-        system.clear_synthetic()
-
-        # get compute options, handling 'default' if label==None
-        computeoptions = self.get_compute(computelabel, create_default=True).copy()
+        # reset will force the mesh to recompute - we'll do this always
+        # to be conservative, but it is really only necessary if something
+        # has changed the equipotentials (q, e, omega, etc)
+        system.reset()
         
-        mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
-        if mpilabel in [None, 'None', '']:
-            mpilabel = None
-        if mpilabel in [None, 'None', '']:
-            mpioptions = None
-        else:
-            mpioptions = self.get_mpi(mpilabel).copy()
-        
-        # now temporarily override with any values passed through kwargs    
-        for k,v in kwargs.items():
-            if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
-                computeoptions.set_value(k,v)
-            elif k in mpioptions.keys():
-                mpioptions.set_value(k,v)
-            else:
-                raise ValueError("set_time does not accept keyword '{}'".format(k))
-        
-        computeoptions['time'] = [time]
-        computeoptions['types'] = ['lc']
-        computeoptions['refs'] = [['all']]
-        computeoptions['samprate'] = [[0]]
-        system.compute(mpi=mpioptions, **computeoptions)
-                
+        # calling system.set_time() will now for the mesh to be computed
+        # from scratch
+        system.set_time(time)
         
     #}
     #{ Parameters/ParameterSets
@@ -778,7 +763,7 @@ class Bundle(Container):
             else:
                 raise ValueError("Object {} not found".format(objref))
         return this_child
-    
+           
     def get_object(self, twig=None):
         """
         Retrieve a Body or BodyBag from the system
@@ -810,7 +795,6 @@ class Bundle(Container):
         else:
             return []
         
-        
     def get_parent(self, twig=None):
         """
         Retrieve the direct parent of a Body or BodyBag from the system
@@ -821,7 +805,6 @@ class Bundle(Container):
         :rtype: Body
         """
         return self.get_object(twig).get_parent()
-        
         
     def get_orbit(self, objref, time=None, phase=None, length_unit='Rsol',
                   velocity_unit='km/s', time_unit='d', observer_position=None):
@@ -988,7 +971,37 @@ class Bundle(Container):
         @rtype: ParameterSet
         """
         return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
-    
+        
+    def get_ephem(self, twig=None):
+        """
+        [FUTURE]
+        
+        Get the ephemeris of an object in the system
+        
+        if twig is None, will return for the top-level of the system
+        
+        @param twig: the twig/twiglet to use when searching
+        @type twig: str
+        @return: period, t0
+        @rtype: float, float
+        """
+
+        if twig is not None and twig.split('@')[0]=='orbit':
+            period = self.get_ps(twig).get_value('period', 'd')
+            t0 = self.get_ps(twig).get_value('t0', 'JD')
+        elif twig is not None and self.twigs('orbit@'+twig):
+            # NOTE: this coming before the following else means that if
+            # you pass the twig to an inner-binary object, we will still
+            # default to the child ephemeris rather than its ephemeris
+            # in the outer orbit.  Is this the desired behavior???
+            period = self.get_ps('orbit@'+twig).get_value('period', 'd')
+            t0 = self.get_ps('orbit@'+twig).get_value('t0', 'JD')            
+        else:
+            # we were hopefully passed a component, so we'll get the orbit 
+            # that it is IN
+            period, t0, shift = self.get_object(twig).get_period()
+
+        return period, t0
     
     def set_main_period(self, period=None, objref=None):
         """
