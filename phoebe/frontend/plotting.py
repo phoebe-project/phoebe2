@@ -189,7 +189,9 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     if phased != 'False':
         # the phase array probably isn't filled, so we need to compute phase now
 
-        period, t0 = b.get_ephem(phased)
+        ephem = b.get_ephem(phased)
+        period = ephem.get('period', 1.0)
+        t0 = ephem.get('t0', 0.0)
         
         # TODO: allow passing different orbital levels (maybe take twig to orbit or to period and t0?)
         x = ((x-t0) % period) / period
