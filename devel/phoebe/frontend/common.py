@@ -742,7 +742,25 @@ class Container(object):
         
         for param in params:
             param.set_prior(**dist_kwargs)
-    
+            
+    def get_adjustable_parameters(self, twig=None):
+        """
+        [FUTURE]
+        
+        Return the twigs of all adjustable parameters (those that are set
+        to adjust AND have a prior)
+        
+        :param twig: the search twig/twiglet (or None to show all)
+        :type twig: str
+        :return: list of twigs
+        :rtype: list of strs
+        """      
+        twigs = []
+        for ti in self._get_by_search(twig=twig, kind='Parameter', all=True, return_trunk_item=True):
+            if hasattr(ti['item'], 'adjust') and ti['item'].adjust and ti['item'].has_prior():
+                twigs.append(ti['twig'])
+        return twigs
+                
     def set_posterior(self, twig, **dist_kwargs):
         """
         Set the posterior of a Parameter
