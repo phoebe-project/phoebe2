@@ -665,8 +665,7 @@ class Bundle(Container):
         Update the mesh of the entire system to a specific time.
         
         To set the system to a specific phase do:
-        >>> from phoebe.frontend.common import to_time
-        >>> bundle.set_time(time=to_time(phase, bundle.get_ephem(objref)))
+        >>> bundle.set_time(time=phoebe.to_time(phase, bundle.get_ephem(objref)))
         
         If you'd like your datasets to be computed at the single time and
         fill the values in the mesh, either set computelabel to True or None
