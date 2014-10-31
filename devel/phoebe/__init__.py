@@ -1956,7 +1956,7 @@ from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
                               PulsatingBinaryRocheStar
 from .frontend.bundle import Bundle, load, info
-from .frontend.common import take_orbit_from, compute_pot_from, compute_mass_from
+from .frontend.common import take_orbit_from, compute_pot_from, compute_mass_from, to_time
 
 #-- common input and output
 from .parameters.parameters import load as load_ps

@@ -75,7 +75,7 @@ def _from_dataset(b, twig, context):
     # more than one dataset but they are all light curves that are grouped
     if len(dsti) > 1:
         # retrieve obs for sed grouping.
-        dstiobs = self._get_by_search(twig, context='*obs', class_name='*DataSet',
+        dstiobs = b._get_by_search(twig, context='*obs', class_name='*DataSet',
                                return_trunk_item=True, all=True)
         
         # Check if they are all lightcurves and collect group name
@@ -88,7 +88,7 @@ def _from_dataset(b, twig, context):
             is_grouped = 'group' in jdsti['item']                
             if not correct_category or not is_grouped:
                 # raise the correct error:
-                self._get_by_search(twig, context='*syn', class_name='*DataSet',
+                b._get_by_search(twig, context='*syn', class_name='*DataSet',
                                return_trunk_item=True)
             else:
                 groups.append(jdsti['item']['group'])
@@ -96,7 +96,7 @@ def _from_dataset(b, twig, context):
         if not len(set(groups)) == 1:
             raise KeyError("More than one SED group found matching twig '{}', please be more specific".format(twig))
         
-        obj = self.get_object(dsti[0]['label'])
+        obj = b.get_object(dsti[0]['label'])
         context = 'sed' + dsti[0]['item'].get_context()[-3:]
         ds = dict(ref=groups[0])
     else:
@@ -183,10 +183,23 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     
     if typ=='obs' or ds.enabled:
         x, y = ds.get_value(xk, 'd' if phased != 'False' else kwargs_defaults['xunit']), ds.get_value(yk, kwargs_defaults['yunit'])
+        
+        if category=='sp':
+            # then we need the index for the current time
+            t_ind = np.where(ds.get_value('time')==t)
+            if len(t_ind):
+                x = x[t_ind[0]]
+                y = y[t_ind[0]]
+                if len(x):
+                    x = x[0]
+                    y = y[0]
+            else:
+                x, y = np.array([]), np.array([])
+            
     else:
         x, y = np.array([]), np.array([])
 
-    if phased != 'False':
+    if xk=='time' and phased != 'False':
         # the phase array probably isn't filled, so we need to compute phase now
 
         ephem = b.get_ephem(phased)
@@ -200,7 +213,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
         sa = np.argsort(x)
         x, y = x[sa], y[sa]
 
-    if t and len(x) and phased=='False' and kwargs_defaults['uncover']['value']:
+    if t and xk=='time' and len(x) and phased=='False' and kwargs_defaults['uncover']['value']:
         xd = x[x<=t]
         yd = y[x<=t]
     else:
@@ -210,7 +223,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     if kwargs_defaults['highlight']['value']:
         mpl_select_kwargs = {k.split('_')[1]:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if k.split('_')[0]=='highlight' and k!='highlight'}
         
-        if t and len(x) and phased=='False' and t>min(x) and t<max(x):
+        if t and xk=='time' and len(x) and phased=='False' and t>min(x) and t<max(x):
             interp = interpolate.interp1d(x, y, bounds_error=False)
             s_x = [t]
             s_y = [interp(t)]
