@@ -483,6 +483,19 @@ class FeedbackEmcee(Feedback):
         
             self.set_translation(translations)
         return adjustables
+        
+    def set_lnproblim(self, lnproblim):
+        """
+        [FUTURE]
+        
+        change the limit on lnprob.  This will force a reload from the
+        chain file, so make sure that file still exists
+        
+        """
+        
+        self._lnproblim = lnproblim
+        if self.check_file():
+            self.do_reload()
     
     
     def do_reload(self):
