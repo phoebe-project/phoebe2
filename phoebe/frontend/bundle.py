@@ -3823,9 +3823,16 @@ class Bundle(Container):
         return feedback 
         
     def feedback_fromfile(self, feedback_file, fittinglabel=None,
-                          accept_feedback=True, ongoing=False):
+                          accept_feedback=True, ongoing=False, **kwargs):
         """
         Add fitting feedback from a file.
+        
+        Keyword arguments get passed on to the initialization of the feedback class.
+        
+        For emcee these can include:
+        - lnproblim
+        - burnin
+        - thin
         
         [FUTURE]
         """
@@ -3845,7 +3852,7 @@ class Bundle(Container):
         class_name = 'Feedback' + subcontext.title()
         feedback = getattr(mod_feedback, class_name)(feedback_file, init=self,
                              fitting=fittingoptions, compute=computeoptions,
-                             ongoing=ongoing)
+                             ongoing=ongoing, **kwargs)
         
         # Make sure not to duplicate entries
         existing_fb = [fb.get_label() for fb in self.sections['feedback']]
