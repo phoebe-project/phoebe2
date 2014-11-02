@@ -1416,6 +1416,22 @@ def binary(create_body=True):
     return universe.BodyBag([comp1, comp2], label='new_system', reddening=reddening,
                             position=position)
                             
+def misaligned_binary(create_body=True):
+    """
+    Default Phoebe2 misaligned binary system (primary is misaligned)
+    """
+    component1 = parameters.ParameterSet('component', label='primary')
+    component2 = parameters.ParameterSet('component', label='secondary')
+    orbit = parameters.ParameterSet('orbit', c1label='primary', c2label='secondary', label='new_system')
+    tools.make_misaligned(orbit, theta=0.0, phi0=90.0, precperiod=np.inf)
+    comp1 = universe.MisalignedBinaryRocheStar(component=component1, orbit=orbit)
+    comp2 = universe.BinaryRocheStar(component=component2, orbit=orbit)
+    position = parameters.ParameterSet('position', distance=(10.,'pc'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
+    
+    return universe.BodyBag([comp1, comp2], label='new_system', reddening=reddening,
+                            position=position)
+                            
 def binary_stars(create_body=True):
     """
     Default Pheobe2 Binary system with Stars, not Roche Stars
