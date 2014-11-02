@@ -168,8 +168,8 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     
     
     kwargs_defaults['fmt'] = {'value': 'k-' if typ=='syn' else 'k.', 'description': 'matplotlib format'}
-    kwargs_defaults['uncover'] = {'value': False, 'description': 'only show up to the current time (must be passed during draw call)', 'cast_type': 'bool'}
-    kwargs_defaults['highlight'] = {'value': typ=='syn', 'description': 'draw a marker at the current time (must be passed during draw call)', 'cast_type': 'bool'}
+    kwargs_defaults['uncover'] = {'value': False, 'description': 'only plot data up to the current time (time must be passed during draw call)', 'cast_type': 'bool'}
+    kwargs_defaults['highlight'] = {'value': typ=='syn', 'description': 'draw a marker at the current time (time must be passed during draw call)', 'cast_type': 'bool'}
     kwargs_defaults['highlight_fmt'] = {'value': 'ko', 'description': 'matplotlib format for time if higlight is True'}
     kwargs_defaults['highlight_ms'] = {'value': 5, 'description': 'matplotlib markersize for time if highlight is True', 'cast_type': 'int'}
     kwargs_defaults['scroll'] = {'ps': 'axes', 'value': False, 'description': 'whether to override xlim and scroll when time is passed during draw call', 'cast_type': 'make_bool'}
@@ -201,6 +201,8 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
 
     if xk=='time' and phased != 'False':
         # the phase array probably isn't filled, so we need to compute phase now
+        if phased in ['True', True]:
+            phased = b.get_system().get_label()
 
         ephem = b.get_ephem(phased)
         period = ephem.get('period', 1.0)
@@ -220,20 +222,37 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
         xd = x
         yd = y
 
-    if kwargs_defaults['highlight']['value']:
+    # we could be making any combination of several calls, so let's just build lists
+    cmds_list = []
+    mpl_args_list = []
+    mpl_kwargs_list = []
+    
+    # main plotting command
+    cmds_list.append('plot' if typ=='syn' else 'errorbar')
+    mpl_args_list.append((xd, yd))
+    mpl_kwargs_list.append(mpl_kwargs)
+    
+    # select command
+    if kwargs_defaults['highlight']['value'] and t and xk=='time' and len(x) and t>min(x) and t<max(x):
         mpl_select_kwargs = {k.split('_')[1]:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if k.split('_')[0]=='highlight' and k!='highlight'}
         
-        if t and xk=='time' and len(x) and phased=='False' and t>min(x) and t<max(x):
-            interp = interpolate.interp1d(x, y, bounds_error=False)
-            s_x = [t]
-            s_y = [interp(t)]
-        else:
-            s_x, s_y = [], []
+        # TODO: make this work for phased
+        interp = interpolate.interp1d(x, y, bounds_error=False)
+        s_x = [t]
+        s_y = [interp(t)]
         
-        return ['plot' if typ=='syn' else 'errorbar', 'plot'], [(xd, yd), (s_x, s_y)], [mpl_kwargs, mpl_select_kwargs], kwargs_defaults
-        
-    else:
-        return 'plot' if typ=='syn' else 'errorbar', (xd, yd), mpl_kwargs, kwargs_defaults
+        cmds_list.append('plot')
+        mpl_args_list.append((s_x, s_y))
+        mpl_kwargs_list.append(mpl_select_kwargs)
+
+    # synthetic sigmas from samples
+    if typ=='syn' and len(ds.get_value('sigma')):
+        s = ds.get_value('sigma')
+        cmds_list.append('fill_between')
+        mpl_args_list.append((xd, yd-s, yd+s))
+        mpl_kwargs_list.append({'alpha': 0.3, 'color': mpl_kwargs['fmt'][0], 'lw': 0})
+
+    return cmds_list, mpl_args_list, mpl_kwargs_list, kwargs_defaults
 
 def obs(b, t, datatwig, **kwargs):
     """
