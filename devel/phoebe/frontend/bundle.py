@@ -3361,7 +3361,7 @@ class Bundle(Container):
         **Extra keyword arguments**
         
         Any extra keyword arguments are passed on to the ``compute``
-        ParameterSet.
+        ParameterSet and then the ```mpi``` ParameterSet (if applicable).
         
         This frontend function wraps the backend function
         :py:func:`observatory.compute <phoebe.backend.observatory.compute>`.
@@ -3381,12 +3381,9 @@ class Bundle(Container):
         system.fix_mesh()
         
         obj = self.get_object(objref) if objref is not None else system
-        #~ if add_version is None:
-            #~ add_version = self.settings['add_version_on_compute']
                 
         # clear all previous models and create new model
         system.reset_and_clear()
-        #system.clear_synthetic()
         
         # get compute options, handling 'default' if label==None
         computeoptions = self.get_compute(label, create_default=True).copy()
@@ -3397,6 +3394,7 @@ class Bundle(Container):
             mpioptions = None
         else:
             mpioptions = self.get_mpi(mpilabel).copy()
+       
         # now temporarily override with any values passed through kwargs
         for k,v in kwargs.items():
             if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
@@ -3419,6 +3417,8 @@ class Bundle(Container):
                 obj.compute(mpi=mpioptions, **computeoptions)
             else:
                 obj.compute(animate=animate, **computeoptions)
+        else:
+            raise ValueError("time must be set to 'auto' in compute options")
         #else:
             #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
             #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
@@ -3431,6 +3431,136 @@ class Bundle(Container):
             #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
 
         return computeoptions 
+        
+    @rebuild_trunk
+    def run_sample(self, label=None, objref=None, sample_from='prior', samples=10, **kwargs):
+        """
+        [FUTURE] - and EXPERIMENTAL
+        
+        Draw values from parameters that are set for adjustment, compute observables,
+        and fill the synthetic datasets with the average and sigma for all
+        of these samples.
+        
+        Values will be drawn from parameters which are set for adjustment 
+        and have priors available (see :py:func:`bundle.get_adjustable_parameters`).
+        
+        Currently MPI options will be applied per-computation (ie the computations
+        are parallelized per-time rather than per-sample).
+        
+        Plotting the resulting synthetics are not automatically handled
+        by plot_syn, but are by attach_plot_syn.
+        
+        >>> bundle.run_sample('preview', samples=20)
+        >>> bundle.attach_plot_syn('lc01', figref='fig01')
+        >>> bundle.draw('fig01')
+        
+        **Extra keyword arguments**
+        
+        Any extra keyword arguments are passed on to the ``compute``
+        ParameterSet and then the ```mpi``` ParameterSet (if applicable).
+        
+        :param label: name of one of the compute ParameterSets stored in bundle
+        :type label: str
+        :param objref: name of the top-level object used when observing
+        :type objref: str
+        :param sample_from: whether to sample from priors or posteriors
+        :type sample_from: str (one of 'prior', 'posterior')
+        :param samples: number of samples to compute
+        :type samples: int
+        """
+        
+        system = self.get_system()
+        system.fix_mesh()
+        
+        obj = self.get_object(objref) if objref is not None else system
+                     
+        # get compute options, handling 'default' if label==None
+        computeoptions = self.get_compute(label, create_default=True).copy()
+        mpilabel = kwargs.pop('mpilabel', computeoptions.get_value('mpilabel'))
+        if mpilabel in [None, 'None', '']:
+            mpilabel = None
+        if mpilabel in [None, 'None', '']:
+            mpioptions = None
+        else:
+            mpioptions = self.get_mpi(mpilabel).copy()
+        
+        # now temporarily override with any values passed through kwargs
+        for k,v in kwargs.items():
+            if k in computeoptions.keys(): # otherwise nonexisting kwargs can be given
+                computeoptions.set_value(k,v)
+            elif k in mpioptions.keys():
+                mpioptions.set_value(k,v)
+            else:
+                raise ValueError("run_sample does not accept keyword '{}'".format(k))
+                
+                
+        # TODO: implement MPI ability by sample rather than by time within a single sample
+        
+        adjustable_twigs = self.get_adjustable_parameters()
+        synthetic_twigs = self.twigs(class_name='*DataSet', context='*syn', hidden=True)
+        
+        orig_values = {}
+        history = []
+        syns = {}
+        syn_times = {}
+        synthetic_yks = []
+        for twig in synthetic_twigs:
+            synthetic_yks.append(plotting._xy_from_category(self.get(twig, hidden=True).context[:-3])[1])
+            syns[twig] = []
+        
+        for i in range(samples):
+            # clear all previous models and create new model
+            system.reset_and_clear()
+            
+            history.append({})
+            for twig in adjustable_twigs:
+                if i==0:
+                    orig_values[twig] = self.get_value(twig)
+                param = self.get_parameter(twig)
+                if sample_from in ['prior', 'priors']:
+                    param.set_value_from_prior()
+                elif sample_from in ['posterior', 'posteriors', 'post']:
+                    param.set_value_from_posterior()
+                else:
+                    raise ValueError("sample_from must be one of: 'prior', 'posterior'")
+                history[-1][twig] = param.get_value()
+            
+            # run compute and keep result
+            if computeoptions['time'] == 'auto':
+                logger.info("running compute with: ", history[-1])
+                obj.compute(mpi=mpioptions, **computeoptions)
+            else:
+                raise ValueError("time must be set to 'auto' in compute options")
+                
+            self._build_trunk() # this is necessary to handle smart synthetic handling
+            for twig, yk in zip(synthetic_twigs, synthetic_yks):
+                if i==0:
+                    syn_times[twig] = self.get(twig, hidden=True)['time']
+                syns[twig].append(self.get(twig, hidden=True)[yk])
+        
+        # now reset parameter values
+        for k,v in orig_values.items():
+            self.set_value(k, v)
+                
+        # and take average and set syns
+        system.reset_and_clear()
+        for twig, yk in zip(synthetic_twigs, synthetic_yks):
+            
+            syn = syns[twig]
+            
+            syntable = np.array(syn).T
+            a = np.array([np.average(i) for i in syntable])
+            s = np.array([np.std(i) for i in syntable])
+
+            ds = self.get(twig, hidden=True)
+            ds[yk] = a
+            ds['sigma'] = s
+            ds['time'] = syn_times[twig]
+            ds['columns'].append('sigma')  # this is needed so dumping to file will work and so clear_syn will clear this column
+            
+        return history
+             
+        
     #}
             
     #{ Fitting
