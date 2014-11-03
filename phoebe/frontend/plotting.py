@@ -31,7 +31,7 @@ def _defaults_from_dataset(b, ds, kwargs):
     xl = 'Phase' if kwargs['phased'] != 'False' else xl
     #x, y = ds[xk], ds[yk]
 
-    kwargs.setdefault('xunit', 'cy' if kwargs['phased'] != 'False' else ds.get_parameter(xk).get_unit())
+    kwargs.setdefault('xunit', 'cy' if kwargs['phased'] != 'False' else ds.get_parameter(xk).get_unit() if ds.get_parameter(xk).has_unit() else 'time')
     kwargs.setdefault('yunit', ds.get_parameter(yk).get_unit())
 
     try:

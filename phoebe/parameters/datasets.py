@@ -624,7 +624,7 @@ class LCDataSet(DataSet):
     
     def plot(self,ax=None,**plotoptions):
         """
-        Plot spectra.
+        Plot light curve.
         """
         if ax is None:
             ax = plt.gca()
