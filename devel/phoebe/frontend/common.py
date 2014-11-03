@@ -752,14 +752,14 @@ class Container(object):
         
         :param twig: the search twig/twiglet (or None to show all)
         :type twig: str
-        :return: list of twigs
-        :rtype: list of strs
+        :return: dictionary of twig/parameter pairs
+        :rtype: dict
         """      
-        twigs = []
+        params = {}
         for ti in self._get_by_search(twig=twig, kind='Parameter', all=True, return_trunk_item=True):
             if hasattr(ti['item'], 'adjust') and ti['item'].adjust and ti['item'].has_prior():
-                twigs.append(ti['twig'])
-        return twigs
+                params[ti['twig']] = ti['item']
+        return params
                 
     def set_posterior(self, twig, **dist_kwargs):
         """

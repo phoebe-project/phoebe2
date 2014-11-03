@@ -1045,7 +1045,7 @@ class Bundle(Container):
                 # period and synchronicity
                 ephem['period'] = period/comp_ps[0].get_value('syncpar')
                 
-            return ephem
+        return ephem
         
     def set_main_period(self, period=None, objref=None):
         """
@@ -3496,7 +3496,7 @@ class Bundle(Container):
                 
         # TODO: implement MPI ability by sample rather than by time within a single sample
         
-        adjustable_twigs = self.get_adjustable_parameters()
+        adjustable_twigs = self.get_adjustable_parameters().keys()
         synthetic_twigs = self.twigs(class_name='*DataSet', context='*syn', hidden=True)
         
         orig_values = {}
@@ -3504,9 +3504,20 @@ class Bundle(Container):
         syns = {}
         syn_times = {}
         synthetic_yks = []
+        remove_twigs = []
         for twig in synthetic_twigs:
-            synthetic_yks.append(plotting._xy_from_category(self.get(twig, hidden=True).context[:-3])[1])
-            syns[twig] = []
+            synds_context = self.get(twig, hidden=True).context[:-3]
+            
+            if synds_context != 'orb':
+                # WE DO NOT CURRENTLY TREAT ORB DATASETS AS COMPUTABLES
+                # but this may change in the future
+                synthetic_yks.append(plotting._xy_from_category(synds_context)[1])
+                syns[twig] = []
+            else:
+                remove_twigs.append(twig)
+        
+        for twig in remove_twigs:
+            synthetic_twigs.remove(twig)        
         
         for i in range(samples):
             # clear all previous models and create new model
@@ -5049,6 +5060,8 @@ class Bundle(Container):
         
         for m_func, m_args, m_kwargs in zip(mpl_func, mpl_args, mpl_kwargs):
             # check to make sure all kwargs in mpl_kwargs are allowed
+            
+            #~ print "***", m_func, m_kwargs
 
             if hasattr(ax, m_func):
                 line2D_attrs = ['aa', 'agg', 'alpha', 'animated', 'antialiased', 'axes', 'c', 'children', 'clip', 'clip', 'clip', 'color', 'contains', 'dash', 'dash', 'data', 'drawstyle', 'figure', 'fillstyle', 'gid', 'label', 'linestyle', 'linewidth', 'ls', 'lw', 'marker', 'markeredgecolor', 'markeredgewidth', 'markerfacecolor', 'markerfacecoloralt', 'markersize', 'markevery', 'mec', 'mew', 'mfc', 'mfcalt', 'ms', 'path', 'picker', 'pickradius', 'rasterized', 'snap', 'solid', 'solid', 'transform', 'transformed', 'url', 'visible', 'window', 'xdata', 'xydata', 'ydata', 'zorder']
