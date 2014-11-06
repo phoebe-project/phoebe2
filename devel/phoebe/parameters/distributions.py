@@ -846,13 +846,14 @@ class Trace(BaseDistribution):
         @param size: number of values to generate
         @type size: int
         @return: random value from the distribution, used indices
-        @rtype: array[C{size}], array
+        @rtype: array[C{size}]
         """
         trace = self.distr_pars['trace']
         if indices is None:
             indices = np.random.randint(len(trace), size=size)
         values = trace[indices]
-        return values, indices
+        #return values, indices
+        return values
     
     
     def get_grid(self, sampling=5):
