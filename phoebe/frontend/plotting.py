@@ -208,7 +208,6 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
         period = ephem.get('period', 1.0)
         t0 = ephem.get('t0', 0.0)
         
-        # TODO: allow passing different orbital levels (maybe take twig to orbit or to period and t0?)
         x = ((x-t0) % period) / period
         
         # sort phases
@@ -685,6 +684,64 @@ def ds_axvspan(b, t, datatwig, **kwargs):
                 mplkwargs[k.split('_')[1]] = v
        
     return 'axvspan', (xl, xu), mplkwargs, kwargs_defaults
+    
+def ds_text(b, t, datatwig, **kwargs):
+    """
+    [FUTURE]
+
+    This is a preprocessing function for :py:func:`Bundle.attach_plot`
+    
+    This function creates a text label at the time range of the dataset defined
+    by datatwig.  This axvspan can be attached to multiple axes.
+    """
+    ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
+    xl, xu = min(ds['time']), max(ds['time'])
+    xk, xl, yk, yl = _xy_from_category(context[:-3])
+    y = ds[yk]
+    
+    kwargs_defaults = {}
+    kwargs_defaults['text'] = {'value': ds['ref'], 'description': 'text to show'}
+    kwargs_defaults['x'] = {'value': xu, 'description': 'x location'}
+    kwargs_defaults['y'] = {'value': np.mean(y), 'description': 'y location'}
+    
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    
+    mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
+    # some of these need to become args, so we'll pop them
+    x = mplkwargs.pop('x')
+    y = mplkwargs.pop('y')
+    s = mplkwargs.pop('text')
+    
+    
+    return 'text', (x,y,s), mplkwargs, kwargs_defaults
+    
+def param_text(b, t, *args, **kwargs):
+    """
+    [FUTURE]
+    
+    This is a preprocessing function for :py:func:`Bundle.attach_plot`
+    
+    This function creates a text label that shows the values of a given
+    parameter(s).
+    
+    kwargs get passed to matplotlib.axes.Axes.annotate
+    """
+    
+    kwargs_defaults = {}
+    kwargs_defaults['x'] = {'value': 0.1, 'description': 'x location'}
+    kwargs_defaults['y'] = {'value': 0.1, 'description': 'y location'}
+    kwargs_defaults['xycoords'] = {'value': 'axes fraction', 'description': 'see matplotlib.text.Annotation'}
+    
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    
+    mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
+    # some of these need to become args, so we'll pop them
+    x = mplkwargs.pop('x')
+    y = mplkwargs.pop('y')
+    #~ s = mplkwargs.pop('text')
+    
+    return 'annotate', (s, (x, y)), mplkwargs, kwargs_defaults 
+
 
 class Figure(parameters.ParameterSet):
     def __init__(self, bundle, **kwargs):

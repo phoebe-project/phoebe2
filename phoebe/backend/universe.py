@@ -8340,9 +8340,9 @@ class BinaryRocheStar(PhysicalBody):
         #-- now run over all labels and compute the intensities
         for iref in ref:
             parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
-            limbdark.local_intensity(self,parset_pbdep,parset_isr, boosting_alg=boosting_alg)
-            
-        
+            # TODO: change this to look in config.indep_var_other instead of hardcoding etvobs
+            if parset_pbdep.context not in ['etvdep']:
+                limbdark.local_intensity(self,parset_pbdep,parset_isr, boosting_alg=boosting_alg)
         
     def surface_gravity(self):
         """
