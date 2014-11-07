@@ -1251,11 +1251,11 @@ class Container(object):
             context = item.get_context()
             if context[-3:] in ['obs','dep','syn'] and context.split(':')[0] != 'plotting':
                 section = 'dataset'
-            if section in ['axes','plot','figure','fitting']:
+            if section in ['axes','plot','figure','fitting','mpi']:
                 label = None
 
             # For some contexts, we need to add labels for disambiguation
-            if context in ['puls'] or section in ['fitting']:
+            if context in ['puls'] or section in ['fitting','mpi']:
                 ref = item.get_value('label') if 'label' in item else ref
             ref = item.get_value('ref') if 'ref' in item else ref
             unique_label = None
@@ -1286,7 +1286,7 @@ class Container(object):
 
             # unless we're in one of the following sections
             # in which case we identify by ref and have no label
-            if section in ['axes','plot','figure','fitting']:
+            if section in ['axes','plot','figure','fitting','mpi']:
                 label = None
                 
             if path:
