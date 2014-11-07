@@ -1448,6 +1448,25 @@ def binary_stars(create_body=True):
     
     return universe.BinaryBag([comp1, comp2], label='new_system', reddening=reddening,
                             position=position,orbit=orbit)
+                            
+def misaligned_binary_stars(create_body=True):
+    """
+    Default Phoebe2 misaligned binary system (primary is misaligned) with Stars, not Roche Stars
+    """
+    component1 = parameters.ParameterSet('star')
+    component2 = parameters.ParameterSet('star')
+    mesh  = parameters.ParameterSet('mesh:marching')
+    orbit = parameters.ParameterSet('orbit', period=(1.,'d'), c1label='primary', c2label='secondary', label='new_system')
+    tools.make_misaligned(orbit, theta=0.0, phi0=90.0, precperiod=np.inf)
+    comp1 = universe.Star(component1,mesh,label='primary')
+    comp2 = universe.Star(component2,mesh,label='secondary')
+    position  = parameters.ParameterSet('position', distance=(10.,'pc'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
+    
+    return universe.BinaryBag([comp1, comp2], label='new_system', reddening=reddening,
+                            position=position,orbit=orbit)
+                            
+
     
 
 def overcontact(create_body=True):
