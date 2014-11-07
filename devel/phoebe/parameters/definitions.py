@@ -670,7 +670,7 @@ defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_t
         ]
 
 #    MPI and computation context
-defs += [dict(qualifier='label',                description='label for the MPI options',repr='%s',cast_type='make_label',value='default_mpi',frame=["phoebe"],context='mpi'),
+defs += [dict(qualifier='label',                description='label for the MPI options',repr='%s',cast_type='make_label',value='default_mpi',frame=["phoebe"],context=['mpi','mpi:torque']),
          dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi'),
          dict(qualifier='hostfile',     description='hostfile',repr='%s',cast_type=str,value='',frame=["phoebe"],context='mpi'),
          dict(qualifier='byslot',     description='byslot',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='mpi'),
