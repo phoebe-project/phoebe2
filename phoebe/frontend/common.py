@@ -948,7 +948,7 @@ class Container(object):
         
         @param ps: fitting ParameterSet
         @type ps:  None, or ParameterSet
-        @param label: name of the fitting options (will override label in ps)
+        @param label: name of the MPI options (will override label in ps)
         @type label: str
         """
         if ps is None:
