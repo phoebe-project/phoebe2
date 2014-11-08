@@ -2249,4 +2249,40 @@ def evaluate(par_values, twigs, mybundle, computelabel='preview'):
             logp = -np.inf
     
     return logp
+    
+def _xy_from_category(category):
+    """
+    returns the x and y arrays given a dataset and its category
+    """
+    
+    # TODO: handle phase here
+    if category=='lc':
+        xk = 'time'
+        yk = 'flux'
+        xl = 'Time'
+        yl = 'Flux'
+    elif category=='rv':
+        xk = 'time'
+        yk = 'rv'
+        xl = 'Time'
+        yl = 'RV'
+    elif category=='sp':
+        # TODO: check these
+        xk = 'wavelength'
+        yk = 'flux'
+        xl = 'Wavelength'
+        yl = 'Flux'
+    elif category=='etv':
+        xk = 'time'
+        yk = 'etv'
+        xl = 'Time'
+        yl = 'ETV'
+    else:
+        logger.warning("{} category not currently supported in frontend plotting".format(category))
+        xk = None
+        yk = None
+        xl = None
+        yl = None
+        
+    return xk, yk, xl, yl 
         

@@ -85,8 +85,10 @@ from datetime import datetime
 from time import sleep
 import matplotlib.pyplot as plt
 from matplotlib import collections
+import tempfile
 import copy
 import os
+import sys
 import re
 import readline
 import json
@@ -101,6 +103,7 @@ from phoebe.parameters import feedback as mod_feedback
 from phoebe.backend import fitting, observatory
 from phoebe.backend import  plotting as beplotting
 from phoebe.backend import universe
+from phoebe.backend import decorators
 from phoebe.atmospheres import passbands
 from phoebe.atmospheres import limbdark
 from phoebe.io import parsers
@@ -108,6 +111,7 @@ from phoebe.io import ascii
 from phoebe.dynamics import keplerorbit
 from phoebe.frontend.usersettings import Settings
 from phoebe.frontend.common import Container, rebuild_trunk
+from phoebe.frontend import sample
 from phoebe.units import conversions
 from phoebe.frontend import phcompleter
 from phoebe.frontend import stringreps
@@ -3493,85 +3497,75 @@ class Bundle(Container):
             else:
                 raise ValueError("run_sample does not accept keyword '{}'".format(k))
                 
+        # pickle the bundle and computeoptions to send through MPI
+        if not mpioptions or not 'directory' in mpioptions or not mpioptions['directory']:
+            direc = os.getcwd()
+        else:
+            direc = mpi['directory']
+            
+        bundle_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+        pickle.dump(self,bundle_file)
+        bundle_file.close()
                 
-        # TODO: implement MPI ability by sample rather than by time within a single sample
-        
-        adjustable_twigs = self.get_adjustable_parameters().keys()
-        synthetic_twigs = self.twigs(class_name='*DataSet', context='*syn', hidden=True)
-        
-        orig_values = {}
-        history = []
-        syns = {}
-        syn_times = {}
-        synthetic_yks = []
-        remove_twigs = []
-        for twig in synthetic_twigs:
-            synds_context = self.get(twig, hidden=True).context[:-3]
-            
-            if synds_context != 'orb':
-                # WE DO NOT CURRENTLY TREAT ORB DATASETS AS COMPUTABLES
-                # but this may change in the future
-                synthetic_yks.append(plotting._xy_from_category(synds_context)[1])
-                syns[twig] = []
-            else:
-                remove_twigs.append(twig)
-        
-        for twig in remove_twigs:
-            synthetic_twigs.remove(twig)        
-        
-        for i in range(samples):
-            # clear all previous models and create new model
-            system.reset_and_clear()
-            
-            history.append({})
-            for twig in adjustable_twigs:
-                if i==0:
-                    orig_values[twig] = self.get_value(twig)
-                param = self.get_parameter(twig)
-                if sample_from in ['prior', 'priors']:
-                    param.set_value_from_prior()
-                elif sample_from in ['posterior', 'posteriors', 'post']:
-                    param.set_value_from_posterior()
-                else:
-                    raise ValueError("sample_from must be one of: 'prior', 'posterior'")
-                history[-1][twig] = param.get_value()
-            
-            # run compute and keep result
-            if computeoptions['time'] == 'auto':
-                logger.info("running compute with: ", history[-1])
-                obj.compute(mpi=mpioptions, **computeoptions)
-            else:
-                raise ValueError("time must be set to 'auto' in compute options")
-                
-            self._build_trunk() # this is necessary to handle smart synthetic handling
-            for twig, yk in zip(synthetic_twigs, synthetic_yks):
-                if i==0:
-                    syn_times[twig] = self.get(twig, hidden=True)['time']
-                syns[twig].append(self.get(twig, hidden=True)[yk])
-        
-        # now reset parameter values
-        for k,v in orig_values.items():
-            self.set_value(k, v)
-                
-        # and take average and set syns
-        system.reset_and_clear()
-        for twig, yk in zip(synthetic_twigs, synthetic_yks):
-            
-            syn = syns[twig]
-            
-            syntable = np.array(syn).T
-            a = np.array([np.average(i) for i in syntable])
-            s = np.array([np.std(i) for i in syntable])
+        compute_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+        pickle.dump(computeoptions,compute_file)
+        compute_file.close()
+               
+        # start samples
+        if mpioptions is not None:
+            # Create arguments to run emceerun_backend.py
+            sample_logger_level = 'WARNING'
+            objref = self.get_system().get_label() if objref is None else objref
+            args = " ".join([bundle_file.name, compute_file.name, objref, sample_from, str(samples), sample_logger_level])
 
-            ds = self.get(twig, hidden=True)
-            ds[yk] = a
-            ds['sigma'] = s
-            ds['time'] = syn_times[twig]
-            ds['columns'].append('sigma')  # this is needed so dumping to file will work and so clear_syn will clear this column
-            
-        return history
-             
+            sample.mpi = True
+            flag, mpitype = decorators.construct_mpirun_command(script='sample.py',
+                                                      mpirun_par=mpioptions, args=args,
+                                                      script_dir='frontend')
+
+            # If something went wrong, we can exit nicely here, the traceback
+            # should be printed at the end of the MPI process
+            if flag:
+                sys.exit(1)
         
+        else:
+            sample.mpi = False
+            sample.run(bundle_file.name, compute_file.name, objref, sample_from, samples)
+        
+        # cleanup temporary files
+        os.unlink(bundle_file.name)
+        os.unlink(compute_file.name)
+        
+        # try loading resulting file
+        sample_file = os.path.join(direc, computeoptions['label'] + '.sample.dat')
+
+        if not os.path.isfile(sample_file):
+            raise RuntimeError("Could not produce sample file {}, something must have seriously gone wrong during sample run".format(sample_file))
+            
+        f = open(sample_file,'r')
+        samples = json.load(f)
+        f.close()
+        
+        for twig, syns in samples['syns'].items():
+            # syns is a dictionary with x, xk, y, yk, sigma (optional)
+            
+            ds = self.get(twig, hidden=True)
+            ds[syns['xk']] = syns['x']
+            ds[syns['yk']] = syns['y']
+            
+            if 'sigma' in syns.keys():
+                ds['sigma'] = syns['sigma']
+                # we need to add 'sigma' to columns so that saving the
+                # synthetic file will include this column, but also
+                # so that clear_syn will clear the sigmas\
+                if 'sigma' not in ds['columns']:
+                    ds['columns'].append('sigma')
+        
+        # now rebuild the trunk so that the faked datasets are summed correctly
+        self._build_trunk() 
+
+        return samples['hist']
+
     #}
             
     #{ Fitting

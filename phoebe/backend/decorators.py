@@ -167,7 +167,7 @@ def prepare_ltt(system):
 
 
 
-def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
+def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args='', script_dir='backend'):
     """
     Construct mpirun command
     """
@@ -193,7 +193,7 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args=''):
     # Retrieve the absolute path of the mpirun program
     mpirun_loc = os.path.abspath(__file__)
     mpirun_loc = os.path.split(os.path.split(mpirun_loc)[0])[0]
-    mpirun_loc = os.path.join(mpirun_loc, 'backend', script)
+    mpirun_loc = os.path.join(mpirun_loc, script_dir, script)
     
     # Build and run the command
     #{fctn.__name__} {sys_file.name} "
