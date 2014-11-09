@@ -4849,7 +4849,8 @@ class Bundle(Container):
 
         # if axes_ps already existed then we want to pass some of those arguments
         # on as well so they aren't reset
-        for k in ['phased', 'xlim', 'ylim', 'xunit', 'yunit', 'scroll', 'scroll_xlim']:
+        # and we even need some (like xunit, yunit) from axes_ps
+        for k in ['phased', 'xlim', 'ylim', 'xunit', 'yunit', 'zunit', 'projection', 'scroll', 'scroll_xlim']:
             if k in axes_ps.keys() and (type(axes_ps[k])==bool or '_auto_' not in axes_ps[k]):
                 kwargs.setdefault(k, axes_ps[k])
 
@@ -4891,7 +4892,7 @@ class Bundle(Container):
         """
         return self.attach_plot((objref, dataref), plotting.mesh, **kwargs)
 
-    def attach_plot_orbit(self, objref, dataref, **kwargs):
+    def attach_plot_orbit(self, objref, dataref=None, **kwargs):
         """
         [FUTURE]
         """

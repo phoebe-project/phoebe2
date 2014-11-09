@@ -272,8 +272,8 @@ def mesh(b, t, objref, dataref, **kwargs):
     kwargs_defaults = {}
 
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
-    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if project==3d', 'cast_type': str}
-    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if project==3d', 'cast_type': str}
+    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': str}
+    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': str}
     kwargs_defaults['select'] = {'value': select, 'description': 'which value to retrieve for color of triangles'}
     kwargs_defaults['cmap'] = {'value': cmap, 'description': 'color map to use'}
     kwargs_defaults['vmin'] = {'value': vmin, 'description': 'min value for range on cmap'}
@@ -373,10 +373,11 @@ def mesh(b, t, objref, dataref, **kwargs):
         elif select in mesh.dtype.names:
             values = mesh[select]
         else:
-            values = select[sa]
+            values = select[sa]  # TODO: remove this and provide better error statement?
         # Set the limits of the color scale, if we need to compute them
         # ourselves
         vmin, vmax = None, None # TODO: remove when add vmin, vmax as args/kwargs
+        # TODO: does it makes sense to only set these on visible triangles or all triangles?
         if vmin is None:
             vmin_ = values[mesh['mu'] > 0].min()
         if vmax is None:
@@ -497,64 +498,96 @@ def mesh(b, t, objref, dataref, **kwargs):
 
     return 'Poly3DCollection' if axes3d else 'PolyCollection', mpl_args, mpl_kwargs, kwargs_defaults
 
-def orbit(b, t, objref, dataref, x='x', y='y', **kwargs):
+def orbit(b, t, objref, dataref, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     """
-    ds, context = _from_dataset(b, '{}@{}'.format(dataref, objref), 'orbsyn')  # TODO: there should be a better way to do this, especially if dataref@objref is passed as twig
+    # ds, context = _from_dataset(b, '{}@{}'.format(dataref, objref), 'orbsyn')  # TODO: there should be a better way to do this, especially if dataref@objref is passed as twig
 
-    times = ds['bary_time'] # or ds['prop_time']
-    pos = ds['position']
-    vel = ds['velocity']
-
-    positions = ['x','y','z']
-    velocities = ['vx','vy','vz']
-    if x in positions:
-        xdata = pos[positions.index(x)]
-    elif x in velocities:
-        xdata = vel[positions.index(x)]
-    else: # time
-        xdata = times
-    if y in positions:
-        ydata = pos[positions.index(y)]
-    elif y in velocities:
-        ydata = vel[positions.index(y)]
-    else: # time
-        ydata = times
+    # times = ds['bary_time'] # or ds['prop_time']
+    # pos = ds['position']
+    # vel = ds['velocity']
 
     kwargs_defaults = {}
-    kwargs_defaults['fmt'] = {'value': 'k-' if typ=='syn' else 'k.', 'description': 'matplotlib format'}
-    kwargs_defaults['highlight'] = {'value': typ=='syn', 'description': 'draw a marker at the current time (must be passed during draw call)', 'cast_type': 'bool'}
+    kwargs_defaults['fmt'] = {'value': 'k-', 'description': 'matplotlib format'}
+    kwargs_defaults['highlight'] = {'value': True, 'description': 'draw a marker at the current time (must be passed during draw call)', 'cast_type': 'bool'}
     kwargs_defaults['highlight_fmt'] = {'value': 'ko', 'description': 'matplotlib format for time if higlight is True'}
     kwargs_defaults['highlight_ms'] = {'value': 5, 'description': 'matplotlib markersize for time if highlight is True', 'cast_type': 'int'}
-    #~ kwargs_defaults['scroll'] = {'ps': 'axes', 'value': False, 'description': 'whether to override xlim and scroll when time is passed during draw call', 'cast_type': 'make_bool'}
-    #~ kwargs_defaults['scroll_xlim'] = {'ps': 'axes', 'value': [-2,2], 'description': 'the xlims to provide relative to the current time if scroll==True and time is passed during draw call', 'cast_type': 'list'}
-    #~ kwargs_defaults['scroll_ylim'] = {'ps': 'axes', 'value': [-2,2], 'description': 'the ylims to provide relative to the current time if scroll==True and time is passed during draw call', 'cast_type': 'list'}
+    kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
+    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': str}
+    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': str}
 
+    kwargs_defaults['xselect'] = {'value': 'x', 'description': 'value to plot along the x axis', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
+    kwargs_defaults['yselect'] = {'value': 'y', 'description': 'value to plot along the y axis', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
+    kwargs_defaults['zselect'] = {'value': 'z', 'description': 'value to plot along the z axis, if projection==3d', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
 
     # TODO: aspect ratio
+    # TODO: handle default axes labels
+    # TODO: handle phased
 
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
     mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
 
+    axes3d = kwargs_defaults['projection']['value']=='3d'
+
+    pos, vel, bary_time, prop_time = b.get_orbit(objref)  # TODO: get this from an orbsyn instead of recomputing at plot-time
+    x, y, z = kwargs_defaults['xselect']['value'], kwargs_defaults['yselect']['value'], kwargs_defaults['zselect']['value']
+    positions = ['x','y','z']
+    velocities = ['vx','vy','vz']
+
+    if x in positions:
+        xdata = pos[positions.index(x)]
+    elif x in velocities:
+        xdata = vel[velocities.index(x)]
+    elif x=='bary_time':
+        xdata = bary_time
+    else:
+        xdata = prop_time
+    if y in positions:
+        ydata = pos[positions.index(y)]
+    elif y in velocities:
+        ydata = vel[velocities.index(y)]
+    elif y=='bary_time':
+        ydata = bary_time
+    else:
+        ydata = prop_time
+
+    if axes3d:
+        if z in positions:
+            zdata = pos[positions.index(z)]
+        elif z in velocities:
+            zdata = vel[velocities.index(z)]
+        elif z=='bary_time':
+            zdata = bary_time
+        else:
+            zdata = prop_time
+    else:
+        zdata = None
+
     if kwargs_defaults['highlight']['value']:
         mpl_select_kwargs = {k.split('_')[1]:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if k.split('_')[0]=='highlight' and k!='highlight'}
 
-        if t and len(xdata) and phased=='False' and t>min(times) and t<max(times):
-            interp_x = interpolate.interp2d(times, xdata, bounds_error=False)
-            interp_y = interpolate.interp2d(times, ydata, bounds_error=False)
+        if t and len(xdata) and t>min(prop_time) and t<max(prop_time): # and phased=='False'
+            interp_x = interpolate.interp1d(prop_time, xdata, bounds_error=False)
+            interp_y = interpolate.interp1d(prop_time, ydata, bounds_error=False)
             #~ s_t = [t]
-            s_x = [interp(t)]
-            s_y = [interp(t)]
+            s_x = [interp_x(t)]
+            s_y = [interp_y(t)]
+            if axes3d:
+                interp_z = interpolate.interp1d(prop_time, zdata, bounds_error=False)
+                s_z = [interp_z(t)]
+            else:
+                s_z = []
         else:
-            s_x, s_y = [], []
+            s_x, s_y, s_z = [], [], []
 
-        return ['plot', 'plot'], [(xdata, ydata), (s_x, s_y)], [mplkwargs, mpl_select_kwargs], kwargs_defaults
+        return ['plot', 'plot'], [(xdata, ydata, zdata) if axes3d else (xdata, ydata), (s_x, s_y, s_z) if axes3d else (s_x, s_y)],\
+                [mplkwargs, mpl_select_kwargs], kwargs_defaults
 
     else:
-        return 'plot', (xdata, ydata), mplkwargs, kwargs_defaults
+        return 'plot', (xdata, ydata, zdata) if axes3d else (xdata, ydata), mplkwargs, kwargs_defaults
 
 
 def xy(b, t, x, y, **kwargs):
