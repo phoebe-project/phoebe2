@@ -3,6 +3,8 @@ from phoebe.units import conversions
 from phoebe.utils import plotlib
 from phoebe.frontend.common import _xy_from_category
 import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
 import pylab as pl
 import numpy as np
 from scipy import interpolate
@@ -10,6 +12,19 @@ import logging
 
 logger = logging.getLogger("FRONT.PLOTTING")
 logger.addHandler(logging.NullHandler())
+
+
+
+class Arrow3D(FancyArrowPatch):
+    def __init__(self, xs, ys, zs, *args, **kwargs):
+        FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+        self._verts3d = xs, ys, zs
+
+    def draw(self, renderer):
+        xs3d, ys3d, zs3d = self._verts3d
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+        self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+        FancyArrowPatch.draw(self, renderer)
 
 
 def _defaults_from_dataset(b, ds, kwargs):
@@ -272,13 +287,24 @@ def mesh(b, t, objref, dataref, **kwargs):
     kwargs_defaults = {}
 
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
-    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': str}
-    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': str}
+    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['zunit'] = {'ps': 'axes', 'value': '_auto_', 'description': 'unit to plot on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['azim'] = {'ps': 'axes', 'value': -90, 'description': 'azimuthal orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
+    kwargs_defaults['elev'] = {'ps': 'axes', 'value': 90, 'description': 'elevation orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
     kwargs_defaults['select'] = {'value': select, 'description': 'which value to retrieve for color of triangles'}
     kwargs_defaults['cmap'] = {'value': cmap, 'description': 'color map to use'}
     kwargs_defaults['vmin'] = {'value': vmin, 'description': 'min value for range on cmap'}
     kwargs_defaults['vmax'] = {'value': vmax, 'description': 'max value for range on cmap'}
-    kwargs_defaults['background'] = {'ps': 'axes', 'value': 'k', 'description': 'background color of the axes', 'cast_type': str}
+    kwargs_defaults['background'] = {'ps': 'axes', 'value': 'k', 'description': 'background color of the axes', 'cast_type': 'str'}
+
+    xunit = conversions.unit2texlabel(kwargs.get('xunit', 'Rsol'))
+    yunit = conversions.unit2texlabel(kwargs.get('yunit', 'Rsol'))
+    zunit = conversions.unit2texlabel(kwargs.get('zunit', 'Rsol'))
+
+    kwargs_defaults['xlabel'] = '{} ({})'.format('x', xunit)
+    kwargs_defaults['ylabel'] = '{} ({})'.format('y', yunit)
+    kwargs_defaults['zlabel']['value'] = '{} ({})'.format('z', zunit)
 
     # TODO: make these options:
     boosting_alg = 'none'
@@ -484,17 +510,33 @@ def mesh(b, t, objref, dataref, **kwargs):
     kwargs_defaults['ylim'] = ylim
     kwargs_defaults['zlim']['value'] = zlim
 
-    #~ kwargs_defaults['xlabel'] = 'X Position (R_solar)'
-    #~ kwargs_defaults['ylabel'] = 'Y Position (R_solar)'
-
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
 
     if kwargs_defaults['projection']['value']=='3d':
         axes3d = True
         mpl_args = (mesh['triangle'].reshape((-1, 3, 3))[:, :, :], None, False)
+
+        # switch z-direction - so that -z is towards the observer in the figures
+        # note: we will need to invert the z-axis during drawing to make a left
+        # handed coordinate system
+        mpl_args[0][:, :, 2] = -1*mpl_args[0][:, :, 2]
     else:
         axes3d = False
         mpl_args = (mesh['triangle'].reshape((-1, 3, 3))[:, :, :2], None, False)
+
+    # convert units if necessary
+    xu = kwargs_defaults.get('xunit', 'Rsol')
+    if xu != 'Rsol':
+        mpl_args[0][:, :, 0] = conversions.convert('Rsol', xu, mpl_args[0][:, :, 0])
+    yu = kwargs_defaults.get('yunit', 'Rsol')
+    if yu != 'Rsol':
+        mpl_args[0][:, :, 1] = conversions.convert('Rsol', yu, mpl_args[0][:, :, 1])
+    if axes3d:
+        kd_zunit = kwargs_defaults['zunit']['value']
+        zu = kd_zunit if kd_zunit is not '_auto_' else 'Rsol'
+        if zu != 'Rsol':
+            mpl_args[0][:, :, 2] = conversions.convert('Rsol', zu, mpl_args[0][:, :, 2])
+
 
     return 'Poly3DCollection' if axes3d else 'PolyCollection', mpl_args, mpl_kwargs, kwargs_defaults
 
@@ -516,8 +558,12 @@ def orbit(b, t, objref, dataref, **kwargs):
     kwargs_defaults['highlight_fmt'] = {'value': 'ko', 'description': 'matplotlib format for time if higlight is True'}
     kwargs_defaults['highlight_ms'] = {'value': 5, 'description': 'matplotlib markersize for time if highlight is True', 'cast_type': 'int'}
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
-    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': str}
-    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': str}
+    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['zunit'] = {'ps': 'axes', 'value': '_auto_', 'description': 'unit to plot on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['azim'] = {'ps': 'axes', 'value': -90, 'description': 'azimuthal orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
+    kwargs_defaults['elev'] = {'ps': 'axes', 'value': 90, 'description': 'elevation orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
+
 
     kwargs_defaults['xselect'] = {'value': 'x', 'description': 'value to plot along the x axis', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
     kwargs_defaults['yselect'] = {'value': 'y', 'description': 'value to plot along the y axis', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
@@ -538,33 +584,95 @@ def orbit(b, t, objref, dataref, **kwargs):
     velocities = ['vx','vy','vz']
 
     if x in positions:
+        xu = kwargs_defaults.get('xunit', 'Rsol')
         xdata = pos[positions.index(x)]
+        if xu != 'Rsol':
+            xdata = conversions.convert('Rsol', xu, xdata)
+        xunit = conversions.unit2texlabel(xu)
     elif x in velocities:
+        xu = kwargs_defaults.get('xunit', 'km/s')
         xdata = vel[velocities.index(x)]
+        if xu != 'km/s':
+            xdata = conversions.convert('km/s', xu, data)
+        xunit = conversions.unit2texlabel(xu)
     elif x=='bary_time':
+        xu = kwargs_defaults.get('xunit', 'd')
         xdata = bary_time
+        if xu != 'd':
+            xdata = conversions.convert('d', xu, xdata)
+        xunit = conversions.unit2texlabel(xu)
     else:
+        x = 'prop_time'
+        xu = kwargs_defaults.get('xunit', 'd')
         xdata = prop_time
+        if xu != 'd':
+            xdata = conversions.convert('d', xu, xdata)
+        xunit = conversions.unit2texlabel(xu)
+
+    kwargs_defaults['xlabel'] = '{} ({})'.format(x, xunit)
+
     if y in positions:
+        yu = kwargs_defaults.get('yunit', 'Rsol')
         ydata = pos[positions.index(y)]
+        if yu != 'Rsol':
+            ydata = conversions.convert('Rsol', yu, ydata)
+        yunit = conversions.unit2texlabel(yu)
     elif y in velocities:
+        yu = kwargs_defaults.get('yunit', 'km/s')
         ydata = vel[velocities.index(y)]
+        if yu != 'km/s':
+            ydata = conversions.convert('km/s', yu, ydata)
+        yunit = conversions.unit2texlabel(yu)
     elif y=='bary_time':
+        yu = kwargs_defaults.get('yunit', 'd')
         ydata = bary_time
+        if yu != 'd':
+            ydata = conversions.convert('d', yu, ydata)
+        yunit = conversions.unit2texlabel(yu)
     else:
+        y = 'prop_time'
+        yu = kwargs_defaults.get('yunit', 'd')
         ydata = prop_time
+        if yu != 'd':
+            ydata = conversions.convert('d', yu, ydata)
+        yunit = conversions.unit2texlabel(yu)
+
+    kwargs_defaults['ylabel'] = '{} ({})'.format(y, yunit)
 
     if axes3d:
+        kd_zunit = kwargs_defaults['zunit'].get('value')
         if z in positions:
+            zu = kd_zunit if kd_zunit is not '_auto_' else 'Rsol'
             zdata = pos[positions.index(z)]
+            if zu != 'Rsol':
+                zdata = conversions.convert('Rsol', zu, zdata)
+            zunit = conversions.unit2texlabel(zu)
         elif z in velocities:
+            zu = kd_zunit if kd_zunit is not '_auto_' else 'km/s'
             zdata = vel[velocities.index(z)]
+            if zu != 'km/s':
+                zdata = conversions.convert('km/s', zu, zdata)
+            zunit = conversions.unit2texlabel(zu)
         elif z=='bary_time':
+            zu = kd_zunit if kd_zunit is not '_auto_' else 'd'
             zdata = bary_time
+            if zu != 'd':
+                zdata = conversions.convert('d', zu, zdata)
+            zunit = conversions.unit2texlabel(zu)
         else:
+            z = 'prop_time'
+            zu = kd_zunit if kd_zunit is not '_auto_' else 'd'
             zdata = prop_time
+            if zu != 'd':
+                zdata = conversions.convert('d', zu, zdata)
+            zunit = conversions.unit2texlabel(zu)
+
+            kwargs_defaults['zlabel']['value'] = '{} ({})'.format(z, zunit)
     else:
         zdata = None
+
+    # call this again in case we've changed something that was set by the user
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
 
     if kwargs_defaults['highlight']['value']:
         mpl_select_kwargs = {k.split('_')[1]:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if k.split('_')[0]=='highlight' and k!='highlight'}
@@ -588,6 +696,17 @@ def orbit(b, t, objref, dataref, **kwargs):
 
     else:
         return 'plot', (xdata, ydata, zdata) if axes3d else (xdata, ydata), mplkwargs, kwargs_defaults
+
+def observer_arrow(b, t, **kwargs):
+    """
+    [FUTURE]
+    This is a preprocessing function for :py:func:`Bundle.attach_plot`
+
+    """
+    pass
+    # a = Arrow3D([0,0],[0,0],[-100,-220], mutation_scale=20, lw=1, arrowstyle="-|>", color="k")
+    # ax.add_artist(a)
+    # ax.text3d(0,0,-225, 'to observer', color='k', fontsize=32)
 
 
 def xy(b, t, x, y, **kwargs):
