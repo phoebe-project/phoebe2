@@ -164,7 +164,13 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     phased = kwargs_defaults.get('phased', 'False')
 
     if typ=='obs' or ds.enabled:
-        x, y = ds.get_value(xk, 'd' if phased != 'False' else kwargs_defaults['xunit']), ds.get_value(yk, kwargs_defaults['yunit'])
+        #~ x, y = ds.get_value(xk, 'd' if phased != 'False' else kwargs_defaults['xunit']), ds.get_value(yk, kwargs_defaults['yunit'])
+        # TODO: the above should always work, but times in ETVs don't seem to have units...
+        try:
+            x = ds.get_value(xk, 'd' if phased != 'False' else kwargs_defaults['xunit'])
+        except TypeError:
+            x = ds.get_value(xk)
+        y = ds.get_value(yk, kwargs_defaults['yunit'])
 
         if category=='sp':
             # then we need the index for the current time
@@ -292,10 +298,10 @@ def mesh(b, t, objref, dataref, **kwargs):
     kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['azim'] = {'ps': 'axes', 'value': -90, 'description': 'azimuthal orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
     kwargs_defaults['elev'] = {'ps': 'axes', 'value': 90, 'description': 'elevation orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
-    kwargs_defaults['select'] = {'value': select, 'description': 'which value to retrieve for color of triangles'}
-    kwargs_defaults['cmap'] = {'value': cmap, 'description': 'color map to use'}
-    kwargs_defaults['vmin'] = {'value': vmin, 'description': 'min value for range on cmap'}
-    kwargs_defaults['vmax'] = {'value': vmax, 'description': 'max value for range on cmap'}
+    kwargs_defaults['select'] = {'value': 'teff', 'description': 'which value to retrieve for color of triangles'}
+    kwargs_defaults['cmap'] = {'value': '_auto_', 'description': 'color map to use'}
+    kwargs_defaults['vmin'] = {'value': np.nan, 'description': 'min value for range on cmap or np.nan for auto', 'cast_type': 'float'}
+    kwargs_defaults['vmax'] = {'value': np.nan, 'description': 'max value for range on cmap or np.nan for auto', 'cast_type': 'float'}
     kwargs_defaults['background'] = {'ps': 'axes', 'value': 'k', 'description': 'background color of the axes', 'cast_type': 'str'}
 
     xunit = conversions.unit2texlabel(kwargs.get('xunit', 'Rsol'))
@@ -305,6 +311,21 @@ def mesh(b, t, objref, dataref, **kwargs):
     kwargs_defaults['xlabel'] = '{} ({})'.format('x', xunit)
     kwargs_defaults['ylabel'] = '{} ({})'.format('y', yunit)
     kwargs_defaults['zlabel']['value'] = '{} ({})'.format('z', zunit)
+    
+    # apply kwargs and then re-retrieve need values for later
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    select = kwargs_defaults['select']['value']
+    cmap = kwargs_defaults['cmap']['value']
+    if cmap in ['None','none','','_auto_']:
+        cmap = None
+    vmin = kwargs_defaults['vmin']['value']
+    if np.isnan(vmin):
+        vmin = None
+    vmax = kwargs_defaults['vmax']['value']
+    if np.isnan(vmax):
+        vmax = None
+        
+    #~ print "***", cmap, vmin, vmax
 
     # TODO: make these options:
     boosting_alg = 'none'
@@ -339,8 +360,7 @@ def mesh(b, t, objref, dataref, **kwargs):
     x, y, z = mesh['center'][:, 0],mesh['center'][:, 1],mesh['center'][:, 2]
 
     # Default color maps and background depend on the type of dependables:
-    if cmap in ['None','none','']:
-        cmap = None
+
 
     if cmap is None and select == 'rv':
         cmap = pl.cm.RdBu_r
@@ -402,7 +422,6 @@ def mesh(b, t, objref, dataref, **kwargs):
             values = select[sa]  # TODO: remove this and provide better error statement?
         # Set the limits of the color scale, if we need to compute them
         # ourselves
-        vmin, vmax = None, None # TODO: remove when add vmin, vmax as args/kwargs
         # TODO: does it makes sense to only set these on visible triangles or all triangles?
         if vmin is None:
             vmin_ = values[mesh['mu'] > 0].min()
@@ -569,6 +588,9 @@ def orbit(b, t, objref, dataref, **kwargs):
     kwargs_defaults['yselect'] = {'value': 'y', 'description': 'value to plot along the y axis', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
     kwargs_defaults['zselect'] = {'value': 'z', 'description': 'value to plot along the z axis, if projection==3d', 'cast_type': 'choose', 'choices': ['x','y','z','vx','vy','vz','time','bary_time']}
 
+    kwargs_defaults['times'] = {'value': [], 'description': 'times at which to compute orbit', 'cast_type': 'list'}
+    # TODO: remove times once orbsyn is implemented
+
     # TODO: aspect ratio
     # TODO: handle default axes labels
     # TODO: handle phased
@@ -577,8 +599,9 @@ def orbit(b, t, objref, dataref, **kwargs):
     mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
 
     axes3d = kwargs_defaults['projection']['value']=='3d'
-
-    pos, vel, bary_time, prop_time = b.get_orbit(objref)  # TODO: get this from an orbsyn instead of recomputing at plot-time
+    
+    orb_times = kwargs_defaults['times']['value']
+    pos, vel, bary_time, prop_time = b.get_orbit(objref, time=orb_times if len(orb_times) else None)  # TODO: get this from an orbsyn instead of recomputing at plot-time
     x, y, z = kwargs_defaults['xselect']['value'], kwargs_defaults['yselect']['value'], kwargs_defaults['zselect']['value']
     positions = ['x','y','z']
     velocities = ['vx','vy','vz']
@@ -838,9 +861,9 @@ def ds_text(b, t, datatwig, **kwargs):
     y = ds[yk]
 
     kwargs_defaults = {}
-    kwargs_defaults['text'] = {'value': ds['ref'], 'description': 'text to show'}
-    kwargs_defaults['x'] = {'value': xu, 'description': 'x location'}
-    kwargs_defaults['y'] = {'value': np.mean(y), 'description': 'y location'}
+    kwargs_defaults['text'] = {'value': ds['ref'], 'description': 'text to show'} # TODO: change this to auto?
+    kwargs_defaults['x'] = {'value': xu, 'description': 'x location', 'cast_type': 'float'} # TODO: change this to auto?
+    kwargs_defaults['y'] = {'value': np.mean(y), 'description': 'y location', 'cast_type': 'float'} # TODO: change this to auto?
 
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
 
