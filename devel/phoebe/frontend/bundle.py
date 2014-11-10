@@ -892,7 +892,7 @@ class Bundle(Container):
             if phase is None:
                 period_inner = orbits[0]['period']
                 t_step = period_inner / 100.
-                time = np.arange(t0, t0+period_outer, t_step)
+                time = np.arange(t0, t0+period_outer+t_step, t_step)
             else:
                 time = t0 + phase*period_outer
 
@@ -4850,7 +4850,7 @@ class Bundle(Container):
         # if axes_ps already existed then we want to pass some of those arguments
         # on as well so they aren't reset
         # and we even need some (like xunit, yunit) from axes_ps
-        for k in ['phased', 'xlim', 'ylim', 'xunit', 'yunit', 'zunit', 'projection', 'scroll', 'scroll_xlim']:
+        for k in ['phased', 'xlim', 'ylim', 'xunit', 'yunit', 'zunit', 'projection', 'background', 'scroll', 'scroll_xlim']:
             if k in axes_ps.keys() and (type(axes_ps[k])==bool or '_auto_' not in axes_ps[k]):
                 kwargs.setdefault(k, axes_ps[k])
 
@@ -5029,7 +5029,7 @@ class Bundle(Container):
             if v not in ['', '_auto_']:
                 func_kwargs[k] = v
         # and we even need some (like xunit, yunit) from axes_ps
-        for k in ['phased', 'xunit', 'yunit', 'zunit', 'projection']:
+        for k in ['phased', 'xunit', 'yunit', 'zunit', 'projection', 'background']:
             if k not in axes_ps.keys():
                 continue
             v = axes_ps[k]
@@ -5073,27 +5073,27 @@ class Bundle(Container):
             elif hasattr(collections, m_func):
                 #~ print "*", m_func, m_args, m_kwargs
 
-                background = m_kwargs.pop('background', 'k')
+                #background = m_kwargs.pop('background', 'k')
                 zs = m_kwargs.pop('zs', None)
 
                 p = getattr(collections, m_func)(*m_args, **m_kwargs)
 
                 ax.add_collection(p)
 
-                ax.set_axis_bgcolor(background)
+                #ax.set_axis_bgcolor(background)
                 ax.set_aspect('equal')
                 ax.set_xlim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
                 ax.set_ylim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
 
             elif hasattr(art3d , m_func):
 
-                background = m_kwargs.pop('background', 'k')
+                #background = m_kwargs.pop('background', 'k')
 
                 p = getattr(art3d, m_func)(*m_args, **m_kwargs)
 
                 ax.add_collection(p)
 
-                ax.set_axis_bgcolor(background)
+                #ax.set_axis_bgcolor(background)
                 ax.set_aspect('equal')
                 ax.set_xlim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
                 ax.set_ylim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
@@ -5105,6 +5105,7 @@ class Bundle(Container):
         # now we need to make any necessary changes to the axes
         # TODO: make this more automated by checking getattr(ax, 'set_'+key)?
         # TODO: we also need to check getattr when setting new values in the PSs (in _plotting_set_defaults)
+        # TODO: this gets really repetitive - can we move to plot_axes?
         if axes_ps.get_value('xlabel') != '_auto_':
             ax.set_xlabel(axes_ps.get_value('xlabel'))
         if axes_ps.get_value('ylabel') != '_auto_':
@@ -5121,6 +5122,24 @@ class Bundle(Container):
         if 'scroll' in axes_ps.keys() and axes_ps.get_value('scroll') and time:
             sxlim = axes_ps.get_value('scroll_xlim')
             ax.set_xlim(time+sxlim[0], time+sxlim[1])
+
+
+        # handle z-things if this has a zaxes (projection=='3d')
+        if hasattr(ax, 'zaxis'):
+            ax.view_init(elev=axes_ps.get_value('elev'), azim=axes_ps.get_value('azim'))
+
+            if not ax.zaxis_inverted():
+                # We need to flip the zaxis to make this left-handed to match the
+                # convention of -z and -vz pointing towards to observer.
+                # Unfortunately, this seems to sometimes lose the tick and ticklabels
+                ax.invert_zaxis()
+
+            if axes_ps.get_value('zlabel') != '_auto_':
+                ax.set_zlabel(axes_ps.get_value('zlabel'))
+
+            # if axes_ps.get_value('zlim') not in [(None,None), '_auto_', u'_auto_']:
+                # print "*** set_zlim", axes_ps.get_value('zlim')
+                # ax.set_zlim3d(axes_ps.get_value('zlim'))
 
         # TODO: fix this return statement
         return {plotref: []}
