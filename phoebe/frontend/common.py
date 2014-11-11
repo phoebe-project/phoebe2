@@ -881,6 +881,7 @@ class Container(object):
         """
         compute = self.get_compute(label)
         self.sections['compute'].remove(compute)
+        self._build_trunk() # needs to be called again to reset
         
     @rebuild_trunk
     def add_fitting(self, ps=None, **kwargs):
@@ -933,6 +934,7 @@ class Container(object):
         """
         fitting = self.get_fitting(label)
         self.sections['fitting'].remove(fitting)
+        self._build_trunk() # needs to be called again to reset
     
     @rebuild_trunk
     def add_mpi(self, ps=None, **kwargs):
@@ -985,6 +987,7 @@ class Container(object):
         """
         mpi = self.get_fitting(label)
         self.sections['mpi'].remove(mpi)
+        self._build_trunk() # needs to be called again to reset
     
     ## internal methods
     
