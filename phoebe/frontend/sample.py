@@ -51,6 +51,10 @@ def single_sample(info):
     for twig, value in param_values.items():
         b.set_value(twig, value)
         
+    if not b.check():
+        # then these parameters will fail
+        return (None, None)
+        
     # run compute and keep result
     if computeoptions['time'] == 'auto':
         obj.compute(**computeoptions)
@@ -169,18 +173,20 @@ def run(bundle_file, compute_params_file, objref, sample_from, samples, avg=True
         else:
             x, y = single_sample(info)
             
-            syn_ys.append(y)
-            if not len(syn_xs):
-                syn_xs = x
+            if x is not None and y is not None:
+                syn_ys.append(y)
+                if not len(syn_xs):
+                    syn_xs = x
             
     if nprocs:
         # then we need to wait for the responses
         for i in range(samples):
             x, y = resp[i].wait()
 
-            syn_ys.append(y)
-            if not len(syn_xs):
-                syn_xs = x
+            if x is not None and y is not None:
+                syn_ys.append(y)
+                if not len(syn_xs):
+                    syn_xs = x
 
         # shutdown the workers
         for node in range(1, nprocs):
