@@ -492,7 +492,12 @@ class FeedbackEmcee(Feedback):
         chain file, so make sure that file still exists
         
         """
+        # make sure lnproblim is negative
+        lnproblim = -1 * abs(lnproblim)
         
+        logger.info("setting lnproblim to {}".format(lnproblim))
+        
+        # set value and do reload
         self._lnproblim = lnproblim
         if self.check_file():
             self.do_reload()
@@ -684,7 +689,10 @@ class FeedbackEmcee(Feedback):
                 ax_.plot(data[:, w, i], alpha=0.2)
             
     
-    def plot_summary(self, bins=20, axes=None, twig_labels=True):
+    def plot_summary(self, bins=20, axes=None, twig_labels=True, label_offset=None):
+        """
+        
+        """
         cbins = 20
         fontsize = 8
         (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
@@ -696,7 +704,7 @@ class FeedbackEmcee(Feedback):
         if twig_labels:
             labels = [self._translate(par.get_unique_label()) for par in self._parameters]
         else:
-            labels = ['({})'.format(i) for i in range(len(self._parameters))]
+            labels = ['( {} )'.format(i) for i in range(len(self._parameters))]
         
         #plot
         f = plt.figure(figsize=(12,12))
@@ -775,16 +783,13 @@ class FeedbackEmcee(Feedback):
                     ax.autoscale() # doesn't work very well
                     ax.set_ylim(0, out[0].max()+0.1*out[0].ptp())
                     
-                    
-                    
-                    
-                
-                    
                 if row == npars-1:
                     for tick in ax.xaxis.get_major_ticks():
                         tick.label.set_fontsize(fontsize) 
                         tick.label.set_rotation('vertical')
                     ax.set_xlabel(labels[col], fontsize=fontsize)
+                    if label_offset:
+                        ax.xaxis.set_label_coords(0.5, label_offset)
                     ax.get_xaxis().get_major_formatter().set_useOffset(False)
                 elif col <= row:
                     plt.setp(ax.get_xticklabels(), visible=False)
@@ -795,6 +800,8 @@ class FeedbackEmcee(Feedback):
                         tick.label.set_fontsize(fontsize)
                     ax.get_yaxis().get_major_formatter().set_useOffset(False)
                     ax.set_ylabel(labels[row], fontsize=fontsize)
+                    if label_offset:
+                        ax.yaxis.set_label_coords(label_offset, 0.5)
                 elif col <= row:
                     plt.setp(ax.get_yticklabels(), visible=False)
                     ax.get_yaxis().get_major_formatter().set_useOffset(False)
