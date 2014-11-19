@@ -3007,16 +3007,14 @@ class Bundle(Container):
 
         for body in iterate_all_my_bodies:
             this_objref = body.get_label()
-            #~ if objref is None or this_objref == objref:
-            if True:
-                for obstype in body.params['obs']:
-                    if dataref is None:
-                        for idataref in body.params['obs'][obstype]:
-                            body.params['obs'][obstype][idataref].set_enabled(enabled)
-                            logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
-                    elif dataref in body.params['obs'][obstype]:
-                        body.params['obs'][obstype][dataref].set_enabled(enabled)
-                        logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
+            for obstype in body.params['obs']:
+                if dataref is None:
+                    for idataref in body.params['obs'][obstype]:
+                        body.params['obs'][obstype][idataref].set_enabled(enabled)
+                        logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
+                elif dataref in body.params['obs'][obstype]:
+                    body.params['obs'][obstype][dataref].set_enabled(enabled)
+                    logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
 
 
     def disable_data(self, dataref=None, category=None):
@@ -3438,7 +3436,7 @@ class Bundle(Container):
         return computeoptions
 
     @rebuild_trunk
-    def run_sample(self, label=None, objref=None, sample_from='prior', samples=10, **kwargs):
+    def run_sample(self, label=None, objref=None, sample_from='posterior', samples=10, **kwargs):
         """
         [FUTURE] - and EXPERIMENTAL
 
@@ -3505,6 +3503,7 @@ class Bundle(Container):
             direc = mpi['directory']
 
         bundle_file = tempfile.NamedTemporaryFile(delete=False, dir=direc)
+        self.clear_syn()
         pickle.dump(self,bundle_file)
         bundle_file.close()
 
