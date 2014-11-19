@@ -684,7 +684,7 @@ class FeedbackEmcee(Feedback):
                 ax_.plot(data[:, w, i], alpha=0.2)
             
     
-    def plot_summary(self, bins=20, axes=None):
+    def plot_summary(self, bins=20, axes=None, twig_labels=True):
         cbins = 20
         fontsize = 8
         (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
@@ -693,7 +693,10 @@ class FeedbackEmcee(Feedback):
         lrange = np.arange(2.5,0.0,-0.5)
         
         # labels
-        labels = [self._translate(par.get_unique_label()) for par in self._parameters]
+        if twig_labels:
+            labels = [self._translate(par.get_unique_label()) for par in self._parameters]
+        else:
+            labels = ['({})'.format(i) for i in range(len(self._parameters))]
         
         #plot
         f = plt.figure(figsize=(12,12))
