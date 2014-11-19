@@ -689,9 +689,19 @@ class FeedbackEmcee(Feedback):
                 ax_.plot(data[:, w, i], alpha=0.2)
             
     
-    def plot_summary(self, bins=20, axes=None, twig_labels=True, label_offset=None):
+    def plot_summary(self, bins=20, axes=None, twig_labels=True, label_offset=None, skip_inds=[]):
         """
         
+        :param bins: number of bins to use for histograms
+        :type bins: int
+        :param axes: matplotlib axes to use (or None to create automatically)
+        :type axes: mpl axes
+        :param twig_labels: whether to create labels for axes (if False will just show number)
+        :type twig_labels: bool
+        :param label_offset: offset to apply to the axes labels, in axes units (probably negative), or None to set automatically
+        :type label_offset: int or None
+        :param skip_inds: indices of parameters to skip
+        :type skip_inds: list of ints
         """
         cbins = 20
         fontsize = 8
@@ -700,6 +710,14 @@ class FeedbackEmcee(Feedback):
         # range of contour levels
         lrange = np.arange(2.5,0.0,-0.5)
         
+        # handle skipping parameters
+        rows, cols = range(npars), range(npars)
+        npars = npars - len(skip_inds)
+        skip_inds.sort(reverse=True)
+        for skip_ind in skip_inds:
+            rows.remove(skip_ind)
+            cols.remove(skip_ind)
+
         # labels
         if twig_labels:
             labels = [self._translate(par.get_unique_label()) for par in self._parameters]
@@ -711,21 +729,23 @@ class FeedbackEmcee(Feedback):
         plt.subplots_adjust(left=0.08, right=0.98, bottom=0.05, top=0.95,
                             wspace=0.0, hspace=0.0)
         
+        
+       
         # First make a grid of the diagonal axes, they control the axes limits
         if not axes:
             axs = []
-            for row in range(npars):
+            for row_i, row in enumerate(rows):
                 axs.append([])
-                for col in range(npars):
-                    axs[-1].append(plt.subplot(npars, npars, row*npars + col + 1))
+                for col_i, col in enumerate(cols):
+                    axs[-1].append(plt.subplot(npars, npars, row_i*npars + col_i + 1))
                     axs[-1][-1].set_autoscale_on(False)
         else:
             axs = axes
         
         # Then fill the axes
-        for row in range(npars):
-            for col in range(npars):
-                ax = axs[row][col]
+        for row_i, row in enumerate(rows):
+            for col_i, col in enumerate(cols):
+                ax = axs[row_i][col_i]
                 # Get the axes, and share the axes with right diagonal axes
                 smpls_x = self._parameters[row].get_posterior().get_distribution()[1]['trace']#data[:, :, row].ravel()
                 smpls_y = self._parameters[col].get_posterior().get_distribution()[1]['trace']#data[:, :, col].ravel()
@@ -808,17 +828,17 @@ class FeedbackEmcee(Feedback):
                         
                 if row == 0:
                     ax.set_title(r'$%.3g\pm%.3g$' % (np.average(smpls_y),np.std(smpls_y)),fontsize=fontsize)
-                
-        for row in range(npars):
-            for col in range(npars):
-                axs[row][col].set_autoscale_on(False)
-                if row < col:
+            
+        for row_i, row in enumerate(rows):
+            for col_i, col in enumerate(cols):
+                axs[row_i][col_i].set_autoscale_on(False)
+                if row_i < col_i:
                     continue
-                elif row == col:
+                elif row_i == col_i:
                     continue
                 else:
-                    axs[row][col].set_xlim(axs[col][col].get_xlim())
-                    axs[row][col].set_ylim(axs[row][row].get_xlim())
+                    axs[row_i][col_i].set_xlim(axs[col_i][col_i].get_xlim())
+                    axs[row_i][col_i].set_ylim(axs[row_i][row_i].get_xlim())
                     #ax.get_xaxis().get_major_formatter().set_useOffset(False)
                     #ax.get_yaxis().get_major_formatter().set_useOffset(False)
                     
