@@ -731,13 +731,7 @@ defs += [dict(qualifier='ref',        description='identifier for the axes optio
         ]
         
 defs += [dict(qualifier='ref',        description='identifier for the plotting options',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot'),
-         dict(qualifier='twigs',      description='a twig or list of twigs to pass as arguments to func for processing into the plotting call',repr='%s',cast_type='return_string_or_list',value='',frame=["phoebe"],context=["plotting:plot"]),
-         dict(qualifier='func',      description='the function to process twigs (either a marshaled function or the name of a function in phoebe.frontend.plotting)',repr='%s',cast_type=str,value='',frame=["phoebe"],context=["plotting:plot"]),
-         #~ dict(qualifier='repeat',       description='handy if you are actually fitting a phase curve, and you want to repeat the phase curve a couple of times.',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context=['plotting:plot']),
-         #~ dict(qualifier='fmt',          description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='_auto_',frame=["phoebe"],context=['plotting:plot']),
-         #~ dict(qualifier='color',        description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='_auto_',frame=["phoebe"],context=['plotting:plot']),
-         #~ dict(qualifier='alpha',        description='see matplotlib.axes.Axes.plot',repr='%f',cast_type=float,value=1.0,frame=["phoebe"],context=['plotting:plot']),
-         #~ dict(qualifier='marker',       description='see matplotlib.axes.Axes.plot',repr='%s',cast_type=str,value='_auto_',frame=["phoebe"],context=['plotting:plot']),
+         dict(qualifier='func',      description='the processing function (either a marshaled function or the name of a function in phoebe.frontend.plotting)',repr='%s',cast_type=str,value='',frame=["phoebe"],context=["plotting:plot"]),
         ]
 
 # Server context
