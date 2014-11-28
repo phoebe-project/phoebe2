@@ -797,7 +797,7 @@ class Bundle(Container):
         :return: the object
         :rtype: Body
         """
-        if twig is None or twig == '__nolabel__':
+        if twig is None or twig == '__nolabel__' or twig == '':
             return self.get_system()
         return self._get_by_search(twig, kind='Body')
 
@@ -4609,6 +4609,7 @@ class Bundle(Container):
         """
         for k,v in kwargs.items():
             value = v['value'] if isinstance(v,dict) else v
+            
             # try plot_ps first, then axes_ps and fig_ps
             if k in plot_ps.keys():
                 if plot_ps.get_value(k)=='_auto_' or override:
@@ -4657,7 +4658,7 @@ class Bundle(Container):
 
         return plot_ps, axes_ps, fig_ps
 
-    def _run_plot_process_func(self, func_str, time=None, func_args=[], func_kwargs={}):
+    def _run_plot_process_func(self, func_str, time=None, func_kwargs={}):
         if func_str[:19] == 'marshaled function:':
             func_str = func_str[19:]
             func_code = marshal.loads(func_str)
@@ -4667,8 +4668,8 @@ class Bundle(Container):
             func = getattr(plotting, func_str)
 
         # run the function with the args
-        func_args_list = [func_args] if isinstance(func_args, str) else list(func_args) if func_args is not None else []
-        func_args = [self, time] + func_args_list
+        #func_args_list = [func_args] if isinstance(func_args, str) else list(func_args) if func_args is not None else []
+        func_args = [self, time]
         mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = func(*func_args, **func_kwargs)
         return mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults
 
@@ -4748,8 +4749,8 @@ class Bundle(Container):
         you should instead send through dictionary_of_defaults and they should find their
         way in the plot parameterset.
 
-        :param twigs: the args to send to the plotting call (or through func)
-        :type twigs: list of twigs (strings), or single twig (string)
+        :param twigs: twigs that points to a dataset or array 
+        :type twigs: list of twigs (strings), or single twig (string), or None
         :param func: a function that processes args and return (x,y) or (x,y,z)
         :type func: function
         :param plotref: the reference to assign to the stored plot parameterset
@@ -4776,43 +4777,61 @@ class Bundle(Container):
                 i+=1
                 plotref = "plot{:02}".format(i)
 
-        if func is None:
-            # let's try to guess the correct func to use
-            if isinstance(twigs, str):
-                # the following should raise an error if not a unique match
-                dsti = self._get_by_search(twigs, class_name='*DataSet',
-                                return_trunk_item=True, all=False)
+        # let's try to guess the correct func to use if necessary
+        # and also set twigs args to the correct kwargs
+        if isinstance(twigs, str):
+            # the following should raise an error if not a unique match
+            if func in ['syn', plotting.syn]:
+                context = '*syn'
+            elif func in ['obs', plotting.obs, 'residuals', plotting.residuals]:
+                context = '*obs'
+            else:
+                context = None
+            
+            dsti = self._get_by_search(twigs, class_name='*DataSet', context=context,
+                            return_trunk_item=True, all=False)
 
-                # update args to be full twig
-                twigs = dsti['twig']
+            # update args to be full twig
+            twigs = dsti['twig']
 
-                # get context for guessing func
-                context = dsti['context']
+            # get context for guessing func
+            context = dsti['context']
 
-                typ = context[-3:]
+            typ = context[-3:]
 
+            if func is None:
                 if typ=='obs':
                     func = 'obs'
                 elif typ=='syn':
                     func = 'syn'
                 else:
                     raise ValueError("could not determine function to parse args")
+                
+            # update the kwargs
+            if 'dataref' not in kwargs.keys():
+                kwargs['dataref'] = twigs
 
+        elif len(twigs):
+            # then we assume we have args=(x,y) or (x,y,z), so let's try to guess
+            # from the context of y
+
+            # let's update all twigs to full version
+            for i,t in enumerate(twigs):
+                ti = self._get_by_search(t, return_trunk_item=True, all=False)
+                twigs[i] = ti['twig']
+
+            if len(twigs)==2:
+                func = 'xy' if func is None else func
+                for i,k in enumerate(['x','y']):
+                    if k not in kwargs.keys():
+                        kwargs[k] = twigs[i]
+            elif len(twigs)==3:
+                func = 'xyz' if func is None else func
+                for i,k in enumerate(['x','y','z']):
+                    if k not in kwargs.keys():
+                        kwargs[k] = twigs[i]            
             else:
-                # then we assume we have args=(x,y) or (x,y,z), so let's try to guess
-                # from the context of y
-
-                # let's update all twigs to full version
-                for i,t in enumerate(twigs):
-                    ti = self._get_by_search(t, return_trunk_item=True, all=False)
-                    twigs[i] = ti['twig']
-
-                if len(twigs)==2:
-                    func = 'xy'
-                elif len(twigs)==3:
-                    func = 'xyz'
-                else:
-                    raise ValueError("could not determine function to parse args")
+                raise ValueError("could not determine function to parse args")
 
         # func is now either passed by the user or guessed automatically above
         func_str = func if isinstance(func, str) else func.func_name
@@ -4853,10 +4872,10 @@ class Bundle(Container):
             if k in axes_ps.keys() and (type(axes_ps[k])==bool or '_auto_' not in axes_ps[k]):
                 kwargs.setdefault(k, axes_ps[k])
 
-        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = self._run_plot_process_func(func_str, time, func_args=twigs, func_kwargs=kwargs)
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = self._run_plot_process_func(func_str, time, func_kwargs=kwargs)
 
         # create plot_ps and retrieve existing axes_ps and fig_ps
-        plot_ps = parameters.ParameterSet(context='plotting:plot', twigs=twigs, func=func_str, ref=plotref)
+        plot_ps = parameters.ParameterSet(context='plotting:plot', func=func_str, ref=plotref)
 
 
         # we don't need mpl_func, mpl_args, or mpl_kwargs - they'll be regenerated
@@ -4871,37 +4890,38 @@ class Bundle(Container):
 
         return plotref, axesref, figref
 
-    def attach_plot_obs(self, datatwig, **kwargs):
+    def attach_plot_obs(self, dataref, **kwargs):
         """
         [FUTURE]
 
         """
-        return self.attach_plot(datatwig, plotting.obs, **kwargs)
+        return self.attach_plot(func=plotting.obs, dataref=dataref, **kwargs)
 
-    def attach_plot_syn(self, datatwig, **kwargs):
+    def attach_plot_syn(self, dataref, **kwargs):
         """
         [FUTURE]
 
         """
-        return self.attach_plot(datatwig, plotting.syn, **kwargs)
+        return self.attach_plot(func=plotting.syn, dataref=dataref, **kwargs)
 
     def attach_plot_mesh(self, objref=None, dataref=None, **kwargs):
         """
         [FUTURE]
         """
-        return self.attach_plot((objref, dataref), plotting.mesh, **kwargs)
+        return self.attach_plot(func=plotting.mesh, objref=objref, dataref=dataref, **kwargs)
 
-    def attach_plot_orbit(self, objref, dataref=None, **kwargs):
+    def attach_plot_orbit(self, objref=None, **kwargs):
         """
         [FUTURE]
         """
-        return self.attach_plot((objref, dataref), plotting.orbit, **kwargs)
+        # TODO: add dataref as kwarg above that points to a orbsy
+        return self.attach_plot(func=plotting.orbit, objref=objref, **kwargs)
 
     def attach_plot_mplcmd(self, funcname, args=(), **kwargs):
         """
         [FUTURE]
         """
-        return self.attach_plot((funcname, args), plotting.mplcmd, **kwargs)
+        return self.attach_plot((funcname, args), plotting.mplcmd, **kwargs)  #TODO: update this to take kwargs instead of args
 
 
     def get_plot(self, plotref):
@@ -5014,7 +5034,7 @@ class Bundle(Container):
 
         # retrieve the function from the plot PS
         func_str = plot_ps.get_value('func')
-        func_args = plot_ps.get_value('twigs')
+        #func_args = plot_ps.get_value('twigs')
 
         # and now we'll overwrite (temporarily) from any user-sent
         # kwargs.  These trump any values set in the PS or defaults
@@ -5038,12 +5058,12 @@ class Bundle(Container):
 
         # and remove items that we don't want to pass
         dump = func_kwargs.pop('func', None)
-        dump = func_kwargs.pop('twigs', None)
+        #dump = func_kwargs.pop('twigs', None)
 
         # the dataref becomes mpl's label (used for legends)
         func_kwargs['label'] = func_kwargs.pop('ref')
 
-        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = self._run_plot_process_func(func_str, time, func_args, func_kwargs)
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = self._run_plot_process_func(func_str, time, func_kwargs)
 
         # func_kwargs_defaults may also apply to axes_ps, so let's update the PSs anyways
         plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
@@ -5129,7 +5149,7 @@ class Bundle(Container):
 
             if not ax.zaxis_inverted():
                 # We need to flip the zaxis to make this left-handed to match the
-                # convention of -z and -vz pointing towards to observer.
+                # convention of -z and -vz pointing towards the observer.
                 # Unfortunately, this seems to sometimes lose the tick and ticklabels
                 ax.invert_zaxis()
 

@@ -149,6 +149,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     typ = context[-3:]
 
 
+    kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to the dataset'}
     kwargs_defaults['fmt'] = {'value': 'k-' if typ=='syn' else 'k.', 'description': 'matplotlib format'}
     kwargs_defaults['uncover'] = {'value': False, 'description': 'only plot data up to the current time (time must be passed during draw call)', 'cast_type': 'bool'}
     kwargs_defaults['highlight'] = {'value': typ=='syn', 'description': 'draw a marker at the current time (time must be passed during draw call)', 'cast_type': 'bool'}
@@ -156,6 +157,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     kwargs_defaults['highlight_ms'] = {'value': 5, 'description': 'matplotlib markersize for time if highlight is True', 'cast_type': 'int'}
     kwargs_defaults['scroll'] = {'ps': 'axes', 'value': False, 'description': 'whether to override xlim and scroll when time is passed during draw call', 'cast_type': 'make_bool'}
     kwargs_defaults['scroll_xlim'] = {'ps': 'axes', 'value': [-2,2], 'description': 'the xlims to provide relative to the current time if scroll==True and time is passed during draw call', 'cast_type': 'list'}
+
 
     xk, yk, xl, yl = _xy_from_category(category)  # TODO: we also call this in _defaults_from_dataset, let's consolidate
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
@@ -241,34 +243,36 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
 
     return cmds_list, mpl_args_list, mpl_kwargs_list, kwargs_defaults
 
-def obs(b, t, datatwig, **kwargs):
+def obs(b, t, **kwargs):
     """
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     plot an observation dataset given its datatwig
     """
-
-    ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
+    dataref = kwargs.get('dataref', '')
+    ds, context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
     return _plot(b, t, ds, context, kwargs_defaults, **kwargs)
 
-def syn(b, t, datatwig, **kwargs):
+def syn(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     plot a synthetic dataset given its twig
     """
-    ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*syn')
+    dataref = kwargs.get('dataref', '')
+    ds, context, kwargs_defaults = _from_dataset(b, dataref, '*syn')
     return _plot(b, t, ds, context, kwargs_defaults, **kwargs)
 
-def residuals(b, t, datatwig, **kwargs):
+def residuals(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     """
-    obs_ds, obs_context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
-    syn_ds, syn_context, dump = _from_dataset(b, datatwig, '*syn')
+    dataref = kwargs.get('dataref', '')
+    obs_ds, obs_context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
+    syn_ds, syn_context, dump = _from_dataset(b, dataref, '*syn')
     # TODO: support using _plot somehow
 
     kwargs_defaults = _defaults_from_dataset(b, ds, kwargs_defaults)
@@ -277,7 +281,7 @@ def residuals(b, t, datatwig, **kwargs):
 
     return 'errorbar', (x, y), {}, kwargs_defaults
 
-def mesh(b, t, objref, dataref, **kwargs):
+def mesh(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
@@ -285,6 +289,12 @@ def mesh(b, t, objref, dataref, **kwargs):
     """
 
     # unpack expected kwargs
+    objref = kwargs.get('objref', None)
+    dataref = kwargs.get('dataref', None)
+    if objref is None:
+        kwargs['objref'] = b.get_system().get_label()
+    if dataref is None:
+        kwargs['dataref'] = 'None'
     select = kwargs.get('select', 'teff')
     cmap = kwargs.get('cmap', None)
     vmin = kwargs.get('vmin', None)
@@ -292,6 +302,8 @@ def mesh(b, t, objref, dataref, **kwargs):
 
     kwargs_defaults = {}
 
+    kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to a dataset', 'cast_type': 'str'}
+    kwargs_defaults['objref'] = {'value': '', 'description': 'twig that points to an object in the system', 'cast_type': 'str'}
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
     kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['zunit'] = {'ps': 'axes', 'value': '_auto_', 'description': 'unit to plot on the zaxis if projection==3d', 'cast_type': 'str'}
@@ -556,15 +568,19 @@ def mesh(b, t, objref, dataref, **kwargs):
         if zu != 'Rsol':
             mpl_args[0][:, :, 2] = conversions.convert('Rsol', zu, mpl_args[0][:, :, 2])
 
-
     return 'Poly3DCollection' if axes3d else 'PolyCollection', mpl_args, mpl_kwargs, kwargs_defaults
 
-def orbit(b, t, objref, dataref, **kwargs):
+def orbit(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     """
+    objref = kwargs.get('objref')
+    if objref is None:
+        kwargs['objref'] = b.get_system().get_label()
+    dataref = kwargs.get('dataref')
+    
     # ds, context = _from_dataset(b, '{}@{}'.format(dataref, objref), 'orbsyn')  # TODO: there should be a better way to do this, especially if dataref@objref is passed as twig
 
     # times = ds['bary_time'] # or ds['prop_time']
@@ -572,6 +588,8 @@ def orbit(b, t, objref, dataref, **kwargs):
     # vel = ds['velocity']
 
     kwargs_defaults = {}
+    kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to a dataset'}
+    kwargs_defaults['objref'] = {'value': '', 'description': 'twig that points to an object in the system'}
     kwargs_defaults['fmt'] = {'value': 'k-', 'description': 'matplotlib format'}
     kwargs_defaults['highlight'] = {'value': True, 'description': 'draw a marker at the current time (must be passed during draw call)', 'cast_type': 'bool'}
     kwargs_defaults['highlight_fmt'] = {'value': 'ko', 'description': 'matplotlib format for time if higlight is True'}
@@ -732,7 +750,7 @@ def observer_arrow(b, t, **kwargs):
     # ax.text3d(0,0,-225, 'to observer', color='k', fontsize=32)
 
 
-def xy(b, t, x, y, **kwargs):
+def xy(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
@@ -741,12 +759,21 @@ def xy(b, t, x, y, **kwargs):
 
     # x and y here are twigs to the x and y data
     # we want to guess the context from the y data and apply defaults
+    x = kwargs.get('x')
+    y = kwargs.get('y')
+    
+    kwargs_defaults = {}
+    kwargs_defaults['x'] = {'value': '', 'description': 'twig that points to array shown on x axis'}
+    kwargs_defaults['y'] = {'value': '', 'description': 'twig that points to array shown on y axis'}
+    kwargs_defaults['fmt'] = {'value': 'k.', 'description': 'matplotlib fmt'}
+    
+    #kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
 
     # let's get context from y
     context = b._get_by_search(y, return_trunk_item=True)['context']
     typ = context[-3:]
     y_ds = b._get_by_search('@'.join(y.split('@')[1:]))
-    kwargs_defaults = _defaults_from_dataset(b, y_ds , kwargs)
+    kwargs_defaults = _defaults_from_dataset(b, y_ds , kwargs_defaults)
 
     if typ=='obs':
         mplcmd = 'errorbar'
@@ -764,18 +791,24 @@ def xy(b, t, x, y, **kwargs):
     ydata = b.get(y)   # TODO: deal with units
 
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    
+    mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
 
-    return mplcmd, (xdata, ydata), {}, kwargs_defaults
+    return mplcmd, (xdata, ydata), mplkwargs, kwargs_defaults
 
-def xyz(b, t, x, y, z, **kwargs):
+def xyz(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     """
+    x = kwargs.get('x')
+    y = kwargs.get('y')
+    z = kwargs.get('z')
+    
     raise NotImplementedError
 
-def mplcommand(b, t, *args, **kwargs):
+def mplcommand(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
@@ -800,7 +833,7 @@ def mplcommand(b, t, *args, **kwargs):
 
     return mplfunc, mplargs, mplkwargs, kwargs_defaults
 
-def time_axvline(b, t, *args, **kwargs):
+def time_axvline(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
@@ -815,7 +848,7 @@ def time_axvline(b, t, *args, **kwargs):
     mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
     return 'axvline', (t,), mplkwargs, kwargs_defaults
 
-def ds_axvspan(b, t, datatwig, **kwargs):
+def ds_axvspan(b, t, **kwargs):
     """
     [FUTURE]
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
@@ -825,10 +858,12 @@ def ds_axvspan(b, t, datatwig, **kwargs):
     formatted with different colors depending on whether the current time
     is within the range or not.
     """
+    datatwig = kwargs.get('dataref', '')
     ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
     xl, xu = min(ds['time']), max(ds['time'])
 
     kwargs_defaults = {}
+    kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to a dataset'}
     kwargs_defaults['color'] = {'value': 'b', 'description': 'matplotlib color'}
     kwargs_defaults['alpha'] = {'value': 0.15, 'description': 'matplotlib alpha (0 to 1)', 'cast_type': 'float'}
     kwargs_defaults['highlight'] = {'value': True, 'description': 'change the format if current time is in range (time must be passed during draw call)', 'cast_type': 'bool'}
@@ -846,7 +881,7 @@ def ds_axvspan(b, t, datatwig, **kwargs):
 
     return 'axvspan', (xl, xu), mplkwargs, kwargs_defaults
 
-def ds_text(b, t, datatwig, **kwargs):
+def ds_text(b, t,  **kwargs):
     """
     [FUTURE]
 
@@ -855,12 +890,14 @@ def ds_text(b, t, datatwig, **kwargs):
     This function creates a text label at the time range of the dataset defined
     by datatwig.  This axvspan can be attached to multiple axes.
     """
+    datatwig = kwargs.get('dataref')
     ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
     xl, xu = min(ds['time']), max(ds['time'])
     xk, xl, yk, yl = _xy_from_category(context[:-3])
     y = ds[yk]
 
     kwargs_defaults = {}
+    kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to a dataset'}
     kwargs_defaults['text'] = {'value': ds['ref'], 'description': 'text to show'} # TODO: change this to auto?
     kwargs_defaults['x'] = {'value': xu, 'description': 'x location', 'cast_type': 'float'} # TODO: change this to auto?
     kwargs_defaults['y'] = {'value': np.mean(y), 'description': 'y location', 'cast_type': 'float'} # TODO: change this to auto?
@@ -876,7 +913,7 @@ def ds_text(b, t, datatwig, **kwargs):
 
     return 'text', (x,y,s), mplkwargs, kwargs_defaults
 
-def param_text(b, t, *args, **kwargs):
+def param_text(b, t, **kwargs):
     """
     [FUTURE]
 
