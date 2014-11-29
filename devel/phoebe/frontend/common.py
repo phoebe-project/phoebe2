@@ -935,6 +935,33 @@ class Container(object):
         fitting = self.get_fitting(label)
         self.sections['fitting'].remove(fitting)
         self._build_trunk() # needs to be called again to reset
+        
+    def get_feedback(self, label=None):
+        """
+        Get a feedback ParameterSet by name
+        
+        [FUTURE]
+        
+        @param label: name of ParameterSet
+        @type label: str
+        @return: feedback ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label,"feedback")
+
+    @rebuild_trunk
+    def remove_feedback(self, label):
+        """
+        Remove a given feedback ParameterSet
+        
+        [FUTURE]
+        
+        @param label: name of feedback ParameterSet
+        @type label: str
+        """
+        feedback = self.get_feedback(label)
+        self.sections['feedback'].remove(feedback)
+        self._build_trunk() # needs to be called again to reset
     
     @rebuild_trunk
     def add_mpi(self, ps=None, **kwargs):
