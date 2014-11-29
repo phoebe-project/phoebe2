@@ -718,6 +718,9 @@ class Parameter(object):
         #-- set a unique label, if parameter is 'ref' but no string is given
         if props['qualifier'][-3:]=='ref' and not props['value']:
             props['value'] = uuid.uuid4()
+            
+        if props.get('write_protected', False):
+            self.set_write_protected(True)
         
         # remember initial settings
         self._initial = props.copy()
