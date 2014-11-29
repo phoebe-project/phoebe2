@@ -457,6 +457,7 @@ class Container(object):
                 
         # special care needs to be taken when setting labels and refs
         qualifier = param.get_qualifier()
+        old_value = param.get_value()
         
         # Setting a label means not only changing that particular Parameter,
         # but also the property of the Body
@@ -464,6 +465,14 @@ class Container(object):
             this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
             component = self._get_by_search(this_trunk['label'])
             component.set_label(value)
+            
+            # also change all objref (eg in plotting)
+            params = self._get_by_search('objref@', all=True,ignore_errors=True)
+            for param in params:
+                if param.get_value()==old_value:
+                    param.cast_type = str # will change back to choose in _build_trunk
+                    param.set_value(value)
+            
             self._build_trunk()
         
         # Changing a ref needs to change all occurrences
@@ -472,6 +481,14 @@ class Container(object):
             from_ = param.get_value()
             system = self.get_system()
             system.change_ref(from_, value)
+            
+            # also change all dataref (eg in plotting)
+            params = self._get_by_search('dataref@', all=True,ignore_errors=True)
+            for param in params:
+                if param.get_value()==old_value:
+                    param.cast_type = str # will change back to choose in _build_trunk
+                    param.set_value(value)
+            
             self._build_trunk()
             return None
         
@@ -1485,6 +1502,18 @@ class Container(object):
             ri['twig_full'] = 'system@Bundle'
             ri['section'] = 'system'
             self.trunk.append(ri)
+            
+        # do intelligent choices for dataref, objref
+        objrefs = self._get_by_search(section='system', body=True, return_key='label', all=True, ignore_errors=True)
+        datarefs = self._get_by_search(section='dataset', context='*obs', kind='ParameterSet', return_key='ref', all=True, ignore_errors=True)
+        
+        for param in self._get_by_search('objref@', kind='Parameter', all=True, ignore_errors=True):
+            param.cast_type = 'choose'
+            param.choices = objrefs
+            
+        for param in self._get_by_search('dataref@', kind='Parameter', all=True, ignore_errors=True):
+            param.cast_type = 'choose'
+            param.choices = datarefs
         
         
     def _purge_trunk(self):
