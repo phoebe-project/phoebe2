@@ -581,6 +581,10 @@ def mesh(b, t, **kwargs):
         zu = kd_zunit if kd_zunit is not '_auto_' else 'Rsol'
         if zu != 'Rsol':
             mpl_args[0][:, :, 2] = conversions.convert('Rsol', zu, mpl_args[0][:, :, 2])
+            
+    for k in ['facecolors', 'edgecolors']:
+        if k in kwargs_defaults:
+            mpl_kwargs[k] = kwargs_defaults[k]['value'] if isinstance(kwargs_defaults[k], dict) else kwargs_defaults[k]
 
     return 'Poly3DCollection' if axes3d else 'PolyCollection', mpl_args, mpl_kwargs, kwargs_defaults
 
