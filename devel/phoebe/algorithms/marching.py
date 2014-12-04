@@ -716,7 +716,7 @@ def discretize_wd_style_new(N=30, potential='BinaryRoche', *args):
         ax3.set_ylabel('z')
     
     # Rectangle centers:
-    theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, 2*N+1)])
+    theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
     phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, 2*Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
 
     for t in range(len(theta)-1):
@@ -765,7 +765,6 @@ def discretize_wd_style_new(N=30, potential='BinaryRoche', *args):
 
             cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
             dsigma = np.dot(vc, vc)*np.sin(theta[t])/cosgamma*dtheta*dphi
-            print dsigma
 
             if DEBUG:
                 verts = [(r1[0], r1[1]), (r2[0], r2[1]), (r3[0], r3[1]), (r4[0], r4[1]), (r1[0], r1[1])]
@@ -788,6 +787,10 @@ def discretize_wd_style_new(N=30, potential='BinaryRoche', *args):
 
             Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
             Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
+
+            # Instead of recomputing all quantities, just reflect over the z-direction.
+            Ts.append(np.array((vc[0], vc[1], -vc[2], dsigma/2, r1[0], r1[1], -r1[2], r2[0], r2[1], -r2[2], r3[0], r3[1], -r3[2], nc[0], nc[1], -nc[2])))
+            Ts.append(np.array((vc[0], vc[1], -vc[2], dsigma/2, r3[0], r3[1], -r3[2], r4[0], r4[1], -r4[2], r1[0], r1[1], -r1[2], nc[0], nc[1], -nc[2])))
 
     if DEBUG:
         plt.show()
