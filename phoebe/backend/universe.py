@@ -7561,9 +7561,7 @@ class Star(PhysicalBody):
         
         logger.info("Add granulation: {} < teff < {}".format(self.mesh['teff'].min(),
                                                            self.mesh['teff'].max()))
-        
-        
-    
+
     def compute_mesh(self,time=None):
         """
         Compute the mesh of a Star.
@@ -7586,15 +7584,13 @@ class Star(PhysicalBody):
         surface = 'RotateRoche'
         self.subdivision['mesh_args'] = surface, Omega, 1.0, r_pole_sol
 
-        # If the star is set to be spherical, define Omega=0:
         if self.params['star']['shape']=='sphere':
+            # Spherical star:
+            logger.info("using non-rotating surface approximation")
             Omega = 0.
             self.subdivision['mesh_args'] = surface, Omega, 1.0, r_pole_sol
-            logger.info("using non-rotating surface approximation")
-
-        # Differential rotation:
         elif 'diffrot' in self.params['star'] and self.params['star']['diffrot'] != 0:
-            # Convert differential rotation factor into angular velocity:
+            # Differentially rotating star:
             diffrot = self.params['star'].get_value('diffrot','s')
             Period_eq = diffrot + self.params['star'].request_value('rotperiod','s')
             Omega_eq = 2*pi/Period_eq/Omega_crit
@@ -7614,6 +7610,7 @@ class Star(PhysicalBody):
 
             self.subdivision['mesh_args'] = surface, b1, b2, b3, 1.0, r_pole_sol
         elif Omega >= 1:
+            # Faster than critical rotation:
             raise ValueError("Faster than critical rotation encountered, aborting. [w/wcrit={:.3f}%]".format(Omega*100.))
         
         gridstyle = self.params['mesh'].context
@@ -7626,16 +7623,17 @@ class Star(PhysicalBody):
             algorithm = self.params['mesh'].request_value('alg')
             if algorithm=='python':
                 try:
-                    the_grid = marching.discretize(delta,max_triangles,*self.subdivision['mesh_args'][:-1])
+                    the_grid = marching.discretize(delta, max_triangles, *self.subdivision['mesh_args'][:-1])
                 except ValueError:
                     self.save('beforecrash.phoebe')
                     raise
             elif algorithm=='c':
-                the_grid = marching.cdiscretize(delta,max_triangles,*self.subdivision['mesh_args'][:-1])
+                the_grid = marching.cdiscretize(delta, max_triangles, *self.subdivision['mesh_args'][:-1])
         elif gridstyle=='mesh:wd':
             #-- WD style.
             N = self.params['mesh'].request_value('gridsize')
-            the_grid = marching.discretize_wd_style(N,surface,Omega,1.0)
+            #~ the_grid = marching.discretize_wd_style(N, surface, Omega, 1.0)
+            the_grid = marching.discretize_wd_style_new(N, surface, Omega, 1.0)
         else:
             raise ValueError("Unknown gridstyle '{}'".format(gridstyle))
         #-- wrap everything up in one array, but first see how many lds columns
