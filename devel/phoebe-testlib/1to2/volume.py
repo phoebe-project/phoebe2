@@ -25,15 +25,15 @@ deltas, Ntriangles, V12s, V22s = [], [], [], []
 for delta in np.linspace(0.1, delta, 25):
     eb['delta@mesh:marching@primary'] = delta
     eb['delta@mesh:marching@secondary'] = delta
-    eb.set_time(0)
+    eb.get_system().reset()
+    eb.get_system().set_time(0)
     vol1_2 = eb.get_object('primary').volume()
     vol2_2 = eb.get_object('secondary').volume()
     deltas.append(delta)
     Ntriangles.append(len(eb['primary'].get_mesh()['teff']))
     V12s.append(vol1_2)
     V22s.append(vol2_2)
-    print delta, vol1_2, vol2_2
-
+    print("%12.6f %12.6f %12.6f" % (delta, vol1_2, vol2_2))
 
 phb1.init()
 phb1.configure()
@@ -73,12 +73,13 @@ pdV1s = 100*(np.array(V12s)-V11s[-1])/V11s[-1]
 pdV2s = 100*(np.array(V22s)-V21s[-1])/V11s[-1]
 plt.xlabel('Number of PHOEBE triangles')
 plt.ylabel('Percent difference in volume')
-#~ plt.plot(deltas, pdV1s, 'b-')
+plt.plot(Ntriangles, pdV1s, 'b-')
 plt.plot(Ntriangles, pdV2s, 'g-')
 plt.show()
 
 plt.xlabel('Number of surface elements')
 plt.ylabel('Percent difference in volume')
 plt.plot(Nrectangles, 100*(np.array(V21s)-V22s[-1])/V22s[-1], 'k-')
-plt.plot(Ntriangles, 100*(np.array(V22s)-V21s[-1])/V11s[-1], 'k-')
+#~ plt.plot(Ntriangles, 100*(np.array(V22s)-V21s[-1])/V11s[-1], 'k-')
+plt.plot(Ntriangles, 100*(np.array(V22s)-V21s[-1])/V21s[-1], 'k-')
 plt.show()

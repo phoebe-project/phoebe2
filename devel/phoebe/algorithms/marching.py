@@ -676,7 +676,126 @@ def nelements_to_precision(n,alg='marching'):
     
 #}
 #{ Main interface
+
+def discretize_wd_style_new(N=30, potential='BinaryRoche', *args):
+    """
+    New implementation. I'll make this work first, then document.
+    """
+
+    DEBUG = True
+
+    Ts = []
+    r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
     
+    # The following is a hack that needs to go!
+    pot_name = potential
+    dpdx = globals()['d%sdx'%(pot_name)]
+    dpdy = globals()['d%sdy'%(pot_name)]
+    dpdz = globals()['d%sdz'%(pot_name)]
+
+    if DEBUG:
+        import matplotlib.pyplot as plt
+        from matplotlib.path import Path
+        import matplotlib.patches as patches
+
+        fig = plt.figure()
+        ax1 = fig.add_subplot(131)
+        ax2 = fig.add_subplot(132)
+        ax3 = fig.add_subplot(133)
+        ax1.set_xlim(-1.6, 1.6)
+        ax1.set_ylim(-1.6, 1.6)
+        ax2.set_xlim(-1.6, 1.6)
+        ax2.set_ylim(-1.6, 1.6)
+        ax3.set_xlim(-1.6, 1.6)
+        ax3.set_ylim(-1.6, 1.6)
+        ax1.set_xlabel('x')
+        ax1.set_ylabel('y')
+        ax2.set_xlabel('x')
+        ax2.set_ylabel('z')
+        ax3.set_xlabel('y')
+        ax3.set_ylabel('z')
+    
+    # Rectangle centers:
+    theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, 2*N+1)])
+    phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, 2*Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
+
+    for t in range(len(theta)-1):
+        dtheta = theta[t+1]-theta[t]
+        for i in range(len(phi[t])):
+            dphi = phi[t][1]-phi[t][0]
+
+            # Project the vertex onto the potential; this will be our center point:
+            rc = (r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t]))
+            vc = projectOntoPotential(rc, potential, *args).r
+
+            # Next we need to find the tangential plane, which we'll get by finding the normal:
+            nc = np.array((dpdx(vc, *args[:-1]), dpdy(vc, *args[:-1]), dpdz(vc, *args[:-1])))
+
+            # Then we need to find the intersection of +/-dtheta/dphi-deflected
+            # radius vectors with the tangential plane. We do that by solving
+            #
+            #   d = [(p0 - l0) \dot n] / (l \dot n),
+            # 
+            # where p0 and l0 are reference points on the plane and on the line,
+            # respectively, n is the normal vector, and l in the line direction
+            # vector. For convenience l0 can be set to 0, and p0 is just vc. d
+            # then measures the distance from the origin along l.
+
+            l1 = np.array((sin(theta[t]-dtheta/2)*cos(phi[t][i]-dphi/2), sin(theta[t]-dtheta/2)*sin(phi[t][i]-dphi/2), cos(theta[t]-dtheta/2)))
+            l2 = np.array((sin(theta[t]-dtheta/2)*cos(phi[t][i]+dphi/2), sin(theta[t]-dtheta/2)*sin(phi[t][i]+dphi/2), cos(theta[t]-dtheta/2)))
+            l3 = np.array((sin(theta[t]+dtheta/2)*cos(phi[t][i]+dphi/2), sin(theta[t]+dtheta/2)*sin(phi[t][i]+dphi/2), cos(theta[t]+dtheta/2)))
+            l4 = np.array((sin(theta[t]+dtheta/2)*cos(phi[t][i]-dphi/2), sin(theta[t]+dtheta/2)*sin(phi[t][i]-dphi/2), cos(theta[t]+dtheta/2)))
+
+            r1 = np.dot(vc, nc) / np.dot(l1, nc) * l1
+            r2 = np.dot(vc, nc) / np.dot(l2, nc) * l2
+            r3 = np.dot(vc, nc) / np.dot(l3, nc) * l3
+            r4 = np.dot(vc, nc) / np.dot(l4, nc) * l4
+
+            # This sorts out the vertices, now we need to fudge the surface
+            # area. WD does not take curvature of the equipotential at vc
+            # into account, so the surface area computed from these vertex-
+            # delimited surfaces will generally be different from what WD
+            # computes. Thus, we compute the surface area the same way WD
+            # does it and assign it to each element even though that isn't
+            # quite its area:
+            #
+            #   dsigma = r^2 sin(theta)/cos(gamma) dtheta dphi,
+            #
+            # where gamma is the angle between l and n.
+
+            cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
+            dsigma = np.dot(vc, vc)*np.sin(theta[t])/cosgamma*dtheta*dphi
+            print dsigma
+
+            if DEBUG:
+                verts = [(r1[0], r1[1]), (r2[0], r2[1]), (r3[0], r3[1]), (r4[0], r4[1]), (r1[0], r1[1])]
+                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+                path = Path(verts, codes)
+                patch = patches.PathPatch(path, facecolor='orange', lw=2)
+                ax1.add_patch(patch)
+
+                verts = [(r1[0], r1[2]), (r2[0], r2[2]), (r3[0], r3[2]), (r4[0], r4[2]), (r1[0], r1[2])]
+                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+                path = Path(verts, codes)
+                patch = patches.PathPatch(path, facecolor='orange', lw=2)
+                ax2.add_patch(patch)
+
+                verts = [(r1[1], r1[2]), (r2[1], r2[2]), (r3[1], r3[2]), (r4[1], r4[2]), (r1[1], r1[2])]
+                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+                path = Path(verts, codes)
+                patch = patches.PathPatch(path, facecolor='orange', lw=2)
+                ax3.add_patch(patch)
+
+            Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
+            Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
+
+    if DEBUG:
+        plt.show()
+
+    # Assemble a mesh table:
+    table = np.array(Ts)
+    return table
+
 def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     """
     WD computes the center-point of the rectangle and projects it onto
@@ -690,7 +809,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
 
     Ts = []
     r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
-                
+    
     pot_name = potential
     dpdx = globals()['d%sdx'%(pot_name)]
     dpdy = globals()['d%sdy'%(pot_name)]
