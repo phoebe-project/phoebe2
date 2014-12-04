@@ -295,7 +295,9 @@ def mesh(b, t, **kwargs):
         kwargs['objref'] = b.get_system().get_label()
     if dataref is None:
         kwargs['dataref'] = 'None'
-    select = kwargs.get('select', 'teff')
+    select = kwargs.get('select', 'None')
+    if select is None:
+        select = 'None'
     cmap = kwargs.get('cmap', None)
     vmin = kwargs.get('vmin', None)
     vmax = kwargs.get('vmax', None)
@@ -310,7 +312,7 @@ def mesh(b, t, **kwargs):
     kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['azim'] = {'ps': 'axes', 'value': -90, 'description': 'azimuthal orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
     kwargs_defaults['elev'] = {'ps': 'axes', 'value': 90, 'description': 'elevation orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
-    kwargs_defaults['select'] = {'value': 'teff', 'description': 'which value to retrieve for color of triangles'}
+    kwargs_defaults['select'] = {'value': 'None', 'description': 'which value to retrieve for color of triangles'}
     kwargs_defaults['cmap'] = {'value': '_auto_', 'description': 'color map to use'}
     kwargs_defaults['vmin'] = {'value': np.nan, 'description': 'min value for range on cmap or np.nan for auto', 'cast_type': 'float'}
     kwargs_defaults['vmax'] = {'value': np.nan, 'description': 'max value for range on cmap or np.nan for auto', 'cast_type': 'float'}
@@ -382,7 +384,7 @@ def mesh(b, t, **kwargs):
     elif cmap is None and select == 'logg':
         cmap = pl.cm.gnuplot
         kwargs_defaults['background']['value'] = '0.7'
-    elif cmap is None and select[0] == 'B':
+    elif cmap is None and select and select[0] == 'B':
         cmap = pl.cm.jet
     elif cmap is None:
         cmap = pl.cm.gray
@@ -430,8 +432,13 @@ def mesh(b, t, **kwargs):
                              mesh['B_'][:, 2]**2)
         elif select in mesh.dtype.names:
             values = mesh[select]
+        elif select in ['None', 'none', '', None]:
+            # then just the wireframe
+            values = None
+            colors = None
         else:
             values = select[sa]  # TODO: remove this and provide better error statement?
+
         # Set the limits of the color scale, if we need to compute them
         # ourselves
         # TODO: does it makes sense to only set these on visible triangles or all triangles?
@@ -442,7 +449,7 @@ def mesh(b, t, **kwargs):
 
         # Special treatment for black body map, since the limits need to be
         # fixed for the colors to match the temperature
-        if len(values.shape)==1:
+        if values and len(values.shape)==1:
             colors = (values - vmin_) / (vmax_ - vmin_)
         else:
             colors = values
@@ -470,11 +477,18 @@ def mesh(b, t, **kwargs):
 
     mpl_kwargs = {'array': values,
                 'antialiaseds': antialiasing,
-                'edgecolors': cmap(colors),
-                'facecolors': cmap(colors),
+                'edgecolors': cmap(colors) if colors else None,
+                'facecolors': cmap(colors) if colors else None,
                 'cmap': cmap}
 
-    if not cmap_ in ['blackbody_proj', 'eye'] and len(values.shape)==1:
+
+    if not values:
+        # then just the wireframe
+        mpl_kwargs = {'antialiaseds': antialiasing,
+                    'facecolors': (1, 1, 1, 0.5),
+                     'edgecolors': 'k'}
+        
+    elif not cmap_ in ['blackbody_proj', 'eye'] and len(values.shape)==1:
         mpl_kwargs = {'array': values,
                     'antialiaseds': antialiasing,
                     'edgecolors': cmap(colors),
