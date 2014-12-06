@@ -7632,8 +7632,7 @@ class Star(PhysicalBody):
         elif gridstyle=='mesh:wd':
             #-- WD style.
             N = self.params['mesh'].request_value('gridsize')
-            #~ the_grid = marching.discretize_wd_style(N, surface, Omega, 1.0)
-            the_grid = marching.discretize_wd_style_new(N, surface, Omega, 1.0)
+            the_grid = marching.discretize_wd_style(N, surface, Omega, 1.0)
         else:
             raise ValueError("Unknown gridstyle '{}'".format(gridstyle))
         #-- wrap everything up in one array, but first see how many lds columns

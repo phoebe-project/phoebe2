@@ -677,12 +677,12 @@ def nelements_to_precision(n,alg='marching'):
 #}
 #{ Main interface
 
-def discretize_wd_style_new(N=30, potential='BinaryRoche', *args):
+def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     """
     New implementation. I'll make this work first, then document.
     """
 
-    DEBUG = True
+    DEBUG = False
 
     Ts = []
     r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
@@ -797,77 +797,6 @@ def discretize_wd_style_new(N=30, potential='BinaryRoche', *args):
 
     # Assemble a mesh table:
     table = np.array(Ts)
-    return table
-
-def discretize_wd_style(N=30, potential='BinaryRoche', *args):
-    """
-    WD computes the center-point of the rectangle and projects it onto
-    the potential. It then computes the four vertices but does nothing
-    with them, i.e. they do *not* lie on the equipotential.
-    
-    Since we cannot use rectangles and need to use triangles, we must
-    modify the original approach so that the vertices do lie on the
-    equipotential.
-    """
-
-    Ts = []
-    r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
-    
-    pot_name = potential
-    dpdx = globals()['d%sdx'%(pot_name)]
-    dpdy = globals()['d%sdy'%(pot_name)]
-    dpdz = globals()['d%sdz'%(pot_name)]
-    
-    #theta = [pi/2*(k-0.5)/N for k in range(1,N+1)]
-    theta = [pi/2*(k-0.5)/N for k in range(1,2*N+1)]
-    for th in theta:
-        Mk = 1+int(1.3*N*sin(th))
-        #phi = [pi*(l-0.5)/Mk for l in range(1,Mk+1)]
-        phi = [pi*(l-0.5)/Mk for l in range(1,2*Mk+1)]
-        
-        for ph in phi:
-            r1 = (r0*sin(th-pi/4/N)*cos(ph-pi/2/Mk), r0*sin(th-pi/4/N)*sin(ph-pi/2/Mk), r0*cos(th-pi/4/N))
-            r2 = (r0*sin(th-pi/4/N)*cos(ph+pi/2/Mk), r0*sin(th-pi/4/N)*sin(ph+pi/2/Mk), r0*cos(th-pi/4/N))
-            r3 = (r0*sin(th+pi/4/N)*cos(ph+pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph+pi/2/Mk), r0*cos(th+pi/4/N))
-            r4 = (r0*sin(th+pi/4/N)*cos(ph-pi/2/Mk), r0*sin(th+pi/4/N)*sin(ph-pi/2/Mk), r0*cos(th+pi/4/N))                      
-            
-            v1 = projectOntoPotential(r1, potential, *args)
-            v2 = projectOntoPotential(r2, potential, *args)
-            v3 = projectOntoPotential(r3, potential, *args)
-            v4 = projectOntoPotential(r4, potential, *args)
-            
-            Ts += [(v1, v2, v4), (v2, v3, v4)]
-    
-    table = np.zeros((len(Ts), 16))
-    for i in range(0,len(Ts)):
-        
-        cx = (Ts[i][0].r[0]+Ts[i][1].r[0]+Ts[i][2].r[0])/3
-        cy = (Ts[i][0].r[1]+Ts[i][1].r[1]+Ts[i][2].r[1])/3
-        cz = (Ts[i][0].r[2]+Ts[i][1].r[2]+Ts[i][2].r[2])/3
-        c = projectOntoPotential((cx,cy,cz), potential, *args)
-                
-        side1 = sqrt((Ts[i][0].r[0]-Ts[i][1].r[0])**2+(Ts[i][0].r[1]-Ts[i][1].r[1])**2+(Ts[i][0].r[2]-Ts[i][1].r[2])**2)
-        side2 = sqrt((Ts[i][0].r[0]-Ts[i][2].r[0])**2+(Ts[i][0].r[1]-Ts[i][2].r[1])**2+(Ts[i][0].r[2]-Ts[i][2].r[2])**2)
-        side3 = sqrt((Ts[i][2].r[0]-Ts[i][1].r[0])**2+(Ts[i][2].r[1]-Ts[i][1].r[1])**2+(Ts[i][2].r[2]-Ts[i][1].r[2])**2)
-        s = 0.5*(side1 + side2 + side3)
-
-        table[i][ 0] = c.r[0]
-        table[i][ 1] = c.r[1]
-        table[i][ 2] = c.r[2]
-        table[i][ 3] = sqrt(s*(s-side1)*(s-side2)*(s-side3))
-        table[i][ 4] = Ts[i][0].r[0]
-        table[i][ 5] = Ts[i][0].r[1]
-        table[i][ 6] = Ts[i][0].r[2]
-        table[i][ 7] = Ts[i][1].r[0]
-        table[i][ 8] = Ts[i][1].r[1]
-        table[i][ 9] = Ts[i][1].r[2]
-        table[i][10] = Ts[i][2].r[0]
-        table[i][11] = Ts[i][2].r[1]
-        table[i][12] = Ts[i][2].r[2]
-        table[i][13] = c.n[0]
-        table[i][14] = c.n[1]
-        table[i][15] = c.n[2]
-
     return table
 
 def cdiscretize2(delta=0.1,  max_triangles=10000, potential='BinaryRoche', *args):
