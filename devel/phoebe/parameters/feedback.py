@@ -253,7 +253,7 @@ class FeedbackLmfit(Feedback):
                     mu = lmfit_pars[ipar].value
                     sigma = lmfit_pars[ipar].stderr
                     # Standard error when not available is incredibly small
-                    if np.isnan(sigma):
+                    if sigma is None or np.isnan(sigma):
                         sigma = 1e-8*mu
                     self._parameters[i].set_value(value)
                     self._parameters[i].set_posterior(distribution='normal',
