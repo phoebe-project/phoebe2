@@ -2275,6 +2275,7 @@ def plot_ifobs(system, **kwargs):
     Parameter ``x`` can be any of:
     
         - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'frequency``: plot visibilities wrt spatial frequency
         - ``'time'``: plot visibilities wrt time
     
     Parameter ``y`` can be any of:
@@ -2308,6 +2309,11 @@ def plot_ifobs(system, **kwargs):
         if x_unit is None:
             x_unit = 'm'
         x = conversions.convert('m', x_unit, x)
+    elif x_quantity == 'frequency':
+        eff_wave = conversions.convert('AA', 'm', obs['eff_wave'])
+        x = np.sqrt(obs['ucoord']**2 + obs['vcoord']**2)/eff_wave
+        if x_unit is None:
+            x_unit = 'cy/rad'
     else:
         x = obs[x_quantity]
         x_unit_o = obs.get_parameter(x_quantity).get_unit()
@@ -2365,6 +2371,7 @@ def plot_ifsyn(system, *args, **kwargs):
     Keyword :envvar:`x` can be any of:
     
         - ``'baseline'``: plot visibilities wrt baseline.
+        - ``'frequency'``: plot visibilities wrt frequency
         - ``'time'``: plot visibilities wrt time
     
     Keyword :envvar:`y` can be any of:
@@ -2395,6 +2402,11 @@ def plot_ifsyn(system, *args, **kwargs):
         if x_unit is None:
             x_unit = 'm'
         x = conversions.convert('m', x_unit, x)
+    elif x_quantity == 'frequency':
+        eff_wave= conversions.convert('AA', 'm', np.asarray(syn['eff_wave']))
+        x = np.sqrt(syn['ucoord']**2 + syn['vcoord']**2)/eff_wave
+        if x_unit is None:
+            x_unit = 'cy/rad'
     else:
         x = syn[x_quantity]
         x_unit_o = syn.get_parameter(x_quantity).get_unit()
