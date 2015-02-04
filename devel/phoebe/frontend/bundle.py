@@ -3297,6 +3297,15 @@ class Bundle(Container):
         After which you can plot the results via::
 
             >>> mybundle.plot_syn(dataref)
+            
+        If you'd like to run parallelized computations (by time step),
+        you must also provide an :envvar:`mpi` parameterSet.
+        These should be added to the bundle via :py:func:`add_mpi <phoebe.frontend.container.add_mpi>`,
+        and then the label can be set in several places.  When calling run_compute,
+        the mpi options will be applied  based on the following priority:
+        
+        - keyword argument sent to run_compute
+        - :envvar:`mpilabel` set in the compute options
 
         **Keyword 'label'**
 
@@ -3361,11 +3370,15 @@ class Bundle(Container):
             2. Animations will not work in interactive mode in ipython (i.e. when
                started as ``ipython --pylab``.
 
-        **Extra keyword arguments**
-
-        Any extra keyword arguments are passed on to the ``compute``
-        ParameterSet and then the ```mpi``` ParameterSet (if applicable).
-
+        **Note on keyword arguments**
+        
+        Any additional keyword arguments sent to run_fitting will *temporarily*
+        override values in matching parameters in any of the options used during
+        fitting, with qualifiers matched in the following order:
+        
+        - compute options
+        - mpi options
+        
         This frontend function wraps the backend function
         :py:func:`observatory.compute <phoebe.backend.observatory.compute>`.
 
@@ -3649,7 +3662,7 @@ class Bundle(Container):
 
         **Running the fitter**
 
-        You can run the fitter simply by issueing
+        You can run the fitter simply by issuing
 
         >>> feedback = mybundle.run_fitting(label='my_mcmc')
 
@@ -3659,18 +3672,35 @@ class Bundle(Container):
         and :envvar:`accept_feedback` arguments when calling this function.
 
         Some fitting algorithms accept an additional :envvar:`mpi` parameterSet.
-        You need to define one, set the options and supply it in the fitting
-        command::
-
-        >>> mpi = phoebe.ParameterSet('mpi', np=4)
-        >>> feedback = mybundle.run_fitting(label='my_mcmc', mpi=mpi)
-
+        These should be added to the bundle via :py:func:`add_mpi <phoebe.frontend.container.add_mpi>`,
+        and then the label can be set in several places.  When calling run_fitting,
+        the mpi options will be applied  based on the following priority:
+        
+        - keyword argument sent to run_fitting
+        - :envvar:`mpilabel` set in the fitting options
+        - :envvar:`mpilabel` set in the compute options used during fitting
+        
         The fitter returns a :py:class:`Feedback <phoebe.parameters.feedback.Feedback>`
         object, that contains a summary of the fitting results. You can simply
         print or access the feedback via the Bundle::
 
         >>> print(feedback)
         >>> print(mybundle['my_mcmc@feedback'])
+        
+        **Note on keyword arguments**
+        
+        Any additional keyword arguments sent to run_fitting will *temporarily*
+        override values in matching parameters in any of the options used during
+        fitting, with qualifiers matched in the following order:
+        
+        - fitting options
+        - compute options
+        - mpi options
+        
+        As an example, sending :envvar:`mpilabel` as a keyword argument, will
+        temporarily change the :envvar:`mpilabel` parameter in the fitting
+        options, and will therefore parallelize at the fitting/iteration
+        level rather than on the compute/time step level.
 
         **More details on emcee**
 

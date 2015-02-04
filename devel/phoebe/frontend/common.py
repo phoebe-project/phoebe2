@@ -849,6 +849,11 @@ class Container(object):
         """
         Add a new compute ParameterSet
         
+        **Example usage:**
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_compute(label='very_detailed', subdiv_num=10)
+        
         @param ps: compute ParameterSet (or None)
         @type ps:  None or ParameterSet
         @param label: label of the compute options (will override label in ps)
@@ -988,7 +993,7 @@ class Container(object):
         **Example usage:**
         
         >>> mybundle = phoebe.Bundle()
-        >>> mybundle.add_mpi(context='mpi', np=6)
+        >>> mybundle.add_mpi(context='mpi', np=6, label='mympi')
         
         [FUTURE]
         
