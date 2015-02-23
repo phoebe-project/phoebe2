@@ -731,7 +731,7 @@ defs += [dict(qualifier='ref',        description='identifier for the axes optio
         ]
         
 defs += [dict(qualifier='ref',        description='identifier for the plotting options',repr='%s',cast_type=str,value='',frame=["phoebe"],context='plotting:plot'),
-         dict(qualifier='func',      description='the processing function (either a marshaled function or the name of a function in phoebe.frontend.plotting)',repr='%s',cast_type=str,value='',frame=["phoebe"],context=["plotting:plot"]),
+         dict(qualifier='func',      write_protected=True, hidden=True, description='the processing function (either a marshaled function or the name of a function in phoebe.frontend.plotting)',repr='%s',cast_type=str,value='',frame=["phoebe"],context=["plotting:plot"]),
         ]
 
 # Server context

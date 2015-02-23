@@ -4668,6 +4668,9 @@ class Bundle(Container):
                 elif (isinstance(v,dict) and v.get('cast_type',False)=='list') or isinstance(v, list) or isinstance(v, tuple):
                     _cast_type = 'return_string_or_list'
                     _repr = ''
+                elif (isinstance(v,dict) and v.get('cast_type',False)=='choose' and v.get('choices',False)):
+                    _cast_type = 'choose'
+                    _repr = '%s'
                 else:
                     _cast_type = str
                     _repr = '%s'
@@ -4676,7 +4679,12 @@ class Bundle(Container):
                         description = v['description'] if isinstance(v,dict) and 'description' in v.keys() else 'func added this parameter but failed to provide a description',
                         repr = _repr,
                         cast_type = _cast_type,
-                        value = value)
+                        value = value,
+                        write_protected = v['write_protected'] if isinstance(v,dict) and 'write_protected' in v.keys() else False)
+
+                if _cast_type == 'choose':
+                    new_parameter.choices = v.get('choices')
+
 
                 ps = v.get('ps', 'plot') if isinstance(v,dict) else 'plot'
                 if ps == 'figure':

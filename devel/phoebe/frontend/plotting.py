@@ -957,7 +957,51 @@ def param_text(b, t, **kwargs):
     #~ s = mplkwargs.pop('text')
 
     return 'annotate', (s, (x, y)), mplkwargs, kwargs_defaults
+    
+    
+def feedback(b, t, **kwargs):
+    """
+    [FUTURE] - still needs more flexibility and testing
 
+    This is a preprocessing function for :py:func:`Bundle.attach_plot`
+    
+    """
+
+    kwargs_defaults = {}
+    # 'twig' parameter is write-protected until smart choices are implemented (where the choices on x and y can change based on the value of 'twig'
+    kwargs_defaults['twig'] = {'value': 'None', 'write_protected': True, 'cast_type': 'str', 'description': 'twig pointing to feedback'}
+    
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    
+    fb = b.get_feedback(kwargs_defaults.get('twig'))
+    if fb.context.split(':')[1] == 'emcee':  # TODO: may be in class_name rather than context
+        # TODO get adjustable twigs
+        
+        
+        choices = ['lnproblim', 'iteration', feedback_adjust_twigs]
+        default_x = 'iteration'
+        default_y = 'lnproblim'
+    
+    kwargs_defaults['x'] = {'value': default_x, 'cast_type': 'choose', 'choices': choices}
+    kwargs_defaults['y'] = {'value': default_y, 'cast_type': 'choose', 'choices': choices}
+    
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+
+    # TODO set defaults from axes labels, title
+    
+    """
+    for i in range(nwalkers):
+        ax.plot(logp[:,i], alpha=0.2)
+    
+    plt.xlabel("Iteration number")
+    plt.ylabel("log(Probability) [dex]")
+    plt.title("Probability history")
+    """
+    
+    mplfunc = ['plot' for i in range(nwalkers)]
+    
+    
+    return mplfunc, mplargs, mplkwargs, kwargs_defaults
 
 class Figure(parameters.ParameterSet):
     def __init__(self, bundle, **kwargs):
