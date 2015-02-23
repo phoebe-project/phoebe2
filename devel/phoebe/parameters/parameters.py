@@ -1245,6 +1245,12 @@ class Parameter(object):
             #else:
                 #raise ValueError("Variable {} is write-protected".format(self.qualifier))
         #clear_memoization(self)
+        
+        # allow for value to be (value, units) if cast_type is float only
+        if self.cast_type==float and isinstance(value, tuple) and not len(args):
+            args = [value[1]]
+            value = value[0]
+        
         old_value = self.value
         if args:
             if not hasattr(self,'unit'):
