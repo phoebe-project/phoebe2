@@ -1589,7 +1589,7 @@ class Bundle(Container):
         # we keep track of every kwarg that has been used, to make sure
         # everything has found a place
         processed_kwargs = []
-
+        
         # if no dataref is given, just take the only reference we have. If there
         # is more than one, this is ambiguous so we raise a KeyError
         if from_dataref is None:
@@ -1627,6 +1627,27 @@ class Bundle(Container):
                     existing = the_ordered_dict[the_context][from_dataref]
                     new = existing.copy()
                     the_ordered_dict[the_context][to_dataref] = new
+
+                    
+                    # handle situations in which time or phase are being switched
+                    if 'columns' not in kwargs.keys() and 'columns' in new.keys() and 'columns' in existing.keys():
+                        if kwargs.get('phase', None) is not None and kwargs.get('time', None) is None:
+                            # then switch 'time' in columns to 'phase'
+                            tmp = copy.deepcopy(existing['columns'])
+                            tmp[tmp.index('time')] = 'phase'
+                            new['columns'] = tmp
+                            new['time'] = []
+                            
+                            processed_kwargs.append('columns')
+                            
+                        elif kwargs.get('time', None) is not None and kwargs.get('phase', None) is None:
+                            # then switch 'phase' in columns to 'time'
+                            tmp = copy.deepcopy(existing['columns'])
+                            tmp[tmp.index('phase')] = 'time'
+                            new['columns'] = tmp
+                            new['phase'] = []
+                            
+                            processed_kwargs.append('columns')
 
                     # update the reference, and any other kwargs that might
                     # be given. Remember if we added kwarg, in the end we'll
@@ -1858,9 +1879,9 @@ class Bundle(Container):
 
         # filter the arguments according to not being "None" nor being "self"
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
-                  if set_kwargs[key] is not None and key not in ['self', 'to_dataref']}
+                  if set_kwargs[key] is not None and key not in ['self', 'from_dataref', 'to_dataref']}
 
-        self.data_fromexisting(category='lc', **set_kwargs)
+        self.data_fromexisting(to_dataref, from_dataref, category='lc', **set_kwargs)
 
     def rv_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       rv=None, sigma=None, flag=None, weight=None,
@@ -2074,9 +2095,9 @@ class Bundle(Container):
 
         # filter the arguments according to not being "None" nor being "self"
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
-                  if set_kwargs[key] is not None and key != 'self'}
+                  if set_kwargs[key] is not None and key not in ['self', 'from_dataref', 'to_dataref']}
 
-        self.data_fromexisting(category='rv', **set_kwargs)
+        self.data_fromexisting(to_dataref, from_dataref, category='rv', **set_kwargs)
 
     def etv_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
                       etv=None, sigma=None, flag=None, weight=None):
@@ -2233,9 +2254,9 @@ class Bundle(Container):
 
         # filter the arguments according to not being "None" nor being "self"
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
-                  if set_kwargs[key] is not None and key not in ['self', 'to_dataref']}
+                  if set_kwargs[key] is not None and key not in ['self', 'from_dataref', 'to_dataref']}
 
-        self.data_fromexisting(category='etv', **set_kwargs)
+        self.data_fromexisting(to_dataref, from_dataref, category='etv', **set_kwargs)
 
 
     def sed_fromarrays(self, objref=None, dataref=None, time=None, phase=None,
@@ -2699,13 +2720,13 @@ class Bundle(Container):
         set_kwargs, posargs = utils.arguments()
 
         # filter the arguments according to not being "None" nor being "self"
-        ignore = ['self', 'to_dataref', 'remove_closure_phase',
+        ignore = ['self', 'to_dataref', 'from_dataref', 'remove_closure_phase',
                   'remove_triple_amplitude', 'remove_eff_wave']
         set_kwargs = {key:set_kwargs[key] for key in set_kwargs \
                   if set_kwargs[key] is not None and key not in ignore}
 
         # We can pass everything now to the main function
-        out = self.data_fromexisting(category='if', **set_kwargs)
+        out = self.data_fromexisting(to_dataref, from_dataref, category='if', **set_kwargs)
 
         # Remove closure phases, triple amplitudes or effective wavelengths
         # if necessary
