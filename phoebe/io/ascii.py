@@ -262,7 +262,7 @@ def loadtxt(filename, *args, **kwargs):
         contents = "".join(ff.readlines())
         contents = contents.replace('D','E')
         contents = contents.replace('d','e')
-        c = StringIO(contents)
+        c = StringIO.StringIO(contents)
     data = np.loadtxt(c, *args, **kwargs)
     return data
     
