@@ -16,7 +16,10 @@ import numpy as np
 import logging
 import shutil
 import os
-import pyfits
+try: # Pyfits now integrated in astropy
+    import pyfits
+except:
+    import astropy.io.fits as pyfits
 import argparse
 
 logger = logging.getLogger("ATM.GRID")

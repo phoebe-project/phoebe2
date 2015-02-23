@@ -503,8 +503,11 @@ from scipy.interpolate import splrep,splev
 # Optional packages
 try:
     import pyfits
-except ImportError:
-    print(("Soft warning: pyfits could not be found on your system, you can "
+except:
+    try: # Pyfits now integrated in astropy
+        import astropy.io.fits as pyfits
+    except ImportError:
+        print(("Soft warning: pyfits could not be found on your system, you can "
            "only use black body atmospheres and Gaussian synthetic spectral "
            "profiles"))
 try:

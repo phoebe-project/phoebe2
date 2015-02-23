@@ -1,5 +1,8 @@
 import glob
-import pyfits
+try: # Pyfits now integrated in astropy
+    import pyfits
+except:
+    import astropy.io.fits as pyfits
 import numpy as np
 import matplotlib.pyplot as plt
 import phoebe

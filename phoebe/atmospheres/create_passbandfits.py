@@ -2,7 +2,10 @@
 Create a passband FITS file for usage with ``create_atmospherefits.py``.
 """
 import numpy as np
-import pyfits as pf
+try: # Pyfits now integrated in astropy
+    import pyfits as pf
+except:
+    import astropy.io.fits as pf
 from phoebe.atmospheres.passbands import *
 import glob
 import argparse

@@ -67,8 +67,11 @@ import numpy as np
 from numpy import double, bool, ma
 try:
     import pyfits
-except ImportError:
-    print("Warning: cannot load pyfits, so cannot load oifits")
+except:
+    try:
+        import astropy.io.fits as pyfits
+    except ImportError:
+        print("Warning: cannot load pyfits, so cannot load oifits")
 import datetime
 import copy
 from collections import OrderedDict

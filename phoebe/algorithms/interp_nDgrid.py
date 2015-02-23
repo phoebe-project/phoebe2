@@ -12,8 +12,13 @@ from scipy import ndimage
 from scipy.ndimage import _nd_image, _ni_support
 try:
     import pyfits as pf
-except ImportError:
-    print("Soft warning: pyfits could not be found on your system, you can only use black body atmospheres and Gaussian synthetic spectral profiles")    
+except:
+    try: # Pyfits now integrated in astropy
+        import astropy.io.fits as pf
+    except ImportError:
+        print(("Soft warning: pyfits could not be found on your system, you can "
+           "only use black body atmospheres and Gaussian synthetic spectrallll "
+           "profiles"))
 
 
 def create_pixeltypegrid(grid_pars, grid_data):

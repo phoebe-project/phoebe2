@@ -1,5 +1,9 @@
 import os
-import pyfits
+try: # Pyfits now integrated in astropy
+    import pyfits
+except:
+    import astropy.io.fits as pyfits
+
 import numpy as np
 
 def write_array(arr,filename,names=(),units=(),header_dict={},ext='new',close=True):
