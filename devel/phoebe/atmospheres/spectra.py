@@ -7,8 +7,13 @@ import numpy as np
 import scipy.integrate
 try:
     import pyfits
-except ImportError:
-    print("Soft warning: pyfits could not be found on your system, you can only use black body atmospheres and Gaussian synthetic spectral profiles")
+except:
+    try: # Pyfits now integrated in astropy
+        import astropy.io.fits as pyfits
+    except ImportError:
+        print(("Soft warning: pyfits could not be found on your system, you can "
+           "only use black body atmospheres and Gaussian synthetic spectral "
+           "profiles"))
 from phoebe.algorithms import interp_nDgrid
 from phoebe.utils import decorators
 

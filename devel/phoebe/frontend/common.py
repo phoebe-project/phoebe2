@@ -11,7 +11,10 @@ import json
 import uuid
 import logging
 import glob
-import pyfits
+try: # Pyfits now integrated in astropy
+    import pyfits
+except:
+    import astropy.io.fits as pyfits
 import textwrap
 import numpy as np
 from phoebe import __version__

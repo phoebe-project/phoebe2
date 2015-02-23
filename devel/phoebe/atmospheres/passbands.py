@@ -198,7 +198,10 @@ import numpy as np
 import os
 import glob
 import logging
-import pyfits as pf
+try: # Pyfits now integrated in astropy
+    import pyfits as pf
+except:
+    import astropy.io.fits as pf
 from phoebe.utils import decorators
 
 # Allow for on-the-fly addition of photometric passbands.
