@@ -1787,7 +1787,6 @@ def legendre(x):
         pl.append((fac1*pl[-1]-fac2*pl[-2])/denom)
     return pl
 
-
 def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     """
     Interpolate an atmosphere table using the WD method.
@@ -1822,13 +1821,19 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     p = passband
     
     # Check the bounds; Pieter will probably modify these to array tests.
-    if np.any(l < 0.0) or np.any(l > 5.0):
-        logger.error("log(g) outside of grid: Consider using a different atmosphere model")
-    if np.any(m < -5.0) or np.any(m > 1.0):
-        logger.error("[M/H] outside of grid: Consider using a different atmosphere model")
-    if np.any(t < 3500) or np.any(t > 50000):
-        logger.error("Teff outside of grid: Consider using a different atmosphere model")
-    
+    if 'planck' in atm:
+ 
+       if np.any(t < 500) or np.any(t > 500300):
+            logger.error("Teff outside of grid: Consider using a different atmosphere model")
+
+
+    else:
+        if np.any(l < 0.0) or np.any(l > 5.0):
+            logger.error("log(g) outside of grid: Consider using a different atmosphere model")
+        if np.any(m < -5.0) or np.any(m > 1.0):
+            logger.error("[M/H] outside of grid: Consider using a different atmosphere model")
+        if np.any(t < 3500) or np.any(t > 50000):
+            logger.error("Teff outside of grid: Consider using a different atmosphere model")
     # Make sure all the interpolatable quantities are arrays of the same length
     # not that some (or all) of them can be scalars
     length = max([len(i)  if hasattr(i, '__len__') else 1 for i in [m, l, t]])
@@ -1865,55 +1870,215 @@ def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
     P_index = P.index(p)
     
     ints = np.zeros(length)
-    for i, (m, l, t) in enumerate(zip(nm, nl, nt)):
-        # Bracket the values by finding the index of the first element in
-        # the respective array that is larger than passed value (or None if
-        # there is no such element):
-        idx = next((i for i,v in enumerate(M) if m < v), None)
-        Mb = M[idx-1:idx+1]
-        idx = next((i for i,v in enumerate(L) if l < v), None)
-        Lb = L[idx-1:idx+1]
 
-        # These brackets serve as our interpolation axes; we need to prepare
-        # them for the linear multi-D interpolator:
-        grid_pars = np.array([(mm,ll) for mm in Mb for ll in Lb]).T
+    # blackbody atmospheres don't depend on metallicity of logg so they must be treated differently
 
-        # Next we need to prepare the data. There will be 4 interpolation
-        # knots: (Mlo, Llo), (Mlo, Lhi), (Mhi, Llo) and (Mhi, Lhi). For each
-        # knot we need to take the corresponding line from the 'atmcof.dat'
-        # table, run a Legendre-powered interpolator and compute the
-        # intensity. Variable grid_data will hold all 4 intensities.
+    if 'planck' in atm:
+
+            #Bracket the temperatures bins in the same manner as plackint.f 
         grid_data = []
-        
-        for (mm, ll) in grid_pars.T:
-            # Get the pointer to the (P,M,L) block in the 'atmcof.dat' table:
-            idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
+  
+      
+
+        temps = [500, 1900, 5500, 20000, 100000, 500300]
+        for i, (t) in enumerate(nt):        		
+            idx = next((i for i,v in enumerate(temps) if t <= v), None)
+            Tb = temps[idx-1:idx+1]
+
+            if Tb[0] == 500:
+                Tb = [Tb[0],Tb[1]+100]
+            if Tb[1] == 500300:
+                Tb = [Tb[0]-100,Tb[1]]
+            else:
+                Tb = [Tb[0]-100,Tb[1]+100]
             
-            # Bracket the temperature (much like we did above for Mb and Lb):
-            #print [table[idx+j,1] for j in range(4)]
-            j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
-            #print m,l,t, mm, ll, j
-            # Read out Legendre coefficients for the bracketed temperature and
-            # compute the intensity from the series expansion:
-            Cl = table[idx+j,2:]
-            teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
+            #find the correct row in the table. 
+            idx2 = idx + P_index*5.0
+            Cl = table[idx2]
+
+
+            teff = (t-Tb[0])/(Tb[1]-Tb[0])
             Pl = np.array(legendre(teff))
-            grid_data.append(np.sum(Cl*Pl, axis=0))
-            #print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
+#            grid_data.append(np.sum(Cl*Pl, axis=0))
+            ints[i] =  np.sum(Cl*Pl, axis=0)
+    else:
+        for i, (m, l, t) in enumerate(zip(nm, nl, nt)):
+            # Bracket the values by finding the index of the first element in
+            # the respective array that is larger than passed value (or None if
+            # there is no such element):
+            idx = next((i for i,v in enumerate(M) if m < v), None)
+            Mb = M[idx-1:idx+1]
+            idx = next((i for i,v in enumerate(L) if l < v), None)
+            Lb = L[idx-1:idx+1]
+            # These brackets serve as our interpolation axes; we need to prepare
+            # them for the linear multi-D interpolator:
+            grid_pars = np.array([(mm,ll) for mm in Mb for ll in Lb]).T
 
-        # Prepare the data for the interpolator:
-        grid_data = np.array([grid_data])
-
-        # Perform the interpolation:
-        av, pg = interp_nDgrid.create_pixeltypegrid(grid_pars, grid_data)
-        p = np.array([[m], [l]])
-        val = interp_nDgrid.interpolate(p, av, pg)[0]
+            # Next we need to prepare the data. There will be 4 interpolation
+            # knots: (Mlo, Llo), (Mlo, Lhi), (Mhi, Llo) and (Mhi, Lhi). For each
+            # knot we need to take the corresponding line from the 'atmcof.dat'
+            # table, run a Legendre-powered interpolator and compute the
+            # intensity. Variable grid_data will hold all 4 intensities.
+            grid_data = []
         
-        # Store the result; it is in log10, per angstrom.
-        ints[i] = val
-        #print ("DEBUG: Iinterp = %12.9f" % (val))
+            for (mm, ll) in grid_pars.T:
+                # Get the pointer to the (P,M,L) block in the 'atmcof.dat' table:
+                idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
+            
+                # Bracket the temperature (much like we did above for Mb and Lb):
+                #print [table[idx+j,1] for j in range(4)]
+                j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+                #print m,l,t, mm, ll, j
+                # Read out Legendre coefficients for the bracketed temperature and
+                # compute the intensity from the series expansion:
+                Cl = table[idx+j,2:]
+                teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
+                Pl = np.array(legendre(teff))
+                grid_data.append(np.sum(Cl*Pl, axis=0))
+                #print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
+
+            # Prepare the data for the interpolator:
+            grid_data = np.array([grid_data])
+
+            # Perform the interpolation:
+            av, pg = interp_nDgrid.create_pixeltypegrid(grid_pars, grid_data)
+            p = np.array([[m], [l]])
+            val = interp_nDgrid.interpolate(p, av, pg)[0]
+        
+            # Store the result; it is in log10, per angstrom.
+            ints[i] = val
+            #print ("DEBUG: Iinterp = %12.9f" % (val))
         
     return np.array([1e-8*10**ints])
+
+
+
+#def interp_ld_coeffs_wd(atm,passband,atm_kwargs={},red_kwargs={},vgamma=0):
+#    """
+#    Interpolate an atmosphere table using the WD method.
+#    
+#    Example usage:
+#    
+#        >>> atm_kwargs = dict(teff=6000., logg=4.0, abun=0.)
+#        >>> interp_ld_coeffs_wd('atmcof.dat','JOHNSON.V',atm_kwargs=atm_kwargs)
+#        
+#    Remarks:
+#    
+#        - reddening (C{red_kwargs}) is not implemented
+#        - doppler boosting (C{vgamma}) is not implemented
+#    
+#    Compare with native `Phoebe` LD support:
+#    
+#    @param atm: atmosphere table filename or alias
+#    @type atm: string
+#    @param atm_kwargs: dict with keys specifying the atmospheric parameters
+#    @type atm_kwargs: dict
+#    @param red_kwargs: dict with keys specifying the reddening parameters
+#    @type red_kwargs: dict
+#    @param vgamma: radial velocity
+#    @type vgamma: float/array
+#    @param passband: photometric passband
+#    @type passband: str
+#    """
+#    # Get atmospheric properties
+#    m = atm_kwargs.get('abun', 0)
+#    l = atm_kwargs.get('logg', 4.5)
+#    t = atm_kwargs.get('teff', 10000)
+#    p = passband
+#    
+#    # Check the bounds; Pieter will probably modify these to array tests.
+#    if np.any(l < 0.0) or np.any(l > 5.0):
+#        logger.error("log(g) outside of grid: Consider using a different atmosphere model")
+#    if np.any(m < -5.0) or np.any(m > 1.0):
+#        logger.error("[M/H] outside of grid: Consider using a different atmosphere model")
+#    if np.any(t < 3500) or np.any(t > 50000):
+#        logger.error("Teff outside of grid: Consider using a different atmosphere model")
+#    
+#    # Make sure all the interpolatable quantities are arrays of the same length
+#    # not that some (or all) of them can be scalars
+#    length = max([len(i)  if hasattr(i, '__len__') else 1 for i in [m, l, t]])
+#    
+#    # So if they are not arrays, make them in arrays with constant values
+#    if not hasattr(m, '__len__'):
+#        nm = [m]*length
+#    else:
+#        nm = m
+#    if not hasattr(l, '__len__'):
+#        nl = [l]*length
+#    else:
+#        nl = l
+#    if not hasattr(t, '__len__'):
+#        nt = [t]*length
+#    else:
+#        nt = t
+#    
+#    # Prepare lists for interpolation
+#    M = [-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
+#         -0.5, -0.3, -0.2, -0.1,  0.0,  0.1,  0.2,  0.3,  0.5, 1.0]
+#    L = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+#    P = ['STROMGREN.U', 'STROMGREN.V', 'STROMGREN.B', 'STROMGREN.Y',
+#         'JOHNSON.U', 'JOHNSON.B', 'JOHNSON.V', 'JOHNSON.R', 'JOHNSON.I',
+#         'JOHNSON.J', 'JOHNSON.K', 'JOHNSON.L', 'JOHNSON.M', 'JOHNSON.N',
+#         'COUSINS.R', 'COUSINS.I', 'OPEN.BOL', None, None, None, None, None,
+#         'TYCHO2.BT', 'TYCHO2.VT', 'HIPPARCOS.HP']
+#    
+#    # Get the atmosphere table's location and read it in.
+#    if not os.path.isfile(atm):
+#        atm = os.path.join(basedir_ld_coeffs, atm)
+#    table = _prepare_wd_grid(atm)
+#    
+#    P_index = P.index(p)
+#    
+#    ints = np.zeros(length)
+#    for i, (m, l, t) in enumerate(zip(nm, nl, nt)):
+#        # Bracket the values by finding the index of the first element in
+#        # the respective array that is larger than passed value (or None if
+#        # there is no such element):
+#        idx = next((i for i,v in enumerate(M) if m < v), None)
+#        Mb = M[idx-1:idx+1]
+#        idx = next((i for i,v in enumerate(L) if l < v), None)
+#        Lb = L[idx-1:idx+1]
+#
+#        # These brackets serve as our interpolation axes; we need to prepare
+#        # them for the linear multi-D interpolator:
+#        grid_pars = np.array([(mm,ll) for mm in Mb for ll in Lb]).T
+#
+#        # Next we need to prepare the data. There will be 4 interpolation
+#        # knots: (Mlo, Llo), (Mlo, Lhi), (Mhi, Llo) and (Mhi, Lhi). For each
+#        # knot we need to take the corresponding line from the 'atmcof.dat'
+#        # table, run a Legendre-powered interpolator and compute the
+#        # intensity. Variable grid_data will hold all 4 intensities.
+#        grid_data = []
+#        
+#        for (mm, ll) in grid_pars.T:
+#            # Get the pointer to the (P,M,L) block in the 'atmcof.dat' table:
+#            idx = (18-np.searchsorted(M, mm))*len(P)*len(L)*4 + P_index*len(L)*4 + np.searchsorted(L, ll)*4
+#            
+#            # Bracket the temperature (much like we did above for Mb and Lb):
+#            #print [table[idx+j,1] for j in range(4)]
+#            j = next((i for i,v in enumerate([table[idx+j,1] for j in range(4)]) if v > t), None)
+#            #print m,l,t, mm, ll, j
+#            # Read out Legendre coefficients for the bracketed temperature and
+#            # compute the intensity from the series expansion:
+#            Cl = table[idx+j,2:]
+#            teff = (t-table[idx+j,0])/(table[idx+j,1]-table[idx+j,0])
+#            Pl = np.array(legendre(teff))
+#            grid_data.append(np.sum(Cl*Pl, axis=0))
+#            #print ("DEBUG: (%1.1f %2.2f %1.1f): mm=%2.2f ll=%2.2f j=%d Teff in [%2.2f,%2.2f] I=%12.9f" % (m, l, t, mm, ll, j, table[idx+j,0], table[idx+j,1], grid_data[-1]))
+#
+#        # Prepare the data for the interpolator:
+#        grid_data = np.array([grid_data])
+#
+#        # Perform the interpolation:
+#        av, pg = interp_nDgrid.create_pixeltypegrid(grid_pars, grid_data)
+#        p = np.array([[m], [l]])
+#        val = interp_nDgrid.interpolate(p, av, pg)[0]
+#        
+#        # Store the result; it is in log10, per angstrom.
+#        ints[i] = val
+#        #print ("DEBUG: Iinterp = %12.9f" % (val))
+#        
+#    return np.array([1e-8*10**ints])
 
 @decorators.memoized
 def _prepare_wd_grid(atm):
