@@ -449,7 +449,7 @@ def mesh(b, t, **kwargs):
 
         # Special treatment for black body map, since the limits need to be
         # fixed for the colors to match the temperature
-        if values and len(values.shape)==1:
+        if values is not None and len(values.shape)==1:
             colors = (values - vmin_) / (vmax_ - vmin_)
         else:
             colors = values
@@ -477,12 +477,12 @@ def mesh(b, t, **kwargs):
 
     mpl_kwargs = {'array': values,
                 'antialiaseds': antialiasing,
-                'edgecolors': cmap(colors) if colors else None,
-                'facecolors': cmap(colors) if colors else None,
+                'edgecolors': cmap(colors) if colors is not None else None,
+                'facecolors': cmap(colors) if colors is not None else None,
                 'cmap': cmap}
 
 
-    if not values:
+    if values is None:
         # then just the wireframe
         mpl_kwargs = {'antialiaseds': antialiasing,
                     'facecolors': (1, 1, 1, 0.5),
