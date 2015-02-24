@@ -1386,6 +1386,11 @@ class Container(object):
             ref = None
             unique_label = None
             qualifier = None
+            
+            # override context for datasets
+            if context is not None and context[-3:] in ['obs','dep','syn'] and context.split(':')[0] != 'plotting':
+                section = 'dataset'
+            
         elif isinstance(item, feedback.Feedback):
             kind = 'Feedback'
             label = item.get_label()
