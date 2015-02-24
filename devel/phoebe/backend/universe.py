@@ -4310,44 +4310,53 @@ class Body(object):
         return copy.deepcopy(self)
                             
     @decorators.parse_ref
-    def etv(self,ref='alletvdep',times=None,ltt=False):
+    def etv_nomesh(self,correct_oversampling=None,ref='alletvdep',time=None,ltt=False,save_result=True):
         """
         Compute eclipse timings and add results to the pbdep ParameterSet.
         
+        Oversampling is not currently implemented and will be ignored
+        
         """
-        #-- don't bother if we cannot do anything...
-        if hasattr(self,'params') and 'obs' in self.params and 'orbit' in self.params:
-            orbit = self.params['orbit']
+        orbits, components = self.get_orbits() 
+        
+        for lbl in ref:
+            etvobs, l = self.get_parset(type='obs', ref=lbl)
             
-            sibling = self.get_sibling()
+            # If there are no obs here, traverse
+            if etvobs is None:
+                if hasattr(self,'bodies'):
+                    for body in self.bodies:
+                        body.etv_nomesh(correct_oversampling=correct_oversampling,
+                                ref=ref, time=time)
+                continue
+            
+            
+            etvsyn,l = self.get_parset(context='etvsyn',ref=lbl)
+            
+            if etvsyn is None or etvobs is None:
+                continue
+            
+            if time is None: # then default to what is in the etvobs
+                time = etvobs['time'] # eventually change to compute from cycle number
            
-            orbits, components = self.get_orbits() 
+            # get true observed times of eclipse (with LTTE, etc)
+            objs, vels, t = keplerorbit.get_barycentric_hierarchical_orbit(time, orbits, components, barycentric=ltt)
             
-            for lbl in ref:
-                etvsyn,l = self.get_parset(context='etvsyn',ref=lbl)
-                etvobs,l = self.get_parset(context='etvobs',category='etv',ref=lbl)
-                
-                if etvsyn is None or etvobs is None:
-                    continue
-                
-                if times is None: # then default to what is in the etvobs
-                    times = etvobs['time'] # eventually change to compute from cycle number
-               
-                # get true observed times of eclipse (with LTTE, etc)
-                objs, vels, t = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits, components, barycentric=ltt)
-                
-                etv = times-t
-                
-                if etvobs.get_adjust('offset'):
-                    scale, offset = compute_scale_or_offset(model=etv, obs=etvobs['etv'], sigma=etvobs['sigma'], scale=False, offset=True)
-                    etvobs['offset'] = offset
-                else:
-                    offset = etvobs['offset']
-                
-                # append to etvsyn
-                etvsyn['time'] = np.append(etvsyn['time'],times)
-                etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
-                etvsyn['etv'] = np.append(etvsyn['etv'],etv+offset)
+            etv = time-t
+            
+            if etvobs.get_adjust('offset'):
+                scale, offset = compute_scale_or_offset(model=etv, obs=etvobs['etv'], sigma=etvobs['sigma'], scale=False, offset=True)
+                etvobs['offset'] = offset
+            else:
+                offset = etvobs['offset']
+            
+            if not save_result:
+                continue
+            
+            # append to etvsyn
+            etvsyn['time'] = np.append(etvsyn['time'],time)
+            etvsyn['eclipse_time'] = np.append(etvsyn['eclipse_time'],t)
+            etvsyn['etv'] = np.append(etvsyn['etv'],etv+offset)
 
     @decorators.parse_ref
     def ifm(self, ref='allifdep', time=None, obs=None, correct_oversampling=1,
