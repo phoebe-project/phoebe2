@@ -1551,8 +1551,8 @@ class Bundle(Container):
             if not (len(ds[col])==0 or len(ds[col])==reference_length):
                 raise ValueError("Length of column {} in dataset {} does not equal length of time/phase column".format(col, dataref))
             
-        dep_cols = {'lc': 'flux', 'rv': 'rv', 'sp': 'flux', 'if': 'flux', 'etv': 'etv'}
-        if estimate_sigma and ('sigma' not in ds['columns'] or len(ds['sigma'])==0) and len(ds[dep_cols[category]]):
+        dep_cols = {'lc': 'flux', 'rv': 'rv', 'sp': 'flux', 'etv': 'etv'}
+        if estimate_sigma and category in dep_cols.keys() and ('sigma' not in ds['columns'] or len(ds['sigma'])==0) and len(ds[dep_cols[category]]):
             
             logger.warning('sigmas not provided, estimating from provided column: {}.  To prevent this, set estimate_sigma=False'.format(dep_cols[category]))
 
