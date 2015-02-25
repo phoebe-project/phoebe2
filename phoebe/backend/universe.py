@@ -3644,7 +3644,7 @@ class Body(object):
                 if param == 'orbit':
                     continue
                 
-                mystring.append(param)
+                mystring.append(thing.params[param].context)
                 
                 if param == 'globals':
                     mystring += i_have_orbit
@@ -3723,7 +3723,7 @@ class Body(object):
             for param in thing.params:
                 if param in ['pbdep', 'obs', 'syn']:
                     continue
-                lbl = param
+                lbl = thing.params[param].context
                 mystring = ['{}: '.format(lbl)]
                 if not isinstance(thing.params[param],list):
                     iterover = [thing.params[param]]
@@ -3783,7 +3783,7 @@ class Body(object):
                 if param == 'orbit':
                     continue
                 
-                lbl = param
+                lbl = thing.params[param].context
                 mystring = ['{}: '.format(lbl)]
                 if not isinstance(thing.params[param],list):
                     iterover = [thing.params[param]]
