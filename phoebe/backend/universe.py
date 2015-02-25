@@ -2085,7 +2085,7 @@ class Body(object):
             loaded = obs.load(force=False)
             
             # Get the "model" and "observations" and their error.
-            if obs.context in ['spobs','plobs'] and 'flux' in obs:
+            if obs.context in ['spobs','plobs'] and 'flux' in obs and 'continuum' in obs:
                 model = np.array(syn['flux'])/np.array(syn['continuum'])
                 obser = np.array(obs['flux']) / np.array(obs['continuum'])
                 sigma = np.array(obs['sigma'])

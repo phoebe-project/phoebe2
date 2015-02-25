@@ -2342,7 +2342,7 @@ def parse_etv(filename, columns=None, components=None,
     
     if not 'sigma' in myds['columns']:
         myds.estimate_sigma(from_col='etv', to_col='sigma')
-        #myds['columns'] = myds['columns'] + ['sigma']
+        myds['columns'] = myds['columns'] + ['sigma']
     
     # Convert to right units
     for col in units:
