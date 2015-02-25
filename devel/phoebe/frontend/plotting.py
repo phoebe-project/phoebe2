@@ -412,7 +412,7 @@ def mesh(b, t, **kwargs):
             vmax_ = 1
 
     else:
-        if isinstance(select, list) or np.isarray(select):
+        if isinstance(select, list) or isinstance(select, np.ndarray):
             values = select
         elif select == 'rv':
             values = -mesh['velo___bol_'][:, 2] * 8.049861
