@@ -17,6 +17,7 @@ except:
     import astropy.io.fits as pyfits
 import textwrap
 import numpy as np
+import readline
 from phoebe import __version__
 from phoebe.parameters import parameters, datasets
 from phoebe.parameters import datasets
@@ -462,6 +463,11 @@ class Container(object):
         qualifier = param.get_qualifier()
         old_value = param.get_value()
         
+        if qualifier in ['label','ref']:
+            if set([c for c in readline.get_completer_delims()]).intersection(value):
+            # throw a warning if a special character in the label might break tab-completion
+                logger.warning('special character in refs or labels may break tab completion')
+
         # Setting a label means not only changing that particular Parameter,
         # but also the property of the Body
         if qualifier == 'label':

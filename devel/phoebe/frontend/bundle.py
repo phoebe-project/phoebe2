@@ -351,7 +351,7 @@ class Bundle(Container):
 
         # set tab completer
         readline.set_completer(phcompleter.Completer().complete)
-        readline.set_completer_delims(' \t\n`~!#$%^&*)-=+]{}\\|;:,<>/?')
+        readline.set_completer_delims(' \t\n`~!#$%^&*)-=+]{}\\|;,<>/?')  # removed ':' since its used for subcontexts
         readline.parse_and_bind("tab: complete")
 
     def _loop_through_container(self):
