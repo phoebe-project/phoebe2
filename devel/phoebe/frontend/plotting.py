@@ -447,8 +447,8 @@ def mesh(b, t, **kwargs):
             values = None
             colors = None
         else:
-            values = select[sa]  # TODO: remove this and provide better error statement?
-
+            raise ValueError("could not interpret value for select")
+            
         # Set the limits of the color scale, if we need to compute them
         # ourselves
         # TODO: does it makes sense to only set these on visible triangles or all triangles?
