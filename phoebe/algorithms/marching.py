@@ -682,7 +682,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     New implementation. I'll make this work first, then document.
     """
 
-    DEBUG = True
+    DEBUG = False
 
     Ts = []
     r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
