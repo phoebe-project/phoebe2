@@ -384,7 +384,7 @@ def mesh(b, t, **kwargs):
     elif cmap is None and select == 'logg':
         cmap = pl.cm.gnuplot
         kwargs_defaults['background']['value'] = '0.7'
-    elif cmap is None and select and select[0] == 'B':
+    elif cmap is None and select is not None and select[0] == 'B':
         cmap = pl.cm.jet
     elif cmap is None:
         cmap = pl.cm.gray
@@ -412,8 +412,8 @@ def mesh(b, t, **kwargs):
             vmax_ = 1
 
     else:
-        if isinstance(select, list) or isinstance(select, np.ndarray):
-            values = select
+        if isinstance(select, list) or isinstance(select, np.ndarray) or isinstance(select, tuple):
+            values = np.array(select)
         elif select == 'rv':
             values = -mesh['velo___bol_'][:, 2] * 8.049861
         elif select == 'intensity':
