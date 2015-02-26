@@ -369,7 +369,7 @@ def mesh(b, t, **kwargs):
     # the right order.
     sa = np.argsort(mesh['center'][:, 2])
     mesh = mesh[sa]
-
+    
     x, y, z = mesh['center'][:, 0],mesh['center'][:, 1],mesh['center'][:, 2]
     
     # Default color maps and background depend on the type of dependables:
@@ -419,6 +419,7 @@ def mesh(b, t, **kwargs):
     else:
         if isinstance(select, list) or isinstance(select, np.ndarray) or isinstance(select, tuple):
             values = np.array(select)
+            values = select[sa] # sort in same order as mesh
             kwargs_defaults['select']['cast_type'] = 'list'
             logger.warning('the list/array passed to select will not update with future run_compute calls')
         elif select == 'rv':
