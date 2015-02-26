@@ -452,16 +452,20 @@ def mesh(b, t, **kwargs):
         # ourselves
         # TODO: does it makes sense to only set these on visible triangles or all triangles?
         if vmin is None:
-            vmin_ = values[mesh['mu'] > 0].min()
+            #~ vmin_ = values[mesh['mu'] > 0].min()
+            vmin_ = values.min()
         if vmax is None:
-            vmax_ = values[mesh['mu'] > 0].max()
+            #~ vmax_ = values[mesh['mu'] > 0].max()
+            vmax_ = values.max()
 
-        # Special treatment for black body map, since the limits need to be
-        # fixed for the colors to match the temperature
+
         if values is not None and len(values.shape)==1:
             colors = (values - vmin_) / (vmax_ - vmin_)
         else:
             colors = values
+
+        # Special treatment for black body map, since the limits need to be
+        # fixed for the colors to match the temperature            
         if cmap == 'blackbody' or cmap == 'blackbody_proj' or cmap == 'eye':
             cmap_ = cmap
             cmap = plotlib.blackbody_cmap()
@@ -585,6 +589,7 @@ def mesh(b, t, **kwargs):
             
     for k in ['facecolors', 'edgecolors']:
         if k in kwargs_defaults:
+            # then override the cmap values with user-provided
             mpl_kwargs[k] = kwargs_defaults[k]['value'] if isinstance(kwargs_defaults[k], dict) else kwargs_defaults[k]
 
     return 'Poly3DCollection' if axes3d else 'PolyCollection', mpl_args, mpl_kwargs, kwargs_defaults
