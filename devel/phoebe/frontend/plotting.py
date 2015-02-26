@@ -414,6 +414,8 @@ def mesh(b, t, **kwargs):
     else:
         if isinstance(select, list) or isinstance(select, np.ndarray) or isinstance(select, tuple):
             values = np.array(select)
+            kwargs_defaults['select']['cast_type'] = 'list'
+            logger.warning('the list/array passed to select will not update with future run_compute calls')
         elif select == 'rv':
             values = -mesh['velo___bol_'][:, 2] * 8.049861
         elif select == 'intensity':
