@@ -4185,8 +4185,64 @@ class Bundle(Container):
     #}
 
     #{ Live-Plotting
+    
+    def plot_obs(self, dataref, time=None, ax=None, **kwargs):
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.obs(self, t=time, dataref=dataref, **kwargs)
+        
+        plot_ps = parameters.ParameterSet(context='plotting:plot')
+        axes_ps = parameters.ParameterSet(context='plotting:axes')
+        
+        plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
+        
+        ax = plt.gca() if ax is None else ax
+        
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
 
-    def plot_obs(self, twig=None, **kwargs):
+
+    def plot_syn(self, dataref, time=None, ax=None, **kwargs):
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.syn(self, t=time, dataref=dataref, **kwargs)
+        
+        plot_ps = parameters.ParameterSet(context='plotting:plot')
+        axes_ps = parameters.ParameterSet(context='plotting:axes')
+        
+        plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
+        
+        ax = plt.gca() if ax is None else ax
+        
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+
+    def plot_mesh(self, dataref, time=None, ax=None, **kwargs):
+        """
+        
+        If you set projection to be 3d, ax or plt.gca() must be a 3d axes.  You can add a 3d axes with ax=plt.gcf().add_subplot(projection='3d')
+        """
+        
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.mesh(self, t=time, dataref=dataref, **kwargs)
+        
+        plot_ps = parameters.ParameterSet(context='plotting:plot')
+        axes_ps = parameters.ParameterSet(context='plotting:axes')
+        
+        plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=True)
+        
+        ax = plt.gca() if ax is None else ax
+
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+
+
+    def plot_orbit(self, dataref, time=None, ax=None, **kwargs):
+        mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.orbit(self, t=time, dataref=dataref, **kwargs)
+        
+        plot_ps = parameters.ParameterSet(context='plotting:plot')
+        axes_ps = parameters.ParameterSet(context='plotting:axes')
+        
+        plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
+        
+        ax = plt.gca() if ax is None else ax
+        
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+
+
+    def old_plot_obs(self, twig=None, **kwargs):
         """
         Make a plot of the attached observations (wraps pyplot.errorbar).
 
@@ -4345,7 +4401,7 @@ class Bundle(Container):
         return obs
 
 
-    def plot_syn(self, twig=None, *args, **kwargs):
+    def old_plot_syn(self, twig=None, *args, **kwargs):
         """
         Plot simulated/computed observations (wraps pyplot.plot).
 
@@ -4487,7 +4543,7 @@ class Bundle(Container):
 
         return syn
 
-    def plot_residuals(self, twig=None, **kwargs):
+    def old_plot_residuals(self, twig=None, **kwargs):
         """
         Plot the residuals between computed and observed for a given dataset
 
@@ -4540,7 +4596,7 @@ class Bundle(Container):
 
         return res
 
-    def plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
+    def old_plot_mesh(self, objref=None, label=None, dataref=None, time=None, phase=None,
                   select='teff', cmap=None, vmin=None, vmax=None, size=800,
                   dpi=80, background=None, savefig=False,
                   with_partial_as_half=False, **kwargs):
@@ -4975,6 +5031,7 @@ class Bundle(Container):
         """
         [FUTURE]
 
+        see :py:func:`Bundle.attach_plot`
         """
         return self.attach_plot(func=plotting.obs, dataref=dataref, **kwargs)
 
@@ -4982,18 +5039,50 @@ class Bundle(Container):
         """
         [FUTURE]
 
+        see :py:func:`Bundle.attach_plot`
         """
         return self.attach_plot(func=plotting.syn, dataref=dataref, **kwargs)
 
     def attach_plot_mesh(self, objref=None, dataref=None, **kwargs):
         """
         [FUTURE]
+        
+        see :py:func:`Bundle.attach_plot`
+        
+        specific (optional) keyword arguments for attach_plot_mesh include:
+        
+        :param dataref: twig that points to the dataset to get values
+        :type dataref: str
+        :param objref: twig that points to the object to plot (defaults to entire system)
+        :type objref: str
+        :param select: key in the mesh to use for color (ie 'rv', 'teff') or an array with same length/size as the mesh
+        :type select: str or np.array
+        :param cmap: colormap to use (must be a valid matplotlib colormap).  If not provided, defaults will be used based on 'select'
+        :type cmap: str or pylab.cm instance
+        :param vmin: lower limit for the select array used for the colormap, np.nan for auto
+        :type vmin: float or np.nan
+        :param vmax: upper limit for the select array used for the colormap, np.nan for auto
+        :type vmax: float or np.nan
+        :param projection: '2d' or '3d' projection
+        :type projection: str ('2d' or '3d')
+        :param zlim: limits used on zaxis (only used if projection=='3d')
+        :type zlim: tuple
+        :param zunit: unit to plot on the zaxis (only used if projection=='3d')
+        :type zunit: str
+        :param zlabel: label on the zaxis (only used if projection=='3d') 
+        :type zlabel: str
+        :param azim: azimuthal orientation (only used if projection=='3d')
+        :type azim: float
+        :param elev: elevation orientation (only used if projection=='3d')
+        :type elev: float
         """
         return self.attach_plot(func=plotting.mesh, objref=objref, dataref=dataref, **kwargs)
 
     def attach_plot_orbit(self, objref=None, **kwargs):
         """
         [FUTURE]
+        
+        see :py:func:`Bundle.attach_plot`
         """
         # TODO: add dataref as kwarg above that points to a orbsy
         return self.attach_plot(func=plotting.orbit, objref=objref, **kwargs)
@@ -5001,6 +5090,8 @@ class Bundle(Container):
     def attach_plot_mplcmd(self, funcname, args=(), **kwargs):
         """
         [FUTURE]
+        
+        see :py:func:`Bundle.attach_plot`
         """
         return self.attach_plot((funcname, args), plotting.mplcmd, **kwargs)  #TODO: update this to take kwargs instead of args
 
@@ -5149,6 +5240,15 @@ class Bundle(Container):
         # func_kwargs_defaults may also apply to axes_ps, so let's update the PSs anyways
         plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
 
+
+        ax = self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+        
+        # TODO: fix this return statement
+        return {plotref: []}
+        
+        
+    def _call_mpl(self, ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps):
+        
         # and now let's finally call the matplotlib function(s)
         if isinstance(mpl_func, str):
             # then we just have one call, but for generality let's list everything
@@ -5185,7 +5285,7 @@ class Bundle(Container):
                 ax.set_xlim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
                 ax.set_ylim(-10,10)  # TODO: this should be applied by func_kwargs_defaults
 
-            elif hasattr(art3d , m_func):
+            elif hasattr(art3d, m_func):
 
                 #background = m_kwargs.pop('background', 'k')
 
@@ -5240,66 +5340,8 @@ class Bundle(Container):
             if axes_ps.get_value('zlim') not in [(None,None), '_auto_', u'_auto_']:
                 ax.set_zlim3d(axes_ps.get_value('zlim'))
 
-        # TODO: fix this return statement
-        return {plotref: []}
-
-
-    def plot_orbitview(self,mplfig=None,mplaxes=None,orbitviewoptions=None):
-        """
-        [FUTURE]
-        """
-        if mplfig is None:
-            if mplaxes is None: # no axes provided
-                axes = plt.axes()
-            else: # use provided axes
-                axes = mplaxes
-
-        else:
-            axes = mplfig.add_subplot(111)
-
-        po = self.get_orbitview() if orbitviewoptions is None else orbitviewoptions
-
-        if po['data_times']:
-            computeparams = parameters.ParameterSet(context='compute') #assume default (auto)
-            observatory.extract_times_and_refs(self.get_system(),computeparams)
-            times_data = computeparams['time']
-        else:
-            times_data = []
-
-        orbits = self._get_by_search(context='orbit', kind='ParameterSet', all=True)
-        periods = np.array([o.get_value('period') for o in orbits])
-        top_orbit = orbits[periods.argmax()]
-        bottom_orbit = orbits[periods.argmin()]
-        if po['times'] == 'auto':
-            times_full = np.arange(top_orbit.get_value('t0'),top_orbit.get_value('t0')+top_orbit.get_value('period'),bottom_orbit.get_value('period')/20.)
-        else:
-            times_full = po['times']
-
-        for obj in self.get_system().get_bodies():
-            orbits, components = obj.get_orbits()
-
-            for times,marker in zip([times_full,times_data],['-','x']):
-                if len(times):
-                    pos, vel, t = keplerorbit.get_barycentric_hierarchical_orbit(times, orbits, components)
-
-                    positions = ['x','y','z']
-                    velocities = ['vx','vy','vz']
-                    if po['xaxis'] in positions:
-                        x = pos[positions.index(po['xaxis'])]
-                    elif po['xaxis'] in velocities:
-                        x = vel[positions.index(po['xaxis'])]
-                    else: # time
-                        x = t
-                    if po['yaxis'] in positions:
-                        y = pos[positions.index(po['yaxis'])]
-                    elif po['yaxis'] in positions:
-                        y = vel[positions.index(po['yaxis'])]
-                    else: # time
-                        y = t
-
-                    axes.plot(x,y,marker)
-        axes.set_xlabel(po['xaxis'])
-        axes.set_ylabel(po['yaxis'])
+                
+        return ax
 
 
     def add_axes_to_figure(self, figref, axesref, axesloc):
