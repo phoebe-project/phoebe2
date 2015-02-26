@@ -1077,6 +1077,52 @@ class Bundle(Container):
             if not unit_type in ['time', 'frequency']:
                 raise ValueError('Cannot set period of the system to {} which has units of {} (needs to be time or frequency)'.format(period, unit_type))
             obj.set_period(period=period)
+            
+    #~ def convert_to_stars(self, twig=None):
+        #~ """
+        #~ [FUTURE]
+        #~ 
+        #~ twig should be the twig of the parent orbit of two binary roche stars that 
+        #~ you want to convert to stars
+        #~ """
+        #~ 
+        #~ brss = self.get_children(twig)
+        #~ orbit = self.get_orbit(twig)
+        #~ 
+        #~ if not all([isinstance(brs, phoebe.BinaryRocheStar) for brs in brss]):
+            #~ logger.error("all children of {} must be of type BinaryRocheStar".format(twig))
+            #~ return False
+        #~ if not len(brss)==2:
+            #~ logger.error("{} must have 2 children".format(twig))
+            #~ return False
+            #~ 
+        #~ s1, s2, orbit = berts_function(brs[0], brs[1], orbit)
+        #~ 
+        #~ # now we need to replace and possibly rebuild the trunk
+        #~ 
+        #~ 
+        #~ raise NotImplementedError
+        
+    #~ def convert_to_binaryrochestars(self, twig=None):
+        #~ """
+        #~ [FUTURE]
+        #~ 
+        #~ twig should be the twig of the parent orbit of two binary roche stars that 
+        #~ you want to convert to stars
+        #~ """
+        #~ 
+        #~ ss = self.get_children(twig)
+        #~ orbit = self.get_orbit(twig)
+        #~ 
+        #~ if not all([isinstance(s, phoebe.Star) for s in ss]):
+            #~ logger.error("all children of {} must be of type Star".format(twig))
+            #~ return False
+        #~ if not len(brss)==2:
+            #~ logger.error("{} must have 2 children".format(twig))
+            #~ return False        
+#~ 
+        #~ raise NotImplementedError
+        
 
     #}
     #{ Datasets
@@ -4187,6 +4233,31 @@ class Bundle(Container):
     #{ Live-Plotting
     
     def plot_obs(self, dataref, time=None, ax=None, **kwargs):
+        """
+        [FUTURE]
+        
+        :param dataref: twig that points to the dataset
+        :type dataref: str
+        :param time: current time (used for uncover, highlight, scroll)
+        :type time: float
+        :param ax: matplotlib axes (will use plt.gca() by default)
+        :type ax: matplotlib.Axes
+        :param fmt: matplotlib format (eg 'k-')
+        :type fmt: str
+        :param uncover: only plot data up to the current time (time must be passed)
+        :type uncover: bool
+        :param highlight: draw a marker at the current time (time must be passed)
+        :type highlight: bool
+        :param highlight_fmt: matplotlibformat for time if highlight==True
+        :type highlight_fmt: str
+        :param highlight_ms: matplotlib markersize for time if highlight==True
+        :type highlight_ms: int
+        :param scroll: whether to overrid xlim and scroll based on current time (time must be passed)
+        :type scroll: bool
+        :param scroll_xlim: the xlims to provide relative to the current time if scroll==True (time must be passed)
+        :type scroll_xlim: tuple
+        
+        """
         mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.obs(self, t=time, dataref=dataref, **kwargs)
         
         plot_ps = parameters.ParameterSet(context='plotting:plot')
@@ -4200,6 +4271,30 @@ class Bundle(Container):
 
 
     def plot_syn(self, dataref, time=None, ax=None, **kwargs):
+        """
+        [FUTURE]
+        
+        :param dataref: twig that points to the dataset
+        :type dataref: str
+        :param time: current time (used for uncover, highlight, scroll)
+        :type time: float
+        :param ax: matplotlib axes (will use plt.gca() by default)
+        :type ax: matplotlib.Axes
+        :param fmt: matplotlib format (eg 'k-')
+        :type fmt: str
+        :param uncover: only plot data up to the current time (time must be passed)
+        :type uncover: bool
+        :param highlight: draw a marker at the current time (time must be passed)
+        :type highlight: bool
+        :param highlight_fmt: matplotlibformat for time if highlight==True
+        :type highlight_fmt: str
+        :param highlight_ms: matplotlib markersize for time if highlight==True
+        :type highlight_ms: int
+        :param scroll: whether to overrid xlim and scroll based on current time (time must be passed)
+        :type scroll: bool
+        :param scroll_xlim: the xlims to provide relative to the current time if scroll==True (time must be passed)
+        :type scroll_xlim: tuple
+        """
         mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.syn(self, t=time, dataref=dataref, **kwargs)
         
         plot_ps = parameters.ParameterSet(context='plotting:plot')
@@ -4213,8 +4308,38 @@ class Bundle(Container):
 
     def plot_mesh(self, dataref, time=None, ax=None, **kwargs):
         """
+        [FUTURE]
         
-        If you set projection to be 3d, ax or plt.gca() must be a 3d axes.  You can add a 3d axes with ax=plt.gcf().add_subplot(projection='3d')
+        NOTE: If you set projection to be 3d, ax or plt.gca() must be a 3d axes.  You can add a 3d axes with ax=plt.gcf().add_subplot(projection='3d')
+        
+        :param dataref: twig that points to the dataset to get values
+        :type dataref: str
+        :param time: time to use to compute the mesh
+        :type time: float
+        :param ax: matplotlib axes (will use plt.gca() by default)
+        :type ax: matplotlib.Axes
+        :param objref: twig that points to the object to plot (defaults to entire system)
+        :type objref: str
+        :param select: key in the mesh to use for color (ie 'rv', 'teff') or an array with same length/size as the mesh
+        :type select: str or np.array
+        :param cmap: colormap to use (must be a valid matplotlib colormap).  If not provided, defaults will be used based on 'select'
+        :type cmap: str or pylab.cm instance
+        :param vmin: lower limit for the select array used for the colormap, np.nan for auto
+        :type vmin: float or np.nan
+        :param vmax: upper limit for the select array used for the colormap, np.nan for auto
+        :type vmax: float or np.nan
+        :param projection: '2d' or '3d' projection.  Must use 3d axes to use 3d projection.
+        :type projection: str ('2d' or '3d')
+        :param zlim: limits used on zaxis (only used if projection=='3d')
+        :type zlim: tuple
+        :param zunit: unit to plot on the zaxis (only used if projection=='3d')
+        :type zunit: str
+        :param zlabel: label on the zaxis (only used if projection=='3d') 
+        :type zlabel: str
+        :param azim: azimuthal orientation (only used if projection=='3d')
+        :type azim: float
+        :param elev: elevation orientation (only used if projection=='3d')
+        :type elev: float
         """
         
         mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.mesh(self, t=time, dataref=dataref, **kwargs)
@@ -4229,7 +4354,40 @@ class Bundle(Container):
         return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
 
 
-    def plot_orbit(self, dataref, time=None, ax=None, **kwargs):
+    def plot_orbit(self, objref, time=None, ax=None, **kwargs):
+        """
+        [FUTURE]
+        
+        
+        NOTE: If you set projection to be 3d, ax or plt.gca() must be a 3d axes.  You can add a 3d axes with ax=plt.gcf().add_subplot(projection='3d')
+
+        :param objref: twig that points to the object to plot
+        :type objref: str
+        :param time: time to use to compute the mesh
+        :type time: float
+        :param ax: matplotlib axes (will use plt.gca() by default)
+        :type ax: matplotlib.Axes
+        :param fmt: matplotlib format (eg 'k-')
+        :type fmt: str
+        :param highlight: draw a marker at the current time (time must be passed during draw call)
+        :type highlight: bool
+        :param highlight_fmt: matplotlibformat for time if highlight==True
+        :type highlight_fmt: str
+        :param highlight_ms: matplotlib markersize for time if highlight==True
+        :type highlight_ms: int
+        :param projection: '2d' or '3d' projection.  Must use 3d axes to use 3d projection.
+        :type projection: str ('2d' or '3d')
+        :param zlim: limits used on zaxis (only used if projection=='3d')
+        :type zlim: tuple
+        :param zunit: unit to plot on the zaxis (only used if projection=='3d')
+        :type zunit: str
+        :param zlabel: label on the zaxis (only used if projection=='3d') 
+        :type zlabel: str
+        :param azim: azimuthal orientation (only used if projection=='3d')
+        :type azim: float
+        :param elev: elevation orientation (only used if projection=='3d')
+        :type elev: float
+        """
         mpl_func, mpl_args, mpl_kwargs, func_kwargs_defaults = plotting.orbit(self, t=time, dataref=dataref, **kwargs)
         
         plot_ps = parameters.ParameterSet(context='plotting:plot')
@@ -5032,6 +5190,25 @@ class Bundle(Container):
         [FUTURE]
 
         see :py:func:`Bundle.attach_plot`
+        
+        specific (optional) keyword arguments for attach_plot_obs include:
+        
+        :param dataref: twig that points to the dataset
+        :type dataref: str
+        :param fmt: matplotlib format (eg 'k-')
+        :type fmt: str
+        :param uncover: only plot data up to the current time (time must be passed during draw call)
+        :type uncover: bool
+        :param highlight: draw a marker at the current time (time must be passed during draw call)
+        :type highlight: bool
+        :param highlight_fmt: matplotlibformat for time if highlight==True
+        :type highlight_fmt: str
+        :param highlight_ms: matplotlib markersize for time if highlight==True
+        :type highlight_ms: int
+        :param scroll: whether to overrid xlim and scroll based on current time (time must be passed during draw call)
+        :type scroll: bool
+        :param scroll_xlim: the xlims to provide relative to the current time if scroll==True (time must be passed during the draw call)
+        :type scroll_xlim: tuple
         """
         return self.attach_plot(func=plotting.obs, dataref=dataref, **kwargs)
 
@@ -5040,6 +5217,25 @@ class Bundle(Container):
         [FUTURE]
 
         see :py:func:`Bundle.attach_plot`
+
+        specific (optional) keyword arguments for attach_plot_syn include:
+        
+        :param dataref: twig that points to the dataset
+        :type dataref: str
+        :param fmt: matplotlib format (eg 'k-')
+        :type fmt: str
+        :param uncover: only plot data up to the current time (time must be passed during draw call)
+        :type uncover: bool
+        :param highlight: draw a marker at the current time (time must be passed during draw call)
+        :type highlight: bool
+        :param highlight_fmt: matplotlibformat for time if highlight==True
+        :type highlight_fmt: str
+        :param highlight_ms: matplotlib markersize for time if highlight==True
+        :type highlight_ms: int
+        :param scroll: whether to overrid xlim and scroll based on current time (time must be passed during draw call)
+        :type scroll: bool
+        :param scroll_xlim: the xlims to provide relative to the current time if scroll==True (time must be passed during the draw call)
+        :type scroll_xlim: tuple
         """
         return self.attach_plot(func=plotting.syn, dataref=dataref, **kwargs)
 
@@ -5083,8 +5279,33 @@ class Bundle(Container):
         [FUTURE]
         
         see :py:func:`Bundle.attach_plot`
+        
+        specific (optional) keyword arguments for attach_plot_orbit include:
+        
+        :param objref: twig that points to the object to plot (defaults to entire system)
+        :type objref: str
+        :param fmt: matplotlib format (eg 'k-')
+        :type fmt: str
+        :param highlight: draw a marker at the current time (time must be passed during draw call)
+        :type highlight: bool
+        :param highlight_fmt: matplotlibformat for time if highlight==True
+        :type highlight_fmt: str
+        :param highlight_ms: matplotlib markersize for time if highlight==True
+        :type highlight_ms: int
+        :param projection: '2d' or '3d' projection
+        :type projection: str ('2d' or '3d')
+        :param zlim: limits used on zaxis (only used if projection=='3d')
+        :type zlim: tuple
+        :param zunit: unit to plot on the zaxis (only used if projection=='3d')
+        :type zunit: str
+        :param zlabel: label on the zaxis (only used if projection=='3d') 
+        :type zlabel: str
+        :param azim: azimuthal orientation (only used if projection=='3d')
+        :type azim: float
+        :param elev: elevation orientation (only used if projection=='3d')
+        :type elev: float
         """
-        # TODO: add dataref as kwarg above that points to a orbsy
+        # TODO: add dataref as kwarg above that points to a orbsyn
         return self.attach_plot(func=plotting.orbit, objref=objref, **kwargs)
 
     def attach_plot_mplcmd(self, funcname, args=(), **kwargs):
@@ -5092,6 +5313,8 @@ class Bundle(Container):
         [FUTURE]
         
         see :py:func:`Bundle.attach_plot`
+        
+        specific (optional) keyword arguments for attach_plot_mplcmd include:
         """
         return self.attach_plot((funcname, args), plotting.mplcmd, **kwargs)  #TODO: update this to take kwargs instead of args
 
