@@ -307,7 +307,7 @@ def mesh(b, t, **kwargs):
     kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to a dataset', 'cast_type': 'str'}
     kwargs_defaults['objref'] = {'value': '', 'description': 'twig that points to an object in the system', 'cast_type': 'str'}
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
-    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'list'}
     kwargs_defaults['zunit'] = {'ps': 'axes', 'value': '_auto_', 'description': 'unit to plot on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['azim'] = {'ps': 'axes', 'value': -90, 'description': 'azimuthal orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
@@ -617,7 +617,7 @@ def orbit(b, t, **kwargs):
     kwargs_defaults['highlight_fmt'] = {'value': 'ko', 'description': 'matplotlib format for time if higlight is True'}
     kwargs_defaults['highlight_ms'] = {'value': 5, 'description': 'matplotlib markersize for time if highlight is True', 'cast_type': 'int'}
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
-    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'str'}
+    kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'list'}
     kwargs_defaults['zunit'] = {'ps': 'axes', 'value': '_auto_', 'description': 'unit to plot on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['azim'] = {'ps': 'axes', 'value': -90, 'description': 'azimuthal orentation if projection==3d', 'cast_type': 'float', 'repr': '%f'}
