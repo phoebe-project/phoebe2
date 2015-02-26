@@ -298,7 +298,7 @@ def mesh(b, t, **kwargs):
     select = kwargs.get('select', 'None')
     if select is None:
         select = 'None'
-    cmap = kwargs.get('cmap', None)
+    cmap = kwargs.pop('cmap', None)  # we pop this one since we'll manually set to be the cmap.name instead of cmap
     vmin = kwargs.get('vmin', None)
     vmax = kwargs.get('vmax', None)
 
@@ -329,7 +329,8 @@ def mesh(b, t, **kwargs):
     # apply kwargs and then re-retrieve need values for later
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
     select = kwargs_defaults['select']['value']
-    cmap = kwargs_defaults['cmap']['value']
+    if cmap is None:
+        cmap = kwargs_defaults['cmap']['value']
     if cmap in ['None','none','','_auto_']:
         cmap = None
     vmin = kwargs_defaults['vmin']['value']
@@ -339,8 +340,6 @@ def mesh(b, t, **kwargs):
     if np.isnan(vmax):
         vmax = None
         
-    #~ print "***", cmap, vmin, vmax
-
     # TODO: make these options:
     boosting_alg = 'none'
     with_partial_as_half = True
@@ -354,7 +353,7 @@ def mesh(b, t, **kwargs):
         total_flux = obj.projected_intensity(ref=dataref,boosting_alg=boosting_alg,
                                       with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
-        raise ValueError(str(msg)+'\nPossible solution: did you set the time (set_time) of the system?')
+        raise ValueError(str(msg)+'\nPossible solution: did you provide a valid time?')
     except AttributeError as msg:
         total_flux = 0.0
         logger.warning("Body has not attribute `projected_intensity', some stuff will not work")
@@ -372,10 +371,8 @@ def mesh(b, t, **kwargs):
     mesh = mesh[sa]
 
     x, y, z = mesh['center'][:, 0],mesh['center'][:, 1],mesh['center'][:, 2]
-
+    
     # Default color maps and background depend on the type of dependables:
-
-
     if cmap is None and select == 'rv':
         cmap = pl.cm.RdBu_r
     elif cmap is None and select == 'teff':
@@ -386,9 +383,17 @@ def mesh(b, t, **kwargs):
         kwargs_defaults['background']['value'] = '0.7'
     elif cmap is None and select is not None and select[0] == 'B':
         cmap = pl.cm.jet
+    elif isinstance(cmap, str) and cmap in dir(pl.cm):
+        cmap = getattr(pl.cm, cmap)
+        # we need to store it as the string in the PS
+        kwargs_defaults['cmap']['value'] = cmap.name
+    elif hasattr(cmap, 'name'):
+        # then hopefully we're the cmap itself
+        # we still need to store it as a string in the PS
+        kwargs_defaults['cmap']['value'] = cmap.name
     elif cmap is None:
         cmap = pl.cm.gray
-
+        
     # Default lower and upper limits for colors:
     vmin_ = vmin
     vmax_ = vmax
@@ -479,34 +484,12 @@ def mesh(b, t, **kwargs):
             if vmax is None:
                 vmax_ = -offset
 
-    mpl_kwargs = {'array': values,
-                'antialiaseds': antialiasing,
-                'edgecolors': cmap(colors) if colors is not None else None,
-                'facecolors': cmap(colors) if colors is not None else None,
-                'cmap': cmap}
-
-
     if values is None:
         # then just the wireframe
         mpl_kwargs = {'antialiaseds': antialiasing,
                     'facecolors': (1, 1, 1, 0.5),
                      'edgecolors': 'k'}
         
-    elif not cmap_ in ['blackbody_proj', 'eye'] and len(values.shape)==1:
-        mpl_kwargs = {'array': values,
-                    'antialiaseds': antialiasing,
-                    'edgecolors': cmap(colors),
-                    'facecolors': cmap(colors),
-                    'cmap': cmap}
-
-
-
-    # When a RGB select color values is given
-    elif not cmap_ in ['blackbody_proj', 'eye']:
-        mpl_kwargs = {'edgecolors': colors,
-                      'antialiaseds': antialiasing,
-                      'facecolors': colors}
-
     elif cmap_ == 'blackbody_proj':
         # In this particular case we also need to set the values for the
         # triangles first
@@ -537,8 +520,22 @@ def mesh(b, t, **kwargs):
         mpl_kwargs = {'antialiaseds': antialiasing,
                       'edgecolors': colors,
                       'facecolors': colors}
+                      
+    else:
+        mpl_kwargs = {'array': values,
+                    'antialiaseds': antialiasing,
+                    'edgecolors': cmap(colors),
+                    'facecolors': cmap(colors),
+                    'cmap': cmap}
 
+    #~ # When a RGB select color values is given
+    #~ elif cmap is None:
+        #~ mpl_kwargs = {'edgecolors': colors,
+                      #~ 'antialiaseds': antialiasing,
+                      #~ 'facecolors': colors}
+                      
     # Set the color scale limits
+    # TODO: move this to bundle.draw_plot ???
     #~ if vmin is not None: vmin_ = vmin
     #~ if vmax is not None: vmax_ = vmax
     #~ p.set_clim(vmin=vmin_,vmax=vmax_)
