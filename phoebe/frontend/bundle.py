@@ -4708,9 +4708,9 @@ class Bundle(Container):
                 elif (isinstance(v,dict) and v.get('cast_type',False) in ['bool', 'make_bool']) or isinstance(v, bool):
                     _cast_type = 'make_bool'
                     _repr = ''
-                elif (isinstance(v,dict) and v.get('cast_type',False)=='list') or isinstance(v, list) or isinstance(v, tuple):
+                elif (isinstance(v,dict) and v.get('cast_type',False) in ['list', 'return_string_or_list']) or isinstance(v, list) or isinstance(v, tuple):
                     _cast_type = 'return_string_or_list'
-                    _repr = ''
+                    _repr = '%s'
                 elif (isinstance(v,dict) and v.get('cast_type',False)=='choose' and v.get('choices',False)):
                     _cast_type = 'choose'
                     _repr = '%s'
@@ -5237,9 +5237,8 @@ class Bundle(Container):
             if axes_ps.get_value('zlabel') != '_auto_':
                 ax.set_zlabel(axes_ps.get_value('zlabel'))
 
-            # if axes_ps.get_value('zlim') not in [(None,None), '_auto_', u'_auto_']:
-                # print "*** set_zlim", axes_ps.get_value('zlim')
-                # ax.set_zlim3d(axes_ps.get_value('zlim'))
+            if axes_ps.get_value('zlim') not in [(None,None), '_auto_', u'_auto_']:
+                ax.set_zlim3d(axes_ps.get_value('zlim'))
 
         # TODO: fix this return statement
         return {plotref: []}
