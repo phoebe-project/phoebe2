@@ -682,7 +682,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     New implementation. I'll make this work first, then document.
     """
 
-    DEBUG = False
+    DEBUG = True
 
     Ts = []
     r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
@@ -702,12 +702,12 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
         ax1 = fig.add_subplot(131)
         ax2 = fig.add_subplot(132)
         ax3 = fig.add_subplot(133)
-        ax1.set_xlim(-1.6, 1.6)
-        ax1.set_ylim(-1.6, 1.6)
-        ax2.set_xlim(-1.6, 1.6)
-        ax2.set_ylim(-1.6, 1.6)
-        ax3.set_xlim(-1.6, 1.6)
-        ax3.set_ylim(-1.6, 1.6)
+        ax1.set_xlim(-0.3, 0.3) # -1.6 1.6
+        ax1.set_ylim(-0.3, 0.3)
+        ax2.set_xlim(-0.3, 0.3)
+        ax2.set_ylim(-0.3, 0.3)
+        ax3.set_xlim(-0.3, 0.3)
+        ax3.set_ylim(-0.3, 0.3)
         ax1.set_xlabel('x')
         ax1.set_ylabel('y')
         ax2.set_xlabel('x')
@@ -717,7 +717,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     
     # Rectangle centers:
     theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
-    phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, 2*Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
+    phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
 
     for t in range(len(theta)-1):
         dtheta = theta[t+1]-theta[t]
@@ -788,9 +788,15 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
             Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
             Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
 
-            # Instead of recomputing all quantities, just reflect over the z-direction.
+            # Instead of recomputing all quantities, just reflect over the y- and z-directions.
+            Ts.append(np.array((vc[0], -vc[1], vc[2], dsigma/2, r1[0], -r1[1], r1[2], r2[0], -r2[1], r2[2], r3[0], -r3[1], r3[2], nc[0], -nc[1], nc[2])))
+            Ts.append(np.array((vc[0], -vc[1], vc[2], dsigma/2, r3[0], -r3[1], r3[2], r4[0], -r4[1], r4[2], r1[0], -r1[1], r1[2], nc[0], -nc[1], nc[2])))
+
             Ts.append(np.array((vc[0], vc[1], -vc[2], dsigma/2, r1[0], r1[1], -r1[2], r2[0], r2[1], -r2[2], r3[0], r3[1], -r3[2], nc[0], nc[1], -nc[2])))
             Ts.append(np.array((vc[0], vc[1], -vc[2], dsigma/2, r3[0], r3[1], -r3[2], r4[0], r4[1], -r4[2], r1[0], r1[1], -r1[2], nc[0], nc[1], -nc[2])))
+
+            Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2])))
+            Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2])))
 
     if DEBUG:
         plt.show()
