@@ -538,14 +538,14 @@ def mesh(b, t, **kwargs):
                       #~ 'antialiaseds': antialiasing,
                       #~ 'facecolors': colors}
                       
-    # Set the color scale limits
+    # Set the colorbar scale limits
     # TODO: move this to bundle.draw_plot ???
     #~ if vmin is not None: vmin_ = vmin
     #~ if vmax is not None: vmax_ = vmax
     #~ p.set_clim(vmin=vmin_,vmax=vmax_)
 
     # Derive the limits for the axis
-    # (dont be smart when axis where given)
+    # (dont be smart when axis were given)
     offset_x = (x.min() + x.max()) / 2.0
     offset_y = (y.min() + y.max()) / 2.0
     offset_z = (z.min() + z.max()) / 2.0
