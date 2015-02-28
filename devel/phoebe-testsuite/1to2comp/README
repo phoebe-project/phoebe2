@@ -1,0 +1,33 @@
+This is a simple script for comparing phoebe 1 and phoebe 2 models. For this to work you must have phoebeBackend installed. This is in phoebe-code/stable. Instructions are below. 
+
+
+Instructions for installing phoebeBackend
+
+cd phoebe-lib
+./configure
+make
+sudo make install
+
+cd phoebe-py
+
+python setup.py build
+sudo python setup.py install
+
+You may be missing a setup file. You can get one either by installing the gui as well and starting it...or just ask someone else on the development team to give you theirs.
+
+Contents:
+
+default.phoebe - initial phoebe 1 parameter file
+
+compfun.py: contains a set of functions that allows ph1to2comp.py to function properly.
+
+ph1to2comp.py
+
+This is the file you will run. The parameters which are tested are split into two main groups:
+
+1.) Parameters that are normally fixed (e.g. gravity brightening) OR fitting options such as heating (controlled by things like albedo).
+
+2.) Grid parameters. These are things such as period, inclination, mass ratio. Technically anything can be a grid parameter, but as computation time is an issuethis is slightly limited. Adding extra parameters should be straightforward.
+
+
+
