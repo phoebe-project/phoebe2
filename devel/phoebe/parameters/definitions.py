@@ -801,6 +801,9 @@ defs += [dict(qualifier='label',                description='label for the compu
          
         dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='compute'),
         ] 
+        
+defs += [dict(qualifier='label', description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context='compute:legacy'),
+        ]
 
 # Globals context
 defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, llim=-np.inf, ulim=np.inf, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['position']),
