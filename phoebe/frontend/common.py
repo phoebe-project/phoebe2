@@ -854,7 +854,7 @@ class Container(object):
         
     
     @rebuild_trunk
-    def add_compute(self, ps=None, **kwargs):
+    def add_compute(self, ps=None, context='compute', **kwargs):
         """
         Add a new compute ParameterSet
         
@@ -869,7 +869,7 @@ class Container(object):
         @type label: str
         """
         if ps is None:
-            ps = parameters.ParameterSet(context='compute')
+            ps = parameters.ParameterSet(context=context)
         for k,v in kwargs.items():
             ps.set_value(k,v)
             
@@ -1312,11 +1312,11 @@ class Container(object):
             context = item.get_context()
             if context[-3:] in ['obs','dep','syn'] and context.split(':')[0] != 'plotting':
                 section = 'dataset'
-            if section in ['axes','plot','figure','fitting','mpi']:
+            if section in ['axes','plot','figure','fitting','mpi'] or context in ['compute:legacy']:
                 label = None
 
             # For some contexts, we need to add labels for disambiguation
-            if context in ['puls'] or section in ['fitting','mpi']:
+            if context in ['puls', 'compute:legacy'] or section in ['fitting','mpi']:
                 ref = item.get_value('label') if 'label' in item else ref
             ref = item.get_value('ref') if 'ref' in item else ref
             unique_label = None

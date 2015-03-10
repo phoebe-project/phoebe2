@@ -1,6 +1,6 @@
 
 import logging
-from phoebe import universe
+from phoebe.backend import universe
 
 logger = logging.getLogger("FRONTEND.BACKENDS")
 logger.addHandler(logging.NullHandler())
@@ -20,7 +20,7 @@ def compute_legacy(system, *args, **kwargs):
     # import phoebe legacy    
     
     # check to make sure only binary
-    if not hasattr(system, bodies) or len(system.bodies) != 2:
+    if not hasattr(system, 'bodies') or len(system.bodies) != 2:
         raise TypeError("object must be a binary to run phoebe legacy")
         return
         
