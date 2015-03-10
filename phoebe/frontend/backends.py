@@ -6,13 +6,13 @@ logger = logging.getLogger("FRONTEND.BACKENDS")
 logger.addHandler(logging.NullHandler())
 
 def set_param_legacy(phb1, param, value):
-    params = {'incl': 'phoebe_incl', 'syncpar', 'phoebe_f#'}
+    params = {'incl': 'phoebe_incl', 'syncpar': 'phoebe_f#'}
     
     if param not in params.keys():
         logger.warning('{} parameter ignored in phoebe legacy'.format(param))
-        continue
-    phb1.set_par(params[param].replace('#', str(i+1)), value]
-
+    else:    
+        phb1.set_par(params[param].replace('#', str(i+1)), value)
+    
 def compute_legacy(system, *args, **kwargs):
     
 
@@ -45,8 +45,8 @@ def compute_legacy(system, *args, **kwargs):
             set_param_legacy(phb1, param, ps.get_value(param))
             
     ps = obj.params['orbit']
-        for params in ps:
-            set_param_legacy(phb1, param, ps.get_value(param))
+    for params in ps:
+        set_param_legacy(phb1, param, ps.get_value(param))
             
     # run phoebeBackend
     
