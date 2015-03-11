@@ -230,7 +230,7 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args='', scrip
         cmd = ("srun {time_} {memory} {partition} "
                "mpirun -np {num_proc} {hostfile} {byslot} {python} "
            "{mpirun_loc} {args}").format(**locals())
-        print cmd
+        print(cmd)
         flag = subprocess.call(cmd, shell=True)
         
     # MPI using the TORQUE scheduler    
