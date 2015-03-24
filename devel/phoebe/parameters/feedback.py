@@ -689,43 +689,55 @@ class FeedbackEmcee(Feedback):
                 ax_.plot(data[:, w, i], alpha=0.2)
             
     
-    def plot_summary(self, bins=20, axes=None, twig_labels=True, label_offset=None, skip_inds=[]):
+    def plot_summary(self, axes=None, figsize=(12,12), fontsize=8, 
+                    color_priors=True, color_correlations=True, label_posterior=True,
+                    twig_labels=True, label_offset=None, skip_inds=[]):
         """
         
-        :param bins: number of bins to use for histograms
-        :type bins: int
         :param axes: matplotlib axes to use (or None to create automatically)
         :type axes: mpl axes
-        :param twig_labels: whether to create labels for axes (if False will just show number)
-        :type twig_labels: bool
+        :param figsize: size for the matplotlib figure, defaults to (12,12)
+        :type figsize: tuple
+        :param fontsize: size to use for axes labels, etc
+        :type fontsize: int
+        :param color_priors: whether to show red shading on diagonal elements to show limits of priors (this set to true will force the xlimits to extend to the width of the prior)
+        :type color_priors: bool
+        :param color_correlations: whether to show green shades for strong correlations
+        :type color_correlations: bool
+        :param label_posterior: whether to show the posterior (value and error) at the top of the figure
+        :type label_posterior: bool
+        :param twig_labels: True to create labels from twigs, list to provide labels (must be same length as ALL parameters, include labels for skipped parameters), False to show index number
+        :type twig_labels: bool or list
         :param label_offset: offset to apply to the axes labels, in axes units (probably negative), or None to set automatically
         :type label_offset: int or None
         :param skip_inds: indices of parameters to skip
         :type skip_inds: list of ints
         """
         cbins = 20
-        fontsize = 8
         (walkers, data, acc, logp), (nwalkers, niterations, npars) = self.get_data()
         #npars = 2
         # range of contour levels
         lrange = np.arange(2.5,0.0,-0.5)
+
+        rows, cols = range(npars), range(npars)
+
+        # labels
+        if isinstance(twig_labels, list) and len(twig_labels) == len(rows):
+            labels = twig_labels
+        elif twig_labels:
+            labels = [self._translate(par.get_unique_label()) for par in self._parameters]
+        else:
+            labels = ['( {} )'.format(i) for i in range(len(self._parameters))]
         
         # handle skipping parameters
-        rows, cols = range(npars), range(npars)
         npars = npars - len(skip_inds)
         skip_inds.sort(reverse=True)
         for skip_ind in skip_inds:
             rows.remove(skip_ind)
             cols.remove(skip_ind)
 
-        # labels
-        if twig_labels:
-            labels = [self._translate(par.get_unique_label()) for par in self._parameters]
-        else:
-            labels = ['( {} )'.format(i) for i in range(len(self._parameters))]
-        
         #plot
-        f = plt.figure(figsize=(12,12))
+        f = plt.figure(figsize=figsize)
         plt.subplots_adjust(left=0.08, right=0.98, bottom=0.05, top=0.95,
                             wspace=0.0, hspace=0.0)
         
@@ -772,10 +784,11 @@ class FeedbackEmcee(Feedback):
                     ax.contour(mp,origin='lower',interpolation='gaussian',extent=(xmin,xmax,ymin,ymax),aspect=(xmax-xmin)/(ymax-ymin),colors='k',levels=levels)
                     
                     prs = self._cormat[col, row]
-                    if np.abs(prs)>=0.75:
-                        ax.set_axis_bgcolor((0.6,1.0,0.6))
-                    elif np.abs(prs)>=0.50:
-                        ax.set_axis_bgcolor((0.9,1.0,0.9))
+                    if color_correlations:
+                        if np.abs(prs)>=0.75:
+                            ax.set_axis_bgcolor((0.6,1.0,0.6))
+                        elif np.abs(prs)>=0.50:
+                            ax.set_axis_bgcolor((0.9,1.0,0.9))
                     
                     #if priors is not None and i<len(priors):
                         #axs[ai].set_xlim(priors[i])
@@ -796,14 +809,14 @@ class FeedbackEmcee(Feedback):
                     self._parameters[row].get_posterior().plot(ax=ax, color='b')
                     
                     # Add prior information
-                    if self._parameters[row].has_prior():
+                    if self._parameters[row].has_prior() and color_priors:
                         self._parameters[row].get_prior().plot(color='r', alpha=0.2, ax=ax)
                     
                     # Set axes
                     ax.autoscale() # doesn't work very well
                     ax.set_ylim(0, out[0].max()+0.1*out[0].ptp())
-                    
-                if row == npars-1:
+                
+                if row_i == npars-1:
                     for tick in ax.xaxis.get_major_ticks():
                         tick.label.set_fontsize(fontsize) 
                         tick.label.set_rotation('vertical')
@@ -827,7 +840,8 @@ class FeedbackEmcee(Feedback):
                     ax.get_yaxis().get_major_formatter().set_useOffset(False)
                         
                 if row == 0:
-                    ax.set_title(r'$%.3g\pm%.3g$' % (np.average(smpls_y),np.std(smpls_y)),fontsize=fontsize)
+                    if label_posterior:
+                        ax.set_title(r'$%.3g\pm%.3g$' % (np.average(smpls_y),np.std(smpls_y)),fontsize=fontsize)
             
         for row_i, row in enumerate(rows):
             for col_i, col in enumerate(cols):
