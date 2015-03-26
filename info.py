@@ -67,6 +67,12 @@ except ImportError:
     print("Non-fatal warning: C-marching not available")
 
 try:
+    from phoebe.algorithms import dc
+    print("DC installed")
+except ImportError:
+    print("Non-fatal warning: DC not available")
+
+try:
     from phoebe.utils import transit
     print("Analytical transit computations installed")
 except ImportError:
