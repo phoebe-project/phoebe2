@@ -4,7 +4,10 @@ import numpy as np
 from phoebe.backend import universe
 from phoebe.algorithms import marching
 from phoebe.units.conversions import convert
-import phoebeBackend as phb1
+try:
+    import phoebeBackend as phb1
+except ImportError:
+    pass
 
 logger = logging.getLogger("FRONTEND.BACKENDS")
 logger.addHandler(logging.NullHandler())
