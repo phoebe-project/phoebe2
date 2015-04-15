@@ -225,7 +225,7 @@ def construct_mpirun_command(script='mpirun.py', mpirun_par=None, args='', scrip
         if not mpirun_par['partition']:
             partition = ''
         else:
-            partition = '--partition={:.0f}'.format(mpirun_par['partition'])    
+            partition = '--partition={}'.format(mpirun_par['partition'])    
             
         cmd = ("srun {time_} {memory} {partition} "
                "mpirun -np {num_proc} {hostfile} {byslot} {python} "
