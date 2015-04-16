@@ -2624,8 +2624,10 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
             labl.append('__bol')
     
     # and uuhhh... what about reflection? Well, same as for heating: if
-    # reflection is switched on, do it only once. Otherwise, reflect always.
+    # reflection is switched on and circular, do it only once. 
+    # If switched on but not circular, reflect always.
     # If heating is not enabled, we need to add the bolometric label.
+    # TODO: check to see if we need to always do reflection if not synchronous
     if reflect and circular and len(time_per_time):
         reflect = 1
         if not heating:
