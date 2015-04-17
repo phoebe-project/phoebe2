@@ -537,7 +537,26 @@ def set_default_units(fctn):
         return fctn(system, *args, **kwargs)
     
     return parse
+    
+    
+def init_teff_arrays(fctn):
+    @functools.wraps(fctn)
+    def prep(system, *args, **kwargs):
+        fctn(system, *args, **kwargs)
+        
+        system.initialize_heating_teffarrays()
+        
+    return prep
 
+
+def init_ld_arrays(fctn):
+    @functools.wraps(fctn)
+    def prep(system, *args, **kwargs):
+        fctn(system, *args, **kwargs)
+        
+        system.initialize_heating_ldarrays()
+        
+    return prep
 
 
         

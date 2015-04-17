@@ -436,7 +436,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
             proj_Imu[partial] /= 2.0 
         
         # Take care of reflected light
-        if ('refl_'+ref) in system.mesh.dtype.names:
+        if 'refl_{}_prev'.format(ref) in system.mesh.dtype.names:
             # Anisotropic scattering is difficult, we need to figure out where
             # the companion is. Note that this doesn't really work for multiple
             # systems; we should add different refl columns for that so that we
@@ -490,7 +490,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
                     # Phase function
                     phase_function = reflection.hapke(mu, mup, mus, w, Q, S, h)
                 
-                proj_Imu += vis_mesh['refl_'+ref] * mus * phase_function / np.pi
+                proj_Imu += vis_mesh['refl_{}_prev'.format(ref)] * mus * phase_function / np.pi
                 logger.info("Projected intensity contains reflected light with phase function {}".format(idep['scattering']))
                 
                 
@@ -498,7 +498,7 @@ def generic_projected_intensity(system, los=[0.,0.,+1], method='numerical',
             # the companion is
             else:            
                 
-                proj_Imu += vis_mesh['refl_'+ref] * mus / np.pi 
+                proj_Imu += vis_mesh['refl_{}_prev'.format(ref)] * mus / np.pi
                 logger.info("Projected intensity contains isotropic reflected light")
             
         proj_intens = vis_mesh['size']*proj_Imu
@@ -5120,24 +5120,49 @@ class PhysicalBody(Body):
         self.mesh = np.zeros(0,dtype=self.mesh.dtype)
 
     @decorators.parse_ref
-    def prepare_reflection(self, ref=None):
+    def prepare_reflection(self,ref=None):
         """
         Prepare the mesh to handle reflection from an other body.
-        
+
+        We add a column to store the teffs before heating, needed to compute heating in
+        in multiple iterations.
+
         We only need one extra column with the incoming flux divided by pi
-        to account for isotropic scattering. Doppler boosting and such should
+        to account for isotropic scattering. Doppler beaming and such should
         be taken into account in the reflection algorithm. In the isotropic case,
         reflections is aspect indepedent.
-        
+
+        If you want to do something non-isotropic, you'd better do some kind of
+        raytracing I guess. This requires a different approach than the one
+        implemented here.
         """
         for iref in ref:
-            field = 'refl_{}'.format(iref)
-            if field in self.mesh.dtype.names:
-                continue
-            dtypes = np.dtype([(field, 'f8')])
-            new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
-            self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
-            logger.info('added reflection column {} for pbdep {} to {}'.format(field, iref, self.get_label()))
+            for iteration in ('curr','prev'):
+                    field = 'refl_{}_{}'.format(iref,iteration)
+                    if field in self.mesh.dtype.names: continue
+                    dtypes = np.dtype([(field,'f8')])
+                    new_cols = np.zeros(len(self.mesh),dtype=np.dtype(dtypes))
+                    self.mesh = pl.mlab.rec_append_fields(self.mesh,field,new_cols[field])
+            logger.debug('added pband and bol reflection columns for pbdep {}, plus the same for previous iteration'.format(iref))
+
+    def prepare_heating(self):
+        """
+        Prepare the mesh to handle heating by an other body.
+
+        We add a column to store the teffs before heating, needed to compute heating in
+        in multiple iterations. We also add teff_imin1 that contains teff after previous iteration.
+        """
+        if not 'teff_init' in self.mesh.dtype.names:
+            self.mesh = pl.mlab.rec_append_fields(self.mesh,'teff_init',np.copy(self.mesh['teff']))
+            self.mesh = pl.mlab.rec_append_fields(self.mesh,'teff_prev',np.copy(self.mesh['teff']))
+            logger.debug('added teff_init (before heating) and teff_prev (previous iteration) column')
+            self.mesh = pl.mlab.rec_append_fields(self.mesh,'ld___bol_init',np.copy(self.mesh['ld___bol']),\
+                                              dtypes=np.dtype([('ld___bol_init','f8', (Nld_law,))])[0])
+            self.mesh = pl.mlab.rec_append_fields(self.mesh,'ld___bol_prev',np.copy(self.mesh['ld___bol']),\
+                                              dtypes=np.dtype([('ld___bol_prev','f8', (Nld_law,))])[0])
+            logger.debug('added ld___bol_init (before heating) and ld___bol_prev (previous iteration) column')
+
+
 
     @decorators.parse_ref
     def clear_reflection(self,ref='all'):
@@ -5145,11 +5170,47 @@ class PhysicalBody(Body):
         Reset the reflection columns to zero.
         """
         for iref in ref:
-            field = 'refl_{}'.format(iref)
-            if field in self.mesh.dtype.names:
-                self.mesh[field] = 0.0
-                logger.info('Emptied reflection column {}'.format(iref))
-                    
+            for iteration in ('curr','prev'):
+                    field = 'refl_{}_{}'.format(iref,iteration)
+                    if field in self.mesh.dtype.names:
+                        self.mesh[field] = 0.0
+            logger.info('Emptied reflection columns {}'.format(iref))
+
+    def initialize_heating_teffarrays(self):
+        if 'teff_prev' in self.mesh.dtype.names:
+            # then arrays are prepared for heating
+            self.mesh['teff_prev']=np.copy(self.mesh['teff'])
+            self.mesh['teff_init']=np.copy(self.mesh['teff'])
+            logger.info('initialized teff columns first time')
+            
+    def initialize_heating_ldarrays(self):
+        if 'ld___bol_init' in self.mesh.dtype.names:
+            self.mesh['ld___bol_init']=np.copy(self.mesh['ld___bol'])
+
+
+
+    @decorators.parse_ref
+    def initialize_heating_iteration(self, ref='all'):
+        if 'teff_prev' in self.mesh.dtype.names:
+            # then arrays are prepared for heating
+            self.mesh['teff_prev']=np.copy(self.mesh['teff'])
+            self.mesh['teff']=np.copy(self.mesh['teff_init'])
+            logger.info('initialized teff columns for start of new iteration in reflection-heating computations {}')
+            self.mesh['ld___bol_prev']=np.copy(self.mesh['ld___bol'])
+
+    
+    @decorators.parse_ref
+    def intialize_refl_iteration(self, ref='all')    
+        if 'refl_{}_prev'.format(ref[0]) in self.mesh.dtype.names:
+            # then arrays are prepared for reflection
+            for iref in ref:
+                self.mesh['refl_{}_prev'.format(iref)]=np.copy(self.mesh['refl_{}_curr'.format(iref)])
+                self.mesh['refl_{}_curr'.format(iref)]*=0.0
+                logger.info('initialized reflection columns {}'.format(iref))
+
+
+
+
     @decorators.parse_ref
     def prepare_boosting(self,ref=None):
         """
@@ -6840,7 +6901,7 @@ class AccretionDisk(PhysicalBody):
         """
         Set the time of the AccretionDisk object
         """
-        logger.info('===== SET TIME TO %.3f ====='%(time))
+        logger.info('===== SET TIME TO %.6f ====='%(time))
         if self.time is None:
             self.reset_mesh()
             
@@ -8706,8 +8767,8 @@ class BinaryRocheStar(PhysicalBody):
             max_iter_volume = 0
             
         #-- we do not need to calculate bolometric luminosities if we don't include
-        #   the reflection effect
-        do_reflection = False
+        #   the reflection and heating effect
+        ## do_reflection = False
         #-- compute new mesh if this is the first time set_time is called, or
         #   if the eccentricity is nonzero
             
@@ -8768,9 +8829,10 @@ class BinaryRocheStar(PhysicalBody):
             
             #-- once we have the mesh, we need to place it into orbit
             keplerorbit.place_in_binary_orbit(self,time)
-            
-            if do_reflection:
-                self.intensity(ref='__bol', boosting_alg=boosting_alg)
+
+            # No idea why Pieter had this, with do_reflection set to False hardcoded
+            ##if do_reflection:
+            ##    self.intensity(ref='__bol', boosting_alg=boosting_alg)
         else:
             self.reset_mesh()
             #-- once we have the mesh, we need to place it into orbit

@@ -119,8 +119,11 @@ logger.addHandler(logging.NullHandler())
 
 
 @decorators.parse_ref
-def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
+def radiation_budget_slow_DEPRECATED(irradiated,irradiator,ref=None,third_bodies=None,irradiation_alg=None):
     r"""
+    *** Note SB: I think this function is never used anymore, can probably be removed. ***
+
+
     Calculate the radiation budget for heating and reflection.
     
     For all refs in C{ref}, the following is done:
@@ -292,20 +295,20 @@ def radiation_budget_slow(irradiated,irradiator,ref=None,third_bodies=None):
     
     # Global redistribution factor:
     R2 = 1.0 + R2/total_surface
-    
+    logger.debug('*** Heating computed, R1 and R2 are %s, %f'%(repr(R1),R2))
     return R1,R2,inco,emer,ref,A_irradiateds
 
 
 @decorators.parse_ref
 def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
-                          irradiation_alg='point_source'):
+                          irradiation_alg='point_source', heating=False, reflection=False):
     """
     Calculate the radiation budget for heating and reflection.
     
     For all refs in C{ref}, the following is done:
         
         - if bolometric, the incoming radiation from all irradiator triangles
-          visbible onto each triangle of the irradiated will be calculated, as
+          visible onto each triangle of the irradiated will be calculated, as
           well as the emergent flux coming from each triangle on irradiated. This
           can than be used to compute local or global heating.
         
@@ -338,6 +341,7 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
     ps_irradiated = [irradiated.get_parset(ref=jref) for jref in ref]
     #-- we need to filter the references, because they can also contain
     #   references to parametersets that are in another body!
+    #   (ps[1] are the references, ps[0] would be the parametersets; None when bogus ref was passed)
     ref = [ps[1] for ps in ps_irradiator if not ps[1] is None]
     ref_ed = [ps[1] for ps in ps_irradiated if not ps[1] is None]
     ld_models = [ps[0]['ld_func'] for ps in ps_irradiator if not ps[1] is None]
@@ -352,11 +356,27 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
     # bit by only computing it for those triangles that are facing the other
     # star (flux that is coming out of triangle)
     ld_disk = getattr(limbdark, 'disk_'+ld_models_ed[ref_ed.index('__bol')])
-    emer = ld_disk(irradiated.mesh['ld___bol'][:,:-1].T) * irradiated.mesh['ld___bol'][:,-1]
+    # Todo: check if ld___bol is computed with right temperature
+    # Todo: if heating is off, use current instead of init
     
     
+    if heating:
+        # TODO should we use prev or init here? We had init *SB*
+        # here we use init because we add heating to the original temperature distribution
+        emer = ld_disk(irradiated.mesh['ld___bol_init'][:,:-1].T) * irradiated.mesh['ld___bol_init'][:,-1]
+    else:
+        emer = ld_disk(irradiated.mesh['ld___bol'][:,:-1].T) * irradiated.mesh['ld___bol'][:,-1]
+
+
     index_bol = ref.index('__bol')
-    irrorld = [irradiator.mesh['ld___bol']] + [irradiator.mesh['ld_{}'.format(iref)] for iref in ref[:index_bol]+ref[index_bol+1:]]
+    # we use bolometric intensities here from the previous iteration, otherwise order of reflections/heatings
+    # between several bodies would influence results
+    if heating:
+        # heating only uses __bol
+        # here we use prev because we need the current (at the beginning of this iteration) flux coming from the irradiator
+        irrorld = [irradiator.mesh['ld___bol_prev']] + [irradiator.mesh['ld_{}'.format(iref)] for iref in ref[:index_bol]+ref[index_bol+1:]]
+    else:
+        irrorld = [irradiator.mesh['ld___bol']] + [irradiator.mesh['ld_{}'.format(iref)] for iref in ref[:index_bol]+ref[index_bol+1:]]
     alb = A_irradiateds[index_bol]
     redist = P_redistrs[index_bol]
     redisth = H_redistrs[index_bol]
@@ -408,7 +428,8 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
             Imu = this_ld_func(mus[keep], irradiator.mesh['ld_'+ref[i]][keep].T)
             proj_Imu = irradiator.mesh['ld_'+ref[i]][keep,-1] * Imu
             if 'refl_'+ref[i] in these_fields:
-                proj_Imu += irradiator.mesh['refl_'+ref[i]][keep] * mus[keep]
+                proj_Imu += irradiator.mesh['refl_{}_prev'.format(ref[i])][keep] * mus[keep]
+            # todo do we really need *mus above and below this comment?
             proj_Imu *= irradiator.mesh['size'][keep]* mus[keep] # not sure about this mus!!
             
             ld_laws[i] = 6 # i.e. uniform, because we did all the projection already
@@ -421,7 +442,8 @@ def radiation_budget_fast(irradiated, irradiator, ref=None, third_bodies=None,
         irradiator_mesh_normal = irradiator.mesh['normal_']
     else:
         raise NotImplementedError("Irradiation algorithm {} unknown".format(irradiation_alg))
-    
+
+
     R1, R2, inco = refl_algorithm(irradiator_mesh_center,
                        irradiator_mesh_size,
                        irradiator_mesh_normal, irrorld,
@@ -474,11 +496,14 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         ref = 'all'#'alldep'
     else: # useless option, except perhaps for debugging
         ref = 'all'
-    
+
+
+
     R1, R2, inco, emer, refs, A_irradiateds = radiation_budget_fast(irradiated,
                                                 irradiator, ref=ref,
                                                 third_bodies=third_bodies,
-                                                irradiation_alg=irradiation_alg)
+                                                irradiation_alg=irradiation_alg,
+                                                heating=heating, reflection=reflection)
     
     #-- heating part:
     if heating:
@@ -493,10 +518,11 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         #print("Predicted luminosity factor increase = {}".format(term1 + term2)) 
         
         
-        irradiated_mesh = irradiated.mesh.copy()
-        teff_old = irradiated_mesh['teff'].copy()
-        irradiated_mesh['teff'] *= (R1+R2-1)**0.25
-        irradiated.mesh = irradiated_mesh
+        ##irradiated_mesh = irradiated.mesh.copy()
+
+        irradiated.mesh['teff'] *= (R1+R2-1)**0.25
+        logger.debug('*********** CHANGED TEFF BEHAVIOUR *****************')
+        ##irradiated.mesh = irradiated_mesh
         irradiated.intensity(ref=['__bol'])
         #after_lum = irradiated.luminosity()
         #print("Computed luminosity factor increase = {}".format(after_lum/before_lum))
@@ -520,7 +546,7 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
         # Whatever is not used for heating can be reflected
         for j,jref in enumerate(refs):
             
-            refl_ref = 'refl_{}'.format(jref)
+            refl_ref = 'refl_{}_curr'.format(jref)
             
             # In our definition, Bond albedo *is* A_irradiatied (it is the
             # opposite in WD)
@@ -542,6 +568,8 @@ def single_heating_reflection(irradiated, irradiator, update_temperature=True,\
 
 def single_heating(irradiated,irradiator,ld_func='claret',update_temperature=True):
     """
+    *** Note SB: I think this function is never used anymore, can probably be removed. ***
+
     Compute heating effect.
     
     Needs to be done:
@@ -664,8 +692,7 @@ def mutual_heating(*objects,**kwargs):
     kwargs.setdefault('heating',True)
     kwargs.setdefault('reflection',False)
     kwargs.setdefault('irradiation_alg', 'point_source')
-    #kwargs.setdefault('reflection',False)
-    #kwargs.setdefault('heating',True)
+
     #-- expand bodybags --> this should be rewritten for deeper nesting
     objects_ = []
     for iobj in objects:
@@ -677,9 +704,19 @@ def mutual_heating(*objects,**kwargs):
     
     #-- do we want to set the local effective temperature after mutual
     #   reflection?
+    # todo: deprecate update_temperature flag
     update_temperature = kwargs.pop('update_temperature',True)
     logger.info('mutual heating: {:d} iteration(s) on {:d} objects (alg={})'.format(n,len(objects),kwargs['irradiation_alg']))
+        
     for i in range(n):
+        # will do at the end of each iteration, but also need the initialized
+        # move arrays around: reset to initial values for i=0; move current to prev for i>0
+        for object in objects:
+            object.initialize_refl_iteration()
+            object.initialize_heating_iteration()
+            # todo: why still using teff in reflection computations, not teff_prev
+
+        # loop over objects
         for j,obj1 in enumerate(objects):
             for k,obj2 in enumerate(objects):
                 if j==k: continue
@@ -702,6 +739,11 @@ def mutual_heating(*objects,**kwargs):
                 #single_heating(obj1,obj2,update_temperature=upd_temp,**kwargs)
                 single_heating_reflection(obj1,obj2,update_temperature=upd_temp,**kwargs)
     
+
+        # move arrays around: reset to initial values for i=0; move current to prev for i>0
+        for object in objects:
+            object.initialize_refl_iteration()
+            # todo: why still using teff in reflection computations, not teff_prev
 
 
 # Scattering phase function

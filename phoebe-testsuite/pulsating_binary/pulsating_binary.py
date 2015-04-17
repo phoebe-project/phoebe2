@@ -17,7 +17,7 @@ import phoebe
 from phoebe.backend import observatory
 from phoebe.utils import plotlib
 
-logger = phoebe.get_basic_logger()
+logger = phoebe.get_basic_logger(clevel='INFO')
 c0 = time.time()
 
 # Parameter preparation
