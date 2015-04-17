@@ -2315,7 +2315,8 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     
     if reflect is True:
         system.clear_reflection()
-    
+
+
     # Set the time of the system: this will put everything in the right place,
     # and compute the necessary physical quantities.
     system.set_time(time, ref=ref, boosting_alg=boosting)
@@ -2325,13 +2326,21 @@ def compute_one_time_step(system, i, time, ref, type, samprate, reflect, nreflec
     if circular and (not boosting == 'full') and not ref in system.__had_refs:
         system.intensity(ref=ref, boosting_alg=boosting)
         system.__had_refs.append(ref)
+
     elif (not circular) or (boosting == 'full'):
         system.intensity(ref=ref, boosting_alg=boosting)
-    
+
+
+    # Copy the original teff array if this is the first iteration in circular orbit, or every time if noncircular
+    #if heating is True or (i == 0 and heating == 1):
+    #        system.store_teffnoheat()
+
     # Compute pblum
     if i == 0:
         system.compute_pblum_or_l3()
-    
+
+
+
     # Compute reflection effect (maybe just once, maybe always). If this is done
     # we need to update the intensities
     update_intensity = False
@@ -2693,12 +2702,14 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     else:
         system.prepare_boosting(ref='all')
     
-    # If we include reflection, we need to reserve space in the mesh for the
-    # reflected light. We need to fix the mesh afterwards because each body can
+    # If we include reflection or heating, we need to reserve space in the mesh for the
+    # reflected light or original teffs. We need to fix the mesh afterwards because each body can
     # have different fields appended in the mesh.
     if system_is_bbag and reflect and len(system)>1:
         system.prepare_reflection(ref='all')
-    
+    if system_is_bbag and heating and len(system)>1:
+        system.prepare_heating()
+
     # Scale mesh density
     if mesh_scale != 1:
         for pset in system.walk():

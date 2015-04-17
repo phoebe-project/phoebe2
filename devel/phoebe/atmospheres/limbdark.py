@@ -530,6 +530,7 @@ from phoebe.atmospheres import sed
 from phoebe.atmospheres import reddening
 from phoebe.atmospheres import tools
 from phoebe.atmospheres import passbands as pbmod
+from phoebe.backend.decorators import init_ld_arrays
 try:
     from phoebe.algorithms import interp
     use_new_interp_mod = True
@@ -1552,6 +1553,8 @@ def interp_ld_coeffs(atm, passband, atm_kwargs={}, red_kwargs={}, vgamma=0,
             raise ValueError(("Somethin' wrong with the atmo table: cannot "
                               "interpret label {} (perhaps not given in "
                               "function, perhaps not available in table").format(label))
+    logger.debug("Range of values requested:"+','.join(['{:.3f}<{}<{:.3f}'.format(values[i].min(), labels[i],\
+                                 values[i].max()) for i in range(len(labels))]))
     # Try to interpolate
     try:
         #if use_new_interp_mod:
@@ -3091,7 +3094,7 @@ def sphere_intensity(body,pbdep,red_kwargs={}):
 #}
 
 #{ Phoebe interface
-
+@init_ld_arrays
 def local_intensity(system, parset_pbdep, parset_isr={}, boosting_alg='full'):
     """
     Calculate local intensity.

@@ -78,6 +78,7 @@ from phoebe.algorithms import interp_nDgrid
 from phoebe.units import constants
 from phoebe.utils import coordinates
 from phoebe.utils import decorators
+from phoebe.backend.decorators import init_teff_arrays
 from phoebe.atmospheres import froche
 import time
 
@@ -86,6 +87,7 @@ basedir = os.path.dirname(os.path.abspath(__file__))
 
 #{ General
 
+@init_teff_arrays
 def temperature_zeipel(system):
     r"""
     Calculate local temperature according to von Zeipel's law.
@@ -162,6 +164,7 @@ def temperature_zeipel(system):
     logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(system.mesh['teff'].min(),system.mesh['teff'].max(),Tpole))
 
 
+@init_teff_arrays
 def temperature_espinosa(system):
     r"""
     Calculate local temperature according to [Espinosa2011]_.
