@@ -8412,6 +8412,7 @@ class BinaryRocheStar(PhysicalBody):
             ys = centers[:,1]
             zs = centers[:,2]
 
+            # TODO: get actual center of mass
             x0 = np.mean(xs)
             y0 = np.mean(ys)
             z0 = np.mean(zs)
