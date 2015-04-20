@@ -5200,7 +5200,7 @@ class PhysicalBody(Body):
 
     
     @decorators.parse_ref
-    def intialize_refl_iteration(self, ref='all'):
+    def initialize_refl_iteration(self, ref='all'):
         if 'refl_{}_prev'.format(ref[0]) in self.mesh.dtype.names:
             # then arrays are prepared for reflection
             for iref in ref:
