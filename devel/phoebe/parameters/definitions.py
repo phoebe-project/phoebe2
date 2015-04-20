@@ -753,22 +753,6 @@ defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_l
          dict(qualifier='filemode', description='mode to open log file',repr='%s',cast_type='choose',value='w',choices=['a','w'],frame=["phoebe"],context='logger'),
          ]
 
-# GUI context
-defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_label',value='default_gui',frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_system', description='show system panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_params', description='show parameters panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_fitting', description='show fitting panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_versions', description='show versions panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_datasets', description='show datasets/plotting panel on startup',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='panel_python', description='show python console panel on startup',repr='',cast_type='make_bool',value=False,frame=["phoebe"],context='gui'),
-         dict(qualifier='pyinterp_tutsys', description='show system messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='pyinterp_tutplots', description='show plotting messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='pyinterp_tutsettings', description='show settings messages in the console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='pyinterp_thread_on', description='use threading in the python console',repr='',cast_type='make_bool',value=True,frame=["phoebe"],context='gui'),
-         dict(qualifier='pyinterp_startup_custom', description='custom startup script to run on gui load',repr='%s',cast_type=str,value='import numpy as np',frame=["phoebe"],context='gui'),
-         ]
-         
-         
 # Compute context
 defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context='compute'),
          dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),

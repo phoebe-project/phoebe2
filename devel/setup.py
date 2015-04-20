@@ -114,16 +114,14 @@ setup(
     packages=['phoebe','phoebe.wd','phoebe.units','phoebe.backend',
               'phoebe.utils','phoebe.atmospheres','phoebe.algorithms',
               'phoebe.parameters','phoebe.io','phoebe.dynamics',
-              'phoebe.frontend','phoebe.frontend.gui'],
+              'phoebe.frontend'],
     
     package_data={'phoebe.atmospheres':['ptf/*.*','redlaws/*.*','tables/ld_coeffs/README',
                                         'tables/ld_coeffs/blackbody_uniform_none_teff.fits',
                                         'tables/spectra/README','tables/spec_intens/README',
                                         'tables/gravb/claret.dat', 'tables/gravb/espinosa.dat',],
                   'phoebe.parameters':['catalogs/*.dat','library/*.par','library/*.phoebe'],
-                  'phoebe.wd':['*.dat'],
-                  'phoebe.frontend.gui':['icons/*','html/*']},
-    scripts=['phoebe/frontend/gui/phoebe_gui.py'],
+                  'phoebe.wd':['*.dat']},
     install_requires=['numpy','scipy','matplotlib','pyfits','uncertainties',
                       'emcee', 'lmfit', 'pyephem'],
     #~ entry_points = {
