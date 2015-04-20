@@ -6381,9 +6381,8 @@ def info():
                     frames[frame].append(par['context'])
     contexts = sorted(list(set(frames['phoebe'])))
     # Remove some experimental stuff
-    ignore = 'analytical:binary', 'derived', 'gui', 'logger', 'plotting:axes',\
-             'plotting:mesh', 'plotting:orbit', 'plotting:plot',\
-             'plotting:selector', 'point_source', 'pssyn', 'root',\
+    ignore = 'analytical:binary', 'derived', 'logger',\
+             'point_source', 'pssyn', 'root',\
              'circ_orbit'
     for ign in ignore:
         if ign in contexts:
