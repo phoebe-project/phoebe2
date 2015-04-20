@@ -7268,7 +7268,7 @@ class Star(PhysicalBody):
             period, t0, shift = super(Star, self).get_period()
             
         return period, t0, shift
-    
+
     
     def volume(self):
         """
@@ -8386,6 +8386,42 @@ class BinaryRocheStar(PhysicalBody):
                 #self.params['component']['pot_instant'] = oldpot
         else:
             logger.info("no volume conservation, reprojected onto instantaneous potential")
+            
+    def get_radius(self, method='equivalent'):
+        """
+        [FUTURE]
+        
+        Compute the radius of the roche star at the current time
+        
+        @param method: method to use for computing radius ('equivalent', 'mean')
+        @type method: str
+        @return: radius
+        @rtype: float
+        """
+        if method=='equivalent':
+            if self.time is None:
+                logger.warning("time not set: setting to t=0.0")
+                self.set_time(0.0)
+            return (self.volume() / (4./3 * np.pi))**(1./3)
+        elif method=='mean':
+            if self.time is None:
+                logger.warning("time not set: setting to t=0.0")
+                self.set_time(0.0)
+            centers = self.get_mesh()['center']
+            xs = centers[:,0]
+            ys = centers[:,1]
+            zs = centers[:,2]
+
+            x0 = np.mean(xs)
+            y0 = np.mean(ys)
+            z0 = np.mean(zs)
+
+            dist = ((xs-x0)**2 + (ys-y0)**2 + (zs-z0)**2)**0.5
+
+            return np.mean(dist)
+            
+        else:
+            raise NotImplementedError("method '{}' not recognized".format(method))
         
     def volume(self):
         """
