@@ -2119,7 +2119,6 @@ def extract_times_and_refs(system, params, tol=1e-8):
         found_obs = True
         
         # Figure out if we need to compute a mesh to deal with this obs
-        require_mesh = True
         category = parset.get_context()[:-3]
         dep_parset = system.get_parset(context=category+'dep', ref=parset['ref'])[0]
         if category == 'rv' and 'method' in dep_parset and dep_parset['method'] == 'dynamical':
@@ -2128,6 +2127,8 @@ def extract_times_and_refs(system, params, tol=1e-8):
             require_mesh = False
         elif category == 'etv': # we don't have a numerical method in place yet
             require_mesh = False
+        else:
+            require_mesh = True
         
         # If the dataset is not enabled, forget about it (if dates == 'auto')
         if dates == 'auto' and not parset.get_enabled():
@@ -2263,16 +2264,18 @@ def extract_times_and_refs(system, params, tol=1e-8):
         
         else:
             # Don't know what to do here: also append or continue?
-            #continue
-            labl_per_time[-1].append(refs[i])
-            type_per_time[-1].append(types[i])
-            samp_per_time[-1].append(samps[i])
+            # KC: we need to continue otherwise we'll create a length-mismatch
+            # when the same ref is attached to multiple objects (ie rv@primary and secondary)
+            continue
+            #labl_per_time[-1].append(refs[i])
+            #type_per_time[-1].append(types[i])
+            #samp_per_time[-1].append(samps[i])
     # And fill the parameterSet!
     params['time'] = time_per_time
     params['refs']= labl_per_time
     params['types'] = type_per_time
     params['samprate'] = samp_per_time
-
+    
     return no_mesh_required
 
 
