@@ -754,7 +754,7 @@ defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_l
          ]
 
 # Compute context
-defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context='compute'),
+defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context=['compute', 'compute:legacy']),
          dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
@@ -786,8 +786,6 @@ defs += [dict(qualifier='label',                description='label for the compu
         dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='compute'),
         ] 
         
-defs += [dict(qualifier='label', description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context='compute:legacy'),
-        ]
 
 # Globals context
 defs += [dict(qualifier='ra', description='Right ascension', repr='%s', value=0.0, llim=-np.inf, ulim=np.inf, unit='deg', cast_type='return_equatorial_ra', frame=['phoebe'], context=['position']),
