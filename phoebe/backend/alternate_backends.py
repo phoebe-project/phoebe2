@@ -226,8 +226,8 @@ def compute_legacy(system, *args, **kwargs):
 #    phb.setpar("phoebe_lcno", lcno)
 #    phb.setpar("phoebe_rvno", rvno)
     refs = system.get_refs(per_category=True)
-    lcnames = refs['lc']
-    rvnames = refs['rv']
+    lcnames = refs.get('lc', [])
+    rvnames = refs.get('rv', [])
     print len(rvnames), rvnames
 #    quit()
     phb1.setpar("phoebe_lcno", len(lcnames))

@@ -3515,34 +3515,26 @@ class Bundle(Container):
         # then try/except the computations? Though we should keep track of
         # why things don't work out.. how to deal with out-of-grid interpolation
         # etc...
-        if ':' in computeoptions.context:
-            # then we want to use a different backend
-            be = computeoptions.context.split(':')[1]
-            func = getattr(backends, 'compute_{}'.format(be))
-            func(obj, **computeoptions)
-            
-        else:
-            # use phoebe2 backend
-            if computeoptions['time'] == 'auto':
-                #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-                if mpioptions is not None and animate:
-                    raise ValueError("You cannot animate and use MPI simultaneously")
-                elif mpioptions is not None:
-                    obj.compute(mpi=mpioptions, **computeoptions)
-                else:
-                    obj.compute(animate=animate, **computeoptions)
+        if 'time' not in computeoptions.keys() or computeoptions['time'] == 'auto':
+            #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+            if mpioptions is not None and animate:
+                raise ValueError("You cannot animate and use MPI simultaneously")
+            elif mpioptions is not None:
+                obj.compute(mpi=mpioptions, params=computeoptions)
             else:
-                raise ValueError("time must be set to 'auto' in compute options")
-            #else:
-                #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
-                #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
-                #extra_func=[observatory.ef_binary_image] if anim!=False else [],
-                #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
-                #mpi=mpi,**options
-                #)
-            #if anim != False:
-                #for ext in ['.gif','.avi']:
-                #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
+                obj.compute(animate=animate, params=computeoptions)
+        else:
+            raise ValueError("time must be set to 'auto' in compute options")
+        #else:
+            #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
+            #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
+            #extra_func=[observatory.ef_binary_image] if anim!=False else [],
+            #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
+            #mpi=mpi,**options
+            #)
+        #if anim != False:
+            #for ext in ['.gif','.avi']:
+            #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
         return computeoptions
 
@@ -3883,9 +3875,9 @@ class Bundle(Container):
 
         # get mpi params
         mpilabel = kwargs.pop('mpilabel', None)
-        if mpilabel is None:
+        if mpilabel is None and 'mpilabel' in fittingoptions.keys():
             mpilabel = fittingoptions['mpilabel']
-        if mpilabel in [None, 'None', '']:
+        if mpilabel in [None, 'None', ''] and 'mpilabel' in computeoptions.keys():
             mpilabel = computeoptions['mpilabel']
         if mpilabel in [None, 'None', '']:
             mpioptions = None

@@ -1920,7 +1920,17 @@ class Body(object):
         See :py:func:`observatory.compute <phoebe.backend.observatory.compute>`
         for a thorough discussion of the arguments and keyword arguments.
         """
-        observatory.compute(self,*args,**kwargs)
+        params = kwargs.get('params', None)
+        if hasattr(params, 'context') and ':' in params.context:
+            # then we want a non-phoebe2 backend
+            from phoebe.backend import alternate_backends
+            be = params.context.split(':')[1]
+            logger.warning("attempting to use alternate backend: {}".format(be))
+            func = getattr(alternate_backends, 'compute_{}'.format(be))
+            func(self,*args,**kwargs)
+        else:
+            # phoebe2 backend
+            observatory.compute(self,*args,**kwargs)
 
     def compute_pblum_or_l3(self):
         # Run over all pbdeps and see for which stars the pblum needs to be
