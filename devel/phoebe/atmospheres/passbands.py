@@ -19,7 +19,7 @@ Section 1. Available response functions
 Short list of available systems:
 
 >>> import pylab as pl
->>> responses = list_response('*.*')
+>>> responses = list_response('')
 >>> systems = [response.split('.')[0] for response in responses]
 >>> set_responses = sorted(set([response.split('.')[0] 
 ...                                for response in systems]))
@@ -283,7 +283,7 @@ def get_response(passband,full_output=False):
         return outp[0:2]
     
 
-
+@decorators.memoized
 def get_response_from_files(passband):
     """Get wave and resp and header for a passband from the fits files. Only one passband with the given name
     should exist!"""
