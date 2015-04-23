@@ -117,7 +117,6 @@ from phoebe.units import conversions
 from phoebe.frontend import phcompleter
 from phoebe.frontend import stringreps
 from phoebe.frontend import plotting
-from phoebe.frontend import backends
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
