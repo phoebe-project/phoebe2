@@ -119,8 +119,14 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
 #        print value, (1-value)
         phb1.setpar(params[param]['name'].replace('#', comps[comp]), (1.-value))
     elif param == 'extinction':
-        rv =  ps['Rv']
-        valn = value/rv
+        print ps.get_context()
+        if ps.get_context() == 'reddening:interstellar':
+
+           rv =  ps['Rv']
+           valn = value/rv
+           phb1.setpar(params[param]['name'], valn)
+        else:
+            print "phoebe 1 doesn't use multiple lightcurve dependent extintions"    
     elif param =='method':
         if value == 'flux-weighted':
             phb1.setpar(params[param]['name'].replace('#', comps[comp]), 0)
