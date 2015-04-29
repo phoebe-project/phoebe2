@@ -4,6 +4,8 @@ import numpy as np
 from phoebe.backend import universe
 from phoebe.algorithms import marching
 from phoebe.units.conversions import convert
+from copy import deepcopy
+
 try:
     import phoebeBackend as phb1
 except ImportError:
@@ -66,6 +68,8 @@ def set_ld_legacy(name, value, on=None, comp=None):
 
 def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
     params = {'morphology':{'name':'phoebe_model'}, 'asini':{'name':'phoebe_asini_value'},'filename':{'name':'phoebe_#_filename'}, 'statweight':{'name':'phoebe_#_sigma'},'passband':{'name':'phoebe_#_filter'},'columns':{},'Rv':{'name':'phoebe_ie_factor'},'extinction':{'name':'phoebe_ie_excess'},'method':{'name':'phoebe_proximity_rv#_switch'},'incl':{'name':'phoebe_incl','unit':'deg'}, 't0':{'name':'phoebe_hjd0'}, 'period':{'name':'phoebe_period', 'unit':'d'}, 'dpdt':{'name':'phoebe_dpdt', 'unit':'d/d'}, 'phshift':{'name':'phoebe_pshift'}, 'sma':{'name': 'phoebe_sma', 'unit':'Rsun'}, 'q':{'name':'phoebe_rm'}, 'vgamma':{'name':'phoebe_vga', 'unit':'km/s'},  'teff':{'name':'phoebe_teff#', 'unit':'K'}, 'pot':{'name':'phoebe_pot#'}, 'abun':{'name':'phoebe_met#'},  'syncpar':{'name':'phoebe_f#'}, 'alb':{'name':'phoebe_alb#'}, 'gravb':{'name':'phoebe_grb#'}, 'ecc':{'name':'phoebe_ecc'}, 'per0':{'name':'phoebe_perr0','unit':'rad'}, 'dperdt':{'name':'phoebe_dperdt','unit':'rad/d'}, 'ld_func':{'name':'phoebe_ld_model'}, 'pblum':{}, 'atm':{'name':'phoebe_atm#_switch'},'refl':{'name':'phoebe_reffect_switch'},'gridsize':{'name':'phoebe_grid_finesize#'},'delta':{'name':'phoebe_grid_finesize#'},'scale':{'name':'phoebe_compute_hla_switch'}, 'offset':{'name':'phoebe_compute_vga_switch'}}
+
+    value = deepcopy(value) #DO NOT ERASE. if this is not done python will occasionally replace values in the system with values here.
 
     boolean = {True:1, False:0}
     comps = {'prim':'1', 'sec':'2'}
@@ -234,6 +238,15 @@ def compute_legacy(system, *args, **kwargs):
     refs = system.get_refs(per_category=True)
     lcnames = refs.get('lc', [])
     rvnames = refs.get('rv', [])
+
+    for x in range(len(rvnames)):                           
+        try:                                                                                         
+            system[0].params['obs']['rvobs'][rvnames[x]]    
+            system[1].params['obs']['rvobs'][rvnames[x]]    
+            rvnames.append(rvnames[x])                      
+        except:
+            pass
+
     print len(rvnames), rvnames
 #    quit()
     phb1.setpar("phoebe_lcno", len(lcnames))
