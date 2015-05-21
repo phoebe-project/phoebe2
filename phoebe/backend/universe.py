@@ -1495,6 +1495,14 @@ class Body(object):
         self._clear_when_reset = dict()
         self._main_period = dict()
         self._extra_mesh_columns = [] # e.g. ['B_', 'f8', (3,))] or [('abun','f8')]
+        
+        logger.debug("new Body instantiated: {}, {}, eclipse detection: {}, compute_centers: {}, compute_normals: {}, compute_sizes: {}".format('w/o data' if data is None else 'with data', 'w/o orientation' if orientation is None else 'with orientation', eclipse_detection, compute_centers, compute_normals, compute_sizes))
+
+    #~ def __init__(self, data=None, dim=3, orientation=None,
+                 #~ eclipse_detection='hierarchical',
+                 #~ compute_centers=False, compute_normals=False,
+                 #~ compute_sizes=False):
+
 
     def __eq__(self, other):
         """
@@ -1984,7 +1992,6 @@ class Body(object):
                     pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(pbdep['pblum']))
                     pbdep.add_constraint("{{computed_scaling}} = {:.16e}".format(pbdep['pblum'] / passband_lum))
                 else:
-                    
                     model = model * reference_plum[this_ref]
                     logger.info("Pblum of {} is computed to {}".format(this_ref, reference_plum[this_ref]*passband_lum))
                     pbdep.add_constraint("{{computed_pblum}} = {:.16e}".format(reference_plum[this_ref]*passband_lum))
@@ -8058,8 +8065,7 @@ class BinaryRocheStar(PhysicalBody):
         if kwargs:
             raise ValueError("Unused keyword arguments {} upon initialization of BinaryRocheStar".format(kwargs.keys()))
         
-        # Generate a comprehensive log message, that explains what has been
-        # added:
+        # Generate a comprehensive log message that explains what has been added:
         msg = "Created BinaryRocheStar {}".format(self.get_label())
         msg_ = []
         if circ_spot is not None:
@@ -8077,8 +8083,8 @@ class BinaryRocheStar(PhysicalBody):
         if len(msg_):
             msg = msg + ': ' + ', '.join(msg_)
         logger.info(msg)
+        logger.debug("\n{}".format(self))
         self._clear_when_reset['counter'] = 0
-        
     
     #@classmethod
     #def add_method(cls, func):
