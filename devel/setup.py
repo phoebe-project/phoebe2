@@ -29,6 +29,9 @@ from numpy.distutils.command.build import build as _build
 # Get version number
 import re
 
+# Set to true if you want to link against electric fence:
+CDEBUG = False
+
 VERSIONFILE = "phoebe/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
@@ -53,13 +56,19 @@ class Build(_build):
     def finalize_options(self):
         _build.finalize_options(self)    
         
+libraries = []
+if CDEBUG:
+    libraries += ['efence']
+
 ext_modules = [
         Extension('phoebe.utils.cgeometry',
-                  sources = ['phoebe/utils/cgeometry.c']),
+                  sources = ['phoebe/utils/cgeometry.c'],
+                  libraries = libraries),
         Extension('phoebe.utils.fgeometry',
                   sources = ['phoebe/utils/fgeometry.f']),
         Extension('phoebe.atmospheres.cspots',
-                  sources = ['phoebe/atmospheres/cspots.c']),
+                  sources = ['phoebe/atmospheres/cspots.c'],
+                  libraries = libraries),
         Extension('phoebe.algorithms.fsubdivision',
                   sources = ['phoebe/algorithms/fsubdivision.f']),
         Extension('phoebe.algorithms.freflection',
@@ -79,11 +88,11 @@ ext_modules = [
                   sources = glob.glob('phoebe/wd/*.f')),
         Extension('phoebe.algorithms.cmarching',
                   sources=['phoebe/algorithms/mrch.c'],
-                  libraries = ['m']),
+                  libraries = libraries + ['m']),
         Extension('phoebe.algorithms._DiffCorr',
                   sources=['phoebe/algorithms/_DiffCorr.c', 'phoebe/algorithms/DiffCorr.c'],
-		  extra_compile_args=['-O3'],
-                  libraries = ['m']),
+		          extra_compile_args=['-O3'],
+                  libraries = libraries + ['m']),
         Extension('phoebe.atmospheres.froche',
                   sources=['phoebe/atmospheres/froche.f']),
         #Extension('phoebe.atmospheres.fpulsations',
