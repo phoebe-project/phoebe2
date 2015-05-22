@@ -3600,7 +3600,7 @@ def download_atm(atm=None, force=False):
     # Perhaps we need to be sudo?
     print("Downloading/copying atmosphere tables to destination folder {}".format(destin_folder))
     if not os.access(destin_folder, os.W_OK):
-        raise IOError(("User has no write priviliges in destination folder, run sudo python"
+        raise IOError(("User has no write priviliges in destination folder, run sudo python "
                         "before calling this function"))
         #output = subprocess.check_call(['sudo']+sys.argv)
     
@@ -3618,7 +3618,7 @@ def download_atm(atm=None, force=False):
                 print("Downloaded tar archive from phoebe-project.org")
             except IOError:
                 raise IOError(("Failed to download atmosphere file {} to {}. Are you "
-                           " connected to the internet? Otherwise, you probably "
+                           "connected to the internet? Otherwise, you probably "
                            "need to create atmosphere tables yourself starting "
                            "from the specific intensities)").format(source, destin))            
     
