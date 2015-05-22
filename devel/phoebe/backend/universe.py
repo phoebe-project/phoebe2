@@ -1496,8 +1496,6 @@ class Body(object):
         self._main_period = dict()
         self._extra_mesh_columns = [] # e.g. ['B_', 'f8', (3,))] or [('abun','f8')]
         
-        logger.debug("new Body instantiated: {}, {}, eclipse detection: {}, compute_centers: {}, compute_normals: {}, compute_sizes: {}".format('w/o data' if data is None else 'with data', 'w/o orientation' if orientation is None else 'with orientation', eclipse_detection, compute_centers, compute_normals, compute_sizes))
-
     #~ def __init__(self, data=None, dim=3, orientation=None,
                  #~ eclipse_detection='hierarchical',
                  #~ compute_centers=False, compute_normals=False,
@@ -8083,7 +8081,6 @@ class BinaryRocheStar(PhysicalBody):
         if len(msg_):
             msg = msg + ': ' + ', '.join(msg_)
         logger.info(msg)
-        logger.debug("\n{}".format(self))
         self._clear_when_reset['counter'] = 0
     
     #@classmethod
