@@ -653,6 +653,83 @@ class Bundle(Container):
         See that function for more info on the arguments.
         """
         return self.get_system().list(summary,*args)
+        
+    def hierarchy(self, change_labels=False):
+        """
+        [FUTURE]
+        
+        Show a string representation of the hierarchy.  Use change_labels=True
+        to change the labels of all objects to a consistent format.
+        
+        The string representation shows the labels of all of the components in the
+        system (not orbits/BodyBags).  The number of hyphens separating any two entries
+        depicts the period - with more hyphens being longer periods.  The components
+        in a single orbit are ordered based on mass ratio - with the more massive
+        component coming first.
+        
+        :param change_labels: whether to change labels across the system
+        :type change_label: bool
+        :return: string representation of the hierarchy of the system
+        :rtype: str
+        """
+        def get_kind(thing):
+            if thing.__class__.__name__ in ['Star', 'BinaryRocheStar', 'BinaryStar', 'PulsatingBinaryRocheStar']:
+                kind = 'star'
+            elif thing.__class__.__name__ in ['Disk']:
+                kind = 'disk'
+            else:
+                kind = 'component'
+                
+            return kind
+        
+        
+        system = self.get_system()
+        letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        comp_i = 0
+        
+        # handle both cases - top-level is bodybag or not
+        if hasattr(system, 'bodies'):
+            comps = []
+            orbs = [system.get_period()[0]]
+            orb_labels = [system.get_label()]
+        else:
+            orbs = []
+            orb_labels = []
+            if change_labels:
+                kind = get_kind(system)
+                self['label@'+system.get_label()] = kind+letters[comp_i]           
+                comp_i += 1
+            comps = [system.get_label()]
+            
+        for loc, thing in system.walk_all():
+            if isinstance(thing, universe.Body):
+                if isinstance(thing, universe.BodyBag):
+                    orbs.append(thing.get_children()[0].get_period()[0])
+                    orb_labels.append(thing.get_label())
+                else:
+                    kind = get_kind(thing)
+                     
+                    if change_labels:
+                        self['label@'+thing.get_label()] = kind+letters[comp_i]
+                        comp_i += 1 
+                    comps.append(thing.get_label())
+                    
+        orbs_sort = orbs[:] # copy
+        orbs_sort.sort()
+        
+        if len(orbs_sort):
+            hierarchy = ''.join([c+' '+'-'*(orbs_sort.index(o)+1)+' ' for c,o in zip(comps[:-1], orbs)]+[comps[-1]])
+        else:
+            hierarchy = ' '.join(c for c in comps)
+            
+        # change orbit labels
+        if change_labels:
+            orbs_sort.reverse()
+            for orb_label, orb_period in zip(orb_labels, orbs):
+                i = orbs_sort.index(orb_period)
+                self['label@'+orb_label] = 'orbit'+letters[i]
+            
+        return hierarchy
 
     def clear_syn(self):
         """
