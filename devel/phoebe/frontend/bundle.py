@@ -681,6 +681,14 @@ class Bundle(Container):
                 kind = 'component'
                 
             return kind
+            
+        def get_sublabel(label):
+            """
+            get the capital letters at the end of a newly-created label
+            
+            eg. if label='orbitBC' return 'BC'
+            """
+            return re.findall('[A-Z][A-Z]*', label)[0]
         
         
         system = self.get_system()
@@ -724,10 +732,9 @@ class Bundle(Container):
             
         # change orbit labels
         if change_labels:
-            orbs_sort.reverse()
-            for orb_label, orb_period in zip(orb_labels, orbs):
-                i = orbs_sort.index(orb_period)
-                self['label@'+orb_label] = 'orbit'+letters[i]
+            orb_labels.reverse()
+            for orb_label in orb_labels:
+                self['label@'+orb_label] = 'orbit'+get_sublabel(self['orbit@'+orb_label]['c1label'])+get_sublabel(self['orbit@'+orb_label]['c2label'])
             
         return hierarchy
 
