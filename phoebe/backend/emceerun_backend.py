@@ -125,12 +125,13 @@ def univariate_init(mysystem, nwalkers, draw_from='prior'):
             walker = []
             for ii, par in enumerate(pars):
                 distr = getattr(par, get_funcs[ii])().get_distribution()[0]
+                #~ print "***", par.qualifier, draw_funcs[ii], index
                 if distr == 'trace' and index is None:
-                    value, index = getattr(par, draw_funcs[ii])(size=1)
+                    value, index = getattr(par, draw_funcs[ii])(size=1, return_indices=True)
                     value, index = value[0], index[0]
                 elif distr == 'trace':
-                    trace = getattr(par, get_funcs[ii])().get_distribution()[1]['trace'][index]
-                    value = trace[index]
+                    #~ trace = getattr(par, get_funcs[ii])().get_distribution()[1]['trace'][index]
+                    value = getattr(par, get_funcs[ii])().get_distribution()[1]['trace'][index]
                 # For any other distribution we simply draw
                 else:
                     value = getattr(par, draw_funcs[ii])(size=1)[0]                    
@@ -420,6 +421,7 @@ def run(system_file, compute_params_file, fit_params_file, usercosts_file='None'
     # Only start a new file if we do not require incremental changes, or
     # if we start a new file. This overwrites/removes any existing file
     if not fit_params['incremental'] or not existing_file:
+        logger.warning("Creating chain file: "+label+".mcmc_chain.dat")
         f = open(label + '.mcmc_chain.dat', "w")
         f.write("# walker " + " ".join(ids) +" "+ " ".join(auto_ids) +" "+ " ".join(derived_ids)+ " acc logp\n")
         f.write("# walker " + " ".join(names) +" "+ " ".join(auto) +" "+ " ".join(derived)+ " acc logp\n")

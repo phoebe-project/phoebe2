@@ -1148,7 +1148,7 @@ class Parameter(object):
             raise ValueError("Parameter '{}' (context={}) has no prior".format(self.qualifier, self.get_context()))
         return self.prior.draw(size=size)
     
-    def get_value_from_posterior(self, size=1):
+    def get_value_from_posterior(self, size=1, **kwargs):
         """
         Get a random value from the prior.
         
@@ -1159,7 +1159,7 @@ class Parameter(object):
         """
         if not hasattr(self,'posterior'):
             raise ValueError("Parameter '{}' (context={}) has no posterior".format(self.qualifier, self.get_context()))
-        return self.posterior.draw(size=size)
+        return self.posterior.draw(size=size, **kwargs)
         
     
     def get_posterior(self, burn=0, thin=1):
