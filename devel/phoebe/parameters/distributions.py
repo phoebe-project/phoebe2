@@ -839,7 +839,7 @@ class Trace(BaseDistribution):
         return lower, upper
     
     
-    def draw(self, size=1, indices=None):
+    def draw(self, size=1, indices=None, return_indices=False):
         """
         Draw a (set of) random value(s) from the trace.
         
@@ -852,7 +852,8 @@ class Trace(BaseDistribution):
         if indices is None:
             indices = np.random.randint(len(trace), size=size)
         values = trace[indices]
-        #return values, indices
+        if return_indices:
+            return values, indices
         return values
     
     
