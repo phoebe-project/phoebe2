@@ -43,12 +43,12 @@ def _defaults_from_dataset(b, ds, kwargs):
     default_phased = not 'time' in ds['columns'] and 'phase' in ds['columns']
     kwargs.setdefault('phased', b.get_system().get_label() if default_phased else 'False')
 
-    xk, yk, xl, yl = _xy_from_category(category)
+    xk, yk, xl, yl, xu, yu = _xy_from_category(category, kwargs)
     xl = 'Phase' if kwargs['phased'] != 'False' else xl
     #x, y = ds[xk], ds[yk]
 
-    kwargs.setdefault('xunit', 'cy' if kwargs['phased'] != 'False' else ds.get_parameter(xk).get_unit() if ds.get_parameter(xk).has_unit() else 'time')
-    kwargs.setdefault('yunit', ds.get_parameter(yk).get_unit())
+    kwargs.setdefault('xunit', xu if xu is not None else 'cy' if kwargs['phased'] != 'False' else ds.get_parameter(xk).get_unit() if ds.get_parameter(xk).has_unit() else 'time')
+    kwargs.setdefault('yunit', yu if yu is not None else ds.get_parameter(yk).get_unit() if ds.get_parameter(yk).has_unit() else '')
 
     try:
         xunit = conversions.unit2texlabel(kwargs['xunit'])
@@ -122,8 +122,27 @@ def _from_dataset(b, twig, context):
         context = ds.get_context()
 
     return ds, context, kwargs_defaults
-
-
+    
+    
+def _get_from_ds(ds, key, unit):
+    if key == 'baseline': # interferometry
+        value = np.sqrt(ds['ucoord']**2 + ds['vcoord']**2)
+        if unit is None:
+            unit = 'm'
+        value = conversions.convert('m', unit, value)
+    elif key == 'frequency': # interferometry
+        eff_wave = conversions.convert('AA', 'm', np.asarray(ds['eff_wave']))
+        value = np.sqrt(ds['ucoord']**2 + ds['vcoord']**2)/eff_wave
+        if unit is None:
+            unit = 'cy/rad'
+        value = conversions.convert('cy/rad', unit, value)
+    elif key == 'vis': # interferometry
+        value = np.sqrt(ds['vis2'])
+        # no units
+    else:
+        value = []
+        
+    return value
 
 def _kwargs_defaults_override(kwargs_defaults, kwargs):
     """
@@ -159,8 +178,10 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     kwargs_defaults['scroll_xlim'] = {'ps': 'axes', 'value': [-2,2], 'description': 'the xlims to provide relative to the current time if scroll==True and time is passed during draw call', 'cast_type': 'list'}
 
 
-    xk, yk, xl, yl = _xy_from_category(category)  # TODO: we also call this in _defaults_from_dataset, let's consolidate
-    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    xk, yk, xl, yl, xu, yu = _xy_from_category(category, kwargs_defaults)  # TODO: we also call this in _defaults_from_dataset, let's consolidate
+    #~ kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
+    #~ xk = kwargs_defaults['xquantity'] if kwargs_defaults['xquantity'] not in ['_auto_'] else xk
+    #~ yk = kwargs_defaults['yquantity'] if kwargs_defaults['yquantity'] not in ['_auto_'] else yk
     mpl_kwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
 
     phased = kwargs_defaults.get('phased', 'False')
@@ -168,12 +189,20 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     if typ=='obs' or ds.enabled:
         #~ x, y = ds.get_value(xk, 'd' if phased != 'False' else kwargs_defaults['xunit']), ds.get_value(yk, kwargs_defaults['yunit'])
         # TODO: the above should always work, but times in ETVs don't seem to have units...
-        try:
+        if xk not in ds.keys():
+            x = _get_from_ds(ds, xk, kwargs_defaults['xunit'])
+        elif ds.has_unit(xk):
             x = ds.get_value(xk, 'd' if phased != 'False' else kwargs_defaults['xunit'])
-        except TypeError:
+        else:
             x = ds.get_value(xk)
-        y = ds.get_value(yk, kwargs_defaults['yunit'])
-
+        
+        if yk not in ds.keys():
+            y = _get_from_ds(ds, yk, kwargs_defaults['yunit'])
+        elif ds.has_unit(yk):
+            y = ds.get_value(yk, kwargs_defaults['yunit'])
+        else:
+            y = ds.get_value(yk)
+            
         if category=='sp':
             # then we need the index for the current time
             t_ind = np.where(ds.get_value('time')==t)
@@ -235,7 +264,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
         mpl_kwargs_list.append(mpl_select_kwargs)
 
     # synthetic sigmas from samples
-    if typ=='syn' and len(ds.get_value('sigma')):
+    if typ=='syn' and 'sigma' in ds.keys() and len(ds.get_value('sigma')):
         s = ds.get_value('sigma')
         cmds_list.append('fill_between')
         mpl_args_list.append((xd, yd-s, yd+s))
@@ -918,7 +947,7 @@ def ds_text(b, t,  **kwargs):
     datatwig = kwargs.get('dataref')
     ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
     xl, xu = min(ds['time']), max(ds['time'])
-    xk, xl, yk, yl = _xy_from_category(context[:-3])
+    xk, xl, yk, yl, xu, yu = _xy_from_category(context[:-3], kwargs)
     y = ds[yk]
 
     kwargs_defaults = {}
