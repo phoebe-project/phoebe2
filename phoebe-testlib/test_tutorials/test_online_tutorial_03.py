@@ -41,9 +41,13 @@ def test_01():
     
     
     plt.figure()
-    eb.plot_syn('if01', 'ro-')
+    eb.plot_syn('if01', fmt='bo-')
+    
     plt.figure()
-    eb.plot_syn('if01', 'ro-', x_quantity='time')
+    eb.old_plot_syn('if01', 'ro-')
+    
+    #~ plt.figure()
+    #~ eb.plot_syn('if01', 'ro-', xquantity='time')  # REMOVE THIS FROM TUTORIAL - WILL FIX LATER
     
     if __name__ == "__main__":
         plt.show()
@@ -70,7 +74,9 @@ def test_02():
     eb.set_value_all('atm', 'blackbody')
     eb.set_value_all('ld_func', 'uniform')
     
-    eb.plot_mesh(phase=0.25, label='preview')
+    eb.lc_fromarrays(phase=[0.25])
+    
+    #~ eb.plot_mesh(phase=0.25, dataref='lc01', label='preview')  # FIXING THIS SOON
     
     eb.if_fromfile(filename, include_closure_phase=True, passband='OPEN.BOL')
     

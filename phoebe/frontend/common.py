@@ -2328,12 +2328,13 @@ def evaluate(par_values, twigs, mybundle, computelabel='preview'):
     
     return logp
     
-def _xy_from_category(category):
+def _xy_from_category(category, kwargs={}):
     """
     returns the x and y arrays given a dataset and its category
     """
     
     # TODO: handle phase here
+    xu, yu = None, None
     if category=='lc':
         xk = 'time'
         yk = 'flux'
@@ -2355,6 +2356,13 @@ def _xy_from_category(category):
         yk = 'etv'
         xl = 'Time'
         yl = 'ETV'
+    elif category=='if':
+        xk = 'baseline'
+        yk = 'vis'
+        xl = 'Baseline'
+        yl = 'Visibility'
+        xu = 'm'
+        yu = ''
     else:
         logger.warning("{} category not currently supported in frontend plotting".format(category))
         xk = None
@@ -2362,5 +2370,11 @@ def _xy_from_category(category):
         xl = None
         yl = None
         
-    return xk, yk, xl, yl 
+    xk = xk if ('xquantity' not in kwargs.keys() or kwargs['xquantity'] in ['_auto_', None]) else kwargs['xquantity']
+    yk = yk if ('yquantity' not in kwargs.keys() or kwargs['yquantity'] in ['_auto_', None]) else kwargs['yquantity']
+    xl = xl if ('xlabel' not in kwargs.keys() or kwargs['xlabel'] in ['_auto_', None]) else kwargs['xlabel']
+    yl = yl if ('ylabel' not in kwargs.keys() or kwargs['ylabel'] in ['_auto_', None]) else kwargs['ylabel']
+    
+    return xk, yk, xl, yl, xu, yu
+    
         
