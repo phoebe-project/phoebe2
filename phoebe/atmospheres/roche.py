@@ -1153,7 +1153,7 @@ def diffrotlaw_to_internal(omega_pole,omega_eq):
     b2 = -0.1 if omega_eq<omega_pole else +0.1
     b3 = 0.
     def funczero(b2,omega_eq,b1):
-        r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), 'DiffRotateRoche', b1,b2,b3,1.0).r[0]
+        r0 = -marching.project_onto_potential(np.array((-0.02, 0.0, 0.0)), 'DiffRotateRoche', b1,b2,b3,1.0).r[0]
         if np.isnan(b2):
             raise ValueError("Impossible differential rotation")
         return (omega_eq-b1)/r0**2-b2

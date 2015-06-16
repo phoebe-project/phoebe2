@@ -49,7 +49,9 @@ from phoebe.algorithms import cmarching
 
 #{ Sphere
 
-
+import logging
+logger = logging.getLogger("MARCHING")
+logger.addHandler(logging.NullHandler())
 
 def Sphere(r, R):
     """
@@ -485,7 +487,7 @@ class MeshVertex:
 
 #{ Marching method        
         
-def projectOntoPotential(r, pot_name, *args):
+def project_onto_potential(r, pot_name, *args):
     """
     Last term must be constant factor (i.e. the value of the potential)
     """
@@ -685,7 +687,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     DEBUG = False
 
     Ts = []
-    r0 = -projectOntoPotential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
+    r0 = -project_onto_potential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
     
     # The following is a hack that needs to go!
     pot_name = potential
@@ -726,7 +728,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
 
             # Project the vertex onto the potential; this will be our center point:
             rc = (r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t]))
-            vc = projectOntoPotential(rc, potential, *args).r
+            vc = project_onto_potential(rc, potential, *args).r
 
             # Next we need to find the tangential plane, which we'll get by finding the normal:
             nc = np.array((dpdx(vc, *args[:-1]), dpdy(vc, *args[:-1]), dpdz(vc, *args[:-1])))
@@ -841,23 +843,23 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
         - Omega:  value of the surface potential
     """
     # q=0.76631, Omega=6.1518, F=5 is failing.
-    init = (-0.00002,0,0)
+    init = np.array((-0.00002, 0, 0))
     #init = (50.,50,0.1)
-    p0 = projectOntoPotential(np.array(init), potential, *args)
+    p0 = project_onto_potential(init, potential, *args)
+    logger.debug('pinit: %s', p0)
+
     V = [p0] # A list of all vertices
     P = []   # Actual front polygon
     Ts = []  # Triangles
-    #print 'p0',p0
+
     # Create the first hexagon:
-    for i in range(0,6):
+    for i in range(0, 6):
         qk = np.array((p0.r[0]+delta*cos(i*pi/3)*p0.t1[0]+delta*sin(i*pi/3)*p0.t2[0], p0.r[1]+delta*cos(i*pi/3)*p0.t1[1]+delta*sin(i*pi/3)*p0.t2[1], p0.r[2]+delta*cos(i*pi/3)*p0.t1[2]+delta*sin(i*pi/3)*p0.t2[2]))
-        #print i,'qk',qk
-        #print qk
-        pk = projectOntoPotential(qk, potential, *args)
-        #print i,'pk',pk
-        P.append (pk)
-        V.append (pk)
-    #       print "P[%d]: " % (i), P[i]
+        pk = project_onto_potential(qk, potential, *args)
+        logger.debug('p[%d]:  %s', i, pk)
+        P.append(pk)
+        V.append(pk)
+
     Ts += [(V[0], V[1], V[2]), (V[0], V[2], V[3]), (V[0], V[3], V[4]), (V[0], V[4], V[5]), (V[0], V[5], V[6]), (V[0], V[6], V[1])]
 
     # Start triangulation:
@@ -899,7 +901,7 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
             eta3 /= norm3/delta
             zeta3 /= norm3/delta
             qk = p0m.r+local2cart (p0m, np.array((xi3, eta3, zeta3)))
-            pk = projectOntoPotential(qk, potential, *args)
+            pk = project_onto_potential(qk, potential, *args)
             V.append(pk)
             Ts += [(v1 if i == 1 else V[len(V)-2], pk, p0m)]
 
@@ -919,7 +921,7 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
         cx = (Ts[i][0].r[0]+Ts[i][1].r[0]+Ts[i][2].r[0])/3
         cy = (Ts[i][0].r[1]+Ts[i][1].r[1]+Ts[i][2].r[1])/3
         cz = (Ts[i][0].r[2]+Ts[i][1].r[2]+Ts[i][2].r[2])/3
-        c = projectOntoPotential((cx,cy,cz), potential, *args)
+        c = project_onto_potential((cx,cy,cz), potential, *args)
         side1 = sqrt((Ts[i][0].r[0]-Ts[i][1].r[0])**2+(Ts[i][0].r[1]-Ts[i][1].r[1])**2+(Ts[i][0].r[2]-Ts[i][1].r[2])**2)
         side2 = sqrt((Ts[i][0].r[0]-Ts[i][2].r[0])**2+(Ts[i][0].r[1]-Ts[i][2].r[1])**2+(Ts[i][0].r[2]-Ts[i][2].r[2])**2)
         side3 = sqrt((Ts[i][2].r[0]-Ts[i][1].r[0])**2+(Ts[i][2].r[1]-Ts[i][1].r[1])**2+(Ts[i][2].r[2]-Ts[i][1].r[2])**2)
@@ -955,13 +957,13 @@ def reproject(table,*new_mesh_args):
     
         #-- reproject the triangle vertices
         
-        new_table[tri, 4: 7] = projectOntoPotential(table[tri, 4: 7],*new_mesh_args).r
-        new_table[tri, 7:10] = projectOntoPotential(table[tri, 7:10],*new_mesh_args).r
-        new_table[tri,10:13] = projectOntoPotential(table[tri,10:13],*new_mesh_args).r
+        new_table[tri, 4: 7] = project_onto_potential(table[tri, 4: 7],*new_mesh_args).r
+        new_table[tri, 7:10] = project_onto_potential(table[tri, 7:10],*new_mesh_args).r
+        new_table[tri,10:13] = project_onto_potential(table[tri,10:13],*new_mesh_args).r
     
         #-- reproject also the center coordinates, together with their normals
     
-        p0 = projectOntoPotential(table[tri, 0: 3],*new_mesh_args)
+        p0 = project_onto_potential(table[tri, 0: 3],*new_mesh_args)
         new_table[tri,0:3] = p0.r     
         new_table[tri,13:16] = p0.n
    
