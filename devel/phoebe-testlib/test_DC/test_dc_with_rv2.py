@@ -77,21 +77,7 @@ def get_bundle_with_data_and_initial_guess():
     return mybundle
 
 
-
-    
-    
-
-if __name__ == "__main__":
-    init_bundle = get_bundle_with_data_and_initial_guess()
-    system = init_bundle.get_system()
-    
-    # Remember the initial values for some parameters, just for comparison report
-    # afterwards
-    initial_text = []
-    for twig in ['ecc', 'per0', 'vgamma', 'sma', 'incl', 'q']:
-        initial_text.append(("{:10s} = {:16.8f}".format(twig, init_bundle[twig])))
-
-
+def run_dc_backend(system):
     # set the fitting method to differential correction
     fitparams = phoebe.ParameterSet('fitting:dc')
     
@@ -100,7 +86,7 @@ if __name__ == "__main__":
     
     #set the stop value of min_dx
     fitparams.set_value('stop_value',0.00001)
-    
+
     # set the maximum number of iterations
     fitparams.set_value('max_iters', 30)
     
@@ -117,12 +103,49 @@ if __name__ == "__main__":
 
     params = None
     feedback = phoebe.fitting.run(system, params, fitparams=fitparams, mpi=None, accept=False)
+    
+    return feedback
 
+def run_dc_frontend(b):
+    b.add_fitting('fitting:dc', label='dc')
+    
+    b['stopping_criteria_type@dc'] = 'min_dx'
+    b['stop_value@dc'] = 0.001
+    b['max_iters@dc'] = 30
+    b['derivative_type@dc'] = ['numerical', 'numerical', 'numerical', 'numerical', 'numerical']
+    nParams = len(b.get_adjustable_parameters().keys())
+    b['derivative_funcs'] = [lambda (x, system):x for i in range(nParams)]
+    
+    b.run_fitting('dc', computelabel='preview', accept_feedback=False)
+    
+    print b['feedback']
+    print b['dc@feedback']
+    
+
+if __name__ == "__main__":
+    init_bundle = get_bundle_with_data_and_initial_guess()
+    system = init_bundle.get_system()
+    
+    # Remember the initial values for some parameters, just for comparison report
+    # afterwards
+    initial_text = []
+    for twig in ['ecc', 'per0', 'vgamma', 'sma', 'incl', 'q']:
+        initial_text.append(("{:10s} = {:16.8f}".format(twig, init_bundle[twig])))
+
+
+    feedback = run_dc_backend(system)
  
     
     print("feedback = ",feedback)
-    print("feedback('solution' = ",feedback('solution'))
     
     for i,twig in enumerate(['ecc', 'per0', 'vgamma', 'sma', 'incl', 'q']):
         print(initial_text[i] +' ---> '+"{:10s} = {:16.8f}".format(twig, init_bundle[twig]))
+        
+        
+        
+        
+    init_bundle = get_bundle_with_data_and_initial_guess()
+    
+    feedback = run_dc_frontend(init_bundle)
+    
 

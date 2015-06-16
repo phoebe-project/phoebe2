@@ -1220,7 +1220,7 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
         plt.ylabel(qual)
     plt.show()
 
-    return fitparams
+    return solution,
 
 
 

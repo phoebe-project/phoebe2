@@ -217,7 +217,97 @@ class Feedback(object):
     
     def __str__(self):
         return self.to_string()
+        
+        
+class FeedbackDc(Feedback):
+    """
+    Feedback from the dc fitting routine
+    """
+    def __init__(self, dc_result, init, fitting=None,
+            compute=None, ongoing=False):
+                
+        self.fitting = fitting
+        self.compute = compute
+        self.results = dc_result
+        
+        # Retrieve the (initial) parameters
+        init_phoebe_pars = self.retrieve_parameters(init)
+        
+        # Set the parameters and remember their state
+        self._parameters = copy.deepcopy(init_phoebe_pars)
+        
+        self._translation = dict()
+        self._info = ''
+        self._cormat = np.zeros((len(init_phoebe_pars), len(init_phoebe_pars)))
     
+
+    
+    def retrieve_parameters(self, init):
+        """
+        Retrieve parameters from whatever is given.
+        
+        init can be a list of adjustable parameters
+        init can be a system
+        init can be a Bundle
+        """
+        if isinstance(init, list):
+            return init
+        
+        # is this a bundle?
+        if hasattr(init, 'twigs'):
+            system = init.get_system()
+            
+        # else it is a system
+        else:
+            system = init
+        
+        adjustables = system.get_adjustable_parameters()
+                
+        # if a Bundle is given, set the translations
+        if hasattr(init, 'twigs'):
+            translations = dict()
+            trunk = init.trunk
+            adj_ids = [par.get_unique_label() for par in adjustables]
+            adj_names = []
+            
+            for item in trunk:
+                # if it is not a parameter, don't bother
+                if not item['class_name'] == 'Parameter':
+                    continue
+                # if we can't match the unique label, don't bother
+                try:
+                    index = adj_ids.index(item['unique_label'])
+                except ValueError:
+                    continue
+                
+                # We got it!
+                translations[adj_ids[index]] = item['twig']
+            
+            # Now strip the common parts of the twig, in order not too make the
+            # name too long
+            if len(translations)>1:
+                # Cycle over the keys in the same order always
+                keys = list(translations.keys())                
+                while True:
+                    # what's the current last twig entry?
+                    try:
+                        last_entry = translations[keys[0]].rsplit('@', 1)[1]
+                    # If we can't even split it, we've gone far enough
+                    except IndexError:
+                        break
+                    # Is it the same for the other ones? if it is, strip it
+                    # from all entries and try again until exhaustion
+                    for key in keys[1:]:
+                        if translations[key].rsplit('@', 1)[1] != last_entry:
+                            break
+                    else:
+                        for key in keys:
+                            translations[key] = translations[key].rsplit('@',1)[0]
+                        continue
+                    break                                                        
+        
+            self.set_translation(translations)
+        return adjustables
     
     
 class FeedbackLmfit(Feedback):

@@ -4009,7 +4009,7 @@ class Bundle(Container):
             subcontext = fittingoptions.get_context().split(':')[1]
             class_name = 'Feedback' + subcontext.title()
             feedback = getattr(mod_feedback, class_name)(*feedback, init=self,
-            fitting=fittingoptions, compute=computeoptions)
+                        fitting=fittingoptions, compute=computeoptions)
             # Make sure not to duplicate entries
             existing_fb = [fb.get_label() for fb in self.sections['feedback']]
             if feedback.get_label() in existing_fb:
