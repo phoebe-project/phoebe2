@@ -107,7 +107,7 @@ def run_dc_backend(system):
     return feedback
 
 def run_dc_frontend(b):
-    b.add_fitting('fitting:dc', label='dc')
+    b.add_fitting(context='fitting:dc', label='dc')
     
     b['stopping_criteria_type@dc'] = 'min_dx'
     b['stop_value@dc'] = 0.001
