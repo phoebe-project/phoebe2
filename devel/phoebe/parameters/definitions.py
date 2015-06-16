@@ -669,6 +669,18 @@ defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_t
                                      choices=['product','list'],value='product',frame=['phoebe'],context='fitting:grid'),
         ]
 
+# DC stuff
+defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='fitting:dc'),
+         dict(qualifier='stopping_criteria_type',    description='Criteria that tells dc to stop iterations',repr='%s',cast_type='choose',value='min_dx',choices=['min_dx','min_delta_dx','min_chi2','min_delta_chi2'],frame=["phoebe"],context='fitting:dc'),
+         # chooses for derivative_type are analytical, numerical, none
+         dict(qualifier='derivative_type',    description='list telling dc what type of derivative for each parameter.  One entry for each parameter.',repr='%s',cast_type=list,value=[],frame=["phoebe"],context='fitting:dc'),
+         dict(qualifier='stop_value',     description='Numerical value that tells dc to stop iterations',repr='%f',cast_type=float,value=1.000e-5,frame=["phoebe"],context=['fitting:dc']),
+         dict(qualifier='max_iters',     description='Maximum number of iterations',repr='%d',cast_type=int,value=30,frame=["phoebe"],context='fitting:dc'),
+         dict(qualifier='derivative_funcs',    description='list of python functions used to calc. analytical derivatives',repr='%s',cast_type=list,value=[],frame=["phoebe"],context='fitting:dc'),
+         dict(qualifier='solution',    description='Best fit parameter values returned by DC',repr='%f',cast_type=list,value=[],frame=["phoebe"],context='fitting:dc'),
+        ]
+
+
 #    MPI and computation context
 defs += [dict(qualifier='label',                description='label for the MPI options',repr='%s',cast_type='make_label',value='default_mpi',frame=["phoebe"],context=['mpi','mpi:torque','mpi:slurm']),
          dict(qualifier='np',       description='Number of nodes',repr='%d',cast_type=int,value=4,frame=["phoebe"],context='mpi'),
