@@ -77,10 +77,12 @@ def test_boostingswitch():
     
     b['boosting_alg@preview'] = 'local'
     
+    print "compute with boosting_alg = local"
     b.run_compute('preview')
     flux1 = b['flux@lcsyn']
     
     b['boosting_alg@preview'] = 'None'
+    print "compute with boosting_alg = None"
     b.run_compute('preview')
     
     flux2 = b['flux@lcsyn']
@@ -91,4 +93,4 @@ def test_boostingswitch():
 if __name__ == "__main__":
     logger = phoebe.get_basic_logger()
     test_arrsizes()
-    #~ test_boostingswitch()
+    test_boostingswitch()
