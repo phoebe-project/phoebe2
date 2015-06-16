@@ -472,16 +472,19 @@ class Container(object):
         # but also the property of the Body
         if qualifier == 'label':
             this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
-            component = self._get_by_search(this_trunk['label'])
-            component.set_label(value)
-            
-            # also change all objref (eg in plotting)
-            params = self._get_by_search('objref@', all=True,ignore_errors=True)
-            for param in params:
-                if param.get_value()==old_value:
-                    param.cast_type = str # will change back to choose in _build_trunk
-                    param.set_value(value)
-            
+            if this_trunk['section'] == 'system':
+                component = self._get_by_search(this_trunk['label'])
+                component.set_label(value)
+                
+                # also change all objref (eg in plotting)
+                params = self._get_by_search('objref@', all=True,ignore_errors=True)
+                for param in params:
+                    if param.get_value()==old_value:
+                        param.cast_type = str # will change back to choose in _build_trunk
+                        param.set_value(value)
+            else:
+                param.set_value(value)
+                
             self._build_trunk()
         
         # Changing a ref needs to change all occurrences
@@ -1125,7 +1128,7 @@ class Container(object):
                 ref=ps.get_value('ref') if 'ref' in ps.keys() else None
             ris = self._get_info_from_item(item, section=section_name, context=ps.get_context(), container=container, label=label, ref=ref)
             for ri in ris:
-                if ri['qualifier'] not in ['ref','label']:
+                if ri['qualifier'] not in ['ref']:
                     return_items += [ri]
             
         return return_items
