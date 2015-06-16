@@ -931,6 +931,10 @@ class Container(object):
         @param label: name of the fitting options (will override label in ps)
         @type label: str
         """
+        if isinstance(ps, str):
+            kwargs['context'] = ps
+            ps = None
+            
         if ps is None:
             context = kwargs.pop('context') if 'context' in kwargs.keys() else 'fitting:lmfit'
             ps = parameters.ParameterSet(context=context)

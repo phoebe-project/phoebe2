@@ -678,6 +678,8 @@ defs += [dict(qualifier='label',     description='Fit run name',repr='%s',cast_t
          dict(qualifier='max_iters',     description='Maximum number of iterations',repr='%d',cast_type=int,value=30,frame=["phoebe"],context='fitting:dc'),
          dict(qualifier='derivative_funcs',    description='list of python functions used to calc. analytical derivatives',repr='%s',cast_type=list,value=[],frame=["phoebe"],context='fitting:dc'),
          dict(qualifier='solution',    description='Best fit parameter values returned by DC',repr='%f',cast_type=list,value=[],frame=["phoebe"],context='fitting:dc'),
+         dict(qualifier='computelabel', description='Label of the compute params to use',repr='%s',cast_type=str,value='preview',frame=["phoebe"],context=['fitting:dc']),
+         dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None (trumps those in the compute PS)',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='fitting:dc'),
         ]
 
 
