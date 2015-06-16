@@ -31,6 +31,7 @@ data, or by random sampling the data.
    run_pymc
    run_emcee
    run_lmfit
+   run_dc
    run_minuit
    run_grid
    run_genetic
@@ -93,6 +94,8 @@ from phoebe.backend import decorators
 from phoebe.backend import emceerun_backend
 from phoebe.wd import wd
 from phoebe.parameters import parameters
+from phoebe.algorithms import _DiffCorr
+
 try:
     import pymc
 except ImportError:
@@ -232,6 +235,8 @@ def run(system, params=None, fitparams=None, mpi=None, accept=False, usercosts=N
         solver = run_emcee
     elif context_hierarchy[1]=='lmfit':
         solver = run_lmfit
+    elif context_hierarchy[1]=='dc':
+        solver = run_dc
     elif context_hierarchy[1]=='minuit':
         solver = run_minuit
     elif context_hierarchy[1]=='grid':
@@ -950,6 +955,274 @@ def run_lmfit(system, params=None, mpi=None, fitparams=None):
     extra_info = dict(traces=traces, redchis=redchis, Ndata=Nmodel['Nd'], Npars=Nmodel['Np'])
     
     return result, pars, extra_info
+
+
+
+
+# DC minimizer
+def run_dc(system, params=None, mpi=None, fitparams=None):
+    """
+    Perform nonlinear fitting of a system using dc.
+    
+    Be sure to set the parameters to fit to be adjustable in the system.
+    
+    @param system: the system to fit
+    @type system: Body
+    @param params: computation parameters
+    @type params: ParameterSet
+    @param mpi: mpi parameters
+    @type mpi: ParameterSet
+    @param fitparams: fit algorithm parameters
+    @type fitparams: ParameterSet
+    @return: the solution (ParameterSet of context 'fitting:dc'
+    @rtype: ParameterSet
+    """
+
+ 
+    #cheap way of faking enum
+    #derivative type
+    NUMERICAL = 0
+    ANALYTICAL = 1
+    NONE = 2
+
+    # stopping criteria type
+    MIN_DX = 0
+    MIN_DELTA_DX = 1
+    MIN_CHI2 = 2
+    MIN_DELTA_CHI2 = 3
+
+    
+    # We need some information on how to fit exactly; if the user didn't give
+    # it we'll use the defaults ..N E E D S   M O R E
+    if fitparams is None:
+        fitparams = parameters.ParameterSet(frame='phoebe',
+                                            context='fitting:dc')
+    
+
+
+    # For DC, the initial values need to make sense
+    # Check if everything is OK (parameters are inside limits and/or priors)
+    passed, errors = system.check(return_errors=True)
+    if not passed:
+        raise ValueError(("Some parameters are outside of reasonable limits or "
+                          "prior bounds: {}").format(", ".join(errors)))
+    
+    # We need unique names for the parameters that need to be fitted, we need
+    # initial values and identifiers to distinguish parameters with the same
+    # name (we'll also use the identifier in the parameter name to make sure
+    # they are unique). While we are iterating over all the parameterSets,
+    # we'll also have a look at what context they are in. From this, we decide
+    # which fitting algorithm to use.
+    ids = []
+    ppars = [] # Phoebe parameters
+    initial_guess = []
+    bounds = []
+    derivative_type = []
+    
+    #-- walk through all the parameterSets available. This needs to be via
+    #   this utility function because we need to iteratively walk down through
+    #   all BodyBags too.
+    frames = []
+    for parset in system.walk():
+        frames.append(parset.frame)
+        
+        # If the parameterSet is not enabled, skip it
+        if not parset.get_enabled():
+            continue
+        
+        #-- for each parameterSet, walk through all the parameters
+        for qual in parset:
+            
+            #-- extract those which need to be fitted
+            if parset.get_adjust(qual) and parset.has_prior(qual):
+                
+                #-- ask a unique ID and check if this parameter has already
+                #   been treated. If so, continue to the next one.
+                parameter = parset.get_parameter(qual)
+                myid = parameter.get_unique_label().replace('-','_')
+                if myid in ids:
+                    continue
+                
+                #-- else, add the name to the list of pnames. Ask for the
+                #   prior of this object, we can use this as bounds
+                prior = parameter.get_prior()
+                minimum, maximum = prior.get_limits()
+                
+                # add the bounds
+                bounds.append((minimum, maximum))
+                
+                #-- and add the id and values
+                ids.append(myid)
+                initial_guess.append(parameter.get_value())
+                ppars.append(parameter)
+                #derivative_type.append(NUMERICAL) #*****************************
+    
+    # Get the names of the qualifiers for reporting reasons
+    qualifiers = [ippar.get_qualifier() for ippar in ppars]
+    
+    # Current state: we know all the parameters that need to be fitted (and
+    # their values and bounds), and we have unique string labels to refer to them.
+    
+    # Next up: define a function to evaluate the model given a set of
+    # parameter values. You'll see that a lot of the code is similar as the
+    # one above; but instead of just keeping track of the parameters, we
+    # change the value of each parameter. This function will be called by the
+    # fitting algorithm itself.
+    
+    # Remember where we've been
+    traces = []
+    redchis = []
+    Nmodel = dict()
+    
+    def model_eval(pars, system):
+        # Evaluate the system, get the results and return a probability
+        
+        # Remember the parameters we already set
+        had = []
+        
+        # walk through all the parameterSets available:
+        for parset in system.walk():
+            
+            # If the parameterSet is not enabled, skip it
+            if not parset.get_enabled():
+                continue
+            
+            # for each parameterSet, walk to all the parameters
+            for qual in parset:
+                
+                # extract those which need to be fitted
+                if parset.get_adjust(qual) and parset.has_prior(qual):
+                    
+                    # ask a unique ID and update the value of the parameter
+                    myid = parset.get_parameter(qual).get_unique_label().replace('-', '_')
+                    if myid in had:
+                        continue
+                    parset[qual] = pars[ids.index(myid)]
+                    had.append(myid)
+                    
+        # Current state: the system has been updated with the newly proposed
+        # values.
+        
+        # Next up: compute the model given the current (new) parameter values
+        system.reset()
+        system.clear_synthetic()
+        system.compute(params=params, mpi=mpi)
+        
+        # Retrieve the model
+        data, sigma, model = system.get_model()
+        
+        # Report parameters and chi2
+        report_values = ['{}={:16.8f}'.format(qual, val) for qual, val in zip(qualifiers, pars)]
+        report_chi2 = np.mean((data-model)**2/sigma**2)
+        print(", ".join(report_values) + ': chi2={}'.format(report_chi2))
+        
+        traces.append(pars)
+        redchis.append(report_chi2)
+        
+        # Return the model
+        return model
+    
+    # Current state: we now have the system to fit, we have an initial guess
+    # of the parameters, and we have a function to evaluate the system given new
+    # parameters. Next up: initialise some extra arguments for DC    
+    initial_guess = np.array(initial_guess)
+    #derivative_type = np.array(derivative_type, dtype=np.int32)
+    print("initial guess = ",initial_guess)
+    
+    # Get the model, just to know how many datapoints we have. Derive the number
+    # of datapoints, derivative functions etc...
+    data, sigma, model = system.get_model()
+    nDataPoints = len(data)
+    nParams = len(initial_guess)
+    
+    # Fake some time points -- do we really need to get the times from the
+    # obs? Probably we do to compute the derivatives? <pieterdegroote>
+    #time = np.arange(nDataPoints)
+    #derivative_funcs = [lambda (x, system):x for i in range(nParams)] # dummy derivative funcs
+
+
+
+    # get the stoppingCriteriaType, stopValue, maxIterations ...
+    stoppingCriteriaType = fitparams.get_value('stopping_criteria_type')
+    stopValue = fitparams.get_value('stop_value')
+    maxIterations = fitparams.get_value('max_iters')
+    derivative_type = fitparams.get_value('derivative_type')
+    derivative_funcs = fitparams.get_value('derivative_funcs')
+    print("stoppingCriteriaType = ",stoppingCriteriaType)
+    print("stopValue = ",stopValue)
+    print("maxIterations = ",maxIterations)
+    print("derivative_type = ",derivative_type)
+    print("derivative_funcs = ",derivative_funcs)
+
+    # stoppingCriteriaType and derivative_type must be converted to integers
+    if stoppingCriteriaType == 'min_dx':
+        stoppingCriteriaType = MIN_DX
+    elif stoppingCriteriaType == 'min_delta_dx':
+        stoppingCriteriaType = MIN_DELTA_DX
+    elif stoppingCriteriaType == 'min_chi2':
+        stoppingCriteriaType = MIN_CHI2
+    elif stoppingCriteriaType == 'min_delta_chi2':
+        stoppingCriteriaType = MIN_DELTA_CHI2
+    else:
+        print("Unknown stopping_criteria_type")
+
+
+    for derrType in range(len(derivative_type)):
+        if derivative_type[derrType] == 'numerical':
+           derivative_type[derrType] = NUMERICAL
+        elif derivative_type[derrType] == 'analytical':
+           derivative_type[derrType] = ANALYTICAL
+        elif derivative_type[derrType] == 'none':
+           derivative_type[derrType] = NONE
+        else:
+            print("Unknown derivative type")
+
+    derivative_type = np.array(derivative_type, dtype=np.int32)
+    print("derivative_type = ",derivative_type)
+
+
+
+    # Current state: we know which parameters to fit, and we have a function
+    # that returns a fit statistic given a proposed set of parameter values.
+    
+    # Next up: run the fitting algorithm!
+    print("about to call DC")
+    solution = _DiffCorr.DiffCorr(nParams,  \
+				nDataPoints, \
+				maxIterations, \
+				stoppingCriteriaType, \
+				stopValue, \
+				data, \
+                                initial_guess, derivative_type,
+                                derivative_funcs,
+				model_eval, system)
+
+    print solution
+    
+        
+    #-- store the info in a feedback dictionary
+    #feedback = dict(parameters=params,values=solution,sigmas=[], priors=[],save_files=[])
+    #fitparams['feedback'] = feedback
+    fitparams['solution'] = solution
+
+    # plot history
+    traces = np.array(traces).T
+    print traces.shape
+    for trace, qual in zip(traces, qualifiers):
+        plt.figure()
+        plt.subplot(211)
+        plt.plot(trace, redchis)
+        plt.xlabel(qual)
+        plt.ylabel('chi2')
+        plt.subplot(212)
+        plt.plot(trace)
+        plt.xlabel("Iteration")
+        plt.ylabel(qual)
+    plt.show()
+
+    return fitparams
+
+
 
 
 class MinuitMinimizer(object):
@@ -1897,3 +2170,5 @@ def longitudinal_field(times,Bl=None,rotperiod=1.,
         #pool.close()
     
         #fitparams.save('testiewestie')
+
+
