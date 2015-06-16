@@ -2691,10 +2691,12 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                 boosting_is_relevant = True
                 logger.info("Figured out that the system requires boosting")
                 break
-        else:
+
+        else:  # enters if the for loop completes (never breaks)
             logger.warning(("boosting algorithm = {} but no boosting Bodies "
-                            "found. Check the 'boosting' parameter in the "
+                            "found, so disabling. Check the 'boosting' parameter in the "
                             "Bodies".format(boosting)))
+            boosting = 'none'
     else:
         logger.info("No boosting included")
         
