@@ -19,17 +19,47 @@ def test_arrsizes():
     assert(len(eb['rv01@rvsyn@primary']['time']) == len(eb['rv01@rvobs@primary']['time']))
     
     print len(eb['rv02@rvsyn@secondary']['time']), len(eb['rv02@rvobs@secondary']['time']) 
-    assert(len(eb['rv02@rvsyn@secondary']['time']) == len(eb['rv02@rvobs@secondary']['time']))
+    assert(len(eb['rv01@rvobs@primary']['time']) == 50)
+    assert(len(eb['rv02@rvobs@secondary']['time']) == 50)
+    assert(len(eb['rv01@rvsyn@primary']['time']) == 50)
+    assert(len(eb['rv02@rvsyn@secondary']['time']) == 50)
+
+
+    eb['method@rv01'] = 'dynamical'
+    eb['method@rv02'] = 'dynamical'
+
+    eb.run_compute()
+    print len(eb['rv01@rvsyn@primary']['time']), len(eb['rv01@rvobs@primary']['time']) 
+    assert(len(eb['rv01@rvsyn@primary']['time']) == len(eb['rv01@rvobs@primary']['time']))
+    
+    print len(eb['rv02@rvsyn@secondary']['time']), len(eb['rv02@rvobs@secondary']['time']) 
+    assert(len(eb['rv01@rvobs@primary']['time']) == 50)
+    assert(len(eb['rv02@rvobs@secondary']['time']) == 50)
+    assert(len(eb['rv01@rvsyn@primary']['time']) == 50)
+    assert(len(eb['rv02@rvsyn@secondary']['time']) == 50)
     
     
     
-    # TODO: the following needs to work eventually
-    #~ eb = phoebe.Bundle()
-    #~ time = np.linspace(0, 5*eb['period'], 50)
-    #~ eb.rv_fromarrays(time=time, objref=['primary', 'secondary'], dataref='rv01')
-    #~ print len(eb['rv01@rvsyn@primary']['time']), len(eb['rv01@rvobs@primary']['time']), len(eb['rv01@rvsyn@secondary']['time']),  len(eb['rv01@rvobs@secondary']['time'])
-    #~ assert(len(eb['rv01@rvsyn@primary']['time']) == len(eb['rv01@rvobs@primary']['time']))
-    #~ assert(len(eb['rv01@rvsyn@secondary']['time']) == len(eb['rv01@rvobs@secondary']['time']))
+    eb = phoebe.Bundle()
+    time = np.linspace(0, 5*eb['period'], 50)
+    eb.rv_fromarrays(time=time, objref=['primary', 'secondary'], dataref='rv01')
+    eb.run_compute()
+    print len(eb['rv01@rvsyn@primary']['time']), len(eb['rv01@rvobs@primary']['time']), len(eb['rv01@rvsyn@secondary']['time']),  len(eb['rv01@rvobs@secondary']['time'])
+    assert(len(eb['rv01@rvobs@primary']['time']) == 50)
+    assert(len(eb['rv01@rvsyn@primary']['time']) == 50)
+    assert(len(eb['rv01@rvobs@secondary']['time']) == 50)
+    assert(len(eb['rv01@rvsyn@secondary']['time']) == 50)
+    
+    
+    eb['method@rv01@primary'] = 'dynamical'
+    eb['method@rv01@secondary'] = 'dynamical'
+    eb.run_compute()
+    print len(eb['rv01@rvsyn@primary']['time']), len(eb['rv01@rvobs@primary']['time']), len(eb['rv01@rvsyn@secondary']['time']),  len(eb['rv01@rvobs@secondary']['time'])
+    assert(len(eb['rv01@rvobs@primary']['time']) == 50)
+    assert(len(eb['rv01@rvsyn@primary']['time']) == 50)
+    assert(len(eb['rv01@rvobs@secondary']['time']) == 50)
+    assert(len(eb['rv01@rvsyn@secondary']['time']) == 50)
+    
 
 
 def test_boostingswitch():
@@ -61,4 +91,4 @@ def test_boostingswitch():
 if __name__ == "__main__":
     logger = phoebe.get_basic_logger()
     test_arrsizes()
-    test_boostingswitch()
+    #~ test_boostingswitch()
