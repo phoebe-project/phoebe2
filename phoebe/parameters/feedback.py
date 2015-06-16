@@ -225,6 +225,9 @@ class FeedbackDc(Feedback):
     """
     def __init__(self, dc_result, init, fitting=None,
             compute=None, ongoing=False):
+
+        self._translation = dict()
+        self._info = ''
                 
         self.fitting = fitting
         self.compute = compute
@@ -235,10 +238,19 @@ class FeedbackDc(Feedback):
         
         # Set the parameters and remember their state
         self._parameters = copy.deepcopy(init_phoebe_pars)
-        
-        self._translation = dict()
-        self._info = ''
-        self._cormat = np.zeros((len(init_phoebe_pars), len(init_phoebe_pars)))
+        for par in self._parameters:
+            par.remember()
+
+
+        for i,value in enumerate(dc_result):
+            self._parameters[i].set_value(value)
+            mu = value
+            sigma = 1.0   # TODO: fix
+            self._parameters[i].set_posterior(distribution='normal',
+                                              mu=mu, sigma=sigma)
+            
+
+        self._cormat = np.zeros((len(init_phoebe_pars), len(init_phoebe_pars)))  # TODO: fix
     
 
     
