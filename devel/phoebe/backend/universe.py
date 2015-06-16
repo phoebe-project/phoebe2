@@ -5434,10 +5434,10 @@ class PhysicalBody(Body):
         else:
         
             for tri in range(len(old_mesh)):
-                p0 = marching.projectOntoPotential(old_mesh['_o_center'][tri]/scale,*mesh_args)
-                t1 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][0:3]/scale,*mesh_args)
-                t2 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][3:6]/scale,*mesh_args)
-                t3 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][6:9]/scale,*mesh_args)
+                p0 = marching.project_onto_potential(old_mesh['_o_center'][tri]/scale,*mesh_args)
+                t1 = marching.project_onto_potential(old_mesh['_o_triangle'][tri][0:3]/scale,*mesh_args)
+                t2 = marching.project_onto_potential(old_mesh['_o_triangle'][tri][3:6]/scale,*mesh_args)
+                t3 = marching.project_onto_potential(old_mesh['_o_triangle'][tri][6:9]/scale,*mesh_args)
                 #-- make sure the normal is pointed in the same direction as before:
                 cosangle = coordinates.cos_angle(old_mesh['_o_center'][tri:tri+1],
                                                 np.array([p0.n]),axis=1)
@@ -7560,7 +7560,7 @@ class Star(PhysicalBody):
             omega_pl = 2*pi/period_pl/omega_crit
             b1 = omega_pl*0.54433105395181736
             b2 = roche.diffrotlaw_to_internal(omega_pl,omega_eq)
-            r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), 'DiffRotateRoche', b1,b2,0,1.0).r[0]
+            r0 = -marching.project_onto_potential(np.array((-0.02, 0.0, 0.0)), 'DiffRotateRoche', b1,b2,0,1.0).r[0]
             radius = r0*radius
         vsini = 2*pi*radius/period_eq*np.sin(incl)
         logger.info('Computed vsini = {} km/s'.format(vsini))
@@ -7690,7 +7690,7 @@ class Star(PhysicalBody):
             surface = 'DiffRotateRoche'
 
             #-- sanity check: remove these statements when tested enough.
-            r0 = -marching.projectOntoPotential(np.array((-0.02, 0.0, 0.0)), surface, b1, b2, b3, 1.0).r[0]
+            r0 = -marching.project_onto_potential(np.array((-0.02, 0.0, 0.0)), surface, b1, b2, b3, 1.0).r[0]
             assert(np.allclose(Omega_eq, (b1+b2*r0**2)/0.54433105395181736))
 
             self.subdivision['mesh_args'] = surface, b1, b2, b3, 1.0, r_pole_sol
@@ -7779,10 +7779,10 @@ class Star(PhysicalBody):
         #-- then reproject the old coordinates. We assume they are fairly
         #   close to the real values.
         for tri in range(len(old_mesh)):
-            p0 = marching.projectOntoPotential(old_mesh['_o_center'][tri],*mesh_args)
-            t1 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][0:3],*mesh_args)
-            t2 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][3:6],*mesh_args)
-            t3 = marching.projectOntoPotential(old_mesh['_o_triangle'][tri][6:9],*mesh_args)
+            p0 = marching.project_onto_potential(old_mesh['_o_center'][tri],*mesh_args)
+            t1 = marching.project_onto_potential(old_mesh['_o_triangle'][tri][0:3],*mesh_args)
+            t2 = marching.project_onto_potential(old_mesh['_o_triangle'][tri][3:6],*mesh_args)
+            t3 = marching.project_onto_potential(old_mesh['_o_triangle'][tri][6:9],*mesh_args)
             old_mesh['_o_center'][tri] = p0.r*r_pole_sol
             old_mesh['_o_normal_'][tri] = p0.n
             old_mesh['_o_triangle'][tri][0:3] = t1.r*r_pole_sol
@@ -8190,7 +8190,7 @@ class BinaryRocheStar(PhysicalBody):
         #   to that of a nonrotating star!
         omega_rot = F * 2*pi/P # rotation frequency
         omega_orb = 2*pi/P
-        r_pole = marching.projectOntoPotential((0,0,1e-5),'BinaryRoche',d,q,F,Phi).r
+        r_pole = marching.project_onto_potential((0,0,1e-5),'BinaryRoche',d,q,F,Phi).r
         r_pole_= np.linalg.norm(r_pole)
         r_pole = r_pole_*a
             
@@ -8338,7 +8338,7 @@ class BinaryRocheStar(PhysicalBody):
         
         for n_iter in range(max_iter):
             #-- compute polar radius
-            #R = marching.projectOntoPotential((0,0,1e-5),'BinaryRoche',d,q,F,oldpot).r
+            #R = marching.project_onto_potential((0,0,1e-5),'BinaryRoche',d,q,F,oldpot).r
             r = [0,0,1e-5]
             R = marching.creproject(np.hstack([r,[0],4*r]).reshape((1,-1)),'BinaryRoche',d,q,F,oldpot)[0,0:3]
             R = np.linalg.norm(R)*sma
@@ -8987,7 +8987,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         omega_rot = F * 2*pi/P # rotation frequency
         
         coord = self.get_polar_direction()
-        rp = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
+        rp = marching.project_onto_potential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r
         
         dOmega_ = roche.misaligned_binary_potential_gradient(self.mesh['_o_center'][:,0]/asol,
                                                  self.mesh['_o_center'][:,1]/asol,
@@ -9070,7 +9070,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         #-- compute polar radius by projection on the potenial: we need to
         #   make sure we are projecting in the direction of the pole!
         coord = np.array([np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)])*1e-5
-        r_pole__ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r        
+        r_pole__ = marching.project_onto_potential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,Phi).r        
         r_pole_= np.linalg.norm(r_pole__)
         r_pole = r_pole_*a
         g_pole = roche.misaligned_binary_surface_gravity(r_pole__[0]*a,r_pole__[1]*a,r_pole__[2]*a,
@@ -9215,7 +9215,7 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         
         for n_iter in range(max_iter):
             #-- compute polar radius
-            R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+            R_ = marching.project_onto_potential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
             R_ = R_*sma
             R = np.linalg.norm(R_)
             g_pole = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=True)
@@ -9261,11 +9261,11 @@ class MisalignedBinaryRocheStar(BinaryRocheStar):
         else:
             logger.info("no volume conservation, reprojected onto instantaneous potential")
         
-        R_ = marching.projectOntoPotential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+        R_ = marching.project_onto_potential(coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
         R_ = R_*sma
         R = np.linalg.norm(R)
         x1 = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=None)
-        R_ = marching.projectOntoPotential(-coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
+        R_ = marching.project_onto_potential(-coord,'MisalignedBinaryRoche',d,q,F,theta,phi,oldpot).r
         R_ = R_*sma
         R = np.linalg.norm(R)
         x2 = roche.misaligned_binary_surface_gravity(R_[0]*constants.Rsol,R_[1]*constants.Rsol,R_[2]*constants.Rsol,d_*constants.Rsol,omega_rot/F,M1,M2,normalize=None)
