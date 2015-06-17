@@ -107,7 +107,10 @@ class Passband(object):
         # scale wavelengths
         wavescale = float(temp_pb.get_header('WLFACTOR'))
         self.set_column('WAVELENGTH',self.get_column('WAVELENGTH')*wavescale)
-        
+
+        # we have corrected for the WLFACTOR, so it has to be 1 now.
+        self.set_header('WLFACTOR',1)
+
         # convert keywords
         # -- PASS_SET --> SYSTEM
         self.set_header('SYSTEM',temp_pb.get_header('PASS_SET'))
@@ -117,6 +120,8 @@ class Passband(object):
         
         # compute effwavelength
         self.set_header('WAVLEFF',self.compute_eff_wave(),force=True)
+
+
 
     def compute_eff_wave(self):
         """Sets effective wavelength to WAVLEFF header. Can only be computed after filling the

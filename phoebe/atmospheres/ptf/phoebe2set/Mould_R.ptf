@@ -2,9 +2,8 @@
 # PASSBAND  R
 # EFFWL     6582
 # WLFACTOR  1.0
-# REFERENCE 
+# REFERENCE Bellm
 # Table taken from http://www.cfht.hawaii.edu/Instruments/Filters/cfh12k.html
-
 5680 0.00
 5700 0.01
 5720 0.02
