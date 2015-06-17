@@ -450,6 +450,9 @@ def dHeartdz(r):
 
 class MeshVertex:
     def __init__(self, r, dpdx, dpdy, dpdz, *args):
+        # Normalized normal:
+        #~ n = np.array([dpdx(r, *args), dpdy(r, *args), dpdz(r, *args)])
+        #~ n /= np.sqrt(np.sum(n*n))
         nx = dpdx(r, *args)
         ny = dpdy(r, *args)
         nz = dpdz(r, *args)
@@ -457,6 +460,14 @@ class MeshVertex:
         nx /= nn
         ny /= nn
         nz /= nn
+
+        # Now we choose the first tangential direction. We have a whole
+        # plane to choose from, so we'll choose something convenient.
+        # The choice here is to set one tangential coordinate to 0. From
+        # n \dot t=0: nx tx + ny ty = 0 => tx = -ny, ty = nx. 
+        # Since we are normalizing, we need to be careful that we don't
+        # divide by a small number, hence the two prescriptions, either
+        # for tz = 0 or for ty = 0.
 
         if nx > 0.5 or ny > 0.5:
             nn = sqrt(ny*ny+nx*nx)
@@ -874,11 +885,11 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
             xi1, eta1, zeta1 = cart2local(P[i], P[i-1].r-P[i].r)
             xi2, eta2, zeta2 = cart2local(P[i], P[i+1 if i < len(P)-1 else 0].r-P[i].r)
             omega[i] = (atan2(zeta2, eta2)-atan2(zeta1, eta1)) % (2*pi)
-    #           print "%d: r[%d]=(% 3.3f, % 3.3f, % 3.3f), r[%d]=(% 3.3f, % 3.3f, % 3.3f), front_angle=% 3.3f" % (i, i-1 if i > 0 else len(P)-1, xi1, eta1, zeta1, i+1 if i < len(P)-1 else 0, xi2, eta2, zeta2, angle[i]/pi*180)
+            #~ logger.debug("%d: r[%d]=(% 3.3f, % 3.3f, % 3.3f), r[%d]=(% 3.3f, % 3.3f, % 3.3f), front angle=% 3.3f", i, i-1 if i > 0 else len(P)-1, xi1, eta1, zeta1, i+1 if i < len(P)-1 else 0, xi2, eta2, zeta2, angle[i]/pi*180)
 
         minidx = omega.argmin()
         minangle = omega[minidx]
-    #       print "Minimum angle: % 3.3f at index %d" % (omega[minidx]*180/pi, minidx)
+        logger.debug("Minimum angle: % 3.3f at index %d", omega[minidx]*180/pi, minidx)
 
         # The number of triangles to be generated:
         nt = trunc(minangle*3/pi)+1
@@ -888,7 +899,7 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
             domega = minangle/nt
         ### INSERT THE REMAINING HOOKS HERE!
 
-    #       print "Number of triangles to be generated: %d; domega = % 3.3f" % (nt, domega)
+        logger.debug("Number of triangles to be generated: %d; domega = % 3.3f", nt, domega)
 
         # Generate the triangles:
 
