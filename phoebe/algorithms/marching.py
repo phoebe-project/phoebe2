@@ -887,7 +887,7 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
             omega[i] = (atan2(zeta2, eta2)-atan2(zeta1, eta1)) % (2*pi)
             #~ logger.debug("%d: r[%d]=(% 3.3f, % 3.3f, % 3.3f), r[%d]=(% 3.3f, % 3.3f, % 3.3f), front angle=% 3.3f", i, i-1 if i > 0 else len(P)-1, xi1, eta1, zeta1, i+1 if i < len(P)-1 else 0, xi2, eta2, zeta2, omega[i]/pi*180)
 
-        if np.allclose(omega, omega[0]):
+        if np.allclose(omega, omega[0], atol=1e-5):
             minidx = 0
         else:
             minidx = omega.argmin()
