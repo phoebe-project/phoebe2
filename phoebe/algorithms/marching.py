@@ -885,7 +885,7 @@ def discretize(delta=0.1,  max_triangles=None, potential='BinaryRoche', *args):
             xi1, eta1, zeta1 = cart2local(P[i], P[i-1].r-P[i].r)
             xi2, eta2, zeta2 = cart2local(P[i], P[i+1 if i < len(P)-1 else 0].r-P[i].r)
             omega[i] = (atan2(zeta2, eta2)-atan2(zeta1, eta1)) % (2*pi)
-            logger.debug("%d: r[%d]=(% 3.3f, % 3.3f, % 3.3f), r[%d]=(% 3.3f, % 3.3f, % 3.3f), front angle=% 3.3f", i, i-1 if i > 0 else len(P)-1, xi1, eta1, zeta1, i+1 if i < len(P)-1 else 0, xi2, eta2, zeta2, angle[i]/pi*180)
+            logger.debug("%d: r[%d]=(% 3.3f, % 3.3f, % 3.3f), r[%d]=(% 3.3f, % 3.3f, % 3.3f), front angle=% 3.3f", i, i-1 if i > 0 else len(P)-1, xi1, eta1, zeta1, i+1 if i < len(P)-1 else 0, xi2, eta2, zeta2, omega[i]/pi*180)
 
         minidx = omega.argmin()
         minangle = omega[minidx]
