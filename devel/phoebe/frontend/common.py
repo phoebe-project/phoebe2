@@ -598,8 +598,8 @@ class Container(object):
         # last check: we need to make sure that whatever we're setting already
         # exists. We cannot assign a new nonexistent PS to the Body (well, we
         # could, but we don't want to -- that's attach_ps responsibility)
-        current_context = this_trunk['item'].get_context()
-        given_context = value.get_context()
+        current_context = this_trunk['item'].get_context().split(':')[0]
+        given_context = value.get_context().split(':')[0]
         if current_context == given_context:
             bodies[-1].set_params(value)
         else:
@@ -608,7 +608,7 @@ class Container(object):
                                                 current_context, given_context))
         
     @rebuild_trunk
-    def attach_ps(self, value=None, twig=None, ):
+    def attach_ps(self, value=None, twig=None):
         """
         Attach a new ParameterSet.
         
@@ -1536,7 +1536,7 @@ class Container(object):
         for param in self._get_by_search('objref@', kind='Parameter', all=True, ignore_errors=True):
             param.cast_type = 'choose'
             param.choices = objrefs
-            
+        
         for param in self._get_by_search('dataref@', kind='Parameter', all=True, ignore_errors=True):
             param.cast_type = 'choose'
             param.choices = datarefs
