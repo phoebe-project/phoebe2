@@ -5546,7 +5546,6 @@ class Bundle(Container):
         # func_kwargs_defaults may also apply to axes_ps, so let's update the PSs anyways
         plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
 
-
         ax = self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
         
         # TODO: fix this return statement
