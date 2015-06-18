@@ -21,6 +21,7 @@ try: # Pyfits now integrated in astropy
 except:
     import astropy.io.fits as pyfits
 import argparse
+import scipy.ndimage.filters
 
 logger = logging.getLogger("ATM.GRID")
 
