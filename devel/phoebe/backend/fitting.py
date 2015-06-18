@@ -1111,10 +1111,11 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
         # Retrieve the model
         data, sigma, model = system.get_model()
         
-        # Report parameters and chi2
+        # Uncomment the last line if you wish to Report parameters and chi2
+	# on every iteration
         report_values = ['{}={:16.8f}'.format(qual, val) for qual, val in zip(qualifiers, pars)]
         report_chi2 = np.mean((data-model)**2/sigma**2)
-        print(", ".join(report_values) + ': chi2={}'.format(report_chi2))
+        #print(", ".join(report_values) + ': chi2={}'.format(report_chi2))
         
         traces.append(pars)
         redchis.append(report_chi2)
@@ -1206,19 +1207,21 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
     fitparams['solution'] = solution
 
     # plot history
+    # uncomment if you wish to plot out how the parameters changed
+    # shows more about the numerical derivatives then it does DC
     traces = np.array(traces).T
-    print traces.shape
-    for trace, qual in zip(traces, qualifiers):
-        plt.figure()
-        plt.subplot(211)
-        plt.plot(trace, redchis)
-        plt.xlabel(qual)
-        plt.ylabel('chi2')
-        plt.subplot(212)
-        plt.plot(trace)
-        plt.xlabel("Iteration")
-        plt.ylabel(qual)
-    plt.show()
+    #print traces.shape
+    #for trace, qual in zip(traces, qualifiers):
+    #    plt.figure()
+    #    plt.subplot(211)
+    #    plt.plot(trace, redchis)
+    #    plt.xlabel(qual)
+    #    plt.ylabel('chi2')
+    #    plt.subplot(212)
+    #    plt.plot(trace)
+    #    plt.xlabel("Iteration")
+    #    plt.ylabel(qual)
+    #plt.show()
 
     return solution,
 
