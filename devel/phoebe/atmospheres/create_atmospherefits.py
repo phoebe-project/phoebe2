@@ -56,7 +56,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
     
     .. math::
             
-        \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda}\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
+        \alpha_b = \frac{\int_P (5+\frac{d\ln F_\lambda}{d\ln\lambda})\lambda F_\lambda d\lambda}{\int_P \lambda F_\lambda d\lambda}
     
     Then the boosting amplitude in the passband :math:`P` can be computed as:
     
@@ -548,20 +548,21 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             lnF = np.log(flux)
             lnl = np.log(wave)
             # Numerical derivatives
-            dlnF_dlnl = utils.deriv(lnl, lnF)
+            #dlnF_dlnl = utils.deriv(lnl, lnF)
             # Fix nans and infs
-            dlnF_dlnl[np.isnan(dlnF_dlnl)] = 0.0
-            dlnF_dlnl[np.isinf(dlnF_dlnl)] = 0.0
+            #dlnF_dlnl[np.isnan(dlnF_dlnl)] = 0.0
+            #dlnF_dlnl[np.isinf(dlnF_dlnl)] = 0.0
             
             # Other definitions of numerical derivatives
             #-- Simple differentiation
-            #dlnF_dlnl2 = np.hstack([0,np.diff(lnF)/ np.diff(lnl)])
-            #dlnF_dlnl2[np.isnan(dlnF_dlnl2)] = 0.0
-            #dlnF_dlnl2[np.isinf(dlnF_dlnl2)] = 0.0
+            dlnF_dlnl2 = np.hstack([0,np.diff(lnF)/ np.diff(lnl)])
+            dlnF_dlnl2[np.isnan(dlnF_dlnl2)] = 0.0
+            dlnF_dlnl2[np.isinf(dlnF_dlnl2)] = 0.0
             #-- Spline differentiation
             #splfit = splrep(lnl[-np.isinf(lnF)], lnF[-np.isinf(lnF)], k=2)
             #dlnF_dlnl3 = splev(lnl, splfit, der=1)
-            
+            dlnF_dlnl = dlnF_dlnl
+
             # compute boosting factor
             w_fl = wave*flux
             for i, pb in enumerate(passbands):
