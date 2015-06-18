@@ -373,6 +373,8 @@ def mesh(b, t, **kwargs):
     boosting_alg = 'none'
     with_partial_as_half = True
     antialiasing = True
+    
+    dataref = dataref.split('@')[0]
 
     obj = b.get_object(objref)
     if t:

@@ -85,7 +85,7 @@ from datetime import datetime
 from time import sleep
 import matplotlib.pyplot as plt
 from matplotlib import collections
-from mpl_toolkits.mplot3d import art3d
+from mpl_toolkits.mplot3d import art3d, Axes3D
 import tempfile
 import copy
 import os
@@ -1288,8 +1288,7 @@ class Bundle(Container):
                 # time
                 if 'time' in ds and not np.all(np.diff(ds['time'])>=0):
                     logger.warning("The observations are not sorted in time -- sorting now")
-                    sa = np.argsort(ds['time'])
-                    ds = ds[sa]
+                    ds.sort()
 
                 comp.add_obs(ds)
 
@@ -6024,7 +6023,8 @@ class Bundle(Container):
             projection = axes_ps.get('projection', None)
             if projection=='2d':
                 projection = None
-            ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],sharex=sharex,sharey=sharey,projection=projection)
+                
+            ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],projection=projection)
             # we must set the current axes so that subsequent live-plotting calls will
             # go here unless overriden by the user
             plt.sca(ax)
