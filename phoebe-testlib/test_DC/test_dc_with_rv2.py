@@ -50,14 +50,26 @@ def get_bundle_with_data_and_initial_guess():
     mybundle.add_parameter('asini@orbit', replaces='sma')
 
     # Define priors
-    mybundle.set_prior('ecc', distribution='uniform', lower=0, upper=1)
-    mybundle.set_prior('per0', distribution='uniform', lower=0, upper=360)
-    mybundle.set_prior('vgamma', distribution='uniform', lower=-30, upper=10)
-    mybundle.set_prior('incl', distribution='uniform', lower=0, upper=90)
-    mybundle.set_prior('q', distribution='uniform', lower=0.5, upper=1)
-    mybundle.set_prior('sma', distribution='uniform', lower=8, upper=12)
-    mybundle.set_prior('mass1', distribution='uniform', lower=0.8, upper=1.2)
-    mybundle.set_prior('asini@orbit', distribution='uniform', lower=0, upper=15)
+    # We define the priors here so that the frontend feedback prints out resonable
+    # (not just random numbers) in its output of the DC solution.
+    #  There values are not currently being used in the DC fitting algorithum
+#    mybundle.set_prior('ecc', distribution='uniform', lower=0, upper=1)
+#    mybundle.set_prior('per0', distribution='uniform', lower=0, upper=360)
+#    mybundle.set_prior('vgamma', distribution='uniform', lower=-30, upper=10)
+#    mybundle.set_prior('incl', distribution='uniform', lower=0, upper=90)
+#    mybundle.set_prior('q', distribution='uniform', lower=0.5, upper=1)
+#    mybundle.set_prior('sma', distribution='uniform', lower=8, upper=12)
+#    mybundle.set_prior('mass1', distribution='uniform', lower=0.8, upper=1.2)
+#    mybundle.set_prior('asini@orbit', distribution='uniform', lower=0, upper=15)
+
+    mybundle.set_prior('ecc', distribution='normal', mu=0.33,sigma=0.01)
+    mybundle.set_prior('per0', distribution='normal', mu=54.0,sigma=0.5)
+    mybundle.set_prior('vgamma', distribution='normal', mu=-11.0,sigma=1.0)
+    mybundle.set_prior('incl', distribution='normal', mu=8.,sigma=4.)
+    mybundle.set_prior('q', distribution='normal', mu=0.67,sigma=0.1)
+    mybundle.set_prior('sma', distribution='normal', mu=10.5,sigma=0.5)
+    #mybundle.set_prior('mass1', distribution='normal', mu=3.0,sigma=8.)
+    #mybundle.set_prior('asini@orbit', distribution='normal', mu=2.0,sigma=9.)
 
     # Mark adjustables
     mybundle.set_adjust('ecc')
@@ -133,17 +145,16 @@ if __name__ == "__main__":
         initial_text.append(("{:10s} = {:16.8f}".format(twig, init_bundle[twig])))
 
 
-    feedback = run_dc_backend(system)
- 
-    
-    print("feedback = ",feedback)
+    # Uncomment the following lines if you wish to run the DC algorithum using the backend
+    #feedback = run_dc_backend(system)
+    #print("feedback = ",feedback)
     
     for i,twig in enumerate(['ecc', 'per0', 'vgamma', 'sma', 'incl', 'q']):
         print(initial_text[i] +' ---> '+"{:10s} = {:16.8f}".format(twig, init_bundle[twig]))
         
         
         
-        
+    # Run DC using the frontend.
     init_bundle = get_bundle_with_data_and_initial_guess()
     
     feedback = run_dc_frontend(init_bundle)
