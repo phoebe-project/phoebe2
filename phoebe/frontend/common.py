@@ -1532,6 +1532,7 @@ class Container(object):
         # do intelligent choices for dataref, objref
         objrefs = self._get_by_search(section='system', body=True, return_key='label', all=True, ignore_errors=True)
         datarefs = ['{}@{}'.format(ti['ref'], ti['label']) for ti in self._get_by_search(section='dataset', context='*obs', kind='ParameterSet', return_trunk_item=True, all=True, ignore_errors=True)]
+        datarefs += ['__bol']
         
         for param in self._get_by_search('objref@', kind='Parameter', all=True, ignore_errors=True):
             param.cast_type = 'choose'

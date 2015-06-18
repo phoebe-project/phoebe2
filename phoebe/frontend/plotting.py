@@ -177,6 +177,7 @@ def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
     kwargs_defaults['scroll'] = {'ps': 'axes', 'value': False, 'description': 'whether to override xlim and scroll when time is passed during draw call', 'cast_type': 'make_bool'}
     kwargs_defaults['scroll_xlim'] = {'ps': 'axes', 'value': [-2,2], 'description': 'the xlims to provide relative to the current time if scroll==True and time is passed during draw call', 'cast_type': 'list'}
 
+    kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
 
     xk, yk, xl, yl, xu, yu = _xy_from_category(category, kwargs_defaults)  # TODO: we also call this in _defaults_from_dataset, let's consolidate
     #~ kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
@@ -316,7 +317,6 @@ def mesh(b, t, **kwargs):
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     """
-
     # unpack expected kwargs
     objref = kwargs.get('objref', None)
     dataref = kwargs.get('dataref', None)
