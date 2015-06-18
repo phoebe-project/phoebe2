@@ -561,7 +561,7 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             #-- Spline differentiation
             #splfit = splrep(lnl[-np.isinf(lnF)], lnF[-np.isinf(lnF)], k=2)
             #dlnF_dlnl3 = splev(lnl, splfit, der=1)
-            dlnF_dlnl = dlnF_dlnl
+            dlnF_dlnl = dlnF_dlnl2
 
             # compute boosting factor
             w_fl = wave*flux
