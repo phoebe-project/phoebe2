@@ -4,7 +4,7 @@ Accretion disk
 
 Put a Roche lobe filling star in an orbit around an accretion disk.
 
-For details on the implementation of the accretion disk, browse `the source code <http://www.ster.kuleuven.be/~pieterd/pyphoebe/pyphoebe.universe.AccretionDisk-class.html>`_. Also see the papers of `Copperwheat et al. (2010) <http://adsabs.harvard.edu/abs/2010MNRAS.402.1824C>`_ and `Wood et al. (1992) <http://adsabs.harvard.edu/abs/1992ApJ...393..729W>`_.
+For details on the implementation of the accretion disk, browse the source code. Also see the papers of `Copperwheat et al. (2010) <http://adsabs.harvard.edu/abs/2010MNRAS.402.1824C>`_ and `Wood et al. (1992) <http://adsabs.harvard.edu/abs/1992ApJ...393..729W>`_.
 
 Parameters are wildly speculative and certainly not realistic.
 
