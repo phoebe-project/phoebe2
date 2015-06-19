@@ -148,6 +148,6 @@ pl.savefig('sirius_visibility')
    :align: center
    :alt: map to buried treasure
 
-   Visbility, phases and profile of Sirius.
+   Visibility, phases and profile of Sirius.
 
 """

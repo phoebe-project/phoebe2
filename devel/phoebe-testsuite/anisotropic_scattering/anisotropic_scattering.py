@@ -66,7 +66,7 @@ for asymmetry in [-0.8,0.0,0.8]:
 plt.xlabel('Time')
 plt.ylabel('Flux')
 plt.legend(loc='best').get_frame().set_alpha(0.5)
-plt.show()
+plt.savefig('anisotropic_scattering.png')
 
 """
 
