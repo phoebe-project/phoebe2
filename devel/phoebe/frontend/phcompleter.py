@@ -66,6 +66,8 @@ class Completer:
                         '.set_adjust_all(': {'kind': ['Parameter','Parameter:adjust']},
                         '.get_prior(': {'kind': ['Parameter','Parameter:prior']},
                         '.set_prior(': {'kind': ['Parameter','Parameter:prior']},
+                        '.get_posterior(': {'kind': ['Parameter', 'Parameter:posterior']},
+                        '.remove_posterior(': {'kind': ['Parameter', 'Parameter:posterior']},
                         '.get_ps(': {'kind': 'ParameterSet'},
                         '.get_ps_dict(': {'kind': 'OrderedDict'},
                         '.get(': {},
