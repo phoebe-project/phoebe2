@@ -839,6 +839,43 @@ class Bundle(Container):
                 obs.set_enabled(state)
 
         return -0.5*sum(chi2)
+        
+    def get_posterior(self, twig=None):
+        """
+        [FUTURE]
+        
+        Retrieve the posterior for a given parameter
+        
+        :param twig: twig pointing to the parameter
+        :type twig: str
+        """
+        
+        param = self.get_parameter(twig)
+        
+        if hasattr(param, 'posterior'):
+            return param
+        else:
+            logger.warning('parameter {} does not have a posterior'.format(twig))
+            return None
+        
+    def remove_posterior(self, twig=None):
+        """
+        [FUTURE]
+        
+        Remove the posterior for a given parameter
+        
+        :param twig: twig pointing to the parameter
+        :type twig: str
+        """
+        
+        param = self.get_parameter(twig)
+        
+        if hasattr(param, 'posterior'):
+            delattr(param, 'posterior')
+        else:
+            logger.warning('parameter {} does not have a posterior'.format(twig))
+            return None
+
 
     #}
     #{ Objects
