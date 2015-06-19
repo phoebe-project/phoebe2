@@ -250,7 +250,7 @@ class Bundle(Container):
     .. autosummary::
 
         Bundle.summary
-        phoebe.frontend.commond.Container.info
+        phoebe.frontend.common.Container.info
 
 
     **Initialization**
@@ -261,20 +261,16 @@ class Bundle(Container):
 
           mybundle = Bundle()
 
-      2. Via a PHOEBE 2.0 file in JSON format::
-
-          mybundle = Bundle('newbundle.json')
-
-      3. Via a Phoebe Legacy ASCII parameter file::
+      2. Via a Phoebe Legacy ASCII parameter file::
 
           mybundle = Bundle('legacy.phoebe')
 
-      4. Via a Body or BodyBag::
+      3. Via a Body or BodyBag::
 
           mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
           mybundle = Bundle(mysystem)
 
-      5. Via the predefined systems in the library::
+      4. Via the predefined systems in the library::
 
           mybundle = Bundle('V380_Cyg')
 
@@ -6246,12 +6242,15 @@ class Bundle(Container):
 
     def save(self, filename):
         """
-        Save the bundle into a json-formatted ascii file
+        Save the bundle class to a file as a pickle
+        
+        In the future, this method will hopefully write to a json-formatted ascii file.
 
         @param filename: path to save the bundle
         @type filename: str
         """
-        self._save_json(filename)
+        self.save_pickle(filename)
+        #~ self._save_json(filename)
 
     def save_pickle(self,filename=None,save_usersettings=False):
         """

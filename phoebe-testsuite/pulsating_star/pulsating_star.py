@@ -20,7 +20,7 @@ Initialisation
 # First, import necessary modules
 import sys
 import numpy as np
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 import phoebe
 from phoebe.utils import plotlib
 
@@ -49,8 +49,8 @@ freq_pars1 = phoebe.ParameterSet(context='puls',add_constraints=True)
 freq_pars1['freq'] = 3.97,'cy/d'
 freq_pars1['ampl'] = 0.01
 freq_pars1['k'] = 0.0
-freq_pars1['l'] = sys.argv[1] # 4
-freq_pars1['m'] = sys.argv[2] # 4
+freq_pars1['l'] = sys.argv[1] if len(sys.argv)>1 else 4
+freq_pars1['m'] = sys.argv[2] if len(sys.argv)>2 else 4
 freq_pars1['ledoux_coeff'] = 0.1585
 freq_pars1['amplteff'] = 0.01
 freq_pars1['scheme'] = 'nonrotating'
