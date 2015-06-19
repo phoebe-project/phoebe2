@@ -547,15 +547,13 @@ def compute_grid_ld_coeffs(atm_files,atm_pars=('teff', 'logg'),\
             
             # transform fluxes and wavelength
             # we first smooth somewhat to avoid numerical issues with metal lines. We go for gaussian smoothing of 10 angstrom in case we have a regular grid here.
+            logger.debug("Smoothing over %f points before computing beaming factor"10/np.median(np.diff(wave)))
             flux_smooth = scipy.ndimage.filters.gaussian_filter1d(flux, 10/np.median(np.diff(wave)))
             wavl_smooth = scipy.ndimage.filters.gaussian_filter1d(wave, 10/np.median(np.diff(wave)))
 
             lnF = np.log(flux_smooth)
             lnl = np.log(wavl_smooth)
             # Numerical derivatives
-            # we first smooth to a resolution of ~10 angstrom
-            flux_smooth = scipy.ndimage.filters.gaussian_filter1d(flux, 10)
-            wavl_smooth = scipy.ndimage.filters.gaussian_filter1d(wave, 10)
             dlnF_dlnl = utils.deriv(lnl, lnF)
             # Fix nans and infs
             dlnF_dlnl[np.isnan(dlnF_dlnl)] = 0.0
@@ -880,7 +878,7 @@ def test_solar_calibration(atm):
 
 
 if __name__ == "__main__":
-    logger = utils.get_basic_logger(clevel='INFO')
+    logger = utils.get_basic_logger(clevel='debug')
     
     # add box filters:
     passbands = []
