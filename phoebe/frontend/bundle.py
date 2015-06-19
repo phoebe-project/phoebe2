@@ -124,6 +124,14 @@ logger.addHandler(logging.NullHandler())
 class Bundle(Container):
     """
     Class representing a collection of systems and stuff related to it.
+    
+    Input/output:
+    
+    .. autosummary::
+    
+        Bundle.__init__
+        Bundle.set_system
+        Bundle.save_pickle
 
     Accessing and changing parameters via twigs:
 
@@ -134,12 +142,14 @@ class Bundle(Container):
         phoebe.frontend.common.Container.get_ps
         phoebe.frontend.common.Container.get_parameter
         phoebe.frontend.common.Container.get_adjust
+        phoebe.frontend.common.Container.set_adjust
         phoebe.frontend.common.Container.get_prior
+        phoebe.frontend.common.Container.set_prior
+        phoebe.frontend.common.Container.get_posterior
+        phoebe.frontend.common.Container.remove_posterior
         phoebe.frontend.common.Container.set_value
         phoebe.frontend.common.Container.set_value_all
         phoebe.frontend.common.Container.set_ps
-        phoebe.frontend.common.Container.set_adjust
-        phoebe.frontend.common.Container.set_prior
         phoebe.frontend.common.Container.attach_ps
         Bundle.add_parameter
         phoebe.frontend.common.Container.twigs
@@ -149,10 +159,6 @@ class Bundle(Container):
 
     .. autosummary::
 
-        Bundle.set_system
-
-        Bundle.run_compute
-
         Bundle.lc_fromfile
         Bundle.lc_fromarrays
         Bundle.lc_fromexisting
@@ -161,20 +167,40 @@ class Bundle(Container):
         Bundle.rv_fromexisting
         Bundle.sed_fromfile
         Bundle.sed_fromarrays
+        Bundle.sed_fromexisting
         Bundle.sp_fromfile
         Bundle.sp_fromarrays
+        Bundle.sp_fromexisting
         Bundle.if_fromfile
         Bundle.if_fromarrays
+        Bundle.if_fromexisting
+        Bundle.etv_fromfile
+        Bundle.etv_fromarrays
+        Bundle.etv_fromexisting
 
-
+        Bundle.disable_data
+        Bundle.enable_data
         Bundle.disable_lc
+        Bundle.enable_lc
         Bundle.disable_rv
+        Bundle.enable_rv
+        Bundle.disable_sp
+        Bundle.enable_sp
+        Bundle.disable_sed
+        Bundle.enable_sed
+        Bundle.disable_etv
+        Bundle.enable_etv
+        
+        Bundle.write_syn
 
     Computations and fitting:
 
     .. autosummary::
 
+        phoebe.frontend.common.Container.add_mpi
+        phoebe.frontend.common.Container.add_compute
         Bundle.run_compute
+        phoebe.frontend.common.Container.add_fitting
         Bundle.run_fitting
 
     High-level plotting functionality:
@@ -185,7 +211,15 @@ class Bundle(Container):
         Bundle.plot_syn
         Bundle.plot_residuals
         Bundle.plot_mesh
-
+        
+        Bundle.attach_plot_obs
+        Bundle.attach_plot_syn
+        Bundle.attach_plot_mesh
+        
+        Bundle.draw
+        Bundle.draw_figure
+        Bundle.draw_axes
+        Bundle.draw_plot
 
     Convenience functions:
 
@@ -197,6 +231,9 @@ class Bundle(Container):
         Bundle.get_system
         Bundle.get_object
         Bundle.get_orbit
+        Bundle.get_children
+        Bundle.get_parent
+        Bundle.get_adjustable_parameters
 
 
 
@@ -213,7 +250,7 @@ class Bundle(Container):
     .. autosummary::
 
         Bundle.summary
-        Bundle.info
+        phoebe.frontend.commond.Container.info
 
 
     **Initialization**
@@ -293,6 +330,9 @@ class Bundle(Container):
 
         - a Body (or BodyBag), called :envvar:`system` in this context.
         - a list of compute options which can be stored and used to compute observables.
+        - a list of fitting options which can be stored and used for fitting observables.
+        - a list of MPI options which can be stored and used during either compute or fitting
+        - a list of options which can be used to reproduce plots and figures
 
 
     """
@@ -839,43 +879,6 @@ class Bundle(Container):
                 obs.set_enabled(state)
 
         return -0.5*sum(chi2)
-        
-    def get_posterior(self, twig=None):
-        """
-        [FUTURE]
-        
-        Retrieve the posterior for a given parameter
-        
-        :param twig: twig pointing to the parameter
-        :type twig: str
-        """
-        
-        param = self.get_parameter(twig)
-        
-        if hasattr(param, 'posterior'):
-            return param
-        else:
-            logger.warning('parameter {} does not have a posterior'.format(twig))
-            return None
-        
-    def remove_posterior(self, twig=None):
-        """
-        [FUTURE]
-        
-        Remove the posterior for a given parameter
-        
-        :param twig: twig pointing to the parameter
-        :type twig: str
-        """
-        
-        param = self.get_parameter(twig)
-        
-        if hasattr(param, 'posterior'):
-            delattr(param, 'posterior')
-        else:
-            logger.warning('parameter {} does not have a posterior'.format(twig))
-            return None
-
 
     #}
     #{ Objects

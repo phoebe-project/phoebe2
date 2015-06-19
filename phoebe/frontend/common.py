@@ -772,6 +772,7 @@ class Container(object):
         for param in params:
             param.set_prior(**dist_kwargs)
             
+           
     def get_adjustable_parameters(self, twig=None):
         """
         [FUTURE]
@@ -789,6 +790,24 @@ class Container(object):
             if hasattr(ti['item'], 'adjust') and ti['item'].adjust and ti['item'].has_prior():
                 params[ti['twig']] = ti['item']
         return params
+        
+    def get_posterior(self, twig=None):
+        """
+        [FUTURE]
+        
+        Retrieve the posterior for a given parameter
+        
+        :param twig: twig pointing to the parameter
+        :type twig: str
+        """
+        
+        param = self.get_parameter(twig)
+        
+        if hasattr(param, 'posterior'):
+            return param
+        else:
+            logger.warning('parameter {} does not have a posterior'.format(twig))
+            return None
                 
     def set_posterior(self, twig, **dist_kwargs):
         """
@@ -854,6 +873,24 @@ class Container(object):
         values = self.draw_value_from_posterior_all(twig=twig, only_adjust=only_adjust)
         for twig in values.dtype.names:
             self.set_value(twig, values[twig][0])
+        
+    def remove_posterior(self, twig=None):
+        """
+        [FUTURE]
+        
+        Remove the posterior for a given parameter
+        
+        :param twig: twig pointing to the parameter
+        :type twig: str
+        """
+        
+        param = self.get_parameter(twig)
+        
+        if hasattr(param, 'posterior'):
+            delattr(param, 'posterior')
+        else:
+            logger.warning('parameter {} does not have a posterior'.format(twig))
+            return None
         
     
     @rebuild_trunk
