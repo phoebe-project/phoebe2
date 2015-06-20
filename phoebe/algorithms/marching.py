@@ -698,6 +698,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
     DEBUG = False
 
     Ts = []
+    
     r0 = -project_onto_potential(np.array((-0.02, 0.0, 0.0)), potential, *args).r[0]
     
     # The following is a hack that needs to go!
@@ -742,7 +743,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
             vc = project_onto_potential(rc, potential, *args).r
 
             # Next we need to find the tangential plane, which we'll get by finding the normal:
-            nc = np.array((dpdx(vc, *args[:-1]), dpdy(vc, *args[:-1]), dpdz(vc, *args[:-1])))
+            nc = np.array((-dpdx(vc, *args[:-1]), -dpdy(vc, *args[:-1]), -dpdz(vc, *args[:-1])))
 
             # Then we need to find the intersection of +/-dtheta/dphi-deflected
             # radius vectors with the tangential plane. We do that by solving
