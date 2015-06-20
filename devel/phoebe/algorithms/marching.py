@@ -515,8 +515,8 @@ def project_onto_potential(r, pot_name, *args):
         g = np.array((dpdx(ri, *args[:-1]), dpdy(ri, *args[:-1]), dpdz(ri, *args[:-1])))
         grsq = g[0]*g[0]+g[1]*g[1]+g[2]*g[2]
         r = ri - pot(ri, *args)*g/grsq
-        n_iter+=1
-    if n_iter>=90:
+        n_iter += 1
+    if n_iter == 100:
         print('warning: projection did not converge')
     return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
 
