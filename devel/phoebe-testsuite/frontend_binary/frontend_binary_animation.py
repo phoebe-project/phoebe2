@@ -54,14 +54,5 @@ b.attach_plot_syn('rvs@secondary', fmt='r-', highlight_fmt='ro')
 
 b.attach_plot_syn('spectra', fmt='k-', axesref='spectra', ylim=(0.955,1.005), axesloc=(2,2,3))
 
-for i,t in enumerate(b['time@spectra@spsyn']):
-    print i+1
-    plt.clf()
-    fig = plt.gcf()
-    b.draw('fig', time=t, fig=fig)
+b.draw('fig', time=b['time@spectra@spsyn'], fname='binary_rv.gif', clf=True, tight_layout=True)
 
-    fig.tight_layout()
-    fig.savefig('binary_rv_{:03d}.png'.format(i+1))
-
-time.sleep(5) # just to make sure the last frame finishes rendering
-phoebe.utils.plotlib.make_movie('binary_rv_*.png', fps=20, output='binary_rv.gif', cleanup=True)
