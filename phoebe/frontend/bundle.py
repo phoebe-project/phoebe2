@@ -5928,7 +5928,7 @@ class Bundle(Container):
 
     #{ Figures
 
-    def draw(self, twig=None, time=None, **kwargs):
+    def draw(self, twig=None, time=None, fname=None, **kwargs):
         """
         [FUTURE]
 
@@ -5944,8 +5944,8 @@ class Bundle(Container):
 
         :param twig: twig pointing the the figure, axes, or plot options
         :type twig: str or None
-        :param attach: whether to attach these options to the bundle
-        :type attach: bool
+        :param time: time to use during all plotting call (single time or list)
+        :type time: float or list of floats
         :param ax: mpl axes used for plotting (optional, overrides :envvar:`fig`)
         :type ax: mpl.Axes
         :param fig: mpl figure used for plotting (optional)
@@ -5954,7 +5954,24 @@ class Bundle(Container):
         :type clf: bool
         :param cla: whether to call plt.cal() before plotting
         :type cla: bool
+        :param tight_layout: whether to call plt.gcf().tight_layout() after plotting
+        :type tight_layout: bool
+        :param fname: filename to save figure, or None to return mpl object
+        :type fname: str or None
+        :param fps: frames per second to use when creating animation (must pass length of times and a valid filename type)
+        :type fps: int
         """
+
+        fps = int(kwargs.pop('fps', 20))
+        if not isinstance(time, float) and hasattr(time, '__iter__'):
+            for i,t in enumerate(time):
+                self.draw(twig=twig, time=t, fname='_anim_tmp_{:08d}.png'.format(i) if fname is not None else None, **kwargs)
+                plt.clf()
+            
+            if fname is not None:
+                sleep(5) # just to make sure the last frame finished rendering
+                plotlib.make_movie('_anim_tmp_*.png', fps=fps, output=fname, cleanup=True)
+            
 
         if twig is None:
             ps = self.get_figure()
@@ -5965,6 +5982,7 @@ class Bundle(Container):
         fig = kwargs.pop('fig', None)
         clf = kwargs.pop('clf', False)
         cla = kwargs.pop('cla', False)
+        tight_layout = kwargs.pop('tight_layout', False)
 
         ref = ps.get_value('ref')
         level = ps.context.split(':')[1].split('_')[0] # will be plot, axes, or figure
@@ -5998,6 +6016,13 @@ class Bundle(Container):
                 ax.cla()
 
             ret = self.draw_plot(ref, time=time, ax=ax, **kwargs)
+
+        if tight_layout:
+            plt.gcf().tight_layout()
+            
+        if fname is not None:
+            plt.gcf().savefig(fname)
+            ret = fname
 
         return ret
 
