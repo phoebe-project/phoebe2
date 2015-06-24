@@ -48,7 +48,13 @@ double	*SolutionVecM,
 	chi2Mag,
 	chi2MagLast,
 	chi2Delta,
-	magnitude;
+	magnitude,
+
+	**corMat,
+	**WMatT_X_WMat,
+	**MatGT,
+	**MatTemp,
+	**GT_W_G;
 
 int	*derivativeType,
 	nParams,
@@ -61,6 +67,7 @@ int	*derivativeType,
 	nCol,
 	I,
 	i,
+	j,
 	k,
 	numFixedParams=0,
 	iCounter,
@@ -171,6 +178,21 @@ int	*derivativeType,
 		}
 
 
+
+
+	/*printf("G = \n");
+	for(i = 0; i<nRow;i++)
+	{
+		for(j = 0; j<nCol; j++)
+		{
+			printf("%f     ",MatG[i][j]);
+		}
+		printf("\n");
+	}*/
+	
+
+
+
 		CGLS(SolutionVecM, MatG, dL, nRow, nCol);
 
 
@@ -245,11 +267,73 @@ int	*derivativeType,
 	printf("\n\n This took %d iterations --- magnitude = %g\n\n\n",
 			iCounter-1, magnitude);
 
+	/* before we return let's calculate the covariance matrix
+	 * this also gives the errors on the fit
+	 * 
+	 * Cov = (G_W^T . G_W)^-1 = 
+	 * Cov = (G_W^T . G_W)^-1 = (G^T . W^T . W .G)^-1
+	 * where W = a ndataPointsxnDataPoints diagonal matric with elements W_i = 1/sigma_i
+	 * we will send this as an array of length = nDataPoints  
+	 * whose values were passed as = 1/sigma_i^2, so here they are == sigma_i^2
+	 * See "Parameter Estimation and Inverse Problems", Aster, Borchers, Thurber 
+	 * for details about getting the uncertainties from least squares.  Or Numerical Recipes
+	 *
+	 * Recall NRows = nDatapoints, nCol = nParams
+	 */
+	corMat = diffCorr->corMat;
+	MatGT = dmatrix(nCol, nRow);
+	WMatT_X_WMat = dmatrix(nRow, nRow);
+	Transpose(MatGT, MatG, nRow, nCol);
+	MatTemp = dmatrix(nRow, nCol);
+	GT_W_G = dmatrix(nCol, nCol);
+
+	/* create the W^T x W matrix, its diagnal */
+	for(i = 0; i<nRow;i++)
+	{
+		for(j = 0; j<nRow; j++)
+		{
+			if(i==j)WMatT_X_WMat[i][i] =diffCorr->sigmaMat[i];
+			else WMatT_X_WMat[i][j] = 0.0;
+		}
+	}
+
+	MatrixMatrixProduct(MatTemp, WMatT_X_WMat, MatG, nRow, nRow, nCol);
+	MatrixMatrixProduct(GT_W_G, MatGT, MatTemp, nCol, nRow, nCol);
+	MatInverseGaussJordan(GT_W_G, diffCorr->corMat, nCol);
+
+	/* just a test!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *********/
+	/*for(i = 0; i<nCol;i++)
+	{
+		for(j = 0; j<nCol; j++)
+		{
+			diffCorr->corMat[i][j] = i+j;
+			printf("WT.W = %f\n",WMatT_X_WMat[i][j]);
+		}
+	}
+	*/
+
+	/*printf("G = \n");
+	for(i = 0; i<nRow;i++)
+	{
+		for(j = 0; j<nCol; j++)
+		{
+			printf("%f     ",MatG[i][j]);
+		}
+		printf("\n");
+	}*/
+	
+
+
 
 
 	/* free the matrix memory */
 	free_dmatrix(MatG, nRow, nCol);
 	free_dvector(MatGCol, nRow);
+	free_dmatrix(MatGT, nCol, nRow);
+	free_dmatrix(WMatT_X_WMat, nRow, nRow);
+
+	free_dmatrix(MatTemp, nRow, nCol);
+	free_dmatrix(GT_W_G, nCol, nCol);
 
 	diffCorr->derError = derError;
 	*perror = error;
@@ -293,6 +377,45 @@ int	matRow,
 }
 
 
+
+
+/* ========================================================================
+ * ==                                                                    ==
+ * ==                     function MatrixMatrixProduct                   ==
+ * ==                                                                    ==
+ * == Functionality: MatrixMatrixProduct calculates the produce of       ==
+ * == a matrix Mat1 and a Matrix Mat2 and returns the result in MatXMat  ==
+ * == the dimensions of the Product matrix are required                  ==
+ * == numRow1 = num rows of Mat1 = num rows product matrix               ==
+ * == numCol2 = num cols of Mat2 = num cols product matrix               ==
+ * == numRow2 = num rows of Mat2 == num cols Mat1                        ==
+ * ==                                                                    ==
+ * == Diagnostics: None  at this time                                    ==
+ * ========================================================================
+ */
+void MatrixMatrixProduct(double **MatXMat, double **Mat1, double **Mat2,
+		int numRow1, int numRow2, int numCol2)
+{
+int	matRow,
+	matCol,
+	k;
+
+	for (matRow = 0; matRow < numRow1; matRow++)
+	{
+		for (matCol = 0; matCol < numCol2; matCol++)
+		{
+			MatXMat[matRow][matCol] = 0.0;
+			for (k = 0; k < numRow2; k++)
+			{
+				MatXMat[matRow][matCol] +=
+				Mat1[matRow][k]*Mat2[k][matCol];
+			}
+		}
+	}
+
+}
+
+
 /* ========================================================================
  * ==                                                                    ==
  * ==                     function DELTA                                 ==
@@ -315,6 +438,7 @@ double Delta(int I, int J)
 }
 
 
+
 /*=====================================================================
  * ==                                                                ==
  * ==                    funtion MatInverseGaussJordan               ==
@@ -328,27 +452,30 @@ double Delta(int I, int J)
  * == matrix (i.e. 100x100
 C======================================================================
 */
-void MatInverseGaussJordan(double **A, double **AInv, double **AP, int N)
+void MatInverseGaussJordan(double **A, double **AInv, int N)
 {
 int		ColCount,
 		I,
 		J;
 
 double	UnitFac,
-		RowFac;
+	RowFac,
+	**AP;
 
+
+	AP = dmatrix( N+1, N+1);
 
 
 	/* Set-Up AP, Copy A into AP */
-	for (I = 1; I <= N; I++)
-		for (J = 1; J <= N; J++)
+	for (I = 0; I < N; I++)
+		for (J = 0; J < N; J++)
 			AP[I][J] = A[I][J];
 
 
 	/* add extra column to AP, this is the first so AP(1,N+1) = 1 */
-        AP[1][N+1] = 1.0;
-		for (I = 2; I <= N; I++)
-			AP[I][N+1] = 0.0;
+        AP[0][N] = 1.0;
+		for (I = 1; I <= N; I++)
+			AP[I][N] = 0.0;
 
 
 
@@ -357,21 +484,21 @@ double	UnitFac,
 	 * loop to make the element AP(ColCount,J) = 1,
 	 * all other elements in that column = 0
 	 */
-	for (ColCount = 1; ColCount <= N; ColCount++)
+	for (ColCount = 0; ColCount < N; ColCount++)
 	{
-		UnitFac = AP[ColCount][1];
+		UnitFac = AP[ColCount][0];
 		
-		for (J = 1; J <= N+1; J++)
+		for (J = 0; J < N+1; J++)
 			AP[ColCount][J] = AP[ColCount][J]/UnitFac;
 
 
-		for (I = 1; I <= N; I++)
+		for (I = 0; I < N; I++)
 		{
-            RowFac = AP[I][1];
+            RowFac = AP[I][0];
             J = 1;
 
 			if ( I != ColCount)
-				for (J = 1; J <= N+1; J++)
+				for (J = 0; J < N+1; J++)
 					AP[I][J] = AP[I][J] - AP[ColCount][J]*RowFac;
 
 		}
@@ -382,12 +509,12 @@ double	UnitFac,
 		 * of the identity matrix so that element
 		 * AP(ColCount+1,N+1) = 1 (i.e. the next column)
 		 */
-		for (I = 1; I <= N; I++)
+		for (I = 0; I < N; I++)
 		{
-			for (J = 1; J <= N; J++)
+			for (J = 0; J < N; J++)
 				AP[I][J] = AP[I][J+1];
 
-			AP[I][N+1] = Delta(I, ColCount+1);
+			AP[I][N] = Delta(I, ColCount+1);
 		}
 
 	}
@@ -395,24 +522,30 @@ double	UnitFac,
 
 
 	/* the N rows & N columns of AP are the inverse of A, store in AInv */
-	for (I = 1; I <= N; I++)
-		for (J = 1; J <= N; J++)
+	for (I = 0; I < N; I++)
+		for (J = 0; J < N; J++)
 			AInv[I][J] = AP[I][J];
 
 
+	free_dmatrix(AP, N+1, N+1);
+
 }
+
+
+
+
+
 
 
 /*=====================================================================
  * ==                                                                ==
  * ==                            funtion CGLS                        ==
  * ==                                                                ==
- * ==     ==
- * ==            ==
- * ==       ==
- * ==       ==
- * == 
-C======================================================================
+ * ==   This algorithm follows the implimentation in the book        ==
+ * ==   "Parameter Estimation and Inverse Problems", Aster, Borchers,==
+ * ==   Thurber, pg 132                                              ==
+ * ==                                                                ==
+ *======================================================================
 */
 void CGLS(double *SolutionVecM, double **MatG, double *RHSVecD,
 			int nRow, int nCol)
@@ -420,18 +553,22 @@ void CGLS(double *SolutionVecM, double **MatG, double *RHSVecD,
 int	k;
 
 double	alpha,
-		beta,
-		magnitude,
-		*p,
-		*pLast,
-		*s,
-		*sLast,
-		*rLast,
-		*r,
-		*Gp,
-		*SolutionVecMLast,
-		*SolutionVecMDifferance,
-		**TransposeMatG;
+	beta,
+	magnitude,
+	*p,
+	*pLast,
+	*s,
+	*sLast,
+	*rLast,
+	*r,
+	*Gp,
+	*SolutionVecMLast,
+	*SolutionVecMDifferance,
+	**TransposeMatG,
+	residLast,
+	resid,
+	*MatG_M,
+	*residVec;
 
 	/*
 	 * allocate memory for the matrices
@@ -446,6 +583,8 @@ double	alpha,
 	s = dvector(nRow);
 	sLast = dvector(nRow);
 	TransposeMatG = dmatrix(nCol, nRow);
+	MatG_M = dvector(nRow);
+	residVec = dvector(nRow);
 
 
 	Transpose(TransposeMatG, MatG, nRow, nCol);
@@ -468,6 +607,17 @@ double	alpha,
 	{
 		pLast[k] = 0;
 	}
+
+
+
+	/* Get initial residual = Norm[d - G.m] */
+	/* In the loop residLast is set to this resid first time through */
+	/* could we speed up by setting initial resid = 100???? */
+	MatrixVectorProduct(MatG_M, MatG, SolutionVecM, nRow, nCol);
+	VectorSumWithScalarMult(MatG_M, RHSVecD, -1, MatG_M, nRow);
+	resid = sqrt(dotProduct(MatG_M,	MatG_M, nRow));
+
+
 
 	/* Iterate to get the solution */
 	k = 1;
@@ -495,8 +645,14 @@ double	alpha,
 		VectorSumWithScalarMult(SolutionVecMDifferance,
 			SolutionVecM, -1, SolutionVecMLast, nCol);
 		k++;
-		magnitude = sqrt(dotProduct(SolutionVecMDifferance,
-							SolutionVecMDifferance, nCol));
+
+		/* resid = d - G.m */
+		MatrixVectorProduct(MatG_M, MatG, SolutionVecM, nRow, nCol);
+		VectorSumWithScalarMult(MatG_M, RHSVecD, -1, MatG_M, nRow);
+		residLast = resid;
+		resid = sqrt(dotProduct(MatG_M,	MatG_M, nRow));
+		magnitude = fabs(resid - residLast);
+		/*printf("mag = %f   resid = %f\n",magnitude, resid);*/
 
 	}
 
@@ -512,6 +668,9 @@ double	alpha,
 	free_dvector(r, nCol);
 	free_dvector(SolutionVecMLast, nCol);
 	free_dvector(SolutionVecMDifferance, nCol);
+	free_dvector(MatG_M, nRow);
+	free_dvector(residVec, nRow);
+	/*printf("k = %d\n",k);*/
 
 
 }

@@ -13,6 +13,8 @@
                                 initialGuess, \
                                 derivativeType, \
                                 dFunc_dx, \
+				corMat,
+				sigmaMat
                                 lFunc, \
                                 system)
 
@@ -164,7 +166,8 @@ PyMODINIT_FUNC init_DiffCorr(void)
 static PyObject *DiffCorr_DiffCorr(PyObject *self, PyObject *args)
 {
 
-double *params;
+double	*params,
+	typenum = NPY_DOUBLE;
 
 int	nRow,
 	nCol,
@@ -173,16 +176,22 @@ int	nRow,
 	numFixedParams=0,
 	error;
 
-npy_intp dims[1];
+npy_intp 	dims[1],
+		matDims[3];
+
 
 
 PyObject	*py_data,
 		*py_initialGuess,
-		*py_derivativeType;
+		*py_derivativeType,
+		*py_corMat,
+		*py_sigmaMat;
 
 PyArrayObject	*py_paramSolution; /* This will be used to pass the parameter
 					solution back to python */
 
+
+PyArray_Descr *descr;
 
 DifferentialCorrection *diffCorr;
 
@@ -196,7 +205,7 @@ DifferentialCorrection *diffCorr;
 
 
 	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(args, "iiiidOOOOOO", 
+	if (!PyArg_ParseTuple(args, "iiiidOOOOOOOO", 
     				&(diffCorr->nParams),
 				&(diffCorr->nDataPoints),
     				&(diffCorr->maxIterations),
@@ -206,6 +215,8 @@ DifferentialCorrection *diffCorr;
 				&py_initialGuess,
 				&py_derivativeType,
 				&py_dFunc,
+				&py_corMat,
+				&py_sigmaMat,
 				&py_lFunc,
 				&py_system))
         return NULL;
@@ -268,8 +279,18 @@ DifferentialCorrection *diffCorr;
 	diffCorr->data = (double*)PyArray_DATA(
 		PyArray_FROM_OTF(py_data, NPY_DOUBLE, NPY_IN_ARRAY));
 
+	/* get the sigmaMat, really an array whose elements are 1/sigma_i^2 */
+	diffCorr->sigmaMat = (double*)PyArray_DATA(
+		PyArray_FROM_OTF(py_sigmaMat, NPY_DOUBLE, NPY_IN_ARRAY));
 
-
+	/* get the covariance matrix that will be calculated by C and returned*/
+	descr = PyArray_DescrFromType(typenum);
+	if (PyArray_AsCArray(&py_corMat, (void **)&(diffCorr->corMat), matDims, 2, descr) < 0 )
+	{
+		PyErr_SetString(PyExc_TypeError, "error converting to c array");
+		return NULL;
+	}
+	
 
 	/*
 	 * allocate memory for the matrices the c-routine will manipulate and use
@@ -316,11 +337,11 @@ DifferentialCorrection *diffCorr;
 
 
 	/* for checking for now !! ####### */
-	printf("  Solution = \n");
+	/*printf("  Solution = \n");
 	for (I = 0; I < diffCorr->nParams; I++)
 	{
 		printf("%f\n", ((double *)(py_paramSolution->data))[I]);
-	}
+	}*/
 
 
 	/* free the matrix memory */

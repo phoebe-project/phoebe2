@@ -1116,6 +1116,7 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
         report_values = ['{}={:16.8f}'.format(qual, val) for qual, val in zip(qualifiers, pars)]
         report_chi2 = np.mean((data-model)**2/sigma**2)
         #print(", ".join(report_values) + ': chi2={}'.format(report_chi2))
+	#********************************
         
         traces.append(pars)
         redchis.append(report_chi2)
@@ -1149,11 +1150,12 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
     maxIterations = fitparams.get_value('max_iters')
     derivative_type = fitparams.get_value('derivative_type')
     derivative_funcs = fitparams.get_value('derivative_funcs')
-    print("stoppingCriteriaType = ",stoppingCriteriaType)
-    print("stopValue = ",stopValue)
-    print("maxIterations = ",maxIterations)
-    print("derivative_type = ",derivative_type)
-    print("derivative_funcs = ",derivative_funcs)
+    #print("stoppingCriteriaType = ",stoppingCriteriaType)
+    #print("stopValue = ",stopValue)
+    #print("maxIterations = ",maxIterations)
+    #print("derivative_type = ",derivative_type)
+    #print("derivative_funcs = ",derivative_funcs)
+
 
     # stoppingCriteriaType and derivative_type must be converted to integers
     if stoppingCriteriaType == 'min_dx':
@@ -1182,6 +1184,21 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
     print("derivative_type = ",derivative_type)
 
 
+    # setup the covariance matrix in order to get the uncertainties on the parameters
+    # we will send to C a square nParamsxnParams identity matrix.  This will come back
+    # as the covariance matrix ==
+    # Cov = (G_W^T . G_W)^-1 = (G^T . W^T . W .G)^-1
+    # where W = a ndataPointsxnDataPoints diagonal matric with elements W_i = 1/sigma_i
+    # we will send this as an array of length = nDataPoints  
+    # whose values are = 1/sigma_i^2
+    # See "Parameter Estimation and Inverse Problems", Aster, Borchers, Thurber 
+    # for details about getting the uncertainties from least squares.  Or Numerical Recipes
+    #corMat = np.identity(nParams, dtype=float)
+    corMat = np.ones((nParams, nParams), dtype=float)
+    sigmaMat = np.ones(nDataPoints)/sigma**2
+    
+
+
 
     # Current state: we know which parameters to fit, and we have a function
     # that returns a fit statistic given a proposed set of parameter values.
@@ -1196,6 +1213,7 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
 				data, \
                                 initial_guess, derivative_type,
                                 derivative_funcs,
+				corMat, sigmaMat,
 				model_eval, system)
 
     print solution
@@ -1223,7 +1241,7 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
     #    plt.ylabel(qual)
     #plt.show()
 
-    return solution,
+    return solution, corMat
 
 
 
