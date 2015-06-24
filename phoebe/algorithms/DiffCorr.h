@@ -74,6 +74,8 @@ typedef struct {
 double	*SolutionVecM,		/* This is dx = J^-1 . df */
 	*model,
 	*data,
+	*sigmaMat,         /* really an array whose elements are 1/sigma_i^2  */
+	**corMat,          /* will return to python the covariance matrix */
 	*params,
 	*paramsLast,
 	*paramsDifferance,
@@ -126,8 +128,26 @@ void MatrixVectorProduct(double *MatVec, double **Mat, double *Vec, int numRow, 
 void Transpose(double **TransposeMat, double **Mat,	int nRow, int nCol);
 void EquateVectors(double *VectorEmpty, double *VectorFilled, int nEntries);
 double Delta(int I, int J);
-void
-	MatInverseGaussJordan(double **A, double **AInv, double **AP, int N);
+
+
+
+
+/*=====================================================================
+ * ==                                                                ==
+ * ==                    funtion MatInverseGaussJordan               ==
+ * ==                                                                ==
+ * == This code finds the inverse of a (square) nXn matrix by the    ==
+ * == Gauss-Jordan method...See Scarborough pg. 285.                 ==
+ * == See Scarborough "Numerical Mathematical Analysis", pg. 285.    ==
+ * == (an older Numerical Methods book,  but a good one).            ==
+ * == This method does not require that A be symetric, But it's      ==
+ * == probably not efficient enough to be used for a very large      ==
+ * == matrix (i.e. 100x100
+C======================================================================
+*/
+void MatInverseGaussJordan(double **A, double **AInv, int N);
+
+
 
 void VectorSumWithScalarMult(double *solution, double *vector1, double scalar,
 double *vector2, int nEntries);
@@ -153,6 +173,27 @@ void free_ivector(int *v, int nrow);
 int dfridr(void (*func)(double *, double *), double *x, double h,
 		int numElements, int elementToVary, int nDataPoints,
 		double *dF, double *err);
+
+
+
+
+
+/* ========================================================================
+ * ==                                                                    ==
+ * ==                     function MatrixMatrixProduct                   ==
+ * ==                                                                    ==
+ * == Functionality: MatrixMatrixProduct calculates the produce of       ==
+ * == a matrix Mat1 and a Matrix Mat2 and returns the result in MatXMat  ==
+ * == the dimensions of the Product matrix are required                  ==
+ * == numRow1 = num rows of Mat1 = num rows product matrix               ==
+ * == numCol2 = num cols of Mat2 = num cols product matrix               ==
+ * == numRow2 = num rows of Mat2 == num cols Mat1                        ==
+ * ==                                                                    ==
+ * == Diagnostics: None  at this time                                    ==
+ * ========================================================================
+ */
+void MatrixMatrixProduct(double **MatXMat, double **Mat1, double **Mat2,
+		int numRow1, int numRow2, int numCol2);
 
 
 

@@ -223,7 +223,7 @@ class FeedbackDc(Feedback):
     """
     Feedback from the dc fitting routine
     """
-    def __init__(self, dc_result, init, fitting=None,
+    def __init__(self, dc_result, dc_corMat, init, fitting=None,
             compute=None, ongoing=False):
 
         self._translation = dict()
@@ -245,12 +245,13 @@ class FeedbackDc(Feedback):
         for i,value in enumerate(dc_result):
             self._parameters[i].set_value(value)
             mu = value
-            sigma = 1.0   # TODO: fix
+            sigma = dc_corMat[i][i]
             self._parameters[i].set_posterior(distribution='normal',
                                               mu=mu, sigma=sigma)
             
 
-        self._cormat = np.zeros((len(init_phoebe_pars), len(init_phoebe_pars)))  # TODO: fix
+        #self._cormat = np.zeros((len(init_phoebe_pars), len(init_phoebe_pars)))  # TODO: fix
+        self._cormat = dc_corMat
     
 
     
