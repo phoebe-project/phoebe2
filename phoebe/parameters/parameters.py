@@ -1751,6 +1751,15 @@ class Parameter(object):
     #}
     
     #{ Overloaders    
+    def __repr__(self):
+        """
+        """
+        if self.has_unit():
+            return "<Parameter {}: {} ({})>".format(self.qualifier, self.get_value(), self.get_unit())
+        else:
+            return "<Parameter {}: {}>".format(self.qualifier, self.get_value())
+    
+    
     def __str__(self):
         """
         Return a string representation of the parameter

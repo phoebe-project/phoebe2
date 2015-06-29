@@ -11,17 +11,17 @@ library.
 
 Simply initialize a Bundle with default parameters via::
 
-    >>> mybundle = Bundle()
+    >>> b = Bundle()
 
 Or use other predefined systems as a starting point::
 
-    >>> mybundle = Bundle('binary')
-    >>> mybundle = Bundle('overcontact')
-    >>> mybundle = Bundle('hierarchical_triple')
-    >>> mybundle = Bundle('binary_pulsating_primary')
-    >>> mybundle = Bundle('pulsating_star')
-    >>> mybundle = Bundle('sun')
-    >>> mybundle = Bundle('vega')
+    >>> b = Bundle('binary')
+    >>> b = Bundle('overcontact')
+    >>> b = Bundle('hierarchical_triple')
+    >>> b = Bundle('binary_pulsating_primary')
+    >>> b = Bundle('pulsating_star')
+    >>> b = Bundle('sun')
+    >>> b = Bundle('vega')
 
 For a complete list, see the documentation of the :py:mod:`create <phoebe.parameters.create>`
 module (section *Generic systems* and *specific targets*).
@@ -31,7 +31,7 @@ module (section *Generic systems* and *specific targets*).
 Phoebe2 can be used in a Phoebe1 compatibility mode ('legacy' mode), which is
 most easily when you start immediately from a legacy parameter file:
 
-    >>> mybundle = Bundle('legacy.phoebe')
+    >>> b = Bundle('legacy.phoebe')
 
 When a Bundle is loaded this way, computational options are added automatically
 to the Bundle to mimick the physics that is available in Phoebe1. These options
@@ -39,7 +39,7 @@ are collected in a ParameterSet of context 'compute' with label ``legacy``.
 The most important parameters are listed below (some unimportant ones have been
 excluded so if you try this, you'll see more parameters)
 
-    >>> print(mybundle['legacy'])
+    >>> print(b['legacy'])
               label legacy        --   label for the compute options
             heating True          --   Allow irradiators to heat other Bodies
                refl False         --   Allow irradiated Bodies to reflect light
@@ -56,16 +56,16 @@ value in the loaded parameter file.
 Once data is added, you could run Phoebe2 while mimicking the physics in Phoebe1
 via::
 
->>> mybundle.run_compute(label='legacy')
->>> print(mybundle.get_logp())
+>>> b.run_compute(label='legacy')
+>>> print(b.get_logp())
 
->>> mybundle.plot_obs('lightcurve_0', fmt='ko')
->>> mybundle.plot_obs('primaryrv_0', fmt='ko')
->>> mybundle.plot_obs('secondaryrv_0', fmt='ro')
+>>> b.plot_obs('lightcurve_0', fmt='ko')
+>>> b.plot_obs('primaryrv_0', fmt='ko')
+>>> b.plot_obs('secondaryrv_0', fmt='ro')
 
->>> mybundle.plot_syn('lightcurve_0', 'k-', lw=2)
->>> mybundle.plot_syn('primaryrv_0', 'k-', lw=2)
->>> mybundle.plot_syn('secondaryrv_0', 'r-', lw=2)
+>>> b.plot_syn('lightcurve_0', 'k-', lw=2)
+>>> b.plot_syn('primaryrv_0', 'k-', lw=2)
+>>> b.plot_syn('secondaryrv_0', 'r-', lw=2)
 
 Basic class:
 
@@ -139,17 +139,23 @@ class Bundle(Container):
 
         phoebe.frontend.common.Container.get_value
         phoebe.frontend.common.Container.get_value_all
+        phoebe.frontend.common.Container.set_value
+        phoebe.frontend.common.Container.set_value_all
+        phoebe.frontend.common.Container.get_unit
+        phoebe.frontend.common.Container.set_unit
+        phoebe.frontend.common.Container.set_unit_all
         phoebe.frontend.common.Container.get_ps
+        phoebe.frontend.common.Container.set_ps
         phoebe.frontend.common.Container.get_parameter
         phoebe.frontend.common.Container.get_adjust
         phoebe.frontend.common.Container.set_adjust
         phoebe.frontend.common.Container.get_prior
         phoebe.frontend.common.Container.set_prior
+        phoebe.frontend.common.Container.remove_prior
         phoebe.frontend.common.Container.get_posterior
         phoebe.frontend.common.Container.remove_posterior
-        phoebe.frontend.common.Container.set_value
-        phoebe.frontend.common.Container.set_value_all
-        phoebe.frontend.common.Container.set_ps
+
+
         phoebe.frontend.common.Container.attach_ps
         Bundle.add_parameter
         phoebe.frontend.common.Container.twigs
@@ -190,7 +196,7 @@ class Bundle(Container):
         Bundle.enable_sed
         Bundle.disable_etv
         Bundle.enable_etv
-        
+               
         Bundle.write_syn
 
     Computations and fitting:
@@ -228,11 +234,17 @@ class Bundle(Container):
         Bundle.get_datarefs
         Bundle.get_lc_datarefs
         Bundle.get_rv_datarefs
+        Bundle.get_obs
+        Bundle.get_dep
+        Bundle.get_syn
         Bundle.get_system
         Bundle.get_object
+        Bundle.get_orbitps
         Bundle.get_orbit
         Bundle.get_children
         Bundle.get_parent
+        Bundle.get_meshps
+        Bundle.get_mesh
         Bundle.get_adjustable_parameters
 
 
@@ -242,8 +254,8 @@ class Bundle(Container):
     An overview of all the Parameters and observations loaded in a Bundle can
     be printed to the screen easily using::
 
-        mybundle = phoebe.Bundle()
-        print(mybundle)
+        b = phoebe.Bundle()
+        print(b)
 
     Extra functions are available that return informational strings
 
@@ -259,20 +271,20 @@ class Bundle(Container):
 
       1. Using the default binary parameters::
 
-          mybundle = Bundle()
+          b = Bundle()
 
       2. Via a Phoebe Legacy ASCII parameter file::
 
-          mybundle = Bundle('legacy.phoebe')
+          b = Bundle('legacy.phoebe')
 
       3. Via a Body or BodyBag::
 
           mysystem = phoebe.create.from_library('V380_Cyg', create_body=True)
-          mybundle = Bundle(mysystem)
+          b = Bundle(mysystem)
 
       4. Via the predefined systems in the library::
 
-          mybundle = Bundle('V380_Cyg')
+          b = Bundle('V380_Cyg')
 
     For more details, see :py:func:`set_system`.
 
@@ -283,26 +295,26 @@ class Bundle(Container):
     expected::
 
             # return the value of the period if it exists, raises error if 'period' does not exist
-            period = mybundle['period']
+            period = b['period']
 
             # set the value of the period if it exists, raises error otherwise
-            mybundle['period'] = 5.0
+            b['period'] = 5.0
 
             # return the value of the period if it exists, else returns None
-            period = mybundle.get('period')
+            period = b.get('period')
 
             # return the value of the period if it exists, else returns default_value (whatever it is)
-            period = mybundle.get('period', default_value)
+            period = b.get('period', default_value)
 
             # returns a list of available keys
-            keys = mybundle.keys()
+            keys = b.keys()
 
             # returns a list of values
-            values = mybundle.values()
+            values = b.values()
 
             # iterate over the keys in the Bundle
-            for key in mybundle:
-                print(key, mybundle[key])
+            for key in b:
+                print(key, b[key])
 
     .. important::
 
@@ -314,8 +326,8 @@ class Bundle(Container):
         parameter named ``atm``, but since it is present in both components,
         you need to ``@`` operator to be more specific:
 
-            >>> mybundle['atm@primary'] = 'kurucz'
-            >>> mybundle['atm@secondary'] = 'blackbody'
+            >>> b['atm@primary'] = 'kurucz'
+            >>> b['atm@secondary'] = 'blackbody'
 
 
 
@@ -919,7 +931,8 @@ class Bundle(Container):
         """
         if twig is None or twig == '__nolabel__' or twig == '':
             return self.get_system()
-        return self._get_by_search(twig, kind='Body')
+        #~ return self._get_by_search(twig, kind='Body')
+        return self._get_by_search(twig, context='object', method='regex')
 
     def get_children(self, twig=None):
         """
@@ -974,8 +987,8 @@ class Bundle(Container):
 
         **Example usage**::
 
-            mybundle = Bundle()
-            position, velocity, bary_time, proper_time = mybundle.get_orbit('primary')
+            b = Bundle()
+            position, velocity, bary_time, proper_time = b.get_orbit('primary')
 
             # On-sky orbit:
             plt.plot(position[0], position[1], 'k-')
@@ -1081,8 +1094,8 @@ class Bundle(Container):
         @return: the orbit PS
         @rtype: ParameterSet
         """
-        # TODO: handle default if twig is None
-        return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
+        #~ return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
+        return self._get_by_search(twig, kind='ParameterSet', context='orbit', method='regex')
 
 
     def get_mesh(self, twig=None):
@@ -1112,7 +1125,8 @@ class Bundle(Container):
         @return: the mesh PS
         @rtype: ParameterSet
         """
-        return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
+        #~ return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
+        return self._get_by_search(twig, kind='ParameterSet', context='mesh*', method='regex')
 
     def get_ephem(self, objref=None):
         """
@@ -2944,15 +2958,15 @@ class Bundle(Container):
         For example, you want to add ``asini`` as a parameter but want to keep
         ``sma`` and ``incl`` as free parameters in the fit:
 
-        >>> mybundle = phoebe.Bundle()
-        >>> mybundle.add_parameter('asini@orbit')
-        >>> mybundle['asini']
+        >>> b = phoebe.Bundle()
+        >>> b.add_parameter('asini@orbit')
+        >>> b['asini']
         9.848077530129958
 
         Then, you can still change ``sma`` and ``incl``:
 
-        >>> mybundle['sma'] = 20.0
-        >>> mybundle['incl'] = 85.0, 'deg'
+        >>> b['sma'] = 20.0
+        >>> b['incl'] = 85.0, 'deg'
 
         and then ``asini`` is updated automatically:
 
@@ -2968,15 +2982,15 @@ class Bundle(Container):
 
         **2. Adding a new parameter to replace an existing one**
 
-        >>> mybundle = phoebe.Bundle()
-        >>> mybundle.add_parameter('asini@orbit', replaces='sma')
-        >>> mybundle['asini']
+        >>> b = phoebe.Bundle()
+        >>> b.add_parameter('asini@orbit', replaces='sma')
+        >>> b['asini']
         9.848077530129958
 
         Then, you can change ``asini`` and ``incl``:
 
-        >>> mybundle['asini'] = 10.0
-        >>> mybundle['incl'] = 85.0, 'deg'
+        >>> b['asini'] = 10.0
+        >>> b['incl'] = 85.0, 'deg'
 
         and ``sma`` is updated automatically:
 
@@ -3148,41 +3162,71 @@ class Bundle(Container):
 
         [FUTURE]
         """
-        return self.get_sp_datarefs(objref=objref, category='sp')
+        return self.get_datarefs(objref=objref, category='sp')
 
     def get_syn(self, twig=None):
         """
         Get the synthetic parameterset for an observation
 
-        @param twig: the twig/twiglet to use when searching
+        @param twig: the twig/twiglet used for searching
         @type twig: str
         @return: the observations DataSet
         @rtype: DataSet
         """
-        return self._get_by_search(twig, context='*syn', class_name='*DataSet')
+        #~ return self._get_by_search(ref=dataref, context='*syn', class_name='*DataSet')
+        return self._get_by_search(twig=twig, context='*syn', class_name='*DataSet', method='regex')
 
     def get_dep(self, twig=None):
         """
         Get observations dependables
 
-        @param twig: the twig/twiglet to use when searching
+        @param twig: the twig/twiglet used for searching
         @type twig: str
         @return: the observations dependables ParameterSet
         @rtype: ParameterSet
         """
-        return self._get_by_search(twig, context='*dep', class_name='ParameterSet')
+        #~ return self._get_by_search(ref=dataref, context='*dep', class_name='ParameterSet')
+        return self._get_by_search(twig=twig, context='*dep', class_name='ParameterSet', method='regex')
 
     def get_obs(self, twig=None):
         """
         Get observations
 
-        @param twig: the twig/twiglet to use when searching
+        @param twig: the twig/twiglet used for searching
         @type twig: str
         @return: the observations DataSet
         @rtype: DataSet
         """
-        return self._get_by_search(twig, context='*obs', class_name='*DataSet')
+        #~ return self._get_by_search(ref=dataref, context='*obs', class_name='*DataSet')
+        return self._get_by_search(twig=twig, context='*obs', class_name='*DataSet', method='regex')
+              
+    def get_enabled_obs(self, twig=None):
+        """
+        [FUTURE]
+        
+        alias for get_enabled_data
+        """
+        return self.get_enabled_data(twig=twig)
 
+    def get_enabled_data(self, twig=None):
+        """
+        [FUTURE]
+        
+        Return the twigs of all datasets (obs) currently enabled
+        
+        :param twig: the search twig/twiglet (or None to show all)
+        :type twig: str
+        :return: dictionary of twig/parameter pairs
+        :rtype: dict
+        """      
+        # TODO: should this be per-dataref or per-dataref/label (ie should primary@rv01 and secondary@rv01 be separate items - how does this work for enable/disable)?
+        datasets = {}
+        for ti in self._get_by_search(twig=twig, kind='ParameterSet', context='*obs', all=True, ignore_errors=True, return_trunk_item=True):
+            if ti['item'].enabled:
+                datasets[ti['twig']] = ti['item']
+        return datasets
+
+    @rebuild_trunk
     def enable_data(self, dataref=None, category=None, enabled=True):
         """
         Enable a dataset so that it will be considered during run_compute
@@ -3206,25 +3250,48 @@ class Bundle(Container):
         except:
             dataref = None
 
+        for ds in self._get_by_search(twig=dataref, context='*obs', class_name='*DataSet', method='regex', all=True, ignore_errors=True, return_trunk_item=True):
+            ds['item'].set_enabled(enabled)
+            logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', ds['context'], ds['twig']))
+        
 
-        system = self.get_system()
-        try:
-            iterate_all_my_bodies = system.walk_bodies()
-        except AttributeError:
-            iterate_all_my_bodies = [system]
+        #~ system = self.get_system()
+        #~ try:
+        #~     iterate_all_my_bodies = system.walk_bodies()
+        #~ except AttributeError:
+        #~     iterate_all_my_bodies = [system]
 
-        for body in iterate_all_my_bodies:
-            this_objref = body.get_label()
-            for obstype in body.params['obs']:
-                if dataref is None:
-                    for idataref in body.params['obs'][obstype]:
-                        body.params['obs'][obstype][idataref].set_enabled(enabled)
-                        logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
-                elif dataref in body.params['obs'][obstype]:
-                    body.params['obs'][obstype][dataref].set_enabled(enabled)
-                    logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
+        #~ system = self.get_system()
+        #~ try:
+            #~ iterate_all_my_bodies = system.walk_bodies()
+        #~ except AttributeError:
+            #~ iterate_all_my_bodies = [system]
+#~ 
+        #~ for body in iterate_all_my_bodies:
+            #~ this_objref = body.get_label()
+            #~ for obstype in body.params['obs']:
+                #~ if dataref is None:
+                    #~ for idataref in body.params['obs'][obstype]:
+                        #~ body.params['obs'][obstype][idataref].set_enabled(enabled)
+                        #~ logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, idataref))
+                #~ elif dataref in body.params['obs'][obstype]:
+                    #~ body.params['obs'][obstype][dataref].set_enabled(enabled)
+                    #~ logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', obstype, dataref))
+                    
+    def set_enabled(self, twig, value=True):
+        """
+        Set whether a dataset is enabled (alias of enable_data)
+        
+        [FUTURE]
+        
+        :param twig: the search twig
+        :type twig: str
+        :param value: adjust
+        :type value: bool
+        """
+        return self.enable_data(dataref=twig, enabled=value)
 
-
+    @rebuild_trunk
     def disable_data(self, dataref=None, category=None):
         """
         Disable a dataset so that it will not be considered during run_compute
@@ -3394,7 +3461,7 @@ class Bundle(Container):
 
             dss = self._get_by_search(dataref,
                     context = ['{}obs'.format(category),'{}syn'.format(category),'{}dep'.format(category)],
-                    kind = 'ParameterSet', all = True, ignore_errors = True)
+                    kind = 'ParameterSet', all = True, ignore_errors = True, method='regex')
 
             datarefs = []
             for ds in dss:
@@ -3415,7 +3482,7 @@ class Bundle(Container):
             # confirm its (always) the correct category
             # *technically* if it isn't always correct, we should just remove the correct ones
             #dss = self._get_by_search(dataref, context=['*obs','*syn','*dep'], kind='ParameterSet', all=True, ignore_errors=True)
-            dss = self._get_by_search(dataref, context='*dep', kind='ParameterSet', all=True, ignore_errors=True)
+            dss = self._get_by_search(dataref, context='*dep', kind='ParameterSet', all=True, ignore_errors=True, method='regex')
             if not len(dss):
                 raise KeyError("No dataref found matching {}".format(dataref))
             for ds in dss:
@@ -3498,13 +3565,13 @@ class Bundle(Container):
 
         The minimal setup is::
 
-            >>> mybundle = phoebe.Bundle()
-            >>> dataref = mybundle.lc_fromarrays(phase=[0, 0.5, 1.0])
-            >>> mybundle.run_compute()
+            >>> b = phoebe.Bundle()
+            >>> dataref = b.lc_fromarrays(phase=[0, 0.5, 1.0])
+            >>> b.run_compute()
 
         After which you can plot the results via::
 
-            >>> mybundle.plot_syn(dataref)
+            >>> b.plot_syn(dataref)
             
         If you'd like to run parallelized computations (by time step),
         you must also provide an :envvar:`mpi` parameterSet.
@@ -3526,17 +3593,17 @@ class Bundle(Container):
         options is returned but also stored for later reference. You can access
         it via the ``default`` label in the bundle::
 
-            >>> mybundle.run_compute()
+            >>> b.run_compute()
 
         and at any point you can query:
 
-            >>> options = mybundle['default@compute']
+            >>> options = b['default@compute']
 
         If you want to store new options before hand for later usage you can
         issue:
 
-            >>> mybundle.add_compute(label='no_heating', heating=False)
-            >>> options = mybundle.run_compute(label='no_heating')
+            >>> b.add_compute(label='no_heating', heating=False)
+            >>> options = b.run_compute(label='no_heating')
 
         **Keyword 'objref'**
 
@@ -3567,8 +3634,8 @@ class Bundle(Container):
         :py:func:`observatory.compute <phoebe.backend.observatory.compute>`,
         but here are two straightforward examples::
 
-            >>> mybundle.run_compute(animate=True)
-            >>> mybundle.run_compute(animate='lc')
+            >>> b.run_compute(animate=True)
+            >>> b.run_compute(animate='lc')
 
         .. warning::
 
@@ -3633,26 +3700,34 @@ class Bundle(Container):
         # then try/except the computations? Though we should keep track of
         # why things don't work out.. how to deal with out-of-grid interpolation
         # etc...
-        if 'time' not in computeoptions.keys() or computeoptions['time'] == 'auto':
-            #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-            if mpioptions is not None and animate:
-                raise ValueError("You cannot animate and use MPI simultaneously")
-            elif mpioptions is not None:
-                obj.compute(mpi=mpioptions, params=computeoptions)
-            else:
-                obj.compute(animate=animate, params=computeoptions)
+        if ':' in computeoptions.context:
+            # then we want to use a different backend
+            be = computeoptions.context.split(':')[1]
+            func = getattr(backends, 'compute_{}'.format(be))
+            func(obj, **computeoptions)
+            
         else:
-            raise ValueError("time must be set to 'auto' in compute options")
-        #else:
-            #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
-            #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
-            #extra_func=[observatory.ef_binary_image] if anim!=False else [],
-            #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
-            #mpi=mpi,**options
-            #)
-        #if anim != False:
-            #for ext in ['.gif','.avi']:
-            #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
+            # use phoebe2 backend
+            if computeoptions['time'] == 'auto':
+                #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+                if mpioptions is not None and animate:
+                    raise ValueError("You cannot animate and use MPI simultaneously")
+                elif mpioptions is not None:
+                    obj.compute(mpi=mpioptions, **computeoptions)
+                else:
+                    obj.compute(animate=animate, **computeoptions)
+            else:
+                raise ValueError("time must be set to 'auto' in compute options")
+            #else:
+                #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
+                #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
+                #extra_func=[observatory.ef_binary_image] if anim!=False else [],
+                #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
+                #mpi=mpi,**options
+                #)
+            #if anim != False:
+                #for ext in ['.gif','.avi']:
+                #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
         return computeoptions
 
@@ -3812,21 +3887,21 @@ class Bundle(Container):
         - Parameters you want to vary by virtue of the fitting algorithm. You
           need to define a prior and set them to be adjustable, e.g.::
 
-          >>> mybundle.set_prior('incl', distribution='uniform', lower=80, upper=100)
-          >>> mybundle.set_adjust('incl')
+          >>> b.set_prior('incl', distribution='uniform', lower=80, upper=100)
+          >>> b.set_adjust('incl')
 
         - Parameters you want to estimated using a direct fitting approach. Set
           them to be adjustable, but do not define a prior::
 
-          >>> mybundle.set_adjust('scale@lc01@lcobs')
+          >>> b.set_adjust('scale@lc01@lcobs')
 
         - Parameters you want to include in the probability calculations, but
           not fit directly. Only define a prior, but do not mark them for
           adjustment For example suppose you have prior information on the mass
           of the primary component in a binary system::
 
-          >>> mybundle.add_parameter('mass1@orbit')
-          >>> mybundle.set_prior('mass1@orbit', distribution='normal', mu=1.2, sigma=0.1)
+          >>> b.add_parameter('mass1@orbit')
+          >>> b.set_prior('mass1@orbit', distribution='normal', mu=1.2, sigma=0.1)
 
         .. warning::
 
@@ -3852,27 +3927,27 @@ class Bundle(Container):
         Finally you need to supply a *label* to the fitting options, for easy
         future referencing::
 
-            >>> mybundle.add_fitting(context='fitting:emcee', computelabel='preview',
+            >>> b.add_fitting(context='fitting:emcee', computelabel='preview',
                                      iters=100, walkers=10, label='my_mcmc')
 
         You can add more than one fitting option, as long as you don't duplicate
         the labels::
 
-            >>> mybundle.add_fitting(context='fitting:lmfit', computelabel='preview',
+            >>> b.add_fitting(context='fitting:lmfit', computelabel='preview',
                                      method='nelder', label='simplex_method')
-            >>> mybundle.add_fitting(context='fitting:lmfit', computelabel='preview',
+            >>> b.add_fitting(context='fitting:lmfit', computelabel='preview',
                                      method='leastsq', label='levenberg-marquardt')
 
 
         You can easily print out all the options via::
 
-        >>> print(mybundle['my_mcmc@fitting'])
+        >>> print(b['my_mcmc@fitting'])
 
         **Running the fitter**
 
         You can run the fitter simply by issuing
 
-        >>> feedback = mybundle.run_fitting(label='my_mcmc')
+        >>> feedback = b.run_fitting(label='my_mcmc')
 
         When run like this, the results from the fitting procedure will
         automatically be added to system and the best model will be set as the
@@ -3893,7 +3968,7 @@ class Bundle(Container):
         print or access the feedback via the Bundle::
 
         >>> print(feedback)
-        >>> print(mybundle['my_mcmc@feedback'])
+        >>> print(b['my_mcmc@feedback'])
         
         **Note on keyword arguments**
         
@@ -3924,9 +3999,9 @@ class Bundle(Container):
           running the fitting algorithm. If you do, you can in a separate script
           or Python terminal monitor the chain like::
 
-          >>> mybundle = phoebe.load('mypickle.pck')
-          >>> mybundle.feedback_fromfile('my_mcmc.mcmc_chain.dat')
-          >>> mybundle['my_mcmc@feedback'].plot_logp()
+          >>> b = phoebe.load('mypickle.pck')
+          >>> b.feedback_fromfile('my_mcmc.mcmc_chain.dat')
+          >>> b['my_mcmc@feedback'].plot_logp()
 
           You can also at any point restart a previous (perhaps
           interrupted) chain (see :envvar:`incremental`)
@@ -3946,29 +4021,29 @@ class Bundle(Container):
           posteriors or priors if you wish (via :envvar:`init_from`). Suppose you
           ran a chain like::
 
-          >>> mybundle.add_fitting(context='fitting:emcee', init_from='prior', label='my_mcmc', computelabel='preview')
-          >>> feedback = mybundle.run_fitting(fittinglabel='my_mcmc')
+          >>> b.add_fitting(context='fitting:emcee', init_from='prior', label='my_mcmc', computelabel='preview')
+          >>> feedback = b.run_fitting(fittinglabel='my_mcmc')
 
           Then, you could just continue these computations via::
 
-          >>> mybundle['incremental@my_mcmc@fitting'] = True
-          >>> mybundle['init_from@my_mcmc@fitting'] = 'previous_run'
-          >>> feedback = mybundle.run_fitting(label='my_mcmc')
+          >>> b['incremental@my_mcmc@fitting'] = True
+          >>> b['init_from@my_mcmc@fitting'] = 'previous_run'
+          >>> feedback = b.run_fitting(label='my_mcmc')
 
           Alternatively, you can resample multivariate normals from the previous
           posteriors to continue the chain, e.g. after clipping walkers with
           low probability and/or after a burn-in period::
 
-          >>> mybundle['my_mcmc@feedback'].modify_chain(lnproblim=-40, burnin=10)
-          >>> mybundle.accept_feedback('my_mcmc')
-          >>> mybundle['incremental@my_mcmc@fitting'] = True
-          >>> mybundle['init_from@my_mcmc@fitting'] = 'posteriors'
-          >>> feedback = mybundle.run_fitting(label='my_mcmc')
+          >>> b['my_mcmc@feedback'].modify_chain(lnproblim=-40, burnin=10)
+          >>> b.accept_feedback('my_mcmc')
+          >>> b['incremental@my_mcmc@fitting'] = True
+          >>> b['init_from@my_mcmc@fitting'] = 'posteriors'
+          >>> feedback = b.run_fitting(label='my_mcmc')
 
           Quality control and convergence monitoring can be done via::
 
-          >>> mybundle['my_mcmc@feedback'].plot_logp()
-          >>> mybundle['my_mcmc@feedback'].plot_summary()
+          >>> b['my_mcmc@feedback'].plot_logp()
+          >>> b['my_mcmc@feedback'].plot_summary()
 
 
         [FUTURE]
@@ -4386,7 +4461,7 @@ class Bundle(Container):
         
         ax = plt.gca() if ax is None else ax
         
-        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps, time)
 
 
     def plot_syn(self, dataref, time=None, ax=None, **kwargs):
@@ -4423,7 +4498,7 @@ class Bundle(Container):
         
         ax = plt.gca() if ax is None else ax
         
-        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps, time)
 
     def plot_mesh(self, dataref, time=None, ax=None, **kwargs):
         """
@@ -4470,7 +4545,7 @@ class Bundle(Container):
         
         ax = plt.gca() if ax is None else ax
 
-        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps, time)
 
 
     def plot_orbit(self, objref, time=None, ax=None, **kwargs):
@@ -4516,7 +4591,7 @@ class Bundle(Container):
         
         ax = plt.gca() if ax is None else ax
         
-        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+        return self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps, time)
 
 
     def old_plot_obs(self, twig=None, **kwargs):
@@ -4723,11 +4798,11 @@ class Bundle(Container):
 
         Example usage:
 
-        >>> mybundle.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
-        >>> mybundle.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
+        >>> b.plot_syn('lc01', 'r-', lw=2) # first light curve added via 'data_fromarrays'
+        >>> b.plot_syn('rv01@primary', 'r-', lw=2, scale=None)
 
-        >>> mybundle.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
-        >>> mybundle.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
+        >>> b.plot_syn('if01', 'k-') # first interferometry added via 'data_fromarrays'
+        >>> b.plot_syn('if01', 'k-', y='vis2') # first interferometry added via 'data_fromarrays'
 
         More information on arguments and keyword arguments:
 
@@ -4888,9 +4963,9 @@ class Bundle(Container):
         If you want to plot the mesh at a particular phase, give
         :envvar:`time` or :envvar:`phase` as a single float (but not both!):
 
-            >>> mybundle.plot_mesh(time=0.12)
-            >>> mybundle.plot_mesh(phase=0.25, select='teff')
-            >>> mybundle.plot_mesh(phase=0.25, objref='secondary', dataref='lc01')
+            >>> b.plot_mesh(time=0.12)
+            >>> b.plot_mesh(phase=0.25, select='teff')
+            >>> b.plot_mesh(phase=0.25, objref='secondary', dataref='lc01')
 
         You can use this function to plot the mesh of the entire system, or just
         one component (eclipses will show in projected light!). Any scalar
@@ -4904,10 +4979,10 @@ class Bundle(Container):
         and you want to see what the mesh looks like after the last calculations
         have been performed, then this is what you need to do::
 
-            >>> mybundle.plot_mesh()
-            >>> mybundle.plot_mesh(objref='primary')
-            >>> mybundle.plot_mesh(select='teff')
-            >>> mybundle.plot_mesh(dataref='lc01')
+            >>> b.plot_mesh()
+            >>> b.plot_mesh(objref='primary')
+            >>> b.plot_mesh(select='teff')
+            >>> b.plot_mesh(dataref='lc01')
 
         Giving a :envvar:`dataref` and/or setting :envvar:`select='proj'` plots
         the mesh coloured with the projected flux of that dataref.
@@ -5140,7 +5215,7 @@ class Bundle(Container):
         If you need something more flexible than the functions provided
         in phoebe.frontend.plotting, your function must follow the format:
 
-        def my_processing_func(bundle, *args, **kwargs):
+        def my_processing_func(bundle, time, *args, **kwargs):
             # insert magic here
             return mpl_func_name, args_for_mpl_func, kwargs_for_mpl_func, dictionary_of_defaults
 
@@ -5203,10 +5278,11 @@ class Bundle(Container):
                 context = None
             
             dsti = self._get_by_search(twigs, class_name='*DataSet', context=context,
-                            return_trunk_item=True, all=False)
+                            return_trunk_item=True, all=False, method='regex')
 
             # update args to be full twig
-            twigs = dsti['twig']
+            twigs = '{}@{}'.format(dsti['label'], dsti['ref'])   # TODO: check that this is correct
+            
 
             # get context for guessing func
             context = dsti['context']
@@ -5435,8 +5511,8 @@ class Bundle(Container):
         
         specific (optional) keyword arguments for attach_plot_mplcmd include:
         """
-        return self.attach_plot((funcname, args), plotting.mplcmd, **kwargs)  #TODO: update this to take kwargs instead of args
-
+        #TODO: update this to take kwargs instead of args
+        return self.attach_plot(func=plotting.mplcommand, mplfunc=funcname, mplargs=args, **kwargs)
 
     def get_plot(self, plotref):
         """
@@ -5582,13 +5658,13 @@ class Bundle(Container):
         # func_kwargs_defaults may also apply to axes_ps, so let's update the PSs anyways
         plot_ps, axes_ps, dump = self._plotting_set_defaults(func_kwargs_defaults, plot_ps, axes_ps, fig_ps=None, override=False) # should override be True?
 
-        ax = self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps)
+        ax = self._call_mpl(ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps, time)
         
         # TODO: fix this return statement
         return {plotref: []}
         
         
-    def _call_mpl(self, ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps):
+    def _call_mpl(self, ax, mpl_func, mpl_args, mpl_kwargs, plot_ps, axes_ps, time=None):
         
         # and now let's finally call the matplotlib function(s)
         if isinstance(mpl_func, str):
@@ -5600,10 +5676,9 @@ class Bundle(Container):
         for m_func, m_args, m_kwargs in zip(mpl_func, mpl_args, mpl_kwargs):
             # check to make sure all kwargs in mpl_kwargs are allowed
 
-            #~ print "***", m_func, m_kwargs
-
             if hasattr(ax, m_func):
                 line2D_attrs = ['aa', 'agg', 'alpha', 'animated', 'antialiased', 'axes', 'c', 'children', 'clip', 'clip', 'clip', 'color', 'contains', 'dash', 'dash', 'data', 'drawstyle', 'figure', 'fillstyle', 'gid', 'label', 'linestyle', 'linewidth', 'ls', 'lw', 'marker', 'markeredgecolor', 'markeredgewidth', 'markerfacecolor', 'markerfacecoloralt', 'markersize', 'markevery', 'mec', 'mew', 'mfc', 'mfcalt', 'ms', 'path', 'picker', 'pickradius', 'rasterized', 'snap', 'solid', 'solid', 'transform', 'transformed', 'url', 'visible', 'window', 'xdata', 'xydata', 'ydata', 'zorder']
+                line2D_attrs += ['verticalalignment', 'horizontalalignment']
                 line2D_attrs.append('fmt')
                 m_kwargs = {k:v for k,v in m_kwargs.items() if k in line2D_attrs}
                 if m_func == 'plot' and 'fmt' in m_kwargs:
@@ -5611,6 +5686,7 @@ class Bundle(Container):
                     m_args = list(m_args) # cannot append to tuple
                     m_args.append(m_kwargs.pop('fmt'))
                 output = getattr(ax, m_func)(*m_args, **m_kwargs)
+                
             elif hasattr(collections, m_func):
                 #~ print "*", m_func, m_args, m_kwargs
 
@@ -5658,6 +5734,9 @@ class Bundle(Container):
             ax.set_xlim(axes_ps.get_value('xlim'))
         if axes_ps.get_value('ylim') not in [(None,None), '_auto_', u'_auto_']:
             ax.set_ylim(axes_ps.get_value('ylim'))
+            
+        if axes_ps.get('aspect', None)=='equal':
+            ax.set_aspect('equal')
 
         # override any xlimits if the axes_ps scroll is set and we were passed a time
         if 'scroll' in axes_ps.keys() and axes_ps.get_value('scroll') and time:
@@ -5963,15 +6042,23 @@ class Bundle(Container):
         """
 
         fps = int(kwargs.pop('fps', 20))
+        if isinstance(time, parameters.Parameter):
+            time = time.get_value()
+
         if not isinstance(time, float) and hasattr(time, '__iter__'):
+            tight_layout = kwargs.pop('tight_layout', False)
             for i,t in enumerate(time):
-                self.draw(twig=twig, time=t, fname='_anim_tmp_{:08d}.png'.format(i) if fname is not None else None, **kwargs)
+                logger.info("drawing at time: %f", t)
+                ret = self.draw(twig=twig, time=t, fname='_anim_tmp_{:08d}.png'.format(i) if fname is not None else None, tight_layout=tight_layout and i==0, **kwargs)
                 plt.clf()
             
             if fname is not None:
                 sleep(5) # just to make sure the last frame finished rendering
                 plotlib.make_movie('_anim_tmp_*.png', fps=fps, output=fname, cleanup=True)
+                
+                return fname
             
+            return ret
 
         if twig is None:
             ps = self.get_figure()
@@ -6083,8 +6170,7 @@ class Bundle(Container):
             projection = axes_ps.get('projection', None)
             if projection=='2d':
                 projection = None
-                
-            ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],projection=projection)
+            ax = fig.add_subplot(axesloc[0],axesloc[1],axesloc[2],sharex=sharex,sharey=sharey,projection=projection)
             # we must set the current axes so that subsequent live-plotting calls will
             # go here unless overriden by the user
             plt.sca(ax)
@@ -6519,8 +6605,9 @@ def info():
                     frames[frame].append(par['context'])
     contexts = sorted(list(set(frames['phoebe'])))
     # Remove some experimental stuff
-    ignore = 'analytical:binary', 'derived', 'logger',\
-             'point_source', 'pssyn', 'root',\
+    ignore = 'analytical:binary', 'derived', 'gui', 'logger', 'plotting:axes',\
+             'plotting:mesh', 'plotting:orbit', 'plotting:plot',\
+             'plotting:selector', 'point_source', 'pssyn', 'root',\
              'circ_orbit'
     for ign in ignore:
         if ign in contexts:
