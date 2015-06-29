@@ -56,6 +56,7 @@ b.attach_plot_syn('spectra', fmt='k-', axesref='spectra', ylim=(0.955,1.005), ax
 
 b.draw('fig', time=b['time@spectra@spsyn'], fname='binary_rv.gif', clf=True, tight_layout=True)
 
- .. image:: images_tut/binary_rv.gif
-    :width: 250px    
-
+"""
+.. image:: images_tut/binary_rv.gif
+   :width: 750px    
+"""

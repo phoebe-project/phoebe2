@@ -70,7 +70,7 @@ b.attach_plot_syn('lc01', fmt='k-', axesloc=(3,2,2), highlight=True, highlight_f
 # Since we've enabled uncover, the ylimits of the subplot will change as the light curve gets uncovered.  To prevent this, we'll set the
 # limits manually (comment this out to see the difference)
 b['ylim@lcax'] = (0.9*min(b['value@flux@lc01@lcsyn']), 1.1*max(b['value@flux@lc01@lcsyn']))
-# Note: Sine we're hardcoding these values, the limits of the plot will not automatically adjust if the amplitude of your light curve changes if you change parameters of your model and recompute.
+# Note: Since we're hardcoding these values, the limits of the plot will not automatically adjust if the amplitude of your light curve changes if you change parameters of your model and recompute.
 
 # For the radial velocity plot, we'll enable highlight for the primary and uncover for the secondary
 b.attach_plot_syn('rv01@primary', fmt='b-', axesloc=(3,2,4), highlight=True, highlight_fmt='bo', axesref='rvax')
@@ -156,6 +156,7 @@ fig = plt.figure(figsize=(10,6))
 b.draw('fig', time=b['time@lc01@lcsyn'], fname='binary_advanced.gif')
 
 
- .. image:: images_tut/binary_advanced.gif
-    :width: 250px                 
-
+"""
+.. image:: images_tut/binary_advanced.gif
+   :width: 750px                 
+"""
