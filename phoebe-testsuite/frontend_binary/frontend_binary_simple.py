@@ -55,3 +55,8 @@ b.run_compute()
 
 b.plot_syn('mylc')
 plt.show()
+
+"""
+.. image:: images_tut/binary_simple.png
+   :width: 750px    
+"""

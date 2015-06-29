@@ -52,7 +52,7 @@ b['star'].add_constraint('{rotperiod} = 2*np.pi*{radius}/{veq}')
 
 # We need to attach a ParameterSet with context='puls' to the star
 
-b.attach_ps(phoebe.PS(context='puls', label='modepulsations'), 'Sun')
+b.attach_ps(phoebe.PS(context='puls', label='modepulsations'), 'object@Sun')
 
 # and set the Parameters
 
@@ -67,7 +67,7 @@ b['scheme@puls'] = 'nonrotating'
 # Compute model
 # ---------------
 
-times = np.linspace(0,1./(b['freq@puls']-4./b['rotperiod']),50)
+times = np.linspace(0,1./(b['value@freq@puls']-4./b['value@rotperiod']),50)
 b.lc_fromarrays(time=times, ld_func='claret', ld_coeffs='kurucz', atm='kurucz')
 
 # since we didn't give dataref, it will automatically be assigned as lc01
@@ -90,11 +90,9 @@ b.attach_plot_syn('sp01', ylim=(0.970,1.005), axesloc=(2,2,2))
 b.attach_plot_mesh(dataref='__bol', objref='Sun', select='proj', axesloc=(2,2,3))
 b.attach_plot_mesh(dataref='__bol', objref='Sun', select='rv', axesloc=(2,2,4))
 
-for i,t in enumerate(times):
-    print i+1
-    plt.clf()
-    b.draw('fig01', time=t)
-    plt.gcf().tight_layout()
-    plt.savefig('puls_mode_{:02d}.png'.format(i+1))
+b.draw('fig01', time=times, fps=5, fname='frontend_puls_mode.gif')
 
-phoebe.utils.plotlib.make_movie('puls_mode_*.png', fps=5, output='puls_mode.gif', cleanup=True)
+"""
+.. image:: images_tut/frontend_puls_mode.gif
+   :width: 750px    
+"""

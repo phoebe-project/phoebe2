@@ -355,7 +355,7 @@ def mesh(b, t, **kwargs):
         kwargs['objref'] = b.get_system().get_label()
     if dataref is None:
         kwargs['dataref'] = '__bol'
-    else:
+    elif dataref != '__bol':
         ds, dataref, context, dump = _from_dataset(b, dataref, '*obs')
         kwargs['dataref'] = dataref
     select = kwargs.get('select', 'None')
