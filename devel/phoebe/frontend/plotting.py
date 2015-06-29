@@ -9,6 +9,7 @@ import pylab as pl
 import numpy as np
 from scipy import interpolate
 import logging
+import functools
 
 logger = logging.getLogger("FRONT.PLOTTING")
 logger.addHandler(logging.NullHandler())
@@ -25,6 +26,36 @@ class Arrow3D(FancyArrowPatch):
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)
+        
+#~ def process_plotting_kwargs(fctn):
+    #~ """
+    #~ Decorator to process kwargs before being sent to plotting functions
+    #~ 
+    #~ [FUTURE]
+    #~ """
+    #~ @functools.wraps(fctn)
+    #~ def process(b, *args, **kwargs):
+        #~ if 'dataref' in kwargs.keys():
+            #~ kwargs['dataref'] = _process_dataref(b, kwargs['dataref'])
+        #~ 
+        #~ return fctn(b, *args, **kwargs)
+    #~ return process
+        #~ 
+#~ def _process_dataref(b, dataref, context='*'):
+    #~ """
+    #~ attempts to do smart matching based on the dataref provided
+    #~ 
+    #~ context can be '*obs', '*syn', 'lcobs', etc
+    #~ """
+    #~ 
+    #~ tis = b._get_by_search(twig=dataref, context=context, class_name='*DataSet', method='regex', return_trunk_item=True, all=True, ignore_errors=True)
+    #~ 
+    #~ if len(tis) == 1:
+        #~ return '{}@{}'.format(ti[0]['label'], ti[0]['ref'])
+    #~ elif len(tis):
+        #~ raise KeyError("could not find a unique match.  Provide one of {}".format([ti['twig'] for ti in tis]))
+    #~ else:
+        #~ raise KeyError("could not find a matching dataset")
 
 
 def _defaults_from_dataset(b, ds, kwargs):
@@ -78,12 +109,12 @@ def _defaults_from_dataset(b, ds, kwargs):
 
     return kwargs
 
-def _from_dataset(b, twig, context):
+def _from_dataset(b, dataref, context):
     """
     helper function to retrieve a dataset from the bundle
     """
-    dsti = b._get_by_search(twig, context=context, class_name='*DataSet',
-                                return_trunk_item=True, all=True)
+    dsti = b._get_by_search(dataref, context=context, class_name='*DataSet',
+                                return_trunk_item=True, all=True, method=['regex', 'robust'])
 
     kwargs_defaults = {}
 
@@ -91,8 +122,8 @@ def _from_dataset(b, twig, context):
     # more than one dataset but they are all light curves that are grouped
     if len(dsti) > 1:
         # retrieve obs for sed grouping.
-        dstiobs = b._get_by_search(twig, context='*obs', class_name='*DataSet',
-                               return_trunk_item=True, all=True)
+        dstiobs = b._get_by_search(ref=dataref, context='*obs', class_name='*DataSet',
+                               return_trunk_item=True, all=True, method='regex')
 
         # Check if they are all lightcurves and collect group name
         groups = []
@@ -104,7 +135,7 @@ def _from_dataset(b, twig, context):
             is_grouped = 'group' in jdsti['item']
             if not correct_category or not is_grouped:
                 # raise the correct error:
-                b._get_by_search(twig, context='*syn', class_name='*DataSet',
+                b._get_by_search(dataref, context='*syn', class_name='*DataSet',
                                return_trunk_item=True)
             else:
                 groups.append(jdsti['item']['group'])
@@ -121,7 +152,7 @@ def _from_dataset(b, twig, context):
         obj = b.get_object(dsti['label'])
         context = ds.get_context()
 
-    return ds, context, kwargs_defaults
+    return ds, "{}@{}".format(dsti['label'], dsti['ref']), context, kwargs_defaults
     
     
 def _get_from_ds(ds, key, unit):
@@ -155,19 +186,19 @@ def _kwargs_defaults_override(kwargs_defaults, kwargs):
             kwargs_defaults[k] = v
     return kwargs_defaults
 
-def _plot(b, t, ds, context, kwargs_defaults, **kwargs):
+def _plot(b, t, dr, ds, context, kwargs_defaults, **kwargs):
     """
     [FUTURE]
     shared function for most dataset plotting (obs, syn, etc)
     """
     # let's make sure when we send kwargs_defaults to build labels, etc, that
     # we include user-sent units, etc
+    kwargs['dataref'] = dr
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
     kwargs_defaults = _defaults_from_dataset(b, ds, kwargs_defaults)
     category = context[:-3]
     typ = context[-3:]
-
-
+    
     kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to the dataset'}
     kwargs_defaults['fmt'] = {'value': 'k-' if typ=='syn' else 'k.', 'description': 'matplotlib format'}
     kwargs_defaults['uncover'] = {'value': False, 'description': 'only plot data up to the current time (time must be passed during draw call)', 'cast_type': 'bool'}
@@ -280,8 +311,8 @@ def obs(b, t, **kwargs):
     plot an observation dataset given its datatwig
     """
     dataref = kwargs.get('dataref', '')
-    ds, context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
-    return _plot(b, t, ds, context, kwargs_defaults, **kwargs)
+    ds, dr, context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
+    return _plot(b, t, dr, ds, context, kwargs_defaults, **kwargs)
 
 def syn(b, t, **kwargs):
     """
@@ -291,8 +322,8 @@ def syn(b, t, **kwargs):
     plot a synthetic dataset given its twig
     """
     dataref = kwargs.get('dataref', '')
-    ds, context, kwargs_defaults = _from_dataset(b, dataref, '*syn')
-    return _plot(b, t, ds, context, kwargs_defaults, **kwargs)
+    ds, dr, context, kwargs_defaults = _from_dataset(b, dataref, '*syn')
+    return _plot(b, t, dr, ds, context, kwargs_defaults, **kwargs)
 
 def residuals(b, t, **kwargs):
     """
@@ -301,8 +332,8 @@ def residuals(b, t, **kwargs):
 
     """
     dataref = kwargs.get('dataref', '')
-    obs_ds, obs_context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
-    syn_ds, syn_context, dump = _from_dataset(b, dataref, '*syn')
+    obs_ds, obs_dr, obs_context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
+    syn_ds, syn_dr, syn_context, dump = _from_dataset(b, dataref, '*syn')
     # TODO: support using _plot somehow
 
     kwargs_defaults = _defaults_from_dataset(b, ds, kwargs_defaults)
@@ -323,7 +354,10 @@ def mesh(b, t, **kwargs):
     if objref is None:
         kwargs['objref'] = b.get_system().get_label()
     if dataref is None:
-        kwargs['dataref'] = 'None'
+        kwargs['dataref'] = '__bol'
+    else:
+        ds, dataref, context, dump = _from_dataset(b, dataref, '*obs')
+        kwargs['dataref'] = dataref
     select = kwargs.get('select', 'None')
     if select is None:
         select = 'None'
@@ -374,7 +408,7 @@ def mesh(b, t, **kwargs):
     with_partial_as_half = True
     antialiasing = True
     
-    dataref = dataref.split('@')[0]
+    #dataref = dataref.split('@')[0]
 
     obj = b.get_object(objref)
     if t:
@@ -637,8 +671,11 @@ def orbit(b, t, **kwargs):
         kwargs['objref'] = b.get_system().get_label()
     dataref = kwargs.get('dataref')
     
-    # ds, context = _from_dataset(b, '{}@{}'.format(dataref, objref), 'orbsyn')  # TODO: there should be a better way to do this, especially if dataref@objref is passed as twig
-
+    # ds, dr, context = _from_dataset(b, '{}@{}'.format(dataref, objref), 'orbsyn')  # TODO: there should be a better way to do this, especially if dataref@objref is passed as twig
+    ds, dr, context, kwargs_defaults = _from_dataset(b, dataref, '*syn')
+    dataref = dr
+    kwargs['dataref'] = dr
+    
     # times = ds['bary_time'] # or ds['prop_time']
     # pos = ds['position']
     # vel = ds['velocity']
@@ -651,6 +688,7 @@ def orbit(b, t, **kwargs):
     kwargs_defaults['highlight_fmt'] = {'value': 'ko', 'description': 'matplotlib format for time if higlight is True'}
     kwargs_defaults['highlight_ms'] = {'value': 5, 'description': 'matplotlib markersize for time if highlight is True', 'cast_type': 'int'}
     kwargs_defaults['projection'] = {'ps': 'axes', 'value': '2d', 'description': '2d or 3d projection', 'cast_type': 'choose', 'choices': ['2d','3d']}
+    kwargs_defaults['aspect'] = {'ps': 'axes', 'value': 'equal', 'description': 'axes aspect ratio', 'cast_type': 'choose', 'choices': ['equal', 'auto']}
     kwargs_defaults['zlim'] = {'ps': 'axes', 'value': (None, None), 'description': 'limits on the zaxis if projection==3d', 'cast_type': 'list'}
     kwargs_defaults['zunit'] = {'ps': 'axes', 'value': '_auto_', 'description': 'unit to plot on the zaxis if projection==3d', 'cast_type': 'str'}
     kwargs_defaults['zlabel'] = {'ps': 'axes', 'value': '_auto_', 'description': 'label on the zaxis if projection==3d', 'cast_type': 'str'}
@@ -668,6 +706,9 @@ def orbit(b, t, **kwargs):
     # TODO: aspect ratio
     # TODO: handle default axes labels
     # TODO: handle phased
+    
+    if isinstance(kwargs.get('times', None), parameters.Parameter):
+        kwargs['times'] = kwargs['times'].get_value()
 
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
     mplkwargs = {k:v['value'] if isinstance(v,dict) else v for k,v in kwargs_defaults.items() if v not in ['_auto_']}
@@ -914,8 +955,9 @@ def ds_axvspan(b, t, **kwargs):
     formatted with different colors depending on whether the current time
     is within the range or not.
     """
-    datatwig = kwargs.get('dataref', '')
-    ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
+    dataref = kwargs.get('dataref', '')
+    ds, dataref, context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
+    kwargs['dataref'] = dataref
     xl, xu = min(ds['time']), max(ds['time'])
 
     kwargs_defaults = {}
@@ -944,18 +986,20 @@ def ds_text(b, t,  **kwargs):
     This is a preprocessing function for :py:func:`Bundle.attach_plot`
 
     This function creates a text label at the time range of the dataset defined
-    by datatwig.  This axvspan can be attached to multiple axes.
+    by dataref.
     """
-    datatwig = kwargs.get('dataref')
-    ds, context, kwargs_defaults = _from_dataset(b, datatwig, '*obs')
-    xl, xu = min(ds['time']), max(ds['time'])
-    xk, xl, yk, yl, xu, yu = _xy_from_category(context[:-3], kwargs)
+    dataref = kwargs.get('dataref')
+    ds, dataref, context, kwargs_defaults = _from_dataset(b, dataref, '*obs')
+    kwargs['dataref'] = dataref
+    
+    xk, yk, xl, yl, xu, yu = _xy_from_category(context[:-3], kwargs)
+    xlow, xup = min(ds['time']), max(ds['time'])
     y = ds[yk]
-
+    
     kwargs_defaults = {}
     kwargs_defaults['dataref'] = {'value': '', 'description': 'twig that points to a dataset'}
     kwargs_defaults['text'] = {'value': ds['ref'], 'description': 'text to show'} # TODO: change this to auto?
-    kwargs_defaults['x'] = {'value': xu, 'description': 'x location', 'cast_type': 'float'} # TODO: change this to auto?
+    kwargs_defaults['x'] = {'value': xup, 'description': 'x location', 'cast_type': 'float'} # TODO: change this to auto?
     kwargs_defaults['y'] = {'value': np.mean(y), 'description': 'y location', 'cast_type': 'float'} # TODO: change this to auto?
 
     kwargs_defaults = _kwargs_defaults_override(kwargs_defaults, kwargs)
@@ -965,8 +1009,7 @@ def ds_text(b, t,  **kwargs):
     x = mplkwargs.pop('x')
     y = mplkwargs.pop('y')
     s = mplkwargs.pop('text')
-
-
+    
     return 'text', (x,y,s), mplkwargs, kwargs_defaults
 
 def param_text(b, t, **kwargs):

@@ -11,6 +11,7 @@ import json
 import uuid
 import logging
 import glob
+import regex
 try: # Pyfits now integrated in astropy
     import pyfits
 except:
@@ -137,19 +138,14 @@ class Container(object):
         :rtype: undefined
         :raises KeyError: when twig is not present
         """
-        # Set some overridable defaults
-        kwargs.setdefault('return_trunk_item', True)
-        kwargs.setdefault('all', False)
         kwargs.setdefault('ignore_errors', True)
+        for forbidden in ['return_trunk_item', 'all']:
+            if forbidden in kwargs.keys():
+                kwargs.pop(forbidden)
         
         # Look for the twig
-        try:
-            ti = self._get_by_search(twig, **kwargs)
-        except KeyError:
-            # If we can't ignore this error, raise it anyway
-            if not kwargs['ignore_errors']:
-                raise
-        
+        ti = self._get_by_search(twig, return_trunk_item=True, **kwargs)
+            
         # make sure to return the default value if the key does not exist
         if ti is None:
             return default
@@ -158,16 +154,26 @@ class Container(object):
         # values, and have special treatments for their adjustables and priors
         item = ti['item']
         
-        if ti['kind'] == 'Parameter:adjust':
-            return item.get_adjust()
+        if ti['kind'] == 'Parameter:parameter':
+            return item
+        elif ti['kind'] == 'Parameter:value':
+            return item.get_value()
+        elif ti['kind'] == 'Parameter:adjust':
+            return bool(item.get_adjust())
         elif ti['kind'] == 'Parameter:prior':
-            return item.get_prior()
+            return item.get_prior() if hasattr(item, 'prior') else None
         elif ti['kind'] == 'Parameter:posterior':
             return item.get_posterior()
+        elif ti['kind'] == 'ParameterSet:enabled':
+            return self.get_enabled(ti['ref'])
+        elif ti['kind'] == 'Parameter:description':
+            return item.description
+        elif ti['kind'] == 'Parameter:unit':
+            return item.unit
         else:
             # either 'value' or item itself
-            if isinstance(item, parameters.Parameter):
-                return item.get_value()
+            #~ if isinstance(item, parameters.Parameter):
+                #~ return item.get_value()
             return item
 
     @rebuild_trunk
@@ -190,13 +196,29 @@ class Container(object):
         ti = self._get_by_search(twig, **kwargs)
         item = ti['item']
         
+        if 'read_only' in ti.keys() and ti['read_only']:
+            raise KeyError("this value is read-only")
+        
+           
         if ti['kind'] == 'Parameter:adjust':
             # we call self.set_adjust instead of item.set_adjust
-            # because self.set_adjust handles auto prior creation
-            self.set_adjust(twig, value)
+            # because self.set_adjust handles auto prior creation (NOT ANYMORE)
+            self.set_adjust(item, value)
         
         elif ti['kind'] == 'Parameter:prior':
-            self.set_prior(twig, value)
+            if isinstance(value, dict):
+                # ability to set by arguments ie ('uniform', 80, 90)
+                self.set_prior(item, **value)
+            elif value is None:
+                self.remove_prior(item)
+            else:
+                self.set_prior(item, value)
+            
+        elif ti['kind'] == 'Parameter:unit':
+            item.set_unit(value)
+            
+        elif ti['kind'] == 'ParameterSet:enabled':
+            self.enable_data(ti['ref'], enabled=value)
         
         # replace this Body with the given one
         elif ti['kind'] == 'Body':
@@ -254,7 +276,10 @@ class Container(object):
                     oldorbit = self.get_ps('orbit@' + twig)
                     value['c1label'] = oldorbit['c1label']
                     value['c2label'] = oldorbit['c2label']                
-                self.set_ps(twig, value)        
+                self.set_ps(twig, value)    
+                
+            elif isinstance(value, parameters.Parameter):
+                raise TypeError("setting parameter to be a parameter not implemented yet. Try setting the value")
             
             elif isinstance(value, tuple) and len(value) == 2 and \
                                                     isinstance(value[1], str):
@@ -325,21 +350,28 @@ class Container(object):
         """
         return self._search_twigs(twig, **kwargs)
         
-    def twigs(self, twig=None, **kwargs):
+    def twigs(self, twig=None, method='match', **kwargs):
         """
         Return a list of matching twigs
         
-        (with same method as used in get_value, get_parameter, get_prior, etc)
-        
         :param twig: the search twig
         :type twig: str
+        :param method: method for matching (search, regex, match)
+        :type method: str
         :return: list of twigs
         :rtype: list of strings
         """    
         if twig is None:
             trunk = self._filter_twigs_by_kwargs(**kwargs)
             return [t['twig_full'] for t in trunk] 
-        return self._match_twigs(twig, **kwargs)
+        if method=='search':
+            return self._search_twigs(twig, **kwargs)
+        elif method=='regex':
+            return self._regex_twigs(twig, **kwargs)
+        elif method=='robust':
+            return self._robust_twigs(twig, **kwargs)
+        else:
+            return self._match_twigs(twig, **kwargs)
     
     
     def get_ps(self, twig):
@@ -352,7 +384,7 @@ class Container(object):
         :rtype: ParameterSet
         :raises KeyError: when the twig does not represent a ParameterSet
         """
-        return self._get_by_search(twig, kind='ParameterSet')
+        return self._get_by_search(twig, kind='ParameterSet', method='regex')
         
     def get_ps_dict(self, twig):
         """
@@ -375,8 +407,10 @@ class Container(object):
         :rtype: Parameter
         :raises KeyError: if twig not available or not representing a Parameter
         """
-        out = self._get_by_search(twig, kind='Parameter') # was 'Parameter*'
-        return out
+        if isinstance(twig, parameters.Parameter):
+            return twig
+        # we use Parameter* so that we can easily retrieve the parameter FOR something like info@incl
+        return self._get_by_search(twig, kind='Parameter*')
         
     def info(self, twig):
         """
@@ -558,6 +592,52 @@ class Container(object):
         return od
         #return {twig:param.get_value() for twig, param in zip(matched_twigs, params)}
         
+    def get_unit(self, twig):
+        """
+        Get the unit of a parameter
+
+        [FUTURE]
+    
+        :param twig: the search twig
+        :type twig: str
+        :return: the unit or None of the parameter doesn't have a unit
+        :rtype: str or None
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        param = self.get_parameter(twig)
+        return param.get_unit() if param.has_unit() else None
+        
+    def set_unit(self, twig, unit):
+        """
+        Set the unit for a parameter
+        
+        :param twig: the search twig
+        :type twig: str
+        :param unit: the new unit
+        :type unit: str
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        
+        param = self.get_parameter(twig)
+        param.set_unit(unit)
+        
+    def set_unit_all(self, twig, value, unit=None):
+        """
+        Set the unit of all matching Parameters
+        
+        [FUTURE]
+        
+        :param twig: the search twig
+        :type twig: str
+        :param unit: the new unit
+        :type unit: str
+        :raises KeyError: when twig is not available or is not a Parameter
+        """
+        params = self._get_by_search(twig, kind='Parameter', all=True)
+        
+        for param in params:
+            param.set_unit(unit)
+        
     def set_main_period(self, twig):
         """
         Set the main period of the system to the value of the twig.
@@ -664,6 +744,22 @@ class Container(object):
         
         logger.info("ParameterSet {} added to {}".format(value.get_context(), twig))
         
+    def get_enabled(self, twig):
+        """
+        [FUTURE]
+        
+        Retrieve whether a dataset is marked as enabled
+        
+        :param twig: the search twig
+        :type twig: str
+        :return: enabled
+        :rtype: bool 
+        """
+        # there may be multiple obs with the same dataref, but they should 
+        # have the same value for enabled
+        obs = self._get_by_search(twig=twig, context='*obs', class_name='*DataSet', method='regex', all=True)[0]
+        return obs.enabled
+        
     def get_adjust(self, twig):
         """
         Retrieve whether a Parameter is marked to be adjusted
@@ -677,6 +773,7 @@ class Container(object):
         """
         return self.get_parameter(twig).get_adjust()
         
+    @rebuild_trunk
     def set_adjust(self, twig, value=True):
         """
         Set whether a Parameter is marked to be adjusted
@@ -706,7 +803,8 @@ class Container(object):
         #    lims = list(par.get_limits())
         #    par.set_prior(distribution='uniform', lower=lims[0], upper=lims[1])
         par.set_adjust(value)
-        
+    
+    @rebuild_trunk
     def set_adjust_all(self, twig='', value=True):
         """
         Set whether all matching Parameters are marked to be adjusted
@@ -741,21 +839,35 @@ class Container(object):
         :rtype: ParameterSet
         """
         return self.get_parameter(twig).get_prior()
-        
-    def set_prior(self, twig, **dist_kwargs):
+    
+    @rebuild_trunk
+    def set_prior(self, twig, prior=None, **dist_kwargs):
         """
         Set the prior on a Parameter
+        
+        You can either provide a phoebe.distributions.Uniform, phoebe.distributions.Normal,
+        or kwargs to pass to either
+        
+        Examples:
+        b.set_prior('incl', phoebe.distributions.Uniform(lower=80, upper=90))
+        b.set_prior('incl', distribution='uniform', lower=80, upper=90)
         
         [FUTURE]
         
         :param twig: the search twig
         :type twig: str
+        :param prior: Prior instance (from phoebe.distributions)
+        :type prior: phoebe.distributions.Uniform or phoebe.distributions.Normal
         :param **kwargs: necessary parameters for distribution
         :type **kwargs: varies
         """
         param = self.get_parameter(twig)
-        param.set_prior(**dist_kwargs)
-        
+        if prior is not None:
+            param.prior = prior
+        else:
+            param.set_prior(**dist_kwargs)
+    
+    @rebuild_trunk
     def set_prior_all(self, twig, **dist_kwags):
         """
         Set the prior on all matching Parameters
@@ -771,6 +883,22 @@ class Container(object):
         
         for param in params:
             param.set_prior(**dist_kwargs)
+            
+    @rebuild_trunk
+    def remove_prior(self, twig):
+        """
+        Remove the prior for a Parameter
+        
+        [FUTURE]
+        
+        :param twig: the search twig
+        :type twig: str
+        """
+        param = self.get_parameter(twig)
+        if hasattr(param, 'prior'):
+            delattr(param, 'prior')
+        else:
+            logger.warning('parameter {} does not have a prior'.format(twig))
             
            
     def get_adjustable_parameters(self, twig=None):
@@ -890,7 +1018,6 @@ class Container(object):
             delattr(param, 'posterior')
         else:
             logger.warning('parameter {} does not have a posterior'.format(twig))
-            return None
         
     
     @rebuild_trunk
@@ -1107,9 +1234,10 @@ class Container(object):
         return_items = []
 
         # add the container's sections
-        if do_sectionlevel:
-            ris= self._get_info_from_item(self.sections,section=None,container=container,label=-1)
-            return_items += ris
+        # we'll fake this later to get the nested dictionaries correct
+        #~ if do_sectionlevel:
+            #~ ris = self._get_info_from_item(self.sections,section=None,container=container,label=-1)
+            #~ return_items += ris
             
         for section_name,section in self.sections.items():
             
@@ -1121,7 +1249,6 @@ class Container(object):
                     
                     # If the system is not a BodyBag, we can't get away with
                     # calling get_value (BodyBag implements any method!)
-                    # OLD IMPLEMENTATION: remove hasattr(item, 'get_value')
                     if label is None and hasattr(item, 'get_value'):
                         if 'label' in item.keys():
                             this_label = item.get_value('label')
@@ -1138,7 +1265,6 @@ class Container(object):
                         if ri['kind']=='Container':
                             return_items += ri['item']._loop_through_container(container=self.__class__.__name__, label=ri['label'], ref=ref)
 
-                        # OLD IMPLEMENTATION: elif ri['class_name'] == 'BodyBag':
                         elif ri['kind'] == 'Body':
                             return_items += self._loop_through_system(item, section_name=section_name)
                        
@@ -1146,7 +1272,7 @@ class Container(object):
                             return_items += self._loop_through_ps(item, section_name=section_name, container=container, label=ri['label'], ref=ri['ref'])
 
             if do_sectionlevel and section_name not in ['system', 'dataset']: # we'll need to fake these later since they're not actually stored as a list of PSs
-                ris = self._get_info_from_item({item.get_value('ref') if (hasattr(item, 'keys') and 'ref' in item.keys()) else item.get_value('label') if hasattr(item, 'get_value') else item.get_label():item for item in section},section=section_name,container=container,label=-1)
+                ris = self._get_info_from_item({item.get_value('ref') if (hasattr(item, 'keys') and 'ref' in item.keys()) else item.get_value('label') if hasattr(item, 'get_value') else item.get_label():item for item in section},section=section_name,context='section',container=container,label=-1)
                 return_items += ris
                 
         return return_items
@@ -1290,10 +1416,10 @@ class Container(object):
                                     
                                                                                     
                     # but also add the collection of dep/obs
-                    if item==itype:
-                        ris = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
+                    #~ if item==itype:
+                        #~ ris = self._get_info_from_item(path[-2][itype], path=list(path)+[item], section=section_name)
                         #~ if ri['twig_full'] not in [r['twig_full'] for r in return_items]:
-                        return_items += ris
+                            #~ return_items += ris
             
             elif isinstance(item, OrderedDict):
                 continue
@@ -1409,7 +1535,7 @@ class Container(object):
         elif isinstance(item, universe.Body):
             kind = 'Body'
             label = item.get_label()
-            context = None
+            context = 'object'
             ref = None
             unique_label = None
             qualifier = None
@@ -1432,7 +1558,8 @@ class Container(object):
                 label = None
             else:
                 label = label
-            context = path[-1] if path else None
+            if context is None:
+                context = path[-1] if path else None
             ref = None
             unique_label = None
             qualifier = None
@@ -1462,69 +1589,107 @@ class Container(object):
             label = self._get_object(label).get_parent().get_label()
             ref = None
         
-        if context == section: 
+        if context == section or section in ['axes','figure','plot','compute','fitting','mpi','feedback','logger']: 
             context_twig = None
         else:
             context_twig = context
+            
+        if section in ['dataset']:
+            context_data = context_twig
+            context_twig = None
+        else:
+            context_data = None
             
             
         hidden = hidden or qualifier in ['c1label', 'c2label']
         #~ hidden = qualifier in ['ref','label', 'c1label', 'c2label']
         #hidden = False
         
-        if kind=='Parameter' and False:  ### DEFER this functionality 
+        if kind=='Parameter' and True:  ### DEFER this functionality 
             # defer until we support fitting and discuss desired behavior
             # in theory, removing the and False should create these additional twigs
             # and their set/get behavior is defined in Container.get and set
+            #~ twig = self._make_twig(['parameter',qualifier,context_twig,label,context_data,ref,section])
+            #~ twig_full = self._make_twig(['parameter',qualifier,context_twig,label,context_data,ref,section,container])
+            #~ info_items.append(dict(qualifier=qualifier, label=label,
+                #~ container=container, section=section, kind='Parameter:parameter', class_name=class_name,
+                #~ context=context, ref=ref, unique_label=unique_label, 
+                #~ twig=twig, twig_full=twig_full, path=path, 
+                #~ item=item, body=body,
+                #~ hidden=hidden))            
+            
+            
             if hasattr(item, 'get_value'):
-                twig = self._make_twig(['value',qualifier,ref,context_twig,label,section])
-                twig_full = self._make_twig(['value',qualifier,ref,context_twig,label,section,container])
+                twig = self._make_twig(['value',qualifier,context_twig,label,context_data,ref,section])
+                twig_full = self._make_twig(['value',qualifier,context_twig,label,context_data,ref,section,container])
                 info_items.append(dict(qualifier=qualifier, label=label,
                     container=container, section=section, kind='Parameter:value', class_name=class_name,
                     context=context, ref=ref, unique_label=unique_label, 
                     twig=twig, twig_full=twig_full, path=path, 
                     #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
                     item=item, body=body,
-                    hidden=hidden))
+                    hidden=hidden, read_only=False))
                 
-            if hasattr(item, 'adjust'):
-                twig = self._make_twig(['adjust',qualifier,ref,context_twig,label,section])
-                twig_full = self._make_twig(['adjust',qualifier,ref,context_twig,label,section,container])
+            if hasattr(item, 'adjust') and section=='system':
+                twig = self._make_twig(['adjust',qualifier,context_twig,label,context_data,ref,section])
+                twig_full = self._make_twig(['adjust',qualifier,context_twig,label,context_data,ref,section,container])
                 info_items.append(dict(qualifier=qualifier, label=label,
                     container=container, section=section, kind='Parameter:adjust', class_name=class_name,
                     context=context, ref=ref, unique_label=unique_label, 
                     twig=twig, twig_full=twig_full, path=path, 
                     #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
                     item=item, body=body,
-                    hidden=hidden))
+                    hidden=hidden, read_only=False))
                             
-            if hasattr(item, 'get_prior') and item.has_prior():
-                twig = self._make_twig(['prior',qualifier,ref,context_twig,label,section])
-                twig_full = self._make_twig(['prior',qualifier,ref,context_twig,label,section,container])
+            if hasattr(item, 'get_prior') and section=='system':  # we'll just return None if not existing
+                twig = self._make_twig(['prior',qualifier,context_twig,label,context_data,ref,section])
+                twig_full = self._make_twig(['prior',qualifier,context_twig,label,context_data,ref,section,container])
                 info_items.append(dict(qualifier=qualifier, label=label,
                     container=container, section=section, kind='Parameter:prior', class_name=class_name,
                     context=context, ref=ref, unique_label=unique_label, 
                     twig=twig, twig_full=twig_full, path=path, 
                     #twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
                     item=item, body=body,
-                    hidden=hidden))
+                    hidden=hidden, read_only=False))
+                    
+            if hasattr(item, 'description'):
+                twig = self._make_twig(['description',qualifier,context_twig,label,context_data,ref,section])
+                twig_full = self._make_twig(['description',qualifier,context_twig,label,context_data,ref,section,container])
+                info_items.append(dict(qualifier=qualifier, label=label,
+                    container=container, section=section, kind='Parameter:description', class_name=class_name,
+                    context=context, ref=ref, unique_label=unique_label, 
+                    twig=twig, twig_full=twig_full, path=path, 
+                    #twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+                    item=item, body=body,
+                    hidden=hidden, read_only=True))
+                    
+            if hasattr(item, 'unit'):
+                twig = self._make_twig(['unit',qualifier,context_twig,label,context_data,ref,section])
+                twig_full = self._make_twig(['unit',qualifier,context_twig,label,context_data,ref,section,container])
+                info_items.append(dict(qualifier=qualifier, label=label,
+                    container=container, section=section, kind='Parameter:unit', class_name=class_name,
+                    context=context, ref=ref, unique_label=unique_label, 
+                    twig=twig, twig_full=twig_full, path=path, 
+                    #twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
+                    item=item, body=body,
+                    hidden=hidden, read_only=False))
                             
             if hasattr(item, 'get_posterior') and item.has_posterior():
-                twig = self._make_twig(['posterior',qualifier,ref,context_twig,label,section])
-                twig_full = self._make_twig(['posterior',qualifier,ref,context_twig,label,section,container])
+                twig = self._make_twig(['posterior',qualifier,context_twig,label,context_data,ref,section])
+                twig_full = self._make_twig(['posterior',qualifier,context_twig,label,context_data,ref,section,container])
                 info_items.append(dict(qualifier=qualifier, label=label,
                     container=container, section=section, kind='Parameter:posterior', class_name=class_name,
                     context=context, ref=ref, unique_label=unique_label, 
                     twig=twig, twig_full=twig_full, path=path, 
                     #twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
                     item=item, body=body,
-                    hidden=hidden))
+                    hidden=hidden, read_only=True))
                             
             
         # twig = <qualifier>@<ref>@<context>@<label>@<section>@<container>
-        twig = self._make_twig([qualifier,ref,context_twig,label,section])
+        twig = self._make_twig([qualifier,context_twig,label,context_data,ref,section])
         #~ twig_reverse = self._make_twig([qualifier,ref,context,label,section,container], invert=True)
-        twig_full = self._make_twig([qualifier,ref,context_twig,label,section,container])
+        twig_full = self._make_twig([qualifier,context_twig,label,context_data,ref,section,container])
         #~ twig_full_reverse = self._make_twig([qualifier,ref,context,label,section,container], invert=True)
         
         info_items.append(dict(qualifier=qualifier, label=label,
@@ -1533,7 +1698,7 @@ class Container(object):
             twig=twig, twig_full=twig_full, path=path, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
             item=item, body=body,
-            hidden=hidden))
+            hidden=hidden, read_only=False))
         
         return info_items
             
@@ -1548,28 +1713,93 @@ class Container(object):
         """
         self.trunk = self._loop_through_container()
         
-        # manually fake the dataset section dictionary
+        # manually fake the per-context per-dataref dictionaries
         tis = self._get_by_search(kind='ParameterSet', section='dataset', all=True, ignore_errors=True, return_trunk_item=True)
-        if len(tis):
-            ri = self._get_info_from_item({'@'.join(ti['twig'].split('@')[:-1]): ti['item'] for ti in tis})[0]
-            ri['twig'] = 'dataset'
-            ri['twig_full'] = 'dataset@Bundle'
-            ri['section'] = 'dataset'
+        datarefs_done = {}
+        for ti in tis:
+            if ti['ref'] not in datarefs_done.keys():
+                for context in ['*obs', '*dep', '*syn']:
+                    # then build a new entry for this ref with with same dataref and context
+                    tis_sameref_context = self._get_by_search(kind='ParameterSet', section='dataset', ref=ti['ref'], context=context, all=True, ignore_errors=True, return_trunk_item=True)
+                    ri = self._get_info_from_item({tii['label']: tii['item'] for tii in tis_sameref_context})[0]
+                    ri['twig'] = tis_sameref_context[0]['context']+'@'+ti['ref']+'@dataset'
+                    ri['twig_full'] = ri['twig']+'@Bundle'
+                    ri['context'] = tis_sameref_context[0]['context']
+                    ri['ref'] = ti['ref']
+                    ri['section'] = 'dataset'
+                    self.trunk.append(ri)
+                datarefs_done[ti['ref']] = ri 
+
+        # manually fake the per-dataref dictionaries
+        for dr in datarefs_done.keys():
+            tis = self._get_by_search(kind='OrderedDict', section='dataset', ref=dr, all=True, ignore_errors=True, return_trunk_item=True)
+            if len(tis):
+                ri = self._get_info_from_item({ti['context']: ti['item'] for ti in tis})[0]
+                ri['twig'] = dr+'@dataset'
+                ri['twig_full'] = ri['twig']+'@Bundle'
+                ri['ref'] = dr
+                ri['context'] = 'None'
+                ri['section'] = 'dataset'
+                self.trunk.append(ri)
+                
+        # manually fake the dataset section dictionary
+        tis = self._get_by_search(kind='OrderedDict', section='dataset', context='None', all=True, ignore_errors=True, return_trunk_item=True)
+        self.trunk.append(dict(qualifier=None, label=None,
+            container=self.__class__.__name__, section='dataset', kind='OrderedDict', class_name=None,
+            context='section', ref=None, unique_label=None, 
+            twig='dataset', twig_full='dataset@Bundle', path=None, 
+            item={ti['twig'].split('@')[0]: ti['item'] for ti in tis}, body=False,
+            hidden=False))
+       
+        
+        if True:   ### DEFER this functionality
+            # manually fake "enabled" option at the per-dataref level (enabled@rv01)
+            dataref_tis = self._get_by_search(kind='OrderedDict', section='dataset', context='None', all=True, ignore_errors=True, return_trunk_item=True)
+            for ti in dataref_tis:
+                twig = 'enabled@'+ti['twig']
+                twig_full = twig+'@Bundle'
+                
+                self.trunk.append(dict(qualifier=None, label=ti['label'],
+                    container=ti['container'], section=ti['section'], kind='ParameterSet:enabled', class_name=None,
+                    context=ti['context'], ref=ti['ref'], unique_label=None, 
+                    twig=twig, twig_full=twig_full, path=None, 
+                    item=ti['item'], body=ti['body'],
+                    hidden=ti['hidden']))
+
+        # manually fake the per-label system section dictionaries
+        tis_label = self._get_by_search(context='object', section='system', all=True, ignore_errors=True, return_key='label')
+        for label in tis_label:
+            tis = self._get_by_search(kind='ParameterSet', label=label, section='system', all=True, ignore_errors=True, return_trunk_item=True)
+            tis += self._get_by_search(kind='Body', label=label, section='system', all=True, ignore_errors=True, return_trunk_item=True)
+            ri = self._get_info_from_item({ti['context']: ti['item'] for ti in tis})[0]
+            ri['twig'] = label+'@system'
+            ri['twig_full'] = ri['twig']+'@Bundle'
+            ri['section'] = 'system'
+            ri['context'] = 'None'
             self.trunk.append(ri)
         
         # manually fake the system section dictionary
-        tis = self._get_by_search(kind='ParameterSet', section='system', all=True, ignore_errors=True, return_trunk_item=True)
+        tis = self._get_by_search(kind='OrderedDict', section='system', context='None', all=True, ignore_errors=True, return_trunk_item=True)
         if len(tis):
-            ri = self._get_info_from_item({'@'.join(ti['twig'].split('@')[:-1]): ti['item'] for ti in tis})[0]
+            ri = self._get_info_from_item({ti['twig'].split('@')[0] : ti['item'] for ti in tis})[0]
             ri['twig'] = 'system'
             ri['twig_full'] = 'system@Bundle'
             ri['section'] = 'system'
+            ri['context'] = 'section'
             self.trunk.append(ri)
+            
+        # manually fake the Bundle dictionary
+        tis = self._get_by_search(kind='OrderedDict', context='section', all=True, ignore_errors=True, return_trunk_item=True)
+        self.trunk.append(dict(qualifier=None, label=None,
+            container=self.__class__.__name__, section=None, kind='OrderedDict', class_name=None,
+            context=None, ref=None, unique_label=None, 
+            twig=self.__class__.__name__, twig_full=self.__class__.__name__, path=None, 
+            item={ti['twig']: ti['item'] for ti in tis}, body=False,
+            hidden=False))
             
         # do intelligent choices for dataref, objref
         objrefs = self._get_by_search(section='system', body=True, return_key='label', all=True, ignore_errors=True)
-        datarefs = ['{}@{}'.format(ti['ref'], ti['label']) for ti in self._get_by_search(section='dataset', context='*obs', kind='ParameterSet', return_trunk_item=True, all=True, ignore_errors=True)]
-        datarefs += ['__bol']
+        datarefs = ['{}@{}'.format(ti['label'], ti['ref']) for ti in self._get_by_search(section='dataset', context='*obs', kind='ParameterSet', return_trunk_item=True, all=True, ignore_errors=True)]
         
         for param in self._get_by_search('objref@', kind='Parameter', all=True, ignore_errors=True):
             param.cast_type = 'choose'
@@ -1577,7 +1807,7 @@ class Container(object):
         
         for param in self._get_by_search('dataref@', kind='Parameter', all=True, ignore_errors=True):
             param.cast_type = 'choose'
-            param.choices = datarefs
+            param.choices = datarefs + ['__bol']
         
         
     def _purge_trunk(self):
@@ -1613,6 +1843,15 @@ class Container(object):
             
         twigs = [t['twig_full'] for t in trunk]
         return [twig for twig in twigs if twiglet in twig]
+        
+    def _regex_twigs(self, twiglet, trunk=None, **kwargs):
+        """
+        return a list of twigs with any combination of substrings
+        """
+        trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
+        
+        twigs = [t['twig_full'] for t in trunk]
+        return [twig for twig in twigs if regex.search('.*'.join(twiglet.split('@')), twig)]
         
     def _filter_twigs_by_kwargs(self, trunk=None, **kwargs):
         """
@@ -1703,9 +1942,28 @@ class Container(object):
                     
         return ret_value
         
+    def _robust_twigs(self, twiglet, trunk=None, ignore_exact=False, **kwargs):
+        """
+        return a list of twigs in which all twiglets are present, but
+        order is ignored so long as the first item in the matching twig is present
+        
+        [FUTURE]
+        """
+        trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
+        
+        twig_split = twiglet.split('@')
+        
+        matching = []
+        
+        for ti in self.trunk:
+            if np.all([twiglet in ti['twig_full'].split('@') for twiglet in twig_split]) and ti['twig_full'].split('@')[0] in twig_split:
+                matching.append(ti['twig_full'])
+        
+        return matching
+        
     def _get_by_search(self, twig=None, all=False, ignore_errors=False,
                        return_trunk_item=False, return_key='item',
-                       use_search=False, **kwargs):
+                       method=['match','robust'], **kwargs):
         """
         this function searches the cached trunk
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
@@ -1720,8 +1978,8 @@ class Container(object):
         @type ignore_errors: bool
         @param return_trunk_item: whether to return the full trunk listing instead of just the param
         @type return_trunk_item: bool
-        @param use_search: whether to use substring search instead of match
-        @type use_search: bool
+        @param method: twig matching method ('match', 'search', 'regex')
+        @type method: str
         """
         # can take kwargs for searching by any other key stored in the trunk dictionary       
         kwargs.setdefault('trunk', None)
@@ -1730,10 +1988,21 @@ class Container(object):
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
         
         if twig is not None:
-            if use_search:
-                matched_twigs = self._search_twigs(twig, **kwargs)
-            else:
-                matched_twigs = self._match_twigs(twig, **kwargs)
+            if isinstance(method, str):
+                method = (method,)
+            for m in method:
+                if m=='search':
+                    matched_twigs = self._search_twigs(twig, **kwargs)
+                elif m=='regex':
+                    matched_twigs = self._regex_twigs(twig, **kwargs)
+                elif m=='robust':
+                    matched_twigs = self._robust_twigs(twig, **kwargs)
+                else:
+                    matched_twigs = self._match_twigs(twig, **kwargs)
+                
+                if len(matched_twigs):
+                    break
+                    
         else:
             matched_twigs = [ti['twig_full'] for ti in trunk]
         

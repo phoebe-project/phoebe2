@@ -45,10 +45,11 @@ def test_access():
     #print mybundle.get_value('time@mylc')
     
     # make sure the data can be found
-    assert(len(mybundle.get('rvobs@primary'))==2)
-    assert(len(mybundle.get('rvobs@secondary'))==2)
-    assert(len(mybundle.get('lcobs@Detached_1'))==2)
-    
+#    assert(len(mybundle.get('rvobs@primary'))==2)
+#    assert(len(mybundle.get('rvobs@secondary'))==2)
+#    assert(len(mybundle.get('lcobs@Detached_1'))==2)
+    assert(len(mybundle.get('dataset'))==6)
+   
     # make sure each twig is a unique twigs for itself
     for t in mybundle.twigs():
         if len(mybundle.twigs(t))!=1: print t, mybundle.twigs(t)    

@@ -1951,6 +1951,7 @@ from ._version import __version__
 # make some important classes available in the root:
 from .parameters.parameters import ParameterSet,Parameter
 from .parameters.parameters import ParameterSet as PS
+from .parameters import distributions
 from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
 from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
