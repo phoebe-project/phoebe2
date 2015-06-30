@@ -38,9 +38,9 @@ def test_json():
     assert(len(mybundle['lcsyn@mylc_time'])==1)
     assert(len(mybundle['lcdep@mylc_time'])==2)
 
-    assert(len(mybundle['phase@myrv_phase@rvobs@primary'])==100)
-    assert(len(mybundle['time@myrv_time@rvobs@primary'])==50)
-    assert(len(mybundle['time@mylc_time@lcobs@new_system'])==10)
+    assert(len(mybundle['value@phase@myrv_phase@rvobs@primary'])==100)
+    assert(len(mybundle['value@time@myrv_time@rvobs@primary'])==50)
+    assert(len(mybundle['value@time@mylc_time@lcobs@new_system'])==10)
     
 
     #~ mybundle.save('test_io.json')
@@ -72,9 +72,9 @@ def test_json():
     assert(len(mybundle['lcobs@mylc_time'])==1)
     assert(len(mybundle['lcsyn@mylc_time'])==1)
     assert(len(mybundle['lcdep@mylc_time'])==2)
-    assert(len(mybundle['phase@myrv_phase@rvobs@primary'])==100)
-    assert(len(mybundle['time@myrv_time@rvobs@primary'])==50)
-    assert(len(mybundle['time@mylc_time@lcobs@new_system'])==10)
+    assert(len(mybundle['value@phase@myrv_phase@rvobs@primary'])==100)
+    assert(len(mybundle['value@time@myrv_time@rvobs@primary'])==50)
+    assert(len(mybundle['value@time@mylc_time@lcobs@new_system'])==10)
 
 
 if __name__ == "__main__":

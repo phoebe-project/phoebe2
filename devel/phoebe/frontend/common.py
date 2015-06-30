@@ -507,7 +507,7 @@ class Container(object):
         if qualifier == 'label':
             this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
             if this_trunk['section'] == 'system':
-                component = self._get_by_search(this_trunk['label'])
+                component = self.get_object(this_trunk['label'])
                 component.set_label(value)
                 
                 # also change all objref (eg in plotting)
@@ -1942,7 +1942,7 @@ class Container(object):
                     
         return ret_value
         
-    def _robust_twigs(self, twiglet, trunk=None, ignore_exact=False, **kwargs):
+    def _robust_twigs(self, twiglet, trunk=None, require_first=True, **kwargs):
         """
         return a list of twigs in which all twiglets are present, but
         order is ignored so long as the first item in the matching twig is present
@@ -1955,15 +1955,15 @@ class Container(object):
         
         matching = []
         
-        for ti in self.trunk:
-            if np.all([twiglet in ti['twig_full'].split('@') for twiglet in twig_split]) and ti['twig_full'].split('@')[0] in twig_split:
+        for ti in trunk:
+            if np.all([twiglet in (ti['twig_full'].split('@') if ':' in twiglet else [tii.split(':')[0] for tii in ti['twig_full'].split('@')]) for twiglet in twig_split]) and (not require_first or ti['twig_full'].split('@')[0] in twig_split):
                 matching.append(ti['twig_full'])
         
         return matching
         
     def _get_by_search(self, twig=None, all=False, ignore_errors=False,
                        return_trunk_item=False, return_key='item',
-                       method=['match','robust'], **kwargs):
+                       method=['robust'], **kwargs):
         """
         this function searches the cached trunk
         kwargs will filter any of the keys stored in trunk (section, kind, container, etc)
@@ -1996,7 +1996,9 @@ class Container(object):
                 elif m=='regex':
                     matched_twigs = self._regex_twigs(twig, **kwargs)
                 elif m=='robust':
-                    matched_twigs = self._robust_twigs(twig, **kwargs)
+                    matched_twigs = self._robust_twigs(twig, require_first=True, **kwargs)
+                elif m=='robust_notfirst':
+                    matched_twigs = self._robust_twigs(twig, require_first=False, **kwargs)
                 else:
                     matched_twigs = self._match_twigs(twig, **kwargs)
                 

@@ -932,7 +932,7 @@ class Bundle(Container):
         if twig is None or twig == '__nolabel__' or twig == '':
             return self.get_system()
         #~ return self._get_by_search(twig, kind='Body')
-        return self._get_by_search(twig, context='object', method='regex')
+        return self._get_by_search(twig, context='object', method='robust_notfirst')
 
     def get_children(self, twig=None):
         """
@@ -1095,7 +1095,7 @@ class Bundle(Container):
         @rtype: ParameterSet
         """
         #~ return self._get_by_search('orbit@{}'.format(twig), kind='ParameterSet', context='orbit')
-        return self._get_by_search(twig, kind='ParameterSet', context='orbit', method='regex')
+        return self._get_by_search(twig, kind='ParameterSet', context='orbit', method='robust_notfirst')
 
 
     def get_mesh(self, twig=None):
@@ -1126,7 +1126,7 @@ class Bundle(Container):
         @rtype: ParameterSet
         """
         #~ return self._get_by_search('mesh@{}'.format(twig), kind='ParameterSet', context='mesh*')
-        return self._get_by_search(twig, kind='ParameterSet', context='mesh*', method='regex')
+        return self._get_by_search(twig, kind='ParameterSet', context='mesh*', method='robust_notfirst')
 
     def get_ephem(self, objref=None):
         """
@@ -3174,7 +3174,7 @@ class Bundle(Container):
         @rtype: DataSet
         """
         #~ return self._get_by_search(ref=dataref, context='*syn', class_name='*DataSet')
-        return self._get_by_search(twig=twig, context='*syn', class_name='*DataSet', method='regex')
+        return self._get_by_search(twig=twig, context='*syn', class_name='*DataSet', method='robust_notfirst')
 
     def get_dep(self, twig=None):
         """
@@ -3186,7 +3186,7 @@ class Bundle(Container):
         @rtype: ParameterSet
         """
         #~ return self._get_by_search(ref=dataref, context='*dep', class_name='ParameterSet')
-        return self._get_by_search(twig=twig, context='*dep', class_name='ParameterSet', method='regex')
+        return self._get_by_search(twig=twig, context='*dep', class_name='ParameterSet', method='robust_notfirst')
 
     def get_obs(self, twig=None):
         """
@@ -3198,7 +3198,7 @@ class Bundle(Container):
         @rtype: DataSet
         """
         #~ return self._get_by_search(ref=dataref, context='*obs', class_name='*DataSet')
-        return self._get_by_search(twig=twig, context='*obs', class_name='*DataSet', method='regex')
+        return self._get_by_search(twig=twig, context='*obs', class_name='*DataSet', method='robust_notfirst')
               
     def get_enabled_obs(self, twig=None):
         """
@@ -3250,7 +3250,7 @@ class Bundle(Container):
         except:
             dataref = None
 
-        for ds in self._get_by_search(twig=dataref, context='*obs', class_name='*DataSet', method='regex', all=True, ignore_errors=True, return_trunk_item=True):
+        for ds in self._get_by_search(twig=dataref, context='*obs', class_name='*DataSet', method='robust_notfirst', all=True, ignore_errors=True, return_trunk_item=True):
             ds['item'].set_enabled(enabled)
             logger.info("{} {} '{}'".format('Enabled' if enabled else 'Disabled', ds['context'], ds['twig']))
         
@@ -3461,7 +3461,7 @@ class Bundle(Container):
 
             dss = self._get_by_search(dataref,
                     context = ['{}obs'.format(category),'{}syn'.format(category),'{}dep'.format(category)],
-                    kind = 'ParameterSet', all = True, ignore_errors = True, method='regex')
+                    kind = 'ParameterSet', all = True, ignore_errors = True, method='robust_notfirst')
 
             datarefs = []
             for ds in dss:
@@ -3482,7 +3482,7 @@ class Bundle(Container):
             # confirm its (always) the correct category
             # *technically* if it isn't always correct, we should just remove the correct ones
             #dss = self._get_by_search(dataref, context=['*obs','*syn','*dep'], kind='ParameterSet', all=True, ignore_errors=True)
-            dss = self._get_by_search(dataref, context='*dep', kind='ParameterSet', all=True, ignore_errors=True, method='regex')
+            dss = self._get_by_search(dataref, context='*dep', kind='ParameterSet', all=True, ignore_errors=True, method='robust_notfirst')
             if not len(dss):
                 raise KeyError("No dataref found matching {}".format(dataref))
             for ds in dss:
@@ -3696,38 +3696,27 @@ class Bundle(Container):
                 raise ValueError("run_compute does not accept keyword '{}'".format(k))
 
 
-        # Q <pieterdegroote>: should we first set system.uptodate to False and
-        # then try/except the computations? Though we should keep track of
-        # why things don't work out.. how to deal with out-of-grid interpolation
-        # etc...
-        if ':' in computeoptions.context:
-            # then we want to use a different backend
-            be = computeoptions.context.split(':')[1]
-            func = getattr(backends, 'compute_{}'.format(be))
-            func(obj, **computeoptions)
-            
-        else:
-            # use phoebe2 backend
-            if computeoptions['time'] == 'auto':
-                #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
-                if mpioptions is not None and animate:
-                    raise ValueError("You cannot animate and use MPI simultaneously")
-                elif mpioptions is not None:
-                    obj.compute(mpi=mpioptions, **computeoptions)
-                else:
-                    obj.compute(animate=animate, **computeoptions)
+        # use phoebe2 backend
+        if 'time' not in computeoptions.keys() or computeoptions['time'] == 'auto':
+            #~ observatory.compute(self.system,mpi=self.mpi if mpi else None,**options)
+            if mpioptions is not None and animate:
+                raise ValueError("You cannot animate and use MPI simultaneously")
+            elif mpioptions is not None:
+                obj.compute(mpi=mpioptions, **computeoptions)
             else:
-                raise ValueError("time must be set to 'auto' in compute options")
-            #else:
-                #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
-                #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
-                #extra_func=[observatory.ef_binary_image] if anim!=False else [],
-                #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
-                #mpi=mpi,**options
-                #)
-            #if anim != False:
-                #for ext in ['.gif','.avi']:
-                #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
+                obj.compute(animate=animate, **computeoptions)
+        else:
+            raise ValueError("time must be set to 'auto' in compute options")
+        #else:
+            #im_extra_func_kwargs = {key: value for key,value in self.get_meshview().items()}
+            #observatory.observe(obj,options['time'],lc=True,rv=True,sp=True,pl=True,
+            #extra_func=[observatory.ef_binary_image] if anim!=False else [],
+            #extra_func_kwargs=[self.get_meshview()] if anim!=False else [],
+            #mpi=mpi,**options
+            #)
+        #if anim != False:
+            #for ext in ['.gif','.avi']:
+            #plotlib.make_movie('ef_binary_image*.png',output='{}{}'.format(anim,ext),cleanup=ext=='.avi')
             
         return computeoptions
 
@@ -5278,7 +5267,7 @@ class Bundle(Container):
                 context = None
             
             dsti = self._get_by_search(twigs, class_name='*DataSet', context=context,
-                            return_trunk_item=True, all=False, method='regex')
+                            return_trunk_item=True, all=False, method='robust_notfirst')
 
             # update args to be full twig
             twigs = '{}@{}'.format(dsti['label'], dsti['ref'])   # TODO: check that this is correct
