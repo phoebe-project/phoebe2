@@ -36,7 +36,7 @@ def test_access():
     
     # test unit support:
     mybundle.set_value('teff@primary', 20000, 'Far')
-    assert(np.abs(mybundle['teff@primary']-11366.4833333)<0.01)
+    assert(np.abs(mybundle['value@teff@primary']-11366.4833333)<0.01)
     
     # add some data and do similar stuff
     mybundle.data_fromarrays(category='lc', dataref='mylc', time=np.linspace(0,1,100), flux=np.ones(100))
@@ -70,12 +70,24 @@ def test_dictionary():
     assert(isinstance(mybundle.items()[0], tuple))
     
     # test for explicit values
-    assert(mybundle.get('period')==5.25)
+    assert(mybundle.get('value@period')==5.25)
     assert(mybundle.get('non-existing-key') == None)
     assert(mybundle.get('non-existing-key', None) == None)
     assert(mybundle.get('non-existing-key', 'my_default') == 'my_default')
     
-    assert(mybundle['period']==5.25)
+    assert(mybundle['value@period']==5.25)
+    
+def test_methods():
+    """
+    Bundle: testing that various methods don't fail
+    """
+    
+    b = phoebe.Bundle()
+    
+    b.hierarchy()
+    b.hierarchy(change_labels=True)
+    b.get_object()
+    b.get_mesh()
     
     
 @nose.tools.raises(KeyError)        
