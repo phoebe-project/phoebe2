@@ -1116,6 +1116,8 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
         report_values = ['{}={:16.8f}'.format(qual, val) for qual, val in zip(qualifiers, pars)]
         report_chi2 = np.mean((data-model)**2/sigma**2)
         #print(", ".join(report_values) + ': chi2={}'.format(report_chi2))
+	#print("model = ",model)
+	#print("data = ", data)
 	#********************************
         
         traces.append(pars)
@@ -1193,7 +1195,8 @@ def run_dc(system, params=None, mpi=None, fitparams=None):
     # whose values are = 1/sigma_i^2
     # See "Parameter Estimation and Inverse Problems", Aster, Borchers, Thurber 
     # for details about getting the uncertainties from least squares.  Or Numerical Recipes
-    #corMat = np.identity(nParams, dtype=float)
+    # NOTE WELL:  at this point we have the covariance matrix.  In Feedback we will
+    # change this to the correlation matrix.  feedback seems to want to print out smaller numbers
     corMat = np.ones((nParams, nParams), dtype=float)
     sigmaMat = np.ones(nDataPoints)/sigma**2
     

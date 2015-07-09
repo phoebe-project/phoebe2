@@ -47,7 +47,7 @@ def get_bundle_with_data_and_initial_guess():
 
     # Add custom parameters
     mybundle.add_parameter('mass1@orbit')
-    mybundle.add_parameter('asini@orbit', replaces='sma')
+    #mybundle.add_parameter('asini@orbit', replaces='sma')
 
     # Define priors
     # We define the priors here so that the frontend feedback prints out resonable
@@ -62,30 +62,36 @@ def get_bundle_with_data_and_initial_guess():
 #    mybundle.set_prior('mass1', distribution='uniform', lower=0.8, upper=1.2)
 #    mybundle.set_prior('asini@orbit', distribution='uniform', lower=0, upper=15)
 
-    mybundle.set_prior('ecc', distribution='normal', mu=0.33,sigma=0.01)
+    mybundle.set_prior('ecc', distribution='normal', mu=0.32,sigma=0.01)
     mybundle.set_prior('per0', distribution='normal', mu=54.0,sigma=0.5)
     mybundle.set_prior('vgamma', distribution='normal', mu=-12.0,sigma=0.7)
-    mybundle.set_prior('incl', distribution='normal', mu=68.,sigma=4.)
+    #mybundle.set_prior('incl', distribution='normal', mu=8.,sigma=4.)
     mybundle.set_prior('q', distribution='normal', mu=0.67,sigma=0.1)
     mybundle.set_prior('sma', distribution='normal', mu=10.5,sigma=0.5)
     #mybundle.set_prior('mass1', distribution='normal', mu=3.0,sigma=8.)
     #mybundle.set_prior('asini@orbit', distribution='normal', mu=2.0,sigma=9.)
 
     # Mark adjustables
-    mybundle.set_adjust('ecc')
-    mybundle.set_adjust('per0')
-    mybundle.set_adjust('vgamma')
-    #mybundle.set_adjust('asini')
+   # mybundle.set_adjust('ecc')
+   # mybundle.set_adjust('per0')
+   # mybundle.set_adjust('vgamma')
+   # mybundle.set_adjust('sma')
     mybundle.set_adjust('incl')
     mybundle.set_adjust('q')
     
     # Set initial values (closeby)
-    mybundle['ecc'] = 0.33
-    mybundle['per0'] = 54.0
-    mybundle['vgamma'] = -12.0
-    mybundle['incl'] = 67.66
-    mybundle['q'] = 0.67
-    
+   # mybundle['ecc'] = 0.35
+   # mybundle['per0'] = 56.0
+   # mybundle['vgamma'] = -12.0
+   # mybundle['sma'] = 10.0
+    mybundle['q'] = 0.65
+    mybundle['incl'] = 75.0
+    #print mybundle.get_value('incl')
+    #mybundle.get_parameter('incl').set_unit('rad')
+    #print mybundle.get_value('incl')
+    mybundle.set_prior('incl', distribution='normal', mu=8.,sigma=4.)
+
+
     return mybundle
 
 
@@ -123,7 +129,7 @@ def run_dc_frontend(b):
     
     b['stopping_criteria_type@dc'] = 'min_dx'
     b['stop_value@dc'] = 0.001
-    b['max_iters@dc'] = 30
+    b['max_iters@dc'] = 100
     b['derivative_type@dc'] = ['numerical', 'numerical', 'numerical', 'numerical', 'numerical']
     nParams = len(b.get_adjustable_parameters().keys())
     b['derivative_funcs'] = [lambda (x, system):x for i in range(nParams)]
