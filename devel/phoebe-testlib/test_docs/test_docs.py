@@ -36,6 +36,9 @@ def test_scripts(start_ind=0):
             "../../phoebe-testsuite/occulting_dark_sphere/occulting_dark_sphere.py", # BUG!!! (in atmospheres)
             "../../phoebe-testsuite/critical_rotator/critical_rotator.py",      # BUG!!! (in atmospheres)
             "../../phoebe-testsuite/contact_binary/contact_binary.py",          # missing file
+            "../../phoebe-testsuite/frontend_tutorials/first_steps.py",                 # NEEDS UPDATING
+            "../../phoebe-testsuite/frontend_tutorials/first_binary_from_scratch.py",   # NEEDS UPDATING
+            "../../phoebe-testsuite/frontend_tutorials/interferometry.py",              # NEEDS UPDATING
             ]
     
     for i,f in enumerate(glob(os.path.join(direc, '*.py'))+glob(os.path.join(direc, '*/*.py'))):
