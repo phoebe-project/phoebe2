@@ -50,7 +50,6 @@ double	*SolutionVecM,
 	chi2Delta,
 	magnitude,
 
-	**corMat,
 	**WMatT_X_WMat,
 	**MatGT,
 	**MatTemp,
@@ -280,7 +279,6 @@ int	*derivativeType,
 	 *
 	 * Recall NRows = nDatapoints, nCol = nParams
 	 */
-	corMat = diffCorr->corMat;
 	MatGT = dmatrix(nCol, nRow);
 	WMatT_X_WMat = dmatrix(nRow, nRow);
 	Transpose(MatGT, MatG, nRow, nCol);
@@ -306,13 +304,12 @@ int	*derivativeType,
 	{
 		for(j = 0; j<nCol; j++)
 		{
-			diffCorr->corMat[i][j] = i+j;
-			printf("WT.W = %f\n",WMatT_X_WMat[i][j]);
+			printf("CorM = %g\n",diffCorr->corMat[i][j]);
 		}
-	}
-	*/
+	}*/
+	
 
-	/*printf("G = \n");
+	/*printf("\n\n\nG = \n");
 	for(i = 0; i<nRow;i++)
 	{
 		for(j = 0; j<nCol; j++)
@@ -907,7 +904,6 @@ double	errt,
 	a = dmatrix(NTAB+1, NTAB+1);
 
 
-
 	/* first we need to fill the arrays that will hold the function calls ...
 	   We do first and second ... hh and hh/CON because we will definetly
 	   use these.  We only do others if we need.
@@ -985,6 +981,7 @@ double	errt,
 		}
 	}
 	dF[k] = ans;
+	/*printf("x = %f   derr = %f  dFphh[1] = %f  dFmhh[1] = %f  a[1][1] = %f\n",x[elementToVary],ans,dFphh[1][0],dFmhh[1][0],a[1][1]);*/
 
 
 	} /* end k loop */
@@ -994,9 +991,11 @@ double	errt,
 	free_dmatrix(dFphh, NTAB+1, nDataPoints);
 	free_dmatrix(dFmhh, NTAB+1, nDataPoints);
 
+
 	free_dvector(xphh, numElements);
 	free_dvector(xmhh, numElements);
 	free_ivector(derCalced, NTAB+1);
+
 
 /*for(k=0; k < nDataPoints; k++)
 {

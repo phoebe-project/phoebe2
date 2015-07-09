@@ -242,15 +242,28 @@ class FeedbackDc(Feedback):
             par.remember()
 
 
+	# convert the covariance matrix (what is actually calculated in DC)
+	# to a corelation matrix with sigma_x along the diagnal
+	# and r_xy = sigma_xy/(sigma_x * sigma_y)
+	# first we need to sqrt() the diagnal elements, then act on non-diagnals
+        for i,value in enumerate(dc_result):
+		dc_corMat[i][i] = np.sqrt(dc_corMat[i][i])
+
+        for i,value in enumerate(dc_result):
+		for j,value in enumerate(dc_result):
+			if (i != j): 
+				dc_corMat[i][j] = \
+				  (dc_corMat[i][j])/( dc_corMat[i][i]*dc_corMat[j][j] )
+
+
+
         for i,value in enumerate(dc_result):
             self._parameters[i].set_value(value)
             mu = value
-            sigma = dc_corMat[i][i]
+            sigma = dc_corMat[i][i] #Already converted to sigma above
             self._parameters[i].set_posterior(distribution='normal',
                                               mu=mu, sigma=sigma)
             
-
-        #self._cormat = np.zeros((len(init_phoebe_pars), len(init_phoebe_pars)))  # TODO: fix
         self._cormat = dc_corMat
     
 
