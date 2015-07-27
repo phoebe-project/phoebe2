@@ -37,7 +37,7 @@ def get_bundle_with_data_and_initial_guess():
 
 
     # Generate a radial velocity curve
-    time = np.sort(np.random.uniform(low=0, high=mybundle['period'], size=50))
+    time = np.sort(np.random.uniform(low=0, high=mybundle.get_value('period'), size=50))
     pos, velo, btime, ptime = mybundle.get_orbit('primary', time=time)
     sigma = 0.005*np.ones(len(time))
     noise = np.random.normal(scale=sigma)
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     # afterwards
     initial_text = []
     for twig in ['ecc', 'per0', 'vgamma', 'sma', 'incl', 'q']:
-        initial_text.append(("{:10s} = {:16.8f}".format(twig, init_bundle[twig])))
+        initial_text.append(("{:10s} = {:16.8f}".format(twig, init_bundle.get_value(twig))))
 
 
     # Uncomment the following lines if you wish to run the DC algorithum using the backend
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     #print("feedback = ",feedback)
     
     for i,twig in enumerate(['ecc', 'per0', 'vgamma', 'sma', 'incl', 'q']):
-        print(initial_text[i] +' ---> '+"{:10s} = {:16.8f}".format(twig, init_bundle[twig]))
+        print(initial_text[i] +' ---> '+"{:10s} = {:16.8f}".format(twig, init_bundle.get_value(twig)))
         
         
         
