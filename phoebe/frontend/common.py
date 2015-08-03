@@ -439,7 +439,7 @@ class Container(object):
         if twig.split('@')[0] == 'passband':            
             # Get the location of the predefined ld_coeffs files
             path = limbdark.get_paths()[0]
-            
+
             # Cycle over all FITS files and see what passbands are defined
             for filename in sorted(glob.glob(os.path.join(path, '*.fits'))):
                 with pyfits.open(filename) as ff:
@@ -722,6 +722,10 @@ class Container(object):
             
         # Get all the info we can get
         this_trunk = self._get_by_search(twig=twig, return_trunk_item=True)
+
+        if isinstance(this_trunk['item'], dict) and this_trunk['section']=='system':
+            # then we should fake by getting the object@
+            this_trunk = self._get_by_search(twig=twig, context='object', method='robust_notfirst', return_trunk_item=True)
         
         if isinstance(this_trunk['item'], universe.Body):
             # last check: we need to make sure that whatever we're setting
