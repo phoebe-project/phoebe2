@@ -780,7 +780,7 @@ defs += [dict(qualifier='label',                description='label for the compu
          dict(qualifier='ltt',                  description='Correct for light time travel effects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context='compute'),
          dict(qualifier='subdiv_alg',           description='Subdivision algorithm',repr='%s',cast_type='choose',value='edge',choices=['edge'],frame=["phoebe"],context='compute'),
          dict(qualifier='subdiv_num',           description='Number of subdivisions',repr='%d',cast_type=int,value=3,frame=["phoebe"],context='compute'),
-         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary','graham','none'],
+         dict(qualifier='eclipse_alg',          description='Type of eclipse algorithm',choices=['auto','full','convex','only_horizon','binary','hierarchical','graham','none'],
                                                  long_description=("'only_horizon': labels the triangles wich a surface normal directed away from the observer as visible, otherwise they are labeled as hidden // "
                                                                    "'convex': uses QHull in conjunction with Delaunay triangulation to detect eclipsed triangles and label the ones which are partially visible // "
                                                                    "'graham': uses Graham scan in conjunction with binary search trees to detect eclipsed triangles and label the ones which are partially visible //"
