@@ -1842,6 +1842,33 @@ class Parameter(object):
                 return np.all(self.get_value()==other.get_value())
             except AttributeError:
                 return np.all(self.get_value() == other)
+                
+    def __add__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return self.get_value() + other
+        
+    def __sub__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return self.get_value() - other
+    
+    def __mult__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return self.get_value() * other
+    
+    def __div__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return self.get_value() / other
+    
+    def __pow__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return self.get_value() ** other
+        
+        
     
     def __hash__(self):
         """
