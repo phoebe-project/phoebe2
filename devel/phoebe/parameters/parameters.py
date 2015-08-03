@@ -1848,20 +1848,40 @@ class Parameter(object):
             other = other.get_value()
         return self.get_value() + other
         
+    def __radd__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return other + self.get_value()
+        
     def __sub__(self, other):
         if hasattr(other, 'get_value'):
             other = other.get_value()
         return self.get_value() - other
+    
+    def __rsub__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return other - self.get_value()
     
     def __mult__(self, other):
         if hasattr(other, 'get_value'):
             other = other.get_value()
         return self.get_value() * other
     
+    def __rmult__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return other * self.get_value()
+    
     def __div__(self, other):
         if hasattr(other, 'get_value'):
             other = other.get_value()
         return self.get_value() / other
+    
+    def __rdiv__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return other / self.get_value()
     
     def __pow__(self, other):
         if hasattr(other, 'get_value'):
