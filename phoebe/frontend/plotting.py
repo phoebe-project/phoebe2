@@ -415,7 +415,7 @@ def mesh(b, t, **kwargs):
         obj.set_time(t)
 
     try:
-        total_flux = obj.projected_intensity(ref=dataref,boosting_alg=boosting_alg,
+        total_flux = obj.projected_intensity(ref=b.get_obs(dataref)['ref'],boosting_alg=boosting_alg,
                                       with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you provide a valid time?')
