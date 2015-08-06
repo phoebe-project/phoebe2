@@ -1862,7 +1862,7 @@ class Container(object):
         trunk = self._filter_twigs_by_kwargs(trunk, **kwargs)
         
         twigs = [t['twig_full'] for t in trunk]
-        return [twig for twig in twigs if regex.search('.*'.join(twiglet.split('@')), twig)]
+        return [twig for twig in twigs if re.search('.*'.join(twiglet.split('@')), twig)]
         
     def _filter_twigs_by_kwargs(self, trunk=None, **kwargs):
         """
