@@ -12,13 +12,7 @@ import uuid
 import logging
 import glob
 
-# from https://docs.python.org/2/howto/regex.html
-# The re module was added in Python 1.5, and provides Perl-style regular
-# expression patterns. Earlier versions of Python came with the regex module,
-# which provided Emacs-style patterns. The regex module was removed completely
-# in Python 2.5.  ... changed to re
-#import regex
-import re as regex
+import re
 try: # Pyfits now integrated in astropy
     import pyfits
 except:
