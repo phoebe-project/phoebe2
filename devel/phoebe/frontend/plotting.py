@@ -409,13 +409,14 @@ def mesh(b, t, **kwargs):
     antialiasing = True
     
     #dataref = dataref.split('@')[0]
+    dataref_ref = b.get_obs(dataref)['ref']
 
     obj = b.get_object(objref)
     if t:
         obj.set_time(t)
 
     try:
-        total_flux = obj.projected_intensity(ref=b.get_obs(dataref)['ref'],boosting_alg=boosting_alg,
+        total_flux = obj.projected_intensity(ref=dataref_ref,boosting_alg=boosting_alg,
                                       with_partial_as_half=with_partial_as_half)
     except ValueError as msg:
         raise ValueError(str(msg)+'\nPossible solution: did you provide a valid time?')
@@ -470,7 +471,7 @@ def mesh(b, t, **kwargs):
     cmap_ = None
     norm_proj = None
     if select == 'proj':
-        colors = np.where(mesh['mu']>0, mesh['proj_'+dataref] / mesh['mu'],0.0)
+        colors = np.where(mesh['mu']>0, mesh['proj_'+dataref_ref] / mesh['mu'],0.0)
         #if 'refl_'+ref in mesh.dtype.names:
         #    colors += mesh['refl_'+ref]
         norm_proj = colors.max()
@@ -563,9 +564,9 @@ def mesh(b, t, **kwargs):
     elif cmap_ == 'blackbody_proj':
         # In this particular case we also need to set the values for the
         # triangles first
-        values = np.abs(mesh['proj_'+dataref] / mesh['mu'])
-        if 'refl_'+dataref in mesh.dtype.names:
-            values += mesh['refl_'+dataref]
+        values = np.abs(mesh['proj_'+dataref_ref] / mesh['mu'])
+        if 'refl_'+dataref_ref in mesh.dtype.names:
+            values += mesh['refl_'+dataref_ref]
         scale = vmax if vmax is not None else 1.0
         values = (values / (scale*values.max())).reshape((-1, 1)) * np.ones((len(values), 4))
         values[:, -1] = 1.0
@@ -577,9 +578,9 @@ def mesh(b, t, **kwargs):
 
 
     elif cmap_ == 'eye':
-        values = np.abs(mesh['proj_'+dataref] / mesh['mu'])
-        if 'refl_'+dataref in mesh.dtype.names:
-            values += mesh['refl_'+dataref]
+        values = np.abs(mesh['proj_'+dataref_ref] / mesh['mu'])
+        if 'refl_'+dataref_ref in mesh.dtype.names:
+            values += mesh['refl_'+dataref_ref]
         keep = values > (0.5*values.max())
         values = values / values[keep].min()
         values = values.reshape((-1, 1)) * np.ones((len(values), 4))
