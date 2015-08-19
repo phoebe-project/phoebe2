@@ -3702,9 +3702,9 @@ class Bundle(Container):
             if mpioptions is not None and animate:
                 raise ValueError("You cannot animate and use MPI simultaneously")
             elif mpioptions is not None:
-                obj.compute(mpi=mpioptions, **computeoptions)
+                obj.compute(mpi=mpioptions, params=computeoptions)
             else:
-                obj.compute(animate=animate, **computeoptions)
+                obj.compute(animate=animate, params=computeoptions)
         else:
             raise ValueError("time must be set to 'auto' in compute options")
         #else:

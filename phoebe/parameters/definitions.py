@@ -768,7 +768,7 @@ defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_l
          ]
 
 # Compute context
-defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context=['compute', 'compute:legacy']),
+defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context=['compute', 'compute:legacy','compute:pd']),
          dict(qualifier='time',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='refs',                 description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
          dict(qualifier='types',                description='Compute observables of system at these times',repr='%s',value='auto',frame=["phoebe"],cast_type='return_string_or_list',context='compute'),
@@ -798,6 +798,10 @@ defs += [dict(qualifier='label',                description='label for the compu
                                                                    cast_type='choose',value='point_source',frame=['phoebe'],context='compute'),
          
         dict(qualifier='mpilabel', description='Label of the MPI params to use or blank for None',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='compute'),
+        
+        
+        dict(qualifier='stepsize', description='',repr='%f',cast_type=float,value=0.01,frame=["phoebe"],context='compute:pd'),
+        dict(qualifier='orbiterror', description='',repr='%f',cast_type=float,value=1E-20,frame=["phoebe"],context='compute:pd'),
         ] 
         
 
