@@ -4,14 +4,17 @@ import numpy as np
 from phoebe.backend import universe
 from phoebe.algorithms import marching
 from phoebe.units.conversions import convert
+from phoebe.dynamics import keplerorbit
 from copy import deepcopy
+import commands
+import os
 
 try:
     import phoebeBackend as phb1
 except ImportError:
     pass
 
-logger = logging.getLogger("FRONTEND.BACKENDS")
+logger = logging.getLogger("ALT_BACKENDS")
 logger.addHandler(logging.NullHandler())
 
 def translate_filter(val):
@@ -77,6 +80,12 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
     if param not in params.keys():
         logger.warning('{} parameter ignored in phoebe legacy'.format(param))
 
+    elif param=='t0':
+        if ps.get_value('t0type') == 'periastron passage':
+            value = keplerorbit.from_perpass_to_supconj(ps.get_value('t0', 'JD'), ps.get_value('period', 'd'), ps.get_value('per0', 'rad'))
+        else:
+            value = ps.get_value('t0', 'JD')
+        phb1.setpar(params[param]['name'], value)
 
     elif param == 'filename':
         phb1.setpar(params[param]['name'].replace('#', str(ty)), value)
@@ -477,3 +486,161 @@ def compute_legacy(system, *args, **kwargs):
     print phb1.getpar('phoebe_period')
    
     return system    
+    
+    
+def compute_pd(system, *args, **kwargs):
+    """
+    use Josh Carter's photodynamical code to compute fluxes (assumes spherical stars).  The
+    code is available here:
+    
+    https://github.com/dfm/photodynam
+
+    photodynam must be installed and available on the system in order to use this plugin.
+    
+    Please cite both
+
+        Science 4 February 2011: Vol. 331 no. 6017 pp. 562-565 DOI:10.1126/science.1201274
+        MNRAS (2012) 420 (2): 1630-1635. doi: 10.1111/j.1365-2966.2011.20151.x
+
+    when using this code.
+    
+    """
+    params = kwargs['params']
+    step_size = params.get_value('stepsize')
+    orbit_error = params.get_value('orbiterror')
+
+    # TODO: should be able to compute RVs (throw warning if not dynamical)
+
+    out = commands.getoutput('photodynam')
+    if 'not found' in out:
+        logger.error('photodynam not found: please install first')
+        return system
+    
+    refs = system.get_refs(per_category=True)
+    lcnames = refs.get('lc', [])
+    #~ rvnames = refs.get('rv', [])
+    
+    # we need to walk through the system and do several things:
+    # for each component, determine:
+    # - flux (for each lcname, from pblum/4pi since this will assume spherical)
+    # - mass
+    # - radius
+    # - u1, u2 (for each lcname, linear limb-darkening coeffs)
+    # for each orbit, determine:
+    # - sma (a)
+    # - ecc (e)
+    # - incl (i)
+    # - per0 (o) 
+    # - nodal longitude (l)
+    # - mean anomaly at the starting time for a given lcname (m)
+
+    bodies = []
+    orbits = []
+    
+    for item in system.walk_bodies():
+        if hasattr(item, 'bodies'):
+            d = {'item': item}
+
+            ps = item.get_children()[0].params['orbit']
+            
+            d['ps'] = ps
+            
+            d['a'] = ps.get_value('sma', 'AU')
+            d['e'] = ps.get_value('ecc')
+            d['i'] = ps.get_value('incl', 'rad')
+            d['o'] = ps.get_value('per0', 'rad')
+            d['l'] = ps.get_value('long_an', 'rad')
+            # mean anomaly (m) is per lcdep (in for loop below)
+            
+            orbits.append(d)
+            
+        else:
+            d = {'item': item}
+            
+            
+            d['m'] = item.get_mass() / 3391.6  # TODO: fix this
+            d['r'] = convert('Rsol', 'AU', item.get_radius(method='equivalent'))  # AU or Rsol?
+            # flux is per lcdep (in for loop below)
+            # u1, u2 are per lcdep (in for loop below)
+            
+            bodies.append(d)
+            
+    # now we can loop through all the lc-datasets and make a call to photodynam for each
+    for lcname in lcnames:
+        lcobs = system.params['obs']['lcobs'][lcname]
+        lcsyn = system.params['syn']['lcsyn'][lcname]
+        time0 = lcobs.get_value('time', 'JD')[0]   # TODO: should this necessarily be in JD?        
+        
+        # create input file
+        fi = open('_tmp_pd_inp', 'w')  
+        fi.write('{} {}\n'.format(len(bodies), time0))
+        fi.write('{} {}\n'.format(step_size, orbit_error))
+        fi.write('\n')
+        fi.write(' '.join([str(b['m']) for b in bodies])+'\n')
+        fi.write(' '.join([str(b['r']) for b in bodies])+'\n')
+        
+        pblums = [b['item'].get_parset(lcname)[0].get_value('pblum') for b in bodies]
+        if -1 in pblums:
+            logger.error('pblums must be set in order to run photodynam')
+            return system
+        
+        fi.write(' '.join([str(pbl / (4*np.pi)) for pbl in pblums])+'\n')
+
+        u1s = []
+        u2s = []
+        for b in bodies:
+            lcdep = b['item'].get_parset(lcname)[0]
+            if lcdep.get_value('ld_func') == 'linear':
+                ld_coeffs = lcdep.get_value('ld_coeffs')
+            else:
+                ld_coeffs = (0,0)
+                logger.warning('ld_func for {} {} must be linear, but is not: defaulting to linear with coeffs of {}'.format(lcname, b['item'].get_label(), ld_coeffs))
+                
+            u1s.append(str(ld_coeffs[0]))
+            u2s.append(str(ld_coeffs[1]))
+        
+        fi.write(' '.join(u1s)+'\n')
+        fi.write(' '.join(u2s)+'\n')
+        fi.write('\n')
+
+        for o in orbits:
+            
+            if o['ps'].get_value('t0type') == 'superior conjunction':
+                t0 = keplerorbit.from_supconj_to_perpass(o['ps'].get_value('t0', 'JD'), o['ps'].get_value('period', 'd'), o['ps'].get_value('per0', 'rad'))
+            else:
+                t0 = o['ps'].get_value('t0', 'JD')
+            
+            om = 2 * np.pi * (lcobs.get_value('time', 'JD')[0] - t0) / o['ps'].get_value('period', 'd')
+            fi.write('{} {} {} {} {} {}\n'.format(o['a'], o['e'], o['i'], o['o'], o['l'], om))
+        fi.close()
+
+        # create report file
+        fr = open('_tmp_pd_rep', 'w')
+        fr.write('t F\n')
+        for t in lcobs.get_value('time', 'JD'):
+            fr.write('{}\n'.format(t))
+        fr.close()
+
+        # submit job and parse output
+        out = commands.getoutput('photodynam _tmp_pd_inp _tmp_pd_rep > _tmp_pd_out')
+        time, flux = np.loadtxt('_tmp_pd_out', unpack=True)
+
+        # fill synthetics - since PHOEBE computes the fluxes by adding from all components,
+        # we'll set the flux to the first body and the rest to 0
+        
+        for i,b in enumerate(bodies):
+            lcsyn = b['item'].params['syn']['lcsyn'][lcname]
+            
+            lcsyn.set_value('time', time)
+            if i==0:
+                lcsyn.set_value('flux', flux - 0.92)  # TODO: fix this (shouldn't need to subtract 0.92 to match phoebe2)
+            else:
+                lcsyn.set_value('flux', np.zeros(len(flux)))        
+
+    # cleanup (delete tmp files)
+    for fname in ['_tmp_pd_inp', '_tmp_pd_rep', '_tmp_pd_out']:
+        os.remove(fname)
+    
+    
+    
+    return system
