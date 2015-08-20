@@ -46,6 +46,18 @@ eb['teff@primary'] = (5500., 'K')
 eb.set_value('period', 10, 'd')
 
 """
+To take a look at a few other things you can change issue:
+"""
+print 
+print 
+print 
+print eb['primary']
+print 
+print 
+print 
+
+
+"""
 where all recognized units and their string representations are listed in the `units package documentation <phoebe.units>`_. If 'teff@primary' confuses you, this is called a twig. Twigs are used to refer to all parameters in PHOEBE. They are explained in detail in the :doc:`First steps with PHOEBE 2.0-alpha <tutorial.first_steps>` tutorial, and a cool feature about them is that they are tab-completable. To save ourselves from excessive typing, we will be using the dictionary-style approach here, but you are of course encouraged to use your preferred way.
 
 The default system has no data attached. You may choose to attach observations, or synthesize a theoretical curve. Under the hood PHOEBE makes little distinction, and the principle is always the same. In the following we will focus on adding a light curve, but the same applies to other types of curves, such as radial velocities (RVs) or spectra.
@@ -121,7 +133,7 @@ PHOEBE interfaces `matplotlib <http://www.matplotlib.org>`_ for plotting, anothe
 The plotted quantities match those that went into creating the :ref:`lcobs <parlabel-phoebe-lcobs>`, in this case phases. You can still access times in the :ref:`lcsyn <parlabel-phoebe-lcsyn>` structure directly:
 """
 
-plt.plot(eb['time@lcsyn'], eb['flux@lcsyn'], 'r-')
+plt.plot(eb['value@time@new_system@lcsyn@lc01'], eb['value@flux@new_system@lcsyn@lc01'], 'r-')
 plt.show()
 
 """
