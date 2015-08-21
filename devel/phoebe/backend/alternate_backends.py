@@ -50,16 +50,24 @@ def translate_filter(val):
 
 def set_ld_legacy(name, value, on=None, comp=None):
     lds = {'component':'phoebe_ld_#bol%', 'lcdep':'phoebe_ld_lc#%', 'rvdep':'phoebe_ld_rv#%'}
-    comps = {'prim':1, 'sec':2}
+    comps = {'prim':'1', 'sec':'2'}
     letter = {0:'x', 1:'y'}
     if on != None:
         if type(value) != list:
             value = [value]
         for y in range(len(value)):
+            #quit()
+#            print lds[name].replace('#', letter[y]).replace(('%', comps[comp])
+#            quit()
+#            print lds[name].replace('#', letter[y]).replace('%', comps[comp])+'['+str(on)+']'
             try:
-                phb1.setpar(lds[name].replace('#', letter[y]).replace('%', comps[comp])+'['+str(on)+']', value[y]) 
+#                phb1.setpar(lds[name].replace('#', letter[y]).replace('%', comps[comp])+'['+str(on)+']', value[y]) 
+                phb1.setpar(lds[name].replace('#', letter[y]).replace('%', comps[comp]), value[y]) 
             except:
                 logger.warning('ld coeffs must be numbers')
+            if name == 'rvdep':
+                quit()
+#            quit()
     else:
         for y in len(value):
             try:
@@ -70,7 +78,7 @@ def set_ld_legacy(name, value, on=None, comp=None):
 
 
 def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
-    params = {'morphology':{'name':'phoebe_model'}, 'asini':{'name':'phoebe_asini_value'},'filename':{'name':'phoebe_#_filename'}, 'statweight':{'name':'phoebe_#_sigma'},'passband':{'name':'phoebe_#_filter'},'columns':{},'Rv':{'name':'phoebe_ie_factor'},'extinction':{'name':'phoebe_ie_excess'},'method':{'name':'phoebe_proximity_rv#_switch'},'incl':{'name':'phoebe_incl','unit':'deg'}, 't0':{'name':'phoebe_hjd0'}, 'period':{'name':'phoebe_period', 'unit':'d'}, 'dpdt':{'name':'phoebe_dpdt', 'unit':'d/d'}, 'phshift':{'name':'phoebe_pshift'}, 'sma':{'name': 'phoebe_sma', 'unit':'Rsun'}, 'q':{'name':'phoebe_rm'}, 'vgamma':{'name':'phoebe_vga', 'unit':'km/s'},  'teff':{'name':'phoebe_teff#', 'unit':'K'}, 'pot':{'name':'phoebe_pot#'}, 'abun':{'name':'phoebe_met#'},  'syncpar':{'name':'phoebe_f#'}, 'alb':{'name':'phoebe_alb#'}, 'gravb':{'name':'phoebe_grb#'}, 'ecc':{'name':'phoebe_ecc'}, 'per0':{'name':'phoebe_perr0','unit':'rad'}, 'dperdt':{'name':'phoebe_dperdt','unit':'rad/d'}, 'ld_func':{'name':'phoebe_ld_model'}, 'pblum':{}, 'atm':{'name':'phoebe_atm#_switch'},'refl':{'name':'phoebe_reffect_switch'},'gridsize':{'name':'phoebe_grid_finesize#'},'delta':{'name':'phoebe_grid_finesize#'},'scale':{'name':'phoebe_compute_hla_switch'}, 'offset':{'name':'phoebe_compute_vga_switch'}}
+    params = {'morphology':{'name':'phoebe_model'}, 'asini':{'name':'phoebe_asini_value'},'filename':{'name':'phoebe_#_filename'}, 'statweight':{'name':'phoebe_#_sigma'},'passband':{'name':'phoebe_#_filter'},'columns':{},'Rv':{'name':'phoebe_ie_factor'},'extinction':{'name':'phoebe_ie_excess'},'method':{'name':'phoebe_proximity_rv#_switch'},'incl':{'name':'phoebe_incl','unit':'deg'}, 't0':{'name':'phoebe_hjd0'}, 'period':{'name':'phoebe_period', 'unit':'d'}, 'dpdt':{'name':'phoebe_dpdt', 'unit':'d/d'}, 'phshift':{'name':'phoebe_pshift'}, 'sma':{'name': 'phoebe_sma', 'unit':'Rsun'}, 'q':{'name':'phoebe_rm'}, 'vgamma':{'name':'phoebe_vga', 'unit':'km/s'},  'teff':{'name':'phoebe_teff#', 'unit':'K'}, 'pot':{'name':'phoebe_pot#'}, 'abun':{'name':'phoebe_met#'},  'syncpar':{'name':'phoebe_f#'}, 'alb':{'name':'phoebe_alb#'}, 'gravb':{'name':'phoebe_grb#'}, 'ecc':{'name':'phoebe_ecc'}, 'per0':{'name':'phoebe_perr0','unit':'rad'}, 'dperdt':{'name':'phoebe_dperdt','unit':'rad/d'}, 'ld_func':{'name':'phoebe_ld_model'}, 'pblum':{}, 'atm':{'name':'phoebe_atm#_switch'},'refl':{'name':'phoebe_reffect_switch'},'refl_num':{'name':'phoebe_reffect_reflections'},'gridsize':{'name':'phoebe_grid_finesize#'},'delta':{'name':'phoebe_grid_finesize#'},'scale':{'name':'phoebe_compute_hla_switch'}, 'offset':{'name':'phoebe_compute_vga_switch'}}
 
     value = deepcopy(value) #DO NOT ERASE. if this is not done python will occasionally replace values in the system with values here.
 
@@ -94,10 +102,10 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
         phb1.setpar(params[param]['name'], boolean[valn])        
     elif param == 'offset':
         valn = ps.get_adjust('offset')
-        print valn
         phb1.setpar(params[param]['name'], boolean[valn])
     elif param =='morphology':
         #add more types when supported
+
         morphs = {'detached':'Detached binary', 'unconstrained':'Unconstrained binary system'}
         phb1.setpar(params[param]['name'].replace('#', comps[comp]), morphs[value])
 
@@ -111,9 +119,19 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
     elif param == 'columns':
         vars = {'time':'Time (HJD)', 'phase':'Phase','flux':'Flux','weight':'Standard weight', 'sigma':'Standard deviation', 'rv1':'Primary RV', 'rv2':'Secondary RV'}  
         
-        phb1.setpar('phoebe_indep', vars[value[0]]) 
+        phb1.setpar('phoebe_indep', vars[value[0]])
+
+        print "value[1] before", value[1]
         if ty == 'rv':
-            value[1]=value[1]+comps[comp]
+            if value[1] != 'rv1' and value[1] != 'rv2':
+                value[1]=value[1]+comps[comp]
+
+        print "value[1]", value[1]
+        print "comps[comp]", comp
+        print "ty", ty
+        print 'phoebe_#_indep'.replace('#', str(ty))
+        print 'phoebe_#_dep'.replace('#', str(ty))
+        print vars[value[1]]
         phb1.setpar('phoebe_#_indep'.replace('#', str(ty)), vars[value[0]])
         phb1.setpar('phoebe_#_dep'.replace('#', str(ty)), vars[value[1]])
         if len(value)==3:
@@ -153,8 +171,6 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
             phb1.setpar(params[param]['name'].replace('#', comps[comp]), 1)
 
         elif value == 'blackbody' or ('atmcofplanck.dat' in value):
-            print comp
-            print params[param]['name'].replace('#', comps[comp])
             phb1.setpar(params[param]['name'].replace('#', comps[comp]), 0)
 
         else:
@@ -167,14 +183,13 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
             phb1.setpar('phoebe_usecla_switch', boolean[False])
             
     elif param == 'refl':
-
-            phb1.setpar(params[param]['name'].replace('#', comps[comp]), boolean[value])
-
+            if comp != None:
+                phb1.setpar(params[param]['name'].replace('#', comps[comp]), boolean[value])
+            else:
+                phb1.setpar(params[param]['name'], boolean[value])
     elif param == 'delta':
-
+        #marching.delta_to_gridsize is wrong 
         valn =  int(np.round(marching.delta_to_gridsize(value)))
-        print valn
-        print params[param]['name'].replace('#', comps[comp])
         phb1.setpar(params[param]['name'].replace('#', comps[comp]), valn)
 #        phb1.setpar('phoebe_grid_finesize1', valn)
     
@@ -194,27 +209,19 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
         print un
         if 'unit' in qualifier.keys() and qualifier['unit']!= un:
 #            print "I WENT HERE FIRST?"
-            print un, qualifier['unit'], value
             nval = convert(un, qualifier['unit'], value)
-            print nval
-            print params[param]['name']
             if comp is None:
                 phb1.setpar(params[param]['name'], nval)
             else:
                 phb1.setpar(params[param]['name'].replace('#', comps[comp]), nval)
    
         else:
-#            print "I WENT HERE", params[param]['name']
-#            print params[param]['name'].replace('#', comps[comp])
-#            print params[param]['name'], comp
             if comp is None:
-#                print "so I went here and still fucking failed"
                 phb1.setpar(params[param]['name'], value)
             else:
-                print params[param]['name'].replace('#', comps[comp])
                 phb1.setpar(params[param]['name'].replace('#', comps[comp]), value)
     
-def compute_legacy(system, *args, **kwargs):
+def compute_legacy(system, compute, *args, **kwargs):
     
 
   
@@ -235,7 +242,7 @@ def compute_legacy(system, *args, **kwargs):
     phb1.configure()
     #boolean definitions for use later with various parameters
     boolean = {True:1, False:0}
-    parsets = {'orbit':'system', 'position':'system', 'reddening':'system', 'component':'comp', 'mesh':'comp'}
+    parsets = {'orbit':'system', 'position':'system', 'reddening':'system', 'component':'comp', 'mesh':'comp', 'compute':'compute'}
     compsi = {1:'prim', 2:'sec'}
     #determine and initialize data curves
 
@@ -290,7 +297,6 @@ def compute_legacy(system, *args, **kwargs):
 #            phb1.setpar('phoebe_lc_active',boolean[pso.get_enabled()]) 
 
             for param in pso:
-                print param
                 set_param_legacy(pso, param, pso.get_value(param), on=on, ty='lc')
 #    quit()
     # add rvdeps and rvobs
@@ -320,6 +326,7 @@ def compute_legacy(system, *args, **kwargs):
             #determine if rv is active
 #            phb1.setpar('phoebe_rv_active['+str(i+1)+']',boolean[pso.get_enabled()])
             for param in pso:
+                print compsi[on]
                 set_param_legacy(pso,param, pso.get_value(param), on=on, ty='rv',comp=compsi[on])
     
     # add all other parameter sets
@@ -335,32 +342,27 @@ def compute_legacy(system, *args, **kwargs):
                 print param, x
                 
                 try:
-                    print 'tried'
                     unit = ps.get_unit(param)
-                    print unit
                     set_param_legacy(ps, param, ps.get_value(param), un=unit)
                 except:
-                    print 'and failed'
                     set_param_legacy(ps, param, ps.get_value(param))
 
-        else:
-                print 2, x
+        elif parsets[x] == 'comp':
+                print x, parsets[x]
                 ps = system[0].params[x]
                 ps2 = system[1].params[x] 
                 if ps.get_context() == ps2.get_context():   
                     for param in ps:
                          print param
                          if param == 'ld_coeffs':
-                            set_ld_legacy('lcdep', ps.get_value(param), on=on, comp='prim')
-                            set_ld_legacy('lcdep', ps2.get_value(param), on=on, comp='sec')
+                            set_ld_legacy(x, ps.get_value(param), on=on, comp='prim')
+                            set_ld_legacy(x, ps2.get_value(param), on=on, comp='sec')
                          else:
                             try:
-                                print 'tried'
                                 unit = ps.get_unit(param)
                                 set_param_legacy(ps, param, ps.get_value(param), un=unit, comp='prim')
                                 set_param_legacy(ps2, param, ps2.get_value(param), un=unit, comp='sec')
                             except:
-                                print 'and failed'
                                 set_param_legacy(ps, param, ps.get_value(param), comp='prim')
                                 set_param_legacy(ps2, param, ps2.get_value(param), comp='sec')
                 else:
@@ -383,10 +385,19 @@ def compute_legacy(system, *args, **kwargs):
                                 set_param_legacy(ps2, param, ps2.get_value(param), un=unit, comp='sec')
                              except:            
                                 set_param_legacy(ps2, param, ps2.get_value(param), comp='sec')
+        elif parsets[x] == 'compute':
     
+            for param in compute:
+                try:
+                   unit = ps.get_unit(param)
+                   set_param_legacy(compute, param, compute.get_value(param), un=unit)
+                except:
+                   set_param_legacy(compute, param, compute.get_value(param))
+             
     # Now compute the loaded system
     phb1.save('backtest.phoebe')
     for i in range(len(lcnames)):
+        print "lcname", lcnames[i]
         # Is there an observation to compute?
         
         psd = system.params['obs']['lcobs'][lcnames[i]]
@@ -401,6 +412,7 @@ def compute_legacy(system, *args, **kwargs):
             print "phase you later"
 
         else:
+
             raise ValueError('{} has no independent variable from which to compute a light curve'.format(lcnames[i]))
         
         print lcnames[i]
@@ -436,11 +448,9 @@ def compute_legacy(system, *args, **kwargs):
         if psd['time'].size:
             qual = 'time'
             indep = psd['time']
-            print "it is time"
         elif psd['phase'].size:
             qual = 'phase'
             indep = psd['phase']
-            print "phase you later"
 
         else:
             raise ValueError('{} has no independent variable from which to compute a light curve'.format(lcnames[i]))
@@ -484,7 +494,6 @@ def compute_legacy(system, *args, **kwargs):
 #    eb = phoebe.Bundle(system) 
     phb1.save('backtest.phoebe')
     print phb1.getpar('phoebe_period')
-   
     return system    
     
     
