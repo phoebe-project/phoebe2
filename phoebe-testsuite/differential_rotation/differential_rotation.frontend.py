@@ -1,10 +1,8 @@
 """
-:download:`Download this page as a python script <../../devel/phoebe-testsuite/differential_rotation/differential_rotation.frontend.py>`
-
 Differential rotator
 ====================
 
-Last updated: 2015-04-12 22:39:51.871761
+Last updated: ***time***
 
 In this example, we set a Vega-like star to have an equatorial rotation period
 equal to about half the solid-body break-up velocity. Then, we set the polar

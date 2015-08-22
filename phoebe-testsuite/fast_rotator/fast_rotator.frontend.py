@@ -1,10 +1,8 @@
 '''
-:download:`Download this page as a python script <../../devel/phoebe-testsuite/fast_rotator/fast_rotator.frontend.py>`
-
 Fast rotating star (rotational convolution)
 ===========================================
 
-Last updated: 2015-02-24 10:18:44.153025
+Last updated: ***time***
 
 The following example shows how to compute the total intensity and the
 broadening of a spectral line due to the rotation. We compare this with direct

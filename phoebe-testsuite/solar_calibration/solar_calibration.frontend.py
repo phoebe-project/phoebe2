@@ -1,10 +1,8 @@
 '''
-:download:`Download this page as a python script <../../devel/phoebe-testsuite/solar_calibration/solar_calibration.py>`
-
 Solar calibration
 =================
 
-Last updated: 2015-02-24 10:18:44.147562
+Last updated: ***time***
 
 In this example, we evaluate the :index:`precision` and :index:`accuracy`
 of the code, via
