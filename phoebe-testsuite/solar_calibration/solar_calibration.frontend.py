@@ -1,4 +1,4 @@
-'''
+"""
 Solar calibration
 =================
 
@@ -34,7 +34,7 @@ Initialisation
 
 First, we need to import the Phoebe namespace and create a basic logger
 to log information to the screen.
-'''
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,14 +43,14 @@ from phoebe.atmospheres.limbdark import sphere_intensity
 
 logger = phoebe.get_basic_logger()
     
-'''
+"""
 Parameter preparation
 ---------------------
 Starting with PHOEBE 2.0, the implementation of a shiney new front-end interface makes system set up much easier
 than with previous iterations of PHOEBE. The front-end provides many pre-set Bundles from :py:mod:`<phoebe.frontend.bundle>`
 instead of having to build a :ref:`Star <parlabel-phoebe-star>` Body from an empty ParameterSet. Since we are working with
 the Sun in this example, we can use the preset bundle for the Sun and tweak a few parameters.
-'''
+"""
 
 sun = phoebe.Bundle('sun')
 
