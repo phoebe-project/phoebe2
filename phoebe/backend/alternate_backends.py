@@ -221,9 +221,9 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
             else:
                 phb1.setpar(params[param]['name'].replace('#', comps[comp]), value)
     
-def compute_legacy(system, compute, *args, **kwargs):
+def compute_legacy(system, *args, **kwargs):
     
-
+    compute = kwargs['params']
   
     # import phoebe legacy    
     
@@ -513,7 +513,91 @@ def compute_pd(system, *args, **kwargs):
 
     when using this code.
     
+    Parameters that are used by this backend:
+        Compute PS:
+        - stepsize
+        - orbiterror
+        
+        Orbit PS:
+        - sma
+        - ecc
+        - incl
+        - per0
+        - long_an
+        - t0 (at periastron passage, will convert if provided at superior conjunction)
+        
+        Component PS:
+        - mass (from q and P if BinaryRocheStars)
+        - radius (equivalent radius from volume computed by pot if BinaryRocheStars)
+        
+        lcdep:
+        - pblum
+        - ld_coeffs (if ld_func=='linear')
+        
+    Values that are filled by this backend:
+        lcsyn:
+        - time
+        - flux (only per-system, don't retrieve fluxes for individual components)
+        
+        rvsyn (dynamical only):
+        - time
+        - rv
     """
+    
+    def write_fi(bodies, orbits, time0, step_size, orbit_error, pblums, u1s, u2s):
+        """
+        write input file for pd
+        """
+        fi = open('_tmp_pd_inp', 'w')  
+        fi.write('{} {}\n'.format(len(bodies), time0))
+        fi.write('{} {}\n'.format(step_size, orbit_error))
+        fi.write('\n')
+        fi.write(' '.join([str(b['m']) for b in bodies])+'\n')
+        fi.write(' '.join([str(b['r']) for b in bodies])+'\n')
+        
+        
+        if -1 in pblums:
+            logger.error('pblums must be set in order to run photodynam')
+            return system
+        
+        fi.write(' '.join([str(pbl / (4*np.pi)) for pbl in pblums])+'\n')
+    
+        fi.write(' '.join(u1s)+'\n')
+        fi.write(' '.join(u2s)+'\n')
+        fi.write('\n')
+
+        for o in orbits:
+            
+            if o['ps'].get_value('t0type') == 'superior conjunction':
+                t0 = keplerorbit.from_supconj_to_perpass(o['ps'].get_value('t0', 'JD'), o['ps'].get_value('period', 'd'), o['ps'].get_value('per0', 'rad'))
+            else:
+                t0 = o['ps'].get_value('t0', 'JD')
+            
+            om = 2 * np.pi * (time0 - t0) / o['ps'].get_value('period', 'd')
+            fi.write('{} {} {} {} {} {}\n'.format(o['a'], o['e'], o['i'], o['o'], o['l'], om))
+        fi.close()
+        
+        return
+        
+    def write_fr(cols, obs):
+        """
+        write report file for pd
+        """
+        fr = open('_tmp_pd_rep', 'w')
+        fr.write('{}\n'.format(cols))
+        for t in obs.get_value('time', 'JD'):
+            fr.write('{}\n'.format(t))
+        fr.close()
+
+        return
+        
+    def run_pd():
+        """
+        run pd and return the columns
+        """
+        out = commands.getoutput('photodynam _tmp_pd_inp _tmp_pd_rep > _tmp_pd_out')
+        return np.loadtxt('_tmp_pd_out', unpack=True)
+    
     params = kwargs['params']
     step_size = params.get_value('stepsize')
     orbit_error = params.get_value('orbiterror')
@@ -527,7 +611,8 @@ def compute_pd(system, *args, **kwargs):
     
     refs = system.get_refs(per_category=True)
     lcnames = refs.get('lc', [])
-    #~ rvnames = refs.get('rv', [])
+    rvnames = refs.get('rv', [])
+    orbnames = refs.get('orb', [])
     
     # we need to walk through the system and do several things:
     # for each component, determine:
@@ -567,34 +652,88 @@ def compute_pd(system, *args, **kwargs):
             d = {'item': item}
             
             
-            d['m'] = item.get_mass() / 3391.6  # TODO: fix this
-            d['r'] = convert('Rsol', 'AU', item.get_radius(method='equivalent'))  # AU or Rsol?
+            d['m'] = item.get_mass() / 3378.44105  # G is 1
+            d['r'] = convert('Rsol', 'AU', item.get_radius(method='equivalent'))
             # flux is per lcdep (in for loop below)
             # u1, u2 are per lcdep (in for loop below)
             
             bodies.append(d)
             
-    # now we can loop through all the lc-datasets and make a call to photodynam for each
+    # loop through all the rv-datasets and make a call to photodynam for each
+    for rvname in rvnames:
+        # we don't really know which bodies we need yet... looping through all
+        # may be a little redundant and add some time overhead, but oh well
+        for i,b in enumerate(bodies):
+            rvobs = b['item'].get_obs(ref=rvname)
+            if rvobs:                
+                #~ print "***", b['item'].get_label(), rvname, 3*(i+1)
+                rvsyn = b['item'].get_synthetic(ref=rvname)
+                
+                time0 = rvobs.get_value('time', 'JD')[0] # TODO: should this necessarily be in JD?
+                
+                pblums = [1 for bi in bodies]
+                u1s = ['0' for bi in bodies]
+                u2s = ['0' for bi in bodies]
+            
+                write_fi(bodies, orbits, time0, step_size, orbit_error, pblums, u1s, u2s)
+                
+                write_fr('t v', rvobs)
+
+                out = run_pd()
+                # out is a list of arrays in the format:
+                # time, vx_0, vx_0, vy_0, vx_1, ...
+                # we want time and -vz_i
+                time = out[0]
+                rv = convert('AU/d', 'km/s', -1*out[3*(i+1)])   # TODO: is this always km/s or can the user request something different?
+
+                rvsyn.set_value('time', time)
+                rvsyn.set_value('rv', rv)
+
+    for orbname in orbnames:
+        for i,b in enumerate(bodies):
+            orbobs = b['item'].get_obs(ref=orbname)
+            if orbobs:
+                orbsyn = b['item'].get_synthetic(ref=orbname)
+                
+                time0 = orbobs.get_value('time', 'JD')[0] # TODO: should this necessarily be in JD?
+                
+                pblums = [1 for bi in bodies]
+                u1s = ['0' for bi in bodies]
+                u2s = ['0' for bi in bodies]
+
+                write_fi(bodies, orbits, time0, step_size, orbit_error, pblums, u1s, u2s)
+                
+                write_fr('t x v', orbobs)
+                
+                out = run_pd()
+                # out is a list of arrays in the format:
+                # time, x_0, y_0, z_0, x_1, ..., vx_0, vy_0, vz_0, vx_1, ...
+                time = out[0]
+                
+                nbodies = len(bodies)
+                x = convert('AU', 'Rsol', -1*out[1*(i+1)])
+                y = convert('AU', 'Rsol', -1*out[2*(i+1)])
+                z = convert('AU', 'Rsol', -1*out[3*(i+1)])
+                vx = convert('AU/d', 'Rsol/d', -1*out[3*nbodies+1*(i+1)])
+                vy = convert('AU/d', 'Rsol/d', -1*out[3*nbodies+2*(i+1)])
+                vz = convert('AU/d', 'Rsol/d', -1*out[3*nbodies+3*(i+1)])
+                
+                orbsyn.set_value('time', time)
+                orbsyn.set_value('x', x)
+                orbsyn.set_value('y', y)
+                orbsyn.set_value('z', z)
+                orbsyn.set_value('vx', vx)
+                orbsyn.set_value('vy', vy)
+                orbsyn.set_value('vz', vz)
+                
+
+    # loop through all the lc-datasets and make a call to photodynam for each
     for lcname in lcnames:
         lcobs = system.params['obs']['lcobs'][lcname]
         lcsyn = system.params['syn']['lcsyn'][lcname]
         time0 = lcobs.get_value('time', 'JD')[0]   # TODO: should this necessarily be in JD?        
-        
-        # create input file
-        fi = open('_tmp_pd_inp', 'w')  
-        fi.write('{} {}\n'.format(len(bodies), time0))
-        fi.write('{} {}\n'.format(step_size, orbit_error))
-        fi.write('\n')
-        fi.write(' '.join([str(b['m']) for b in bodies])+'\n')
-        fi.write(' '.join([str(b['r']) for b in bodies])+'\n')
-        
         pblums = [b['item'].get_parset(lcname)[0].get_value('pblum') for b in bodies]
-        if -1 in pblums:
-            logger.error('pblums must be set in order to run photodynam')
-            return system
         
-        fi.write(' '.join([str(pbl / (4*np.pi)) for pbl in pblums])+'\n')
-
         u1s = []
         u2s = []
         for b in bodies:
@@ -608,35 +747,14 @@ def compute_pd(system, *args, **kwargs):
             u1s.append(str(ld_coeffs[0]))
             u2s.append(str(ld_coeffs[1]))
         
-        fi.write(' '.join(u1s)+'\n')
-        fi.write(' '.join(u2s)+'\n')
-        fi.write('\n')
+        write_fi(bodies, orbits, time0, step_size, orbit_error, pblums, u1s, u2s)
 
-        for o in orbits:
-            
-            if o['ps'].get_value('t0type') == 'superior conjunction':
-                t0 = keplerorbit.from_supconj_to_perpass(o['ps'].get_value('t0', 'JD'), o['ps'].get_value('period', 'd'), o['ps'].get_value('per0', 'rad'))
-            else:
-                t0 = o['ps'].get_value('t0', 'JD')
-            
-            om = 2 * np.pi * (lcobs.get_value('time', 'JD')[0] - t0) / o['ps'].get_value('period', 'd')
-            fi.write('{} {} {} {} {} {}\n'.format(o['a'], o['e'], o['i'], o['o'], o['l'], om))
-        fi.close()
-
-        # create report file
-        fr = open('_tmp_pd_rep', 'w')
-        fr.write('t F\n')
-        for t in lcobs.get_value('time', 'JD'):
-            fr.write('{}\n'.format(t))
-        fr.close()
-
-        # submit job and parse output
-        out = commands.getoutput('photodynam _tmp_pd_inp _tmp_pd_rep > _tmp_pd_out')
-        time, flux = np.loadtxt('_tmp_pd_out', unpack=True)
+        write_fr('t F', lcobs)
+        
+        time, flux = run_pd()
 
         # fill synthetics - since PHOEBE computes the fluxes by adding from all components,
         # we'll set the flux to the first body and the rest to 0
-        
         for i,b in enumerate(bodies):
             lcsyn = b['item'].params['syn']['lcsyn'][lcname]
             
@@ -644,12 +762,12 @@ def compute_pd(system, *args, **kwargs):
             if i==0:
                 lcsyn.set_value('flux', flux - 0.92)  # TODO: fix this (shouldn't need to subtract 0.92 to match phoebe2)
             else:
-                lcsyn.set_value('flux', np.zeros(len(flux)))        
+                lcsyn.set_value('flux', np.zeros(len(flux)))      
+                
+        # TODO: account for l3, distance
 
     # cleanup (delete tmp files)
-    for fname in ['_tmp_pd_inp', '_tmp_pd_rep', '_tmp_pd_out']:
-        os.remove(fname)
-    
-    
+    #~ for fname in ['_tmp_pd_inp', '_tmp_pd_rep', '_tmp_pd_out']:
+        #~ os.remove(fname)
     
     return system
