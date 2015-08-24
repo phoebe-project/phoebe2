@@ -1052,7 +1052,8 @@ def _parse_obs(body, data):
     for parset in data:
         
         # Build the string names of the obs and syn contexts
-        context = parset.context.rstrip('obs')
+        #~ context = parset.context.rstrip('obs')  # !!! this causes problems with something like orbobs
+        context = parset.context[:-3]
         data_context = parset.context
         res_context = context + 'syn'
         
@@ -4323,11 +4324,62 @@ class Body(object):
         Copy this instance.
         """
         return copy.deepcopy(self)
+        
+    @decorators.parse_ref
+    def orb_nomesh(self,correct_oversampling=False,ref='allobsdep',time=None,ltt=False,save_result=True):
+        """
+        [FUTURE]
+        
+        Determine positions and volocities of the orbit and add results to the orbsyn ParameterSet
+        
+        correct_oversampling, ltt, and save_result are currently ignored
+        """
+        for lbl in ref:
+            obs, lbl = self.get_parset(type='obs', ref=lbl)
+            
+            # If there are no obs here, traverse
+            if obs is None:
+                if hasattr(self,'bodies'):
+                    for body in self.bodies:
+                        body.orb_nomesh(ref=ref, time=time, ltt=ltt)
+                continue
+            
+            
+            orbits, comps = self.get_orbits()
+            
+            # Phase shift in orbits:
+            t0 = 0.0
+            
+            # TODO: do we need/want this?
+            #~ for orbit in orbits:
+                #~ t0 += orbit['phshift']*orbit['period']
+
+            
+            pos, vel, proper_time = keplerorbit.get_barycentric_hierarchical_orbit(time-t0,
+                                                                         orbits, comps)
+            # units should currently be in Rsol, Rsol/d, and d
+                                                                         
+            
+            # retrieve the systemic velocity
+            #~ pos = self.get_globals()
+            #~ vgamma = pos['vgamma'] if pos else 0
+            
+            # we'll flip z and vz to match convention of radial velocity rather than right-handed
+            base,lbl = self.get_parset(ref=lbl,type='syn')
+            base['time'] = proper_time
+            base['x'] = pos[0]
+            base['y'] = pos[1]
+            base['z'] = -1*pos[2]  # offset by distance?
+            base['vx'] = vel[0]
+            base['vy'] = vel[1]
+            base['vz'] = -1*vel[2] # offset by vgamma?
+
+            return
                             
     @decorators.parse_ref
     def etv_nomesh(self,correct_oversampling=None,ref='alletvdep',time=None,ltt=False,save_result=True):
         """
-        Compute eclipse timings and add results to the pbdep ParameterSet.
+        Compute eclipse timings and add results to the etvsyn ParameterSet.
         
         Oversampling is not currently implemented and will be ignored
         
@@ -4706,9 +4758,10 @@ class Body(object):
                                                  orbits, comps)
             # retrieve the systemic velocity
             pos = self.get_globals()
+            vgamma = pos['vgamma'] if pos else 0
             base,lbl = self.get_parset(ref=lbl,type='syn')
             base['time'] = time
-            base['rv'] = -vel[2] / kms_2_rsold + pos['vgamma']
+            base['rv'] = -vel[2] / kms_2_rsold + vgamma
             base['samprate'] = correct_oversampling
 
     @decorators.parse_ref
@@ -5028,7 +5081,7 @@ class PhysicalBody(Body):
         
         Proper time is LTTE-corrected barycentric time.
         
-        Proper times need to be precomputed and stored in the ``orbsyn``
+        Proper times need to be precomputed and stored in the ``lttsyn``
         parameterSet in the ``syn`` section of the ``params`` attribute.
         
         @param time: barycentric time
@@ -5036,10 +5089,10 @@ class PhysicalBody(Body):
         @return: proper time
         @rtype: float
         """
-        if hasattr(self, 'params') and 'syn' in self.params and 'orbsyn' in self.params['syn']:
-            bary_time = self.params['syn']['orbsyn'].values()[0]['bary_time']
-            prop_time = self.params['syn']['orbsyn'].values()[0]['prop_time']
-            # Possibly ltt where used before, and now an empty orbsyn set is
+        if hasattr(self, 'params') and 'syn' in self.params and 'lttsyn' in self.params['syn']:
+            bary_time = self.params['syn']['lttsyn'].values()[0]['bary_time']
+            prop_time = self.params['syn']['lttsyn'].values()[0]['prop_time']
+            # Possibly ltt where used before, and now an empty lttsyn set is
             # lying around
             if len(bary_time) == 0:
                 return time
@@ -8408,13 +8461,13 @@ class BinaryRocheStar(PhysicalBody):
         
         @param method: method to use for computing radius ('equivalent', 'mean')
         @type method: str
-        @return: radius
+        @return: radius (Rsol)
         @rtype: float
         """
         if method=='equivalent':
             if self.time is None:
-                logger.warning("time not set: setting to t=0.0")
-                self.set_time(0.0)
+                logger.warning("computing volume: setting time to t=0.0")
+                self.set_time(0.0, compute_intensity=False)
             return (self.volume() / (4./3 * np.pi))**(1./3)
         elif method=='mean':
             if self.time is None:
@@ -8738,7 +8791,7 @@ class BinaryRocheStar(PhysicalBody):
     
     
     
-    def set_time(self, time, ref='all', boosting_alg='none'):
+    def set_time(self, time, ref='all', boosting_alg='none', compute_intensity=True):
         """
         Set the time of a BinaryRocheStar.
         
@@ -8867,14 +8920,15 @@ class BinaryRocheStar(PhysicalBody):
             
             if has_freq:
                 self.add_pulsations(time=time)
-            self.intensity(ref=ref, boosting_alg=boosting_alg)
+            if compute_intensity:
+                self.intensity(ref=ref, boosting_alg=boosting_alg)
             
             if has_magnetic_field:
                 self.magnetic_field(time)
             
             # Compute projected intensity if not done before, to have the
             # passband luminosity
-            if self.time is None:
+            if self.time is None and compute_intensity:
                 self.projected_intensity(boosting_alg=boosting_alg)
             
             #-- once we have the mesh, we need to place it into orbit
