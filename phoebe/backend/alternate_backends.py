@@ -499,7 +499,8 @@ def compute_legacy(system, *args, **kwargs):
     
 def compute_pd(system, *args, **kwargs):
     """
-    use Josh Carter's photodynamical code to compute fluxes (assumes spherical stars).  The
+    use Josh Carter's photodynamical code (photodynam) to compute velocities (dynamical only), 
+    orbital positions and velocities (center of mass only), and light curves (assumes spherical stars).  The
     code is available here:
     
     https://github.com/dfm/photodynam
@@ -631,7 +632,7 @@ def compute_pd(system, *args, **kwargs):
     bodies = []
     orbits = []
     
-    for item in system.walk_bodies():
+    for item in reversed(list(system.walk_bodies())):
         if hasattr(item, 'bodies'):
             d = {'item': item}
 
@@ -684,7 +685,7 @@ def compute_pd(system, *args, **kwargs):
                 # time, vx_0, vx_0, vy_0, vx_1, ...
                 # we want time and -vz_i
                 time = out[0]
-                rv = convert('AU/d', 'km/s', -1*out[3*(i+1)])   # TODO: is this always km/s or can the user request something different?
+                rv = convert('AU/d', 'km/s', -1*out[3+(i*3)])   # TODO: is this always km/s or can the user request something different?
 
                 rvsyn.set_value('time', time)
                 rvsyn.set_value('rv', rv)
@@ -711,12 +712,17 @@ def compute_pd(system, *args, **kwargs):
                 time = out[0]
                 
                 nbodies = len(bodies)
-                x = convert('AU', 'Rsol', -1*out[1*(i+1)])
-                y = convert('AU', 'Rsol', -1*out[2*(i+1)])
-                z = convert('AU', 'Rsol', -1*out[3*(i+1)])
-                vx = convert('AU/d', 'Rsol/d', -1*out[3*nbodies+1*(i+1)])
-                vy = convert('AU/d', 'Rsol/d', -1*out[3*nbodies+2*(i+1)])
-                vz = convert('AU/d', 'Rsol/d', -1*out[3*nbodies+3*(i+1)])
+                ##    t x0 y0 z0 x1 y1 z1 ... vx0 vy0 vz0 vx1 vy1 vz1
+                ##
+                ##i=0 0  1  2  3               7   8   9
+                ##i=1 0           4  5  6                  10  11  12
+                
+                x = convert('AU', 'Rsol', out[1+(i*3)])
+                y = convert('AU', 'Rsol', out[2+(i*3)])
+                z = convert('AU', 'Rsol', out[3+(i*3)])
+                vx = convert('AU/d', 'Rsol/d', out[3*nbodies+1+(i*3)])
+                vy = convert('AU/d', 'Rsol/d', out[3*nbodies+2+(i*3)])
+                vz = convert('AU/d', 'Rsol/d', out[3*nbodies+3+(i*3)])
                 
                 orbsyn.set_value('time', time)
                 orbsyn.set_value('x', x)

@@ -2127,6 +2127,8 @@ def extract_times_and_refs(system, params, tol=1e-8):
             require_mesh = False
         elif category == 'etv': # we don't have a numerical method in place yet
             require_mesh = False
+        elif category == 'orb':
+            require_mesh = False
         else:
             require_mesh = True
         
@@ -2650,7 +2652,7 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
     
     # Next up: Light time travel effects. Compute for all bodies the conversion
     # between proper time and barycentric time. We need to do two things:
-    # first compute the conversions, and then add those arrays to the 'orbsyn'
+    # first compute the conversions, and then add those arrays to the 'lttsyn'
     # parameterSets, such that 'get_proper_time' knows what to do.
     if ltt and time_per_time:
         # First get a flat list of the bodies
@@ -2670,15 +2672,15 @@ def compute(system, params=None, extra_func=None, extra_func_kwargs=None,
                 keplerorbit.get_barycentric_hierarchical_orbit(time_per_time,
                                 out[0], out[1])
             
-            # Store the results in an "orbsyn" parameterSet
-            orbsyn = datasets.DataSet('orbsyn', bary_time=time_per_time,
+            # Store the results in an "lttsyn" parameterSet
+            lttsyn = datasets.DataSet('lttsyn', bary_time=time_per_time,
                                              prop_time=prop_times,
                                              position=objs, velocity=vels,
                                              ref='ltt')
             
             # We need to keep the same hierarchy as with lcsyns and such
-            body.params['syn']['orbsyn'] = OrderedDict()
-            body.params['syn']['orbsyn'][orbsyn['ref']] = orbsyn
+            body.params['syn']['lttsyn'] = OrderedDict()
+            body.params['syn']['lttsyn'][lttsyn['ref']] = lttsyn
     
     # And don't forget boosting! If the user switches of boosting, we don't
     # care. Else, we check if boosting needs to be computed. Thus, the user can
