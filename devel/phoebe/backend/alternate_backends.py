@@ -285,7 +285,7 @@ def compute_legacy(system, *args, **kwargs):
 
                 if psd.get_value(param) != psd2.get_value(param):
                     set_param_legacy(psd, param, psd.get_value(param), on=on, ty='lc', comp='prim')
-                    set_param_legacy(psd, param, psd.get_value(param), on=on, ty='lc',comp='sec')
+                    set_param_legacy(psd, param, psd2.get_value(param), on=on, ty='lc',comp='sec')
                 else:
                     set_param_legacy(psd, param, psd.get_value(param), on=on, ty='lc', comp='prim')
         #check for corresponding obs file and load its parameters as well
