@@ -1863,12 +1863,12 @@ class Parameter(object):
             other = other.get_value()
         return other - self.get_value()
     
-    def __mult__(self, other):
+    def __mul__(self, other):
         if hasattr(other, 'get_value'):
             other = other.get_value()
         return self.get_value() * other
     
-    def __rmult__(self, other):
+    def __rmul__(self, other):
         if hasattr(other, 'get_value'):
             other = other.get_value()
         return other * self.get_value()
