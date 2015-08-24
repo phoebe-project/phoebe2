@@ -79,13 +79,13 @@ def test_boostingswitch():
     
     print "compute with boosting_alg = local"
     b.run_compute('preview')
-    flux1 = b['flux@lcsyn']
+    flux1 = b['value@flux@lcsyn']
     
     b['boosting_alg@preview'] = 'None'
     print "compute with boosting_alg = None"
     b.run_compute('preview')
     
-    flux2 = b['flux@lcsyn']
+    flux2 = b['value@flux@lcsyn']
     
     assert(np.allclose(flux1,flux2))
     
