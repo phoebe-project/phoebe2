@@ -117,6 +117,7 @@ from phoebe.units import conversions
 from phoebe.frontend import phcompleter
 from phoebe.frontend import stringreps
 from phoebe.frontend import plotting
+from phoebe.frontend.constraints import Constraint
 
 logger = logging.getLogger("BUNDLE")
 logger.addHandler(logging.NullHandler())
@@ -357,6 +358,7 @@ class Bundle(Container):
         super(Bundle, self).__init__()
 
         self.sections['system'] = [None] # only 1
+        self.sections['constraint'] = []
         self.sections['compute'] = []
         self.sections['fitting'] = []
         self.sections['mpi'] = []
@@ -640,6 +642,8 @@ class Bundle(Container):
                 self.sections['system'] = [system]
 
         system = self.get_system()
+        # reset any frontend constraints... they should be handled by the bundle and then passed
+        system._constraints = []
         if system is None:
             raise IOError('Initalisation failed: file/system not found')
 
@@ -785,6 +789,12 @@ class Bundle(Container):
                 self['label@'+orb_label] = 'orbit'+get_sublabel(self['orbit@'+orb_label]['c1label'])+get_sublabel(self['orbit@'+orb_label]['c2label'])
             
         return hierarchy
+        
+    def set_unique_labels(self):
+        for ti in self._get_by_search(kind='Parameter', all=True, return_trunk_item=True):
+            param = ti['item']
+            twig = ti['twig']
+            param._unique_label = twig
 
     def clear_syn(self):
         """
@@ -1259,6 +1269,87 @@ class Bundle(Container):
         #~ raise NotImplementedError
         
 
+    #}
+    #{ Constraints
+
+    @rebuild_trunk
+    def add_constraint(self, *args, **kwargs):
+        """
+        [FUTURE]
+        Currently these do not automatically run and must be called with run_constraint(label)
+        
+        Add a new constraint
+        
+        **Example usage:**
+        
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_parameter('asini@orbitAB')
+        >>> mybundle.add_constraint(label='asini', '{asini} = {sma} * sin({incl})', solve_for='asini')
+        
+        @param expr: mathematical expression for the constraint, using unique labels for parameter values (SI only) or <<time>>
+        @type expr: str
+        @param solve_for: which variable (parameter, not <<time>>) in expr should be derived (and therefore read-only)
+        @type solve_for: str
+        @param label: label of the constraint PS
+        @type label: str
+        """
+        kwargs['run'] = False
+        c = Constraint(self, *args, **kwargs)
+        
+        self._add_to_section('constraint', c)
+        # attach to system so that fitting will be aware
+        self.get_system()._constraints = self.sections['constraint']
+        self.get_system().check() # will run all attached constraints
+
+    
+    def get_constraint(self, label=None):
+        """
+        [FUTURE]
+        Currently these do not automatically run and must be called with run_constraint(label)
+
+        
+        Get a constraint ParameterSet by name
+        
+        @param label: name of constraint
+        @type label: str
+        @return: compute ParameterSet
+        @rtype: ParameterSet
+        """
+        return self._get_by_section(label,"constraint")    
+        
+    @rebuild_trunk
+    def remove_constraint(self, label):
+        """
+        [FUTURE]
+        
+        Remove a given constraint
+        
+        @param label: name of constraint
+        @type label: str
+        """
+        constraint = self.get_constraint(label)
+        self.sections['constraint'].remove(constraint)
+        # attach to system so that fitting will be aware
+        self.get_system()._constraints = self.sections['constraint']
+        self._build_trunk() # needs to be called again to reset
+
+    def run_constraint(self, label):
+        """
+        [FUTURE]
+        Currently these do not automatically run and must be called with run_constraint(label)
+
+        
+        Run a given constraint.  This generally isn't necessary to be called manually.
+        
+        @param label: name of constraint
+        @type label: str
+        @return: derived value
+        @rtype: float or int
+        """
+        constraint = self.get_constraint(label)
+        return constraint.run(self.get_system())
+    
+    
     #}
     #{ Datasets
     def _attach_datasets(self, output, skip_defaults_from_body=True):
@@ -4200,6 +4291,9 @@ class Bundle(Container):
         logger.warning("Fit options:\n{:s}".format(fittingoptions))
         logger.warning("Compute options:\n{:s}".format(computeoptions))
         logger.warning("MPI options:\n{:s}".format(mpioptions))
+
+        # Let's just make sure frontend constraints are up-to-date
+        self.get_system()._constraints = self.sections['constraint']
 
         # Run the fitting for real
         feedback = fitting.run(self.get_system(), params=computeoptions,

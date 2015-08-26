@@ -776,6 +776,11 @@ defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_l
          dict(qualifier='filename', description='log file to print messages with level flevel and above',repr='%s',cast_type=str,value='None',frame=["phoebe"],context='logger'),
          dict(qualifier='filemode', description='mode to open log file',repr='%s',cast_type='choose',value='w',choices=['a','w'],frame=["phoebe"],context='logger'),
          ]
+         
+# Constraint (frontend) context
+defs += [dict(qualifier='label', description='label',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context='constraint'),
+         dict(qualifier='solve_for', description='which parameter should be derived and become read-only',repr='%s',cast_type='choose',choices=[''], value='',frame=["phoebe"],context='constraint'),
+        ]
 
 # Compute context
 defs += [dict(qualifier='label',                description='label for the compute options',repr='%s',cast_type='make_label',value='compute',frame=["phoebe"],context=['compute', 'compute:legacy','compute:pd']),

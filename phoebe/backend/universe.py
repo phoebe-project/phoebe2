@@ -1383,6 +1383,10 @@ class Body(object):
         self.time = None
         self.dim = dim
         
+        # The following is a list of FRONTEND constraints that will be called
+        # when run_constraints() or check() is called
+        self._constraints = []
+        
         # Remember how to detect eclipses for the Body. This will probably be
         # overriden in superclasses.
         self.eclipse_detection = eclipse_detection
@@ -1521,6 +1525,49 @@ class Body(object):
         String representation of a Body.
         """
         return self.to_string()
+        
+    def find_parameter_by_unique_label(self, uniquelabel):
+        """
+        Recursively search through the ParameterSets on this and any children
+        to find a parameter with the provided uniqueid
+        
+        @param uniquelabel: unique label of the parameter
+        @type uniquelabel: str
+        @return: parameter or None
+        @rtype: Parameter or None
+        """
+        
+        def process_ps_or_dict(item, uniquelabel):
+            match = None
+            if isinstance(item, OrderedDict):
+                for child in item.values():
+                    match = process_ps_or_dict(child, uniquelabel)
+                    if match is not None:
+                        break
+            else:
+                # this should be a parameterset
+                for key in item.keys():
+                    param = item.get_parameter(key)
+                    #~ print "***", param.get_unique_label()
+                    if param.get_unique_label()==uniquelabel:
+                        match = param
+                        break
+            return match
+        
+        for typ,ps in self.params.items():
+            match = process_ps_or_dict(ps, uniquelabel)
+            if match is not None:
+                break
+            
+        if not match:
+            if hasattr(self, 'bodies'):
+                for body in self.bodies:
+                    match = body.find_parameter_by_unique_label(uniquelabel)
+                    if match is not None:
+                        break
+                    
+        return match
+        
 
     def fix_mesh(self):
         """
@@ -2607,6 +2654,11 @@ class Body(object):
         total_prob = scipy.stats.distributions.chi2.cdf(total_chi2, 2*len(prob))
         # That's it!
         return total_chi2, total_prob, n_data, n_par
+        
+    def run_constraints(self):
+        for c in self._constraints:
+            c.run(self)
+        return True
 
     def check(self, return_errors=False):
         """
@@ -2633,7 +2685,8 @@ class Body(object):
         error_messages = []
         
         already_checked = []
-        system = self.get_system()
+        #~ system = self.get_system()
+        self.run_constraints()  # NEW frontend constraints
         were_still_OK = True
         
         for parset in self.walk():
@@ -8898,8 +8951,9 @@ class BinaryRocheStar(PhysicalBody):
                     self.abundance(time)
                     self.temperature(time)
                     self.albedo(time)
-                    self.intensity(ref=ref, boosting_alg=boosting_alg)
-                    self.projected_intensity(boosting_alg=boosting_alg)
+                    if compute_intensity:
+                        self.intensity(ref=ref, boosting_alg=boosting_alg)
+                        self.projected_intensity(boosting_alg=boosting_alg)
                     self.conserve_volume(time,max_iter=max_iter_volume)
                 #-- else we still need to compute the mesh at *this* time!
                 else:
