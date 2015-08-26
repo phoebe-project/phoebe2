@@ -23,7 +23,7 @@ def test_pblum_l3():
     x['pblum@lc01@secondary'] = 0.0
     x.run_compute()
 
-    x['flux@lc01@lcobs'] = x['flux@lc01@lcsyn']
+    x['value@flux@lc01@lcobs'] = x['value@flux@lc01@lcsyn']
 
 
     x.lc_fromarrays(phase=np.linspace(0,1,100), flux=x['flux@lc01@lcsyn'], offset=10000)
@@ -69,8 +69,8 @@ def test_pblum_l3():
 
     for nr in range(1,8):
         dataref = 'lc{:02d}'.format(nr)
-        syn = x['{}@lcsyn'.format(dataref)]
-        obs = x['{}@lcobs'.format(dataref)]
+        syn = x['{}@new_system@lcsyn'.format(dataref)]
+        obs = x['{}@new_system@lcobs'.format(dataref)]
         rel_depth = syn['flux'].min() / syn['flux'].max()
         minim, maxim = syn['flux'].min() , syn['flux'].max()
         
