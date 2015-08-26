@@ -17,7 +17,7 @@ def test_conversions():
     assert(convert('nm','m/s',455.3,wave=(0.4552,'mum'))==65859.50307564587)
     assert(convert('km/s','AA',65.859503075576129,wave=(4552.,'AA'))==4553.0)
     assert(convert('nm','Ghz',1000.)==299792.4579999999)
-    assert(convert('km h-1','nRsol s-1',1.)==0.3993883287866966)
+    assert(convert('km h-1','nRsol s-1',1.)==0.39930106341859206)
     assert(convert('erg s-1 cm-2 AA-1','SI',1.)==10000000.0)
     assert(np.allclose(convert('erg/s/cm2/AA','Jy',1e-10,wave=(10000.,'angstrom')),333.564095198))
     assert(np.allclose(convert('erg/s/cm2/AA','Jy',1e-10,freq=(constants.cc/1e-6,'hz')),333.564095198))
