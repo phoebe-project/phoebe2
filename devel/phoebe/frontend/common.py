@@ -547,6 +547,9 @@ class Container(object):
             param.set_value(value)
         else:
             param.set_value(value, unit)
+            
+        self.get_system().check() # will also call run_constraints()
+
         
             
     def set_value_all(self, twig, value, unit=None):
@@ -568,6 +571,8 @@ class Container(object):
                 param.set_value(value)
             else:
                 param.set_value(value, unit)
+                
+        self.get_system().check() # will also call run_constraints()
     
     def get_value_all(self, twig):
         """
@@ -1024,7 +1029,6 @@ class Container(object):
         else:
             logger.warning('parameter {} does not have a posterior'.format(twig))
         
-    
     @rebuild_trunk
     def add_compute(self, ps=None, context='compute', **kwargs):
         """
@@ -1047,11 +1051,6 @@ class Container(object):
             
         self._add_to_section('compute',ps)
 
-        # had to remove this to make the deepcopy in run_compute work 
-        # correctly.  Also - this shouldn't ever be called from within
-        # the Container class but only within Bundle
-        #~ self._attach_set_value_signals(ps)
-    
     def get_compute(self, label=None, create_default=False):
         """
         Get a compute ParameterSet by name
@@ -1594,7 +1593,7 @@ class Container(object):
             label = self._get_object(label).get_parent().get_label()
             ref = None
         
-        if context == section or section in ['axes','figure','plot','compute','fitting','mpi','feedback','logger']: 
+        if context == section or section in ['axes','figure','plot','compute','fitting','mpi','feedback','logger','constraint']: 
             context_twig = None
         else:
             context_twig = context
