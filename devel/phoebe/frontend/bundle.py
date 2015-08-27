@@ -643,9 +643,9 @@ class Bundle(Container):
 
         system = self.get_system()
         # reset any frontend constraints... they should be handled by the bundle and then passed
-        system._constraints = []
         if system is None:
             raise IOError('Initalisation failed: file/system not found')
+        system._constraints = []
 
         # Clear references if necessary:
         if remove_dataref is not False:
@@ -1293,6 +1293,15 @@ class Bundle(Container):
         @param label: label of the constraint PS
         @type label: str
         """
+        if len(args) and hasattr(args[0], '__call__'):
+            # then we're passing a function (probably from phoebe.frontend.constraints)
+            # these functions should take the bundle as the first argument and all args[1:]
+            # kwargs (ie solve_for) will be passed on to the constraint
+            
+            expr = args[0](self, *args[1:])
+            args = [expr]
+            #~ kwargs.setdefault('solve_for', solve_for)
+            
         kwargs['run'] = False
         c = Constraint(self, *args, **kwargs)
         
@@ -3140,8 +3149,72 @@ class Bundle(Container):
         # We can pass everything now to the main function
         return self.data_fromfile(category='orb', **set_kwargs)
 
+    @rebuild_trunk
+    def add_parameter(self, twig, value, unit=None, description="", cast_type=float, adjustable=True):
+        """
+        [FUTURE]
+        
+        A a new parameter to the set of parameters.  This new parameter will likely not be used
+        in any model-computations unless you add a constraint.  Constraints allow you to either
+        derive your parameter from a combination of other parameters, or derive an existing parameter
+        that is used for model-computations from your new parameter.  Common built-in constraints,
+        such as asini, can create the necessary new parameters (asini in this case as a derived
+        parameter of sma and incl) on your behalf.  
+        
+        See :py:func:`Bundle.add_constraint` for more information.
+        
+        Example uses:
+        >>> b = phoebe.Bundle()
+        >>> b.add_parameter('tratio@new_system', value=1, description='ratio of teffs of components')
+        but tratio won't mean anything yet, and won't change when the individual temperatures are changed
+        >>> b.add_constraint('{tratio@new_system} = {teff@primary} / {teff@secondary}')
+        now tratio will be updated for you whenever teff@primary or teff@secondary are changed
+        if you'd rather set a value (or fit) tratio and have the secondary temperature derived, just set solve_for = 'teff@secondary' in the constraint.
+        
+        @param twig: the twig of the new parameter (new_qualifier@twig_to_existing_parameterset)
+        @type twig: str
+        @param value: default value for the new parameter
+        @type value: same as cast_type
+        @param unit: default unit for the new parameter
+        @type unit: str
+        @param description: description of the parameter
+        @type description: str
+        @param cast_type: how to cast the new parameter (default: float)
+        @type cast_type: type
+        @param adjustable: whether the new parameter should be adjustable (cast_type must be float or int)
+        @type adjustable: bool
+        """
+        ps = self.get_ps("@".join(twig.split('@')[1:]))
+        
+        # make sure value can be casted as cast_type
+        try:
+            cast_type(value)
+        except:
+            raise TypeError("value {} cannot be casted with cast_type {}".format(value, cast_type))
+        
+        if unit is not None:
+            param = parameters.Parameter(qualifier=twig.split('@')[0], 
+                    description=description, 
+                    unit=unit, 
+                    value=value, 
+                    cast_type=cast_type)
+        else:
+            param = parameters.Parameter(qualifier=twig.split('@')[0], 
+                    description=description, 
+                    value=value, 
+                    cast_type=cast_type)
 
-    def add_parameter(self, twig, replaces=None, value=None):
+        
+        if adjustable and cast_type in [float, int]:
+            param.adjust = False
+                
+        ps.add(param)
+                
+        
+                
+        # TODO [BUG]: figure out why twig access setting value won't stick for new parameters
+
+    def add_parameter_OLD(self, twig, replaces=None, value=None):
         """
         Add a new parameter to the set of parameters as a combination of others.
 

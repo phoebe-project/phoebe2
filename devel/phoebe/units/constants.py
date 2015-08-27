@@ -32,6 +32,8 @@ This is independent of the way the conventions are set.
 
 
 """
+import math
+
 _current_convention = 'SI'
 _current_values = 'standard'
 _current_frequency = 'rad'
@@ -234,3 +236,6 @@ P29 = 28.981801337807
 Si30= 29.973770179221  
 P30 = 29.978313768482   
 P31 = 30.973761487269   
+
+# math constants (for ease of use in constraints)
+pi = math.pi

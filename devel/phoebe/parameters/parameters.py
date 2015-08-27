@@ -270,6 +270,8 @@ import difflib
 import textwrap
 import math
 import sys
+import random 
+import string
 from collections import OrderedDict
 #-- load extra 3rd party modules
 from numpy import sin,cos,sqrt,log10,pi,tan,exp
@@ -317,7 +319,7 @@ def parse_plotkwargs(fctn):
             plotset[key]=kwargs[key]
         return fctn(self,plotset=plotset,**kwargs)
     return parse
-
+    
 @decorators.memoized
 def get_frames_and_contexts(defs):
     frames = []
@@ -447,8 +449,8 @@ def e_to_precision(x, e_x):
     
     
     
-    
-        
+def _unique_label(N=30):
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(N))
 
 
 #}
@@ -730,6 +732,22 @@ class Parameter(object):
         
         # what is the default behaviour for when limits our outside of bounds?
         self._force_inside_limits = False
+        
+        #-- allow finding parent parameterset
+        self._ps = None
+        
+        #-- track frontend cross-parameterset constraints
+        self._is_constraint_output = False
+        self._is_constraint_input = False
+        self._constraint_label = None
+        
+        #-- allow for attaching functions to a parameter instance to be run after value is set
+        # to use this on an /instance/ of a parameter, you can do the following:
+        # def func(param, value, *args):
+        #     print "from extra func", value
+        # p = Parameter()
+        # p._set_value_post = [types.MethodType(func, p)]
+        self._set_value_post = []
     
     def reset(self):
         """
@@ -1188,8 +1206,17 @@ class Parameter(object):
         @rtype: str
         """
         if not hasattr(self,'_unique_label'):
-            self._unique_label = str(uuid.uuid4())
+            self._unique_label = _unique_label()
         return self._unique_label
+        
+    def get_parameterset(self):
+        """
+        Retrieve the parent ParameterSet
+        
+        @return: ParmeterSet
+        @rtype: ParameterSet
+        """
+        return self._ps
     
     def to_str(self):
         """
@@ -1301,6 +1328,10 @@ class Parameter(object):
             logger.error('value {0} for {1} is outside of range [{2},{3}]: set to {4}'.format(value,self.qualifier,self.llim,self.ulim,self.value))
         elif has_limits and not inside_limits:
             logger.info('value {0} for {1} is outside of range [{2},{3}] (ignored)'.format(value,self.qualifier,self.llim,self.ulim))
+            
+        # run any post-processing needed
+        for fctn in self._set_value_post:
+            fctn(value,*args)
     
     def set_value_from_prior(self):
         """
@@ -2137,6 +2168,7 @@ class ParameterSet(object):
         #-- a ParameterSet can be enabled (default) /disabled
         self.enabled = True
         self.__default_units = None
+
         
         #-- by default, only load main parameter definitions
         if isinstance(definitions,str) and 'default' in definitions.lower():
@@ -2247,6 +2279,8 @@ class ParameterSet(object):
         # force context
         self.container[with_qualifier].set_context(self.context)
         #self.__dict__[parameter.qualifier] = parameter.get_value()
+        
+        parameter._ps = self
     
     def point_to(self, qualifier, parameter):
         """
@@ -3056,7 +3090,7 @@ class ParameterSet(object):
         new = copy.deepcopy(self)
         # make new unique identifiers
         for par in new:
-            new.get_parameter(par)._unique_label = str(uuid.uuid4())
+            new.get_parameter(par)._unique_label = _unique_label()
             
         return new
     
