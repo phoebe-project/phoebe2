@@ -802,6 +802,7 @@ class Bundle(Container):
             
         return hierarchy
         
+    @rebuild_trunk
     def set_unique_labels(self):
         for ti in self._get_by_search(kind='Parameter', all=True, return_trunk_item=True):
             param = ti['item']
