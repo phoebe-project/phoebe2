@@ -43,8 +43,8 @@ def test_fitting():
     mybundle.rv_fromarrays('primary', time=time, rv=velo[2]+noise, sigma=sigma, method='dynamical')
 
     # Add custom parameters
-    mybundle.add_parameter('mass1@orbit')
-    mybundle.add_parameter('asini@orbit', replaces='sma')
+    mybundle.add_parameter_OLD('mass1@orbit')
+    mybundle.add_parameter_OLD('asini@orbit', replaces='sma')
 
     # Define priors
     mybundle.set_prior('ecc', distribution='uniform', lower=0, upper=1)

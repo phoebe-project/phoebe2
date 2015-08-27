@@ -198,6 +198,9 @@ class Container(object):
         item = ti['item']
         
         if 'read_only' in ti.keys() and ti['read_only']:
+            # TODO: check if because of constraint
+            if isinstance(ti['item'], parameters.Parameter) and ti['item']._is_constraint_output:
+                raise KeyError("this value is constrained by the constraint '{}' and is therefore read-only.".format(ti['item']._constraint_label))
             raise KeyError("this value is read-only")
         
            
@@ -373,7 +376,70 @@ class Container(object):
             return self._robust_twigs(twig, **kwargs)
         else:
             return self._match_twigs(twig, **kwargs)
-    
+            
+    def least_unique_twig(self, twig, **kwargs):
+        """
+        [FUTURE]
+        
+        Returns the smallest twiglet for twig that will return a unique
+        match given the current state of the bundle
+        
+        kwargs will be passed on to further limit the search, meaning the
+        twig will only be unique given those parameters.  (ie passing type='Parameter'
+        will give you a unique twig for bundle.get_parameter(twig), but not
+        necessarily bundle[twig])
+        
+        :param twig: the search twig - must return a single entry
+        :type twig: str
+        :return: smallest twiglet that will return the same single entry
+        :rtype: str
+        """
+
+        # remove forbidden kwargs
+        kwargs['all'] = False
+        kwargs['ignore_errors'] = False
+        kwargs['return_trunk_item'] = True
+        kwargs['return_key'] = 'item'
+        kwargs['method'] = ['robust']
+        
+        # get our trunk item - this will complain if not exactly one match
+        ti = self._get_by_search(twig=twig, **kwargs)
+        
+        search={}
+        prev_count=len(self.twigs())
+        ordered_keys = ['qualifier', 'context', 'label', 'ref', 'section', 'kind']
+        for k in ordered_keys:
+            search[k] = ti[k]
+            if ti[k] is None:
+                continue
+            tis_ret = self._get_by_search(all=True, ignore_errors=True, **search)
+            
+            if len(tis_ret) < prev_count:
+                prev_count = len(tis_ret)
+            else:
+                # this didn't help us
+                search[k] = None
+                
+        if len(tis_ret) != 1:
+            return NotImplementedError("unable to find a unique match to give a single result, please report this")
+            
+        # now to make sure this wasn't a coincidence, let's try remove each to see if the count goes up
+        for k in ordered_keys:
+            if search[k] is None:
+                continue
+                
+            tis_ret = self._get_by_search(all=True, ignore_errors=True, **{ki: search[ki] for ki in ordered_keys if ki!=k})
+            if len(tis_ret)==1:
+                # then we didn't need this item
+                search[k] = None
+                
+        kind = search['kind']
+        if kind=='Parameter':
+            search['kind'] = None
+        elif kind.split(':')[0]=='Parameter':
+            search['kind'] = kind.split(':')[1]
+
+        return self._make_twig([search[k] for k in ['kind', 'qualifier', 'context', 'label', 'ref', 'section']])
     
     def get_ps(self, twig):
         """
@@ -1632,7 +1698,7 @@ class Container(object):
                     twig=twig, twig_full=twig_full, path=path, 
                     #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
                     item=item, body=body,
-                    hidden=hidden, read_only=False))
+                    hidden=hidden, read_only=item._is_constraint_output))
                 
             if hasattr(item, 'adjust') and section=='system':
                 twig = self._make_twig(['adjust',qualifier,context_twig,label,context_data,ref,section])
@@ -1643,7 +1709,7 @@ class Container(object):
                     twig=twig, twig_full=twig_full, path=path, 
                     #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
                     item=item, body=body,
-                    hidden=hidden, read_only=False))
+                    hidden=hidden, read_only=item._is_constraint_output))
                             
             if hasattr(item, 'get_prior') and section=='system':  # we'll just return None if not existing
                 twig = self._make_twig(['prior',qualifier,context_twig,label,context_data,ref,section])
@@ -1702,7 +1768,7 @@ class Container(object):
             twig=twig, twig_full=twig_full, path=path, 
             #~ twig_reverse=twig_reverse, twig_full_reverse=twig_full_reverse,
             item=item, body=body,
-            hidden=hidden, read_only=False))
+            hidden=hidden, read_only=item._is_constraint_output if kind=='Parameter' else False))
         
         return info_items
             
@@ -1872,7 +1938,7 @@ class Container(object):
                 trunk = [ti for ti in trunk if ti[key] is not None and 
                     (ti[key]==kwargs[key] or 
                     (isinstance(kwargs[key],list) and ti[key] in kwargs[key]) or
-                    (isinstance(kwargs[key],str) and fnmatch(ti[key],kwargs[key])))]
+                    (isinstance(kwargs[key],str) and isinstance(ti[key],str) and fnmatch(ti[key],kwargs[key])))]
                 
         return trunk
         

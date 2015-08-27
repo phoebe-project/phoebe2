@@ -633,7 +633,8 @@ def compute_pd(system, *args, **kwargs):
     bodies = []
     orbits = []
     
-    for item in reversed(list(system.walk_bodies())):
+    #~ for item in reversed(list(system.walk_bodies())):   # seems to be need for triple example
+    for item in list(system.walk_bodies()):   # seems to be needed for binary example
         if hasattr(item, 'bodies'):
             d = {'item': item}
 
