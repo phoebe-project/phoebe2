@@ -184,6 +184,9 @@ class Bundle(Container):
         Bundle.etv_fromfile
         Bundle.etv_fromarrays
         Bundle.etv_fromexisting
+        Bundle.orb_fromfile
+        Bundle.orb_fromarrays
+        Bundle.orb_fromexisting
 
         Bundle.disable_data
         Bundle.enable_data
@@ -3689,6 +3692,28 @@ class Bundle(Container):
         @type dataref: str
         """
         self.enable_data(dataref, 'etv', False)
+
+    def enable_orb(self, dataref=None):
+        """
+        Enable an orb dataset so that it will be considered during run_compute
+
+        See :py:func:`Bundle.enable_lc` for more info
+
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'orb', True)
+
+    def disable_orb(self, dataref=None):
+        """
+        Disable an orb dataset so that it will not be considered during run_compute
+
+        See :py:func:`Bundle.enable_orb` for more info
+
+        @param dataref: reference of the dataset
+        @type dataref: str
+        """
+        self.enable_data(dataref, 'orb', False)
 
 
     def enable_sed(self, dataref=None):
