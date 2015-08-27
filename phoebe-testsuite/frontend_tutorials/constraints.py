@@ -411,6 +411,10 @@ b = phoebe.Bundle()
 b.add_parameter('lum@component@primary', value=0, unit='J/s', description='luminosity of the component from Stefan-Boltzmann')
 b.add_parameter('lum@component@secondary', value=0, unit='J/s', description='luminosity of the component from Stefan-Boltzmann')
 
+"""
+COMING SOON - needs to be 4*pi*R**2... but I dont' have R, yet.  So for now this is just a fake example to show constants.
+"""
+
 b.add_constraint('{lum@primary} = {constants.sigma} * {teff@primary}**4')
 
 """
