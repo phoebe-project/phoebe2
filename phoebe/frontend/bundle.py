@@ -6698,6 +6698,7 @@ class Bundle(Container):
             self.usersettings = None
 
         trunk = self.trunk
+        self._purge_value_post()
         self._purge_trunk()
 
         # pickle
