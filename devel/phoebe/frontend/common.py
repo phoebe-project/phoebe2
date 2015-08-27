@@ -1879,7 +1879,16 @@ class Container(object):
             param.cast_type = 'choose'
             param.choices = datarefs + ['__bol']
         
-        
+    def _purge_value_post(self):
+        """
+        removes all instancemethods attached to param._set_value_post - these will need to be reattached after loading a pickle
+
+        [FUTURE]
+        """
+
+        for param in self._get_by_search(kind='Parameter', all=True):
+            param._set_value_post = []        
+
     def _purge_trunk(self):
         """
         simply clears trunk - this will probably only be called before pickling to 
@@ -1888,7 +1897,9 @@ class Container(object):
         [FUTURE]
         """
         self.trunk = []
-        
+    
+
+    
     def _make_twig(self, path, invert=False):
         """
         compile a twig for an ordered list of strings that makeup the path
