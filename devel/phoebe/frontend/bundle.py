@@ -227,6 +227,14 @@ class Bundle(Container):
         Bundle.draw_figure
         Bundle.draw_axes
         Bundle.draw_plot
+        
+    Advanced features:
+    
+    ..autosummary::
+    
+        Bundle.add_constraint
+        Bundle.get_constraint
+        Bundle.remove_constraint
 
     Convenience functions:
 
@@ -342,6 +350,7 @@ class Bundle(Container):
         - a list of fitting options which can be stored and used for fitting observables.
         - a list of MPI options which can be stored and used during either compute or fitting
         - a list of options which can be used to reproduce plots and figures
+        - a list of constraints to keep relations between parameters in the system
 
 
     """
@@ -1276,20 +1285,32 @@ class Bundle(Container):
     def add_constraint(self, *args, **kwargs):
         """
         [FUTURE]
-        Currently these do not automatically run and must be called with run_constraint(label)
-        
         Add a new constraint
         
         **Example usage:**
+        You can create relations between existing parameters:
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_constraint('{teff@primary} = 2*{teff@secondary}', label='teffratio')
         
+        Or you can manually create new parameters and then provide the expression:
         >>> mybundle = phoebe.Bundle()
         >>> mybundle.add_parameter('asini@orbitAB')
-        >>> mybundle.add_constraint(label='asini', '{asini} = {sma} * sin({incl})', solve_for='asini')
+        >>> mybundle.add_constraint('{asini} = {sma} * sin({incl})', solve_for='asini', label='constr:asini')
         
-        @param expr: mathematical expression for the constraint, using unique labels for parameter values (SI only) or <<time>>
-        @type expr: str
+        Or you can use any function in :py:mod`phoebe.frontend.constraints`:
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_constraint(phoebe.constraints.asini(mybundle, 'new_system'))
+        
+        Or the same thing, but in a simpler syntax:
+        >>> mybundle = phoebe.Bundle()
+        >>> mybundle.add_constraint(phoebe.constraints.asini, 'new_system')
+        
+        @param *args: mathematical expression(s) for the constraint, using unique labels for parameter values (SI only)
+        @type *args: str
         @param solve_for: which variable (parameter, not <<time>>) in expr should be derived (and therefore read-only)
         @type solve_for: str
+        @param try_sympy: whether to try sympy (if only one expression is passed) to solve the expressions for all parameters (default: True)
+        @type try_sympy: bool
         @param label: label of the constraint PS
         @type label: str
         """
