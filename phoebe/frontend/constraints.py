@@ -337,22 +337,25 @@ class Constraint(ParameterSet):
         """
         @param b: the bundle
         @type b: Bundle
-        @param expr: mathematical expression for the constraint, using unique labels for parameter values (SI only) or <<time>>
-        @type expr: str
+        @param *args: mathematical expression(s) for the constraint, using unique labels for parameter values (SI only)
+        @type *args: str
         @param solve_for: which variable (parameter, not <<time>>) in expr should be derived (and therefore read-only)
         @type solve_for: str
         @param label: label of the constraint PS
         @type label: str
         @param run: whether to run the constraint on creation (default: True)
         @type run: bool
-        @param time: time to pass to the constraint (if run==True and applicable)
+        @param time: time to pass to the constraint (if run==True and applicable) - NOT YET SUPPORTED
         @type time: float
+        @param try_sympy: whether to try sympy (if only one expression is passed) to solve the expressions for all parameters (default: True)
+        @type try_sympy: bool
         """
         super(Constraint, self).__init__(context='constraint')
 
         # TODO: make this JSON-serializable ready
 
         solve_for = kwargs.get('solve_for', None)
+        try_sympy = kwargs.get('try_sympy', True)
         label = kwargs.get('label', 'constraint{:02d}'.format(len(b.sections['constraint'])+1))
         run = kwargs.get('run', True)
         time = kwargs.get('time', None)
@@ -370,26 +373,22 @@ class Constraint(ParameterSet):
         for i,expr in enumerate(args):
             lhs, rhs = self._parse_expr(b, expr)
 
-            if _use_sympy:
-                if i > 0:
-                    raise ValueError("only pass 1 expression if using sympy")
-                else:
-                        
-                    for var in self._params:
-                        for v in self._vars:
-                            sympy.var(v.safe_label)
+            if _use_sympy and try_sympy and len(args)==1:                    
+                for var in self._params:
+                    for v in self._vars:
+                        sympy.var(v.safe_label)
 
-                        eq_user = self._get_eq(lhs, rhs)
-                        eq_safe = self._eq_user_to_safe(eq_user)
-                        try:
-                        #~ if True:
-                            eq = sympy.solve(eq_safe, var.safe_label)[0]
-                        except:
-                            logger.error("could not solve {} for {}".format(eq_user, var.user_label))
-                        else:
-                            eqs[var.user_label] = self._eq_safe_to_user(str(eq))
-                       
-                        #~ self.get_parameter(var.user_label)._sympy = eq
+                    eq_user = self._get_eq(lhs, rhs)
+                    eq_safe = self._eq_user_to_safe(eq_user)
+                    try:
+                    #~ if True:
+                        eq = sympy.solve(eq_safe, var.safe_label)[0]
+                    except:
+                        logger.error("could not solve {} for {}".format(eq_user, var.user_label))
+                    else:
+                        eqs[var.user_label] = self._eq_safe_to_user(str(eq))
+                   
+                    #~ self.get_parameter(var.user_label)._sympy = eq
             else:
                 var = self._get_var(lhs.replace('{', '').replace('}', '').strip())
                 eqs[var.user_label] = rhs
