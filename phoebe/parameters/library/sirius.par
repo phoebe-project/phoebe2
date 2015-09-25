@@ -13,7 +13,7 @@ distance = 2.637   # (pc) Distance to the star
 surface = sphere   #  Type of surface
 irradiator = False #  Treat body as irradiator of other objects
 label = Sirius     #  Name of the body
-ld_model = claret  #  Bolometric limb darkening model
-cl = kurucz        #  Bolometric limb darkening coefficients
+ld_func = claret  #  Bolometric limb darkening model
+ld_coeffs = kurucz        #  Bolometric limb darkening coefficients
 
 surf_grav ~  constants.GG*{mass}/{radius}**2

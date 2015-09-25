@@ -44,15 +44,15 @@ lcdep = phoebe.ParameterSet(context='lcdep')
 # their parameters so that the primary is a subgiant and the secondary a little
 # bit heavier:
 star1 = phoebe.create.from_library('sun')
-star1['mass'] = 0.9
-star1['radius'] = 7.95,'Rsol'
-star1['label'] = 'subgiant'
+star1[0]['mass'] = 0.9
+star1[0]['radius'] = 7.95,'Rsol'
+#star1['label'] = 'subgiant'
 star2 = phoebe.create.from_library('sun')
-star2['mass'] = 1.4,'Msol'
+star2[0]['mass'] = 1.4,'Msol'
 
 # The two objects should be placed in a binary, with a semi-major axis of around
 # 25 solar radii, and we incline it so that is almost edge-on:
-comp1,comp2,orbit = phoebe.create.binary_from_stars(star1,star2,sma=(25.,'Rsol'))
+comp1,comp2,orbit = phoebe.create.binary_from_stars(star1[0],star2[0],sma=(25.,'Rsol'))
 orbit['t0'] = 0.
 orbit['incl'] = 75.,'deg'
 
