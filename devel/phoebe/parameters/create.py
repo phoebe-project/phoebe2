@@ -1448,6 +1448,24 @@ def binary_stars(create_body=True):
     
     return universe.BinaryBag([comp1, comp2], label='new_system', reddening=reddening,
                             position=position,orbit=orbit)
+  
+def binary_disk(create_body=True):
+    """
+    Default Pheobe2 Binary system with Stars, not Roche Stars
+    """
+    component1 = parameters.ParameterSet('star')
+    component2 = parameters.ParameterSet('accretion_disk')
+    mesh  = parameters.ParameterSet('mesh:marching')
+    meshD = parameters.ParameterSet('mesh:disk')
+    orbit = parameters.ParameterSet('orbit', period=(50.,'d'),c1label='primary', c2label='secondary', label='new_system')
+    
+    comp1 = universe.Star(component1,mesh,label='primary')
+    comp2 = universe.AccretionDisk(component2,meshD,label='secondary')
+    position  = parameters.ParameterSet('position', distance=(10.,'pc'))
+    reddening = parameters.ParameterSet('reddening:interstellar')
+    
+    return universe.BinaryBag([comp1, comp2], label='new_system', reddening=reddening,
+                            position=position,orbit=orbit)
                             
 def misaligned_binary_stars(create_body=True):
     """
