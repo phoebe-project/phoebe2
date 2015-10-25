@@ -1,4 +1,3 @@
-
 import logging
 import numpy as np
 from phoebe.backend import universe
@@ -47,6 +46,48 @@ def translate_filter(val):
     return val
 #still need to find this filter and check others
 
+"""
+par_mesh:
+
+As phoebe1 only calculates values for a quarter of the star. This function takes and copies this quarter across the entire star to make a full mesh.
+
+mesh - phoebe 1 mesh
+
+key -  object independent phoebe 1 keyword. If the actually keyword is logg1 the object independent keyword would just be logg. the keys are:
+
+[grx1, grx2, gry1, gry2, grz1, grz2, rad1, rad2] 
+
+
+"""
+
+def par_mesh(mesh, key):
+
+    key1 = str(key)+'1'
+    key2 = str(key)+'2'
+    par1 = mesh[key1]
+    par1 = np.array(zip(par1, par1, par1, par1, par1, par1, par1, par1)).flatten()
+    par2 = mesh[key2]
+    par2 = np.array(zip(par2, par2, par2, par2, par2, par2, par2, par2)).flatten()
+    par = np.concatenate((par1, par2)).flatten()
+		
+    return [par1, par2, par]
+
+
+
+
+
+#making the coordinates in phoebe 1 comparable to those in phoebe 2. 
+
+def co_adj(par):
+
+    par[2::8][:,1] = par[2::8][:,1]*-1.0
+    par[3::8][:,1] = par[3::8][:,1]*-1.0
+    par[4::8][:,2] = par[4::8][:,2]*-1.0
+    par[5::8][:,2] = par[5::8][:,2]*-1.0 
+    par[6::8][:,1:] = par[6::8][:,1:]*-1.0
+    par[7::8][:,1:] = par[7::8][:,1:]*-1.0
+
+    return par
 
 def set_ld_legacy(name, value, on=None, comp=None):
     lds = {'component':'phoebe_ld_#bol%', 'lcdep':'phoebe_ld_lc#%', 'rvdep':'phoebe_ld_rv#%'}
@@ -75,7 +116,7 @@ def set_ld_legacy(name, value, on=None, comp=None):
             except:
                 logger.warning('ld coeffs must be numbers')
         
-
+    return
 
 def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
     params = {'morphology':{'name':'phoebe_model'}, 'asini':{'name':'phoebe_asini_value'},'filename':{'name':'phoebe_#_filename'}, 'statweight':{'name':'phoebe_#_sigma'},'passband':{'name':'phoebe_#_filter'},'columns':{},'Rv':{'name':'phoebe_ie_factor'},'extinction':{'name':'phoebe_ie_excess'},'method':{'name':'phoebe_proximity_rv#_switch'},'incl':{'name':'phoebe_incl','unit':'deg'}, 't0':{'name':'phoebe_hjd0'}, 'period':{'name':'phoebe_period', 'unit':'d'}, 'dpdt':{'name':'phoebe_dpdt', 'unit':'d/d'}, 'phshift':{'name':'phoebe_pshift'}, 'sma':{'name': 'phoebe_sma', 'unit':'Rsun'}, 'q':{'name':'phoebe_rm'}, 'vgamma':{'name':'phoebe_vga', 'unit':'km/s'},  'teff':{'name':'phoebe_teff#', 'unit':'K'}, 'pot':{'name':'phoebe_pot#'}, 'abun':{'name':'phoebe_met#'},  'syncpar':{'name':'phoebe_f#'}, 'alb':{'name':'phoebe_alb#'}, 'gravb':{'name':'phoebe_grb#'}, 'ecc':{'name':'phoebe_ecc'}, 'per0':{'name':'phoebe_perr0','unit':'rad'}, 'dperdt':{'name':'phoebe_dperdt','unit':'rad/d'}, 'ld_func':{'name':'phoebe_ld_model'}, 'pblum':{}, 'atm':{'name':'phoebe_atm#_switch'},'refl':{'name':'phoebe_reffect_switch'},'refl_num':{'name':'phoebe_reffect_reflections'},'gridsize':{'name':'phoebe_grid_finesize#'},'delta':{'name':'phoebe_grid_finesize#'},'scale':{'name':'phoebe_compute_hla_switch'}, 'offset':{'name':'phoebe_compute_vga_switch'}}
@@ -220,6 +261,7 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
                 phb1.setpar(params[param]['name'], value)
             else:
                 phb1.setpar(params[param]['name'].replace('#', comps[comp]), value)
+    return
     
 def compute_legacy(system, *args, **kwargs):
     
@@ -273,7 +315,7 @@ def compute_legacy(system, *args, **kwargs):
 
     for i in range(len(lcnames)):
         on = i+1
-
+        phb1.setpar('phoebe_lc_id', lcnames[i], i)
         psd = system[0].params['pbdep']['lcdep'][lcnames[i]]
         psd2 = system[1].params['pbdep']['lcdep'][lcnames[i]]
         for param in psd:
@@ -304,6 +346,7 @@ def compute_legacy(system, *args, **kwargs):
 
     for i in range(len(rvnames)):
         on = i+1
+        phb1.setpar('phoebe_rv_id', rvnames[i], i)
         print len(rvnames), rvnames
         print "this is i", i
         psd = system[i].params['pbdep']['rvdep'][rvnames[i]]
@@ -407,11 +450,15 @@ def compute_legacy(system, *args, **kwargs):
             qual = 'time'
             indep = psd['time']
             print "it is time"
+            tmesh = [indep[-1]]
         elif psd['phase'].size:
             qual = 'phase'
             indep = psd['phase']
             print "phase you later"
+            t0 = system[0].params['orbit']['t0']
+            period = system[0].params['orbit']['period']
 
+            tmesh = [indep[-1]*period+t0]
         else:
 
             raise ValueError('{} has no independent variable from which to compute a light curve'.format(lcnames[i]))
@@ -420,8 +467,14 @@ def compute_legacy(system, *args, **kwargs):
 #        print indep
 #        print type(indep)
 #        ph = np.linspace(-0.5, 0.5, 201)
-#        indep= ph 
-        flux = phb1.lc(tuple(indep.tolist()), i)
+#        indep= ph
+        #need a mesh to put phb1 into
+        system.compute_mesh(time=tmesh[0])
+        nothing, omesh = phb1.lc(tuple(tmesh), 0, 1)
+        flux= phb1.lc(tuple(indep.tolist()), i)
+        print "this is i", i
+        print len(omesh), len(flux)
+        print omesh['vcx1']
 #        this is where it should really go, but until get_synthetic is changed we will put it in the primary lcsyn
 #        psd = system.params['syn']['lcsyn'][lcnames[i]]
         psd = system[0].params['syn']['lcsyn'][lcnames[i]]
@@ -468,33 +521,47 @@ def compute_legacy(system, *args, **kwargs):
         psd = system[i].params['syn']['rvsyn'][rvnames[i]]
         psd['rv'] = rv 
         psd[qual] = indep
-#        print psd
-    
-#    print system.params['syn']['lcsyn']['Undefined']
-#    print system.params['syn']['lcsyn']['lc02']
-    #set parameters   
-    # check for mesh:wd PS
-    # if mesh:wd:
-    #     use
-    # elif mesh:marching:
-    #     convert using options in **kwargs
-    
-    # check for any non LC/RV and disable with warning
-    
-    # create phoebe legacy system
-  
-#    for i,obj in enumerate(system):
-#        print obj
-#        ps = obj.params['component']
-#        for param in ps:
-#            set_param_legacy(phb1, param, ps.get_value(param))
+
+# now to add the mesh
+
+    meshcol = {'tloc':'teff', 'glog':'logg','gr':'_o_normal_', 'vc':'_o_center' }
+
+    keys = ['tloc', 'glog', 'gr', 'vc']
+    sma = system[0].params['orbit']['sma']
+    mesh1 = system[0].mesh
+    mesh2 = system[1].mesh
+    for i in keys:
+
+        if i == 'gr' or i == 'vc':
+       
+            xd = i+'x'
+            yd = i+'y'
+            zd = i+'z'
+
+            par1x, par2x, parx = par_mesh(omesh, xd)
+            par1y, par2y, pary = par_mesh(omesh, yd)
+            par1z, par2z, parz = par_mesh(omesh, zd)
+
+            par1 = np.column_stack((par1x, par1y, par1z))
+            par2 = np.column_stack((par2x, par2y, par2z))
+            par1 = co_adj(par1)
+            par2 = co_adj(par2)
+
+            if i == "vc":
+        
+                mesh1[meshcol[i]] = par1*sma    
+                mesh2[meshcol[i]] = par2*sma
+            else:
+                mesh1[meshcol[i]] = par1   
+                mesh2[meshcol[i]] = par2
+
             
-#    ps = obj.params['orbit']
-#    for params in ps:
-#        set_param_legacy(phb1, param, ps.get_value(param))
-#    eb = phoebe.Bundle(system) 
+        else:
+            par1, par2, par= par_mesh(omesh, i)
+            mesh1[meshcol[i]] = par1    
+            mesh2[meshcol[i]] = par2
+        
     phb1.save('backtest.phoebe')
-    print phb1.getpar('phoebe_period')
     return system    
     
     
