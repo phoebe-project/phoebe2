@@ -163,20 +163,29 @@ def set_param_legacy(ps, param, value, on = None, ty=None, comp=None, un=None):
         phb1.setpar('phoebe_indep', vars[value[0]])
 
         print "value[1] before", value[1]
+        
         if ty == 'rv':
+            print value[1], 
             if value[1] != 'rv1' and value[1] != 'rv2':
                 value[1]=value[1]+comps[comp]
+            a = int(comps[comp])-1
+            phb1.setpar('phoebe_#_indep'.replace('#', str(ty)), vars[value[0]], a)
+            phb1.setpar('phoebe_#_dep'.replace('#', str(ty)), vars[value[1]], a)
+            if len(value)==3:
+                phb1.setpar('phoebe_#_indweight'.replace('#', str(ty)), vars[value[2]], a)
 
-        print "value[1]", value[1]
-        print "comps[comp]", comp
-        print "ty", ty
-        print 'phoebe_#_indep'.replace('#', str(ty))
-        print 'phoebe_#_dep'.replace('#', str(ty))
-        print vars[value[1]]
-        phb1.setpar('phoebe_#_indep'.replace('#', str(ty)), vars[value[0]])
-        phb1.setpar('phoebe_#_dep'.replace('#', str(ty)), vars[value[1]])
-        if len(value)==3:
-            phb1.setpar('phoebe_#_indweight'.replace('#', str(ty)), vars[value[2]])
+        if ty == 'lc':
+            try:
+                print ab
+            except:
+                ab = 0
+            phb1.setpar('phoebe_#_indep'.replace('#', str(ty)), vars[value[0]], ab)
+            phb1.setpar('phoebe_#_dep'.replace('#', str(ty)), vars[value[1]], ab)
+            if len(value)==3:
+                phb1.setpar('phoebe_#_indweight'.replace('#', str(ty)), vars[value[2]], ab)
+            ab= ab+1
+        #    quit()
+
    
     elif param == 'passband':
          
@@ -296,7 +305,6 @@ def compute_legacy(system, *args, **kwargs):
     refs = system.get_refs(per_category=True)
     lcnames = refs.get('lc', [])
     rvnames = refs.get('rv', [])
-
     for x in range(len(rvnames)):                           
         try:                                                                                         
             system[0].params['obs']['rvobs'][rvnames[x]]    
@@ -305,17 +313,16 @@ def compute_legacy(system, *args, **kwargs):
         except:
             pass
 
-    print len(rvnames), rvnames
 #    quit()
     phb1.setpar("phoebe_lcno", len(lcnames))
     phb1.setpar("phoebe_rvno", len(rvnames))
 
 
     # add lcdep and lcobs
-
     for i in range(len(lcnames)):
         on = i+1
         phb1.setpar('phoebe_lc_id', lcnames[i], i)
+        print "lcnames[i]", lcnames[i]
         psd = system[0].params['pbdep']['lcdep'][lcnames[i]]
         psd2 = system[1].params['pbdep']['lcdep'][lcnames[i]]
         for param in psd:
