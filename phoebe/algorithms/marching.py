@@ -99,6 +99,9 @@ def dSpheredz(r):
     """
     return 2*r[2]
 
+def dSpheredr(r):
+    return 2*np.sqrt(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])
+
 #}
 #{ Plain binary
 
@@ -172,6 +175,21 @@ def dBinaryRochedz (r, D, q, F):
     @param F:      synchronicity parameter
     """
     return -r[2]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[2]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5
+
+def dBinaryRochedr (r, D, q, F):
+    """
+    Computes a derivative of the potential with respect to r.
+    
+    @param r:      relative radius vector (3 components)
+    @param D:      instantaneous separation
+    @param q:      mass ratio
+    @param F:      synchronicity parameter
+    """
+    
+    r2 = (r*r).sum()
+    r1 = np.sqrt(r2)
+    
+    return -1./r2 - q*(r1-r[0]/r1*D)/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**1.5 - q*r[0]/r1/D/D + F*F*(1+q)*(1-r[2]*r[2]/r2)*r1
 
 #}
 #{ Misaligned binary
@@ -270,6 +288,9 @@ def dMisalignedBinaryRochedz (r, D, q, F, theta, phi):
             np.sin(2*theta)*np.sin(phi)*r[1]
     return -r[2]*(r[0]*r[0]+r[1]*r[1]+r[2]*r[2])**-1.5 -q*r[2]*((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**-1.5 + 0.5*F*F*(1+q)*delta
 
+def dMisalignedBinaryRochedr (r, D, q, F, theta, phi):
+    raise NotImplementedError
+
 #}
 #{ Distorted binary
 
@@ -358,6 +379,9 @@ def dRotateRochedz(r, Omega):
     Omega = Omega*0.54433105395181736
     return r[2]*(r[0]**2+r[1]**2+r[2]**2)**-1.5
 
+def dRotateRochedr(r, Omega):
+    raise NotImplementedError
+
 #}
 #{ Differentially rotating single star
 
@@ -413,6 +437,9 @@ def dDiffRotateRochedy(r, b1, b2, b3,):
 def dDiffRotateRochedz(r, b1, b2, b3,):
     return r[2]*(r[0]**2+r[1]**2+r[2]**2)**-1.5
 
+def dDiffRotateRochedr(r, b1, b2, b3,):
+    raise NotImplementedError
+
 #}
 #{ Torus
 
@@ -427,7 +454,9 @@ def dTorusdy(r,R):
 
 def dTorusdz(r,R):
     return -2*r[2]
-    
+
+def dTorusdr(r,R):
+    raise NotImplementedError
     
 #}
 
@@ -444,6 +473,9 @@ def dHeartdy(r):
 
 def dHeartdz(r):
     return (3*(r[0]**2 + 9./4.*r[1]**2 + r[2]**2 - 1)**2*2*r[2] - 3*r[0]**2*r[2]**2 - 27./80.*r[1]**2*r[2]**2)
+
+def dHeartdr(r):
+    raise NotImplementedError
 
 #}
 
@@ -500,24 +532,32 @@ class MeshVertex:
         
 def project_onto_potential(r, pot_name, *args):
     """
-    Last term must be constant factor (i.e. the value of the potential)
+    This is a rewrite of the function above, attempting to solve the
+    problem of the changing angles.
     """
-    ri = np.array((0,0,0))
-    
+
     pot = globals()[pot_name]
     dpdx = globals()['d%sdx'%(pot_name)]
     dpdy = globals()['d%sdy'%(pot_name)]
     dpdz = globals()['d%sdz'%(pot_name)]
-        
+    dpdr = globals()['d%sdr'%(pot_name)]
+
     n_iter = 0
-    while ((r[0]-ri[0])*(r[0]-ri[0]) + (r[1]-ri[1])*(r[1]-ri[1]) + (r[2]-ri[2])*(r[2]-ri[2]) > 1e-12) and n_iter<100:
-        ri = r
-        g = np.array((dpdx(ri, *args[:-1]), dpdy(ri, *args[:-1]), dpdz(ri, *args[:-1])))
-        grsq = g[0]*g[0]+g[1]*g[1]+g[2]*g[2]
-        r = ri - pot(ri, *args)*g/grsq
+    
+    rmag, rmag0 = np.sqrt((r*r).sum()), 0
+    lam, nu = r[0]/rmag, r[2]/rmag
+    dc = np.array((lam, np.sqrt(1-lam*lam-nu*nu), nu)) # direction cosines -- must not change during reprojection
+    D, q, F, p0 = args
+    
+    while np.abs(rmag-rmag0) > 1e-12 and n_iter < 100:
+        rmag0 = rmag
+        rmag = rmag0 - pot(rmag0*dc, *args)/dpdr(rmag0*dc, *args[:-1])
         n_iter += 1
     if n_iter == 100:
         print('warning: projection did not converge')
+    
+    r = rmag*dc
+    
     return MeshVertex(r, dpdx, dpdy, dpdz, *args[:-1])
 
 def inverse(a11, a12, a13, a21, a22, a23, a31, a32, a33):
