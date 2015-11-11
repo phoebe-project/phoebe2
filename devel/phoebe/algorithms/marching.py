@@ -779,7 +779,7 @@ def discretize_wd_style(N=30, potential='BinaryRoche', *args):
             dphi = phi[t][1]-phi[t][0]
 
             # Project the vertex onto the potential; this will be our center point:
-            rc = (r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t]))
+            rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
             vc = project_onto_potential(rc, potential, *args).r
 
             # Next we need to find the tangential plane, which we'll get by finding the normal:
