@@ -8296,7 +8296,7 @@ class BinaryRocheStar(PhysicalBody):
         #   to that of a nonrotating star!
         omega_rot = F * 2*pi/P # rotation frequency
         omega_orb = 2*pi/P
-        r_pole = marching.project_onto_potential((0,0,1e-5),'BinaryRoche',d,q,F,Phi).r
+        r_pole = marching.project_onto_potential(np.array((0,0,1e-5)),'BinaryRoche',d,q,F,Phi).r
         r_pole_= np.linalg.norm(r_pole)
         r_pole = r_pole_*a
             
