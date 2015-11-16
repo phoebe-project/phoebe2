@@ -7046,6 +7046,253 @@ class AccretionDisk(PhysicalBody):
                                       incremental=True)
             
         self.time = time
+        
+class Cylinder(PhysicalBody):
+    """
+    Stupid attempt to implement stupid cylinder.
+    """
+    def __init__(self,cylinder=None, mesh=None, orbit=None, pbdep=None,
+                 reddening=None, label=None, **kwargs):
+        """
+        Initialize a flaring accretion disk.
+        
+        The only parameters need for the moment are the disk parameters.
+        In the future, also the details on the mesh creation should be given.
+        """
+        # Basic initialisation
+        super(Cylinder,self).__init__(dim=3,**kwargs)
+        
+        if cylinder is None:
+            cylinder = parameters.ParameterSet('cylinder')
+        if orbit is None:
+	    orbit = parameters.ParameterSet('orbit')
+        
+        # Prepare basic parameterSets and Ordered dictionaries
+        check_input_ps(self, cylinder, ['cylinder'], 1)
+        check_input_ps(self, mesh, ['mesh:disk'], 2)
+        check_input_ps(self, orbit, ['orbit'], 3)
+        
+        self.params['cylinder'] = cylinder
+        self.params['orbit'] = orbit
+        if mesh is None:
+            mesh = parameters.ParameterSet('mesh:disk')
+        self.params['mesh'] = mesh
+        self.params['pbdep'] = OrderedDict()
+        #-- add interstellar reddening
+        if reddening is not None:
+            self.params['reddening'] = reddening
+        #-- add the parameters to compute dependables
+        if pbdep is not None:
+            _parse_pbdeps(self,pbdep)
+        
+        if label is not None:
+            self.set_label(label)
+    
+    def set_label(self,label):
+        self.params['cylinder']['label'] = label
+    
+    def get_label(self):
+        """
+        Get the label of the Body.
+        """
+        return self.params['cylinder']['label']
+
+    def compute_mesh(self):
+        angular = self.params['mesh'].get_value('longit')
+        radial = self.params['mesh'].get_value('radial')
+        Rout = self.params['cylinder'].get_value('rout','Rsol')
+        height = self.params['cylinder'].get_value('height','Rsol')
+        
+        if not 'logg' in self.mesh.dtype.names:
+            lds = [('ld___bol','f8',(Nld_law,)),('proj___bol','f8')]
+            for pbdeptype in self.params['pbdep']:
+                for ipbdep in self.params['pbdep'][pbdeptype]:
+                    ipbdep = self.params['pbdep'][pbdeptype][ipbdep]
+                    lds.append(('ld_{0}'.format(ipbdep['ref']),'f8',(Nld_law,)))
+                    lds.append(('proj_{0}'.format(ipbdep['ref']),'f8'))
+                    #lds.append(('velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+                    #lds.append(('_o_velo_{0}_'.format(ipbdep['ref']),'f8',(3,)))
+            dtypes = np.dtype(self.mesh.dtype.descr + \
+                     lds + [('logg','f8'),('teff','f8'),('abun','f8')])
+        else:
+            dtypes = self.mesh.dtype
+        N = (radial-1)*(angular-1)*2*2 + 4*angular-4
+        self.mesh = np.zeros(N,dtype=dtypes)
+        c = 0
+        rs,thetas = np.linspace(0.0,Rout,radial),np.linspace(0,2*pi,angular)
+        for i,r in enumerate(rs[:-1]):
+            for j,th in enumerate(thetas[:-1]):
+                self.mesh['_o_triangle'][c,0] = rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c,1] = rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c,2] = -height
+                self.mesh['_o_triangle'][c,3] = rs[i]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c,4] = rs[i]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c,5] = -height
+                self.mesh['_o_triangle'][c,6] = rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c,7] = rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c,8] = self.mesh['_o_triangle'][c,5]#-height*rs[i]**1.5
+                
+                self.mesh['_o_triangle'][c+1,0] = self.mesh['_o_triangle'][c,3]#rs[i]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+1,1] = self.mesh['_o_triangle'][c,4]#rs[i]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+1,2] = -self.mesh['_o_triangle'][c,5]#height*rs[i]**1.5
+                self.mesh['_o_triangle'][c+1,3] = self.mesh['_o_triangle'][c,0]#rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+1,4] = self.mesh['_o_triangle'][c,1]#rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+1,5] = -self.mesh['_o_triangle'][c,2]#height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+1,6] = self.mesh['_o_triangle'][c,6]#rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+1,7] = self.mesh['_o_triangle'][c,7]#rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+1,8] = -self.mesh['_o_triangle'][c,8]#height*rs[i]**1.5
+                
+                self.mesh['_o_triangle'][c+2,0] = self.mesh['_o_triangle'][c,0]#rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+2,1] = self.mesh['_o_triangle'][c,1]#rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+2,2] = self.mesh['_o_triangle'][c+1,5]# height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+2,3] = rs[i+1]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+2,4] = rs[i+1]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+2,5] = self.mesh['_o_triangle'][c+1,5]#height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+2,6] = self.mesh['_o_triangle'][c,6]#rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+2,7] = self.mesh['_o_triangle'][c,7]#rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+2,8] = -self.mesh['_o_triangle'][c,8]#height*rs[i]**1.5
+                
+                self.mesh['_o_triangle'][c+3,0] = self.mesh['_o_triangle'][c+2,3]#rs[i+1]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,1] = self.mesh['_o_triangle'][c+2,4]#rs[i+1]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,2] = self.mesh['_o_triangle'][c,2]#-height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+3,3] = self.mesh['_o_triangle'][c,0]#rs[i+1]*np.cos(thetas[j])
+                self.mesh['_o_triangle'][c+3,4] = self.mesh['_o_triangle'][c,1]#rs[i+1]*np.sin(thetas[j])
+                self.mesh['_o_triangle'][c+3,5] = self.mesh['_o_triangle'][c,2]#-height*rs[i+1]**1.5
+                self.mesh['_o_triangle'][c+3,6] = self.mesh['_o_triangle'][c,6]#rs[i]*np.cos(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,7] = self.mesh['_o_triangle'][c,7]#rs[i]*np.sin(thetas[j+1])
+                self.mesh['_o_triangle'][c+3,8] = self.mesh['_o_triangle'][c,5]#-height*rs[i]**1.5
+                c+=4
+        for i,th in enumerate(thetas[:-1]):
+            R = 0.0
+            self.mesh['_o_triangle'][c,0] = R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c,1] = R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c,2] = height
+            self.mesh['_o_triangle'][c,3] = R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c,4] = R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c,5] = self.mesh['_o_triangle'][c,2]#height*Rin**1.5
+            self.mesh['_o_triangle'][c,6] = self.mesh['_o_triangle'][c,0]#R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c,7] = self.mesh['_o_triangle'][c,1]#R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c,8] = -self.mesh['_o_triangle'][c,2]#-height*R**1.5
+            
+            self.mesh['_o_triangle'][c+1,0] = self.mesh['_o_triangle'][c,3]#R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,1] = self.mesh['_o_triangle'][c,4]#R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,2] = self.mesh['_o_triangle'][c,8]#-height*R**1.5
+            self.mesh['_o_triangle'][c+1,3] = self.mesh['_o_triangle'][c,0]#R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c+1,4] = self.mesh['_o_triangle'][c,1]#R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c+1,5] = self.mesh['_o_triangle'][c,8]#-height*R**1.5
+            self.mesh['_o_triangle'][c+1,6] = self.mesh['_o_triangle'][c,3]#R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,7] = self.mesh['_o_triangle'][c,4]#R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,8] = self.mesh['_o_triangle'][c,2]#+height*R**1.5
+                
+            c+=2
+            R = Rout
+            self.mesh['_o_triangle'][c,0] = R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c,1] = R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c,2] = -height
+            self.mesh['_o_triangle'][c,3] = R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c,4] = R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c,5] = -height
+            self.mesh['_o_triangle'][c,6] = R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c,7] = R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c,8] = +height
+            
+            self.mesh['_o_triangle'][c+1,3] = R*np.cos(thetas[i])
+            self.mesh['_o_triangle'][c+1,4] = R*np.sin(thetas[i])
+            self.mesh['_o_triangle'][c+1,5] = height
+            self.mesh['_o_triangle'][c+1,0] = R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,1] = R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,2] = height
+            self.mesh['_o_triangle'][c+1,6] = R*np.cos(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,7] = R*np.sin(thetas[i+1])
+            self.mesh['_o_triangle'][c+1,8] = -height
+                
+            c+=2
+ 
+        self.mesh['triangle'] = self.mesh['_o_triangle']
+        self.compute_centers()
+        self.compute_sizes('_o_')
+        self.compute_sizes()
+        self.compute_normals()
+        #self.rotate(incl=45.,Omega=1.)
+        #self.rotate()
+        self.rotate_and_translate()
+        self.detect_eclipse_horizon(eclipse_detection='hierarchical')        
+    
+    def surface_gravity(self):
+        """
+        Calculate the local surface gravity:
+        
+        g = GMhost * z / R**3 (see e.g. Diaz et al. 1996)
+        """
+        r = coordinates.norm(self.mesh['_o_center'],axis=1)*constants.Rsol
+        z = self.mesh['_o_center'][:,2]*constants.Rsol
+        M_wd = self.params['cylinder'].get_value('mass','kg')
+        g = constants.GG*M_wd*np.abs(z)/r**3
+        self.mesh['logg'] = np.log10(g*100) # logg in cgs
+        
+    
+    def temperature(self,time=None):
+        r"""
+        """
+        teff = self.params['cylinder'].get_value('teff','K')
+        self.mesh['teff'] = teff
+        
+    @decorators.parse_ref
+    def intensity(self, *args, **kwargs):
+        """
+        Calculate local intensity and limb darkening coefficients.
+        """
+        ref = kwargs.pop('ref',['all'])
+        boosting_alg = kwargs.get('boosting_alg', 'full')
+        parset_isr = dict()#self.params['reddening']
+        #-- now run over all labels and compute the intensities
+        for iref in ref:
+            parset_pbdep,ref = self.get_parset(ref=iref,type='pbdep')
+            limbdark.local_intensity(self,parset_pbdep,parset_isr, boosting_alg=boosting_alg)
+            
+    def projected_intensity(self,los=[0.,0.,+1],ref=0,method='numerical',with_partial_as_half=True,
+                            boosting_alg='none'):
+        """
+        Calculate local intensity of an AccretionDisk.
+        """
+        if method!='numerical':
+            raise ValueError("Only numerical computation of projected intensity of AccretionDisk available")
+        idep,ref = self.get_parset(ref=ref, type='pbdep')
+        ld_func = idep['ld_func']
+        proj_int = generic_projected_intensity(self, method=method,
+                             ld_func=ld_func, ref=ref, los=los, 
+                             with_partial_as_half=with_partial_as_half)
+        
+        return proj_int
+    
+    def set_time(self,time, ref='all', boosting_alg='none'):
+        """
+        Set the time of the AccretionDisk object
+        """
+        logger.info('===== SET TIME TO %.6f ====='%(time))
+        if self.time is None:
+            self.reset_mesh()
+            
+            self.compute_mesh()
+            self.surface_gravity()
+            self.temperature()
+            self.intensity(boosting_alg=boosting_alg)
+            
+            incl = self.params['orbit']['incl']/180.*np.pi
+            Omega = self.params['orbit']['long_an']/180.*np.pi
+            self.rotate_and_translate(incl=incl, Omega=Omega, loc=(0,0,0),
+                                      los=(0,0,+1),
+                                      incremental=True)
+        else:
+            self.reset_mesh()
+            self.temperature()
+            Omega = self.params['orbit']['long_an']/180.*np.pi
+            incl = self.params['orbit']['incl']/180.*np.pi
+            self.rotate_and_translate(incl=incl, Omega=Omega, loc=(0,0,0),
+                                      los=(0,0,+1),
+                                      incremental=True)
+            
+        self.time = time
 
 class Star(PhysicalBody):
     """

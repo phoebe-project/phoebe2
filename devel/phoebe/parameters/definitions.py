@@ -554,6 +554,23 @@ defs += [dict(qualifier='dmdt',     description='Mass transfer rate',repr='%f',c
          #dict(qualifier='distance', description='Distance to the disk',repr='%f',cast_type=float,value=10.,adjust=False,unit='pc',frame=['phoebe'],context='accretion_disk'),
         ]
 
+# Cylinder contexts
+defs += [dict(qualifier='rout',     description='Outer radius of disk',repr='%f',cast_type=float,value=20.,unit='Rsol',frame=["phoebe"],context='cylinder'),
+         dict(qualifier='height',   description='height of disk',repr='%f',cast_type=float,value=1e-2,unit='Rsol',frame=["phoebe"],context='cylinder'),
+         dict(qualifier='teff',     description='Temperature of the disk',repr='%f',cast_type=float,value=10000.,unit='K',llim=5000.,ulim=50000.,frame=["phoebe"],context='cylinder'),
+         dict(qualifier='mass',     description='Mass of the central object',repr='%f',cast_type=float,value=1.,unit='Msol',llim=0.,ulim=100.,frame=["phoebe"],context='cylinder'),
+         dict(qualifier='label',    description='Name of the body',repr='%s',cast_type='make_label',value='',frame=["phoebe"],context=['cylinder']),
+         dict(qualifier='ld_func',  description='Limb darkening model',repr='%s',cast_type='choose',choices=['uniform','linear','logarithmic', 'quadratic', 'square_root','power', 'claret', 'hillen', 'prsa'],value='uniform',frame=["phoebe"],context=['cylinder']),
+         dict(qualifier='atm',      description='Bolometric Atmosphere model',long_description=("The bolometric atmosphere.."),repr='%s',cast_type=str,value='blackbody',frame=["phoebe"],context=['cylinder']),
+         dict(qualifier='ld_coeffs',description='Limb darkening coefficients',long_description=("Limb darkening coefficients.."),repr='%s',value=[1.],cast_type='return_string_or_list',frame=["phoebe"],context=['cylinder']),
+         dict(qualifier='irradiator',description='Treat body as irradiator of other objects',repr='',cast_type='make_bool',value=False,frame=['phoebe'],context=['cylinder']),
+         dict(qualifier='alb',    description='Bolometric albedo (1-alb heating, alb reflected)',          repr='%f',cast_type=float,value=1.,llim=0,ulim=5,step=0.05,adjust=False,frame=["phoebe"],alias=['albedo'],context=['cylinder']),
+         dict(qualifier='redist',description='Global redist par (1-redist) local heating, redist global heating',
+              long_description="", repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['cylinder']),
+         dict(qualifier='redisth',description='Horizontal redist par (redisth/redist) horizontally spread',
+              long_description=("During.."), repr='%f',cast_type=float,value=0.,llim=0,ulim=1,step=0.05,adjust=False,frame=["phoebe"],context=['cylinder']),
+        ]
+
 # Analytical binary model
 defs += [dict(qualifier='flux_cont', description='Continuum flux level', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),
          dict(qualifier='flux_night', description='Night side flux level', repr='%f', cast_type=float, value=1.0, frame=['phoebe'], context='analytical:binary'),

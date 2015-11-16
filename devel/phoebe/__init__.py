@@ -1955,7 +1955,7 @@ from .parameters import distributions
 from .parameters.datasets import DataSet,LCDataSet,IFDataSet,SPDataSet,RVDataSet
 from .backend.universe import Star,BinaryRocheStar,MisalignedBinaryRocheStar,\
                               BinaryStar,BodyBag,BinaryBag,AccretionDisk,\
-                              PulsatingBinaryRocheStar
+                              PulsatingBinaryRocheStar, Cylinder
 from .frontend.bundle import Bundle, load, info
 from .frontend.common import take_orbit_from, compute_pot_from, compute_mass_from, to_time
 from .frontend import constraints
