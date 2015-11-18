@@ -7046,7 +7046,7 @@ class AccretionDisk(PhysicalBody):
                                       incremental=True)
             
         self.time = time
-        
+        0
 class Cylinder(PhysicalBody):
     """
     Stupid attempt to implement stupid cylinder.
