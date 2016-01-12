@@ -37,7 +37,10 @@ try:
 except ImportError:
     pass
 from scipy.stats import distributions
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    pass
 
 def histogram_bins(signal):
     """
