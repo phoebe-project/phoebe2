@@ -1,9 +1,0 @@
-Usage is extremely simple
-import phoebe.frontend.backends as be
-
-bundle = phoebe.Bundle()
-system = bundle.get_system()
-
-be.compute_legacy(system)
-
-returns system with synthetics filled by phoebe1 backend.
