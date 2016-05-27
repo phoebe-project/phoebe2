@@ -38,7 +38,7 @@ def wd_horizon(meshes, xs, ys, zs):
     mesh_back = meshes[comp_back]
 
     rhos = [np.sqrt((mesh['center'][:,0]-xs[i])**2 + (mesh['center'][:,1]-ys[i])**2) for i,mesh in enumerate([mesh_front, mesh_back])]
-    thetas = [np.arcsin((mesh['center'][:,0]-ys[i])/rhos[i]) for i,mesh in enumerate([mesh_front, mesh_back])]
+    thetas = [np.arcsin((mesh['center'][:,1]-ys[i])/rhos[i]) for i,mesh in enumerate([mesh_front, mesh_back])]
 
     import matplotlib.pyplot as plt
     plt.plot(rhos[0], thetas[0], 'b.')
