@@ -1,0 +1,6 @@
+To download spectra files, run:
+
+$:> python
+>>> import phoebe
+>>> phoebe.atmospheres.limbdark.download_spectra()
+

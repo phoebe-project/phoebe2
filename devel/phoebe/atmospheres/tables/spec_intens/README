@@ -1,6 +1,0 @@
-To download specific intensity files, run:
-
-$:> python
->>> import phoebe
->>> phoebe.atmospheres.limbdark.download_spec_intens()
-

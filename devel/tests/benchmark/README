@@ -1,0 +1,7 @@
+1. run python script as follows, replacing myscript with a given python script in this directory
+python -m cProfile -o myscript.profile myscript.py
+
+Or, alternatively, to run all at once, use 'run_tests.py benchmarks' in the tests directory
+
+2. look at profile using runsnakerun
+runsnake myscript.profile
