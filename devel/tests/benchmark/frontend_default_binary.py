@@ -1,3 +1,3 @@
-import phoebe2
+import phoebe
 
-b = phoebe2.Bundle.default_binary()
+b = phoebe.Bundle.default_binary()

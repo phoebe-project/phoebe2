@@ -42,7 +42,7 @@ if 'nosetests' in do:
 if 'pylint' in do:
     print "TESTING PYTHON STYLE VIA PYLINT..."
     print "TODO: support style checks"
-    out = commands.getoutput('pylint phoebe2')
+    out = commands.getoutput('pylint phoebe')
 
 # TODO: run API doctests
 if 'doctests' in do:

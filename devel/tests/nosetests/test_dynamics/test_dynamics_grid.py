@@ -1,7 +1,7 @@
 """
 """
 
-import phoebe2
+import phoebe
 import numpy as np
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -15,8 +15,8 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
     # TODO: loop over ltte=True,False (once keplerian dynamics supports the switch)
 
     times = np.linspace(0, 5*period, 100)
-    nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe2.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
-    k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe2.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
+    nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
+    k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
 
     assert(np.allclose(nb_ts, k_ts, 1e-8))
     for ci in range(len(b.hierarchy.get_stars())):
@@ -24,7 +24,7 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
         assert(np.allclose(nb_xs[ci].to(u.AU).value, k_xs[ci].to(u.AU).value, rtol=0, atol=1e-05))
         assert(np.allclose(nb_ys[ci].to(u.AU).value, k_ys[ci].to(u.AU).value, rtol=0, atol=1e-05))
         assert(np.allclose(nb_zs[ci].to(u.AU).value, k_zs[ci].to(u.AU).value, rtol=0, atol=1e-05))
-        
+
         # nbody ltte velocities are wrong so only check velocities if ltte off
         if not ltte:
 	    assert(np.allclose(nb_vxs[ci].to(u.solRad/u.d).value, k_vxs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-05))
@@ -89,7 +89,7 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 
     # NBODY
     # do backend Nbody
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe2.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
+    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
 
     # do frontend Nbody
     b.run_compute('nbody', model='nbodyresults')
@@ -111,7 +111,7 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 
     # KEPLERIAN
     # do backend keplerian
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe2.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
+    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
 
 
     # do frontend keplerian
@@ -135,48 +135,48 @@ def test_binary(plot=False):
     """
     """
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
-    
+
     # system = [sma (AU), period (d)]
     system1 = [0.05, 2.575]
-    system2 = [1., 257.5] 
+    system2 = [1., 257.5]
     system3 = [40., 65000.]
-    
+
     for system in [system1,system2,system3]:
 	for q in [0.5,1.]:
 	    for ltte in [True, False]:
 
-		b = phoebe2.Bundle.default_binary()
+		b = phoebe.Bundle.default_binary()
 		b.set_default_unit_all('sma', u.AU)
 		b.set_default_unit_all('period', u.d)
-		
+
 		b.set_value('sma@binary',system[0])
 		b.set_value('period@binary', system[1])
 		b.set_value('q', q)
 		_keplerian_v_nbody(b, ltte, system[1], plot=plot)
-		
-		b = phoebe2.Bundle.default_binary()
+
+		b = phoebe.Bundle.default_binary()
 		b.set_default_unit_all('sma', u.AU)
 		b.set_default_unit_all('period', u.d)
-		
+
 		b.set_value('sma@binary',system[0])
 		b.set_value('period@binary', system[1])
 		b.set_value('q', q)
 		_frontend_v_backend(b, ltte, system[1], plot=plot)
-		
+
     #for system in [system1,system2,system3]:
 	#for q in [0.5,1.]:
-	    #b = phoebe2.Bundle.default_binary()
+	    #b = phoebe.Bundle.default_binary()
 	    #b.set_default_unit_all('sma', u.AU)
 	    #b.set_default_unit_all('period', u.d)
-	    
+
 	    #b.set_value('sma@binary',system[0])
 	    #b.set_value('period@binary', system[1])
 	    #b.set_value('q', q)
 	    #_phoebe_v_photodynam(b, system[1], plot=plot)
 
- 
+
 if __name__ == '__main__':
-    logger = phoebe2.utils.get_basic_logger()
+    logger = phoebe.utils.get_basic_logger()
 
 
     test_binary(plot=True)

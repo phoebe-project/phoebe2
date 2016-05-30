@@ -1,8 +1,8 @@
 
 import numpy as np
-import phoebe2
+import phoebe
 
-b = phoebe2.Bundle.default_binary()
+b = phoebe.Bundle.default_binary()
 b['ecc@binary'] = 0.1
 
 b.add_dataset('rv', time=np.linspace(0,3,101), dataset='lc01')

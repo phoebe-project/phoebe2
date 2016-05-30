@@ -2,7 +2,7 @@ plot = False
 
 
 import sys
-import phoebe2 
+import phoebe
 import numpy as np
 import signal
 from threading import Timer
@@ -77,7 +77,7 @@ def draw_syncpar():
     return _draw_random_lin_inv(0.1, 1)
 
 
-def chi2(b, dataset, model1='phoebe1model', model2='phoebe2model'):
+def chi2(b, dataset, model1='phoebe1model', model2='phoebemodel'):
 
     ds = b.get_dataset(dataset) - b.get_dataset(dataset, method='*dep')
     if ds.method=='LC':
@@ -89,7 +89,7 @@ def chi2(b, dataset, model1='phoebe1model', model2='phoebe2model'):
 
     chi2 = 0.0
     for comp in ds.components if len(ds.components) else [None]:
-        # phoebe2 gives nans for RVs when a star is completely eclipsed, whereas
+        # phoebe gives nans for RVs when a star is completely eclipsed, whereas
         # phoebe1 will give a value.  So let's use nansum to just ignore those
         # regions of the RV curve
         chi2 += np.nansum((b.get_value(qualifier=depvar, dataset=dataset, model=model1, component=comp, section='model')\
@@ -141,12 +141,12 @@ if __name__ == '__main__':
         f = open('sample.results', 'a')
         N = 501
 
-        b = phoebe2.Bundle.default_binary()
+        b = phoebe.Bundle.default_binary()
         b.add_dataset('LC', dataset='lc01')
         b.add_dataset('RV', dataset='rv01')
 
 
-        b.add_compute(compute='phoebe2')
+        b.add_compute(compute='phoebe')
         b.add_compute('legacy', compute='phoebe1')
 
         # TODO: eventually test over ld_coeffs - but right now ld seems to be broken vs legacy
@@ -207,7 +207,7 @@ if __name__ == '__main__':
                 print("*** PHOEBE 1")
                 phoebe1_passed = run_with_limited_time(b.run_compute, ('phoebe1', ), {'model': 'phoebe1model'}, 10)
                 if phoebe1_passed:
-                    # this is horrendously hideous - the only way I could get the 
+                    # this is horrendously hideous - the only way I could get the
                     # timeout to work means that we can't access the output, so
                     # b isn't updated.  But now we know that it won't timeout, so
                     # we can rerun compute
@@ -215,25 +215,25 @@ if __name__ == '__main__':
 
                 print("*** PHOEBE 2")
                 try:
-                    b.run_compute('phoebe2', model='phoebe2model')
+                    b.run_compute('phoebe', model='phoebemodel')
                 except ValueError:
-                    phoebe2_passed = False
+                    phoebe_passed = False
                 else:
-                    phoebe2_passed = True
+                    phoebe_passed = True
 
 
-                if phoebe1_passed != phoebe2_passed:
+                if phoebe1_passed != phoebe_passed:
                     if phoebe1_passed:
-                        # phoebe2 failed, phoebe 1 passed
+                        # phoebe failed, phoebe 1 passed
                         chi2lc = -1
                         chi2rv = -1
                     else:
-                        # phoebe2 passed, phoebe 1 failed
+                        # phoebe passed, phoebe 1 failed
                         chi2lc = -2
                         chi2rv = -2
-                elif phoebe1_passed and phoebe2_passed:
+                elif phoebe1_passed and phoebe_passed:
                     chi2lc = chi2(b, 'lc01')/N
-                    # TODO: need to deal with NaNs in the phoebe2 RVs when occulted
+                    # TODO: need to deal with NaNs in the phoebe RVs when occulted
                     # with proximity effects phoebe1 reverts to dynamical during these times
                     chi2rv = chi2(b, 'rv01')/N
                 else:
@@ -255,7 +255,7 @@ if __name__ == '__main__':
 
             except KeyboardInterrupt:
                 break
-        
+
         print("*** CLOSING LOG FILE ***")
         f.close()
 

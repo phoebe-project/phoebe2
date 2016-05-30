@@ -25,9 +25,20 @@ Download and Installation
 Download
 --------------------------------
 
-This version of phoebe is currently in sandbox, but will hopefully become
-the official beta release and then be packaged for installation with pip, etc.
-To download, update the sandbox/betarewrite branch of the svn.
+This version of phoebe is currently in the devel branch of the SVN.  Once released,
+it will be packaged for installation via pip, but for now requires manually
+downloading through the SVN and installing.
+
+To download the SVN branch anonymously:
+
+::
+
+   svn checkout svn://svn.code.sf.net/p/phoebe/code/devel/ phoebe-code
+
+
+
+Or to download via your sourceforge account (for commit permissions), go to the following link:
+https://sourceforge.net/p/phoebe/code/HEAD/tree/devel/
 
 
 Dependencies
@@ -52,9 +63,8 @@ And optional packages (used for less commonly used features):
 Installation
 -------------------------------
 
-
-Currently the beta-rewrite will build to a module called 'phoebe2' to avoid
-clashing with the alpha-version.
+NOTE: the beta version now builds to a python module named 'phoebe' which may
+conflict with the alpha version if you have that installed.
 
 
 To install without admin rights for a single-user:
@@ -267,8 +277,8 @@ Frontend API Docs
 .. toctree::
    :maxdepth: 2
 
-   Frontend <api/phoebe2.frontend>
-   Parameters <api/phoebe2.parameters>
+   Frontend <api/phoebe.frontend>
+   Parameters <api/phoebe.parameters>
 
 
 Backend (Advanced) API Docs
@@ -277,11 +287,11 @@ Backend (Advanced) API Docs
 .. toctree::
    :maxdepth: 2
 
-   Backend <api/phoebe2.backend>
-   Atmospheres <api/phoebe2.atmospheres>
-   Constraints <api/phoebe2.constraints>
-   Dynamics <api/phoebe2.dynamics>
-   Distortions <api/phoebe2.distortions>
+   Backend <api/phoebe.backend>
+   Atmospheres <api/phoebe.atmospheres>
+   Constraints <api/phoebe.constraints>
+   Dynamics <api/phoebe.dynamics>
+   Distortions <api/phoebe.distortions>
 
 
 Development Information
@@ -318,7 +328,7 @@ but do this before importing Phoebe.
 *Q: How do I add a custom passband to PHOEBE 2?*
 
 A: You will need a table of intensities that you can download from the PHOEBE homepage.
-Then you should follow the instructions available :class:`phoebe2.atmospheres.passbands.Passband`
+Then you should follow the instructions available :class:`phoebe.atmospheres.passbands.Passband`
 
 *Q: Is Phoebe 2.x Python 3.x ready?*
 
