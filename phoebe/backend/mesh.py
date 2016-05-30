@@ -15,8 +15,8 @@ from phoebe.backend import eclipse, subdivision
 import copy
 
 
-from phoebe2 import u
-from phoebe2 import c as constants # TODO: change these to c
+from phoebe import u
+from phoebe import c as constants # TODO: change these to c
 
 import logging
 logger = logging.getLogger("MESH")

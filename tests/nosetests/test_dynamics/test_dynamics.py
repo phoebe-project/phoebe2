@@ -1,7 +1,7 @@
 """
 """
 
-import phoebe2
+import phoebe
 import numpy as np
 import astropy.units as u
 import matplotlib.pyplot as plt
@@ -15,8 +15,8 @@ def _keplerian_v_nbody(b, plot=False):
     # TODO: loop over ltte=True,False (once keplerian dynamics supports the switch)
 
     times = np.linspace(0, 100, 10000)
-    nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe2.dynamics.nbody.dynamics_from_bundle(b, times, ltte=False)
-    k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe2.dynamics.keplerian.dynamics_from_bundle(b, times)
+    nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=False)
+    k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times)
 
     assert(np.allclose(nb_ts, k_ts, 1e-8))
     for ci in range(len(b.hierarchy.get_stars())):
@@ -86,7 +86,7 @@ def _frontend_v_backend(b, plot=False):
 
     # NBODY
     # do backend Nbody
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe2.dynamics.nbody.dynamics_from_bundle(b, times)
+    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times)
 
     # do frontend Nbody
     b.run_compute('nbody', model='nbodyresults')
@@ -107,7 +107,7 @@ def _frontend_v_backend(b, plot=False):
 
     # KEPLERIAN
     # do backend keplerian
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe2.dynamics.keplerian.dynamics_from_bundle(b, times)
+    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times)
 
 
     # do frontend keplerian
@@ -134,18 +134,18 @@ def test_binary(plot=False):
     # TODO: grid over orbital parameters
     # TODO: once ps.copy is implemented, just send b.copy() to each of these
 
-    b = phoebe2.Bundle.default_binary()
+    b = phoebe.Bundle.default_binary()
     _keplerian_v_nbody(b, plot=plot)
 
-    b = phoebe2.Bundle.default_binary()
+    b = phoebe.Bundle.default_binary()
     _phoebe_v_photodynam(b, plot=plot)
 
-    b = phoebe2.Bundle.default_binary()
+    b = phoebe.Bundle.default_binary()
     _frontend_v_backend(b, plot=plot)
 
 
 if __name__ == '__main__':
-    logger = phoebe2.utils.get_basic_logger()
+    logger = phoebe.utils.get_basic_logger()
 
 
     test_binary(plot=True)
