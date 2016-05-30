@@ -29,22 +29,65 @@ def wd_horizon(meshes, xs, ys, zs):
     if nbodies != 2:
         raise ValueError("wd_horizon eclipse method only works on binaries")
 
-    front_to_back_comp_nos = np.argsort(zs)[::-1]+1
+    front_to_back_comp_nos = np.argsort(zs)[::-1]
+    i_front = front_to_back_comp_nos[0]
+    i_back = front_to_back_comp_nos[1]
 
-    comp_front = meshes.component_by_no(front_to_back_comp_nos[0])
-    comp_back = meshes.component_by_no(front_to_back_comp_nos[1])
+    comp_front = meshes.component_by_no(i_front+1)
+    comp_back = meshes.component_by_no(i_back+1)
 
     mesh_front = meshes[comp_front]
     mesh_back = meshes[comp_back]
 
-    rhos = [np.sqrt((mesh['center'][:,0]-xs[i])**2 + (mesh['center'][:,1]-ys[i])**2) for i,mesh in enumerate([mesh_front, mesh_back])]
-    thetas = [np.arcsin((mesh['center'][:,1]-ys[i])/rhos[i]) for i,mesh in enumerate([mesh_front, mesh_back])]
 
-    import matplotlib.pyplot as plt
-    plt.plot(rhos[0], thetas[0], 'b.')
-    plt.plot(rhos[1], thetas[1], 'r.')
-    plt.show()
+    # polar coordinates need to be wrt the center of the ECLIPSING body
+    rhos = [np.sqrt((mesh['center'][:,0]-xs[i_front])**2 +
+                    (mesh['center'][:,1]-ys[i_front])**2) for i,mesh in enumerate([mesh_front, mesh_back])]
+    thetas = [np.arcsin((mesh['center'][:,1]-ys[i_front])/rhos[i]) for i,mesh in enumerate([mesh_front, mesh_back])]
+    mus = [mesh['mu'] for mesh in (mesh_front, mesh_back)]
 
+    # import matplotlib.pyplot as plt
+    # plt.plot(rhos[0], thetas[0], 'b.')
+    # plt.plot(rhos[1], thetas[1], 'r.')
+    # plt.show()
+
+    # To find the horizon we want the first positive mu elements (on right and
+    # left) for each latitude strip.  For now we'll assume that we can check
+    # for same values of y to get latitude strips (this will fail if long_an or
+    # incl are not defaults)
+
+    horizon_inds = [[], []]
+    # first loop through our stars
+    for i, (x, y, z, mesh, rho, theta, mu) in enumerate(zip(xs, ys, zs, [mesh_front, mesh_back], rhos, thetas, mus)):
+        lats = list(set(mesh['theta']))
+        # print "*** number of latitude strips", len(lats)
+        for lat in lats:
+            lat_strip_inds = mesh['theta'] == lat
+
+            # let's get the x-coordinate wrt THIS star so we can do left vs right
+            x_rel = mesh['center'][:,0] - x
+            # and since we want the first element in the front, let's just get rid of the back
+            # z_rel = mesh['center'][:,2] - z
+
+            front_inds = mu >= 0
+
+            # let's handle "left" vs "right" side of star separately
+            for side_inds in [x_rel <=0, x_rel >= 0]:
+                no_triangles = len(mu[lat_strip_inds * side_inds * front_inds])
+                # print "*** no triangles", no_triangles
+
+                if no_triangles > 8:
+                    first_horizon_mu = mu[lat_strip_inds * side_inds * front_inds].min()
+                    first_horizon_ind = np.where(mu==first_horizon_mu)[0][0]  # FOR SOME REASON THIS IS LEN==4 (I'd expect 2)
+                    # print "*** horizon index", first_horizon_ind
+
+                    horizon_inds[i].append(first_horizon_ind)
+
+    f = open('bla2', 'w')
+    for i in range(2):
+        for ind in horizon_inds[i]:
+            f.write("{} {} {}\n".format(ind, thetas[i][ind], mus[i][ind]))
+    f.close()
 
     visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}
 
