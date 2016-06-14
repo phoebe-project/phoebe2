@@ -50,7 +50,7 @@ max_triangles = 10000000 # 10^7
 #   Ntriangles x 3 integer indices
 
 start = time.time()
-res = marching_mesh(q, F, d, Omega0, delta, choice, max_triangles, vertices=True, vnormals=True, triangles=True, tnormals=True, areas=True)
+res = marching_mesh(q, F, d, Omega0, choice, delta, max_triangles, vertices=True, vnormals=True, triangles=True, tnormals=True, areas=True)
 end = time.time()
 
 V = res["vertices"]
