@@ -2,7 +2,7 @@ CC=g++
 CXXFLAGS=-O3 -Wall -std=c++11
 PYTHON=-I/usr/include/python2.7/ -lpython2.7
 
-LIBP=lib_phoebe_roche
+LIBP=libphoebe
 
 all:omega_crit points_on_x_axis pole $(LIBP).so
 
