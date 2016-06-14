@@ -644,7 +644,7 @@ class Tmarching: public Tbody {
       false: otherwise
   */
   
-  bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter){
+  bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0){
     
     //
     // Newton-Rapson iteration to solve F(u_k - t grad(F))=0
@@ -684,9 +684,14 @@ class Tmarching: public Tbody {
       
     } while (dr1 > eps*r1 + min && ++nr_iter < max_iter);
     
-    // creating simplified vertex
+    // creating simplified vertex, 
+    // note: std::hypot(,,) is comming in C++17
     
-    fac = 1/utils::hypot3(g[0], g[1], g[2]); // std::hypot(,,) is comming in C++17
+    if (gnorm)
+      fac = 1/(*gnorm = utils::hypot3(g[0], g[1], g[2])); 
+    else 
+      fac = 1/utils::hypot3(g[0], g[1], g[2]);
+    
     for (int i = 0; i < 3; ++i) n[i] = fac*g[i];
     
     return (nr_iter < max_iter);
@@ -1084,16 +1089,18 @@ class Tmarching: public Tbody {
     Output:
       C - central points 
       NatC - normals at central points
+      GatC - norm of gradient at cetral points
   */
   void central_points(
     std::vector <T3Dpoint<T>> & V,
     std::vector <Ttriangle > & Tr,
     
     std::vector <T3Dpoint<T>> * C = 0,
-    std::vector <T3Dpoint<T>> * NatC = 0
+    std::vector <T3Dpoint<T>> * NatC = 0,
+    std::vector <T> * GatC = 0
   ) 
   {
-    if (C == 0 && NatC == 0) return;
+    if (C == 0 && NatC == 0 && GatC == 0) return;
         
     if (C) {
       C->clear();
@@ -1105,12 +1112,19 @@ class Tmarching: public Tbody {
       NatC->reserve(Tr.size());
     }
     
+    T g, *p_g  = 0;
+    if (GatC) {
+      GatC->clear();
+      GatC->reserve(Tr.size());
+      p_g = &g;
+    }
+
     const int max_iter = 100;
     
     T *tp, v[3], n[3], q[3], r[3][3];
   
     int i, j;
-    
+
     for (auto && t: Tr) {
       
       //
@@ -1127,9 +1141,10 @@ class Tmarching: public Tbody {
       for (i = 0; i < 3; ++i) 
         q[i] = (r[0][i] + r[1][i] + r[2][i])/3;
       
-      if (project_onto_potential(q, v, n, max_iter)){ 
+      if (project_onto_potential(q, v, n, max_iter, p_g)){ 
         if (C) C->emplace_back(v);
         if (NatC) NatC->emplace_back(n); 
+        if (GatC) GatC->emplace_back(g);
       } else
         std::cerr << "Warning: Projection did not converge\n";
 

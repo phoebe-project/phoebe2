@@ -300,8 +300,8 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
     cnormals:
       NatC[][3]   - 2-rank numpy array of normals of central points
  
-    cgradnorm:
-      GatC[][3]   - 2-rank numpy array of norms als of central points
+    cnormgrads:
+      GatC[][3]   - 2-rank numpy array of norms of the gradients at central points
       
   Typically face-vertex format is (V, T) where
   
@@ -339,6 +339,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"tnormals", 
     (char*)"centers", 
     (char*)"cnormals",
+    (char*)"cnormgrads",
     (char*)"areas",
     (char*)"area",
     (char*)"volume",
@@ -355,12 +356,13 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
        b_tnormals = false, 
        b_centers = false,
        b_cnormals = false,
+       b_cnormgrads = false,
        b_areas = false,
        b_area = false,
        b_volume = false;
       
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddidi|iiiiiiiii", kwlist,
+      args, keywds,  "ddddidi|iiiiiiiiii", kwlist,
       &q, &F, &d, &Omega0, &choice, &delta, &max_triangles,
       &b_vertices, 
       &b_vnormals,
@@ -368,6 +370,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       &b_tnormals,
       &b_centers,
       &b_cnormals,
+      &b_cnormgrads,
       &b_areas,
       &b_area,
       &b_volume 
@@ -507,7 +510,6 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     delete NatT;  
   }
 
-
   if (b_volume)
     PyDict_SetItemString(
       results, 
@@ -519,6 +521,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   //
   // Calculte the central points
   // 
+  std::vector<double> *GatC = 0;
   
   std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
   
@@ -526,7 +529,9 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
  
   if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
  
-  march.central_points(V, Tr, C, NatC);
+  if (b_cnormgrads) GatC = new std::vector<double>;
+ 
+  march.central_points(V, Tr, C, NatC, GatC);
   
   if (b_centers) {
     dims[0] = Nt;
@@ -549,6 +554,16 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
        PyArray_SimpleNewFromVector<double>(2, dims, NPY_DOUBLE, NatC->data())
     );
     delete NatC;  
+  }
+  
+  if (b_cnormgrads) {
+    dims[0] = Nt;
+    PyDict_SetItemString(
+      results, 
+      "cnormgrads",
+       PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, GatC->data())
+    );
+    delete GatC;
   }
   
    
