@@ -37,7 +37,8 @@ To download the SVN branch anonymously:
 
 
 
-Or to download via your sourceforge account (for commit permissions), go to the following link:
+Or to download via your sourceforge account (for commit permissions), go to the
+following link while logged in to sourceforge:
 https://sourceforge.net/p/phoebe/code/HEAD/tree/devel/
 
 
