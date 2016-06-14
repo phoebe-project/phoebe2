@@ -235,6 +235,9 @@ struct Tgen_roche {
   T q, F, delta, Omega0, x0, 
     b, f0; // derived constants
   
+  
+  Tgen_roche() {}
+  
   /*
     Reading and storing the parameters
   */

@@ -152,7 +152,10 @@ static PyObject *roche_pole(PyObject *self, PyObject *args) {
   Calculate the gradient and the value of the potential of the generalized
   Kopal potential Omega at a given point
 
-      grad Omega (x,y,z)
+      - grad Omega (x,y,z)
+  
+  which is outwards the Roche lobe.
+  
   
   Python:
     
@@ -168,25 +171,25 @@ static PyObject *roche_pole(PyObject *self, PyObject *args) {
   and returns float
   
     g : 1-rank numpy array 
-      = [grad Omega_x, grad Omega_y, grad Omega_zOmega(x,y,z)]
+      = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
 */
 
 
 static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
     
-  double p[3]; // parameters q, F, delta;
-
-  PyArrayObject  *X;
-
-  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
+  Tgen_roche<double> b;
+   
+  PyArrayObject *X;
+  
+  if (!PyArg_ParseTuple(args, "dddO!", &b.q, &b.F, &b.delta, &PyArray_Type, &X))
       return NULL;
 
-  Tgen_roche<double> body(p, false);
+  b.Omega0 = 0;
 
   double *g = new double [4];
 
-  body.grad((double*)PyArray_DATA(X), g);
-
+  b.grad((double*)PyArray_DATA(X), g);
+  
   npy_intp dims[1] = {4};
 
   return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
@@ -196,9 +199,9 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   Python wrapper for C++ code:
   
   Calculate the gradient of the potential of the generalized
-   Kopal potential Omega at a given point
+  Kopal potential Omega at a given point
 
-      grad Omega (x,y,z)
+      -grad Omega (x,y,z)
   
   Python:
     
@@ -213,24 +216,22 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   
   and returns float
   
-    g : 1-rank numpy array = grad Omega (x,y,z)
+    g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
 
 static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
-  double p[3]; // parameters q, F, delta;
- 
+  Tgen_roche<double> b;
+   
   PyArrayObject *X;
   
-  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", &b.q, &b.F, &b.delta, &PyArray_Type, &X))
       return NULL;
-
-  Tgen_roche<double> body(p, false);
 
   double *g = new double [3];
 
-  body.grad_only((double*)PyArray_DATA(X), g);
+  b.grad_only((double*)PyArray_DATA(X), g);
 
   npy_intp dims[1] = {3};
 
