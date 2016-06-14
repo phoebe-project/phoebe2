@@ -60,12 +60,12 @@ PyObject  *PyArray_SimpleNewFromVector(
 /*
   Python wrapper for C++ code:
   
-  Calculate critical potential, that is the value of the potential in 
-  Lagrange points.
+  Calculate critical potential, that is the value of the generalized 
+  Kopal potential in Lagrange points.
   
   Python:
     
-    omega = critical_potential(q, F, d)
+    omega = roche_critical_potential(q, F, d)
   
   where parameters are floats
   
@@ -78,7 +78,7 @@ PyObject  *PyArray_SimpleNewFromVector(
     omega - tuple of 3 float numbers
 */
 
-static PyObject *critical_potential(PyObject *self, PyObject *args) {
+static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
     
     // parse input arguments   
     double q, F, delta, omega[3];
@@ -93,10 +93,59 @@ static PyObject *critical_potential(PyObject *self, PyObject *args) {
     PyObject *omega_o = PyTuple_New(3);
     
     for (int i = 0; i < 3; ++i) 
-      PyTuple_SetItem(omega_o, i, Py_BuildValue("d", omega[i]));
+      PyTuple_SetItem(omega_o, i, PyFloat_FromDouble(omega[i]));
       
     return omega_o;
 }
+
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate height h the left (right) Roche lobe at the position 
+    
+    (0,0,h)   (  (d,0,h) )
+    
+  of the primary (secondary) star. Roche lobe(s) is defined as equipotential 
+  of the generalized Kopal potential Omega:
+
+      Omega_0 = Omega(x,y,z)
+  
+  Python:
+    
+    h = roche_Rpole(q, F, d, Omega0, choice)
+  
+  where parameters are floats
+  
+    q = M2/M1 - mass ratio
+    F - synchronicity parameter
+    d - separation between the two objects
+    Omega - value potential 
+    choice - 0 for discussing left lobe, 1 for discussing right lobe
+  
+  and return float
+  
+    h : height of the lobe's pole
+*/
+
+
+static PyObject *roche_pole(PyObject *self, PyObject *args) {
+    
+    // parse input arguments   
+    int choice;
+    
+    double q, F, delta, Omega0;
+    
+    if (!PyArg_ParseTuple(args, "ddddi", &q, &F, &delta, &Omega0, &choice))
+        return NULL;
+     
+    if (choice == 0)  // Left lobe
+      return PyFloat_FromDouble(gen_roche::poleL(Omega0, q, F, delta));
+    
+    // Right lobe  
+    return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
+}
+
 
 /*
   Python wrapper for C++ code:
@@ -176,7 +225,7 @@ static PyObject *critical_potential(PyObject *self, PyObject *args) {
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-static PyObject *marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   //
   // Reading arguments
@@ -490,16 +539,23 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args){
 /*  define functions in module */
 static PyMethodDef Methods[] = {
     
-    { "critical_potential", 
-      critical_potential,   
+    { "roche_critical_potential", 
+      roche_critical_potential,   
       METH_VARARGS, 
       "Determine the critical potentials for given values of q, F, and d."},
+      
+      
+    { "roche_pole", 
+      roche_pole,   
+      METH_VARARGS, 
+      "Determine the height of the pole of generalized Roche lobes for given values of q, F, d and Omega0"},
+    
     
     // Some modification in declarations due to use of keywords
     // Ref:
     //  * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
-    { "marching_mesh", 
-      (PyCFunction)marching_mesh,   
+    { "roche_marching_mesh", 
+      (PyCFunction)roche_marching_mesh,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the triangular meshing of generalized Roche lobes for "
       "given values of q, F, d and value of the generalized Kopal potential "
