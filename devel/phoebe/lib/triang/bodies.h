@@ -239,7 +239,7 @@ struct Tgen_roche {
     Reading and storing the parameters
   */
   
-  Tgen_roche(void *params){ 
+  Tgen_roche(void *params, bool init_param = true){ 
     
     T *p = (T*) params;
     
@@ -247,7 +247,7 @@ struct Tgen_roche {
     F = p[1];  
     delta = p[2];
     Omega0 = p[3];
-    x0 = p[4];
+    if (init_param) x0 = p[4];
     
     b = (1 + q)*F*F; 
     f0 = 1/(delta*delta);
@@ -307,6 +307,26 @@ struct Tgen_roche {
     ret[1] = y*(f1 + q*f2 - b);
     ret[2] = z*(f1 + q*f2);
     ret[3] = Omega0 - (r1 + q*(r2 - f0*x1) + b*(x1*x1 + y*y)/2);
+  }
+  
+  //
+  // Slower and preciser version due to using hypot function
+  //
+  void grad_only(T r[3], T ret[3]){
+    
+    T x1 = r[0], 
+      x2 = r[0] - delta, 
+      y = r[1], 
+      z = r[2], 
+      r1 = 1/utils::hypot3(x1, y, z), 
+      r2 = 1/utils::hypot3(x2, y, z), 
+      s = y*y + z*z,
+      f1 = r1/(s + x1*x1),
+      f2 = r2/(s + x2*x2);
+    
+    ret[0] = -x1*(b - f1) + q*(f0 + f2*x2);
+    ret[1] = y*(f1 + q*f2 - b);
+    ret[2] = z*(f1 + q*f2);
   }
   #endif
   
