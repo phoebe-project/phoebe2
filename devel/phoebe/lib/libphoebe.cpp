@@ -178,7 +178,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 
   PyArrayObject  *X;
 
-  if (!PyArg_ParseTuple(args, "dddiO", p, p + 1, p + 2, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
       return NULL;
 
   Tgen_roche<double> body(p, false);
@@ -223,7 +223,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
  
   PyArrayObject *X;
   
-  if (!PyArg_ParseTuple(args, "dddiO", p, p + 1, p + 2, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
       return NULL;
 
   Tgen_roche<double> body(p, false);
@@ -299,7 +299,9 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
     cnormals:
       NatC[][3]   - 2-rank numpy array of normals of central points
  
-
+    cgradnorm:
+      GatC[][3]   - 2-rank numpy array of norms als of central points
+      
   Typically face-vertex format is (V, T) where
   
   V - vertices
@@ -357,7 +359,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
        b_volume = false;
       
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddddii|iiiiiiiii", kwlist,
+      args, keywds,  "ddddidi|iiiiiiiii", kwlist,
       &q, &F, &d, &Omega0, &choice, &delta, &max_triangles,
       &b_vertices, 
       &b_vnormals,
