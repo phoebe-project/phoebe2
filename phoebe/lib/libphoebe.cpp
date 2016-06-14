@@ -80,22 +80,22 @@ PyObject  *PyArray_SimpleNewFromVector(
 
 static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
     
-    // parse input arguments   
-    double q, F, delta, omega[3];
-    
-    if (!PyArg_ParseTuple(args, "ddd", &q, &F, &delta))
-        return NULL;
-        
-    // calculate critical potential
-    gen_roche::critical_potential(omega, q, F, delta);
-    
-    // create a tuple and store omega[3]
-    PyObject *omega_o = PyTuple_New(3);
-    
-    for (int i = 0; i < 3; ++i) 
-      PyTuple_SetItem(omega_o, i, PyFloat_FromDouble(omega[i]));
+  // parse input arguments   
+  double q, F, delta, omega[3];
+  
+  if (!PyArg_ParseTuple(args, "ddd", &q, &F, &delta))
+      return NULL;
       
-    return omega_o;
+  // calculate critical potential
+  gen_roche::critical_potential(omega, q, F, delta);
+  
+  // create a tuple and store omega[3]
+  PyObject *omega_o = PyTuple_New(3);
+  
+  for (int i = 0; i < 3; ++i) 
+    PyTuple_SetItem(omega_o, i, PyFloat_FromDouble(omega[i]));
+    
+  return omega_o;
 }
 
 
@@ -113,7 +113,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
   
   Python:
     
-    h = roche_Rpole(q, F, d, Omega0, choice)
+    h = roche_pole(q, F, d, Omega0, choice)
   
   where parameters are floats
   
@@ -131,21 +131,111 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
 
 static PyObject *roche_pole(PyObject *self, PyObject *args) {
     
-    // parse input arguments   
-    int choice;
-    
-    double q, F, delta, Omega0;
-    
-    if (!PyArg_ParseTuple(args, "ddddi", &q, &F, &delta, &Omega0, &choice))
-        return NULL;
-     
-    if (choice == 0)  // Left lobe
-      return PyFloat_FromDouble(gen_roche::poleL(Omega0, q, F, delta));
-    
-    // Right lobe  
-    return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
+  // parse input arguments   
+  int choice;
+  
+  double q, F, delta, Omega0;
+  
+  if (!PyArg_ParseTuple(args, "ddddi", &q, &F, &delta, &Omega0, &choice))
+      return NULL;
+   
+  if (choice == 0)  // Left lobe
+    return PyFloat_FromDouble(gen_roche::poleL(Omega0, q, F, delta));
+  
+  // Right lobe  
+  return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
 }
 
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the gradient and the value of the potential of the generalized
+  Kopal potential Omega at a given point
+
+      grad Omega (x,y,z)
+  
+  Python:
+    
+    g = roche_gradOmega(q, F, d, r)
+   
+   with parameters
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns float
+  
+    g : 1-rank numpy array 
+      = [grad Omega_x, grad Omega_y, grad Omega_zOmega(x,y,z)]
+*/
+
+
+static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
+    
+  double p[3]; // parameters q, F, delta;
+
+  PyArrayObject  *X;
+
+  if (!PyArg_ParseTuple(args, "dddiO", p, p + 1, p + 2, &X))
+      return NULL;
+
+  Tgen_roche<double> body(p, false);
+
+  double *g = new double [4];
+
+  body.grad((double*)PyArray_DATA(X), g);
+
+  npy_intp dims[1] = {4};
+
+  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+}
+ 
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the gradient of the potential of the generalized
+   Kopal potential Omega at a given point
+
+      grad Omega (x,y,z)
+  
+  Python:
+    
+    g = roche_gradOmega(q, F, d, r)
+   
+   with parameters
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns float
+  
+    g : 1-rank numpy array = grad Omega (x,y,z)
+*/
+
+
+static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
+
+  double p[3]; // parameters q, F, delta;
+ 
+  PyArrayObject *X;
+  
+  if (!PyArg_ParseTuple(args, "dddiO", p, p + 1, p + 2, &X))
+      return NULL;
+
+  Tgen_roche<double> body(p, false);
+
+  double *g = new double [3];
+
+  body.grad_only((double*)PyArray_DATA(X), g);
+
+  npy_intp dims[1] = {3};
+
+  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+}
 
 /*
   Python wrapper for C++ code:
@@ -157,20 +247,20 @@ static PyObject *roche_pole(PyObject *self, PyObject *args) {
     
   Python:
 
-    dict = marching_mesh(q, F, d, Omega0, delta, choice, max_triangles, <keyword>=[true,false], ... )
+    dict = marching_mesh(q, F, d, Omega0, choice, delta, max_triangles, <keyword>=[true,false], ... )
     
-  where parameters are floats
+  where parameters are
    
       q: float = M2/M1 - mass ratio
       F: float - synchronicity parameter
       d: float - separation between the two objects
       Omega0: float - value of the generalized Kopal potential
-      delta: float - size of triangles edges projected to tangent space
       choice: integer type
                 0 - primary lobe is exists
                 1 - secondary lobe is exists
               for overcontacts choice is 0 or 1
               choice controls where is the begining the triangulation
+      delta: float - size of triangles edges projected to tangent space
       max_triangles:integer - maximal number of triangles
         if number of triangles exceeds max_triangles it returns NULL  
   
@@ -236,8 +326,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"F",
     (char*)"d",
     (char*)"Omega0",
-    (char*)"delta",
     (char*)"choice",
+    (char*)"delta",
     (char*)"max_triangles",
          
     (char*)"vertices", 
@@ -268,7 +358,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dddddii|iiiiiiiii", kwlist,
-      &q, &F, &d, &Omega0, &delta, &choice, &max_triangles,
+      &q, &F, &d, &Omega0, &choice, &delta, &max_triangles,
       &b_vertices, 
       &b_vnormals,
       &b_triangles, 
@@ -543,13 +633,26 @@ static PyMethodDef Methods[] = {
       roche_critical_potential,   
       METH_VARARGS, 
       "Determine the critical potentials for given values of q, F, and d."},
-      
+    
       
     { "roche_pole", 
       roche_pole,   
       METH_VARARGS, 
-      "Determine the height of the pole of generalized Roche lobes for given values of q, F, d and Omega0"},
-    
+      "Determine the height of the pole of generalized Roche lobes for given "
+      "values of q, F, d and Omega0"},
+   
+   
+       { "roche_gradOmega", 
+      roche_gradOmega,   
+      METH_VARARGS, 
+      "Calculate the gradient and the value of the generalized Kopal potentil"
+      " at given point [x,y,z] for given values of q, F and d"},  
+      
+      { "roche_gradOmega_only", 
+      roche_gradOmega_only,   
+      METH_VARARGS, 
+      "Calculate the gradient of the generalized Kopal potentil"
+      " at given point [x,y,z] for given values of q, F and d"},   
     
     // Some modification in declarations due to use of keywords
     // Ref:
