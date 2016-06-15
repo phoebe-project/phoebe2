@@ -366,10 +366,9 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"F",
     (char*)"d",
     (char*)"Omega0",
-    (char*)"choice",
     (char*)"delta",
+    (char*)"choice",
     (char*)"max_triangles",
-         
     (char*)"vertices", 
     (char*)"vnormals",
     (char*)"triangles", 
