@@ -788,7 +788,7 @@ struct Ttrimesh {
     Tph - triangulated surface of partially hidden triangles
   
   Ref:
-
+  * http://web.cecs.pdx.edu/~karlaf/CS447_Slides/Set5.pdf
   * http://www.tutorialspoint.com/computer_graphics/visible_surface_detection.htm
   * http://www.angusj.com/delphi/clipper.php
 */
@@ -981,9 +981,13 @@ void triangle_mesh_visibility(
       
       // detemine ratio of visibility
       // due to round off errors it can be slightly bigger than 1
-      M[it->index] = r = std::min(1.0, Area(P)/std::abs(Area(s)));
+      M[it->index] = r = Area(P)/std::abs(Area(s)); //std::min(1.0, Area(P)/std::abs(Area(s)));
+      
+      // if it is perfectly hidden don't do union
+      if (r == 0) continue;
       
       if (Tph && r > 0 && r < 1) {  // triangle is partially hidden
+        
         //
         // convert P into real point polygon
         //
@@ -1083,13 +1087,10 @@ void triangle_mesh_visibility(
       }
       
       // calculate the union: S = S U T    
+      c.Execute(ClipperLib::ctUnion, S, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
       
-      if (r != 0) {  
-        c.Execute(ClipperLib::ctUnion, S, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
-      
-        // clean the shadow
-        ClipperLib::CleanPolygons(S);
-      }
+      // clean the shadow
+      ClipperLib::CleanPolygons(S);
     }
   }
   
