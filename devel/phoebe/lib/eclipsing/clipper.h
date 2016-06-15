@@ -2090,15 +2090,21 @@ bool Clipper::ExecuteInternal()
   try {
     Reset();
     if (m_CurrentLM == m_MinimaList.end()) return true;
+    
     cInt botY = PopScanbeam();
+    
     do {
       InsertLocalMinimaIntoAEL(botY);
       ClearGhostJoins();
       ProcessHorizontals(false);
+   
       if (m_Scanbeam.empty()) break;
+   
       cInt topY = PopScanbeam();
       succeeded = ProcessIntersections(topY);
+      
       if (!succeeded) break;
+      
       ProcessEdgesAtTopOfScanbeam(topY);
       botY = topY;
     } while (!m_Scanbeam.empty() || m_CurrentLM != m_MinimaList.end());
@@ -2149,7 +2155,7 @@ bool Clipper::ExecuteInternal()
 void Clipper::InsertScanbeam(const cInt Y)
 {
   //if (!m_Scanbeam.empty() && Y == m_Scanbeam.top()) return;// avoid duplicates.
-  m_Scanbeam.push(Y);
+  m_Scanbeam.emplace(Y);
 }
 //------------------------------------------------------------------------------
 
