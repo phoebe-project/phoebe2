@@ -113,15 +113,19 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
   
   Python:
     
-    h = roche_pole(q, F, d, Omega0, choice)
+    h = roche_pole(q, F, d, Omega0, choice=0)
   
-  where parameters are floats
+  where parameters are
   
-    q = M2/M1 - mass ratio
-    F - synchronicity parameter
-    d - separation between the two objects
-    Omega - value potential 
-    choice - 0 for discussing left lobe, 1 for discussing right lobe
+  positionals:
+    q:float = M2/M1 - mass ratio
+    F:float - synchronicity parameter
+    d:float - separation between the two objects
+    Omega: float - value potential 
+  
+  keywords:
+    choice: integer, default 0
+            0 for discussing left lobe, 1 for discussing right lobe
   
   and return float
   
@@ -129,16 +133,31 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
 */
 
 
-static PyObject *roche_pole(PyObject *self, PyObject *args) {
-    
-  // parse input arguments   
-  int choice;
+static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"choice",
+    NULL};
+       
+  int choice = 0;
   
   double q, F, delta, Omega0;
   
-  if (!PyArg_ParseTuple(args, "ddddi", &q, &F, &delta, &Omega0, &choice))
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dddd|i", kwlist, &q, &F, &delta, &Omega0, &choice))
       return NULL;
-   
+  
+  //
+  // Compute the poles
+  //   
   if (choice == 0)  // Left lobe
     return PyFloat_FromDouble(gen_roche::poleL(Omega0, q, F, delta));
   
@@ -152,7 +171,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args) {
   Calculate the gradient and the value of the potential of the generalized
   Kopal potential Omega at a given point
 
-      - grad Omega (x,y,z)
+      -grad Omega (x,y,z)
   
   which is outwards the Roche lobe.
   
@@ -248,30 +267,48 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
     
   Python:
 
-    dict = marching_mesh(q, F, d, Omega0, choice, delta, max_triangles, <keyword>=[true,false], ... )
+    dict = marching_mesh(q, F, d, Omega0, delta, <keyword>=[true,false], ... )
     
-  where parameters are
-   
+  where parameters
+  
+    positional:
+  
       q: float = M2/M1 - mass ratio
       F: float - synchronicity parameter
       d: float - separation between the two objects
       Omega0: float - value of the generalized Kopal potential
-      choice: integer type
-                0 - primary lobe is exists
-                1 - secondary lobe is exists
-              for overcontacts choice is 0 or 1
-              choice controls where is the begining the triangulation
       delta: float - size of triangles edges projected to tangent space
-      max_triangles:integer - maximal number of triangles
+    
+    keywords: 
+      choice: integer, default 0
+          0 - primary lobe is exists
+          1 - secondary lobe is exists
+        for overcontacts choice is 0 or 1
+        choice controls where is the begining the triangulation
+
+      max_triangles:integer, default 10^7 
+        maximal number of triangles
         if number of triangles exceeds max_triangles it returns NULL  
   
-  Returns 
+      vertices: boolean, default False
+      vnormals: boolean, default False
+      triangles: boolean, default False
+      tnormals: boolean, default False
+      areas: boolean, default False
+      area: boolean, default False
+      volume: boolean, default False
+      centers: boolean, default False
+      cnormals: boolean, default False
+      cnormgrads: boolean, default False
+   
+    
+  Returns:
   
     dictionary
   
   with keywords
   
-    vertices:
+    vertices: 
       V[][3]    - 2-rank numpy array of a pairs of vertices 
     
     vnormals:
@@ -305,10 +342,10 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
       
   Typically face-vertex format is (V, T) where
   
-  V - vertices
-  T - connectivity matrix with indices labeling vertices in 
-      counter-clockwise orientation so that normal vector is pointing 
-      outward
+    V - vertices
+    T - connectivity matrix with indices labeling vertices in 
+        counter-clockwise orientation so that normal vector is pointing 
+        outward
   
   Refs:
   * for face-vertex format see https://en.wikipedia.org/wiki/Polygon_mesh
@@ -347,8 +384,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   double q, F, d, Omega0, delta;   
   
-  int choice,
-      max_triangles;
+  int choice = 0,               
+      max_triangles = 10000000; // 10^7
       
   bool b_vertices = false, 
        b_vnormals = false, 
@@ -362,8 +399,10 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
        b_volume = false;
       
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddidi|iiiiiiiiii", kwlist,
-      &q, &F, &d, &Omega0, &choice, &delta, &max_triangles,
+      args, keywds,  "ddddd|iiiiiiiiiiii", kwlist,
+      &q, &F, &d, &Omega0, &delta, // neccesary 
+      &choice,                     // optional ...
+      &max_triangles,
       &b_vertices, 
       &b_vnormals,
       &b_triangles, 
@@ -645,6 +684,11 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args){
 }
 
 /*  define functions in module */
+/* 
+  Some modification in declarations due to use of keywords
+  Ref:
+  * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
+*/ 
 static PyMethodDef Methods[] = {
     
     { "roche_critical_potential", 
@@ -654,8 +698,8 @@ static PyMethodDef Methods[] = {
     
       
     { "roche_pole", 
-      roche_pole,   
-      METH_VARARGS, 
+      (PyCFunction)roche_pole,   
+      METH_VARARGS|METH_KEYWORDS, 
       "Determine the height of the pole of generalized Roche lobes for given "
       "values of q, F, d and Omega0"},
    
@@ -672,9 +716,7 @@ static PyMethodDef Methods[] = {
       "Calculate the gradient of the generalized Kopal potentil"
       " at given point [x,y,z] for given values of q, F and d"},   
     
-    // Some modification in declarations due to use of keywords
-    // Ref:
-    //  * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
+
     { "roche_marching_mesh", 
       (PyCFunction)roche_marching_mesh,   
       METH_VARARGS|METH_KEYWORDS, 
