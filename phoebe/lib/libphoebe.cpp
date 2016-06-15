@@ -67,36 +67,80 @@ PyObject  *PyArray_SimpleNewFromVector(
     
     omega = roche_critical_potential(q, F, d)
   
-  where parameters are floats
+  where parameters are
   
-    q = M2/M1 - mass ratio
-    F - synchronicity parameter
-    d - separation between the two objects
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
   
   and returns
   
-    omega - tuple of 3 float numbers
+    omega: 1-rank numpy array of 3 floats
 */
 
 static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
     
   // parse input arguments   
-  double q, F, delta, omega[3];
+  double q, F, delta;
   
-  if (!PyArg_ParseTuple(args, "ddd", &q, &F, &delta))
-      return NULL;
+  if (!PyArg_ParseTuple(args, "ddd", &q, &F, &delta)) return NULL;
       
   // calculate critical potential
+  double *omega = new double[3];
   gen_roche::critical_potential(omega, q, F, delta);
   
-  // create a tuple and store omega[3]
-  PyObject *omega_o = PyTuple_New(3);
-  
-  for (int i = 0; i < 3; ++i) 
-    PyTuple_SetItem(omega_o, i, PyFloat_FromDouble(omega[i]));
-    
-  return omega_o;
+  // return the results
+  npy_intp dims[1] = {3};
+
+  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, omega);
 }
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate point on x-axis 
+  
+    (x,0,0)
+  
+  of the generalized Roche lobes define by  generalized Kopal potential:
+    
+      Omega(x,y,z) = Omega0
+  
+  Python:
+    
+    points=roche_points_on_x_axis(q, F, d, Omega0)
+  
+  where parameters are
+  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    Omega0: float - separation between the two objects
+     
+  
+  and returns
+  
+    points : 1-rank numpy array of floats
+*/
+
+static PyObject *roche_points_on_x_axis(PyObject *self, PyObject *args) {
+    
+  // parse input arguments   
+  double q, F, delta, Omega0;
+  
+  if (!PyArg_ParseTuple(args, "dddd", &q, &F, &delta, &Omega0))
+    return NULL;
+      
+  // calculate x points
+  std::vector<double> points;
+  gen_roche::points_on_x_axis(points, Omega0, q, F, delta);
+
+  // return the results
+  npy_intp dims[1] = {(int)points.size()};
+
+  return PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, points.data());
+}
+
 
 
 /*
@@ -118,9 +162,9 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
   where parameters are
   
   positionals:
-    q:float = M2/M1 - mass ratio
-    F:float - synchronicity parameter
-    d:float - separation between the two objects
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
     Omega: float - value potential 
   
   keywords:
@@ -201,7 +245,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   PyArrayObject *X;
   
   if (!PyArg_ParseTuple(args, "dddO!", &b.q, &b.F, &b.delta, &PyArray_Type, &X))
-      return NULL;
+    return NULL;
 
   b.Omega0 = 0;
 
@@ -246,7 +290,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
   PyArrayObject *X;
   
   if (!PyArg_ParseTuple(args, "dddO!", &b.q, &b.F, &b.delta, &PyArray_Type, &X))
-      return NULL;
+    return NULL;
 
   double *g = new double [3];
 
@@ -360,7 +404,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   //
   // Reading arguments
   //
- 
+
  char *kwlist[] = {
     (char*)"q",
     (char*)"F",
@@ -702,14 +746,20 @@ static PyMethodDef Methods[] = {
       "Determine the height of the pole of generalized Roche lobes for given "
       "values of q, F, d and Omega0"},
    
+    { "roche_points_on_x_axis",
+      roche_points_on_x_axis,
+      METH_VARARGS, 
+      "Calculate the points on x-axis of the generalized Roche lobes "
+      "ar values of q, F, d and Omega0"},
+      
    
-       { "roche_gradOmega", 
+    { "roche_gradOmega", 
       roche_gradOmega,   
       METH_VARARGS, 
       "Calculate the gradient and the value of the generalized Kopal potentil"
       " at given point [x,y,z] for given values of q, F and d"},  
       
-      { "roche_gradOmega_only", 
+    { "roche_gradOmega_only", 
       roche_gradOmega_only,   
       METH_VARARGS, 
       "Calculate the gradient of the generalized Kopal potentil"
