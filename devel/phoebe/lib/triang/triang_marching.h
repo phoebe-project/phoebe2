@@ -541,7 +541,8 @@ class Tmarching: public Tbody {
     
     bool omega_changed; // true if frontal angle changed
     
-    T omega,     // frontal angle
+    T norm,      // norm of the gradient
+      omega,     // frontal angle
       r[3],      // point on the surface
       b[3][3];   // b[0] = t1, b[1] = t2, b[2] = n
   };
@@ -561,7 +562,42 @@ class Tmarching: public Tbody {
         
     for (int i = 0; i < 3; ++i) v.r[i] = r[i];
     
-    create_basis(g, v.b, true);
+    //
+    // Define screen coordinate system: b[3]= {t1,t2,view}
+    //
+
+    T *t1 = v.b[0], 
+      *t2 = v.b[1], 
+      *n  = v.b[2],
+      fac;
+      
+    fac = 1/(v.norm = utils::hypot3(g[0], g[1], g[2]));
+    
+    for (int i = 0; i < 3; ++i) n[i] = fac*g[i];
+    
+    //
+    // creating base in the tangent plane
+    //
+    
+    // defining vector t1
+    if (std::abs(n[0]) >= 0.5 || std::abs(n[1]) >= 0.5){
+      //fac = 1/std::sqrt(n[1]*n[1] + n[0]*n[0]);
+      fac = 1/std::hypot(n[0], n[1]);
+      t1[0] = fac*n[1];
+      t1[1] = -fac*n[0];
+      t1[2] = 0.0;
+    } else {
+      //fac = 1/std::sqrt(n[0]*n[0] + n[2]*n[2]);
+      fac = 1/std::hypot(n[0], n[2]);
+      t1[0] = -fac*n[2];
+      t1[1] = 0.0;
+      t1[2] = fac*n[0];
+    }
+    
+    // t2 = n x t1
+    t2[0] = n[1]*t1[2] - n[2]*t1[1];
+    t2[1] = n[2]*t1[0] - n[0]*t1[2];
+    t2[2] = n[0]*t1[1] - n[1]*t1[0];
   }
   
   /*
@@ -784,18 +820,19 @@ class Tmarching: public Tbody {
     Input: 
       delta - size of triangles edges projected to tangent space
       max_triangles - maximal number of triangles used
-      orientate - 
     Output:
       V - vector of vertices
       NatV - vector of normals at vertices (read N at V)
       Tr - vector of triangles
+      GatV - norm of the gradient at vertices
   */ 
   bool triangulize(
     const T & delta, 
     const unsigned & max_triangles, 
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
-    std::vector <Ttriangle> & Tr
+    std::vector <Ttriangle> & Tr,
+    std::vector<T> * GatV = 0
     ) 
   {
     
@@ -819,10 +856,10 @@ class Tmarching: public Tbody {
    
     // add vertex to the set, index 0
     
-    //V.emplace_back(v.r, v.b[2]);  // saving only (r, normal)
-    V.emplace_back(v.r);  // saving only r
-    NatV.emplace_back(v.b[2]);  // saving only normal
-    
+    //V.emplace_back(v.r, v.b[2]);        // saving only (r, normal)
+    V.emplace_back(v.r);                  // saving only r
+    if (GatV) GatV->emplace_back(v.norm); // saving g
+    NatV.emplace_back(v.b[2]);            // saving only normal
     
     //
     // Create initial frontal polygon
@@ -851,8 +888,9 @@ class Tmarching: public Tbody {
                   
       //V.emplace_back(vk.r, vk.b[2]);
       
-      V.emplace_back(vk.r);  // saving only r
-      NatV.emplace_back(vk.b[2]);  // saving only normal
+      V.emplace_back(vk.r);                     // saving only r
+      if (GatV) GatV->emplace_back(vk.norm);    // saving norm
+      NatV.emplace_back(vk.b[2]);               // saving only normal
     }
     
     //
@@ -985,7 +1023,6 @@ class Tmarching: public Tbody {
         //calc_sincos(nt - 1, domega, sa, ca, delta/std::sqrt(c*c + s*s));
         calc_sincos(nt - 1, domega, sa, ca, delta/std::hypot(c, s));
         
-        
         vp = Pi;        // new front from it_min 
         n = V.size();   // size of the set of vertices
                 
@@ -1028,8 +1065,9 @@ class Tmarching: public Tbody {
           vp->omega_changed = true;
           
           //V.emplace_back(vp->r, vp->b[2]);  
-          V.emplace_back(vp->r);  // saving only r
-          NatV.emplace_back(vp->b[2]);  // saving only normal
+          V.emplace_back(vp->r);                    // saving only r
+          if (GatV) GatV->emplace_back(vp->norm);   // saving g
+          NatV.emplace_back(vp->b[2]);              // saving only normal
           
           
           Tr.emplace_back((k == 1 ? it_prev->index : n-1), n, it_min->index);

@@ -344,6 +344,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
+      vnormgrads: boolean, default False
    
     
   Returns:
@@ -357,7 +358,10 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
     
     vnormals:
       NatV[][3] - 2-rank numpy array of normals at vertices
-    
+ 
+    vnormgrads:
+      GatV[]  - 1-rank numpy array of norms of the gradients at central points
+ 
     triangles:
       T[][3]    - 2-rank numpy array of 3 indices of vertices 
                 composing triangles of the mesh aka connectivity matrix
@@ -382,8 +386,9 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
       NatC[][3]   - 2-rank numpy array of normals of central points
  
     cnormgrads:
-      GatC[][3]   - 2-rank numpy array of norms of the gradients at central points
-      
+      GatC[]      - 1-rank numpy array of norms of the gradients at central points
+    
+    
   Typically face-vertex format is (V, T) where
   
     V - vertices
@@ -415,6 +420,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"max_triangles",
     (char*)"vertices", 
     (char*)"vnormals",
+    (char*)"vnormgrads",
     (char*)"triangles", 
     (char*)"tnormals", 
     (char*)"centers", 
@@ -430,17 +436,19 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   int choice = 0,               
       max_triangles = 10000000; // 10^7
       
-  bool b_vertices = false, 
-       b_vnormals = false, 
-       b_triangles = false, 
-       b_tnormals = false, 
-       b_centers = false,
-       b_cnormals = false,
-       b_cnormgrads = false,
-       b_areas = false,
-       b_area = false,
-       b_volume = false;
-      
+  bool 
+    b_vertices = false, 
+    b_vnormals = false, 
+    b_vnormgrads = false,
+    b_triangles = false, 
+    b_tnormals = false, 
+    b_centers = false,
+    b_cnormals = false,
+    b_cnormgrads = false,
+    b_areas = false,
+    b_area = false,
+    b_volume = false;
+
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "ddddd|iiiiiiiiiiii", kwlist,
       &q, &F, &d, &Omega0, &delta, // neccesary 
@@ -448,6 +456,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       &max_triangles,
       &b_vertices, 
       &b_vnormals,
+      &b_vnormgrads,
       &b_triangles, 
       &b_tnormals,
       &b_centers,
@@ -500,13 +509,16 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<Ttriangle> Tr; 
+  std::vector <double> *GatV = 0;
   
-  if (!march.triangulize(delta, max_triangles, V, NatV, Tr)){
+  
+  if (b_vnormgrads) GatV = new std::vector<double>;
+  
+  if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
     std::cerr << "There is too much triangles\n";
     return NULL;
   }
   
-         
   int Nt = Tr.size(), // number of triangles
       Nv = V.size();  // number of vertices
 
@@ -532,6 +544,16 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     );
   }
 
+
+  if (b_vnormgrads) {
+    dims[0] = Nv;
+    PyDict_SetItemString(
+      results, 
+      "vnormgrads", 
+      PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, GatV->data())
+    );
+    delete GatV;
+  }
   
   if (b_triangles) {
     dims[0] = Nt;
