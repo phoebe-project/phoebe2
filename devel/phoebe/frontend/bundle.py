@@ -15,7 +15,8 @@ from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.backend import backends
 from phoebe.frontend import io
-from phoebe.distortions.roche import critical_potential
+import libphoebe
+
 from phoebe import u
 
 import logging
@@ -945,7 +946,9 @@ class Bundle(ParameterSet):
                     q = 1./q
                 F = comp_ps.get_value('syncpar')
                 d = 1 - parent_ps.get_value('ecc')
-                critical_pots = critical_potential(q, F, d)
+
+                # TODO: this needs to be generalized once other potentials are supported
+                critical_pots = libphoebe.roche_critical_potential(q, F, d)
 
                 if pot < critical_pots[0] or\
                         pot < critical_pots[1] or\
@@ -967,7 +970,7 @@ class Bundle(ParameterSet):
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
                 d = 1 + parent_ps.get_value('ecc')
-                critical_pots = critical_potential(q, F, d)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d)
 
                 if pot > critical_pots[0]:
                     return False,\
@@ -975,7 +978,7 @@ class Bundle(ParameterSet):
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc')
-                critical_pots = critical_potential(q, F, d)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d)
 
                 if pot < critical_pots[1] or pot < critical_pots[2]:
                     return False,\

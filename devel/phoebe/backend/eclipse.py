@@ -1,6 +1,8 @@
-
 import numpy as np
+
 from phoebe.algorithms import ceclipse
+import libphoebe
+
 import logging
 
 logger = logging.getLogger("ECLIPSE")
@@ -41,10 +43,10 @@ def wd_horizon(meshes, xs, ys, zs):
 
 
     # polar coordinates need to be wrt the center of the ECLIPSING body
-    rhos = [np.sqrt((mesh['center'][:,0]-xs[i_front])**2 +
-                    (mesh['center'][:,1]-ys[i_front])**2) for mesh in (mesh_front, mesh_back)]
+    rhos = [np.sqrt((mesh.centers[:,0]-xs[i_front])**2 +
+                    (mesh.centers[:,1]-ys[i_front])**2) for mesh in (mesh_front, mesh_back)]
     # thetas = [np.arcsin((mesh['center'][:,1]-ys[i_front])/rho) for mesh,rho in zip((mesh_front, mesh_back), rhos)]
-    thetas = [np.arctan2(mesh['center'][:,1]-ys[i_front], mesh['center'][:,0]-xs[i_front]) for mesh in (mesh_front, mesh_back)]
+    thetas = [np.arctan2(mesh.centers[:,1]-ys[i_front], mesh.centers[:,0]-xs[i_front]) for mesh in (mesh_front, mesh_back)]
     # mus = [mesh['mu'] for mesh in (mesh_front, mesh_back)]
 
     # import matplotlib.pyplot as plt
@@ -58,34 +60,34 @@ def wd_horizon(meshes, xs, ys, zs):
     horizon_inds = []
     # we only need the horizon of the ECLIPSING star, so we'll use mesh_front
     # and mus[i_front], xs[i_front], etc
-    lats = list(set(mesh_front['theta']))
+    lats = list(set(mesh_front.thetas))
     for lat in lats:
-        lat_strip_inds = mesh_front['theta'] == lat
+        lat_strip_inds = mesh_front.thetas == lat
 
         # let's get the x-coordinate wrt THIS star so we can do left vs right
-        x_rel = mesh_front['center'][:,0] - xs[i_front]
+        x_rel = mesh_front.centers[:,0] - xs[i_front]
 
         # and since we want the first element in the front, let's just get rid of the back
-        front_inds = mesh_front['mu'] >= 0.0
-        back_inds = mesh_front['mu'] <= 0.0
+        front_inds = mesh_front.mus >= 0.0
+        back_inds = mesh_front.mus <= 0.0
 
         left_inds = x_rel < 0.0
         right_inds = x_rel >= 0.0
 
         # let's handle "left" vs "right" side of star separately
         for side_inds, fb_inds, side in zip((left_inds, right_inds), (front_inds, back_inds), ('left', 'right')):
-            no_triangles = len(mesh_front['mu'][lat_strip_inds * side_inds * fb_inds])
+            no_triangles = len(mesh_front.mus[lat_strip_inds * side_inds * fb_inds])
             # print "*** no triangles at lat", lat, no_triangles
 
             if no_triangles > 3:
                 if side=='left':
                     # then we want the first triangle on the FRONT of the star
-                    first_horizon_mu = mesh_front['mu'][lat_strip_inds * side_inds * fb_inds].min()
+                    first_horizon_mu = mesh_front.mus[lat_strip_inds * side_inds * fb_inds].min()
                 else:
                     # then we want the first triangle on the BACK of the star
-                    first_horizon_mu = mesh_front['mu'][lat_strip_inds * side_inds * fb_inds].max()
+                    first_horizon_mu = mesh_front.mus[lat_strip_inds * side_inds * fb_inds].max()
 
-                first_horizon_ind = np.where(mesh_front['mu']==first_horizon_mu)[0][0]
+                first_horizon_ind = np.where(mesh_front.mus==first_horizon_mu)[0][0]
                 # print "*** horizon index", first_horizon_ind
 
                 horizon_inds.append(first_horizon_ind)
@@ -114,7 +116,7 @@ def wd_horizon(meshes, xs, ys, zs):
 def none(meshes, xs, ys, zs):
     """
     """
-    return {comp_no: mesh['visibility'] for comp_no, mesh in meshes.items()}
+    return {comp_no: mesh.visibilities for comp_no, mesh in meshes.items()}
 
 def only_horizon(meshes, xs, ys, zs):
     """
@@ -128,7 +130,33 @@ def only_horizon(meshes, xs, ys, zs):
 
     # this can all by easily done by multiplying by int(mu>0) (1 if visible, 0 if hidden)
 
-    return {comp_no: mesh['visibility'] * (mesh['mu'] > 0).astype(int) for comp_no, mesh in meshes.items()}
+    return {comp_no: mesh.visibilities * (mesh.mus.centers > 0).astype(int) for comp_no, mesh in meshes.items()}
+
+def visible_ratio(meshes, xs, ys, zs):
+    """
+    TODO: add documentation
+
+    this is the new eclipse detection method in libphoebe
+    """
+
+    centers_flat = meshes.get_column_flat('centers')
+    vertices_flat = meshes.get_column_flat('vertices')
+    triangles_flat = meshes.get_column_flat('triangles')  # should handle offset automatically
+    normals_flat = meshes.get_column_flat('tnormals')
+
+    # viewing_vector is defined as star -> earth
+    # NOTE: this will need to flip if we change the convention on the z-direction
+    viewing_vector = np.array([0., 0., 1.])
+
+    # we need to send in ALL vertices but only the visible triangle information
+    visibilities_flat = libphoebe.mesh_visibility(viewing_vector,
+                                                  vertices_flat,
+                                                  triangles_flat,
+                                                  normals_flat)
+
+
+
+    return meshes.unpack_column_flat(visibilities_flat)
 
 
 def graham(meshes, xs, ys, zs):
@@ -173,12 +201,12 @@ def graham(meshes, xs, ys, zs):
                 continue
 
             # Determine a scale factor for the triangle
-            min_size_back = mesh_back['size'].min()
+            min_size_back = mesh_back.areas.min()
             distance = distance_factor * 2.0/3**0.25*np.sqrt(min_size_back)
 
             # Select only those triangles that are not hidden
-            tri_back_vis = mesh_back['triangle'][visibility_back > 0.0]
-            tri_front_vis = mesh_front['triangle'][visibility_front > 0.0]
+            tri_back_vis = mesh_back.vertices_per_triangle[visibility_back > 0.0].reshape(-1,9)
+            tri_front_vis = mesh_front.vertices_per_triangle[visibility_front > 0.0].reshape(-1,9)
 
             back = np.vstack([tri_back_vis[:,0:2], tri_back_vis[:,3:5], tri_back_vis[:,6:8]])
             front = np.vstack([tri_front_vis[:,0:2], tri_front_vis[:,3:5], tri_front_vis[:,6:8]])
