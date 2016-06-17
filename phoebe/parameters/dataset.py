@@ -10,7 +10,7 @@ def lc(**kwargs):
 
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -69,7 +69,7 @@ def rv(**kwargs):
 
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -177,7 +177,7 @@ def ifm(**kwargs):
 
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -186,7 +186,7 @@ def ifm(**kwargs):
     obs_params = []
 
     obs_params += [FloatParameter(qualifier='statweight', value = kwargs.get('statweight', 1.0), default_unit=u.dimensionless_unscaled, description='Statistical weight in overall fitting')]
-    
+
     syn_params, constraints = ifm_syn(syn=False, **kwargs)
     obs_params += syn_params.to_list()
     #obs_params += ifm_dep(**kwargs).to_list()
@@ -256,7 +256,7 @@ def orb(**kwargs):
 
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -310,7 +310,7 @@ def mesh(**kwargs):
 
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -354,7 +354,7 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='vy', time=t, value=kwargs.get('vy', []), default_unit=u.solRad/u.d, description='Y velocity of center of triangles')]
                 syn_params += [FloatArrayParameter(qualifier='vz', time=t, value=kwargs.get('vz', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
             syn_params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**3, description='Area of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='volumes', time=t, value=kwargs.get('volumes', []), default_unit=u.solRad**3, description='Volume of triangles')]
+            # syn_params += [FloatArrayParameter(qualifier='volumes', time=t, value=kwargs.get('volumes', []), default_unit=u.solRad**3, description='Volume of triangles')]
             syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad, description='Vertices of triangles')]
             syn_params += [FloatArrayParameter(qualifier='normals', time=t, value=kwargs.get('normals', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles')]
             syn_params += [FloatArrayParameter(qualifier='nx', time=t, value=kwargs.get('nx', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]

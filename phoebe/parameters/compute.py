@@ -13,13 +13,13 @@ _atm_choices = list(set([atm for pb in passbands._pbtable.values() for atm in pb
 def phoebe(**kwargs):
     """
     Compute options for using the PHOEBE 2.0 backend.
-      
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_compute`
 
     Please see :func:`phoebe.backend.backends.phoebe` for a list of sources to
     cite when using this backend.
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -33,24 +33,24 @@ def phoebe(**kwargs):
     params += [BoolParameter(qualifier='ltte', value=kwargs.get('ltte', False), description='Correct for light travel time effects')]
     params += [FloatParameter(relevant_if='dynamics_method:nbody', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
     params += [FloatParameter(relevant_if='dynamics_method:nbody', qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='orbiterror for the N-body integrator')]  # TODO: improve description (and units??)
- 
+
 
     # PHYSICS
     #params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
     #params += [BoolParameter(qualifier='refl', value=kwargs.get('refl', True), description='Allow irradiated bodies to reflect light')]
     #params += [IntParameter(relevant_if='refl:True', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
-    
+
     # TODO: boosting alg should be per-lcdep (note: not lcobs) - maybe per rvdep as well since those require intensities?
     # would that be copy_for = {'method': ['RV_dep', 'LC_dep'], 'component': '*', 'dataset': '*'} ???
     #params += [ChoiceParameter(qualifier='boosting_alg', value=kwargs.get('boosting_alg', 'None'), choices=['None', 'simple', 'local', 'full'], description='Type of boosting algorithm')]
-    
+
     # TODO: include scattering here? (used to be in lcdep)
 
     #params += [ChoiceParameter(qualifier='irradiation_alg', value=kwargs.get('irradiation_alg', 'point_source'), choices=['full', 'point_source'], description='Type of irradiation algorithm')]
 
     # MESH
     # -- these parameters all need to exist per-component --
-    # copy_for = {'method': ['star', 'disk', 'custombody'], 'component': '*'} 
+    # copy_for = {'method': ['star', 'disk', 'custombody'], 'component': '*'}
     # means that this should exist for each component (since that has a wildcard) which
     # has a method in [star, disk, custombody]
     params += [BoolParameter(qualifier='store_mesh', value=kwargs.get('store_mesh', False), description='Store a protomesh (reference frame of stars) and filled meshes at each timepoint and which a mesh is computed')]
@@ -69,7 +69,7 @@ def phoebe(**kwargs):
 
 
     # ECLIPSE DETECTION
-    params += [ChoiceParameter(qualifier='eclipse_alg', value=kwargs.get('eclipse_alg', 'graham'), choices=['only_horizon', 'graham', 'none', 'wd_horizon'], description='Type of eclipse algorithm')]
+    params += [ChoiceParameter(qualifier='eclipse_alg', value=kwargs.get('eclipse_alg', 'visible_ratio'), choices=['only_horizon', 'graham', 'none', 'visible_ratio', 'wd_horizon'], description='Type of eclipse algorithm')]
 
 
 
@@ -92,19 +92,19 @@ def phoebe(**kwargs):
 
 
     return ParameterSet(params)
-    
+
 
 def legacy(**kwargs):
     """
     Compute options for using the PHOEBE 1.0 legacy backend (must be
     installed).
-    
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_compute`
 
     Please see :func:`phoebe.backend.backends.legacy` for a list of sources to
     cite when using this backend.
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -122,7 +122,7 @@ def legacy(**kwargs):
 #    params += [IntParameter(relevant_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
     params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
     params += [IntParameter(copy_for={'method': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 40), limits=(10,None), description='Number of meshpoints for WD')]
-    
+
     # TODO: can we get rid of mult_refl and just set the lower limit on refl_num to 1 (or 0 if it can be turned off all-together)?
     params += [BoolParameter(qualifier='mult_refl', value=kwargs.get('refl', False), description='Allow irradiated bodies to reflect light (for heating only) multiple times')]
     params += [IntParameter(relevant_if='mult_refl:True', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(1,None), description='Number of reflections')]
@@ -144,15 +144,15 @@ def legacy(**kwargs):
 
 def photodynam(**kwargs):
     """
-    Compute options for using Josh Carter's 'photodynam' code as a 
+    Compute options for using Josh Carter's 'photodynam' code as a
     backend (must be installed).
-    
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_compute`
 
     Please see :func:`phoebe.backend.backends.photodynam` for a list of sources to
     cite when using this backend.
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
@@ -160,35 +160,35 @@ def photodynam(**kwargs):
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'method': ['LC', 'RV', 'ORB'], 'dataset': '*'}, relevant_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    
+
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='blah')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='blah')]
 
     # TODO: remove this option and instead use time0@system
     #params += [FloatParameter(qualifier='time0', value=kwargs.get('time0', 0.0), default_unit=u.d, description='Time to start the integration')]
-    
+
     return ParameterSet(params)
-    
+
 def jktebop(**kwargs):
     """
-    Compute options for using John Southworth's 'jktebop' code as a 
+    Compute options for using John Southworth's 'jktebop' code as a
     backend (must be installed).
-    
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_compute`
 
     Please see :func:`phoebe.backend.backends.jktebop` for a list of sources to
     cite when using this backend.
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    
+
     params = []
 
     params += [BoolParameter(qualifier='enabled', copy_for={'method': ['LC'], 'dataset': '*'}, relevant_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
-    
+
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integ Ring Size')]
-    
+
     return ParameterSet(params)

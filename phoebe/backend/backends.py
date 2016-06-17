@@ -5,7 +5,7 @@ import commands
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
 from phoebe import dynamics
-from phoebe.backend import mesh, etvs
+from phoebe.backend import universe, etvs
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 from phoebe import u, c
@@ -25,7 +25,7 @@ logger.addHandler(logging.NullHandler())
 # protomesh is the mesh at periastron in the reference frame of each individual star
 _backends_that_support_protomesh = ['phoebe', 'legacy']
 # automesh is meshes with filled observable columns (fluxes etc) at each point at which the mesh is used
-_backends_that_support_automesh = ['phoebe', 'legacy'] 
+_backends_that_support_automesh = ['phoebe', 'legacy']
 # the following list is for backends that use numerical meshes
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
@@ -147,7 +147,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None):
         needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
 
     if store_mesh:
-        needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=times)              
+        needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=times)
 
     if len(times):
         ti = zip(times, infos)
@@ -230,12 +230,12 @@ def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, time=[]):
                             'time': this_times
                             }
                     needed_syns.append(this_info)
-           
+
                     infos.append([this_info])
 
     if store_mesh:
         needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
-    
+
     if store_mesh:
         needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=False)
 
@@ -285,7 +285,7 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
         # TODO: double check to make sure this is fine with the backend and that
         # the backend still fills these correctly (or are they just empty)?
         for component in b.hierarchy.get_meshables():
-            
+
             # now let's find a list of all times used in all datasets that require
             # the use of a mesh, avoiding duplicates, and maintaining sort order
             this_times = np.array([])
@@ -428,7 +428,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     # TODO: automatically guess body type for each case... based on things like whether the stars are aligned
     # TODO: handle different distortion_methods
     # TODO: skip initializing system if we NEVER need meshes
-    system = mesh.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
+    system = universe.System.from_bundle(b, compute, datasets=b.datasets, **kwargs)
 
 
     # We need to create the mesh at periastron for any of the following reasons:
@@ -442,34 +442,34 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         for component in meshablerefs:
             body = system.get_body(component)
 
-            body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
-            body._fill_logg([], [], [], d=1-body.ecc)
-            body._fill_grav()
-            body._fill_teff()
+            # body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
+            # body._fill_loggs([], [], [], d=1-body.ecc)
+            # body._fill_gravs()
+            # body._fill_teffs()
 
             this_syn = new_syns.filter(component=component, dataset='protomesh')
 
             protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
 
-            this_syn['x'] = protomesh['center'][:,0]# * u.solRad
-            this_syn['y'] = protomesh['center'][:,1]# * u.solRad
-            this_syn['z'] = protomesh['center'][:,2]# * u.solRad
-            this_syn['vertices'] = protomesh['triangle']
-            this_syn['areas'] = protomesh['size']# * u.solRad**2
-            this_syn['volumes'] = protomesh['size']*((protomesh['center']*protomesh['normal_']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
-            this_syn['normals'] = protomesh['normal_']
-            this_syn['nx'] = protomesh['normal_'][:,0]
-            this_syn['ny'] = protomesh['normal_'][:,1]
-            this_syn['nz'] = protomesh['normal_'][:,2]
-            this_syn['logg'] = protomesh['logg']  # technically these are no longer in protomesh, but would be in body.mesh
-            this_syn['teff'] = protomesh['teff']  # technically these are no longer in protomesh, but would be in body.mesh
+            this_syn['x'] = protomesh['centers'][:,0]# * u.solRad
+            this_syn['y'] = protomesh['centers'][:,1]# * u.solRad
+            this_syn['z'] = protomesh['centers'][:,2]# * u.solRad
+            this_syn['vertices'] = protomesh.vertices_per_triangle # protomesh['vertices']
+            this_syn['areas'] = protomesh['areas']# * u.solRad**2
+            # this_syn['volumes'] = protomesh['areas']*((protomesh['centers']*protomesh['tnormals']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
+            this_syn['normals'] = protomesh['tnormals']
+            this_syn['nx'] = protomesh['tnormals'][:,0]
+            this_syn['ny'] = protomesh['tnormals'][:,1]
+            this_syn['nz'] = protomesh['tnormals'][:,2]
+            # this_syn['logg'] = protomesh['loggs']  # technically these are no longer in protomesh, but would be in body.mesh
+            # this_syn['teff'] = protomesh['teffs']  # technically these are no longer in protomesh, but would be in body.mesh
             # this_syn['mu'] = protomesh['mu']  # mus aren't filled until placed in orbit
 
             # TODO: optimize this - surely there are better ways
-            this_syn['r'] = [np.sqrt(sum([tcc**2 for tcc in tc])) for tc in protomesh['center']]
+            this_syn['r'] = [np.sqrt(sum([tcc**2 for tcc in tc])) for tc in protomesh['centers']]
             # this_syn['r_proj'] = [np.sqrt(sum([tcc**2 for tcc in tc[:2]])) for tc in protomesh['center']]
 
-            this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(protomesh['center'], protomesh['normal_'])]
+            this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(protomesh['centers'], protomesh['tnormals'])]
 
 
     # Now we need to compute intensities at t0 in order to scale pblums for all future times
@@ -511,10 +511,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 # let's populate the intensities for THIS dataset at t0
                 #print "***", method, dataset, component, {p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()}
-                system.populate_observables(t0, 
+                system.populate_observables(t0,
                     [method], [dataset],
                     [{p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()}])
-            
+
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pbscale_copy = {}
@@ -531,7 +531,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 else:
                     # then this component wants to copy the scale from another component
                     # in the system.  We'll just store this now so that we make sure the
-                    # component we're copying from has a chance to compute its scale 
+                    # component we're copying from has a chance to compute its scale
                     # first.
                     pbscale_copy[component] = pbscale
 
@@ -658,32 +658,32 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
                 this_syn['volume'] = body.volume
 
-                this_syn['x'] = body.mesh['center'][:,0]# * u.solRad
-                this_syn['y'] = body.mesh['center'][:,1]# * u.solRad
-                this_syn['z'] = body.mesh['center'][:,2]# * u.solRad
-                this_syn['vx'] = body.mesh['velo___bol_'][:,0] * u.solRad/u.d # TODO: check units!!!
-                this_syn['vy'] = body.mesh['velo___bol_'][:,1] * u.solRad/u.d
-                this_syn['vz'] = body.mesh['velo___bol_'][:,2] * u.solRad/u.d
-                this_syn['vertices'] = body.mesh['triangle']
-                this_syn['areas'] = body.mesh['size']# * u.solRad**2
-                this_syn['volumes'] = body.mesh['size']*((body.mesh['center']*body.mesh['normal_']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
-                this_syn['normals'] = body.mesh['normal_']  # TODO remove this vector now that we have nx,ny,nz?e
-                this_syn['nx'] = body.mesh['normal_'][:,0]
-                this_syn['ny'] = body.mesh['normal_'][:,1]
-                this_syn['nz'] = body.mesh['normal_'][:,2]
-                this_syn['mu'] = body.mesh['mu']
+                this_syn['x'] = body.mesh['centers'][:,0]# * u.solRad
+                this_syn['y'] = body.mesh['centers'][:,1]# * u.solRad
+                this_syn['z'] = body.mesh['centers'][:,2]# * u.solRad
+                this_syn['vx'] = body.mesh['velocities'][:,0] * u.solRad/u.d # TODO: check units!!!
+                this_syn['vy'] = body.mesh['velocities'][:,1] * u.solRad/u.d
+                this_syn['vz'] = body.mesh['velocities'][:,2] * u.solRad/u.d
+                this_syn['vertices'] = body.mesh.vertices_per_triangle # np.array([body.mesh['vertices'][t] for t in body.mesh['triangles']])
+                this_syn['areas'] = body.mesh['areas']# * u.solRad**2
+                # this_syn['volumes'] = body.mesh['areas']*((body.mesh['center']*body.mesh['normal_']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
+                this_syn['normals'] = body.mesh['tnormals']  # TODO remove this vector now that we have nx,ny,nz?e
+                this_syn['nx'] = body.mesh['tnormals'][:,0]
+                this_syn['ny'] = body.mesh['tnormals'][:,1]
+                this_syn['nz'] = body.mesh['tnormals'][:,2]
+                this_syn['mu'] = body.mesh.mus.centers
 
-                this_syn['logg'] = body.mesh['logg']
-                this_syn['teff'] = body.mesh['teff']
+                this_syn['logg'] = body.mesh.loggs.centers
+                this_syn['teff'] = body.mesh.teffs.centers
 
                 # abun???
 
                 # TODO: computing r and r_proj could probably use some optimization...
                 x, y, z = xs[cind][i].value, ys[cind][i].value, zs[cind][i].value
-                this_syn['r'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc, [x,y,z])])) for tc in body.mesh['center']]
-                this_syn['r_proj'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc[:2], [x, y])])) for tc in body.mesh['center']]
+                this_syn['r'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc, [x,y,z])])) for tc in body.mesh['centers']]
+                this_syn['r_proj'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc[:2], [x, y])])) for tc in body.mesh['centers']]
 
-                this_syn['visibility'] = body.mesh['visibility']
+                this_syn['visibility'] = body.mesh['visibilities']
 
                 indeps = {'RV': ['rv', 'intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost', 'ld'], 'LC': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost', 'ld'], 'IFM': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel']}
                 for infomesh in infolist:
@@ -821,7 +821,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
         if key == 'Inorm':
              d['unit'] = u.erg*u.s**-1*u.cm**-3
         return d
-   
+
 
     # check whether phoebe legacy is installed
     if not _use_phb1:
@@ -834,7 +834,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
 #    starrefs  = hier.get_stars()
 #    orbitrefs = hier.get_orbits()
-     
+
     stars = b.hierarchy.get_stars()
     primary, secondary = stars
     #need for protomesh
@@ -853,8 +853,8 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
     lcnum = 0
     rvnum = 0
     infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, time=time, store_mesh=store_mesh)
-    
-    
+
+
 #    print "INFOS", len(infos)
 #    print "info 1",  infos[0]
 #    print "info 2-1",  infos[0][1]
@@ -872,19 +872,19 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                 lcnum = lcnum+1
                 #get rid of the extra periastron passage
                 this_syn['flux'] = flux
-                
+
             else:
                 time = np.append(time, perpass)
                 flux, mesh = phb1.lc(tuple(time.tolist()), 0, lcnum+1)
                 flux = np.array(flux)
             # take care of the lc first
                 this_syn['flux'] = flux[:-1]
-                
+
 
             # now deal with parameters
                 keys = mesh.keys()
                 n = len(time)
-                
+
             # calculate the normal 'magnitude' for normalizing vectors
                 grx1 = np.array_split(mesh['grx1'],n)[-1]
                 gry1 = np.array_split(mesh['gry1'],n)[-1]
@@ -904,19 +904,19 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
                     if key[:2] =='gr':
                         grtotn = grtot[int(key[-1])-1]
-                        
+
                         grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
 
                         d['value'] = -key_val #/grtotn
                     else:
                         d['value'] = key_val
                     #TODO fill the normals column it is just (nx, ny, nz)
-                    
+
                     try:
                         new_syns.set_value(**d)
                     except:
                         logger.warning('{} has no corresponding value in phoebe 2 protomesh'.format(key))
-                    
+
                     #Normalize the normals that have been put in protomesh
 
                     # now take care of automesh time point by time point
@@ -925,22 +925,22 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                         d['dataset'] = 'automesh'
                         if key in ['Inorm1', 'Inorm2']:
                             d['dataset'] = dataset
-                        
+
                         d['time'] = time[t]
                     #prepare data
                         if key[:2] in ['vc', 'gr']:
                             # I need to change coordinates but not yet done
                             pass
-                           
+
                             #TODO Change these values so that they are placed in orbit
-                        
+
                         else:
                             key_val= key_values[t]
                             key_val = np.array(zip(key_val, key_val, key_val, key_val, key_val, key_val, key_val, key_val)).flatten()
 
                             param = new_syns.filter(**d)
                             if param:
-                                d['value'] = key_val 
+                                d['value'] = key_val
                                 new_syns.set_value(**d)
                             else:
                                 logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
@@ -952,22 +952,22 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
             rvid = info['dataset']
             #print "rvid", info
 #            quit()
-             
+
             if rvid == phb1.getpar('phoebe_rv_id', 0):
 
                 dep =  phb1.getpar('phoebe_rv_dep', 0)
                 dep = dep.split(' ')[0].lower()
-           # must account for rv datasets with multiple components     
+           # must account for rv datasets with multiple components
                 if dep != info['component']:
                     dep = info['component']
 
             elif rvid == phb1.getpar('phoebe_rv_id', 1):
                 dep =  phb1.getpar('phoebe_rv_dep', 1)
                 dep = dep.split(' ')[0].lower()
-           # must account for rv datasets with multiple components     
+           # must account for rv datasets with multiple components
                 if dep != info['component']:
                     dep = info['component']
-                
+
             proximity = computeparams.filter(qualifier ='rv_method', component='primary', dataset=rvid).get_value()
 
             if proximity == 'flux-weighted':
@@ -986,22 +986,22 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                 phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
                 rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
                 rvnum = rvnum+1
-                
+
             elif dep == 'secondary':
                 phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
                 rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
                 rvnum = rvnum+1
             else:
                 raise ValueError(str(info['component'])+' is not the primary or the secondary star')
-            
-            
+
+
             #print "***", u.solRad.to(u.km)
             this_syn.set_value(qualifier='rv', value=rv*u.km/u.s)
 #            print "INFO", info
 #            print "SYN", this_syn
-            
+
             #print 'THIS SYN', this_syn
-            
+
         elif info['method']=='MESH':
             pass
 #            print "I made it HERE"
@@ -1012,20 +1012,20 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 #            n = len(time)
 #            for i in keys:
 #                p1keys, p2keys = par_build(i, info['component'])
-                
+
 #               for k in range(p1keys):
                # get parameter and copy because phoebe1 only does a quarter hemisphere.
 #                    parn =  np.array_split(mesh[k],n)
 #                    parn = np.array(zip(parn, parn, parn, parn, parn, parn, parn, parn)).flatten()
-                    
+
                # copy into correct location in phoebe2
-                    
-                    #pary =  np.array_split(mesh[keyny],n)                
+
+                    #pary =  np.array_split(mesh[keyny],n)
                     #parz =  np.array_split(mesh[keynz],n)
-                    
+
 
 #                for j in range(len(time)):
-                                    
+
 #                if i == 'gr' or i == 'vc':
 
 #                    xd = i+'x'
@@ -1135,7 +1135,7 @@ def photodynam(b, compute, time=[], **kwargs):
         fi.write(' '.join([str(b.get_value('mass', component=star,
                 context='component', unit=u.solMass) * c.G.to('AU3 / (Msun d2)').value)
                 for star in starrefs])+'\n') # GM
-        
+
         fi.write(' '.join([str(b.get_value('rpole', component=star,
                 context='component', unit=u.AU))
                 for star in starrefs])+'\n')
