@@ -44,6 +44,10 @@ struct T3Dpoint {
   const T & operator[](const int &idx) const { return data[idx]; }
   
   T* operator & () const { return data; }
+  
+  void fill(const T & val){ 
+    data[0] = data[1] = data[3] = val;
+  }
 };
 
 

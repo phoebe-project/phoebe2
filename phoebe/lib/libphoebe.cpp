@@ -748,6 +748,93 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args){
   return PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, M.data());
 }
 
+
+
+
+
+/*
+  Python wrapper for C++ code:
+
+    Calculation of rough visibility of triangles
+    
+  Python:
+
+    M = triangle_mesh_visibility(v, V, T, N)
+    
+  with arguments
+    v[3] - 1-rank numpy array of 3 coordinates representing 3D point
+    V[][3] - 2-rank numpy array of vertices  
+    T[][3] - 2-rank numpy array of indices of vertices composing triangles
+    N[][3] - 2-rank numpy array of normals of triangles
+  
+  Returns: 
+    M[] - 1-rank numpy array of the "ratio" of the surface that is visible
+  
+      0: for hidden
+      1/2: for partially
+      1:  for fully visible
+    
+  Ref:
+  * http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
+  * http://docs.scipy.org/doc/numpy/reference/c-api.array.html#creating-arrays
+  * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
+*/
+
+static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
+
+
+  //
+  // Storing/Reading arguments
+  //
+  
+  PyArrayObject *ov, *oV, *oT, *oN;
+
+  // parse arguments
+  if (!PyArg_ParseTuple(args, "O!O!O!O!", 
+        &PyArray_Type, &ov,
+        &PyArray_Type, &oV, 
+        &PyArray_Type, &oT,
+        &PyArray_Type, &oN)) {
+    return NULL;
+  }
+  
+  double *view = (double*)PyArray_DATA(ov);
+ 
+  int 
+    Nv = PyArray_DIM(oV, 0),
+    Nt = PyArray_DIM(oT, 0);
+    
+  T3Dpoint<double> *V_begin = (T3Dpoint<double>*)PyArray_DATA(oV);
+  std::vector<T3Dpoint<double> > V(V_begin, V_begin + Nv);
+  
+  Ttriangle *T_begin = (Ttriangle *)PyArray_DATA(oT);
+  std::vector<Ttriangle> T(T_begin, T_begin + Nt);
+  
+  T3Dpoint<double> *N_begin = (T3Dpoint<double>*)PyArray_DATA(oN); 
+  std::vector<T3Dpoint<double> > N(N_begin, N_begin + Nt);
+  
+  std::vector<Tvisibility> Mt;
+
+  //
+  //  Calculate visibility
+  //
+  
+  triangle_mesh_rough_visibility(view, V, T, N, Mt);
+   
+  //
+  // Storing result
+  //
+  
+  npy_intp dims[1] = { Nt };
+  
+  double *M = new double [Nt], *p = M;
+ 
+  for (auto && m: Mt) 
+    *(p++) = (m == hidden ? 0 : (m == partially_hidden ? 0.5 : 1.0));
+  
+  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
+}
+
 /*  define functions in module */
 /* 
   Some modification in declarations due to use of keywords
@@ -799,6 +886,11 @@ static PyMethodDef Methods[] = {
       mesh_visibility,
       METH_VARARGS,
       "Determine the ratio of triangle surfaces that are visible in a triangular mesh."},
+    
+    { "mesh_rough_visibility",
+      mesh_rough_visibility,
+      METH_VARARGS,
+      "Classify the visibility of triangles of the mesh into hidden, partially hidden and visible"},
       
     {NULL,  NULL, 0, NULL} // terminator record
 };
