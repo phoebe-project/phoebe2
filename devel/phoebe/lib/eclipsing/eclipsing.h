@@ -732,33 +732,6 @@ void triangle_mesh_rough_visibility_elegant(
   delete [] Vst;
 }
 
-/*
-  Support for the export of visible part of triangles in a mesh   
-*/
-template<class T>
-struct T2Dpoint {
-  T data[2];
-  T2Dpoint(){}
-  T2Dpoint(const T & x, const T &y) : data{x, y} {}
-  T & operator[](const int &idx) { return data[idx]; }
-  const T & operator[](const int &idx) const { return data[idx]; }
-};
-
-template<class T> using Tpath = std::vector<T2Dpoint<T> >;
-template<class T> using Tpaths = std::vector<Tpath<T> >;
-
-
-template<class T>
-struct Ttrimesh {
-  
-  int index;
-  
-  std::vector<T3Dpoint<T> > V;
-  std::vector<Ttriangle> Tr;
-  
-  Ttrimesh() {}
-  Ttrimesh(int index):index(index){}
-};
 
 /*
   Determining the visibility ratio of triangles in a triangulated surfaces. 
@@ -785,7 +758,7 @@ struct Ttrimesh {
 
   Output:
     M - vector of the fractions of triangle that is visible
-    Tph - triangulated surface of partially hidden triangles
+    W - weights for averaging over visible area of triangles
   
   Ref:
   * http://web.cecs.pdx.edu/~karlaf/CS447_Slides/Set5.pdf
@@ -793,15 +766,14 @@ struct Ttrimesh {
   * http://www.angusj.com/delphi/clipper.php
 */
 
-
 template <class T>
 void triangle_mesh_visibility(
   double view[3], 
-  std::vector<T3Dpoint<T> > & V,
+  std::vector<T3Dpoint<T>> & V,
   std::vector<Ttriangle> & Tr,
-  std::vector<T3Dpoint<T> > & N,
+  std::vector<T3Dpoint<T>> & N,
   std::vector<T> & M,
-  std::vector<Ttrimesh<T> > *Tph = 0
+  std::vector<T3Dpoint<T>>*W = 0
   ) {
  
   //
@@ -949,6 +921,14 @@ void triangle_mesh_visibility(
   
     ClipperLib::Path s(3);    // triangle
     
+    if (W) {                  // if we generate weights of visible areas
+      W->clear();
+      //W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
+      
+      W->resize(Nt);
+      memset(W->data(), 0, Nt*3*sizeof(T)); // default is hidden
+    } 
+  
     auto it = Tv.begin(), it_end = Tv.end();
   
     // add the first triangle to the shadow
@@ -962,8 +942,10 @@ void triangle_mesh_visibility(
     
     M[it->index] = 1;
     
-    double r;
-                  
+    if (W) (*W)[it->index].fill(1./3);
+    
+    double r, a;
+  
     while (++it != it_end) {
       
       t = Tr[it->index].indices;
@@ -978,113 +960,37 @@ void triangle_mesh_visibility(
        // calculate remainder: P = T - S
       c.Execute(ClipperLib::ctDifference, P, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
       
-      
-      // detemine ratio of visibility
-      // due to round off errors it can be slightly bigger than 1
-      M[it->index] = r = Area(P)/std::abs(Area(s)); //std::min(1.0, Area(P)/std::abs(Area(s)));
+      r = Area(P);
       
       // if it is perfectly hidden don't do union
       if (r == 0) continue;
       
-      if (Tph && r > 0 && r < 1) {  // triangle is partially hidden
+      // detemine ratio of visibility
+      // due to round off errors it can be slightly bigger than 1
+      a = std::abs(Area(s));
+      r /= a;
+      
+      M[it->index] = r;
+    
+      if (W) {
+        if (r == 1)   // triangle if fully visible
+          (*W)[it->index].fill(1./3);
+        else  {       // triangle is partially hidden
+          /* T r[2];
+          c.AveragePosition(P, a, r);
         
-        //
-        // convert P into real point polygon
-        //
-        Tpaths<double> paths(P.size());
-        {
-          auto it_ = paths.begin();
+          // transform in barycentric coordinates
+          // triangle is stored in s 
           
-          for (auto && ps: P) {  
-            it_->reserve(ps.size());
-            for (auto && p : ps)
-              it_->emplace_back(p.X/fac[0] + fac[1], p.Y/fac[2] + fac[3]);
-            ++it_;
-          }
+          T x[2];
+          
+          
+          
+          (*W)[it->index]          
+          */
         }
-        
-        // Triangulate polygon in manner that refines the mesh
-        // https://en.wikipedia.org/wiki/Polygon_triangulation
-        // http://stackoverflow.com/questions/5247994/simple-2d-polygon-triangulation
-        // http://vterrain.org/Implementation/Libs/triangulate.html
-        // http://mathworld.wolfram.com/Triangulation.html
-        // 
-        // Comments: 
-        //  * Seidel's (fast, can handle holes, but triangles could be very sharp)
-        //  http://www.cs.unc.edu/~dm/CODE/GEM/chapter.html
-        //  https://github.com/jahting/pnltri.js
-        //  https://github.com/palmerc/Seidel
-        //
-        //  * Ear clipping method (can't handle holes)
-        //  https://www3.cs.stonybrook.edu/~skiena/392/programs/triangulate.c
-        //  (with holes)
-        //  https://www.geometrictools.com/Documentation/TriangulationByEarClipping.pdf
-        //
-        //  * Sweep Line Algorithm
-        //  http://sites-final.uclouvain.be/mema/Poly2Tri/poly2tri.html
-        // 
-        //  * Sweep-line, Constrained Delaunay Triangulation
-        //  https://github.com/greenm01/poly2tri <- !!!!
-        //
-        //  * Delaunay triangulations (optimal choice)
-        //    https://www.cs.cmu.edu/~quake/triangle.html
-        
-        //
-        // triangulate polygon in paths into (V2D, T)
-        //
-        
-        
-        Tph->emplace_back(it->index); 
-        auto & R = Tph->back();           // results in (V,Tr)
-        
-        std::vector<T2Dpoint<T> > V2D;
-        R.V.reserve(V2D.size());
-        
-        // go the map: paths->(V2D, R.T)  ????
-        // WE NEED TO SETTLE FOR SOME SCHEME
-        
-        //
-        // Projecting 2D triangles onto 3D original triangle
-        //
-        
-       
-        // storing vertices of the orginal triangle
-        T *v2D[3], *v3D[3];  
-        
-        for (int i = 0; i < 3; ++i) {
-          // 2D on screen
-          v2D[i] = Vs + 3*t[i];
-          // 3D
-          v3D[i] = V[t[i]].data;
-        }
-  
-        // reproject V2D onto the plane of the triangle
-        T det, x[2], b[2], r[3], A[2][2]; 
-        for (auto && u: V2D) {
-          
-          // define matrix A and vector b
-          for (int i = 0; i < 2; ++i){
-            b[i] = u[i] - v2D[0][i];
-            
-            for (int j = 0; j < 2; ++j) 
-              A[i][j] = v2D[j+1][i] - v2D[0][i];
-          } 
-          det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
-          
-          // solve 2x2 eq. A x = b 
-          x[0] = (A[1][1]*b[0] - A[0][1]*b[1])/det;
-          x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
-          
-          // points in a 3D triangle 
-          for (int i = 0; i < 3; ++i) 
-            r[i] =  v3D[0][i] + 
-                    x[0]*(v3D[1][i]-v3D[0][i]) + 
-                    x[1]*(v3D[2][i]-v3D[0][i]);
-            
-          R.V.emplace_back(r); 
-        }
-        
       }
+    
       
       // calculate the union: S = S U T    
       c.Execute(ClipperLib::ctUnion, S, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
