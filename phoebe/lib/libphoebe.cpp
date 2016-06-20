@@ -24,6 +24,9 @@
 
 #include <iostream>
 #include <vector>
+#include <typeinfo>
+#include <algorithm>
+
 #include "gen_roche.h"
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -45,8 +48,8 @@ PyObject  *PyArray_SimpleNewFromVector(
   int typenum, 
   void *V){
   
-  int size = 1;
-  for (int i = 0; i < np; ++i) size *= dims[i];
+  int size = dims[0];
+  for (int i = 1; i < np; ++i) size *= dims[i];
   size *= sizeof(T);
   
   // Note: p is interpreted in C-style contiguous fashion
@@ -56,6 +59,67 @@ PyObject  *PyArray_SimpleNewFromVector(
   return PyArray_SimpleNewFromData(np, dims, typenum, p); 
 }
 
+/*
+  Getting the Python typename 
+*/
+
+template<typename T> NPY_TYPES PyArray_TypeNum();
+
+template<>  NPY_TYPES PyArray_TypeNum<int>() { return NPY_INT;}
+template<>  NPY_TYPES PyArray_TypeNum<double>() { return NPY_DOUBLE;}
+
+template <typename T>
+PyObject *PyArray_FromVector(std::vector<T> &V){
+  
+  int N = V.size();
+  
+  T *p = new T [N];
+  
+  std::copy(V.begin(), V.end(), p);
+  
+  npy_intp dims[1] = {N};
+  
+  return PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p); 
+}
+
+
+template<typename T>
+void PyArray_ToVector(PyArrayObject *oV, std::vector<T> & V){
+  
+  T *V_begin = (T*) PyArray_DATA(oV);
+  
+  V.assign(V_begin, V_begin + PyArray_DIM(oV, 0));
+}
+
+
+template <typename T>
+PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
+  
+  // Note: p is interpreted in C-style contiguous fashion
+  int N = V.size();
+  
+  T *p = new T [3*N], *b = p; 
+  
+  for (auto && v : V)
+    for (int i = 0; i < 3; ++i) *(b++) = v[i];
+  
+  npy_intp dims[2] = {N, 3};
+  
+  return PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p); 
+}
+
+
+template <typename T>
+void PyArray_To3DPointVector(PyArrayObject *oV, std::vector<T3Dpoint<T>> &V){
+   
+  // Note: p is interpreted in C-style contiguous fashion
+  int N = PyArray_DIM(oV, 0);
+  
+  V.reserve(N);
+  
+  for (auto *p = (T*) PyArray_DATA(oV), p_e = p + 3*N; p != p_e; p += 3)
+    V.emplace_back(p);
+}
 
 /*
   Python wrapper for C++ code:
@@ -135,13 +199,8 @@ static PyObject *roche_points_on_x_axis(PyObject *self, PyObject *args) {
   std::vector<double> points;
   gen_roche::points_on_x_axis(points, Omega0, q, F, delta);
 
-  // return the results
-  npy_intp dims[1] = {(int)points.size()};
-
-  return PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, points.data());
+  return PyArray_FromVector(points);
 }
-
-
 
 /*
   Python wrapper for C++ code:
@@ -175,7 +234,6 @@ static PyObject *roche_points_on_x_axis(PyObject *self, PyObject *args) {
   
     h : height of the lobe's pole
 */
-
 
 static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   
@@ -508,10 +566,9 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   Tmarching<double, Tgen_roche<double>> march(params);  
   
   std::vector<T3Dpoint<double>> V, NatV;
-  std::vector<Ttriangle> Tr; 
-  std::vector <double> *GatV = 0;
-  
-  
+  std::vector<T3Dpoint<int>> Tr; 
+  std::vector<double> *GatV = 0;
+   
   if (b_vnormgrads) GatV = new std::vector<double>;
   
   if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
@@ -519,59 +576,29 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     return NULL;
   }
   
-  int Nt = Tr.size(), // number of triangles
-      Nv = V.size();  // number of vertices
+  if (b_vertices)
+    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
 
-  npy_intp dims[2];
-  
-  if (b_vertices) {
-    dims[0] = Nv;
-    dims[1] = 3;
-    PyDict_SetItemString(
-      results, 
-      "vertices", 
-      PyArray_SimpleNewFromVector<double>(2, dims, NPY_DOUBLE, V.data())
-    );
-  }
-
-  if (b_vnormals) {
-    dims[0] = Nv;
-    dims[1] = 3;
-    PyDict_SetItemString(
-      results, 
-      "vnormals", 
-      PyArray_SimpleNewFromVector<double>(2, dims, NPY_DOUBLE, NatV.data())
-    );
-  }
-
+  if (b_vnormals)
+    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
 
   if (b_vnormgrads) {
-    dims[0] = Nv;
-    PyDict_SetItemString(
-      results, 
-      "vnormgrads", 
-      PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, GatV->data())
-    );
+    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
     delete GatV;
   }
   
-  if (b_triangles) {
-    dims[0] = Nt;
-    dims[1] = 3;
-    PyDict_SetItemString(
-      results, 
-      "triangles", 
-      PyArray_SimpleNewFromVector<int>(2, dims, NPY_INT, Tr.data())
-    );
-  }
+  if (b_triangles)
+    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
+
   
   //
   // Calculte the mesh properties
   //
   int vertex_choice = 0;
   
-  double area, volume, 
-        *p_area = 0, *p_volume = 0;
+  double 
+    area, volume, 
+    *p_area = 0, *p_volume = 0;
   
   std::vector<double> *A = 0; 
   std::vector<T3Dpoint<double>> *NatT = 0;
@@ -587,44 +614,25 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
 
   if (b_areas) {
-    dims[0] = Nt;
-    PyDict_SetItemString(
-      results, 
-      "areas",
-      PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, A->data())
-    );
+    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
     delete A;  
   }
   
   if (b_area)
-    PyDict_SetItemString(
-      results, 
-      "area",
-      PyFloat_FromDouble(area)
-    );
+    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
 
   if (b_tnormals) {
-    dims[0] = Nt;
-    dims[1] = 3;
-    PyDict_SetItemString(
-      results, 
-      "tnormals",
-      PyArray_SimpleNewFromVector<double>(2, dims, NPY_DOUBLE, NatT->data())
-    );
-    delete NatT;  
+    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    delete NatT;
   }
 
   if (b_volume)
-    PyDict_SetItemString(
-      results, 
-      "volume",
-      PyFloat_FromDouble(volume)
-    );
-
+    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
 
   //
   // Calculte the central points
   // 
+
   std::vector<double> *GatC = 0;
   
   std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
@@ -638,39 +646,20 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   march.central_points(V, Tr, C, NatC, GatC);
   
   if (b_centers) {
-    dims[0] = Nt;
-    dims[1] = 3;
-    PyDict_SetItemString(
-      results, 
-      "centers",
-      PyArray_SimpleNewFromVector<double>(2, dims, NPY_DOUBLE, C->data())
-    );
+    PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
     delete C;  
   }
 
-
   if (b_cnormals) {
-    dims[0] = Nt;
-    dims[1] = 3;
-    PyDict_SetItemString(
-      results, 
-      "cnormals",
-       PyArray_SimpleNewFromVector<double>(2, dims, NPY_DOUBLE, NatC->data())
-    );
-    delete NatC;  
+    PyDict_SetItemString(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    delete NatC;
   }
   
   if (b_cnormgrads) {
-    dims[0] = Nt;
-    PyDict_SetItemString(
-      results, 
-      "cnormgrads",
-       PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, GatC->data())
-    );
+    PyDict_SetItemString(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
   
-   
   return results;
 }
 
@@ -681,16 +670,28 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   Python:
 
-    M = triangle_mesh_visibility(v, V, T, N)
+    dict = triangle_mesh_visibility(v, V, T, N, <keyword> = <value>)
     
   with arguments
-    v[3] - 1-rank numpy array of 3 coordinates representing 3D point
+  
+    viewdir[3] - 1-rank numpy array of 3 coordinates representing 3D point
     V[][3] - 2-rank numpy array of vertices  
     T[][3] - 2-rank numpy array of indices of vertices composing triangles
     N[][3] - 2-rank numpy array of normals of triangles
+ 
+    (optional)   
+    tvisibilities: boolean, default True
+    taweights: boolean, default False 
+          
+  Returns: dictionary with keywords
+   
+  keywords:
   
-  Returns: 
-    M[] - 1-rank numpy array of the ratio of the surface that is visible
+    tvisibilities: triangle visibility mask
+      M[] - 1-rank numpy array of the ratio of the surface that is visible
+  
+    taweights: triangle averaging weights
+      W[][3] - 2-rank numpy array of three weight one for each vertex of triangle
   
   Ref:
   * http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
@@ -698,58 +699,124 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
 */
 
-static PyObject *mesh_visibility(PyObject *self, PyObject *args){
-
+static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywds){
 
   //
-  // Storing/Reading arguments
+  // Reading arguments
   //
+
+  char *kwlist[] = {
+    (char*)"viewdir",
+    (char*)"vertices",
+    (char*)"triangles",
+    (char*)"tnormals",
+    (char*)"tvisibilities",
+    (char*)"taweights",
+    NULL};
+       
+  PyArrayObject *ov = 0, *oV = 0, *oT = 0, *oN = 0;
   
-  PyArrayObject *ov, *oV, *oT, *oN;
-
+  bool 
+    b_tvisibilities = true,
+    b_taweights = false;
+  
+  #if defined(DEBUG)
+  std::cout << "start" << std::endl;
+  #endif
+  
   // parse arguments
-  if (!PyArg_ParseTuple(args, "O!O!O!O!", 
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "O!O!O!O!|ii", kwlist,
         &PyArray_Type, &ov,
         &PyArray_Type, &oV, 
         &PyArray_Type, &oT,
-        &PyArray_Type, &oN)) {
+        &PyArray_Type, &oN,
+        &b_tvisibilities,
+        &b_taweights
+        )
+      )
     return NULL;
-  }
+  
+  //std::cout << ov << ' ' << oV << ' ' << oT << ' ' << oN << '\n';
+  
+  #if defined(DEBUG)
+   
+  std::cout 
+    << "ov: NDim=" << PyArray_NDIM(ov) 
+    << " Dim=" << PyArray_DIM(ov, 0) 
+    << " Type=" << PyArray_TYPE(ov)
+    << "\n";
+
+  std::cout 
+    << "oV: NDim=" << PyArray_NDIM(oV) 
+    << " Dim=" << PyArray_DIM(oV, 0) << " " << PyArray_DIM(oV, 1)
+    << " Type=" << PyArray_TYPE(oV)
+    << "\n";
+
+
+  std::cout 
+    << "oT: NDim=" << PyArray_NDIM(oT) 
+    << " Dim=" << PyArray_DIM(oT, 0) << " " << PyArray_DIM(oT, 1)
+    << " Type=" << PyArray_TYPE(oT)
+    << "\n";
+
+  std::cout 
+    << "oT: NDim=" << PyArray_NDIM(oN) 
+    << " Dim=" << PyArray_DIM(oN, 0) << " " << PyArray_DIM(oN, 1)
+    << " Type=" << PyArray_TYPE(oN)
+    << "\n";
+  
+  
+  std::cout.flush();
+  #endif
+  
+  if (!b_tvisibilities && !b_taweights) return NULL;
+
+  std::cout << "0" << std::endl; std::cout.flush();
   
   double *view = (double*)PyArray_DATA(ov);
  
-  int 
-    Nv = PyArray_DIM(oV, 0),
-    Nt = PyArray_DIM(oT, 0);
-    
-  T3Dpoint<double> *V_begin = (T3Dpoint<double>*)PyArray_DATA(oV);
-  std::vector<T3Dpoint<double> > V(V_begin, V_begin + Nv);
+  std::cout << "1" << std::endl; std::cout.flush();
   
-  Ttriangle *T_begin = (Ttriangle *)PyArray_DATA(oT);
-  std::vector<Ttriangle> T(T_begin, T_begin + Nt);
+  std::vector<T3Dpoint<double> > V;
+  PyArray_To3DPointVector(oV, V);
   
-  T3Dpoint<double> *N_begin = (T3Dpoint<double>*)PyArray_DATA(oN); 
-  std::vector<T3Dpoint<double> > N(N_begin, N_begin + Nt);
-  
-  std::vector<double> M;
+  std::vector<T3Dpoint<int>> T;
+  PyArray_To3DPointVector(oT, T);
 
+  std::vector<T3Dpoint<double> > N;
+  PyArray_To3DPointVector(oN, N);
+  
+  std::vector<double> *M = 0;
+  if (b_tvisibilities) M = new std::vector<double>;
+  
+  std::vector<T3Dpoint<double>> *W = 0;
+  if (b_taweights) W = new std::vector<T3Dpoint<double>>;
+  
   //
   //  Calculate visibility
   //
+  triangle_mesh_visibility(view, V, T, N, M, W);
   
-  triangle_mesh_visibility(view, V, T, N, M);
-   
   //
-  // Storing result
+  // Storing results in dictionary
+  // https://docs.python.org/2/c-api/dict.html
   //
   
-  npy_intp dims[1] = { Nt };
+  PyObject *results = PyDict_New();
   
-  return PyArray_SimpleNewFromVector<double>(1, dims, NPY_DOUBLE, M.data());
+  if (b_tvisibilities) {
+    PyDict_SetItemString(results, "tvisibilities", PyArray_FromVector(*M));
+    delete M;
+  }
+  
+  if (b_taweights) {
+    PyDict_SetItemString(results,"taweights", PyArray_From3DPointVector(*W));
+    delete W;  
+  }
+
+  return results;
 }
-
-
-
 
 
 /*
@@ -799,19 +866,15 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   }
   
   double *view = (double*)PyArray_DATA(ov);
- 
-  int 
-    Nv = PyArray_DIM(oV, 0),
-    Nt = PyArray_DIM(oT, 0);
     
-  T3Dpoint<double> *V_begin = (T3Dpoint<double>*)PyArray_DATA(oV);
-  std::vector<T3Dpoint<double> > V(V_begin, V_begin + Nv);
+  std::vector<T3Dpoint<double> > V;
+  PyArray_To3DPointVector(oV, V);
   
-  Ttriangle *T_begin = (Ttriangle *)PyArray_DATA(oT);
-  std::vector<Ttriangle> T(T_begin, T_begin + Nt);
-  
-  T3Dpoint<double> *N_begin = (T3Dpoint<double>*)PyArray_DATA(oN); 
-  std::vector<T3Dpoint<double> > N(N_begin, N_begin + Nt);
+  std::vector<T3Dpoint<int>> T;
+  PyArray_To3DPointVector(oT, T);
+
+  std::vector<T3Dpoint<double> > N;
+  PyArray_To3DPointVector(oN, N);
   
   std::vector<Tvisibility> Mt;
 
@@ -824,9 +887,10 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   //
   // Storing result
   //
-  
-  npy_intp dims[1] = { Nt };
-  
+  int Nt = PyArray_DIM(oT, 0);
+     
+  npy_intp dims[1] = {Nt};
+
   double *M = new double [Nt], *p = M;
  
   for (auto && m: Mt) 
@@ -883,8 +947,8 @@ static PyMethodDef Methods[] = {
       "Omega0. The edge of triangles used in the mesh are approximately delta."},
     
     { "mesh_visibility",
-      mesh_visibility,
-      METH_VARARGS,
+      (PyCFunction)mesh_visibility,
+      METH_VARARGS|METH_KEYWORDS, 
       "Determine the ratio of triangle surfaces that are visible in a triangular mesh."},
     
     { "mesh_rough_visibility",

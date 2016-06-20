@@ -169,7 +169,7 @@ int main(){
   
   
   std::vector <T3Dpoint<double> > V;
-  std::vector <Ttriangle> T; 
+  std::vector <T3Dpoint<int>> T; 
   std::vector <T3Dpoint<double> >NatV;
     
   if (!march.triangulize(delta, max_triangles, V, NatV, T)){
@@ -206,7 +206,7 @@ int main(){
     
     fr.open("triangles2.dat");
     for (auto && t: T) {
-      for (int i = 0; i < 3; ++i) fr << V[t.indices[i]] << '\n';
+      for (int i = 0; i < 3; ++i) fr << V[t.data[i]] << '\n';
       fr << '\n';
     }
     fr.close();
@@ -218,7 +218,7 @@ int main(){
   {
     std::set<int> ti;
     
-    for (auto && t: T) for (int i = 0; i < 3; ++i) ti.insert(t.indices[i]);
+    for (auto && t: T) for (int i = 0; i < 3; ++i) ti.insert(t.data[i]);
     
     std::ofstream fti("triangle_indices.dat");
     fti.precision(16);

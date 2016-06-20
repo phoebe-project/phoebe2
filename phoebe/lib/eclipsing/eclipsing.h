@@ -190,7 +190,7 @@ template <class T>
 void triangle_mesh_rough_visibility(
   double view[3], 
   std::vector<T3Dpoint<T> > & V,  
-  std::vector<Ttriangle> & Tr,
+  std::vector<T3Dpoint<int>> & Tr,
   std::vector<T3Dpoint<T> > & N,
   std::vector<Tvisibility> & M
   ) {
@@ -254,7 +254,7 @@ void triangle_mesh_rough_visibility(
       if (n[0]*view[0] + n[1]*view[1] + n[2]*view[2] > 0) {
         
         // indices of vectices used in the ith triangle
-        t = Tr[i].indices;
+        t = Tr[i].data;
         
         // calculate projection onto screen 
         for (int j = 0; j < 3; ++j) {
@@ -299,7 +299,7 @@ void triangle_mesh_rough_visibility(
     for (auto && tr: Tv) {
       
       // indices of points of a triangle in the ith triangle
-      t = Tr[tr.index].indices; 
+      t = Tr[tr.index].data; 
       
       // create easy access to vertices
       for (int j = 0; j < 3; ++j) {
@@ -347,7 +347,7 @@ void triangle_mesh_rough_visibility(
       for (int k = 0; k < 4; ++k) pbi[k] = p[k];
           
       ii = Tv[i].index;               // index of discussed triangle
-      ti = Tr[ii].indices;            // indices of vertices 
+      ti = Tr[ii].data;            // indices of vertices 
       for (int k = 0; k < 3; ++k) {   // local copy of vertices
         p = Vs + 3*ti[k];  
         vi[k][0] = p[0];
@@ -370,7 +370,7 @@ void triangle_mesh_rough_visibility(
         //
         // data about jj-th triangle
         //
-        tj =  Tr[jj].indices;          // indices of vertices
+        tj =  Tr[jj].data;          // indices of vertices
         for (int k = 0; k < 3; ++k) {  // local copy of vertices           
           p = Vs + 3*tj[k]; 
           vj[k][0] = p[0];
@@ -474,7 +474,7 @@ template <class T>
 void triangle_mesh_rough_visibility_elegant(
   double view[3], 
   std::vector<T3Dpoint<T> > & V,
-  std::vector<Ttriangle> & Tr,
+  std::vector<T3Dpoint<int>> & Tr,
   std::vector<T3Dpoint<T>> & N,
   std::vector<Tvisibility> & M
   ) {
@@ -590,7 +590,7 @@ void triangle_mesh_rough_visibility_elegant(
         // calculate projection onto screen 
         for (int j = 0; j < 3; ++j) {
           
-          k = tr.indices[j] = Tr[i].indices[j];
+          k = tr.data[j] = Tr[i].data[j];
           
           v[j] = Vs + 3*k;
           
@@ -695,7 +695,7 @@ void triangle_mesh_rough_visibility_elegant(
           // of Ti
               
           for (int k = 0; k < 3; ++k)
-            if ((st[k] = Vst[kk = Tv[i].indices[k]]) && 
+            if ((st[k] = Vst[kk = Tv[i].data[k]]) && 
                 Tv[j].index_notin(kk) && 
                 Tv[j].point_in(Tv[i].v[k]))
               st[k] = Vst[kk] = false;
@@ -714,7 +714,7 @@ void triangle_mesh_rough_visibility_elegant(
           
           if (Tv[i].m == visible)
             for (int k = 0; k < 3; ++k)           
-              if (Tv[i].index_notin(Tv[j].indices[k]) && Tv[i].point_in(Tv[j].v[k])) {
+              if (Tv[i].index_notin(Tv[j].data[k]) && Tv[i].point_in(Tv[j].v[k])) {
                 Tv[i].m = partially_hidden;
                 break;
               }
@@ -756,7 +756,7 @@ void triangle_mesh_rough_visibility_elegant(
     Tr - vector of triangles defined by indices vertices
     N - vector of normals to triangles (to speed up repeated use)
 
-  Output:
+  Output: optional
     M - vector of the fractions of triangle that is visible
     W - weights for averaging over visible area of triangles
   
@@ -770,12 +770,13 @@ template <class T>
 void triangle_mesh_visibility(
   double view[3], 
   std::vector<T3Dpoint<T>> & V,
-  std::vector<Ttriangle> & Tr,
+  std::vector<T3Dpoint<int>> & Tr,
   std::vector<T3Dpoint<T>> & N,
-  std::vector<T> & M,
-  std::vector<T3Dpoint<T>>*W = 0
+  std::vector<T> *M = 0,
+  std::vector<T3Dpoint<T>> *W = 0
   ) {
  
+  if (M == 0 && W == 0) return; 
   //
   // Defining the on-screen vector basis (t1,t2,view)
   //
@@ -791,7 +792,7 @@ void triangle_mesh_visibility(
   int 
     Nt = Tr.size(), 
     Nv = V.size();
-  
+        
   // Sequence vertices in the on-screen basis
   // Vs = (x_0, y_0, z_0, x_1, y_1, z_1, ..., x_{Nv-1}, y_{Nv-1}, z_{Nv-1})
   T *Vs = new T [3*Nv];
@@ -839,7 +840,7 @@ void triangle_mesh_visibility(
       if (n[0]*view[0] + n[1]*view[1] + n[2]*view[2] > 0) {
         
         // indices of vectices used in the ith triangle
-        t = Tr[i].indices;
+        t = Tr[i].data;
         
         // calculate projection onto screen 
         for (int j = 0; j < 3; ++j) {
@@ -870,9 +871,10 @@ void triangle_mesh_visibility(
   //
   // Lets do eclipsing
   //
-  
-  M.clear();
-  M.resize(Nt, 0);
+  if (M) {
+    M->clear();
+    M->resize(Nt, 0);
+  }
   
   if (Tv.size() == 0) {
     delete [] Vs;
@@ -923,16 +925,13 @@ void triangle_mesh_visibility(
     
     if (W) {                  // if we generate weights of visible areas
       W->clear();
-      //W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
-      
-      W->resize(Nt);
-      memset(W->data(), 0, Nt*3*sizeof(T)); // default is hidden
+      W->resize(Nt, T3Dpoint<T>(0,0,0)); // default is hidden
     } 
   
     auto it = Tv.begin(), it_end = Tv.end();
   
     // add the first triangle to the shadow
-    t = Tr[it->index].indices;
+    t = Tr[it->index].data;
             
     for (int i = 0; i < 3; ++i) s[i] = VsI[t[i]];
   
@@ -940,7 +939,7 @@ void triangle_mesh_visibility(
     
     S.push_back(s);
     
-    M[it->index] = 1;
+    if (M) (*M)[it->index] = 1;
     
     if (W) (*W)[it->index].fill(1./3);
     
@@ -948,7 +947,7 @@ void triangle_mesh_visibility(
   
     while (++it != it_end) {
       
-      t = Tr[it->index].indices;
+      t = Tr[it->index].data;
             
       for (int i = 0; i < 3; ++i) s[i] = VsI[t[i]];
       
@@ -970,28 +969,47 @@ void triangle_mesh_visibility(
       a = std::abs(Area(s));
       r /= a;
       
-      M[it->index] = r;
-    
+      if (M) (*M)[it->index] = r;
+      
       if (W) {
         if (r == 1)   // triangle if fully visible
           (*W)[it->index].fill(1./3);
         else  {       // triangle is partially hidden
-          /* T r[2];
-          c.AveragePosition(P, a, r);
+          (*W)[it->index].fill(1./3);
+          /* 
+          
+          // calculate barycenter of the polygon == centroids
+          // http://stackoverflow.com/questions/2792443/finding-the-centroid-of-a-polygon
+          double u[2];
+          Centroid(P, r, u);
         
-          // transform in barycentric coordinates
-          // triangle is stored in s 
+          // transform in barycentric coordinates (x[0],x[1])
+          // solving 
+          //  <r> = s[0] + x[0]*(s[1] - s[0]) + x[1]*(s[2] - s[0])
+          // equivalent to 2x2 lin system
+          //   A x = b = ave_r - s[0]
+          // note: triangle is stored in s 
           
-          T x[2];
+          int i, j;
+          T x[2], A[2][2], b[2], det;
+         
+          // define matrix A and vector b
+          for (i = 0; i < 2; ++i) {
+            b[i] = u[i] - s[0][i];
+            for (j = 0; j < 2; ++j)  A[i][j] = s[j+1][i] - s[0][i];
+          } 
+          det = A[0][0]*A[1][1] - A[0][1]*A[1][0];
           
+          // solve 2x2 eq. A x = b 
+          x[0] = (A[1][1]*b[0] - A[0][1]*b[1])/det;
+          x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
           
-          
-          (*W)[it->index]          
+          // storing the results
+          (*W)[it->index].assign(1-x[0]-x[1],x[0],x[1]);          
           */
         }
       }
     
-      
       // calculate the union: S = S U T    
       c.Execute(ClipperLib::ctUnion, S, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
       

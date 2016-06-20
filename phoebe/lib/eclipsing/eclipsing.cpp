@@ -55,7 +55,7 @@ int main(){
   Tmarching<double, Tgen_roche<double> > march(params);
   
   std::vector<T3Dpoint<double> > V, NatV;
-  std::vector<Ttriangle> T; 
+  std::vector<T3Dpoint<int>> T; 
   
   if (!march.triangulize(delta, max_triangles, V, NatV, T)){
     std::cerr << "There is too much triangles\n";
@@ -127,7 +127,7 @@ int main(){
   //
   fr.open("triangles.dat");
   for (auto && t: T)
-    for (int i = 0; i < 3; ++i) fr << V[t.indices[i]] << '\n';  
+    for (int i = 0; i < 3; ++i) fr << V[t.data[i]] << '\n';  
   fr.close();
   
   //
