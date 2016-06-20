@@ -104,12 +104,11 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     new_mesh['theta'] = the_grid[:,16]
     new_mesh['phi'] = the_grid[:,17]
 
-    # normgrads (ComputedColumn) will be per-triangle (NOT per-vertex as usual)
     grads = np.array([libphoebe.roche_gradOmega_only(q, F, d, c) for c in new_mesh['centers']])
     new_mesh['normgrads'] = np.sqrt(grads[:,0]**2+grads[:,1]**2+grads[:,2]**2)
 
     # TODO: actually compute the numerical volume (find old code)
-    new_mesh['volume'] = 0.0
+    new_mesh['volume'] = compute_volume(new_mesh['areas'], new_mesh['centers'], new_mesh['tnormals'])
 
 
 
@@ -130,6 +129,7 @@ class ComputedColumn(object):
         self._vertices = kwargs.get('vertices', None) # N*3x1
         self._centers = kwargs.get('centers', None) # Nx1
 
+        # TODO: this may move to self.mesh.weights (need to be in ScaledProto)
         self._weights = None # Nx3 (same as self.mesh.triangles)
 
     @property
@@ -227,9 +227,6 @@ class ProtoMesh(object):
         # a = average (average of values at each vertex)
         # av = average visibile (weighted average based on the visible portion)
         self._vnormals          = None  # N*3x3
-
-        # TODO: remove tnormals??? (currently used in eclipse detection and for
-        # computing mus for wd-meshes)
         self._tnormals          = None  # Nx3
         # self._cnormals          = None  # Nx3
 
@@ -270,7 +267,7 @@ class ProtoMesh(object):
         # TODO: split this stuff into the correct classes/subclasses
 
 
-        if hasattr(self, '_{}'.format(key)):
+        if hasattr(self, key):
             return getattr(self, key)
         elif hasattr(self, '_observables') and key in self._observables.keys():
             # applicable only for Mesh, not ProtoMesh
@@ -297,7 +294,6 @@ class ProtoMesh(object):
                     col._vertices = value
                 else:
                     col._centers = value
-                # col._vertices_updated()
             else:
                 setattr(self, hkey, value)
 
@@ -308,19 +304,6 @@ class ProtoMesh(object):
             # even if it doesn't exist, we'll make a new entry in observables]
 
             self._observables[key] = value
-
-            # if key not in self.observables.keys():
-            #     # then we need to create a new ComputedColumn
-            #     self._observables[key] = ComputedColumn(mesh=self)
-
-            # col = self._observables[key]
-
-            # if isinstance(col, ComputedColumn) and not isinstance(value, ComputedColumn):
-            #     # TODO: add more logic about vertices vs average based on length vs self.N
-            #     col._vertices = value
-            #     col._vertices_updated()
-            # else:
-            #     col = value
 
         else:
             raise KeyError("{} is not a valid key".format(key))
@@ -613,10 +596,7 @@ class Mesh(ScaledProtoMesh):
     """
     def __init__(self, **kwargs):
 
-        # mus.vertices are computed using vnormals (which is not a ComputedColumn)
-        # TODO: make sure this is mathematically legal
-        self._mus               = ComputedColumn(mesh=self)
-
+        # self._mus               = None  # Nx1 property computed on-the-fly
         self._visibilities      = None  # Nx1
 
         # TODO: should observables be computed from teffs.weighted_averages, etc
@@ -693,7 +673,9 @@ class Mesh(ScaledProtoMesh):
 
         (Nx1)
         """
-        return self._mus #.weighted_averages
+        # this requires tnormals to be NORMALIZED (currently we don't do any
+        # checks - this is just assumed)
+        return self.tnormals[:,2]
 
 
     @property
@@ -732,31 +714,14 @@ class Mesh(ScaledProtoMesh):
         """
         self._observables[label] = value
 
-    def _compute_mus(self):
-        """
-        Compute the values of mus from the current value of tnormals.  This is
-        done automatically whenever tnormals is updated, so should not need
-        to be called manually.
-        """
-
-        # TODO: move this to be done on the fly in the mus property (or maybe
-        # not since its a ComputedColumn)
-
-        if self._compute_at_vertices:
-            mus = self.vnormals[:,2]
-        else:
-            mus = self.tnormals[:,2]
-
-        self.update_columns(mus=mus)
-
     def update_columns_dict(self, kwargs):
         """
         TODO: add documentation
         """
         super(Mesh, self).update_columns_dict(kwargs)
 
-        if kwargs.get('vnormals', None) is not None or kwargs.get('tnormals', None) is not None:
-            self._compute_mus()
+        # if kwargs.get('vnormals', None) is not None or kwargs.get('tnormals', None) is not None:
+            # self._compute_mus()
         if kwargs.get('triangles', None) is not None:
             # reset visibilities and velocities so that they are reset
             # when nexted queried

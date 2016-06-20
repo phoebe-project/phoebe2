@@ -671,10 +671,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['nx'] = body.mesh['tnormals'][:,0]
                 this_syn['ny'] = body.mesh['tnormals'][:,1]
                 this_syn['nz'] = body.mesh['tnormals'][:,2]
-                this_syn['mu'] = body.mesh.mus.centers
+                this_syn['mu'] = body.mesh.mus
 
-                this_syn['logg'] = body.mesh.loggs.centers
-                this_syn['teff'] = body.mesh.teffs.centers
+                this_syn['logg'] = body.mesh.loggs.for_observations
+                this_syn['teff'] = body.mesh.teffs.for_observations
 
                 # abun???
 
