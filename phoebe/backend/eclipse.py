@@ -130,7 +130,7 @@ def only_horizon(meshes, xs, ys, zs):
 
     # this can all by easily done by multiplying by int(mu>0) (1 if visible, 0 if hidden)
 
-    return {comp_no: mesh.visibilities * (mesh.mus.centers > 0).astype(int) for comp_no, mesh in meshes.items()}
+    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}
 
 def visible_ratio(meshes, xs, ys, zs):
     """
@@ -152,11 +152,11 @@ def visible_ratio(meshes, xs, ys, zs):
     visibilities_flat = libphoebe.mesh_visibility(viewing_vector,
                                                   vertices_flat,
                                                   triangles_flat,
-                                                  normals_flat)
+                                                  normals_flat,
+                                                  tvisibilities=True)
 
 
-
-    return meshes.unpack_column_flat(visibilities_flat)
+    return meshes.unpack_column_flat(visibilities_flat['tvisibilities'])
 
 
 def graham(meshes, xs, ys, zs):

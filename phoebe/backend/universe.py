@@ -1269,13 +1269,11 @@ class Star(Body):
                                                          centers=True,
                                                          vnormals=True,
                                                          tnormals=True,
+                                                         cnormals=False,
                                                          vnormgrads=True,
+                                                         cnormgrads=False,
                                                          areas=True,
                                                          volume=True)
-
-                                                         # tnormals=True,
-                                                         # cnormals=True,
-                                                         # cnormgrads=True,
 
                 # new_mesh['normals'] = new_mesh.pop('vnormals')
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
@@ -1598,7 +1596,7 @@ class Star(Body):
             # TODO: the abs shouldn't be necessary here, but for some reason
             # is causing issues when ld_logarithmic with negative mus (well
             # I mean the reason it fails is obvious)
-            ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus.for_observations), ld_coeffs)
+            ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus), ld_coeffs)
 
             # TODO: FIX AND ENABLE LIMB DARKENING
             # ld = np.ones(mesh.mus.shape)
@@ -1886,10 +1884,13 @@ class Envelope(Body):
                                                          centers=True,
                                                          vnormals=True,
                                                          tnormals=True,
-                                                         cnormals=True,
-                                                         cnormgrads=True,
+                                                         cnormals=False,
+                                                         vnormgrads=True,
+                                                         cnormgrads=False,
                                                          areas=True,
                                                          volume=True)
+
+                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
