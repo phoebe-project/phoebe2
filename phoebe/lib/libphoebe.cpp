@@ -506,30 +506,57 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     b_areas = false,
     b_area = false,
     b_volume = false;
+  
+  // http://wingware.com/psupport/python-manual/2.3/api/boolObjects.html
+  PyObject
+    *o_vertices = 0, 
+    *o_vnormals = 0, 
+    *o_vnormgrads = 0,
+    *o_triangles = 0, 
+    *o_tnormals = 0, 
+    *o_centers = 0,
+    *o_cnormals = 0,
+    *o_cnormgrads = 0,
+    *o_areas = 0,
+    *o_area = 0,
+    *o_volume = 0; 
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|iiiiiiiiiiiii", kwlist,
+      args, keywds,  "ddddd|iiO!O!O!O!O!O!O!O!O!O!O!", kwlist,
       &q, &F, &d, &Omega0, &delta, // neccesary 
       &choice,                     // optional ...
       &max_triangles,
-      &b_vertices, 
-      &b_vnormals,
-      &b_vnormgrads,
-      &b_triangles, 
-      &b_tnormals,
-      &b_centers,
-      &b_cnormals,
-      &b_cnormgrads,
-      &b_areas,
-      &b_area,
-      &b_volume 
+      &PyBool_Type, &o_vertices, 
+      &PyBool_Type, &o_vnormals,
+      &PyBool_Type, &o_vnormgrads,
+      &PyBool_Type, &o_triangles, 
+      &PyBool_Type, &o_tnormals,
+      &PyBool_Type, &o_centers,
+      &PyBool_Type, &o_cnormals,
+      &PyBool_Type, &o_cnormgrads,
+      &PyBool_Type, &o_areas,
+      &PyBool_Type, &o_area,
+      &PyBool_Type, &o_volume 
       ))
     return NULL;
+  
+  
+  if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
+  if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
+  if (o_vnormgrads) b_vnormgrads = PyObject_IsTrue(o_vnormgrads);
+  if (o_triangles) b_triangles = PyObject_IsTrue(o_triangles);
+  if (o_tnormals)  b_tnormals = PyObject_IsTrue(o_tnormals);
+  if (o_centers) b_centers = PyObject_IsTrue(o_centers);
+  if (o_cnormals) b_cnormals = PyObject_IsTrue(o_cnormals);
+  if (o_cnormgrads) b_cnormgrads = PyObject_IsTrue(o_cnormgrads);
+  if (o_areas) b_areas = PyObject_IsTrue(o_areas);
+  if (o_area) b_area = PyObject_IsTrue(o_area);
+  if (o_volume) b_volume = PyObject_IsTrue(o_volume);
      
   //
   // Storing results in dictioonary
   // https://docs.python.org/2/c-api/dict.html
-  
+  //
   PyObject *results = PyDict_New();
   
         
@@ -705,7 +732,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   // Reading arguments
   //
 
-  char *kwlist[] = {
+  static char *kwlist[] = {
     (char*)"viewdir",
     (char*)"vertices",
     (char*)"triangles",
@@ -716,67 +743,40 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
        
   PyArrayObject *ov = 0, *oV = 0, *oT = 0, *oN = 0;
   
+  PyObject *o_tvisibilities = 0, *o_taweights = 0;
+  
   bool 
     b_tvisibilities = true,
     b_taweights = false;
   
-  #if defined(DEBUG)
-  std::cout << "start" << std::endl;
-  #endif
-  
   // parse arguments
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds, "O!O!O!O!|ii", kwlist,
+        args, keywds, "O!O!O!O!|O!O!", kwlist,
         &PyArray_Type, &ov,
         &PyArray_Type, &oV, 
         &PyArray_Type, &oT,
         &PyArray_Type, &oN,
-        &b_tvisibilities,
-        &b_taweights
+        &PyBool_Type, &o_tvisibilities,
+        &PyBool_Type, &o_taweights
         )
       )
     return NULL;
   
-  //std::cout << ov << ' ' << oV << ' ' << oT << ' ' << oN << '\n';
-  
-  #if defined(DEBUG)
-   
-  std::cout 
-    << "ov: NDim=" << PyArray_NDIM(ov) 
-    << " Dim=" << PyArray_DIM(ov, 0) 
-    << " Type=" << PyArray_TYPE(ov)
-    << "\n";
-
-  std::cout 
-    << "oV: NDim=" << PyArray_NDIM(oV) 
-    << " Dim=" << PyArray_DIM(oV, 0) << " " << PyArray_DIM(oV, 1)
-    << " Type=" << PyArray_TYPE(oV)
-    << "\n";
-
-
-  std::cout 
-    << "oT: NDim=" << PyArray_NDIM(oT) 
-    << " Dim=" << PyArray_DIM(oT, 0) << " " << PyArray_DIM(oT, 1)
-    << " Type=" << PyArray_TYPE(oT)
-    << "\n";
-
-  std::cout 
-    << "oT: NDim=" << PyArray_NDIM(oN) 
-    << " Dim=" << PyArray_DIM(oN, 0) << " " << PyArray_DIM(oN, 1)
-    << " Type=" << PyArray_TYPE(oN)
-    << "\n";
-  
-  
-  std::cout.flush();
-  #endif
-  
+  if (o_tvisibilities) b_tvisibilities = PyObject_IsTrue(o_tvisibilities);
+  if (o_taweights) b_taweights = PyObject_IsTrue(o_taweights);
+    
   if (!b_tvisibilities && !b_taweights) return NULL;
-
-  std::cout << "0" << std::endl; std::cout.flush();
+  
+  if (!PyArray_ISCONTIGUOUS(ov)|| 
+      !PyArray_ISCONTIGUOUS(oV)|| 
+      !PyArray_ISCONTIGUOUS(oT)|| 
+      !PyArray_ISCONTIGUOUS(oN)) {
+        
+    std::cerr << "mesh_visibility::Input numpy arrays are not C-contiguous\n";
+    return NULL;
+  }
   
   double *view = (double*)PyArray_DATA(ov);
- 
-  std::cout << "1" << std::endl; std::cout.flush();
   
   std::vector<T3Dpoint<double> > V;
   PyArray_To3DPointVector(oV, V);
