@@ -37,7 +37,9 @@ struct T3Dpoint {
   
   T3Dpoint() {}
   
-  T3Dpoint(T data[3]) : data{data[0], data[1], data[2]} {}
+  T3Dpoint(const T &x1, const T &x2, const T &x3) : data{x1, x2, x3} {}
+   
+  T3Dpoint(T *data) : data{data[0], data[1], data[2]} {}
   
   T & operator[](const int &idx) { return data[idx]; }
   
@@ -45,11 +47,16 @@ struct T3Dpoint {
   
   T* operator & () const { return data; }
   
-  void fill(const T & val){ 
-    data[0] = data[1] = data[3] = val;
+  void fill(const T & val){
+    data[0] = data[1] = data[2] = val;
+  }
+  
+  void assign(const T & x1, const T & x2, const T & x3) {
+    data[0] = x1;
+    data[1] = x2;
+    data[2] = x3;
   }
 };
-
 
 /*
   Overloading printing of Tt3Dpoint
@@ -261,34 +268,6 @@ void trans_basis(T u[3], T v[3], T b[3][3]){
   }
 }
 
-/*
-  Structure describing a triangle by indices of vertices
-  used to compose the triangle.
-*/
-
-struct Ttriangle {
-  
-  int indices[3]; // indices to vertices
-  
-  Ttriangle() {}
-   
-  Ttriangle(int *i): indices{i[0], i[1], i[2]}{}
-  
-  Ttriangle(const int &i1, const int &i2, const int &i3): indices{i1, i2, i3} {}
-  
-  int & operator[](const int &idx) { return indices[idx]; }
-  
-  const int & operator[](const int &idx) const { return indices[idx];}
-};
-
-/*
-  Overloading printing of Triangle
-*/ 
-std::ostream& operator<<(std::ostream& os, const Ttriangle & t)
-{
-  os << t[0] << ' ' << t[1] << ' ' << t[2];
-  return os;
-}
 
 /*
   Calculate area of the triangulated of surfaces and volume of the body
@@ -312,7 +291,7 @@ template <class T>
 void mesh_area_volume(
   std::vector <T3Dpoint<T>> & V,
   std::vector <T3Dpoint<T>> & NatV,
-  std::vector <Ttriangle> & Tr,
+  std::vector <T3Dpoint<int>> & Tr,
   T av[2],
   int choice = 0) { 
   
@@ -406,7 +385,7 @@ template<class T>
 void mesh_attributes(
   std::vector <T3Dpoint<T>> & V,
   std::vector <T3Dpoint<T>> & NatV,
-  std::vector <Ttriangle> & Tr,
+  std::vector <T3Dpoint<int>> & Tr,
   std::vector <T> *A = 0,
   std::vector <T3Dpoint<T>> * N = 0,
   T *area = 0,
@@ -835,7 +814,7 @@ class Tmarching: public Tbody {
     const unsigned & max_triangles, 
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
-    std::vector <Ttriangle> & Tr,
+    std::vector <T3Dpoint<int>> & Tr,
     std::vector<T> * GatV = 0
     ) 
   {
@@ -1135,7 +1114,7 @@ class Tmarching: public Tbody {
   */
   void central_points(
     std::vector <T3Dpoint<T>> & V,
-    std::vector <Ttriangle > & Tr,
+    std::vector <T3Dpoint<int>> & Tr,
     
     std::vector <T3Dpoint<T>> * C = 0,
     std::vector <T3Dpoint<T>> * NatC = 0,

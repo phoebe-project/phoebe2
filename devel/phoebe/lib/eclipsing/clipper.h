@@ -79,7 +79,7 @@ enum PolyType { ptSubject, ptClip };
 enum PolyFillType { pftEvenOdd, pftNonZero, pftPositive, pftNegative };
 
 #if defined(use_int32)
-  typedef int cInt;
+  typedef int32_t cInt;
   static cInt const loRange = 0x3FFF; 
   static cInt const hiRange = 0x3FFFFFFF;   // 2^30 -1
 #else
@@ -101,10 +101,9 @@ struct IntPoint {
   cInt Z;
   IntPoint(const cInt & x = 0, const cInt & y = 0, cInt z = 0): X(x), Y(y), Z(z) {};
 #else
-
   IntPoint(const cInt & x, const cInt & y): X(x), Y(y) {};
 #endif
-
+/*
   friend inline bool operator == (const IntPoint& a, const IntPoint& b)
   {
     return a.X == b.X && a.Y == b.Y;
@@ -113,6 +112,25 @@ struct IntPoint {
   {
     return a.X != b.X  || a.Y != b.Y; 
   }
+  */ 
+  inline bool operator == (const IntPoint& rhs) const
+  {
+    return X == rhs.X && Y == rhs.Y;
+  }
+  inline bool operator != (const IntPoint& rhs) const
+  {
+    return X != rhs.X  || Y != rhs.Y; 
+  }
+  
+  void RangeTest(bool & useFullRange) const {
+
+    if (X > hiRange || Y > hiRange || -X > hiRange || -Y > hiRange) 
+      throw "Coordinate outside allowed range";
+    
+    if (!useFullRange && (X > loRange || Y > loRange || -X > loRange || -Y > loRange)) 
+      useFullRange = true;
+  }
+  
 };
 //------------------------------------------------------------------------------
 
@@ -1403,9 +1421,11 @@ ClipperBase::~ClipperBase() //destructor
 }
 //------------------------------------------------------------------------------
 
+
 void RangeTest(const IntPoint& Pt, bool& useFullRange)
 {
-  /*if (useFullRange)
+  /*
+    if (useFullRange)
   {
     if (Pt.X > hiRange || Pt.Y > hiRange || -Pt.X > hiRange || -Pt.Y > hiRange) 
       throw "Coordinate outside allowed range";
@@ -1414,7 +1434,8 @@ void RangeTest(const IntPoint& Pt, bool& useFullRange)
   {
     useFullRange = true;
     RangeTest(Pt, useFullRange);
-  }*/
+  }
+  */
   
   if (Pt.X > hiRange || Pt.Y > hiRange || -Pt.X > hiRange || -Pt.Y > hiRange) 
     throw "Coordinate outside allowed range";
@@ -1422,6 +1443,7 @@ void RangeTest(const IntPoint& Pt, bool& useFullRange)
   if (!useFullRange && (Pt.X > loRange || Pt.Y > loRange || -Pt.X > loRange || -Pt.Y > loRange)) 
     useFullRange = true;
 }
+
 //------------------------------------------------------------------------------
 
 TEdge* FindNextLocMin(TEdge* E)
@@ -1640,6 +1662,7 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
   if (!Closed)
     throw clipperException("AddPath: Open paths have been disabled.");
 #endif
+  
   /*
   int highI = (int)pg.size() -1;
   
@@ -1648,9 +1671,16 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
   while (highI > 0 && (pg[highI] == pg[highI -1])) --highI;
   
   if ((Closed && highI < 2) || (!Closed && highI < 1)) return false;
-  */
   
-  auto pt = pg.begin(), pt_back = pg.end() - 1;
+  int size = highI + 1;
+  
+  */
+
+  auto pt = pg.begin(), pt_back = pg.end();
+  
+  if (pt == pt_back) return false;
+  
+  --pt_back;
   
   if (Closed) while (pt != pt_back && *pt == *pt_back) --pt_back;
   
@@ -1659,7 +1689,7 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
   int size = pt_back - pt + 1;
   
   if ((Closed && size < 3) || (!Closed && size < 2)) return false;
-  
+    
   //
   // 1. Basic (first) edge initialization ...
   //  
@@ -1689,7 +1719,7 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
     do {
       if (e_next == e_end) e_next = edges;
 
-      RangeTest(*pt, m_UseFullRange);
+      pt->RangeTest(m_UseFullRange);
       
       e->Curr = *(pt++);
       e->OutIdx = Unassigned;

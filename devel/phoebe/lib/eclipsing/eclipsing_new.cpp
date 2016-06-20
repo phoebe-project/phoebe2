@@ -24,8 +24,6 @@
 #include "../triang/triang_marching.h"
 #include "../triang/bodies.h"
 
-#include "clipper.h"
-
 #include <ctime>
 
 int main(){
@@ -66,7 +64,7 @@ int main(){
   Tmarching<double, Tgen_roche<double> > march(params);
 
   std::vector<T3Dpoint<double>> V, NatV;
-  std::vector<Ttriangle> Tr; 
+  std::vector<T3Dpoint<int>> Tr; 
   
   if (!march.triangulize(delta, max_triangles, V, NatV, Tr)){
     std::cerr << "There is too much triangles\n";
@@ -104,12 +102,14 @@ int main(){
   start = clock();  
   
   std::vector<double> M;
+  std::vector<T3Dpoint<double>> W;
+  
   
   double 
     theta = 20./180*M_PI, 
     view[3] = {std::cos(theta), 0, std::sin(theta)};
     
-  triangle_mesh_visibility(view, V, Tr, N, M);
+  triangle_mesh_visibility(view, V, Tr, N, &M, &W);
 
   end = clock();
   
@@ -137,7 +137,7 @@ int main(){
   //
   fr.open("triangles_new.dat");
   for (auto && t: Tr)
-    for (int i = 0; i < 3; ++i) fr << V[t.indices[i]] << '\n';
+    for (int i = 0; i < 3; ++i) fr << V[t.data[i]] << '\n';
   fr.close();
   
   //
