@@ -5865,6 +5865,8 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 // Centroid of polygons implementation
 // Ref: 
+//  * https://en.wikipedia.org/wiki/Centroid#Centroid_of_polygon
+//  * http://paulbourke.net/geometry/polygonmesh/
 //------------------------------------------------------------------------------
 void PolygonCentroid(const Paths& polys, DoublePoint &P){
   
@@ -5886,8 +5888,6 @@ void PolygonCentroid(const Paths& polys, DoublePoint &P){
   
   f = 1.0/(3*A);
   for (int k = 0; k < 2; ++k) P[k] = f*sum[k]; 
-  
-  //std::cerr << A/2 << '\n';
 }
 
 } //ClipperLib namespace
