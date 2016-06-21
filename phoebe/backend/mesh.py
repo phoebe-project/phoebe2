@@ -57,6 +57,9 @@ def transform_position_array(array, pos, euler, is_normal):
     """
     trans_matrix = euler_trans_matrix(*euler)
 
+    if isinstance(array, ComputedColumn):
+        array = array.for_computations
+
     if is_normal:
         # then we don't do an offset by the position
         return np.dot(np.asarray(array), trans_matrix.T)
@@ -72,7 +75,14 @@ def transform_velocity_array(array, vel, euler, rotation_vel=(0,0,0)):
     """
     trans_matrix = np.cross(euler_trans_matrix(*euler), np.asarray(rotation_vel))
 
-    return np.dot(np.asarray(array), trans_matrix.T) + np.asarray(vel)
+
+
+    if isinstance(array, ComputedColumn):
+        array = array.for_computations
+
+    new_vel = np.dot(np.asarray(array), trans_matrix.T) + np.asarray(vel)
+
+    return new_vel
 
 
 def wd_grid_to_mesh_dict(the_grid, q, F, d):
@@ -109,6 +119,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
 
     # TODO: actually compute the numerical volume (find old code)
     new_mesh['volume'] = compute_volume(new_mesh['areas'], new_mesh['centers'], new_mesh['tnormals'])
+    new_mesh['velocities'] = np.zeros(new_mesh['centers'].shape)
 
 
 
@@ -128,9 +139,6 @@ class ComputedColumn(object):
         # the value of self.mesh._compute_at_vertices
         self._vertices = kwargs.get('vertices', None) # N*3x1
         self._centers = kwargs.get('centers', None) # Nx1
-
-        # TODO: this may move to self.mesh.weights (need to be in ScaledProto)
-        self._weights = None # Nx3 (same as self.mesh.triangles)
 
     @property
     def mesh(self):
@@ -162,16 +170,6 @@ class ComputedColumn(object):
             return self.centers
 
     @property
-    def weights(self):
-        if not self.mesh._compute_at_vertices:
-            return None
-
-        if self._weights is not None:
-            return self._weights
-        else:
-            return np.full((self.mesh.N, 3), 1./3)
-
-    @property
     def averages(self):
         if not self.mesh._compute_at_vertices:
             return None
@@ -183,8 +181,17 @@ class ComputedColumn(object):
         if not self.mesh._compute_at_vertices:
             return None
 
-        # return np.dot(self.vertices_per_triangle, self.weights)
-        return np.sum(self.vertices_per_triangle*self.weights, axis=1)
+        vertices_per_triangle = self.vertices_per_triangle
+        if vertices_per_triangle.ndim==2:
+            # return np.dot(self.vertices_per_triangle, self.weights)
+            return np.sum(vertices_per_triangle*self.mesh.weights, axis=1)
+        elif vertices_per_triangle.ndim==3:
+            # np.sum(self.mesh.velocities.vertices_per_triangle[:,:,0]*self.mesh.velocities.mesh.weights, axis=1)
+            # np.sum(self.mesh.velocities.vertices_per_triangle[:,:,1]*self.mesh.velocities.mesh.weights, axis=1)
+            # np.sum(self.mesh.velocities.vertices_per_triangle[:,:,2]*self.mesh.velocities.mesh.weights, axis=1)
+            return np.sum(vertices_per_triangle*self.mesh.weights[:,np.newaxis], axis=1)
+        else:
+            raise NotImplementedError
 
 
     @property
@@ -219,7 +226,7 @@ class ProtoMesh(object):
         self._areas             = None  # Nx1
 
         # TODO: should velocities be a ComputedColumn???
-        self._velocities        = None  # Nx1
+        self._velocities        = ComputedColumn(mesh=self)  # Nx1
 
         # v = vertices
         # t = triangle
@@ -344,6 +351,11 @@ class ProtoMesh(object):
                 # ever happen
                 v = np.ones(self.N)*v
 
+            if isinstance(v, ComputedColumn):
+                # then let's update the mesh instance to correctly handle
+                # inheritance
+                v._mesh = self
+
             self.__setitem__(k, v)
 
 
@@ -424,10 +436,7 @@ class ProtoMesh(object):
 
         (Nx1)
         """
-        if self._velocities is not None:
-            return self._velocities
-        else:
-            return np.zeros((self.N,3))
+        return self._velocities
 
     @property
     def vnormals(self):
@@ -598,12 +607,13 @@ class Mesh(ScaledProtoMesh):
 
         # self._mus               = None  # Nx1 property computed on-the-fly
         self._visibilities      = None  # Nx1
+        self._weights           = None  # Nx3 (per vertex, same order as self.triangles)
 
         # TODO: should observables be computed from teffs.weighted_averages, etc
         # or itself be ComputedColumns??
         self._observables       = {}    # Nx1 (each)
 
-        keys = ['mus', 'visibilities', 'observables']
+        keys = ['mus', 'visibilities', 'weights', 'observables']
         keys = keys + kwargs.pop('keys', [])
 
         super(Mesh, self).__init__(keys=keys, **kwargs)
@@ -690,6 +700,14 @@ class Mesh(ScaledProtoMesh):
             return self._visibilities
         else:
             return np.ones(self.N)
+
+    @property
+    def weights(self):
+        if self._weights is not None:
+            return self._weights
+        else:
+            return np.full((self.N, 3), 1./3)
+
 
     @property
     def observables(self):

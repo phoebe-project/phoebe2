@@ -104,19 +104,19 @@ def wd_horizon(meshes, xs, ys, zs):
     rhos[0][horizon_inds]
     thetas[0][horizon_inds]
 
-    visibilities = only_horizon(meshes, xs, ys, zs)
+    visibilities, weights = only_horizon(meshes, xs, ys, zs)
     # now edit visibilities based on eclipsing region
     # visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}
     visibilities[comp_back]
     mesh_back
 
-    return visibilities
+    return visibilities, None
 
 
 def none(meshes, xs, ys, zs):
     """
     """
-    return {comp_no: mesh.visibilities for comp_no, mesh in meshes.items()}
+    return {comp_no: mesh.visibilities for comp_no, mesh in meshes.items()}, None
 
 def only_horizon(meshes, xs, ys, zs):
     """
@@ -130,7 +130,7 @@ def only_horizon(meshes, xs, ys, zs):
 
     # this can all by easily done by multiplying by int(mu>0) (1 if visible, 0 if hidden)
 
-    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}
+    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None
 
 def visible_ratio(meshes, xs, ys, zs):
     """
@@ -149,15 +149,17 @@ def visible_ratio(meshes, xs, ys, zs):
     viewing_vector = np.array([0., 0., 1.])
 
     # we need to send in ALL vertices but only the visible triangle information
-    visibilities_flat = libphoebe.mesh_visibility(viewing_vector,
-                                                  vertices_flat,
-                                                  triangles_flat,
-                                                  normals_flat,
-                                                  tvisibilities=True)
+    info = libphoebe.mesh_visibility(viewing_vector,
+                                     vertices_flat,
+                                     triangles_flat,
+                                     normals_flat,
+                                     tvisibilities=True,
+                                     taweights=True)
 
+    visibilities = meshes.unpack_column_flat(info['tvisibilities'])
+    weights = meshes.unpack_column_flat(info['taweights'])
 
-    return meshes.unpack_column_flat(visibilities_flat['tvisibilities'])
-
+    return visibilities, weights
 
 def graham(meshes, xs, ys, zs):
     """
@@ -166,7 +168,7 @@ def graham(meshes, xs, ys, zs):
     distance_factor = 1.0  # TODO: make this an option (what does it even do)?
 
     # first lets handle the horizon
-    visibilities = only_horizon(meshes, xs, ys, zs)
+    visibilities, weights = only_horizon(meshes, xs, ys, zs)
 
     # Order the bodies from front to back.  We can do this through zs (which are
     # the z-coordinate positions of each body in the system.
@@ -252,4 +254,4 @@ def graham(meshes, xs, ys, zs):
             #star1.mesh['partial'][arg] = True
 
 
-    return visibilities
+    return visibilities, None
