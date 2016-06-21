@@ -225,11 +225,11 @@ def discretize_wd_style(N, q, F, d, Phi):
 
             # Project the vertex onto the potential; this will be our center point:
             rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
-            vc = project_onto_potential(rc, potential, q, d, F, Phi).r
+            vc = project_onto_potential(rc, potential, d, q, F, Phi).r
 
             # Next we need to find the tangential plane, which we'll get by finding the normal,
             # which is the negative of the gradient:
-            nc = np.array((-dpdx(vc, q, d, F), -dpdy(vc, q, d, F), -dpdz(vc, q, d, F)))
+            nc = np.array((-dpdx(vc, d, q, F), -dpdy(vc, d, q, F), -dpdz(vc, d, q, F)))
 
             # Then we need to find the intercontext of +/-dtheta/dphi-deflected
             # radius vectors with the tangential plane. We do that by solving

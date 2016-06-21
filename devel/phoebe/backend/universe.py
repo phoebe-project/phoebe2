@@ -1319,9 +1319,6 @@ class Star(Body):
         grads = libphoebe.roche_gradOmega_only(*args)
         g_pole = np.linalg.norm(grads)
 
-        # TODO: this is the old way
-        # g_pole = np.sqrt(dOmegadx**2 + dOmegadz**2)
-
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
         self._instantaneous_gpole = g_pole * g_rel_to_abs
@@ -1603,7 +1600,7 @@ class Star(Body):
             ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus), ld_coeffs)
 
             # TODO: FIX AND ENABLE LIMB DARKENING
-            ld = np.ones(self.mesh.mus.shape)
+            # ld = np.ones(self.mesh.mus.shape)
 
             # Apply boosting/beaming and limb-darkening to the projected intensities
 
