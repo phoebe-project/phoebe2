@@ -961,9 +961,7 @@ void triangle_mesh_visibility(
       c.Execute(ClipperLib::ctDifference, P, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
       
       r = Area(P);
-      
-
-      
+            
       // if it is perfectly hidden don't do union
       if (r == 0) continue;
       
@@ -982,7 +980,7 @@ void triangle_mesh_visibility(
           // calculate barycenter of the polygon == centroids
           // http://stackoverflow.com/questions/2792443/finding-the-centroid-of-a-polygon
           ClipperLib::DoublePoint u;
-          //std::cerr << "D:" << Area(P) << '\n';
+
           ClipperLib::PolygonCentroid(P, u);
                     
           // transform in barycentric coordinates (x[0],x[1])
