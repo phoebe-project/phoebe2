@@ -527,6 +527,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     pblum = b.get_value(qualifier='pblum', component=component, dataset=dataset, context='dataset')
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset')
+
                     system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs)
                 else:
                     # then this component wants to copy the scale from another component
@@ -560,6 +561,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
             # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
             # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
+
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli)
 
 
@@ -573,6 +575,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
             system.handle_eclipses()
+
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
@@ -665,9 +668,9 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['x'] = body.mesh.centers[:,0]# * u.solRad
                 this_syn['y'] = body.mesh.centers[:,1]# * u.solRad
                 this_syn['z'] = body.mesh.centers[:,2]# * u.solRad
-                this_syn['vx'] = body.mesh.velocities.for_observations[:,0] * u.solRad/u.d # TODO: check units!!!
-                this_syn['vy'] = body.mesh.velocities.for_observations[:,1] * u.solRad/u.d
-                this_syn['vz'] = body.mesh.velocities.for_observations[:,2] * u.solRad/u.d
+                this_syn['vx'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
+                this_syn['vy'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
+                this_syn['vz'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
                 this_syn['vertices'] = body.mesh.vertices_per_triangle # np.array([body.mesh['vertices'][t] for t in body.mesh['triangles']])
                 this_syn['areas'] = body.mesh.areas # * u.solRad**2
                 # this_syn['volumes'] = body.mesh['areas']*((body.mesh['center']*body.mesh['normal_']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
@@ -677,16 +680,15 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['nz'] = body.mesh.tnormals[:,2]
                 this_syn['mu'] = body.mesh.mus
 
-                # TODO: perhaps we want .averages instead of .for_observations (which defaults to .weighted_averages)?
-                this_syn['logg'] = body.mesh.loggs.for_observations
-                this_syn['teff'] = body.mesh.teffs.for_observations
+                this_syn['logg'] = body.mesh.loggs.centers
+                this_syn['teff'] = body.mesh.teffs.centers
 
                 # abun???
 
                 # TODO: computing r and r_proj could probably use some optimization...
                 x, y, z = xs[cind][i].value, ys[cind][i].value, zs[cind][i].value
-                this_syn['r'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc, [x,y,z])])) for tc in body.mesh['centers']]
-                this_syn['r_proj'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc[:2], [x, y])])) for tc in body.mesh['centers']]
+                this_syn['r'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc, [x,y,z])])) for tc in body.mesh.centers]
+                this_syn['r_proj'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc[:2], [x, y])])) for tc in body.mesh.centers]
 
                 this_syn['visibility'] = body.mesh['visibilities']
 

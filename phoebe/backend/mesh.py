@@ -2,6 +2,8 @@ import numpy as np
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import copy
 
+from phoebe import u
+from phoebe import c
 import libphoebe
 
 import logging
@@ -73,9 +75,10 @@ def transform_velocity_array(array, vel, euler, rotation_vel=(0,0,0)):
     vel is center of mass velocitiy (in new system frame)
     rotation_vel is vector of the rotation velocity of the star (in original frame?)
     """
+
+    # TODO: check this cross product - the star doesn't seem to be rotating correctly
+    # (could also be a units or convention issue)
     trans_matrix = np.cross(euler_trans_matrix(*euler), np.asarray(rotation_vel))
-
-
 
     if isinstance(array, ComputedColumn):
         array = array.for_computations
@@ -92,7 +95,8 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     new_mesh = {}
     # force the mesh to be computed at centers rather than the PHOEBE default
     # of computing at vertices and averaging for the centers.  This will
-    # propogate to all ComputedColumns
+    # propogate to all ComputedColumns, which means we'll fill those quanities
+    # (ie normgrads, velocities) per-triangle.
     new_mesh['compute_at_vertices'] = False
     # PHOEBE's mesh structure stores vertices in an Nx3 array
     new_mesh['vertices'] = triangles_9N.reshape(-1,3)
@@ -103,7 +107,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     # currently used to compute everything.
     new_mesh['tnormals'] = the_grid[:,13:16]
     norms = np.linalg.norm(new_mesh['tnormals'], axis=1)
-    # TODO: do this the right way by dividing along axis=1
+    # TODO: do this the right way by dividing along axis=1 (or using np.newaxis as done for multiplying in ComputedColumns)
     new_mesh['tnormals'] = np.array([tn/n for tn,n in zip(new_mesh['tnormals'], norms)])
 
     new_mesh['areas'] = the_grid[:,3]
@@ -120,8 +124,6 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     # TODO: actually compute the numerical volume (find old code)
     new_mesh['volume'] = compute_volume(new_mesh['areas'], new_mesh['centers'], new_mesh['tnormals'])
     new_mesh['velocities'] = np.zeros(new_mesh['centers'].shape)
-
-
 
     return new_mesh
 
@@ -197,6 +199,9 @@ class ComputedColumn(object):
     @property
     def for_observations(self):
         if self.mesh._compute_at_vertices:
+            return self.averages
+
+            # TODO: switch to the following once weights are properly returned from eclipse detection
             return self.weighted_averages
         else:
             return self.centers
@@ -257,7 +262,7 @@ class ProtoMesh(object):
         self._scalar_fields     = ['volume']
         self._compute_at_vertices = compute_at_vertices
 
-        keys = ['vertices', 'triangles', 'centers', 'areas',
+        keys = ['vertices', 'triangles', 'centers', 'areas', 'areas_si',
                       'velocities', 'vnormals', 'tnormals',
                       'normgrads', 'volume',
                       'phi', 'theta',
@@ -281,7 +286,7 @@ class ProtoMesh(object):
             # TODO NOW: this will break for computedcolumns... :-(
             return self._observables[key]
         else:
-            raise KeyError
+            raise KeyError("{} is not a valid key".format(key))
 
     def __setitem__(self, key, value):
         """
@@ -311,6 +316,9 @@ class ProtoMesh(object):
             # even if it doesn't exist, we'll make a new entry in observables]
 
             self._observables[key] = value
+
+        elif hasattr(self, key) and not hasattr(self, hkey):
+            pass
 
         else:
             raise KeyError("{} is not a valid key".format(key))
@@ -426,6 +434,17 @@ class ProtoMesh(object):
         (Nx1)
         """
         return self._areas
+
+    @property
+    def areas_si(self):
+        """
+        TODO: add documentation
+        """
+        if self._areas is not None:
+            return (self.areas*u.solRad**2).to(u.m**2).value
+        else:
+            return None
+
 
     @property
     def velocities(self):
@@ -547,7 +566,8 @@ class ScaledProtoMesh(ProtoMesh):
         # handle scale
         self.update_columns_dict({k: self[k]*scale for k in pos_ks})
 
-        self.update_columns(areas=self.areas*scale**2)
+        self.update_columns(areas=self.areas*(scale**2))
+        self._volume *= scale**3
         # TODO NOW: scale volume
 
     @property

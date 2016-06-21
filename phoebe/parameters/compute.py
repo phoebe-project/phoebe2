@@ -69,7 +69,7 @@ def phoebe(**kwargs):
 
 
     # ECLIPSE DETECTION
-    params += [ChoiceParameter(qualifier='eclipse_alg', value=kwargs.get('eclipse_alg', 'visible_ratio'), choices=['only_horizon', 'graham', 'none', 'visible_ratio', 'wd_horizon'], description='Type of eclipse algorithm')]
+    params += [ChoiceParameter(qualifier='eclipse_alg', value=kwargs.get('eclipse_alg', 'visible_ratio'), choices=['only_horizon', 'graham', 'none', 'visible_partial', 'visible_ratio', 'wd_horizon'], description='Type of eclipse algorithm')]
 
 
 
