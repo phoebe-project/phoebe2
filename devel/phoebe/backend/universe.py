@@ -349,7 +349,7 @@ class System(object):
             rvs = meshes.get_column_flat("rv:{}".format(dataset), components)
             intens_proj_abs = meshes.get_column_flat('intens_proj_abs:{}'.format(dataset), components)
             mus = meshes.get_column_flat('mus', components)
-            areas = (meshes.get_column_flat('areas', components)*u.solRad**3).to(u.m**3).value
+            areas = meshes.get_column_flat('areas_si', components)
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
@@ -365,7 +365,7 @@ class System(object):
 
             intens_proj_rel = meshes.get_column_flat("intens_proj_rel:{}".format(dataset), components)
             mus = meshes.get_column_flat('mus', components)
-            areas = (meshes.get_column_flat('areas', components)*u.solRad**3).to(u.m**3).value
+            areas = meshes.get_column_flat('areas_si', components)
 
             # intens_proj is the intensity in the direction of the observer per unit surface area of the triangle
             # areas is the area of each triangle
@@ -806,9 +806,9 @@ class Body(object):
         """
         """
         # areas are the NON-projected areas of each surface element.  We'll be
-        # integrated over normal intensities, so we don't need to worry about
+        # integrating over normal intensities, so we don't need to worry about
         # multiplying by mu to get projected areas.
-        areas = (self.mesh.areas*u.solRad**3).to(u.m**3).value
+        areas = self.mesh.areas_si
 
         # intens_norm_abs are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
@@ -1353,10 +1353,10 @@ class Star(Body):
 
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
         # TODO: check the division by 100 - is this just to change units back to m?
-        # gravs = (g_rel_to_abs * self.mesh.normgrads.for_computations/self._instantaneous_gpole/100.)**self.gravb_bol
+        gravs = (g_rel_to_abs * self.mesh.normgrads.for_computations/self._instantaneous_gpole/100.)**self.gravb_bol
 
         # TODO: make sure equivalent to the old way here
-        gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
+        # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
 
         self.mesh.update_columns(gravs=gravs)
 
@@ -1552,18 +1552,15 @@ class Star(Body):
                 self._pbs[passband] = pb
 
             # intens_norm_abs are the normal emergent passband intensities:
+
             intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_observations,
                                                         logg=self.mesh.loggs.for_observations,
                                                         met=self.mesh.abuns.for_observations,
                                                         atm=atm)
 
-            # TODO: we only need this at t0 for compute_pblum_scale
-            #self._instantaneous_Inormpole = self._pbs[passband].Inorm(self._instantaneous_teff, np.log10(self._instantaneous_gpole), atm=atm)
-
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed intens_norm_rel over the
             # entire star is equivalent to pblum / 4pi
-
             intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
 
 
@@ -1606,7 +1603,7 @@ class Star(Body):
             ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus), ld_coeffs)
 
             # TODO: FIX AND ENABLE LIMB DARKENING
-            # ld = np.ones(mesh.mus.shape)
+            ld = np.ones(self.mesh.mus.shape)
 
             # Apply boosting/beaming and limb-darkening to the projected intensities
 

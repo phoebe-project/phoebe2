@@ -161,10 +161,32 @@ def visible_ratio(meshes, xs, ys, zs):
 
     return visibilities, weights
 
+def visible_partial(meshes, xs, ys, zs):
+    centers_flat = meshes.get_column_flat('centers')
+    vertices_flat = meshes.get_column_flat('vertices')
+    triangles_flat = meshes.get_column_flat('triangles')  # should handle offset automatically
+    normals_flat = meshes.get_column_flat('tnormals')
+
+    # viewing_vector is defined as star -> earth
+    # NOTE: this will need to flip if we change the convention on the z-direction
+    viewing_vector = np.array([0., 0., 1.])
+
+    visibilities = libphoebe.mesh_rough_visibility(viewing_vector,
+                                                   vertices_flat,
+                                                   triangles_flat,
+                                                   normals_flat)
+
+    visibilities = meshes.unpack_column_flat(visibilities)
+
+    return visibilities, None
+
+
+
 def graham(meshes, xs, ys, zs):
     """
     convex_graham
     """
+
     distance_factor = 1.0  # TODO: make this an option (what does it even do)?
 
     # first lets handle the horizon
