@@ -687,7 +687,8 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 # TODO: computing r and r_proj could probably use some optimization...
                 x, y, z = xs[cind][i].value, ys[cind][i].value, zs[cind][i].value
-                this_syn['r'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc, [x,y,z])])) for tc in body.mesh.centers]
+                this_syn['r'] = np.linalg.norm(body.mesh.centers, axis=1)
+                # TODO: do a norm trick here?  maybe np.linalg.norm(body.mesh.centers[:,:2], axis=1)???
                 this_syn['r_proj'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc[:2], [x, y])])) for tc in body.mesh.centers]
 
                 this_syn['visibility'] = body.mesh['visibilities']
