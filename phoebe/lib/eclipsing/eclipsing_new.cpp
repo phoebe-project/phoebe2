@@ -146,9 +146,20 @@ int main(){
   fr.open("mask_new.dat");
   for (auto && m : M) fr << m << '\n';
   fr.close();
+ 
+ 
+   //
+  // Saving mask
+  //
+  fr.open("mask_weights.dat");
+  for (auto && w : W) fr << w << '\n';
+  fr.close();
+  
   
   end = clock();
   std::cout << " time= " << end - start << " um\n";
+
+
 
   
   return 0;
