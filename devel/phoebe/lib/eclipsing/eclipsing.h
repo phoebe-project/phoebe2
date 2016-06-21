@@ -943,7 +943,7 @@ void triangle_mesh_visibility(
     
     if (W) (*W)[it->index].fill(1./3);
     
-    double r, a;
+    double r;
   
     while (++it != it_end) {
       
@@ -957,17 +957,20 @@ void triangle_mesh_visibility(
       c.AddPaths(S, ClipperLib::ptClip, true);   // shadow  S
        
        // calculate remainder: P = T - S
+       // P is the visible part of T
       c.Execute(ClipperLib::ctDifference, P, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
       
       r = Area(P);
+      
+
       
       // if it is perfectly hidden don't do union
       if (r == 0) continue;
       
       // detemine ratio of visibility
       // due to round off errors it can be slightly bigger than 1
-      a = std::abs(Area(s));
-      r /= a;
+      
+      r /= std::abs(Area(s));
       
       if (M) (*M)[it->index] = r;
       
@@ -975,14 +978,13 @@ void triangle_mesh_visibility(
         if (r == 1)   // triangle if fully visible
           (*W)[it->index].fill(1./3);
         else  {       // triangle is partially hidden
-          (*W)[it->index].fill(1./3);
-          /* 
           
           // calculate barycenter of the polygon == centroids
           // http://stackoverflow.com/questions/2792443/finding-the-centroid-of-a-polygon
-          double u[2];
-          Centroid(P, r, u);
-        
+          ClipperLib::DoublePoint u;
+          //std::cerr << "D:" << Area(P) << '\n';
+          ClipperLib::PolygonCentroid(P, u);
+                    
           // transform in barycentric coordinates (x[0],x[1])
           // solving 
           //  <r> = s[0] + x[0]*(s[1] - s[0]) + x[1]*(s[2] - s[0])
@@ -991,6 +993,7 @@ void triangle_mesh_visibility(
           // note: triangle is stored in s 
           
           int i, j;
+          
           T x[2], A[2][2], b[2], det;
          
           // define matrix A and vector b
@@ -1005,16 +1008,26 @@ void triangle_mesh_visibility(
           x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
           
           // storing the results
-          (*W)[it->index].assign(1-x[0]-x[1],x[0],x[1]);          
-          */
+          (*W)[it->index].assign(1-x[0]-x[1], x[0], x[1]);
         }
       }
     
-      // calculate the union: S = S U T    
+      // calculate the union: S = S U T  
+      // S is the new "shadow" aka picture at the screen  
       c.Execute(ClipperLib::ctUnion, S, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
       
       // clean the shadow
-      ClipperLib::CleanPolygons(S);
+      ClipperLib::CleanPolygonsDefault(S);
+      
+      // erase path of zero size
+      {
+        auto jt = S.begin();
+        while (jt != S.end()) {
+          if (jt->size() == 0) 
+            jt = S.erase(jt);
+          else ++jt;
+        }   
+      }
     }
   }
   

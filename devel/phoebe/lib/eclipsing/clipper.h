@@ -112,16 +112,18 @@ struct IntPoint {
   {
     return a.X != b.X  || a.Y != b.Y; 
   }
-  */ 
+  */
+  
   inline bool operator == (const IntPoint& rhs) const
   {
     return X == rhs.X && Y == rhs.Y;
   }
+  
   inline bool operator != (const IntPoint& rhs) const
   {
     return X != rhs.X  || Y != rhs.Y; 
   }
-  
+      
   void RangeTest(bool & useFullRange) const {
 
     if (X > hiRange || Y > hiRange || -X > hiRange || -Y > hiRange) 
@@ -131,6 +133,11 @@ struct IntPoint {
       useFullRange = true;
   }
   
+  // Casting 
+  // Ref: http://en.cppreference.com/w/cpp/language/data_members#Standard_layout
+  cInt & operator[](const int &idx) { return ((cInt*)this)[idx]; }
+  
+  const cInt & operator[](const int &idx) const { return ((cInt*)this)[idx]; }
 };
 //------------------------------------------------------------------------------
 
@@ -151,6 +158,9 @@ struct DoublePoint
   DoublePoint(){}
   DoublePoint(const double & x, const double & y) : X(x), Y(y) {}
   DoublePoint(const IntPoint &ip) : X(ip.X), Y(ip.Y) {}
+
+  double & operator[](const int &idx) { return ((double*)this)[idx]; }
+  const double & operator[](const int &idx) const { return ((double*)this)[idx]; }
 };
 //------------------------------------------------------------------------------
 
@@ -201,6 +211,7 @@ private:
 };
 
 template<class T> void Swap(T &val1, T &val2);
+
 inline cInt Round(const double & val);
 
 bool Orientation(const Path &poly);
@@ -224,9 +235,11 @@ void MinkowskiDiff(const Path& poly1, const Path& poly2, Paths& solution);
 void PolyTreeToPaths(const PolyTree& polytree, Paths& paths);
 void ClosedPathsFromPolyTree(const PolyTree& polytree, Paths& paths);
 void OpenPathsFromPolyTree(PolyTree& polytree, Paths& paths);
-
+ 
 void ReversePath(Path& p);
 void ReversePaths(Paths& p);
+
+void PolygonCentroid(const Paths& polys, DoublePoint & P);
 
 struct IntRect { cInt left; cInt top; cInt right; cInt bottom; };
 
@@ -428,8 +441,9 @@ class clipperException : public std::exception
   private:
     std::string m_descr;
 };
+
 //------------------------------------------------------------------------------
-// Implementation 
+// Implementations 
 //------------------------------------------------------------------------------
 
 
@@ -469,7 +483,6 @@ struct TEdge {
   bool IsHorizontal() const { 
     return Delta.Y == 0; 
   }
-  
   
   bool IsIntermediate(const cInt Y) const {
     return Top.Y == Y && NextInLML;
@@ -2027,7 +2040,7 @@ IntRect ClipperBase::GetBounds()
       if (result.left > e->Bot.X) result.left = e->Bot.X;
       
       //result.right = std::max(result.right, e->Bot.X);
-      if (result.right < e->Bot.X) result.right  = e->Bot.X;
+      if (result.right < e->Bot.X) result.right = e->Bot.X;
       
       // result.left = std::min(result.left, e->Top.X);
       if (result.left > e->Top.X) result.left = e->Top.X;
@@ -5189,6 +5202,9 @@ void ReversePaths(Paths& path)
   //  ReversePath(path[i]);
   for (auto && p : path) ReversePath(p);
 }
+
+//------------------------------------------------------------------------------
+// Simplify polygon implementation
 //------------------------------------------------------------------------------
 
 void SimplifyPolygon(const Path &in_poly, Paths &out_polys, PolyFillType fillType)
@@ -5213,17 +5229,24 @@ void SimplifyPolygons(Paths &polys, PolyFillType fillType)
 {
   SimplifyPolygons(polys, polys, fillType);
 }
+
+//------------------------------------------------------------------------------
+// Cleanup polygon implementation
 //------------------------------------------------------------------------------
 
 inline double DistanceSqrd(const IntPoint& pt1, const IntPoint& pt2)
 {
-  double Dx = pt1.X - pt2.X, dy = pt1.Y - pt2.Y;
+  double 
+    Dx = pt1.X - pt2.X, 
+    dy = pt1.Y - pt2.Y;
   return Dx*Dx + dy*dy;
 }
 //------------------------------------------------------------------------------
 
 double DistanceFromLineSqrd(
-  const IntPoint& pt, const IntPoint& ln1, const IntPoint& ln2)
+  const IntPoint& pt, 
+  const IntPoint& ln1, 
+  const IntPoint& ln2)
 {
   //The equation of a line in general form (Ax + By + C = 0)
   //given 2 points (x¹,y¹) & (x²,y²) is ...
@@ -5231,18 +5254,54 @@ double DistanceFromLineSqrd(
   //A = (y¹ - y²); B = (x² - x¹); C = (y² - y¹)x¹ - (x² - x¹)y¹
   //perpendicular distance of point (x³,y³) = (Ax³ + By³ + C)/Sqrt(A² + B²)
   //see http://en.wikipedia.org/wiki/Perpendicular_distance
-  double A = ln1.Y - ln2.Y, B = ln2.X - ln1.X;
+  
+  double 
+    A = ln1.Y - ln2.Y, 
+    B = ln2.X - ln1.X,
+    C = A * (pt.X - ln1.X)  + B * (pt.Y - ln1.Y);
+
   //double C = A * ln1.X  + B * ln1.Y;
   //C = A * pt.X + B * pt.Y - C;
+  A *= A;
+  B *= B;
+  C *= C;
+  return C/(A + B);
+}
+
+
+
+bool DistanceFromLineSqrdDefault(
+  const IntPoint& pt, 
+  const IntPoint& ln1, 
+  const IntPoint& ln2)
+{
+  //The equation of a line in general form (Ax + By + C = 0)
+  //given 2 points (x¹,y¹) & (x²,y²) is ...
+  //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0
+  //A = (y¹ - y²); B = (x² - x¹); C = (y² - y¹)x¹ - (x² - x¹)y¹
+  //perpendicular distance of point (x³,y³) = (Ax³ + By³ + C)/Sqrt(A² + B²)
+  //see http://en.wikipedia.org/wiki/Perpendicular_distance
   
-  double C = A * (pt.X - ln1.X)  + B * (pt.Y - ln1.Y);
+  double 
+    A = ln1.Y - ln2.Y, 
+    B = ln2.X - ln1.X,
+    C = A * (pt.X - ln1.X)  + B * (pt.Y - ln1.Y);
+
+  //double C = A * ln1.X  + B * ln1.Y;
+  //C = A * pt.X + B * pt.Y - C;
+  A *= A;
+  B *= B;
+  C *= C;
   
-  return (C * C) / (A * A + B * B);
+  return C < 2*(A + B);
 }
 //---------------------------------------------------------------------------
 
-bool SlopesNearCollinear(const IntPoint& pt1, 
-    const IntPoint& pt2, const IntPoint& pt3, const double &distSqrd)
+bool SlopesNearCollinear(
+  const IntPoint& pt1, 
+  const IntPoint& pt2, 
+  const IntPoint& pt3, 
+  const double &distSqrd)
 {
   //this function is more accurate when the point that's geometrically
   //between the other 2 points is the one that's tested for distance.
@@ -5253,25 +5312,61 @@ bool SlopesNearCollinear(const IntPoint& pt1,
       return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
     else if ((pt2.X > pt1.X) == (pt2.X < pt3.X))
       return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
-		else
-	    return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
+		
+    return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
 	}
-	else
+
+  if ((pt1.Y > pt2.Y) == (pt1.Y < pt3.Y))
+    return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
+  else if ((pt2.Y > pt1.Y) == (pt2.Y < pt3.Y))
+    return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
+  
+  return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
+}
+
+bool SlopesNearCollinearDefault(
+  const IntPoint& pt1, 
+  const IntPoint& pt2, 
+  const IntPoint& pt3)
+{
+  //this function is more accurate when the point that's geometrically
+  //between the other 2 points is the one that's tested for distance.
+  //ie makes it more likely to pick up 'spikes' ...
+	if (std::abs(pt1.X - pt2.X) > std::abs(pt1.Y - pt2.Y))
 	{
-    if ((pt1.Y > pt2.Y) == (pt1.Y < pt3.Y))
-      return DistanceFromLineSqrd(pt1, pt2, pt3) < distSqrd;
-    else if ((pt2.Y > pt1.Y) == (pt2.Y < pt3.Y))
-      return DistanceFromLineSqrd(pt2, pt1, pt3) < distSqrd;
-		else
-      return DistanceFromLineSqrd(pt3, pt1, pt2) < distSqrd;
+    if ((pt1.X > pt2.X) == (pt1.X < pt3.X))
+      return DistanceFromLineSqrdDefault(pt1, pt2, pt3);
+    else if ((pt2.X > pt1.X) == (pt2.X < pt3.X))
+      return DistanceFromLineSqrdDefault(pt2, pt1, pt3);
+		
+    return DistanceFromLineSqrdDefault(pt3, pt1, pt2);
 	}
+
+  if ((pt1.Y > pt2.Y) == (pt1.Y < pt3.Y))
+    return DistanceFromLineSqrdDefault(pt1, pt2, pt3);
+  else if ((pt2.Y > pt1.Y) == (pt2.Y < pt3.Y))
+    return DistanceFromLineSqrdDefault(pt2, pt1, pt3);
+  
+  return DistanceFromLineSqrdDefault(pt3, pt1, pt2);
 }
 //------------------------------------------------------------------------------
 
 bool PointsAreClose(const IntPoint& pt1, const IntPoint & pt2, const double & distSqrd)
 {
-    double Dx = pt1.X - pt2.X, dy = pt1.Y - pt2.Y;
-    return ((Dx * Dx) + (dy * dy) <= distSqrd);
+  double 
+    Dx = pt1.X - pt2.X,
+    dy = pt1.Y - pt2.Y;
+  
+  return ((Dx * Dx) + (dy * dy) <= distSqrd);
+}
+
+bool PointsAreCloseDefault(const IntPoint& pt1, const IntPoint & pt2)
+{
+  double 
+    Dx = pt1.X - pt2.X,
+    dy = pt1.Y - pt2.Y;
+  
+  return ((Dx * Dx) + (dy * dy) <= 2);
 }
 //------------------------------------------------------------------------------
 
@@ -5375,12 +5470,171 @@ void CleanPolygon(const Path& in_poly, Path& out_poly, const double & distance)
    
   delete [] outPts;
 }
+
 //------------------------------------------------------------------------------
 
+void CleanPolygon(Path& poly, const double & distance) {
+  
+  //distance = proximity in units/pixels below which vertices
+  //will be stripped. Default ~= sqrt(2).
+  
+  size_t size = poly.size();
+  
+  if (size == 0) return; 
+  
+  /*
+  OutPt* outPts = new OutPt[size];
+  for (size_t i = 0; i < size; ++i)
+  {
+    outPts[i].Pt = in_poly[i];
+    outPts[i].Next = &outPts[(i + 1) % size];
+    outPts[i].Next->Prev = &outPts[i];
+    outPts[i].Idx = 0;
+  }
+  */
+  
+  OutPt *outPts = new OutPt[size];
+
+  {
+    auto *it = outPts, *it_next = it + 1, *it_end = it + size;
+    auto *ip = poly.data();
+     
+    do {
+      if (it_next == it_end) it_next = outPts;
+      
+      it -> Pt  = *(ip++);
+      it -> Next = it_next;
+      it -> Next->Prev = it;
+      it -> Idx = 0;
+      
+      it = it_next++;
+
+    } while (it != outPts);
+  }
+
+  double distSqrd = distance * distance;
+  
+  OutPt* op = outPts;
+  
+  while (op->Idx == 0 && op->Next != op->Prev) 
+  {
+    if (PointsAreClose(op->Pt, op->Prev->Pt, distSqrd))
+    {
+      op = ExcludeOp(op);
+      --size;
+    } 
+    else if (PointsAreClose(op->Prev->Pt, op->Next->Pt, distSqrd))
+    {
+      ExcludeOp(op->Next);
+      op = ExcludeOp(op);
+      size -= 2;
+    }
+    else if (SlopesNearCollinear(op->Prev->Pt, op->Pt, op->Next->Pt, distSqrd))
+    {
+      op = ExcludeOp(op);
+      --size;
+    }
+    else
+    {
+      op->Idx = 1;
+      op = op->Next;
+    }
+  }
+
+  if (size < 3) size = 0;
+  
+  poly.resize(size);
+  
+  /*
+  for (size_t i = 0; i < size; ++i)
+  {
+    out_poly[i] = op->Pt;
+    op = op->Next;
+  }
+  */
+  
+  for (auto && out : poly) {
+    out = op->Pt;
+    op = op->Next;
+  }
+   
+  delete [] outPts;
+}
+
+void CleanPolygonDefault(Path& poly) {
+  
+  //distance = proximity in units/pixels below which vertices
+  //will be stripped. Default ~= sqrt(2).
+  
+  size_t size = poly.size();
+  
+  if (size == 0) return; 
+  
+  
+  OutPt *outPts = new OutPt[size];
+
+  {
+    auto *it = outPts, *it_next = it + 1, *it_end = it + size;
+    auto *ip = poly.data();
+     
+    do {
+      if (it_next == it_end) it_next = outPts;
+      
+      it -> Pt  = *(ip++);
+      it -> Next = it_next;
+      it -> Next->Prev = it;
+      it -> Idx = 0;
+      
+      it = it_next++;
+
+    } while (it != outPts);
+  }
+
+  OutPt* op = outPts;
+  
+  while (op->Idx == 0 && op->Next != op->Prev) 
+  {
+    if (PointsAreCloseDefault(op->Pt, op->Prev->Pt))
+    {
+      op = ExcludeOp(op);
+      --size;
+    } 
+    else if (PointsAreCloseDefault(op->Prev->Pt, op->Next->Pt))
+    {
+      ExcludeOp(op->Next);
+      op = ExcludeOp(op);
+      size -= 2;
+    }
+    else if (SlopesNearCollinearDefault(op->Prev->Pt, op->Pt, op->Next->Pt))
+    {
+      op = ExcludeOp(op);
+      --size;
+    }
+    else
+    {
+      op->Idx = 1;
+      op = op->Next;
+    }
+  }
+
+  if (size < 3) size = 0;
+  
+  poly.resize(size);
+  
+  for (auto && out : poly) {
+    out = op->Pt;
+    op = op->Next;
+  }
+   
+  delete [] outPts;
+}
+
+//------------------------------------------------------------------------------
+/*
 void CleanPolygon(Path& poly, double distance)
 {
   CleanPolygon(poly, poly, distance);
-}
+}*/
 //------------------------------------------------------------------------------
 
 void CleanPolygons(const Paths& in_polys, Paths& out_polys, const double & distance)
@@ -5392,8 +5646,16 @@ void CleanPolygons(const Paths& in_polys, Paths& out_polys, const double & dista
 
 void CleanPolygons(Paths& polys, const double &distance)
 {
-  for (auto && poly : polys) CleanPolygon(poly, poly, distance);
+  for (auto && poly : polys) CleanPolygon(poly, distance);
 }
+
+void CleanPolygonsDefault(Paths& polys)
+{
+  for (auto && poly : polys) CleanPolygonDefault(poly);
+}
+
+//------------------------------------------------------------------------------
+// Minkowski sum of polygons implementation
 //------------------------------------------------------------------------------
 
 void Minkowski(const Path& poly, const Path& path, 
@@ -5498,7 +5760,10 @@ void MinkowskiDiff(const Path& poly1, const Path& poly2, Paths& solution)
   c.AddPaths(solution, ptSubject, true);
   c.Execute(ctUnion, solution, pftNonZero, pftNonZero);
 }
+
 //------------------------------------------------------------------------------
+// Conversion between PolyTree and Paths implemenation
+// -----------------------------------------------------------------------------
 
 enum NodeType {ntAny, ntOpen, ntClosed};
 
@@ -5553,8 +5818,11 @@ void OpenPathsFromPolyTree(PolyTree& polytree, Paths& paths)
   for (auto && child: polytree.Childs)
     if (child->IsOpen()) paths.push_back(child->Contour);
 }
-//------------------------------------------------------------------------------
 
+
+//------------------------------------------------------------------------------
+// Output to ostream
+//------------------------------------------------------------------------------
 std::ostream& operator <<(std::ostream &s, const IntPoint &p)
 {
   s << "(" << p.X << "," << p.Y << ")";
@@ -5582,6 +5850,7 @@ std::ostream& operator <<(std::ostream &s, const Path &p)
   
   return s;
 }
+
 //------------------------------------------------------------------------------
 
 std::ostream& operator <<(std::ostream &s, const Paths &p)
@@ -5592,8 +5861,34 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
   s << "\n";
   return s;
 }
-//------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Centroid of polygons implementation
+// Ref: 
+//------------------------------------------------------------------------------
+void PolygonCentroid(const Paths& polys, DoublePoint &P){
+  
+  long double sum[3] = {0, 0}, A = 0, f; 
+  
+  for (auto && poly : polys) {
+    
+    for (int size = poly.size(), i = 0, j = size - 1; i < size; ++i) {
+  
+      f = (long double)(poly[i].Y)*poly[j].X - (long double)(poly[i].X)*poly[j].Y;
+      
+      A += f;
+      
+      for (int k = 0; k < 2; ++k) sum[k] += f*(poly[i][k] + poly[j][k]);
+  
+      j = i;
+    }
+  }
+  
+  f = 1.0/(3*A);
+  for (int k = 0; k < 2; ++k) P[k] = f*sum[k]; 
+  
+  //std::cerr << A/2 << '\n';
+}
 
 } //ClipperLib namespace
 
