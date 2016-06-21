@@ -256,11 +256,13 @@ class System(object):
 
         # We need to run eclipse detection first to get the partial triangles
         # to send to subdivision
-        visibilities = ecl_func(meshes, self.xs, self.ys, self.zs)
+        visibilities, weights = ecl_func(meshes, self.xs, self.ys, self.zs)
         # visiblilities here is a dictionary with keys being the component
         # labels and values being the np arrays of visibilities.  We can pass
         # this dictionary directly and the columns will be applied respectively.
         meshes.update_columns('visibilities', visibilities)
+        if weights is not None:
+            meshes.update_columns('weights', weights)
 
         # Now we'll handle subdivision.  If at any point there are no partially
         # subdivided triangles, then we can break the loop and we're done.  Otherwise
@@ -1277,6 +1279,8 @@ class Star(Body):
 
                 # new_mesh['normals'] = new_mesh.pop('vnormals')
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
+
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
@@ -1349,10 +1353,10 @@ class Star(Body):
 
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
         # TODO: check the division by 100 - is this just to change units back to m?
-        gravs = (g_rel_to_abs * self.mesh.normgrads.for_computations/self._instantaneous_gpole/100.)**self.gravb_bol
+        # gravs = (g_rel_to_abs * self.mesh.normgrads.for_computations/self._instantaneous_gpole/100.)**self.gravb_bol
 
         # TODO: make sure equivalent to the old way here
-        # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
+        gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
 
         self.mesh.update_columns(gravs=gravs)
 
@@ -1500,7 +1504,9 @@ class Star(Body):
         # RV per element is just the z-component of the velocity vectory.  Note
         # the change in sign from our right-handed system to RV conventions.
         # These will be weighted by the fluxes when integrating
-        rvs = -1*self.mesh.velocities[:,2]
+
+        # TODO: should this be .for_observations (.weighted_averages) or .averages
+        rvs = -1*self.mesh.velocities.for_observations[:,2]
 
         # Gravitational redshift
         if self.do_rv_grav:
@@ -1588,7 +1594,8 @@ class Star(Body):
 
             # light speed in Rsol/d
             # TODO: should we mutliply velo__bol_ by -1?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities[:,2]/37241.94167601236
+            # TODO: should this be .for_observations (.weighted_averages) or .averages?
+            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_observations[:,2]/37241.94167601236
 
 
             # Limb-darkening
@@ -1602,6 +1609,7 @@ class Star(Body):
             # ld = np.ones(mesh.mus.shape)
 
             # Apply boosting/beaming and limb-darkening to the projected intensities
+
             intens_proj_abs = intens_norm_abs * ld * ampl_boost
             intens_proj_rel = intens_norm_rel * ld * ampl_boost
 
@@ -1891,6 +1899,7 @@ class Envelope(Body):
                                                          volume=True)
 
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)

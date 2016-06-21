@@ -562,6 +562,18 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli)
 
+
+            # Now we need to determine which triangles are visible and handle subdivision
+            # NOTE: this should come after populate_observables so that each subdivided triangle
+            # will have identical local quantities.  The only downside to this is that we can't
+            # make a shortcut and only populate observables at known-visible triangles - but
+            # frankly that wouldn't save much time anyways and would then be annoying when
+            # inspecting or plotting the mesh
+            # NOTE: this has been moved before populate observables now to make use
+            # of per-vertex weights which are used to determine the physical quantities
+            # (ie teff, logg) that should be used in computing observables (ie intensity)
+            system.handle_eclipses()
+
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
             # print "*** system.populate_observables", [info['method'] for info in infolist if info['needs_mesh']], [info['dataset'] for info in infolist if info['needs_mesh']]
@@ -570,14 +582,6 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     [info['dataset'] for info in infolist if info['needs_mesh']],
                     [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], method='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()} for info in infolist if info['needs_mesh']]
                     )
-
-            # Now we need to determine which triangles are visible and handle subdivision
-            # NOTE: this should come after populate_observables so that each subdivided triangle
-            # will have identical local quantities.  The only downside to this is that we can't
-            # make a shortcut and only populate observables at known-visible triangles - but
-            # frankly that wouldn't save much time anyways and would then be annoying when
-            # inspecting or plotting the mesh
-            system.handle_eclipses()
 
 
         # now let's loop through and fill any synthetics at this time step
@@ -658,21 +662,22 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
                 this_syn['volume'] = body.volume
 
-                this_syn['x'] = body.mesh['centers'][:,0]# * u.solRad
-                this_syn['y'] = body.mesh['centers'][:,1]# * u.solRad
-                this_syn['z'] = body.mesh['centers'][:,2]# * u.solRad
-                this_syn['vx'] = body.mesh['velocities'][:,0] * u.solRad/u.d # TODO: check units!!!
-                this_syn['vy'] = body.mesh['velocities'][:,1] * u.solRad/u.d
-                this_syn['vz'] = body.mesh['velocities'][:,2] * u.solRad/u.d
+                this_syn['x'] = body.mesh.centers[:,0]# * u.solRad
+                this_syn['y'] = body.mesh.centers[:,1]# * u.solRad
+                this_syn['z'] = body.mesh.centers[:,2]# * u.solRad
+                this_syn['vx'] = body.mesh.velocities.for_observations[:,0] * u.solRad/u.d # TODO: check units!!!
+                this_syn['vy'] = body.mesh.velocities.for_observations[:,1] * u.solRad/u.d
+                this_syn['vz'] = body.mesh.velocities.for_observations[:,2] * u.solRad/u.d
                 this_syn['vertices'] = body.mesh.vertices_per_triangle # np.array([body.mesh['vertices'][t] for t in body.mesh['triangles']])
-                this_syn['areas'] = body.mesh['areas']# * u.solRad**2
+                this_syn['areas'] = body.mesh.areas # * u.solRad**2
                 # this_syn['volumes'] = body.mesh['areas']*((body.mesh['center']*body.mesh['normal_']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
-                this_syn['normals'] = body.mesh['tnormals']  # TODO remove this vector now that we have nx,ny,nz?e
-                this_syn['nx'] = body.mesh['tnormals'][:,0]
-                this_syn['ny'] = body.mesh['tnormals'][:,1]
-                this_syn['nz'] = body.mesh['tnormals'][:,2]
+                this_syn['normals'] = body.mesh.tnormals  # TODO remove this vector now that we have nx,ny,nz?e
+                this_syn['nx'] = body.mesh.tnormals[:,0]
+                this_syn['ny'] = body.mesh.tnormals[:,1]
+                this_syn['nz'] = body.mesh.tnormals[:,2]
                 this_syn['mu'] = body.mesh.mus
 
+                # TODO: perhaps we want .averages instead of .for_observations (which defaults to .weighted_averages)?
                 this_syn['logg'] = body.mesh.loggs.for_observations
                 this_syn['teff'] = body.mesh.teffs.for_observations
 
