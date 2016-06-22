@@ -505,6 +505,8 @@ void mesh_attributes(
       }
     }
   }
+  if (st_area)  *area /= 2;
+  if (st_volume) *volume /= 6;
 }
 
 

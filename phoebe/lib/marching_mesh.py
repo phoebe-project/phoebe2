@@ -50,7 +50,7 @@ max_triangles = 10000000 # 10^7
 #   Ntriangles x 3 integer indices
 
 start = time.time()
-res = roche_marching_mesh(q, F, d, Omega0, delta, choice, max_triangles, vertices=True, vnormals=True, triangles=True, tnormals=True, areas=True)
+res = roche_marching_mesh(q, F, d, Omega0, delta, choice, max_triangles, vertices=True, vnormals=True, triangles=True, tnormals=True, areas=True, area=True, volume=True)
 end = time.time()
 
 V = res["vertices"]
@@ -83,11 +83,22 @@ end = time.time()
 M = vis["tvisibilities"]
 W = vis["taweights"]
 
-print "triangle_mesh_visibility, time[ms]=", 1000*(end-start)
-
+print "mesh_visibility, time[ms]=", 1000*(end-start)
 
 np.savetxt('py_meshingM.txt', M, fmt='%.16e')
 np.savetxt('py_meshingW.txt', W, fmt='%.16e')
+
+
+# Calculate the area and volume of the lobe
+# 
+
+start = time.time()
+av = roche_area_volume(q, F, d, Omega0, 0, larea=True, lvolume=True)
+end = time.time()
+
+print "roche_area_volume, time[ms]=", 1000*(end-start)
+print "lobe:area=%.16e, volume=%.16e" % (av["larea"], av["lvolume"])
+print "mesh:area=%.16e, volume=%.16e" % (res["area"], res["volume"])
   
 #print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
