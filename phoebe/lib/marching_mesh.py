@@ -1,4 +1,4 @@
-#  Testing the C++ routine wrapped in lib_phoebe_roche  
+#  Testing the C++ routine wrapped in libphoebe  
 #
 #  Install for memory analyzer:
 #   apt-get install python-meliae
