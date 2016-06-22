@@ -452,8 +452,10 @@ void mesh_attributes(
       
       norm = utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
       
-      if (A) A->emplace_back(norm);
-      if (area) *area += norm;
+      f  = norm/2;
+      
+      if (A) A->emplace_back(f);
+      if (area) *area += f;
     }
     
     if (st_N_volume) {
@@ -498,15 +500,13 @@ void mesh_attributes(
             (-v[2][0]*v[1][1] + v[1][0]*v[2][1])*v[0][2] +
             (+v[2][0]*v[0][1] - v[0][0]*v[2][1])*v[1][2] +
             (-v[1][0]*v[0][1] + v[0][0]*v[1][1])*v[2][2] 
-          );
+          )/6;
           
           if (f > 0) *volume += fv; else  *volume -= fv;
         }
       }
     }
   }
-  if (st_area)  *area /= 2;
-  if (st_volume) *volume /= 6;
 }
 
 
