@@ -478,9 +478,16 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     
   bool b_Omega0 = !std::isnan(Omega0);
   
-  std::cout << b_Omega0 << '\n';
+  //???? Here comes the code
   
-  return PyFloat_FromDouble(Omega0);
+  double Omega1;
+  
+  if (b_Omega0) 
+    Omega1 = Omega0; 
+  else 
+    Omega1 = 0;
+  
+  return PyFloat_FromDouble(Omega1);
 }
 
 
