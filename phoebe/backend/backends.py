@@ -491,6 +491,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         # we only need to handle pblum_scale if we have a dataset method which requires
         # intensities
         x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0)
 
         for dataset in b.datasets:
@@ -564,7 +565,6 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
             system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli)
 
-
             # Now we need to determine which triangles are visible and handle subdivision
             # NOTE: this should come after populate_observables so that each subdivided triangle
             # will have identical local quantities.  The only downside to this is that we can't
@@ -575,7 +575,6 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
             system.handle_eclipses()
-
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
@@ -703,7 +702,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                             # print "***", key, indep, new_syns.qualifiers
                             # print "***", indep, time, infomesh['dataset'], info['component'], 'mesh', new_syns.filter(time=time, method='mesh').twigs
                             try:
-                                new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], method='MESH', value=body.mesh[key])
+                                new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], method='MESH', value=body.mesh[key].centers)
                             except ValueError:
                                 raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], method='MESH').twigs)))
 

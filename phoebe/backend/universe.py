@@ -200,6 +200,7 @@ class System(object):
                 body.populate_observable(time, method, dataset, **kwargs)
 
 
+
     def handle_eclipses(self, **kwargs):
         """
         Detect the triangles at the horizon and the eclipsed triangles, handling
@@ -812,7 +813,7 @@ class Body(object):
 
         # intens_norm_abs are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)]
+        intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)].for_observations
 
         # The luminosity will be the integrated NORMAL intensities, but since some
         # limbdarkening laws still darken/brighten at mu=0, we'll compute the
@@ -1335,7 +1336,7 @@ class Star(Body):
         """
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
-        loggs = np.log10(g_rel_to_abs * self.mesh.normgrads.for_computations)
+        loggs = np.log10(self.mesh.normgrads.for_computations * g_rel_to_abs)
         self.mesh.update_columns(loggs=loggs)
 
         # logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(loggs.min(), loggs.max(), self._instantaneous_gpole, self._instantaneous_rpole*self._scale))
@@ -1350,7 +1351,7 @@ class Star(Body):
 
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
         # TODO: check the division by 100 - is this just to change units back to m?
-        gravs = (g_rel_to_abs * self.mesh.normgrads.for_computations/self._instantaneous_gpole/100.)**self.gravb_bol
+        gravs = ((self.mesh.normgrads.for_computations * g_rel_to_abs)/self._instantaneous_gpole/100.)**self.gravb_bol
 
         # TODO: make sure equivalent to the old way here
         # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
@@ -1502,8 +1503,7 @@ class Star(Body):
         # the change in sign from our right-handed system to RV conventions.
         # These will be weighted by the fluxes when integrating
 
-        # TODO: should this be .for_observations (.weighted_averages) or .averages
-        rvs = -1*self.mesh.velocities.for_observations[:,2]
+        rvs = -1*self.mesh.velocities.for_computations[:,2]
 
         # Gravitational redshift
         if self.do_rv_grav:
@@ -1549,10 +1549,9 @@ class Star(Body):
                 self._pbs[passband] = pb
 
             # intens_norm_abs are the normal emergent passband intensities:
-
-            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_observations,
-                                                        logg=self.mesh.loggs.for_observations,
-                                                        met=self.mesh.abuns.for_observations,
+            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
+                                                        logg=self.mesh.loggs.for_computations,
+                                                        met=self.mesh.abuns.for_computations,
                                                         atm=atm)
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
@@ -1588,8 +1587,7 @@ class Star(Body):
 
             # light speed in Rsol/d
             # TODO: should we mutliply velo__bol_ by -1?
-            # TODO: should this be .for_observations (.weighted_averages) or .averages?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_observations[:,2]/37241.94167601236
+            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
 
             # Limb-darkening
@@ -1597,7 +1595,7 @@ class Star(Body):
             # TODO: the abs shouldn't be necessary here, but for some reason
             # is causing issues when ld_logarithmic with negative mus (well
             # I mean the reason it fails is obvious)
-            ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus), ld_coeffs)
+            ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus_for_computations), ld_coeffs)
 
             # TODO: FIX AND ENABLE LIMB DARKENING
             # ld = np.ones(self.mesh.mus.shape)
@@ -1958,9 +1956,6 @@ class Envelope(Body):
         """
         [NOT IMPLEMENTED]
         requires _fill_loggs and _fill_gravs to have been called
-
-
-
         """
         self.mesh.update_columns(teffs=0.0)
 

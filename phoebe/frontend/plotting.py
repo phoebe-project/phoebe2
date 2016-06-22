@@ -48,11 +48,11 @@ logger.addHandler(logging.NullHandler())
 
 
 # TODO: this is redundant with parameters.py - figure out a way to import without circular imports (perhaps put these in their own module)
-_meta_fields_twig = ['time', 'qualifier', 'history', 'component', 
-                'dataset', 'constraint', 'compute', 'model', 'fitting', 
+_meta_fields_twig = ['time', 'qualifier', 'history', 'component',
+                'dataset', 'constraint', 'compute', 'model', 'fitting',
                 'feedback', 'plugin', 'method',
                 'context']
-                
+
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 
 def _mpl_append_axes(fig, **kwargs):
@@ -64,7 +64,7 @@ def _mpl_append_axes(fig, **kwargs):
     N = len(fig.axes)
 
     # we'll reset the layout later anyways
-    ax_new = fig.add_subplot(1,N+1,N+1, **kwargs)  
+    ax_new = fig.add_subplot(1,N+1,N+1, **kwargs)
 
     axes = fig.axes
     N = len(axes)
@@ -93,7 +93,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         # color from mplkwargs, make the plotting call without it, and then
         # overplot a scatter call
 
-        _symmetric_colorkeys = ['rv', 'vz']
+        _symmetric_colorkeys = ['rv', 'vx', 'vy', 'vz']
 
         try:
             float(kwargs[colorkey])
@@ -119,7 +119,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
 
             if make_array is not None:
-                # then we need to alter the value in the kwargs dictionary to be a 
+                # then we need to alter the value in the kwargs dictionary to be a
                 # normalized array that can be sent to the cmap
 
                 if colorarray.dtype != np.float:
@@ -163,13 +163,13 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         elif colorkey is None:
             return None
         else:
-            return 'rainbow'        
+            return 'rainbow'
 
         # TODO: add support for plt.blackbody_cmap()
 
         if colorkey in ['rv']:
             cmap = 'RdBu_r'
-        elif colorkey in ['vz']:
+        elif colorkey in ['vx', 'vy', 'vz']:
             cmap = 'RdBu'
         elif colorkey in ['teff']:
             cmap = 'afmhot'
@@ -185,7 +185,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         logger.info("defaulting to '{}' colormap for '{}'".format(cmap, colorkey))
         return cmap
-        
+
     return_artists = []
     return_data_per_artist = []
 
@@ -207,7 +207,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         else:
             # not sure if we want this - the user may have set the aspect ratio already
             if ps.method in ['ORB', 'MESH'] and xunit==yunit:
-                # TODO: for aspect ratio (here and above) can we be smarter and 
+                # TODO: for aspect ratio (here and above) can we be smarter and
                 # check for same units?
                 ax.set_aspect('equal')
 
@@ -220,9 +220,9 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
 
 
-    mplkwargs = {k:v for k,v in kwargs.items() if k not in 
+    mplkwargs = {k:v for k,v in kwargs.items() if k not in
         _meta_fields_all+['x', 'y', 'z', 'xerrors', 'yerrors', 'zerrors',
-            'xlabel', 'ylabel', 'zlabel', 
+            'xlabel', 'ylabel', 'zlabel',
             'xlim', 'ylim', 'zlim',
             'xunit', 'yunit', 'zunit', 'time', 'highlight', 'highlight_ms',
             'highlight_marker', 'highlight_color', 'uncover',
@@ -243,7 +243,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             pckwargs['edgecolors'] = pckwargs['facecolors']
 
 
-        # pckwargs will now have facecolors and edgecolors - either as strings 
+        # pckwargs will now have facecolors and edgecolors - either as strings
         # or as an array of colors ready for matplotlib.  We do that this way
         # here because edge and face may have different cmaps.  For individual
         # xy plots we leave the normalizing and cmaps up to matplotlib.
@@ -306,7 +306,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             if axes_3d:
                 ax.set_xlim3d(kwargs.get('xlim', xlim))
             else:
-                ax.set_xlim(kwargs.get('xlim', xlim)) 
+                ax.set_xlim(kwargs.get('xlim', xlim))
             if axes_3d:
                 ax.set_ylim3d(kwargs.get('ylim', ylim))
             else:
@@ -365,7 +365,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 else:
                     return_data_per_artist.append((xarray[plot_inds], yarray[plot_inds]))
 
-        # NOTE that these are separate ifs (rather than elifs) because they may 
+        # NOTE that these are separate ifs (rather than elifs) because they may
         # both need to be called if asking for a linestyle and marker
         if colorarray is not None and kwargs['linestyle'] not in [None, 'none', 'None']:
             # then we have to do this the hard way
@@ -380,7 +380,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
             # TODO: add support for linewidths (but what keyword would do this - data would need to be markersizes)
-            
+
             # Now we handle the color map for a bunch of line-segments.  Note
             # that we normalize the colormap based on the entire colorarray,
             # so that the map will stay in place if uncover=True
@@ -388,7 +388,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 logger.debug("kwargs passed to LineCollection: {}".format(mplkwargs))
 
                 mplkwargs.setdefault('cmap', _default_cmap(ps, mplkwargs.get('color', None)))
-                lc = LineCollection(segments, 
+                lc = LineCollection(segments,
                     norm=plt.Normalize(min(colorarray), max(colorarray)),
                     **{k:v for k,v in mplkwargs.items() if k not in ['markersize', 'marker']})
                 lc.set_array(colorarray[plot_inds])
@@ -407,13 +407,13 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                     artist = ax.scatter(xarray[plot_inds], yarray[plot_inds], zarray[plot_inds], c=colorarray[plot_inds],
                         cmap=plt.get_cmap(kwargs.get('cmap', _default_cmap(ps, mplkwargs.get('color', None)))),
                         norm=plt.Normalize(min(colorarray), max(colorarray)),
-                        marker=kwargs['marker'], 
+                        marker=kwargs['marker'],
                         linewidths=0) # linewidths=0 removes the black edge
                 else:
                     artist = ax.scatter(xarray[plot_inds], yarray[plot_inds], c=colorarray[plot_inds],
                         cmap=plt.get_cmap(kwargs.get('cmap', _default_cmap(ps, mplkwargs.get('color', None)))),
                         norm=plt.Normalize(min(colorarray), max(colorarray)),
-                        marker=kwargs['marker'], 
+                        marker=kwargs['marker'],
                         linewidths=0) # linewidths=0 removes the black edge
 
                 return_artists.append(artist)
@@ -486,7 +486,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             if len(ax.get_zlabel()) and ax.get_zlabel()!=zlabel:
                 logger.warning("zlabel is already set but is not '{}' - ignoring".format(zlabel))
             else:
-                ax.set_zlabel(zlabel) 
+                ax.set_zlabel(zlabel)
 
         # now let's handle setting the axes limits, but only if the user sent values
         # TODO: should we handle ax._phoebe_xlim and friends here?
@@ -494,12 +494,12 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             if axes_3d:
                 ax.set_xlim3d(kwargs['xlim'])
             else:
-                ax.set_xlim(kwargs['xlim']) 
+                ax.set_xlim(kwargs['xlim'])
         if kwargs.get('ylim', False):
             if axes_3d:
                 ax.set_ylim3d(kwargs['ylim'])
             else:
-                ax.set_ylim(kwargs['ylim']) 
+                ax.set_ylim(kwargs['ylim'])
         if axes_3d and kwargs.get('zlim', False):
             ax.set_zlim3d(kwargs['zlim'])
 
@@ -511,7 +511,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             # inspired by The Martian
             at = AnchoredText("CALCULATIONS\n     CORRECT",
                               prop=dict(size=15), frameon=True,
-                              loc=10, 
+                              loc=10,
                               )
             at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
             # this is not animatable
@@ -553,7 +553,7 @@ def show_mpld3(**kwargs):
     # TODO: needs to just be input for python3
     # raw_input("press enter to continue...")
     sleep(2)
-    
+
     os.remove('_mpld3.html')
 
 
@@ -721,11 +721,11 @@ def show_lightning(**kwargs):
 
     # TODO: needs to just be input for python3
     raw_input("press enter to continue...")
-    
+
     os.remove('_lgn.html')
 
 def save_lightning(fname, **kwargs):
-    
+
     os.rename('_lgn.html', fname)
     return fname
 
@@ -766,5 +766,5 @@ def _template_plotting_function(ps, data, plot_inds, **kwargs):
 # - mpl2plotly
 # - chaco (https://github.com/enthought/chaco)
 # - mayavi (***)
-# - opengl 
+# - opengl
 # - visvis

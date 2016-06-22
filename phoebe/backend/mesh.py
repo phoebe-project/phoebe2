@@ -68,22 +68,28 @@ def transform_position_array(array, pos, euler, is_normal):
     else:
         return np.dot(np.asarray(array), trans_matrix.T) + np.asarray(pos)
 
-def transform_velocity_array(array, vel, euler, rotation_vel=(0,0,0)):
+def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0)):
     """
     TODO: add documentation
 
+    array are the velocities wrt the mesh (probably zeros, with same shape as centers or vertices)
+    pos_array are the position of the elements wrt the star (either centers or vertices)
     vel is center of mass velocitiy (in new system frame)
-    rotation_vel is vector of the rotation velocity of the star (in original frame?)
+    rotation_vel is vector of the rotation velocity of the star (in original/proto frame)
     """
 
     # TODO: check this cross product - the star doesn't seem to be rotating correctly
     # (could also be a units or convention issue)
-    trans_matrix = np.cross(euler_trans_matrix(*euler), np.asarray(rotation_vel))
+    # trans_matrix = np.cross(euler_trans_matrix(*euler), np.array([0, 0, 1]))
+    trans_matrix = euler_trans_matrix(*euler)
+
+    rotation_component = np.cross(pos_array, rotation_vel, axisa=1)
+    orbital_component = np.asarray(vel)
 
     if isinstance(array, ComputedColumn):
         array = array.for_computations
 
-    new_vel = np.dot(np.asarray(array), trans_matrix.T) + np.asarray(vel)
+    new_vel = np.dot(np.asarray(array)+rotation_component, trans_matrix.T) + orbital_component
 
     return new_vel
 
@@ -202,13 +208,18 @@ class ComputedColumn(object):
     @property
     def for_observations(self):
         if self.mesh._compute_at_vertices:
-            return self.averages
-
-            # TODO: switch to the following once weights are properly returned from eclipse detection
+            # TODO: make this an option at some point?
+            # return self.averages
             return self.weighted_averages
         else:
             return self.centers
 
+
+    def set_for_computations(self, value):
+        if self.mesh._compute_at_vertices:
+            self._vertices = value
+        else:
+            self._centers = value
 
 
 class ProtoMesh(object):
@@ -305,10 +316,7 @@ class ProtoMesh(object):
             col = getattr(self, hkey)
 
             if isinstance(col, ComputedColumn) and not isinstance(value, ComputedColumn):
-                if self._compute_at_vertices:
-                    col._vertices = value
-                else:
-                    col._centers = value
+                col.set_for_computations(value)
             else:
                 setattr(self, hkey, value)
 
@@ -318,7 +326,11 @@ class ProtoMesh(object):
             # applicable only for Mesh, not ProtoMesh
             # even if it doesn't exist, we'll make a new entry in observables]
 
-            self._observables[key] = value
+            if key not in self._observables.keys():
+                self._observables[key] = ComputedColumn(self)
+
+            self._observables[key].set_for_computations(value)
+
 
         elif hasattr(self, key) and not hasattr(self, hkey):
             pass
@@ -636,7 +648,7 @@ class Mesh(ScaledProtoMesh):
         # or itself be ComputedColumns??
         self._observables       = {}    # Nx1 (each)
 
-        keys = ['mus', 'visibilities', 'weights', 'observables']
+        keys = ['mus', 'vmus', 'visibilities', 'weights', 'observables']
         keys = keys + kwargs.pop('keys', [])
 
         super(Mesh, self).__init__(keys=keys, **kwargs)
@@ -689,13 +701,19 @@ class Mesh(ScaledProtoMesh):
         norm_ks = ['vnormals', 'tnormals'] #, 'cnormals']
         vel_ks = ['velocities']
 
+        # TODO: we need to copy here to use the non-transformed position arrays
+        # for determining rotation... but instead maybe we can just change the
+        # order or store a copy of the positions wrt COM of the star.  Will
+        # also need to keep this in mind if we try to support incremental
+        # transformations.
+        pos_array = self.vertices if self._compute_at_vertices else self.centers
+        self.update_columns_dict({k: transform_velocity_array(self[k], pos_array, vel, euler, rotation_vel) for k in vel_ks if self[k] is not None})
+        # TODO: handle velocity from mesh reprojection during volume conservation
 
         # handle rotation/displacement
         # NOTE: mus will automatically be updated when updating normals
         self.update_columns_dict({k: transform_position_array(self[k], pos, euler, False) for k in pos_ks if self[k] is not None})
         self.update_columns_dict({k: transform_position_array(self[k], pos, euler, True) for k in norm_ks if self[k] is not None})
-        self.update_columns_dict({k: transform_velocity_array(self[k], vel, euler, rotation_vel) for k in vel_ks if self[k] is not None})
-        # TODO: handle velocity from mesh reprojection during volume conservation
 
 
     @property
@@ -709,6 +727,17 @@ class Mesh(ScaledProtoMesh):
         # this requires tnormals to be NORMALIZED (currently we don't do any
         # checks - this is just assumed)
         return self.tnormals[:,2]
+
+    @property
+    def mus_for_computations(self):
+        """
+        TODO: add documentation
+        """
+        if self._compute_at_vertices:
+            return self.vnormals[:,2]
+        else:
+            return self.mus
+
 
 
     @property
@@ -765,7 +794,7 @@ class Mesh(ScaledProtoMesh):
             # self._compute_mus()
         if kwargs.get('triangles', None) is not None:
             # reset visibilities and velocities so that they are reset
-            # when nexted queried
+            # when next queried
             self.update_columns(visibilities=None, velocities=None)
 
 
