@@ -449,6 +449,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   //
   
   char *kwlist[] = {
+    (char*)"vol",
     (char*)"q",
     (char*)"F",
     (char*)"d",
@@ -461,6 +462,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   int choice = 0;
   
   double
+    vol, 
     precision = 1e-3,
     accuracy = 1e-10;
     
@@ -468,7 +470,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "ddddd|idd", kwlist, 
-      &q, &F, &delta, &Omega0,
+      &vol, &q, &F, &delta, &Omega0,
       &choice,
       &precision,
       &accuracy
