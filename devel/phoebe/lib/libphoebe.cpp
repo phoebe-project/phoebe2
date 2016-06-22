@@ -216,7 +216,7 @@ static PyObject *roche_points_on_x_axis(PyObject *self, PyObject *args) {
   
   Python:
     
-    h = roche_pole(q, F, d, Omega0, choice=0)
+    h = roche_pole(q, F, d, Omega0, <keywords> = <value>)
   
   where parameters are
   
@@ -229,7 +229,7 @@ static PyObject *roche_points_on_x_axis(PyObject *self, PyObject *args) {
   keywords:
     choice: integer, default 0
             0 for discussing left lobe, 1 for discussing right lobe
-  
+    
   and return float
   
     h : height of the lobe's pole
@@ -265,6 +265,142 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   
   // Right lobe  
   return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
+}
+
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate area and volume of the Roche lobe(s) is defined as 
+  equipotential of the generalized Kopal potential Omega:
+
+      Omega_0 = Omega(x,y,z)
+  
+  Python:
+    
+    dict = roche_area_and_volume(q, F, d, Omega0, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    Omega: float - value potential 
+  
+  keywords:
+    choice: integer, default 0
+            0 for discussing left lobe or overcontact 
+            1 for discussing right lobe
+  
+    lvolume: boolean, default True
+    larea: boolean, default True
+    
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    lvolume: volume of the left or right Roche lobe  
+      float:  
+      
+    larea: area of the left or right Roche lobe
+*/
+
+static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"choice",
+    (char*)"larea",
+    (char*)"lvolume",
+    NULL};
+       
+  int choice = 0;
+  
+  bool 
+    b_larea = true,
+    b_lvolume = true;
+        
+  PyObject
+    *o_larea = 0,
+    *o_lvolume = 0;
+  
+  double q, F, delta, Omega0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dddd|iO!O!", kwlist, 
+      &q, &F, &delta, &Omega0, 
+      &choice,
+      &PyBool_Type, &o_larea,
+      &PyBool_Type, &o_lvolume
+      )
+    )
+    return NULL;
+  
+  if (o_larea) b_larea = PyObject_IsTrue(o_larea);
+  if (o_lvolume) b_lvolume = PyObject_IsTrue(o_lvolume);
+  
+  if (!b_larea && !b_lvolume) return NULL;
+ 
+  //
+  // Getting the starting point of the lobe on X-axis
+  //
+  std::vector<double> x_points;
+ 
+  gen_roche::points_on_x_axis(x_points, Omega0, q, F, delta);
+  
+  if (x_points.size() == 0) {
+    std::cerr << "roche_lobe_area_volume::No X-points found\n";
+    return NULL;
+  }
+
+  //
+  // Choosing boundaries on x-axis
+  // Note:
+  //   We assume that the user knows how many lobes we have
+  //   There are no additional checks
+   
+  int ofs = 0;
+
+  double xrange[2], av[2]; 
+  
+  if (choice == 1 && x_points.size() == 4) ofs = 2;
+  
+  for (int k = 0; k < 2; ++k) xrange[k] = x_points[k + ofs];
+  
+  //
+  // Calculate area and volume
+  //
+  
+  unsigned res_choice = 0;
+  
+  if (b_larea) res_choice |= 1u;
+  if (b_lvolume) res_choice |= 2u;
+  
+  int m = 1 << 14;
+  
+  bool polish = false;
+  
+  gen_roche::area_volume(av, xrange, Omega0, q, F, delta, m, res_choice, polish);
+    
+  PyObject *results = PyDict_New();
+      
+  if (b_larea)
+    PyDict_SetItemString(results, "larea", PyFloat_FromDouble(av[0]));
+
+  if (b_lvolume)
+    PyDict_SetItemString(results, "lvolume", PyFloat_FromDouble(av[1]));
+  
+  return results;
 }
 
 /*
@@ -628,6 +764,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     *p_area = 0, *p_volume = 0;
   
   std::vector<double> *A = 0; 
+  
   std::vector<T3Dpoint<double>> *NatT = 0;
   
   if (b_areas) A = new std::vector<double>;
@@ -818,7 +955,6 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   return results;
 }
 
-
 /*
   Python wrapper for C++ code:
 
@@ -917,6 +1053,12 @@ static PyMethodDef Methods[] = {
       (PyCFunction)roche_pole,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the height of the pole of generalized Roche lobes for given "
+      "values of q, F, d and Omega0"},
+   
+    { "roche_area_volume", 
+      (PyCFunction)roche_area_volume,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine the area and volume of the generalized Roche lobes for given "
       "values of q, F, d and Omega0"},
    
     { "roche_points_on_x_axis",

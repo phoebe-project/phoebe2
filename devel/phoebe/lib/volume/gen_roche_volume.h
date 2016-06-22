@@ -47,6 +47,10 @@ namespace gen_roche {
       F - synchronicity parameter
       delta - separation between the two objects
       m - number of steps in x - direction
+      choice -
+        1  - area
+        2  - volume
+        3  - both
       polish - if true than after each RK step 
                 we perform reprojection onto surface
                  
@@ -79,6 +83,7 @@ namespace gen_roche {
     const T & F = 1,
     const T & delta = 1,
     const int & m = 1 << 14,
+    const unsigned choice = 3,
     const bool polish = false)
   {
     
@@ -116,7 +121,19 @@ namespace gen_roche {
       t = xrange[0]/delta, 
       dt = (xrange[1] - xrange[0])/(m*delta),
       y1[dim], y[dim], k[4][dim], w[n];
-      
+    
+    
+    //
+    // What is calculated
+    //
+    av[0] = av[1] = 0;
+    
+    bool 
+      b_area = (choice & 1u) == 1u,
+      b_volume = (choice & 2u) == 2u;
+    
+    if (!b_area && !b_volume) return;
+       
     //
     // Integration over the surface with RK4
     //  Def: 
@@ -159,12 +176,13 @@ namespace gen_roche {
           g = 1/(b*c[i] - f1 - q*f2);
           f = (q*(1 + (t - 1)*f2) + t*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[0][i] = dt*2*f;
-              
-          g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c)) 
-          // = dA
-          k[0][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f);
-          // = dV/2
-          k[0][n+1] += w[i]*s;
+          
+          if (b_area) {    
+            g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c)) 
+            k[0][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f); // = dA
+          }
+         
+          if (b_volume)  k[0][n+1] += w[i]*s;  // = dV/2
         }
         
        
@@ -191,12 +209,14 @@ namespace gen_roche {
           g = 1/(b*c[i] - f1 - q*f2);
           f = (q*(1 + (t1 - 1)*f2) + t1*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[1][i] = dt*2*f;
+        
+          if (b_area) {
+            g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c)) 
+            k[1][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f);  // = dA
+          }
           
-          g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c)) 
-          // = dA
-          k[1][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f);
-          // = dV/2
-          k[1][n+1] += w[i]*s;
+          if (b_volume) k[1][n+1] += w[i]*s; // = dV/2
+          
         }
         
         // prepare: y1 = y + k1/2
@@ -220,11 +240,11 @@ namespace gen_roche {
           T f = (q*(1 + (t1 - 1)*f2) + t1*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[2][i] = dt*2*f;
                   
-          g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c))
-          // = dA
-          k[2][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f);
-          // = dV/2
-          k[2][n+1] += w[i]*s;
+          if (b_area) {        
+            g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c))
+            k[2][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f); // = dA
+          }
+          if (b_volume) k[2][n+1] += w[i]*s; // = dV/2
         }
         
       
@@ -250,12 +270,13 @@ namespace gen_roche {
           g = 1/(b*c[i] - f1 - q*f2);
           f = (q*(1 + (t1 - 1)*f2) + t1*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[3][i] = dt*2*f;
-                 
-          g *= -b; // = (dR/dc)/R   Note: dR/dphi = dR/dc*2*sqrt(c(1-c))
-          // = dA
-          k[3][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f);
-          // = dV/2
-          k[3][n+1] += w[i]*s;
+          
+          if (b_area) {       
+            g *= b; // = (dR/dc)/R   Note: dR/dphi = dR/dc*2*sqrt(c(1-c))
+            k[3][n] += w[i]*std::sqrt(s*(1 + g*g*d[i]) + f*f); // = dA
+          }
+          
+          if (b_volume) k[3][n+1] += w[i]*s; // = dV/2
         }
       }
             
@@ -312,11 +333,9 @@ namespace gen_roche {
       }
     }   
     
-    av[0] = d2*y[n];
-    av[1] = d3*y[n+1]/2;
+    if (b_area) av[0] = d2*y[n];
+    if (b_volume) av[1] = d3*y[n+1]/2;
   }
-
-
 
   /*
     Computing area of the surface and the volume of the Roche lobes
