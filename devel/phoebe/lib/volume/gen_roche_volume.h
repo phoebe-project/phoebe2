@@ -58,8 +58,10 @@ namespace gen_roche {
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in x direction
     
+    
     Precision:
-      Relative precision should be better than 1e-4.
+      At the default setup the relative precision should be better 
+      than 1e-4. NOT SURE
       
     Stability:
       It works for overcontact and well detached cases, but could be problematic
@@ -82,7 +84,7 @@ namespace gen_roche {
     const T & q,
     const T & F = 1,
     const T & delta = 1,
-    const int & m = 1 << 14,
+    const int & m = 1 << 12,
     const unsigned choice = 3,
     const bool polish = false)
   {
@@ -361,7 +363,8 @@ namespace gen_roche {
       c. Romberg integration scheme to compute the surface and volume
     
     Precision:
-      Relative precision should be better than 1e-4.
+      At the default setup the relative precision should be better 
+      than 1e-4. NOT SURE
       
     Stability:
       It works for overcontact and well detached cases, but could be problematic

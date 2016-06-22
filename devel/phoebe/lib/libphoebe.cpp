@@ -386,9 +386,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   if (b_larea) res_choice |= 1u;
   if (b_lvolume) res_choice |= 2u;
   
-  int m = 1 << 14;
+  int m = 1 << 10;
   
-  bool polish = false;
+  bool polish = true;
   
   gen_roche::area_volume(av, xrange, Omega0, q, F, delta, m, res_choice, polish);
     
@@ -402,6 +402,87 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   
   return results;
 }
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the value of the generalized Kopal potential Omega1 at
+  that corresponds to (q,F,d) and volume of the Roche lobes equals to vol.  
+    
+  The Roche lobe(s) is defined as equipotential of the generalized
+  Kopal potential Omega:
+
+      Omega_i = Omega(x,y,z; q, F, d)
+  
+  Python:
+    
+    Omega1 = roche_Omega_at_vol(vol, q, F, d, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    vol: float - volume of the Roche lobe
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    
+  keywords: (optional)
+    Omega0 - guess for value potential Omega1
+    choice: integer, default 0
+            0 for discussing left lobe or overcontact 
+            1 for discussing right lobe
+  
+    precision: float, default 1e-3
+    accuracy: float, default 1e-10
+    
+  Returns:
+  
+    Omega1 : float
+      value of the Kopal potential for (q,F,d1) such that volume
+      is equal to the case (q,F,d,Omega0)
+*/
+
+static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"choice",
+    (char*)"precision",
+    (char*)"accuracy",
+    NULL};
+       
+  int choice = 0;
+  
+  double
+    precision = 1e-3,
+    accuracy = 1e-10;
+    
+  double q, F, delta, Omega0 = nan("");
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddddd|idd", kwlist, 
+      &q, &F, &delta, &Omega0,
+      &choice,
+      &precision,
+      &accuracy
+      )
+    )
+    return NULL;
+    
+  bool b_Omega0 = !std::isnan(Omega0);
+  
+  std::cout << b_Omega0 << '\n';
+  
+  return PyFloat_FromDouble(Omega0);
+}
+
 
 /*
   Python wrapper for C++ code:
@@ -475,7 +556,6 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
-
 
 static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
@@ -1061,6 +1141,13 @@ static PyMethodDef Methods[] = {
       "Determine the area and volume of the generalized Roche lobes for given "
       "values of q, F, d and Omega0"},
    
+    { "roche_Omega_at_vol", 
+      (PyCFunction)roche_Omega_at_vol,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine the value of the generalized Kopal potential at "
+      "values of q, F, d and volume"},
+   
+   
     { "roche_points_on_x_axis",
       roche_points_on_x_axis,
       METH_VARARGS, 
@@ -1080,7 +1167,6 @@ static PyMethodDef Methods[] = {
       "Calculate the gradient of the generalized Kopal potentil"
       " at given point [x,y,z] for given values of q, F and d"},   
     
-
     { "roche_marching_mesh", 
       (PyCFunction)roche_marching_mesh,   
       METH_VARARGS|METH_KEYWORDS, 
