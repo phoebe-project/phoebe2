@@ -12,11 +12,12 @@ logger.addHandler(logging.NullHandler())
 
 def compute_volume(sizes, centers, normals):
     """
-    Compute the numerical volume of a convex
+    Compute the numerical volume of a convex mesh
 
     :parameter array sizes: array of sizes of triangles
     :parameter array centers: array of centers of triangles (x,y,z)
     :parameter array normals: array of normals of triangles (will normalize if not already)
+    :return: the volume (float)
     """
     # the volume of a slanted triangular cone is A_triangle * (r_vec dot norm_vec) / 3.
 
@@ -24,17 +25,21 @@ def compute_volume(sizes, centers, normals):
 
 
     # TODO: remove this function - should now be returned by the meshing algorithm itself
-    normal_mags = np.sqrt((normals**2).sum(axis=1))
+    # although wd method may currently use this
+    normal_mags = np.linalg.norm(normals, axis=1) #np.sqrt((normals**2).sum(axis=1))
     return np.sum(sizes*((centers*normals).sum(axis=1)/normal_mags)/3)
 
 
 def euler_trans_matrix(etheta, elongan, eincl):
     """
-    # TODO: add documentation
-    """
+    Get the transformation matrix to translate/rotate a mesh according to
+    euler angles
 
-    # print "***", eincl
-    # eincl = 0.0
+    :parameter float etheta: euler theta angle
+    :parameter float elongan: euler long of asc node angle
+    :parameter float eincl: euler inclination angle
+    :return: matrix with size 3x3
+    """
 
     s1 = sin(eincl);
     c1 = cos(eincl);
@@ -53,9 +58,18 @@ def euler_trans_matrix(etheta, elongan, eincl):
 
 def transform_position_array(array, pos, euler, is_normal):
     """
-    TODO: add documentation
+    Transform any Nx3 position array by translating to a center-of-mass 'pos'
+    and applying an euler transformation
 
-    pos is center of mass position (in new system frame)
+    :parameter array array: numpy array of Nx3 positions in the original (star)
+        coordinate frame
+    :parameter array pos: numpy array with length 3 giving cartesian
+        coordinates to offset all positions
+    :parameter array euler: euler angles (etheta, elongan, eincl) in radians
+    :parameter bool is_normal: whether each entry is a normal vector rather
+        than position vector.  If true, the quantities won't be offset by
+        'pos'
+    :return: new positions array with same shape as 'array'.
     """
     trans_matrix = euler_trans_matrix(*euler)
 
@@ -70,17 +84,21 @@ def transform_position_array(array, pos, euler, is_normal):
 
 def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0)):
     """
-    TODO: add documentation
+    Transform any Nx3 velocity vector array by adding the center-of-mass 'vel',
+    accounting for solid-body rotation, and applying an euler transformation.
 
-    array are the velocities wrt the mesh (probably zeros, with same shape as centers or vertices)
-    pos_array are the position of the elements wrt the star (either centers or vertices)
-    vel is center of mass velocitiy (in new system frame)
-    rotation_vel is vector of the rotation velocity of the star (in original/proto frame)
+    :parameter array array: numpy array of Nx3 velocity vectors in the original
+        (star) coordinate frame
+    :parameter array pos_array: positions of the elements with respect to the
+        original (star) coordinate frame.  Must be the same shape as 'array'.
+    :parameter array vel: numpy array with length 3 giving cartesian velocity
+        offsets in the new (system) coordinate frame
+    :parameter array euler: euler angles (etheta, elongan, eincl) in radians
+    :parameter array rotation_vel: vector of the rotation velocity of the star
+        in the original (star) coordinate frame
+    :return: new velocity array with same shape as 'array'
     """
 
-    # TODO: check this cross product - the star doesn't seem to be rotating correctly
-    # (could also be a units or convention issue)
-    # trans_matrix = np.cross(euler_trans_matrix(*euler), np.array([0, 0, 1]))
     trans_matrix = euler_trans_matrix(*euler)
 
     rotation_component = np.cross(pos_array, rotation_vel, axisa=1)
@@ -95,6 +113,18 @@ def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0))
 
 
 def wd_grid_to_mesh_dict(the_grid, q, F, d):
+    """
+    Transform a wd-style mesh to the format used by PHOEBE. Namely this handles
+    translating vertices from Nx9 to Nx3x3 and creating the array of indices
+    for each triangle.
+
+    :parameter record-array the_grid: output from discretize_wd_style
+    :parameter float q: mass-ratio (M_this/M_sibling)
+    :parameter float F: syncpar
+    :parameter float d: instantaneous unitless separation
+    :return: the dictionary in PHOEBE's format to be passed to a Mesh class
+    """
+
     # WD returns a list of triangles with 9 coordinates (v1x, v1y, v1z, v2x, ...)
     triangles_9N = the_grid[:,4:13]
 
@@ -138,29 +168,59 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
 
 
 class ComputedColumn(object):
-    def __init__(self, mesh, **kwargs):
+    """
+    Any non-geometric column in a Mesh should be a ComputedColumn.  Depending
+    on the type of mesh (defined by mesh._compute_at_vertices), the computed
+    column will either compute values at the vertices and return the weighted
+    averages across a triangle when observing, OR compute at the centers and
+    return that single value when observing.
+
+    This class simply provides a single interface with logical/intuitive
+    (hopefully) properties for setting and retrieving values for either
+    type of mesh.
+    """
+    def __init__(self, mesh, value_for_computations=None):
+        """
+        TODO: add documentation
+        """
 
         self._mesh = mesh
 
         # NOTE: it is ESSENTIAL that all of the following are np.array
         # and not lists... but is up to the user (phoebe backend since the
         # user will probably not dig this deep)
-
-        # NOTE: only one of these two arrays should really be filled based on
-        # the value of self.mesh._compute_at_vertices
-        self._vertices = kwargs.get('vertices', None) # N*3x1
-        self._centers = kwargs.get('centers', None) # Nx1
+        self._vertices = None
+        self._centers = None
+        if value_for_computations is not None:
+            self.set_for_computations(value_for_computations)
 
     @property
     def mesh(self):
+        """
+        Access to the parent mesh
+
+        :return: an instantiated :class:`Mesh`, :class:`ScaledProtoMesh`, or
+            :class:`ProtoMesh` object.
+        """
         return self._mesh
 
     @property
     def vertices(self):
+        """
+        Access to the quantities defined at the vertices, if applicable
+
+        :return: numpy array
+        """
         return self._vertices
 
     @property
     def vertices_per_triangle(self):
+        """
+        Access to the quantities defined at the vertices, but reshaped to be
+        in the order of triangles, with three entries each
+
+        :return: numpy array
+        """
         if self.vertices is not None:
             return self.vertices[self.mesh.triangles]
         else:
@@ -168,6 +228,13 @@ class ComputedColumn(object):
 
     @property
     def centers(self):
+        """
+        Access to the quantities at the centers of each triangles.  In the
+        case where the quantities are provided at the vertices, this will
+        return the average of those values.
+
+        :return: numpy array
+        """
         if self.mesh._compute_at_vertices:
             return self.averages
         else:
@@ -175,6 +242,13 @@ class ComputedColumn(object):
 
     @property
     def for_computations(self):
+        """
+        Access to the quantities as they should be used for computations
+        (either .vertices or .centers depending on the value of
+        mesh._compute_at_vertices)
+
+        :return: numpy array
+        """
         if self.mesh._compute_at_vertices:
             return self.vertices
         else:
@@ -182,6 +256,13 @@ class ComputedColumn(object):
 
     @property
     def averages(self):
+        """
+        Access to the average of the values at the vertices for each triangle.
+        If the quantities are defined at centers instead of vertices, this
+        will return None.  Also see :method:`centers`.
+
+        :return: numpy array or None
+        """
         if not self.mesh._compute_at_vertices:
             return None
 
@@ -189,24 +270,42 @@ class ComputedColumn(object):
 
     @property
     def weighted_averages(self):
+        """
+        Access to the weighted averages of the values at the vertices for each
+        triangle based on the weights provided by mesh.weights.  This is most
+        useful for partially visible triangles when using libphoebe's
+        eclipse detection that returns weights for each vertex.
+
+        Note that weights by default are set to 1/3 for each vertex, meaning
+        that this will provide the same values as :meth:`averages` unless
+        the weights are overridden within the mesh.
+
+        If the quantities are defined at centers instead of vertices, this will
+        return None.
+
+        :return: numpy array or None
+        """
         if not self.mesh._compute_at_vertices:
             return None
 
         vertices_per_triangle = self.vertices_per_triangle
         if vertices_per_triangle.ndim==2:
-            # return np.dot(self.vertices_per_triangle, self.weights)
+            # return np.dot(self.vertices_per_triangle, self.mesh.weights)
             return np.sum(vertices_per_triangle*self.mesh.weights, axis=1)
         elif vertices_per_triangle.ndim==3:
-            # np.sum(self.mesh.velocities.vertices_per_triangle[:,:,0]*self.mesh.velocities.mesh.weights, axis=1)
-            # np.sum(self.mesh.velocities.vertices_per_triangle[:,:,1]*self.mesh.velocities.mesh.weights, axis=1)
-            # np.sum(self.mesh.velocities.vertices_per_triangle[:,:,2]*self.mesh.velocities.mesh.weights, axis=1)
             return np.sum(vertices_per_triangle*self.mesh.weights[:,np.newaxis], axis=1)
         else:
             raise NotImplementedError
 
-
     @property
     def for_observations(self):
+        """
+        Access to the quantities as they should be used for observations.
+        When defined at centers, this will return :meth:`centers`, when defined
+        at vertices, this will return :meth:`weighted_averages`.
+
+        :return: numpy array
+        """
         if self.mesh._compute_at_vertices:
             # TODO: make this an option at some point?
             # return self.averages
@@ -214,8 +313,11 @@ class ComputedColumn(object):
         else:
             return self.centers
 
-
     def set_for_computations(self, value):
+        """
+        Set the quantities, either at the vertices or centers depending on the
+        settings of the mesh (mesh._compute_at_vertices)
+        """
         if self.mesh._compute_at_vertices:
             self._vertices = value
         else:
@@ -235,52 +337,53 @@ class ProtoMesh(object):
     def __init__(self, compute_at_vertices=True, **kwargs):
         """
         TODO: add documentation
+
+        :parameter bool compute_at_vertices: whether all
+            :class:`ComputedColumn` (physical quantities) should be computed
+            at the vertices and then averaged or computed at the centers.
+            Generally this should be decided based on whether the vertices
+            or centers of the elements are placed on the surface of the
+            equipotential.
         """
 
 
-        self._vertices          = None  # N*3x3
+        self._vertices          = None  # Vx3
 
         self._triangles         = None  # Nx3
         self._centers           = None  # Nx3
         self._areas             = None  # Nx1
 
-        # TODO: should velocities be a ComputedColumn???
         self._velocities        = ComputedColumn(mesh=self)  # Nx1
 
         # v = vertices
         # t = triangle
-        # c = center (reprojected to surface)
-        # a = average (average of values at each vertex)
-        # av = average visibile (weighted average based on the visible portion)
-        self._vnormals          = None  # N*3x3
+        self._vnormals          = None  # Vx3
         self._tnormals          = None  # Nx3
-        # self._cnormals          = None  # Nx3
 
-        # self._normals           = ComputedColumn(mesh=self)
         self._normgrads         = ComputedColumn(mesh=self)
 
-        # TODO: ditch these in the future
-        # self._cnormgrads        = None  # Nx1
-
-        # self._vnormgrads        = None  # N*3x1
-        # self._anormgrads        = None  # Nx1
-        # self._avnormgrads       = None
-
         self._volume            = None  # scalar
-
 
         ### TESTING FOR WD METHOD ###
         self._phi               = None # Nx1
         self._theta             = None # Nx1
 
+        self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
         self._scalar_fields     = ['volume']
         self._compute_at_vertices = compute_at_vertices
 
-        keys = ['vertices', 'triangles', 'centers', 'areas', 'areas_si',
-                      'velocities', 'vnormals', 'tnormals',
-                      'normgrads', 'volume',
-                      'phi', 'theta',
-                      'compute_at_vertices']
+        # TODO: split keys that are set vs computed-on-the-fly so when
+        # we call something like ScaledProtoMesh.from_proto we don't have
+        # to do all the on-the-fly computations just to discard them because
+        # they aren't setable.
+        keys = ['vertices', 'triangles', 'centers',
+                  'coords_for_computations', 'normals_for_computations',
+                  'rs', 'rprojs', 'cosbetas',
+                  'areas', 'areas_si',
+                  'velocities', 'vnormals', 'tnormals',
+                  'normgrads', 'volume',
+                  'phi', 'theta',
+                  'compute_at_vertices']
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -297,7 +400,6 @@ class ProtoMesh(object):
             return getattr(self, key)
         elif hasattr(self, '_observables') and key in self._observables.keys():
             # applicable only for Mesh, not ProtoMesh
-            # TODO NOW: this will break for computedcolumns... :-(
             return self._observables[key]
         else:
             raise KeyError("{} is not a valid key".format(key))
@@ -339,12 +441,21 @@ class ProtoMesh(object):
             raise KeyError("{} is not a valid key".format(key))
 
     def keys(self):
+        """
+        TODO: add documentation
+        """
         return self._keys
 
     def values(self):
+        """
+        TODO: add documentation
+        """
         return self.items().values()
 
     def items(self):
+        """
+        TODO: add documentation
+        """
         return {k: self[k] for k in self.keys()}
 
     def copy(self):
@@ -360,18 +471,20 @@ class ProtoMesh(object):
         it will be found (so long as it does not conflict with an existing
         non-observable column).
         """
-        # make sure to do triangles first, since that is needed for any of the
-        # ComputedColumns
-        if 'triangles' in kwargs.keys():
-            self.__setitem__('triangles', kwargs.pop('triangles'))
+        # make sure to do the geometric things that are needed for some of the
+        # ComputedColumns first
+        for key in ('triangles', 'vertices', 'centers', 'vnormals', 'tnormals'):
+            if key in kwargs.keys():
+                self.__setitem__(key, kwargs.pop(key))
 
         for k, v in kwargs.items():
             if isinstance(v, float) and k not in self._scalar_fields:
                 # Then let's make an array with the correct length full of this
                 # scalar
 
-                # NOTE: this won't work for vertices, but that really shouldn't
-                # ever happen
+                # NOTE: this won't work for vertices or Nx3's, but that
+                # really shouldn't ever happen since they should be set
+                # within the init.
                 v = np.ones(self.N)*v
 
             if isinstance(v, ComputedColumn):
@@ -380,7 +493,6 @@ class ProtoMesh(object):
                 v._mesh = self
 
             self.__setitem__(k, v)
-
 
     def update_columns(self, **kwargs):
         """
@@ -393,8 +505,14 @@ class ProtoMesh(object):
 
     @property
     def compute_at_vertices(self):
-        return self._compute_at_vertices
+        """
+        Access (read-only) to the setting of whether computations should
+        be done at the vertices (and then averaged) or at the centers
+        of each triangle
 
+        :return: bool
+        """
+        return self._compute_at_vertices
 
     @property
     def N(self):
@@ -408,15 +526,21 @@ class ProtoMesh(object):
     @property
     def vertices(self):
         """
-        Return the array of verticles, where each item is a triplet
+        Return the array of vertices, where each item is a triplet
         representing cartesian coordinates.
 
-        (N*3x3)
+        (Vx3)
         """
         return self._vertices
 
     @property
     def vertices_per_triangle(self):
+        """
+        TODO: add documentation
+
+        TODO: confirm shape
+        (Nx3x3)
+        """
         return self.vertices[self.triangles]
 
     @property
@@ -438,6 +562,73 @@ class ProtoMesh(object):
         (Nx3)
         """
         return self._centers
+
+    @property
+    def coords_for_computations(self):
+        """
+        Return the coordinates from the center of the star for each element
+        (either centers or vertices depending on the setting in the mesh).
+        """
+
+        # TODO: need to subtract the position offset if a Mesh (in orbit)
+        if self._compute_at_vertices:
+            return self.vertices - self._pos
+        else:
+            return self.centers - self._pos
+
+    @property
+    def normals_for_computations(self):
+        """
+        Return the normals for each element
+        (either centers or vertices depending on the setting in the mesh).
+        """
+        if self._compute_at_vertices:
+            return self.vnormals
+        else:
+            return self.tnormals
+
+    @property
+    def rs(self):
+        """
+        Return the radius of each element (either vertices or centers
+        depending on the setting in the mesh) with respect to the center of
+        the star.
+
+        (ComputedColumn)
+        """
+        rs = np.linalg.norm(self.coords_for_computations, axis=1)
+        return ComputedColumn(self, rs)
+
+    @property
+    def rprojs(self):
+        """
+        Return the projected (in x,y plane) radius of each element (either
+        vertices or centers depending on the setting in the mesh) with respect
+        to the center of the star.
+
+        (ComputedColumn)
+        """
+        # TODO: should this be moved to Mesh?  Even though its surely possible
+        # to compute without being placed in orbit, projecting in x,y doesn't
+        # make much sense without LOS orientation.
+        rprojs = np.linalg.norm(self.coords_for_computations[:,:2], axis=1)
+        return ComputedColumn(self, rprojs)
+
+    @property
+    def cosbetas(self):
+        """
+        TODO: add documentation
+
+        (ComputedColumn)
+        """
+        coords = self.coords_for_computations
+        norms = self.normals_for_computations
+
+        # TODO: ditch the list comprehension... I know I figured out how to do
+        # this (ie along an axis) with np.dot somewhere else
+        cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
+
+        return ComputedColumn(self, cosbetas)
 
     @property
     def areas(self):
@@ -474,18 +665,13 @@ class ProtoMesh(object):
 
     @property
     def vnormals(self):
+        """
+        TODO: add documentation
+
+        (Vx3)
+        """
         return self._vnormals
 
-
-    # @property
-    # def vnormals(self):
-    #     """
-    #     Return the array of vnormals (normals at each vertex), where each item
-    #     is a triplet representing a cartesian normaled vector.
-
-    #     (N*3x3)
-    #     """
-    #     return self._vnormals
 
     @property
     def tnormals(self):
@@ -497,32 +683,14 @@ class ProtoMesh(object):
         """
         return self._tnormals
 
-    # @property
-    # def cnormals(self):
-    #     """
-    #     Return the array of cnormals (normals for SURFACE at the center of
-    #     each triangle), where each items is a triplet representing a cartesian
-    #     normaled vector.
-
-    #     (Nx3)
-    #     """
-    #     return self._cnormals
-
     @property
     def normgrads(self):
-        # NOTE: must use self._normgrads to access the ComputedColumn
-        return self._normgrads #.weighted_averages
+        """
+        TODO: add documentation
 
-
-    # @property
-    # def cnormgrads(self):
-    #     """
-    #     Return the array of cnormgrads (normals of the gradients for SURFACE
-    #     at the center of each triangle), where each item is a scalar/float
-
-    #     (Nx1)
-    #     """
-    #     return self._cnormgrads
+        (ComputedColumn)
+        """
+        return self._normgrads
 
     @property
     def volume(self):
@@ -535,10 +703,16 @@ class ProtoMesh(object):
 
     @property
     def phi(self):
+        """
+        TODO: add documentation
+        """
         return self._phi
 
     @property
     def theta(self):
+        """
+        TODO: add documentation
+        """
         return self._theta
 
 
@@ -554,6 +728,9 @@ class ScaledProtoMesh(ProtoMesh):
     """
 
     def __init__(self, **kwargs):
+        """
+        TODO: add documentation
+        """
 
         self._loggs             = ComputedColumn(mesh=self)
         self._gravs             = ComputedColumn(mesh=self)
@@ -563,7 +740,12 @@ class ScaledProtoMesh(ProtoMesh):
         keys = ['loggs', 'gravs', 'teffs', 'abuns']
         keys += kwargs.pop('keys', [])
 
+        scale = kwargs.pop('scale', None)
+
         super(ScaledProtoMesh, self).__init__(keys=keys, **kwargs)
+
+        if scale is not None:
+            self._scale_mesh(scale)
 
     @classmethod
     def from_proto(cls, proto_mesh, scale):
@@ -576,6 +758,9 @@ class ScaledProtoMesh(ProtoMesh):
         return mesh
 
     def _scale_mesh(self, scale):
+        """
+        TODO: add documentation
+        """
         pos_ks = ['vertices', 'centers']
 
         # handle scale
@@ -590,9 +775,9 @@ class ScaledProtoMesh(ProtoMesh):
         """
         Return the array of loggs, where each item is a scalar/float.
 
-        (Nx1)
+        (ComputedColumn)
         """
-        return self._loggs #.weighted_averages
+        return self._loggs
 
     @property
     def gravs(self):
@@ -601,9 +786,9 @@ class ScaledProtoMesh(ProtoMesh):
 
         TODO: UNIT?
 
-        (Nx1)
+        (ComputedColumn)
         """
-        return self._gravs #.weighted_averages
+        return self._gravs
 
     @property
     def teffs(self):
@@ -612,9 +797,9 @@ class ScaledProtoMesh(ProtoMesh):
 
         Unit: K
 
-        (Nx1)
+        (ComputedColum)
         """
-        return self._teffs #.weighted_averages
+        return self._teffs
 
     @property
     def abuns(self):
@@ -623,9 +808,9 @@ class ScaledProtoMesh(ProtoMesh):
 
         TODO: UNIT?
 
-        (Nx1)
+        (ComputedColumn)
         """
-        return self._abuns #.weighted_averages
+        return self._abuns
 
 
 
@@ -644,9 +829,7 @@ class Mesh(ScaledProtoMesh):
         self._visibilities      = None  # Nx1
         self._weights           = None  # Nx3 (per vertex, same order as self.triangles)
 
-        # TODO: should observables be computed from teffs.weighted_averages, etc
-        # or itself be ComputedColumns??
-        self._observables       = {}    # Nx1 (each)
+        self._observables       = {}    # ComputedColumn (each)
 
         keys = ['mus', 'vmus', 'visibilities', 'weights', 'observables']
         keys = keys + kwargs.pop('keys', [])
@@ -678,7 +861,7 @@ class Mesh(ScaledProtoMesh):
 
     @classmethod
     def from_scaledproto(cls, scaledproto_mesh,
-                            pos, vel, euler, rotation_vel=(0,0,0)):
+                         pos, vel, euler, rotation_vel=(0,0,0)):
         """
         TODO: add documentation
         """
@@ -695,17 +878,16 @@ class Mesh(ScaledProtoMesh):
         """
 
         # TODO: store pos, vel, euler so that INCREMENTAL changes are allowed
-        # if passing new values (and then make this a public method)
+        # if passing new values (and then make this a public method).  See note
+        # below!
 
         pos_ks = ['vertices', 'centers']
         norm_ks = ['vnormals', 'tnormals'] #, 'cnormals']
         vel_ks = ['velocities']
 
-        # TODO: we need to copy here to use the non-transformed position arrays
-        # for determining rotation... but instead maybe we can just change the
-        # order or store a copy of the positions wrt COM of the star.  Will
-        # also need to keep this in mind if we try to support incremental
-        # transformations.
+        # NOTE: we do velocities first since they require the positions WRT
+        # the star (not WRT the system).  Will need to keep this in mind if we
+        # eventually support incremental transformations.
         pos_array = self.vertices if self._compute_at_vertices else self.centers
         self.update_columns_dict({k: transform_velocity_array(self[k], pos_array, vel, euler, rotation_vel) for k in vel_ks if self[k] is not None})
         # TODO: handle velocity from mesh reprojection during volume conservation
@@ -714,6 +896,10 @@ class Mesh(ScaledProtoMesh):
         # NOTE: mus will automatically be updated when updating normals
         self.update_columns_dict({k: transform_position_array(self[k], pos, euler, False) for k in pos_ks if self[k] is not None})
         self.update_columns_dict({k: transform_position_array(self[k], pos, euler, True) for k in norm_ks if self[k] is not None})
+
+        # let's store the position.  This is both useful for "undoing" the
+        # orbit-offset, and also eventually to allow incremental changes.
+        self._pos = pos
 
 
     @property
@@ -732,13 +918,14 @@ class Mesh(ScaledProtoMesh):
     def mus_for_computations(self):
         """
         TODO: add documentation
+
+        (Nx1 or Vx1)
         """
         if self._compute_at_vertices:
+            # this requires vnormals to be NORMALIZED (assumed)
             return self.vnormals[:,2]
         else:
             return self.mus
-
-
 
     @property
     def visibilities(self):
@@ -755,23 +942,30 @@ class Mesh(ScaledProtoMesh):
 
     @property
     def weights(self):
+        """
+        TODO: add documentation
+
+        (Nx3)
+        """
         if self._weights is not None:
             return self._weights
         else:
             return np.full((self.N, 3), 1./3)
 
-
     @property
     def observables(self):
         """
-        Return the dictionary of observables, where each entry is an array
-        with shape Nx1
+        Return the dictionary of observables
+
+        (ComputedColumn)
         """
         return self._observables
 
     def get_observable(self, label):
         """
         Retrieve the array of an observable by its label.
+
+        (ComputedColumn)
         """
         return self.observables[label]
 
@@ -796,8 +990,6 @@ class Mesh(ScaledProtoMesh):
             # reset visibilities and velocities so that they are reset
             # when next queried
             self.update_columns(visibilities=None, velocities=None)
-
-
 
 
 class Meshes(object):
@@ -839,6 +1031,7 @@ class Meshes(object):
 
     def __getitem__(self, key):
         """
+        TODO: add documentation
         """
         return self._dict[key]
 
