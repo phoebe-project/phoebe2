@@ -674,86 +674,8 @@ class Body(object):
 
         self.reset_time(time)
 
-        # mesh = self.get_standard_mesh(scaled=True)  # TODO: use nearest theta/d once supported
-        # mesh_unscaled = self.get_standard_mesh(scaled=False)
 
-        #-- Volume Conservation
-        if self.needs_volume_conservation:
-            raise NotImplementedError('volume conservation not yet ported to new meshing')
-
-            target_volume = self.get_target_volume(ethetas[self.ind_self])
-            mesh_table = np.column_stack([mesh_unscaled[x] for x in ('center','size','triangle','normal_')])
-
-
-            logger.info("volume conservation: target_volume={}".format(target_volume))
-
-            # TODO: this seems Star-specific - should it be moved to that class or can it be generalized?
-
-            # TODO: this is no longer the format of mesh_args
-            potential, d, q, F, Phi = self._mesh_args
-
-            # override d to be the current value
-            d = self.instantaneous_distance(xs, ys, zs, self.sma)
-
-            # Now we need to override Phi to be the Phi that gives target_volume
-            # This can be done in one of several ways (eventually this might become
-            # an option).
-
-            ################  ROBUST NEWTON-RAPHSON APPROACH  #################
-            def match_volume(Phi, mesh_table, potential, d, q, F, target_volume):
-                mesh_args = (potential, d, q, F, Phi)
-                new_table = cmarching.reproject(mesh_table, *mesh_args)
-
-                centers = new_table[:,0:3]*self._scale
-                #sizes = new_table[:,3]*self._scale**2
-
-                normals = new_table[:,13:16]
-
-                # TODO: not sure why sizes are all 0... but for now we can get them this way
-                triangles = new_table[:,4:13]*self._scale
-                # sizes = fgeometry.compute_sizes(triangles)
-
-                new_volume = compute_volume(sizes, centers, normals)
-                #print "***", Phi, new_volume, target_volume, max(sizes)
-
-                return new_volume - target_volume
-
-
-            Phi = newton(match_volume, x0=Phi, args=(mesh_table, potential, d, q, F, target_volume), tol=1e-4, maxiter=1000)
-
-            # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
-            if self.comp_no == 2:
-                # TODO: may need to invert this equation?
-                self._instantaneous_pot = self.q*Phi - 0.5 * (self.q-1)
-            else:
-                self._instantaneous_pot = Phi
-
-            ###################################################################
-            ###                                                             ###
-            ####### TODO: ANALYTIC/INTERPOLATION APPROXIMATION APPROACH #######
-            ###                                                             ###
-            ###################################################################
-
-
-            #-- Reprojection
-            logger.info("reprojecting mesh onto Phi={} at d={}".format(Phi, d))
-
-            # here we send the unscaled standard mesh in to be reprojected onto the new potential
-            # TODO: this is no longer the format of mesh_args
-            mesh_args = (potential, d, q, F, Phi)
-            mesh_table = cmarching.reproject(mesh_table, *mesh_args) #*self._scale
-
-            # now we'll apply this reprojected mesh to the scaled mesh.  Since
-            # mesh_table is unscaled, we'll rescale them here before setting them.
-            mesh['center'] = mesh_table[:,0:3]*self._scale
-            mesh['size'] = mesh_table[:,3]*self._scale**2
-            mesh['triangle'] = mesh_table[:,4:13]*self._scale
-            mesh['normal_'] = mesh_table[:,13:16]
-            # TODO: do we need to update velo__bol_?
-            # TODO: do we need to update mu?
-
-
-        #-- Update position to be in orbit
+        #-- Get current position/euler information
         if self.dynamics_method == 'keplerian':
             # if we can't get the polar direction, assume it's in the negative Z-direction
             try:
@@ -769,33 +691,78 @@ class Body(object):
             pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
             vel = (_value(vxs[self.ind_self]), _value(vys[self.ind_self]), _value(vzs[self.ind_self]))
             euler = (_value(ethetas[self.ind_self]), _value(elongans[self.ind_self]), _value(eincls[self.ind_self]))
+        else:
+            raise NotImplementedError("update_position does not support dynamics_method={}".format(self.dynamics_method))
 
 
-            proto_mesh = self.get_standard_mesh(scaled=False)
+        #-- Volume Conservation
+        if self.needs_volume_conservation:
+            target_volume = self.get_target_volume(ethetas[self.ind_self])
+            logger.info("volume conservation: target_volume={}".format(target_volume))
+
+            # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
+
+            q, F, d, Phi = self._mesh_args
+
+            # override d to be the current value
+            d = self.instantaneous_distance(xs, ys, zs, self.sma)
+
+            Phi = libphoebe.roche_Omega_at_vol(target_volume, q, F, d, Omega0=Phi)
+
+            # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
+            if self.comp_no == 2:
+                # TODO: may need to invert this equation?
+                self._instantaneous_pot = self.q*Phi - 0.5 * (self.q-1)
+            else:
+                self._instantaneous_pot = Phi
+
+            #-- Reprojection
+            logger.info("reprojecting mesh onto Phi={} at d={}".format(Phi, d))
+
+            # TODO: implement reprojection as an option instead of rebuilding
+            # the mesh??
+
+            # TODO: make sure this passes the new d and new Phi correctly
+            new_mesh_dict, scale, mesh_args = self._build_mesh(d=d,
+                                                               mesh_method=self.mesh_method,
+                                                               Phi=Phi)
+            # TODO: do we need to update self.scale or self._mesh_args???
+
+
+            # Here we'll build a scaledprotomesh directly from the newly
+            # marched mesh since we don't need to store the protomesh itself
+            # as a new standard.  NOTE that we're using scale from the new
+            # mesh rather than self._scale since the instantaneous separation
+            # has likely changed since periastron
+            scaledprotomesh = mesh.ScaledProtoMesh(scale=scale, **new_mesh_dict)
+
+            # Now we'll save the current mesh in its orbit
+            self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh,
+                                                    pos, vel, euler,
+                                                    polar_dir*self.freq_rot)
+
+        else:
+
+            # Since we don't have to handle volume conservation, we'll just
+            # grab the protomesh standard (unscaled) and scale and place it
+            # in orbit in one step
+            protomesh = self.get_standard_mesh(scaled=False)
             # TODO: can we avoid an extra copy here?
 
-            self._mesh = mesh.Mesh.from_proto(proto_mesh,
+            # Now we'll save the current mesh in its orbit
+            self._mesh = mesh.Mesh.from_proto(protomesh,
                                               self._scale,
                                               pos, vel, euler,
                                               polar_dir*self.freq_rot)
 
-            # Now let's transform from the star's coordinate system to the
-            # system's coordinate system.
-            # mesh.place_in_orbit(pos, vel, euler, rotation_vel=polar_dir*self.freq_rot)
 
-            # Now apply the mesh so its available to fill with current values
-            # self._mesh = mesh
-
-        else:
-            # TODO: need nbody version of this (need to check dynamics_method)!!!  (probably won't handle rotation and might not have euler angles?)
-            raise NotImplementedError("update_position for dynamics_method={} not supported".format(self.dynamics_method))
-
-
+        # Lastly, we'll recompute physical quantities (not observables) if
+        # needed for this time-step.
         if not self.mesh.loggs.for_computations or self.needs_recompute_instantaneous:
             self._compute_instantaneous_quantities(xs, ys, zs)
 
             # Now fill local instantaneous quantities
-            self._fill_loggs(xs, ys, zs)
+            self._fill_loggs()
             self._fill_gravs()
             self._fill_teffs()
             self._fill_abuns()
@@ -1278,7 +1245,6 @@ class Star(Body):
                                                          areas=True,
                                                          volume=True)
 
-                # new_mesh['normals'] = new_mesh.pop('vnormals')
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
@@ -1325,7 +1291,7 @@ class Star(Body):
         self._instantaneous_gpole = g_pole * g_rel_to_abs
         self._instantaneous_rpole = r_pole
 
-    def _fill_loggs(self, xs, ys, zs, **kwargs):
+    def _fill_loggs(self):
         """
         TODO: add documentation
 
@@ -1391,30 +1357,31 @@ class Star(Body):
             # should compute the ratio of the tip radius to the first Lagrangian
             # point. However, L1 might be poorly defined for weird geometries
             # so we approximate it as 1.5 times the polar radius.
+            # TODO NOW: rp doesn't seem to be used anywhere...
             rp = self._instantaneous_rpole  # should be in Rsol
-            maxr = np.norm(self.get_standard_mesh(scaled=True).centers, axis=1).max()
+
+            # TODO NOW: is this supposed to be the scaled or unscaled rs???
+            maxr = self.get_standard_mesh(scaled=True).rs.for_computations.max()
 
             L1 = roche.exact_lagrangian_points(q, F=F, d=1.0, sma=sma)[0]
             rho = maxr / L1
+
             gravb = roche.zeipel_gravb_binary()(np.log10(q), rho)[0][0]
-            # TODO: why did Pieter set this back to the parameter?
-        #     self.params['component']['gravb'] = gravb
+
             logger.info("gravb(Espinosa): F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
             if gravb>1.0 or gravb<0:
                 raise ValueError('Invalid gravity darkening parameter beta={}'.format(gravb))
 
         elif self.gravb_law == 'claret':
-            teff = np.log10(self.teff)
+            logteff = np.log10(self.teff)
             logg = np.log10(self._instantaneous_gpole*100)
             abun = self.abun
             axv, pix = roche.claret_gravb()
-            gravb = interp_nDgrid.interpolate([[teff], [logg], [abun]], axv, pix)[0][0]
-            logger.info('gravb(Claret): teff = {:.3f}, logg = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**teff, logg, abun, gravb))
-            # TODO: why did Pieter set this back to the parameter?
-        #     self.params['component']['gravb'] = gravb
+            gravb = interp_nDgrid.interpolate([[logteff], [logg], [abun]], axv, pix)[0][0]
+
+            logger.info('gravb(Claret): teff = {:.3f}, logg = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**logteff, logg, abun, gravb))
 
         # Now use the Zeipel law:
-
         if 'teffpolar' in kwargs.keys():
             Teff = kwargs['teffpolar']
             typ = 'polar'
@@ -1432,6 +1399,7 @@ class Star(Body):
 
         # Compute G and Tpole
         if typ == 'mean':
+            # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
             Tpole = Teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
         elif typ == 'polar':
             Tpole = Teff
@@ -1439,7 +1407,6 @@ class Star(Body):
             raise ValueError("Cannot interpret temperature type '{}' (needs to be one of ['mean','polar'])".format(typ))
 
         self._instantaneous_teffpole = Tpole
-
 
         # Now we can compute the local temperatures.
         teffs = (self.mesh.gravs.for_computations * Tpole**4)**0.25
@@ -1931,7 +1898,7 @@ class Envelope(Body):
         #self._instantaneous_gpole = g_pole * rel_to_abs
         #self._instantaneous_rpole = np.sqrt((r_pole_*r_pole_).sum())
 
-    def _fill_loggs(self, xs, ys, zs, **kwargs):
+    def _fill_loggs(self):
         """
         TODO: add documentation
 

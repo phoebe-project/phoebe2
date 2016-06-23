@@ -443,7 +443,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             body = system.get_body(component)
 
             # body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
-            # body._fill_loggs([], [], [], d=1-body.ecc)
+            # body._fill_loggs([], [], [], d=1-body.ecc)  # NOTE: _fill_loggs no longer takes any arguments
             # body._fill_gravs()
             # body._fill_teffs()
 
@@ -451,25 +451,31 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
             protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
 
-            this_syn['x'] = protomesh['centers'][:,0]# * u.solRad
-            this_syn['y'] = protomesh['centers'][:,1]# * u.solRad
-            this_syn['z'] = protomesh['centers'][:,2]# * u.solRad
-            this_syn['vertices'] = protomesh.vertices_per_triangle # protomesh['vertices']
-            this_syn['areas'] = protomesh['areas']# * u.solRad**2
+            this_syn['x'] = protomesh.centers[:,0]# * u.solRad
+            this_syn['y'] = protomesh.centers[:,1]# * u.solRad
+            this_syn['z'] = protomesh.centers[:,2]# * u.solRad
+            this_syn['vertices'] = protomesh.vertices_per_triangle
+            this_syn['areas'] = protomesh.areas # * u.solRad**2
             # this_syn['volumes'] = protomesh['areas']*((protomesh['centers']*protomesh['tnormals']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
-            this_syn['normals'] = protomesh['tnormals']
-            this_syn['nx'] = protomesh['tnormals'][:,0]
-            this_syn['ny'] = protomesh['tnormals'][:,1]
-            this_syn['nz'] = protomesh['tnormals'][:,2]
+            this_syn['normals'] = protomesh.tnormals
+            this_syn['nx'] = protomesh.tnormals[:,0]
+            this_syn['ny'] = protomesh.tnormals[:,1]
+            this_syn['nz'] = protomesh.tnormals[:,2]
+
+            # TODO: add these back to the ProtoMesh (currently in ScaledProtoMesh)??
             # this_syn['logg'] = protomesh['loggs']  # technically these are no longer in protomesh, but would be in body.mesh
             # this_syn['teff'] = protomesh['teffs']  # technically these are no longer in protomesh, but would be in body.mesh
             # this_syn['mu'] = protomesh['mu']  # mus aren't filled until placed in orbit
 
-            # TODO: optimize this - surely there are better ways
-            this_syn['r'] = [np.sqrt(sum([tcc**2 for tcc in tc])) for tc in protomesh['centers']]
-            # this_syn['r_proj'] = [np.sqrt(sum([tcc**2 for tcc in tc[:2]])) for tc in protomesh['center']]
+            # NOTE: this is a computed column, meaning the 'r' is not the radius to centers, but rather the
+            # radius at which computables have been determined.  This way r should not suffer from a course
+            # grid (so much).  Same goes for cosbeta below.
+            this_syn['r'] = protomesh.rs.centers
+            # NOTE: no r_proj for protomeshs since we don't have LOS information
 
-            this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(protomesh['centers'], protomesh['tnormals'])]
+            # TODO: need to test the new (ComputedColumn) version of this
+            this_syn['cosbeta'] = protomesh.cosbetas.centers
+            # this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(protomesh.centers, protomesh.tnormals)]
 
 
     # Now we need to compute intensities at t0 in order to scale pblums for all future times
@@ -670,10 +676,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['vx'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
                 this_syn['vy'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
                 this_syn['vz'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
-                this_syn['vertices'] = body.mesh.vertices_per_triangle # np.array([body.mesh['vertices'][t] for t in body.mesh['triangles']])
+                this_syn['vertices'] = body.mesh.vertices_per_triangle
                 this_syn['areas'] = body.mesh.areas # * u.solRad**2
-                # this_syn['volumes'] = body.mesh['areas']*((body.mesh['center']*body.mesh['normal_']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
-                this_syn['normals'] = body.mesh.tnormals  # TODO remove this vector now that we have nx,ny,nz?e
+                # TODO remove this 'normals' vector now that we have nx,ny,nz?
+                this_syn['normals'] = body.mesh.tnormals
                 this_syn['nx'] = body.mesh.tnormals[:,0]
                 this_syn['ny'] = body.mesh.tnormals[:,1]
                 this_syn['nz'] = body.mesh.tnormals[:,2]
@@ -681,14 +687,14 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 this_syn['logg'] = body.mesh.loggs.centers
                 this_syn['teff'] = body.mesh.teffs.centers
+                # TODO: include abun? (body.mesh.abuns.centers)
 
-                # abun???
-
-                # TODO: computing r and r_proj could probably use some optimization...
-                x, y, z = xs[cind][i].value, ys[cind][i].value, zs[cind][i].value
-                this_syn['r'] = np.linalg.norm(body.mesh.centers, axis=1)
-                # TODO: do a norm trick here?  maybe np.linalg.norm(body.mesh.centers[:,:2], axis=1)???
-                this_syn['r_proj'] = [np.sqrt(sum([(tcc-comc)**2 for tcc,comc in zip(tc[:2], [x, y])])) for tc in body.mesh.centers]
+                # NOTE: these are computed columns, so are not based on the
+                # "center" coordinates provided by x, y, z, etc, but rather are
+                # the average value across each triangle.  For this reason,
+                # they are less susceptible to a coarse grid.
+                this_syn['r'] = body.mesh.rs.centers
+                this_syn['r_proj'] = body.mesh.rprojs.centers
 
                 this_syn['visibility'] = body.mesh['visibilities']
 
