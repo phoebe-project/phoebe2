@@ -111,7 +111,7 @@ namespace gen_roche {
     const T & q,
     const T & F = 1,
     const T & delta = 1,
-    const int & m = 1 << 12,
+    const int & m = 1 << 14,
     const bool polish = false)
   {
     
@@ -390,7 +390,7 @@ template<class T>
     const T & q,
     const T & F = 1,
     const T & delta = 1,
-    const int & m = 1 << 12,
+    const int & m = 1 << 14,
     const bool & polish = false)
   {
            
@@ -704,7 +704,7 @@ template<class T>
     const T & q,
     const T & F = 1,
     const T & delta = 1,
-    const int & m = 1 << 12,
+    const int & m = 1 << 14,
     const bool polish = false)
   {
     
