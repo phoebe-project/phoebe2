@@ -386,9 +386,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   if (b_larea) res_choice |= 1u;
   if (b_lvolume) res_choice |= 2u;
   
-  int m = 1 << 14;
+  int m = 1 << 14;        // TODO: this should be more precisely stated 
   
-  bool polish = false;
+  bool polish = false;    // TODO: why does not it work all the time
   
   gen_roche::area_volume(av, res_choice, xrange, Omega0, q, F, delta, m, polish);
     
@@ -503,8 +503,9 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   
   bool polish = false;
   
-  //std::cout.precision(16); std::cout << std::scientific;
-    
+  #if defined(DEBUG)
+  std::cout.precision(16); std::cout << std::scientific;
+  #endif
   do {
 
     gen_roche::points_on_x_axis(x_points, Omega, q, F, delta);
@@ -517,13 +518,19 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     int ofs = (choice == 1 && x_points.size() == 4 ? 2 : 0);
 
     for (int k = 0; k < 2; ++k) xrange[k] = x_points[k + ofs];
-    
-    gen_roche::volume(V, 3, xrange, q, F, delta, Omega, m, polish);
-    
+        
+    gen_roche::volume(V, 3, xrange, Omega, q, F, delta, m, polish);
+        
     Omega -= (dOmega = (V[0] - vol)/V[1]);
     
-    //std::cout << "vol=" << vol << "\tV[0]= " << V[0] << "\tdOmega=" << dOmega << '\n';
-     
+    #if defined(DEBUG) 
+    std::cout 
+      << "Omega=" << Omega 
+      << "\tvol=" << vol 
+      << "\tV[0]= " << V[0] 
+      << "\tdOmega=" << dOmega << '\n';
+    #endif
+    
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
    
   if (!(it < max_iter)){
