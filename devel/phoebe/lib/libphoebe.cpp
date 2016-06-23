@@ -432,7 +432,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
             0 for discussing left lobe or overcontact 
             1 for discussing right lobe
   
-    precision: float, default 1e-3
+    precision: float, default 1e-10
       aka relative precision
     accuracy: float, default 1e-10
       aka absolute precision
@@ -670,6 +670,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
   
       vertices: boolean, default False
       vnormals: boolean, default False
+      vnormgrads:boolean, default False
       triangles: boolean, default False
       tnormals: boolean, default False
       areas: boolean, default False
@@ -678,7 +679,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
-      vnormgrads: boolean, default False
+
    
     
   Returns:
@@ -974,7 +975,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   Python:
 
-    dict = triangle_mesh_visibility(v, V, T, N, <keyword> = <value>)
+    dict = mesh_visibility(v, V, T, N, <keyword> = <value>)
     
   with arguments
   
@@ -1102,7 +1103,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
     
   Python:
 
-    M = triangle_mesh_visibility(v, V, T, N)
+    M = mesh_rough_visibility(v, V, T, N)
     
   with arguments
     v[3] - 1-rank numpy array of 3 coordinates representing 3D point
@@ -1175,6 +1176,149 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
 }
 
+
+/*
+  Python wrapper for C++ code:
+
+    Reprojecting the points into the Roche lobes.
+    
+  Python:
+
+    dict = roche_reprojecting_vertices(V, q, F, d, Omega0, <keywords>=<value>)
+    
+  with arguments
+  
+  positionals: necessary
+    V[][3] - 2-rank numpy array of vertices  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    Omega0: float - value of the generalized Kopal potential
+  
+  keywords:
+    vertices: boolean, default False
+    vnormals: boolean, default False
+    vnormgrads:boolean, default False
+    max_iter: integer, default 100
+    
+  Return: 
+    
+    vertices: 
+      V1[][3]    - 2-rank numpy array of a pairs of vertices 
+    
+    vnormals:
+      NatV1[][3] - 2-rank numpy array of normals at vertices
+ 
+    vnormgrads:
+      GatV1[]  - 1-rank numpy array of norms of the gradients at central points
+  
+  
+  Ref:
+  * http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
+  * http://docs.scipy.org/doc/numpy/reference/c-api.array.html#creating-arrays
+  * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
+*/
+static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"V",
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"vertices",
+    (char*)"vnormals",
+    (char*)"vnormgrads",
+    (char*)"max_iter",
+    NULL
+  };
+  
+  PyArrayObject *oV;
+  
+  double q, F, d, Omega0;   
+  
+  bool 
+    b_vertices = false, 
+    b_vnormals = false, 
+    b_vnormgrads = false;
+  
+  int max_iter = 100;
+  
+  PyObject
+    *o_vertices = 0, 
+    *o_vnormals = 0, 
+    *o_vnormgrads = 0;
+    
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!dddd|O!O!O!i", kwlist,
+      &PyArray_Type, &oV, 
+      &q, &F, &d, &Omega0,
+      &PyBool_Type, &o_vertices, 
+      &PyBool_Type, &o_vnormals,
+      &PyBool_Type, &o_vnormgrads,
+      &max_iter)) return NULL;
+  
+  if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
+  if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
+  if (o_vnormgrads) b_vnormgrads = PyObject_IsTrue(o_vnormgrads);
+  
+  if (!o_vertices && !o_vnormals && !o_vnormgrads) return NULL;
+  
+  double params[] = {q, F, d, Omega0};  
+  
+  Tmarching<double, Tgen_roche<double>> march(params, false);
+  
+  double n[3], g, *pg = 0;
+  
+  std::vector<T3Dpoint<double>> V, *NatV = 0;
+
+  std::vector<double> *GatV = 0;
+
+  PyArray_To3DPointVector(oV, V);
+  
+  int Nv = V.size();
+  
+  if (b_vnormals) {
+    NatV = new std::vector<T3Dpoint<double>>;
+    NatV->reserve(Nv);
+  }
+  
+  if (b_vnormgrads) {
+    GatV = new std::vector<double>;
+    GatV->reserve(Nv);
+    pg = &g;
+  }
+  
+  for (auto && v: V) { 
+    march.project_onto_potential(v.data, v.data, n, max_iter, pg);
+    
+    if (b_vnormals) NatV->emplace_back(n);
+    if (b_vnormgrads) GatV->emplace_back(*pg);
+  }
+  
+  PyObject *results = PyDict_New();
+  
+  if (b_vertices)
+    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+  
+  if (b_vnormals) {
+    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(*NatV));
+    delete NatV;
+  }    
+
+  if (b_vnormgrads) {
+    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    delete GatV;
+  }    
+
+  return results;
+}
+
+
 /*  define functions in module */
 /* 
   Some modification in declarations due to use of keywords
@@ -1238,6 +1382,12 @@ static PyMethodDef Methods[] = {
       (PyCFunction)mesh_visibility,
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the ratio of triangle surfaces that are visible in a triangular mesh."},
+    
+    { "roche_reprojecting_vertices",
+      (PyCFunction)roche_reprojecting_vertices,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Reprojecting vertices onto the Roche lobe defined by q,F,d, and the value of"
+      " generalized Kopal potential Omega."},
     
     { "mesh_rough_visibility",
       mesh_rough_visibility,
