@@ -386,7 +386,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   if (b_larea) res_choice |= 1u;
   if (b_lvolume) res_choice |= 2u;
   
-  int m = 1 << 12;
+  int m = 1 << 14;
   
   bool polish = false;
   
@@ -494,7 +494,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
     
-  int m = 1 << 12,            // this should be more precisely stated 
+  int m = 1 << 14, // TODO: this should be more precisely stated 
       it = 0;
       
   double Omega = Omega0, dOmega, V[2], xrange[2];
