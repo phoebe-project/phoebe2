@@ -39,14 +39,14 @@ def _value(obj):
 
 
 class System(object):
-    def __init__(self, bodies_dict, eclipse_alg='graham', subdiv_alg='edge', subdiv_num=3, dynamics_method='keplerian'):
+    def __init__(self, bodies_dict, eclipse_alg='graham', dynamics_method='keplerian'):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
         self._bodies = bodies_dict
         self.eclipse_alg = eclipse_alg
-        self.subdiv_alg = subdiv_alg
-        self.subdiv_num = subdiv_num
+        # self.subdiv_alg = subdiv_alg
+        # self.subdiv_num = subdiv_num
         self.dynamics_method = dynamics_method
 
         return
@@ -79,13 +79,13 @@ class System(object):
                 # then hopefully compute is the parameterset
                 compute_ps = compute
             eclipse_alg = compute_ps.get_value(qualifier='eclipse_alg', **kwargs)
-            subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
-            subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
+            # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
+            # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
         else:
             eclipse_alg = 'graham'
-            subdiv_alg = 'edge'
-            subdiv_num = 3
+            # subdiv_alg = 'edge'
+            # subdiv_num = 3
             dynamics_method = 'keplerian'
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
@@ -102,8 +102,7 @@ class System(object):
         bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
         return cls(bodies_dict, eclipse_alg=eclipse_alg,
-                subdiv_alg=subdiv_alg, subdiv_num=subdiv_num,
-                dynamics_method=dynamics_method)
+                   dynamics_method=dynamics_method)
 
     def items(self):
         """
@@ -215,8 +214,8 @@ class System(object):
         """
 
         eclipse_alg = kwargs.get('eclipse_alg', self.eclipse_alg)
-        subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
-        subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
+        # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
+        # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
         # Let's first check to see if eclipses are even possible at these
         # positions.  If they are not, then we only have to do horizon
@@ -264,67 +263,6 @@ class System(object):
         meshes.update_columns('visibilities', visibilities)
         if weights is not None:
             meshes.update_columns('weights', weights)
-
-        # Now we'll handle subdivision.  If at any point there are no partially
-        # subdivided triangles, then we can break the loop and we're done.  Otherwise
-        # we'll continue for the number of requested iterations.
-        subdiv_func = getattr(subdivision, subdiv_alg)
-        for k in range(subdiv_num):
-            logger.warning("subdivision not yet ported to new meshing framework (and might not be)")
-            continue
-            raise NotImplementedError("subdivision not yet ported to new meshing framework")
-            #logger.debug("subdividing via {:s}".format(subdiv_alg))
-
-            # TODO: try to get rid of this loop by subdividing directly on meshes?
-            for component, mesh in meshes.items():
-                # partial = (mesh['visibility'] > 0) & (mesh['visibility'] < 1)
-                partial = (mesh.visibilities > 0) & (mesh.visibilities < 1)
-
-                if np.all(partial==False):
-                    # Then we have no triangles left to subdivide
-                    continue
-
-                # TODO: what if instead of subdividing we just set the correct
-                # visibility of the triangle based on what proportion of the area
-                # is visible.  This would make for ugly plots though and may be
-                # just as expensive to compute as this is to handle in the mesh.
-
-                # The subdiv_func takes the mesh of ONLY the triangles that we want
-                # subdivided (ie the partial triangles).  It returns a new submesh
-                # of the triangles that need to replace the old trianges in the
-                # mesh.  Each triangle that splits into multiple sub-triangles
-                # will have any non-geometric quantities copied (ie local quantities/
-                # observables are computed BEFORE subdivision and are not recomputed
-                # for each individually subdivided triangle).
-                new_submesh = subdiv_func(mesh[partial])
-
-
-                # We now want to remove the original triangles, and add the new
-                # triangles (these will surely be different lengths as we're likely
-                # adding 3 or 4 times the number of triangles we remove).
-                # Note: as mesh is just a member of meshes, this operation affects
-                # the mesh in memory and will instantly take effect.
-                meshes.replace_elements(partial, new_submesh, component)
-
-            # TODO: at this point we only need to do eclipse detection on
-            # the triangles that were just subdivided, not all the visible!
-            # but of course we need to send all triangles in, since all can ECLIPSE
-            # so maybe this should take a switch - of whether to consider all triangles
-            # or just partial?
-            visibilities = ecl_func(meshes, self.xs, self.ys, self.zs)
-            # meshes.update_columns('visibility', visibilities)
-            meshes.update_columns(visibilities=visibilities)
-
-        if subdiv_num > 0:
-            # then since adding triangles required "rebuilding" the mesh record
-            # array, not everything was done in memory, so we have to push the
-            # meshes back to the bodies.
-
-            # TODO: remove this entirely?
-            logger.warning("subdivision not yet ported to new meshing framework")
-            # pass
-            # for component, body in self.items():
-                # body.mesh = meshes[component]
 
         return
 
@@ -697,8 +635,6 @@ class Body(object):
 
         #-- Volume Conservation
         if self.needs_volume_conservation:
-            target_volume = self.get_target_volume(ethetas[self.ind_self])
-            logger.info("volume conservation: target_volume={}".format(target_volume))
 
             # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
 
@@ -707,7 +643,15 @@ class Body(object):
             # override d to be the current value
             d = self.instantaneous_distance(xs, ys, zs, self.sma)
 
-            Phi = libphoebe.roche_Omega_at_vol(target_volume, q, F, d, Omega0=Phi)
+            # TODO: TESTING should this be unscaled with the new scale or old scale?
+            # self._scale = d
+            target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
+            logger.info("volume conservation: target_volume={}".format(target_volume))
+
+
+            Phi = libphoebe.roche_Omega_at_vol(target_volume,
+                                               q, F, d,
+                                               Omega0=Phi)
 
             # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
             if self.comp_no == 2:
@@ -723,10 +667,16 @@ class Body(object):
             # the mesh??
 
             # TODO: make sure this passes the new d and new Phi correctly
+
+            # NOTE: Phi is not Phi_user so doesn't need to be flipped for the
+            # secondary component
             new_mesh_dict, scale, mesh_args = self._build_mesh(d=d,
                                                                mesh_method=self.mesh_method,
                                                                Phi=Phi)
             # TODO: do we need to update self.scale or self._mesh_args???
+            # TODO: need to be very careful about self.sma vs self._scale - maybe need to make a self._instantaneous_scale???
+            self._scale = scale
+            self._mesh_args = mesh_args
 
 
             # Here we'll build a scaledprotomesh directly from the newly
@@ -1183,7 +1133,7 @@ class Star(Body):
         return self.ecc != 0
 
 
-    def get_target_volume(self, etheta):
+    def get_target_volume(self, etheta, scaled=False):
         """
         TODO: add documentation
 
@@ -1196,7 +1146,12 @@ class Star(Body):
         # with some scaling factor provided by the user as a parameter.  Until then, we'll assume volume is conserved
         # which means the volume should always be the same as it was defined at periaston.
 
-        return self.volume_at_periastron
+        # volumes are stored internally in real units.  So if we want the
+        # "protomesh" volume we need to divide by scale^3
+        if not scaled:
+            return self.volume_at_periastron/self._scale**3
+        else:
+            return self.volume_at_periastron
 
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
@@ -1244,6 +1199,15 @@ class Star(Body):
                                                          cnormgrads=False,
                                                          areas=True,
                                                          volume=True)
+
+                # TODO: which volume(s) do we want to report?  Either way, make
+                # sure to do the same for the OC case
+                av = libphoebe.roche_area_volume(*mesh_args,
+                                                 choice=0,
+                                                 larea=True,
+                                                 lvolume=True)
+
+                new_mesh['volume'] = av['lvolume']
 
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)

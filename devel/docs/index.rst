@@ -179,9 +179,11 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    :maxdepth: 1
    :titlesonly:
 
-   Systemic Velocity<tutorials/vgamma>
-   Apsidal Motion<tutorials/apsidal_motion>
+
    Potentials<tutorials/pot>
+   Eccentricity (Volume Conservation) (not yet full-implemented)<tutorials/ecc>
+   Apsidal Motion<tutorials/apsidal_motion>
+   Systemic Velocity<tutorials/vgamma>
    Passband Luminosity<tutorials/pblum>
    Third Light<tutorials/l3>
    Distance<tutorials/distance>
