@@ -456,16 +456,15 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             this_syn['z'] = protomesh.centers[:,2]# * u.solRad
             this_syn['vertices'] = protomesh.vertices_per_triangle
             this_syn['areas'] = protomesh.areas # * u.solRad**2
-            # this_syn['volumes'] = protomesh['areas']*((protomesh['centers']*protomesh['tnormals']).sum(axis=1))/3  # TODO: update this to account for normal magnitudes
             this_syn['normals'] = protomesh.tnormals
             this_syn['nx'] = protomesh.tnormals[:,0]
             this_syn['ny'] = protomesh.tnormals[:,1]
             this_syn['nz'] = protomesh.tnormals[:,2]
 
             # TODO: add these back to the ProtoMesh (currently in ScaledProtoMesh)??
-            # this_syn['logg'] = protomesh['loggs']  # technically these are no longer in protomesh, but would be in body.mesh
-            # this_syn['teff'] = protomesh['teffs']  # technically these are no longer in protomesh, but would be in body.mesh
-            # this_syn['mu'] = protomesh['mu']  # mus aren't filled until placed in orbit
+            # this_syn['logg'] = protomesh.loggs.centers  # technically these are no longer in protomesh, but would be in body.mesh
+            # this_syn['teff'] = protomesh.teffs.centers  # technically these are no longer in protomesh, but would be in body.mesh
+            # this_syn['mu'] = protomesh.mus  # mus aren't filled until placed in orbit
 
             # NOTE: this is a computed column, meaning the 'r' is not the radius to centers, but rather the
             # radius at which computables have been determined.  This way r should not suffer from a course
@@ -670,6 +669,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
                 this_syn['volume'] = body.volume
 
+                # TODO: should x, y, z be computed columns of the vertices???
+                # could easily have a read-only property at the ProtoMesh level
+                # that returns a ComputedColumn for xs, ys, zs (like rs)
+                # (also do same for protomesh)
                 this_syn['x'] = body.mesh.centers[:,0]# * u.solRad
                 this_syn['y'] = body.mesh.centers[:,1]# * u.solRad
                 this_syn['z'] = body.mesh.centers[:,2]# * u.solRad
