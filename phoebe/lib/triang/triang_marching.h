@@ -514,7 +514,7 @@ void mesh_attributes(
   Triangulization of closed surfaces using maching algorithm.
 */
 template <class T, class Tbody>
-class Tmarching: public Tbody {
+struct Tmarching: public Tbody {
   
   /* 
     Interval structure for vertex includes the point on the surface 
@@ -679,7 +679,7 @@ class Tmarching: public Tbody {
     const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
     
-    for (int i = 0; i <3; ++i) r[i] = ri[i];
+    if (r != ri) for (int i = 0; i <3; ++i) r[i] = ri[i];
          
     do {
     
@@ -794,10 +794,8 @@ class Tmarching: public Tbody {
     return utils::hypot3(a[0] - b[0], a[1] - b[1], a[2] - b[2]); 
   } 
   
-  public:
- 
 
-  Tmarching(void *params) : Tbody(params) { }
+  Tmarching(void *params, bool init = true) : Tbody(params, init) { }
   
   /*
     Triangulization using marching method of genus 0 closed and surfaces
