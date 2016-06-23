@@ -31,7 +31,7 @@
 
 // Roche specific routines and part of gen_roche namespace
 #include "lagrange/gen_roche_lagrange.h"  // Lagrange points for gen Kopal potential
-#include "volume/gen_roche_volume.h"      // Roche lobes volume
+#include "volume/gen_roche_area_volume.h" // Roche lobes volume
 
 namespace gen_roche {
 

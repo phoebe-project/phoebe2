@@ -386,11 +386,11 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   if (b_larea) res_choice |= 1u;
   if (b_lvolume) res_choice |= 2u;
   
-  int m = 1 << 10;
+  int m = 1 << 12;
   
-  bool polish = true;
+  bool polish = false;
   
-  gen_roche::area_volume(av, xrange, Omega0, q, F, delta, m, res_choice, polish);
+  gen_roche::area_volume(av, res_choice, xrange, Omega0, q, F, delta, m, polish);
     
   PyObject *results = PyDict_New();
       
@@ -433,7 +433,11 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
             1 for discussing right lobe
   
     precision: float, default 1e-3
+      aka relative precision
     accuracy: float, default 1e-10
+      aka absolute precision
+    max_iter: integer, default 100
+      maximal number of iterations in the Newton-Raphson
     
   Returns:
   
@@ -457,39 +461,79 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     (char*)"choice",
     (char*)"precision",
     (char*)"accuracy",
+    (char*)"max_iter",
     NULL};
        
-  int choice = 0;
-  
+  int 
+    choice = 0;
+    
   double
     vol, 
-    precision = 1e-3,
+    precision = 1e-10,
     accuracy = 1e-10;
+  
+  int max_iter = 100;  
     
   double q, F, delta, Omega0 = nan("");
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|idd", kwlist, 
+      args, keywds,  "ddddd|iddi", kwlist, 
       &vol, &q, &F, &delta, &Omega0,
       &choice,
       &precision,
-      &accuracy
+      &accuracy,
+      &max_iter
       )
     )
     return NULL;
     
   bool b_Omega0 = !std::isnan(Omega0);
   
-  //???? Here comes the code
+  if (!b_Omega0) {
+    std::cerr << "Currently not supporting lack of guessed Omega.\n";
+    return NULL;
+  }
+    
+  int m = 1 << 12,            // this should be more precisely stated 
+      it = 0;
+      
+  double Omega = Omega0, dOmega, V[2], xrange[2];
   
-  double Omega1;
+  std::vector<double> x_points;
   
-  if (b_Omega0) 
-    Omega1 = Omega0; 
-  else 
-    Omega1 = 0;
+  bool polish = false;
   
-  return PyFloat_FromDouble(Omega1);
+  //std::cout.precision(16); std::cout << std::scientific;
+    
+  do {
+
+    gen_roche::points_on_x_axis(x_points, Omega, q, F, delta);
+
+    if (x_points.size() == 0) {
+      std::cerr << "roche_Omega_at_vol::No X-points found\n";
+      return NULL;
+    }
+    
+    int ofs = (choice == 1 && x_points.size() == 4 ? 2 : 0);
+
+    for (int k = 0; k < 2; ++k) xrange[k] = x_points[k + ofs];
+    
+    gen_roche::volume(V, 3, xrange, q, F, delta, Omega, m, polish);
+    
+    Omega -= (dOmega = (V[0] - vol)/V[1]);
+    
+    //std::cout << "vol=" << vol << "\tV[0]= " << V[0] << "\tdOmega=" << dOmega << '\n';
+     
+  } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
+   
+  if (!(it < max_iter)){
+    std::cerr << "roche_Omega_at_vol: Maximum number of iterations exceeded\n";
+    return NULL;
+  }
+  // We use the condition on the argument (= Omega) ~ constraining backward error, 
+  // but we could also use condition on the value (= Volume) ~ constraing forward error
+  
+  return PyFloat_FromDouble(Omega);
 }
 
 
