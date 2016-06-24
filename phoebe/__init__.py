@@ -42,6 +42,7 @@ from phoebe.atmospheres.limbdark import download_atm
 import dynamics as dynamics
 import distortions as distortions
 import algorithms as algorithms
+import libphoebe
 
 
 def logger(*args, **kwargs):
