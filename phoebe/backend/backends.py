@@ -442,14 +442,15 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         for component in meshablerefs:
             body = system.get_body(component)
 
-            # body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
-            # body._fill_loggs([], [], [], d=1-body.ecc)  # NOTE: _fill_loggs no longer takes any arguments
-            # body._fill_gravs()
-            # body._fill_teffs()
+            protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
+            body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
+            body._fill_loggs(mesh=protomesh)
+            body._fill_gravs(mesh=protomesh)
+            body._fill_teffs(mesh=protomesh)
 
             this_syn = new_syns.filter(component=component, dataset='protomesh')
 
-            protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
+            # protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
 
             this_syn['x'] = protomesh.centers[:,0]# * u.solRad
             this_syn['y'] = protomesh.centers[:,1]# * u.solRad
@@ -461,9 +462,8 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             this_syn['ny'] = protomesh.tnormals[:,1]
             this_syn['nz'] = protomesh.tnormals[:,2]
 
-            # TODO: add these back to the ProtoMesh (currently in ScaledProtoMesh)??
-            # this_syn['logg'] = protomesh.loggs.centers  # technically these are no longer in protomesh, but would be in body.mesh
-            # this_syn['teff'] = protomesh.teffs.centers  # technically these are no longer in protomesh, but would be in body.mesh
+            this_syn['logg'] = protomesh.loggs.centers
+            this_syn['teff'] = protomesh.teffs.centers
             # this_syn['mu'] = protomesh.mus  # mus aren't filled until placed in orbit
 
             # NOTE: this is a computed column, meaning the 'r' is not the radius to centers, but rather the
