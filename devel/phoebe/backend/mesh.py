@@ -368,6 +368,14 @@ class ProtoMesh(object):
         self._phi               = None # Nx1
         self._theta             = None # Nx1
 
+
+        ### PHYSICAL QUANTITIES
+        self._loggs             = ComputedColumn(mesh=self)
+        self._gravs             = ComputedColumn(mesh=self)
+        self._teffs             = ComputedColumn(mesh=self)
+        self._abuns             = ComputedColumn(mesh=self)
+
+
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
         self._scalar_fields     = ['volume']
         self._compute_at_vertices = compute_at_vertices
@@ -383,7 +391,8 @@ class ProtoMesh(object):
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume',
                   'phi', 'theta',
-                  'compute_at_vertices']
+                  'compute_at_vertices',
+                  'loggs', 'gravs', 'teffs', 'abuns']
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -715,61 +724,6 @@ class ProtoMesh(object):
         """
         return self._theta
 
-
-
-class ScaledProtoMesh(ProtoMesh):
-    """
-    ScaledProtoMesh is in real units (in whatever is provided for scale),
-    but still with the origin at the COM of the STAR.
-
-    Because there is no orbital or orientation information, those
-    fields are not available until the mesh is placed in
-    orbit (by using the class constructor on Mesh).
-    """
-
-    def __init__(self, **kwargs):
-        """
-        TODO: add documentation
-        """
-
-        self._loggs             = ComputedColumn(mesh=self)
-        self._gravs             = ComputedColumn(mesh=self)
-        self._teffs             = ComputedColumn(mesh=self)
-        self._abuns             = ComputedColumn(mesh=self)
-
-        keys = ['loggs', 'gravs', 'teffs', 'abuns']
-        keys += kwargs.pop('keys', [])
-
-        scale = kwargs.pop('scale', None)
-
-        super(ScaledProtoMesh, self).__init__(keys=keys, **kwargs)
-
-        if scale is not None:
-            self._scale_mesh(scale)
-
-    @classmethod
-    def from_proto(cls, proto_mesh, scale):
-        """
-        TODO: add documentation
-        """
-
-        mesh = cls(**proto_mesh.items())
-        mesh._scale_mesh(scale=scale)
-        return mesh
-
-    def _scale_mesh(self, scale):
-        """
-        TODO: add documentation
-        """
-        pos_ks = ['vertices', 'centers']
-
-        # handle scale
-        self.update_columns_dict({k: self[k]*scale for k in pos_ks})
-
-        self.update_columns(areas=self.areas*(scale**2))
-        self._volume *= scale**3
-        # TODO NOW: scale volume
-
     @property
     def loggs(self):
         """
@@ -811,6 +765,56 @@ class ScaledProtoMesh(ProtoMesh):
         (ComputedColumn)
         """
         return self._abuns
+
+
+
+class ScaledProtoMesh(ProtoMesh):
+    """
+    ScaledProtoMesh is in real units (in whatever is provided for scale),
+    but still with the origin at the COM of the STAR.
+
+    Because there is no orbital or orientation information, those
+    fields are not available until the mesh is placed in
+    orbit (by using the class constructor on Mesh).
+    """
+
+    def __init__(self, **kwargs):
+        """
+        TODO: add documentation
+        """
+
+        keys = []
+        keys += kwargs.pop('keys', [])
+
+        scale = kwargs.pop('scale', None)
+
+        super(ScaledProtoMesh, self).__init__(keys=keys, **kwargs)
+
+        if scale is not None:
+            self._scale_mesh(scale)
+
+    @classmethod
+    def from_proto(cls, proto_mesh, scale):
+        """
+        TODO: add documentation
+        """
+
+        mesh = cls(**proto_mesh.items())
+        mesh._scale_mesh(scale=scale)
+        return mesh
+
+    def _scale_mesh(self, scale):
+        """
+        TODO: add documentation
+        """
+        pos_ks = ['vertices', 'centers']
+
+        # handle scale
+        self.update_columns_dict({k: self[k]*scale for k in pos_ks})
+
+        self.update_columns(areas=self.areas*(scale**2))
+        self._volume *= scale**3
+        # TODO NOW: scale volume
 
 
 

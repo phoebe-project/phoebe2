@@ -1270,7 +1270,7 @@ class Star(Body):
         self._instantaneous_gpole = g_pole * g_rel_to_abs
         self._instantaneous_rpole = r_pole
 
-    def _fill_loggs(self):
+    def _fill_loggs(self, mesh=None):
         """
         TODO: add documentation
 
@@ -1279,32 +1279,37 @@ class Star(Body):
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m
         """
+        if mesh is None:
+            mesh = self.mesh
+
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
-        loggs = np.log10(self.mesh.normgrads.for_computations * g_rel_to_abs)
-        self.mesh.update_columns(loggs=loggs)
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
+        mesh.update_columns(loggs=loggs)
 
         # logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(loggs.min(), loggs.max(), self._instantaneous_gpole, self._instantaneous_rpole*self._scale))
 
-    def _fill_gravs(self, **kwargs):
+    def _fill_gravs(self, mesh=None, **kwargs):
         """
         TODO: add documentation
 
         requires _fill_loggs to have been called
         """
+        if mesh is None:
+            mesh = self.mesh
 
 
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
         # TODO: check the division by 100 - is this just to change units back to m?
-        gravs = ((self.mesh.normgrads.for_computations * g_rel_to_abs)/self._instantaneous_gpole/100.)**self.gravb_bol
+        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs)/self._instantaneous_gpole/100.)**self.gravb_bol
 
         # TODO: make sure equivalent to the old way here
         # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
 
-        self.mesh.update_columns(gravs=gravs)
+        mesh.update_columns(gravs=gravs)
 
 
-    def _fill_teffs(self, **kwargs):
+    def _fill_teffs(self, mesh=None, **kwargs):
         r"""
 
         requires _fill_loggs and _fill_gravs to have been called
@@ -1325,6 +1330,8 @@ class Star(Body):
               This is subject to improvement!
 
         """
+        if mesh is None:
+            mesh = self.mesh
 
         if self.gravb_law == 'espinosa':
             # TODO: check whether we want the automatically inverted q or not
@@ -1379,7 +1386,7 @@ class Star(Body):
         # Compute G and Tpole
         if typ == 'mean':
             # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
-            Tpole = Teff*(np.sum(self.mesh.areas) / np.sum(self.mesh.gravs.centers*self.mesh.areas))**(0.25)
+            Tpole = Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
         elif typ == 'polar':
             Tpole = Teff
         else:
@@ -1388,16 +1395,19 @@ class Star(Body):
         self._instantaneous_teffpole = Tpole
 
         # Now we can compute the local temperatures.
-        teffs = (self.mesh.gravs.for_computations * Tpole**4)**0.25
-        self.mesh.update_columns(teffs=teffs)
+        teffs = (mesh.gravs.for_computations * Tpole**4)**0.25
+        mesh.update_columns(teffs=teffs)
 
         # logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(teffs.min(), teffs.max(), Tpole))
 
-    def _fill_abuns(self, abun=0.0):
+    def _fill_abuns(self, mesh=None, abun=0.0):
         """
         TODO: add documentation
         """
-        self.mesh.update_columns(abuns=abun)
+        if mesh is None:
+            mesh = self.mesh
+
+        mesh.update_columns(abuns=abun)
 
 
     def _populate_ifm(self, dataset, **kwargs):

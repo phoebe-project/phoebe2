@@ -41,9 +41,9 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     compares += [{'qualifier': 'nz', 'dataset': 'protomesh', 'atol': 1e-8}]
     compares += [{'qualifier': 'cosbeta', 'dataset': 'protomesh', 'atol': 1e-14}]
 
-    # TODO: removed logg and teff because they are no longer in protomesh - but somehow
-    # compares += [{'qualifier': 'teff', 'dataset': 'protomesh', 'atol': 1e-6}]
-    # compares += [{'qualifier': 'logg', 'dataset': 'protomesh', 'atol': 2e-4}]
+    compares += [{'qualifier': 'teff', 'dataset': 'protomesh', 'atol': 1e-6}]
+    compares += [{'qualifier': 'logg', 'dataset': 'protomesh', 'atol': 2e-4}]
+
     compares += [{'qualifier': 'intens_norm_abs', 'dataset': 'lc01', 'atol': 1e5}] # NOTE: these values are of order 1E14
 
 
