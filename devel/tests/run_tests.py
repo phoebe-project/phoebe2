@@ -29,7 +29,7 @@ if 'tutorials' in do:
 
 
 if 'nosetests' in do:
-    print "TESTING NOSETESTS..."
+    print "TESTING NOSETESTS... (no output until finished or failed)"
     os.chdir(os.path.join(cwd, 'nosetests'))
     # import nose
     # nose.run()

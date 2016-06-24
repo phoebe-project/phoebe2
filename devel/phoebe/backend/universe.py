@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import newton
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import os
+import copy
 
 from phoebe.atmospheres import limbdark, passbands
 from phoebe.distortions import roche
@@ -50,6 +51,12 @@ class System(object):
         self.dynamics_method = dynamics_method
 
         return
+
+    def copy(self):
+        """
+        Make a deepcopy of this Mesh object
+        """
+        return copy.deepcopy(self)
 
     @classmethod
     def from_bundle(cls, b, compute=None, datasets=[], **kwargs):
@@ -395,6 +402,12 @@ class Body(object):
         # TODO: allow custom meshes (see alpha:universe.Body.__init__)
         # TODO: reconsider partial/hidden/visible into opacity/visibility
 
+    def copy(self):
+        """
+        Make a deepcopy of this Mesh object
+        """
+        return copy.deepcopy(self)
+
     @property
     def mesh(self):
         """
@@ -485,8 +498,9 @@ class Body(object):
         coords_array should be a single array (xs, ys, or zs)
         """
         if hasattr(index, '__iter__'):
-            # TODO: this should probably most definitely be mass-weighted (ie center of mass coordinates)
-            return np.median([coords_array[i] for i in index])
+            # then we want the center-of-mass coordinates
+            # TODO: clean this up
+            return np.average([_value(coords_array[i]) for i in index], weights=[self._get_mass_by_index(i) for i in index])
         else:
             return coords_array[index]
 
@@ -649,6 +663,7 @@ class Body(object):
             logger.info("volume conservation: target_volume={}".format(target_volume))
 
 
+            # TODO: need to send a better guess for Omega0
             Phi = libphoebe.roche_Omega_at_vol(target_volume,
                                                q, F, d,
                                                Omega0=Phi)

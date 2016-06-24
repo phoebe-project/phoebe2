@@ -905,12 +905,13 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                 grx1 = np.array_split(mesh['grx1'],n)[-1]
                 gry1 = np.array_split(mesh['gry1'],n)[-1]
                 grz1 = np.array_split(mesh['grz1'],n)[-1]
+                # TODO: rewrite this to use np.linalg.norm
                 grtot1 = grx1**2+gry1**2+grz1**2
                 grx2 = np.array_split(mesh['grx1'],n)[-1]
                 gry2 = np.array_split(mesh['gry1'],n)[-1]
                 grz2 = np.array_split(mesh['grz1'],n)[-1]
                 grtot2 = grx2**2+gry2**2+grz2**2
-                grtot = [grtot1,grtot2]
+                grtot = [np.sqrt(grtot1),np.sqrt(grtot2)]
                 for key in keys:
                     key_values =  np.array_split(mesh[key],n)
                     # take care of the protomesh
@@ -923,7 +924,8 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
                         grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
 
-                        d['value'] = -key_val #/grtotn
+                        # normals should be normalized
+                        d['value'] = -key_val /grtotn
                     else:
                         d['value'] = key_val
                     #TODO fill the normals column it is just (nx, ny, nz)
