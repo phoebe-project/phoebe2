@@ -142,6 +142,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
 
     new_mesh['tnormals'] = the_grid[:,13:16]
     norms = np.linalg.norm(new_mesh['tnormals'], axis=1)
+    new_mesh['normgrads'] = norms
     # TODO: do this the right way by dividing along axis=1 (or using np.newaxis as done for multiplying in ComputedColumns)
     new_mesh['tnormals'] = np.array([tn/n for tn,n in zip(new_mesh['tnormals'], norms)])
 
@@ -155,10 +156,11 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     new_mesh['theta'] = the_grid[:,16]
     new_mesh['phi'] = the_grid[:,17]
 
-    grads = np.array([libphoebe.roche_gradOmega_only(q, F, d, c) for c in new_mesh['centers']])
+    # TODO: get rid of this list comprehension
+    # grads = np.array([libphoebe.roche_gradOmega_only(q, F, d, c) for c in new_mesh['centers']])
 
     # new_mesh['normgrads'] = np.sqrt(grads[:,0]**2+grads[:,1]**2+grads[:,2]**2)
-    new_mesh['normgrads'] = np.linalg.norm(grads, axis=1)
+    # new_mesh['normgrads'] = norms #np.linalg.norm(grads, axis=1)
 
     # TODO: actually compute the numerical volume (find old code)
     new_mesh['volume'] = compute_volume(new_mesh['areas'], new_mesh['centers'], new_mesh['tnormals'])
