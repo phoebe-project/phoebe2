@@ -1254,11 +1254,6 @@ class Star(Body):
         TODO: add documentation
         """
 
-        # TODO: check whether we want the automatically inverted q or not
-        q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-        d = kwargs.get('d') if 'd' in kwargs.keys() else self.instantaneous_distance(xs, ys, zs, self.sma)
-
-
         r_pole = libphoebe.roche_pole(*self._mesh_args)
         r_pole_ = np.array([0., 0., r_pole])
         args = list(self._mesh_args)[:3]+[r_pole_]
@@ -1268,6 +1263,7 @@ class Star(Body):
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
         self._instantaneous_gpole = g_pole * g_rel_to_abs
+        # TODO NOW: check whether r_pole is in absolute units (scaled/not scaled)
         self._instantaneous_rpole = r_pole
 
     def _fill_loggs(self, mesh=None):
@@ -1299,9 +1295,11 @@ class Star(Body):
             mesh = self.mesh
 
 
+        # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
+
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
         # TODO: check the division by 100 - is this just to change units back to m?
-        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs)/self._instantaneous_gpole/100.)**self.gravb_bol
+        gravs = ((mesh.normgrads.for_computations * g_rel_to_abs)/self._instantaneous_gpole)**self.gravb_bol
 
         # TODO: make sure equivalent to the old way here
         # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
@@ -1339,6 +1337,8 @@ class Star(Body):
             F = self.syncpar
             sma = self.sma
 
+            # TODO NOW: rewrite this to work in unscaled units
+
             # To compute the filling factor, we're gonna cheat a little bit: we
             # should compute the ratio of the tip radius to the first Lagrangian
             # point. However, L1 might be poorly defined for weird geometries
@@ -1360,12 +1360,14 @@ class Star(Body):
 
         elif self.gravb_law == 'claret':
             logteff = np.log10(self.teff)
-            logg = np.log10(self._instantaneous_gpole*100)
+            logg = np.log10(self._instantaneous_gpole)
             abun = self.abun
             axv, pix = roche.claret_gravb()
             gravb = interp_nDgrid.interpolate([[logteff], [logg], [abun]], axv, pix)[0][0]
 
             logger.info('gravb(Claret): teff = {:.3f}, logg = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**logteff, logg, abun, gravb))
+
+        # TODO: ditch support for polar teff as input param
 
         # Now use the Zeipel law:
         if 'teffpolar' in kwargs.keys():
@@ -1386,6 +1388,7 @@ class Star(Body):
         # Compute G and Tpole
         if typ == 'mean':
             # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
+            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
             Tpole = Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
         elif typ == 'polar':
             Tpole = Teff
@@ -1406,6 +1409,8 @@ class Star(Body):
         """
         if mesh is None:
             mesh = self.mesh
+
+        # TODO: support from frontend
 
         mesh.update_columns(abuns=abun)
 

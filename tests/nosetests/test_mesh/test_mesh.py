@@ -19,6 +19,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.add_compute('phoebe', compute='phoebe2', subdiv_num=0)
 
     b.set_value_all('mesh_method', 'wd')
+    b.set_value_all('eclipse_alg', 'graham')
     b.set_value_all('gridsize', gridsize)
 
     # TODO: make these options and test over various values for the intensity
@@ -32,17 +33,17 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
 
     compares = []
-    compares += [{'qualifier': 'x', 'dataset': 'protomesh', 'atol': 1e-10}]
-    compares += [{'qualifier': 'y', 'dataset': 'protomesh', 'atol': 1e-12}]
-    compares += [{'qualifier': 'z', 'dataset': 'protomesh', 'atol': 1e-11}]
-    compares += [{'qualifier': 'r', 'dataset': 'protomesh', 'atol': 1e-10}]
-    compares += [{'qualifier': 'nx', 'dataset': 'protomesh', 'atol': 1e-7}]
-    compares += [{'qualifier': 'ny', 'dataset': 'protomesh', 'atol': 1e-9}]
-    compares += [{'qualifier': 'nz', 'dataset': 'protomesh', 'atol': 1e-8}]
-    compares += [{'qualifier': 'cosbeta', 'dataset': 'protomesh', 'atol': 1e-14}]
+    # compares += [{'qualifier': 'x', 'dataset': 'protomesh', 'atol': 1e-10}]
+    # compares += [{'qualifier': 'y', 'dataset': 'protomesh', 'atol': 1e-12}]
+    # compares += [{'qualifier': 'z', 'dataset': 'protomesh', 'atol': 1e-11}]
+    # compares += [{'qualifier': 'r', 'dataset': 'protomesh', 'atol': 1e-10}]
+    # compares += [{'qualifier': 'nx', 'dataset': 'protomesh', 'atol': 1e-7}]
+    # compares += [{'qualifier': 'ny', 'dataset': 'protomesh', 'atol': 1e-9}]
+    # compares += [{'qualifier': 'nz', 'dataset': 'protomesh', 'atol': 1e-8}]
+    # compares += [{'qualifier': 'cosbeta', 'dataset': 'protomesh', 'atol': 1e-14}]
 
-    compares += [{'qualifier': 'teff', 'dataset': 'protomesh', 'atol': 1e-6}]
     compares += [{'qualifier': 'logg', 'dataset': 'protomesh', 'atol': 2e-4}]
+    compares += [{'qualifier': 'teff', 'dataset': 'protomesh', 'atol': 1e-6}]
 
     compares += [{'qualifier': 'intens_norm_abs', 'dataset': 'lc01', 'atol': 1e5}] # NOTE: these values are of order 1E14
 
