@@ -1948,7 +1948,9 @@ class Bundle(ParameterSet):
         if compute is None:
             computes = self.get_compute().computes
             if len(computes)==0:
-                # TODO: should this take **kwargs to set defaults?
+                # NOTE: this doesn't take **kwargs since we want those to be
+                # temporarily overriden as is the case when the compute options
+                # are already attached
                 self.add_compute()
                 computes = self.get_compute().computes
                 # now len(computes) should be 1 and will trigger the next

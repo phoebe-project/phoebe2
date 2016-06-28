@@ -1125,11 +1125,11 @@ class Star(Body):
 
         mesh_kwargs = {}
         if mesh_method == 'marching':
-            mesh_kwargs['delta'] = b.get_value('delta', component=component, compute=compute) if compute is not None else 0.1
-            mesh_kwargs['maxpoints'] = b.get_value('maxpoints', component=component, compute=compute) if compute is not None else 1e5
-            mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute) if compute is not None else 'roche'
+            mesh_kwargs['delta'] = b.get_value('delta', component=component, compute=compute, **kwargs) if compute is not None else 0.1
+            mesh_kwargs['maxpoints'] = b.get_value('maxpoints', component=component, compute=compute, **kwargs) if compute is not None else 1e5
+            mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, **kwargs) if compute is not None else 'roche'
         elif mesh_method == 'wd':
-            mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute) if compute is not None else 30
+            mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, **kwargs) if compute is not None else 30
         else:
             raise NotImplementedError
 
