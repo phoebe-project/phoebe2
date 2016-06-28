@@ -112,7 +112,7 @@ struct Tsphere {
     params [0] = R  -- radius
   */
   
-  Tsphere(void *params){ 
+  Tsphere(void *params, bool init_params =  true){ 
     T *p = (T*) params;
     R = *p; 
   }
