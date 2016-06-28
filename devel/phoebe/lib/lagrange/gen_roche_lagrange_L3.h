@@ -1,5 +1,5 @@
 #if !defined(__gen_roche_lagrange_L3_h)
-#define __gen_roche_langrange_L3_h
+#define __gen_roche_lagrange_L3_h
 
 /*
   Library dealing with L3 lagrange point of the generalized Roche 
@@ -121,12 +121,12 @@ namespace gen_roche {
 */
 
 #if defined(DEBUG)
-double langrange_point_L3_x; // approximation going into N-R iteration
-int langrange_point_L3_n;    // number of interations in Newton-Raphson
+double lagrange_point_L3_x; // approximation going into N-R iteration
+int lagrange_point_L3_n;    // number of interations in Newton-Raphson
 #endif
 
 template <class T> 
-T langrange_point_L3(
+T lagrange_point_L3(
   const T & q,
   const T & F = 1,
   const T & delta = 1
@@ -196,7 +196,7 @@ T langrange_point_L3(
     //
     
     #if defined(DEBUG)
-    langrange_point_L3_x = x;
+    lagrange_point_L3_x = x;
     #endif    
     
     int n = 0;    // counting steps
@@ -224,7 +224,7 @@ T langrange_point_L3(
       if (++n > 10) {
         std::cerr << "Slow convergence at F=" << F << " q=" << q << " !\n";
         #if defined(DEBUG)
-        langrange_point_L3_n += n;
+        lagrange_point_L3_n += n;
         #endif
         return delta*(turn ? 2 - x : 1 + x);
       }
@@ -235,7 +235,7 @@ T langrange_point_L3(
     if (turn) x = 1 - x;
         
     #if defined(DEBUG)
-    langrange_point_L3_n += n;
+    lagrange_point_L3_n += n;
     #endif
         
     return delta*(1 + x);  
@@ -407,7 +407,7 @@ T langrange_point_L3(
   // 
   
   #if defined(DEBUG)
-  langrange_point_L3_x = x;
+  lagrange_point_L3_x = x;
   #endif
   
   int n = 0;  // counting steps
@@ -448,7 +448,7 @@ T langrange_point_L3(
       #endif
  
       #if defined(DEBUG)
-      langrange_point_L3_n += n;
+      lagrange_point_L3_n += n;
       #endif
  
       return delta*(1 + x);
@@ -463,7 +463,7 @@ T langrange_point_L3(
   #endif
   
   #if defined(DEBUG)
-  langrange_point_L3_n += n;
+  lagrange_point_L3_n += n;
   #endif
  
   return delta*(1 + x);

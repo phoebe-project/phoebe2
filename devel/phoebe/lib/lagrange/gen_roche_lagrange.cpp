@@ -49,39 +49,39 @@ int main(){
         
         switch (l) {
           case 0:
-            x = gen_roche::langrange_point_L1<double>(q, F);
+            x = gen_roche::lagrange_point_L1<double>(q, F);
             f 
             << q << '\t'
             << F << '\t' 
             << x << '\t'
-            << gen_roche::langrange_point_L1_x << '\t'
-            << gen_roche::langrange_point_L1_n << '\n';
+            << gen_roche::lagrange_point_L1_x << '\t'
+            << gen_roche::lagrange_point_L1_n << '\n';
             
-            gen_roche::langrange_point_L1_n = 0;
+            gen_roche::lagrange_point_L1_n = 0;
             break;
           
           case 1:
-            x = gen_roche::langrange_point_L2<double>(q, F);
+            x = gen_roche::lagrange_point_L2<double>(q, F);
             f 
             << q << '\t'
             << F << '\t' 
             << x << '\t'
-            << gen_roche::langrange_point_L2_x << '\t'
-            << gen_roche::langrange_point_L2_n << '\n';
+            << gen_roche::lagrange_point_L2_x << '\t'
+            << gen_roche::lagrange_point_L2_n << '\n';
         
-            gen_roche::langrange_point_L2_n = 0;
+            gen_roche::lagrange_point_L2_n = 0;
             break;
        
           case 2:
-            x = gen_roche::langrange_point_L1<double>(q, F);
+            x = gen_roche::lagrange_point_L1<double>(q, F);
             f 
             << q << '\t'
             << F << '\t' 
             << x << '\t'
-            << gen_roche::langrange_point_L3_x << '\t'
-            << gen_roche::langrange_point_L3_n << '\n';
+            << gen_roche::lagrange_point_L3_x << '\t'
+            << gen_roche::lagrange_point_L3_n << '\n';
             
-            gen_roche::langrange_point_L3_n = 0;
+            gen_roche::lagrange_point_L3_n = 0;
             break;
         }
       }

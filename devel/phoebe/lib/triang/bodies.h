@@ -9,8 +9,15 @@
    
   The gradient should be outward from the surface, but it is not
   an requirement.
-
-  Author: Martin Horvat, March, April 2016
+  
+  Supported models:
+  
+  * Torus -- Ttorus <-- not simply connected, trouble for simple marching
+  * Heart -- Theart <-- not entirely smooth, trouble for simple marching
+  * Generalized Roche -- Tgen_roche
+  * Rotating star -- Trotating_star
+  * 
+  Author: Martin Horvat, March, April, June 2016
 */
 
 /*
@@ -143,6 +150,8 @@ struct Tsphere {
 };
 
 
+
+
 /*
    Heart
    
@@ -207,7 +216,7 @@ struct Theart {
 };
 
 /*
-   Generalized Rcohe/Kopal potential
+   Generalized Roche/Kopal potential
       
     Omega = 
       1/rho 
@@ -242,15 +251,14 @@ struct Tgen_roche {
     Reading and storing the parameters
   */
   
-  Tgen_roche(void *params, bool init_param = true){ 
+  Tgen_roche(void *params, bool init_param = true) 
+  : q(((T*)params)[0]),
+    F(((T*)params)[1]),
+    delta(((T*)params)[2]),
+    Omega0(((T*)params)[3])
+  { 
     
-    T *p = (T*) params;
-    
-    q = p[0];
-    F = p[1];  
-    delta = p[2];
-    Omega0 = p[3];
-    if (init_param) x0 = p[4];
+    if (init_param) x0 = ((T*)params)[4];
     
     b = (1 + q)*F*F; 
     f0 = 1/(delta*delta);
@@ -258,7 +266,12 @@ struct Tgen_roche {
   
   /*
     Definition of the potential minus the reference and the 
-    gradient of it.
+    gradient of it:
+      
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
     
     Input:
       r[3] = {x, y, z}
@@ -266,34 +279,11 @@ struct Tgen_roche {
     Output: 
     
       ret[4]:
-        {ret[0], ret[1], ret[2]} = grad-potential
-        ret[3] = potential-value 
-  
+        {ret[0], ret[1], ret[2]} = -grad-potential Omega
+        ret[3] = Omega0 - Omega 
   */
-  #if 0
-  void grad(T r[3], T ret[4]){
-    
-    T x1 = r[0], 
-      x2 = r[0] - delta, 
-      y = r[1], 
-      z = r[2], 
-      s = y*y + z*z,
-      r12 = 1/(x1*x1 + s),
-      r22 = 1/(x2*x2 + s),
-      r1 = std::sqrt(r12), 
-      r2 = std::sqrt(r22), 
-      f1 = r1*r12,
-      f2 = r2*r22;
-    
-    ret[0] = -x1*(b - f1) + q*(f0 + f2*x2);
-    ret[1] = y*(f1 + q*f2 - b);
-    ret[2] = z*(f1 + q*f2);
-    ret[3] = Omega0 - (r1 + q*(r2 - f0*x1) + b*(x1*x1 + y*y)/2);
-  }
-  #else
-  //
-  // Slower and preciser version due to using hypot function
-  //
+
+  
   void grad(T r[3], T ret[4]){
     
     T x1 = r[0], 
@@ -311,10 +301,24 @@ struct Tgen_roche {
     ret[2] = z*(f1 + q*f2);
     ret[3] = Omega0 - (r1 + q*(r2 - f0*x1) + b*(x1*x1 + y*y)/2);
   }
+    
+  /*
+    Definition of the gradient of the negative potential
+     
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[3]:
+        {ret[0], ret[1], ret[2]} = grad-potential
+  */
   
-  //
-  // Slower and preciser version due to using hypot function
-  //
   void grad_only(T r[3], T ret[3]){
     
     T x1 = r[0], 
@@ -331,12 +335,11 @@ struct Tgen_roche {
     ret[1] = y*(f1 + q*f2 - b);
     ret[2] = z*(f1 + q*f2);
   }
-  #endif
   
   /*
     Initial point: it is on the x-axis
   */ 
-  void init(T r[3], T n[3]){
+  void init(T r[3], T g[3]){
     
     T x = r[0] = x0;
     r[1] = r[2] = 0;
@@ -344,13 +347,117 @@ struct Tgen_roche {
     
     T x1 = x0 - delta;
     
-    n[0] = - x*b 
+    g[0] = - x*b 
            + (x > 0 ? 1/(x*x) : (x < 0 ? -1/(x*x) : 0)) 
            + q*(f0 + (x1 > 0 ? 1/(x1*x1) : (x1 < 0 ? -1/(x1*x1) : 0))); 
    
-    n[1] = n[2] = 0;
+    g[1] = g[2] = 0;
   } 
 
 };
+
+/* 
+  Rotating star
+  
+  Defined of implicitly by a constrain
+
+    1/r + 1/2 omega^2 (x^2 + y^2) = Omega_0
+*/ 
+
+template <class T>
+struct Trot_star {
+  
+  T omega, Omega0, w2;
+  
+  /*
+    Reading and storing the parameters
+    params[0] = omega0  
+    params[1] = Omega0
+    
+  */
+  
+  Trot_star(void *params, bool init_param = true)
+  : omega(((T*)params)[0]), Omega0(((T*)params)[1]) { 
+    
+    w2 = omega*omega;
+  }
+  
+  /*
+    Definition of the potential minus the reference and the 
+    gradient of it:
+      
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[4]:
+        {ret[0], ret[1], ret[2]} = -grad-potential Omega
+        ret[3] = Omega0 - Omega 
+  */
+
+  
+  void grad(T r[3], T ret[4]){
+    
+    T x = r[0], 
+      y = r[1],
+      z = r[2],
+      f = 1/utils::hypot3(x, y, z),
+      r1 = std::pow(f, 3);
+      
+    ret[0] = (-w2 + r1)*x; 
+    ret[1] = (-w2 + r1)*y;
+    ret[2] = z*r1;
+    ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
+  }
+    
+  /*
+    Definition of the gradient of the negative potential
+     
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[3]:
+        {ret[0], ret[1], ret[2]} = grad-potential
+  */
+  
+  void grad_only(T r[3], T ret[3]){
+    
+    T x = r[0], 
+      y = r[1],
+      z = r[2],
+      f = 1/utils::hypot3(x, y, z),
+      r1 = std::pow(f, 3);
+      
+    ret[0] = (-w2 + r1)*x; 
+    ret[1] = (-w2 + r1)*y;
+    ret[2] = z*r1;
+  }
+  
+  /*
+    Initial point: it is on the z-axis, z>0
+  */ 
+  void init(T r[3], T g[3]){
+    
+    r[0] = r[1] = 0;
+    r[2] = 1/Omega0;
+    
+    g[0] = g[1] = 0;
+    g[2] = Omega0*Omega0;
+  }
+};
+
 
 #endif // #if !defined(__bodies_h)

@@ -28,6 +28,7 @@
 #include <algorithm>
 
 #include "gen_roche.h"
+#include "rot_star.h"
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
  
@@ -162,6 +163,36 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
 /*
   Python wrapper for C++ code:
   
+  Calculate critical potential of the rotating star potential.
+  
+  Python:
+    
+    Omega_crit = rotstar_critical_potential(omega)
+  
+  where parameters are
+  
+    omega: float - parameter of the potential
+  
+  and returns a float
+  
+    omega:  float
+*/
+
+static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
+    
+  // parse input arguments   
+  double omega;
+  
+  if (!PyArg_ParseTuple(args, "d", &omega)) return NULL;
+  
+  if (omega == 0) return NULL; // there is no critical value
+
+  return PyFloat_FromDouble(rot_star::critical_potential(omega));
+}
+
+/*
+  Python wrapper for C++ code:
+  
   Calculate point on x-axis 
   
     (x,0,0)
@@ -271,6 +302,55 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 /*
   Python wrapper for C++ code:
   
+  Calculate height h the rotating star
+    
+    (0,0,h) 
+    
+  The lobe of the rotating star is defined as equipotential 
+  of the potential Omega:
+
+      Omega_0 = Omega(x,y,z) = 1/r + 1/2 omega^2 (x^2 + y^2)
+  
+  Python:
+    
+    h = rotstar_pole(omega, Omega0, <keywords> = <value>)
+  
+  where parameters are
+  
+  positionals:
+    omega: float - parameter of the potential
+    Omega: float - value potential 
+      
+  and return float
+  
+    h : height of the lobe's pole
+*/
+
+static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"omega",
+    (char*)"Omega0",
+    NULL};
+  
+  double omega, Omega0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dd", kwlist, &omega, &Omega0))
+      return NULL;
+  
+  return PyFloat_FromDouble(1/Omega0);
+}
+
+
+
+/*
+  Python wrapper for C++ code:
+  
   Calculate area and volume of the Roche lobe(s) is defined as 
   equipotential of the generalized Kopal potential Omega:
 
@@ -359,7 +439,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   gen_roche::points_on_x_axis(x_points, Omega0, q, F, delta);
   
   if (x_points.size() == 0) {
-    std::cerr << "roche_lobe_area_volume::No X-points found\n";
+    std::cerr << "roche_area_volume::No X-points found\n";
     return NULL;
   }
 
@@ -402,6 +482,106 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   
   return results;
 }
+
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate area and volume of rotating star lobe is defined as 
+  equipotential of the potential Omega:
+
+      Omega_0 = Omega(x,y,z) = 1/r  + 1/2 omega^2  (x^2 + y^2)
+  
+  Python:
+    
+    dict = rotstar_area_and_volume(omega, Omega0, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    omega: float - parameter of the potential
+    Omega: float - value potential 
+  
+  keywords:
+  
+    lvolume: boolean, default True
+    larea: boolean, default True
+    
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    lvolume: volume of the lobe of the rotating star  
+      float:  
+      
+    larea: area of the lobe of the rotating star
+      float:
+*/
+
+static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"omega",
+    (char*)"Omega0",
+    (char*)"larea",
+    (char*)"lvolume",
+    NULL};
+  
+  bool 
+    b_larea = true,
+    b_lvolume = true;
+        
+  PyObject
+    *o_larea = 0,
+    *o_lvolume = 0;
+  
+  double omega, Omega0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dd|O!O!", kwlist, 
+      &omega, &Omega0, 
+      &PyBool_Type, &o_larea,
+      &PyBool_Type, &o_lvolume
+      )
+    )
+    return NULL;
+  
+  if (o_larea) b_larea = PyObject_IsTrue(o_larea);
+  if (o_lvolume) b_lvolume = PyObject_IsTrue(o_lvolume);
+  
+  if (!b_larea && !b_lvolume) return NULL;
+ 
+  //
+  // Calculate area and volume
+  //
+  
+  unsigned res_choice = 0;
+  
+  if (b_larea) res_choice |= 1u;
+  if (b_lvolume) res_choice |= 2u;
+  
+  double av[2];
+  
+  rot_star::area_volume(av, res_choice, Omega0, omega);
+    
+  PyObject *results = PyDict_New();
+      
+  if (b_larea)
+    PyDict_SetItemString(results, "larea", PyFloat_FromDouble(av[0]));
+
+  if (b_lvolume)
+    PyDict_SetItemString(results, "lvolume", PyFloat_FromDouble(av[1]));
+  
+  return results;
+}
+
+
 
 /*
   Python wrapper for C++ code:
@@ -575,15 +755,65 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 
 static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
     
-  Tgen_roche<double> b;
-   
+  double p[4];  
+
   PyArrayObject *X;
-  
-  if (!PyArg_ParseTuple(args, "dddO!", &b.q, &b.F, &b.delta, &PyArray_Type, &X))
+
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
     return NULL;
 
-  b.Omega0 = 0;
+  p[3] = 0;
+  
+  Tgen_roche<double> b(p, false);
+  
+  double *g = new double [4];
 
+  b.grad((double*)PyArray_DATA(X), g);
+  
+  npy_intp dims[1] = {4};
+
+  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+}
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the gradient and the value of the potential of the generalized
+  Kopal potential Omega at a given point
+
+      -grad Omega (x,y,z)
+  
+  which is outwards the Roche lobe.
+  
+  
+  Python:
+    
+    g = rot_gradOmega(omega, r)
+   
+   with parameters
+      omega: float - parameter of the potential
+      r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns float
+  
+    g : 1-rank numpy array 
+      = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
+*/
+
+
+static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
+    
+  double p[2];  
+
+  PyArrayObject *X;
+
+  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X))
+    return NULL;
+
+  p[1] = 0;
+  
+  Trot_star<double> b(p, false);
+  
   double *g = new double [4];
 
   b.grad((double*)PyArray_DATA(X), g);
@@ -603,7 +833,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   
   Python:
     
-    g = roche_gradOmega(q, F, d, r)
+    g = roche_gradOmega_only(q, F, d, r)
    
    with parameters
       q: float = M2/M1 - mass ratio
@@ -619,13 +849,15 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 
 static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
-  Tgen_roche<double> b;
-   
-  PyArrayObject *X;
+  double p[4];
+
+  PyArrayObject *X;  
   
-  if (!PyArg_ParseTuple(args, "dddO!", &b.q, &b.F, &b.delta, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
     return NULL;
 
+  Tgen_roche<double> b(p, false);
+  
   double *g = new double [3];
 
   b.grad_only((double*)PyArray_DATA(X), g);
@@ -634,6 +866,48 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
   return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
 }
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the gradient of the potential of the rotating star potential
+
+      -grad Omega (x,y,z)
+  
+  Python:
+    
+    g = rotstar_gradOmega_only(omega, r)
+   
+   with parameters
+    
+      omega: float - parameter of the potential
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns float
+  
+    g : 1-rank numpy array = -grad Omega (x,y,z)
+*/
+
+static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
+
+  double p[2];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) return NULL;
+
+  Trot_star<double> b(p, false);
+  
+  double *g = new double [3];
+
+  b.grad_only((double*)PyArray_DATA(X), g);
+
+  npy_intp dims[1] = {3};
+
+  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+}
+
 
 /*
   Python wrapper for C++ code:
@@ -679,9 +953,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
-
-   
-    
+      
   Returns:
   
     dictionary
@@ -836,17 +1108,20 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   //
   PyObject *results = PyDict_New();
   
-        
   //
   // Points on the x - axis 
   //
   
   std::vector<double> x_points;
     
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, d);
+  gen_roche::points_on_x_axis(x_points, Omega0, q, F, delta);
 
-  if (x_points.size() == 0) return NULL;
   
+  if (x_points.size() == 0) {
+    std::cerr << 
+      "roche_marching_mesh::No intersection with x-axis found\n";
+    return NULL;
+  }
   //
   // Chosing the lobe (left or right or overcontact) 
   //
@@ -867,7 +1142,298 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   double params[5] = {q, F, d, Omega0, x0};
   
-  Tmarching<double, Tgen_roche<double>> march(params);  
+  Tmarching<double, Trot_star<double>> march(params);  
+  
+  std::vector<T3Dpoint<double>> V, NatV;
+  std::vector<T3Dpoint<int>> Tr; 
+  std::vector<double> *GatV = 0;
+   
+  if (b_vnormgrads) GatV = new std::vector<double>;
+  
+  if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
+    std::cerr << "There is too much triangles\n";
+    return NULL;
+  }
+  
+  if (b_vertices)
+    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+
+  if (b_vnormals)
+    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
+
+  if (b_vnormgrads) {
+    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    delete GatV;
+  }
+  
+  if (b_triangles)
+    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
+
+  
+  //
+  // Calculte the mesh properties
+  //
+  int vertex_choice = 0;
+  
+  double 
+    area, volume, 
+    *p_area = 0, *p_volume = 0;
+  
+  std::vector<double> *A = 0; 
+  
+  std::vector<T3Dpoint<double>> *NatT = 0;
+  
+  if (b_areas) A = new std::vector<double>;
+  
+  if (b_area) p_area = &area;
+  
+  if (b_tnormals) NatT = new std::vector<T3Dpoint<double>>;
+  
+  if (b_volume) p_volume = &volume;
+   
+  mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
+
+  if (b_areas) {
+    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
+    delete A;  
+  }
+  
+  if (b_area)
+    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
+
+  if (b_tnormals) {
+    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    delete NatT;
+  }
+
+  if (b_volume)
+    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+
+  //
+  // Calculte the central points
+  // 
+
+  std::vector<double> *GatC = 0;
+  
+  std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
+  
+  if (b_centers) C = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormgrads) GatC = new std::vector<double>;
+ 
+  march.central_points(V, Tr, C, NatC, GatC);
+  
+  if (b_centers) {
+    PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
+    delete C;  
+  }
+
+  if (b_cnormals) {
+    PyDict_SetItemString(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    delete NatC;
+  }
+  
+  if (b_cnormgrads) {
+    PyDict_SetItemString(results, "cnormgrads", PyArray_FromVector(*GatC));
+    delete GatC;
+  }
+  
+  return results;
+}
+
+/*
+  Python wrapper for C++ code:
+
+  Marching meshing of rotating star implicitely defined by the potential
+    
+      Omega_0 = Omega(x,y,z) = 1/r + 1/2 omega^2 (x^2 + y^2)
+    
+  Python:
+
+    dict = marching_mesh(omega, Omega0, delta, <keyword>=[true,false], ... )
+    
+  where parameters
+  
+    positional:
+      omega: float - parameter of the potential
+      Omega0: float - value of the generalized Kopal potential
+      delta: float - size of triangles edges projected to tangent space
+    
+    keywords: 
+      max_triangles:integer, default 10^7 
+            maximal number of triangles
+            if number of triangles exceeds max_triangles it returns NULL  
+  
+      vertices: boolean, default False
+      vnormals: boolean, default False
+      vnormgrads:boolean, default False
+      triangles: boolean, default False
+      tnormals: boolean, default False
+      areas: boolean, default False
+      area: boolean, default False
+      volume: boolean, default False
+      centers: boolean, default False
+      cnormals: boolean, default False
+      cnormgrads: boolean, default False
+
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    vertices: 
+      V[][3]    - 2-rank numpy array of a pairs of vertices 
+    
+    vnormals:
+      NatV[][3] - 2-rank numpy array of normals at vertices
+ 
+    vnormgrads:
+      GatV[]  - 1-rank numpy array of norms of the gradients at central points
+ 
+    triangles:
+      T[][3]    - 2-rank numpy array of 3 indices of vertices 
+                composing triangles of the mesh aka connectivity matrix
+    
+    tnormals:
+      NatT[][3] - 2-rank numpy array of normals of triangles
+  
+    areas:
+      A[]       - 1-rank numpy array of areas of triangles
+    
+    area:
+      area      - area of triangles of mesh
+    
+    volume:
+      volume    - volume of body enclosed by triangular mesh
+      
+    centers:
+      C[][3]    - 2-rank numpy array of central points of triangles
+                  central points is  barycentric points projected to 
+                  Roche lobes
+    cnormals:
+      NatC[][3]   - 2-rank numpy array of normals of central points
+ 
+    cnormgrads:
+      GatC[]      - 1-rank numpy array of norms of the gradients at central points
+    
+    
+  Typically face-vertex format is (V, T) where
+  
+    V - vertices
+    T - connectivity matrix with indices labeling vertices in 
+        counter-clockwise orientation so that normal vector is pointing 
+        outward
+  
+  Refs:
+  * for face-vertex format see https://en.wikipedia.org/wiki/Polygon_mesh
+  * http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
+  * http://docs.scipy.org/doc/numpy/reference/c-api.array.html#creating-arrays
+  * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
+  * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
+*/
+
+static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"omega",
+    (char*)"Omega0",
+    (char*)"delta",
+    (char*)"max_triangles",
+    (char*)"vertices", 
+    (char*)"vnormals",
+    (char*)"vnormgrads",
+    (char*)"triangles", 
+    (char*)"tnormals", 
+    (char*)"centers", 
+    (char*)"cnormals",
+    (char*)"cnormgrads",
+    (char*)"areas",
+    (char*)"area",
+    (char*)"volume",
+    NULL};
+  
+  double omega, Omega0, delta;   
+  
+  int max_triangles = 10000000; // 10^7
+      
+  bool 
+    b_vertices = false, 
+    b_vnormals = false, 
+    b_vnormgrads = false,
+    b_triangles = false, 
+    b_tnormals = false, 
+    b_centers = false,
+    b_cnormals = false,
+    b_cnormgrads = false,
+    b_areas = false,
+    b_area = false,
+    b_volume = false;
+  
+  // http://wingware.com/psupport/python-manual/2.3/api/boolObjects.html
+  PyObject
+    *o_vertices = 0, 
+    *o_vnormals = 0, 
+    *o_vnormgrads = 0,
+    *o_triangles = 0, 
+    *o_tnormals = 0, 
+    *o_centers = 0,
+    *o_cnormals = 0,
+    *o_cnormgrads = 0,
+    *o_areas = 0,
+    *o_area = 0,
+    *o_volume = 0; 
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!", kwlist,
+      &omega, &Omega0, &delta, // neccesary 
+      &max_triangles,
+      &PyBool_Type, &o_vertices, 
+      &PyBool_Type, &o_vnormals,
+      &PyBool_Type, &o_vnormgrads,
+      &PyBool_Type, &o_triangles, 
+      &PyBool_Type, &o_tnormals,
+      &PyBool_Type, &o_centers,
+      &PyBool_Type, &o_cnormals,
+      &PyBool_Type, &o_cnormgrads,
+      &PyBool_Type, &o_areas,
+      &PyBool_Type, &o_area,
+      &PyBool_Type, &o_volume 
+      ))
+    return NULL;
+  
+  
+  if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
+  if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
+  if (o_vnormgrads) b_vnormgrads = PyObject_IsTrue(o_vnormgrads);
+  if (o_triangles) b_triangles = PyObject_IsTrue(o_triangles);
+  if (o_tnormals)  b_tnormals = PyObject_IsTrue(o_tnormals);
+  if (o_centers) b_centers = PyObject_IsTrue(o_centers);
+  if (o_cnormals) b_cnormals = PyObject_IsTrue(o_cnormals);
+  if (o_cnormgrads) b_cnormgrads = PyObject_IsTrue(o_cnormgrads);
+  if (o_areas) b_areas = PyObject_IsTrue(o_areas);
+  if (o_area) b_area = PyObject_IsTrue(o_area);
+  if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+     
+  //
+  // Storing results in dictioonary
+  // https://docs.python.org/2/c-api/dict.html
+  //
+  PyObject *results = PyDict_New();
+  
+  //
+  //  Marching triangulation of the Roche lobe 
+  //
+    
+  double params[3] = {omega, Omega0};
+  
+  Tmarching<double, Trot_star<double>> march(params);  
   
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr; 
@@ -1210,7 +1776,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
       NatV1[][3] - 2-rank numpy array of normals at vertices
  
     vnormgrads:
-      GatV1[]  - 1-rank numpy array of norms of the gradients at central points
+      GatV1[]    - 1-rank numpy array of norms of the gradients at central points
   
   
   Ref:
@@ -1297,7 +1863,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
     march.project_onto_potential(v.data, v.data, n, max_iter, pg);
     
     if (b_vnormals) NatV->emplace_back(n);
-    if (b_vnormgrads) GatV->emplace_back(*pg);
+    if (b_vnormgrads) GatV->emplace_back(g);
   }
   
   PyObject *results = PyDict_New();
@@ -1330,14 +1896,29 @@ static PyMethodDef Methods[] = {
     { "roche_critical_potential", 
       roche_critical_potential,   
       METH_VARARGS, 
-      "Determine the critical potentials for given values of q, F, and d."},
+      "Determine the critical potentials of Kopal potential for given "
+      "values of q, F, and d."},
     
-      
+    { "rotstar_critical_potential", 
+      rotstar_critical_potential,   
+      METH_VARARGS, 
+      "Determine the critical potentials of the rotating star potental "
+      "for given values of omega."},
+    
+    
+    
     { "roche_pole", 
       (PyCFunction)roche_pole,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the height of the pole of generalized Roche lobes for given "
       "values of q, F, d and Omega0"},
+   
+    { "rotstar_pole", 
+      (PyCFunction)rotstar_pole,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine the height of the pole of rotating star for given a omega."},
+   
+   
    
     { "roche_area_volume", 
       (PyCFunction)roche_area_volume,   
@@ -1345,20 +1926,24 @@ static PyMethodDef Methods[] = {
       "Determine the area and volume of the generalized Roche lobes for given "
       "values of q, F, d and Omega0"},
    
+    { "rotstar_area_volume", 
+      (PyCFunction)rotstar_area_volume,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine the area and volume of the rotating star for given a omega "
+      "and Omega0"},
+   
     { "roche_Omega_at_vol", 
       (PyCFunction)roche_Omega_at_vol,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the value of the generalized Kopal potential at "
       "values of q, F, d and volume"},
    
-   
     { "roche_points_on_x_axis",
       roche_points_on_x_axis,
       METH_VARARGS, 
       "Calculate the points on x-axis of the generalized Roche lobes "
       "ar values of q, F, d and Omega0"},
-      
-   
+  
     { "roche_gradOmega", 
       roche_gradOmega,   
       METH_VARARGS, 
@@ -1368,8 +1953,14 @@ static PyMethodDef Methods[] = {
     { "roche_gradOmega_only", 
       roche_gradOmega_only,   
       METH_VARARGS, 
-      "Calculate the gradient of the generalized Kopal potentil"
+      "Calculate the gradient of the generalized Kopal potential"
       " at given point [x,y,z] for given values of q, F and d"},   
+    
+    { "rotstar_gradOmega_only", 
+      rotstar_gradOmega_only,   
+      METH_VARARGS, 
+      "Calculate the gradient of the rotating star  potentil"
+      " at given point [x,y,z] for given values of omega"},   
     
     { "roche_marching_mesh", 
       (PyCFunction)roche_marching_mesh,   
@@ -1377,6 +1968,14 @@ static PyMethodDef Methods[] = {
       "Determine the triangular meshing of generalized Roche lobes for "
       "given values of q, F, d and value of the generalized Kopal potential "
       "Omega0. The edge of triangles used in the mesh are approximately delta."},
+      
+    { "rotstar_marching_mesh", 
+      (PyCFunction)rotstar_marching_mesh,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine the triangular meshing of a rotating star for given "
+      "values of omega and value of the star potential Omega. The edge "
+      "of triangles used in the mesh are approximately delta."},
+    
     
     { "mesh_visibility",
       (PyCFunction)mesh_visibility,

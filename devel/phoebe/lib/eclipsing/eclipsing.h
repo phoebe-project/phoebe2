@@ -89,6 +89,22 @@ bool point_in_triangle(T p[2], T v[3][2], T bb[4]){
   return false;
 }
 
+template <class T>
+bool point_on_triangle(T p[2], T v[3][2]){
+  
+  for (int i = 0; i < 3; ++i) 
+  #if 1 
+    if (p[0] == v[i][0] && p[1] == v[i][1]) return true; 
+  #else
+      if (
+          std::abs(p[0] - v[i][0]) < 1e-14 && 
+          std::abs(p[1] - v[i][1]) < 1e-14 ) 
+        return true; 
+  #endif
+    
+  return false;    
+} 
+
 /*
   Check if the boundary boxes {minX,maxX,minY,maxY} of two triangles stricty 
   overlap.
@@ -268,6 +284,7 @@ void triangle_mesh_rough_visibility(
         }
         
         Tv.emplace_back(i, utils::max3(v[0][2], v[1][2], v[2][2]));
+        //Tv.emplace_back(i, (v[0][2]+ v[1][2]+ v[2][2])/3);
         
         M[i] = visible;
       }
@@ -386,8 +403,15 @@ void triangle_mesh_rough_visibility(
           kk = ti[k]; // index of k-th point of ii-th triangle
       
           st[k] = Vst[kk];
-      
-          if (st[k] && kk != tj[0] && kk != tj[1] && kk != tj[2] && point_in_triangle(vi[k], vj, pbj))
+          if (st[k] && 
+          #if 1
+              kk != tj[0] && 
+              kk != tj[1] && 
+              kk != tj[2] && 
+          #else
+              !point_on_triangle(vi[k], vj) && 
+          #endif  
+              point_in_triangle(vi[k], vj, pbj))
             st[k] = Vst[kk] = false;
         }
         
@@ -406,13 +430,16 @@ void triangle_mesh_rough_visibility(
         if (M[ii] == visible) {
           for (int k = 0; k < 3; ++k) {
           
+            #if 1
             kk = tj[k]; // index of k-th point of jj-th triangle
-          
-            if (kk != ti[0] && kk != ti[1] && kk != ti[2])
-              if (point_in_triangle(vj[k], vi, pbi)) {
+            if (kk != ti[0] && kk != ti[1] && kk != ti[2] &&
+            #else
+            if (!point_on_triangle(vj[k], vi) &&
+            #endif
+                point_in_triangle(vj[k], vi, pbi)) {
                 M[ii] = partially_hidden;
                 break;
-              }
+            }
           }
         }
       }

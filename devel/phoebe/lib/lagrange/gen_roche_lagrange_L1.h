@@ -1,5 +1,5 @@
 #if !defined(__gen_roche_lagrange_L1_h)
-#define __gen_roche_langrange_L1_h
+#define __gen_roche_lagrange_L1_h
 
 /*
   Library dealing with L1 lagrange point of the generalized Roche 
@@ -128,12 +128,12 @@ template <class T> T solve_cubic1(const T & s, const T & z){
 */
 
 #if defined(DEBUG)
-double langrange_point_L1_x; // approximation going into N-R iteration
-int langrange_point_L1_n;    // number of interations in Newton-Raphson
+double lagrange_point_L1_x; // approximation going into N-R iteration
+int lagrange_point_L1_n;    // number of interations in Newton-Raphson
 #endif
 
 template <class T> 
-T langrange_point_L1(
+T lagrange_point_L1(
   const T & q,
   const T & F = 1,
   const T & delta = 1
@@ -193,7 +193,7 @@ T langrange_point_L1(
     // accuracy for q in [0.01, 100] < 10^-15, with max n ~ 4 
     //
     #if defined(DEBUG)
-    langrange_point_L1_x = x;
+    lagrange_point_L1_x = x;
     #endif  
     
     bool turn = (q<1);
@@ -221,7 +221,7 @@ T langrange_point_L1(
       if (++n > 10) {
         std::cerr << "Slow convergence at a=" << 1 << " q=" << q << " !\n";
         #if defined(DEBUG)
-        langrange_point_L1_n += n;
+        lagrange_point_L1_n += n;
         #endif
         return delta*(turn ? 1 - x : x);;
       }
@@ -231,7 +231,7 @@ T langrange_point_L1(
     if (turn) x = 1 - x;
     
     #if defined(DEBUG)
-    langrange_point_L1_n += n;
+    lagrange_point_L1_n += n;
     #endif
         
     return delta*x;
@@ -414,7 +414,7 @@ T langrange_point_L1(
       // t0 is exact root of P at a = 1
       //
       
-      T t0 = langrange_point_L1(q);
+      T t0 = lagrange_point_L1(q);
       
       //
       // Derivaties of R(t) at t0 /n!
@@ -464,7 +464,7 @@ T langrange_point_L1(
   // 
   
   #if defined(DEBUG)
-  langrange_point_L1_x = x;
+  lagrange_point_L1_x = x;
   #endif
     
   bool turn = (x > 0.5);
@@ -492,7 +492,7 @@ T langrange_point_L1(
     if (++n > 10) {
       std::cerr << "Slow convergence at a=" << a << " q=" << q << " !\n";
       #if defined(DEBUG)
-      langrange_point_L1_n += n;
+      lagrange_point_L1_n += n;
       #endif
       return delta*(turn ? 1 - x : x);
     }
@@ -500,7 +500,7 @@ T langrange_point_L1(
   } while (P != 0 && std::abs(dx) > std::abs(x)*eps + min);
   
   #if defined(DEBUG)
-  langrange_point_L1_n += n;
+  lagrange_point_L1_n += n;
   #endif
     
   if (turn) x = 1 - x;

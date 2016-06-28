@@ -15,8 +15,9 @@
 
 namespace utils {
   
-  // 2 pi
-  const double M_2PI = 6.2831853071795864769252867665590083999;
+  const double M_2PI = 6.2831853071795864769252867665590083999;  // 2 pi
+  const double M_4PI = 12.5663706143591729538505735331180167998; // 4 pi
+  
   
   /*
     Calculate the max of 3D vector.

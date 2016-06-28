@@ -82,13 +82,13 @@ namespace gen_roche {
     
     // note: x in [0, delta]
     omega_crit[0] = 
-      potential_on_x_axis(langrange_point_L1(q, F, delta), q, F, delta);
+      potential_on_x_axis(lagrange_point_L1(q, F, delta), q, F, delta);
     // note: x < 0
     omega_crit[1] = 
-      potential_on_x_axis(langrange_point_L2(q, F, delta), q, F, delta);
+      potential_on_x_axis(lagrange_point_L2(q, F, delta), q, F, delta);
     // note : x > delta
     omega_crit[2] = 
-      potential_on_x_axis(langrange_point_L3(q, F, delta), q, F, delta);
+      potential_on_x_axis(lagrange_point_L3(q, F, delta), q, F, delta);
   }
 
   /*
@@ -117,10 +117,11 @@ namespace gen_roche {
     const T & delta = 1
   ) {
   
-   T w = Omega0*delta,
-     a[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
+  T w = Omega0*delta;
     
     if (w > 0) {
+      T a[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
+      
       std::vector<T> roots;
     
       utils::solve_quartic(a, roots);
