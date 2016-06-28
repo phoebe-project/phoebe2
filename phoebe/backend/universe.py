@@ -261,6 +261,22 @@ class System(object):
 
         ecl_func = getattr(eclipse, eclipse_alg)
 
+        # TODO: FOR TESTING ONLY - EITHER REMOVE THIS OR MAKE IT LESS HACKY!!!
+        # if eclipse_alg == 'wd_horizon':
+        #     import phoebeBackend as phb1
+        #     from phoebe import io
+
+        #     if not hasattr(self, '_phb1_init'):
+        #         phb1.init()
+        #         try:
+        #             phb1.configure()
+        #         except SystemError:
+        #             raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+        #         self._phb1_init = True
+
+        #     phb1.open('_tmp_legacy_inp')
+        #     stuff = phb1.lc((self.time,), 0, 1)
+
         # We need to run eclipse detection first to get the partial triangles
         # to send to subdivision
         visibilities, weights = ecl_func(meshes, self.xs, self.ys, self.zs)

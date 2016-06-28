@@ -579,6 +579,11 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # NOTE: this has been moved before populate observables now to make use
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
+
+            # TODO: for testing only
+            # if computeparams.get_value('eclipse_alg') == 'wd_horizon':
+            #     io.pass_to_legacy(b, filename='_tmp_legacy_inp')
+
             system.handle_eclipses()
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
@@ -858,6 +863,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
     # print primary, secondary
     #make phoebe 1 file
 
+    # TODO BERT: this really should be a random name (tmpfile) so two instances won't clash
     io.pass_to_legacy(b, filename='_tmp_legacy_inp')
     phb1.init()
     try:
@@ -865,6 +871,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
     phb1.open('_tmp_legacy_inp')
+    # TODO BERT: why are we saving here?
     phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
