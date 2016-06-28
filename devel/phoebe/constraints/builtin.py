@@ -5,11 +5,13 @@ from phoebe.distortions.roche import rpole2potential as _rpole2potential
 def potential2rpole(*args, **kwargs):
     """
     """
+    # TODO: this is roche specific...
     return _potential2rpole(*args, **kwargs)
 
 def rpole2potential(*args, **kwargs):
     """
     """
+    # TODO: this is roche specific...
     return _rpole2potential(*args, **kwargs)
 
 
