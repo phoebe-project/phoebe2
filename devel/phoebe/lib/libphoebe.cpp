@@ -1122,6 +1122,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       "roche_marching_mesh::No intersection with x-axis found\n";
     return NULL;
   }
+  
   //
   // Chosing the lobe (left or right or overcontact) 
   //
@@ -1142,7 +1143,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   double params[5] = {q, F, d, Omega0, x0};
   
-  Tmarching<double, Trot_star<double>> march(params);  
+  Tmarching<double, Tgen_roche<double>> march(params);  
   
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr; 
