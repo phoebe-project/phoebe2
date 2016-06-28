@@ -1114,7 +1114,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   std::vector<double> x_points;
     
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, delta);
+  gen_roche::points_on_x_axis(x_points, Omega0, q, F, d);
 
   
   if (x_points.size() == 0) {
