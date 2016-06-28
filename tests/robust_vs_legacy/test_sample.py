@@ -77,7 +77,7 @@ def draw_syncpar():
     return _draw_random_lin_inv(0.1, 1)
 
 
-def chi2(b, dataset, model1='phoebe1model', model2='phoebemodel'):
+def chi2(b, dataset, model1='phoebe1model', model2='phoebe2model'):
 
     ds = b.get_dataset(dataset) - b.get_dataset(dataset, method='*dep')
     if ds.method=='LC':
@@ -92,8 +92,8 @@ def chi2(b, dataset, model1='phoebe1model', model2='phoebemodel'):
         # phoebe gives nans for RVs when a star is completely eclipsed, whereas
         # phoebe1 will give a value.  So let's use nansum to just ignore those
         # regions of the RV curve
-        chi2 += np.nansum((b.get_value(qualifier=depvar, dataset=dataset, model=model1, component=comp, section='model')\
-            -b.get_value(qualifier=depvar, dataset=dataset, model=model2, component=comp, section='model'))**2)
+        chi2 += np.nansum((b.get_value(qualifier=depvar, dataset=dataset, model=model1, component=comp, context='model')\
+            -b.get_value(qualifier=depvar, dataset=dataset, model=model2, component=comp, context='model'))**2)
 
     return chi2
 
@@ -142,12 +142,13 @@ if __name__ == '__main__':
         N = 501
 
         b = phoebe.Bundle.default_binary()
+        # NOTE: we'll set the time arrays later
         b.add_dataset('LC', dataset='lc01')
         b.add_dataset('RV', dataset='rv01')
 
 
-        b.add_compute(compute='phoebe')
-        b.add_compute('legacy', compute='phoebe1')
+        b.add_compute(compute='phoebe', atm='extern_planckint')
+        b.add_compute('legacy', compute='phoebe1', atm='blackbody')
 
         # TODO: eventually test over ld_coeffs - but right now ld seems to be broken vs legacy
         b.set_value_all('ld_coeffs', [0,0])
@@ -205,17 +206,20 @@ if __name__ == '__main__':
                 b.set_value_all('time@dataset', np.linspace(0, period, N))
 
                 print("*** PHOEBE 1")
-                phoebe1_passed = run_with_limited_time(b.run_compute, ('phoebe1', ), {'model': 'phoebe1model'}, 10)
+                # Let's skip overflow tests (within PHOEBE 2) on this first run
+                # so that we will let PHOEBE 1 run forever and fail.  We do this
+                # so that we can also test the failing cases vs each other
+                phoebe1_passed = run_with_limited_time(b.run_compute, ('phoebe1', ), {'model': 'phoebe1model', 'skip_checks': True}, 10)
                 if phoebe1_passed:
                     # this is horrendously hideous - the only way I could get the
                     # timeout to work means that we can't access the output, so
                     # b isn't updated.  But now we know that it won't timeout, so
                     # we can rerun compute
-                    b.run_compute('phoebe1', model='phoebe1model')
+                    b.run_compute('phoebe1', model='phoebe1model', skip_checks=True)
 
                 print("*** PHOEBE 2")
                 try:
-                    b.run_compute('phoebe', model='phoebemodel')
+                    b.run_compute('phoebe', model='phoebe2model')
                 except ValueError:
                     phoebe_passed = False
                 else:
