@@ -192,6 +192,7 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    Reddening and Extinction (not yet implemented)<tutorials/reddening_extinction>
    Reflection and Heating (not yet implemented)<tutorials/reflection_heating>
    Beaming and Boosting (not yet implemented)<tutorials/beaming_boosting>
+   Eclipse Detection<tutorials/eclipse>
 
 COMING SOON (differences between various t0s and phasing)
 
