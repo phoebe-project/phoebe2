@@ -1217,8 +1217,8 @@ class Star(Body):
                 delta *= rpole
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
-                                                         choice=0,
                                                          delta=delta,
+                                                         choice=0,
                                                          max_triangles=maxpoints,
                                                          vertices=True,
                                                          triangles=True,
@@ -1246,24 +1246,30 @@ class Star(Body):
 
             elif self.distortion_method == 'rotstar':
 
-                rpole = libphoebe.rotstar_pole(*mesh_args,
+                mesh_args = (self.freq_rot, Phi)
+
+                rpole = libphoebe.rotstar_pole(*mesh_args)
+                delta *= rpole
+
+                new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
                                                delta=delta,
                                                max_triangles=maxpoints,
                                                vertices=True,
+                                               triangles=True,
                                                centers=True,
                                                vnormals=True,
                                                tnormals=True,
-                                               cnormals=True,
+                                               cnormals=False,
                                                vnormgrads=True,
                                                cnormgrads=False,
                                                areas=True,
                                                volume=True)
 
-                av = libphoebe.rotstar_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
+                # av = libphoebe.rotstar_area_volume(*mesh_args,
+                #                                    larea=True,
+                #                                    lvolume=True)
 
-                new_mesh['volume'] = av['lvolume']
+                # new_mesh['volume'] = av['lvolume']
 
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
@@ -1298,7 +1304,7 @@ class Star(Body):
 
         r_pole = pole_func(*self._mesh_args)
         r_pole_ = np.array([0., 0., r_pole])
-        args = list(self._mesh_args)[:3]+[r_pole_]
+        args = list(self._mesh_args)[:-1]+[r_pole_]
         grads = gradOmega_func(*args)
         g_pole = np.linalg.norm(grads)
 
