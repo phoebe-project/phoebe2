@@ -202,8 +202,6 @@ namespace rot_star {
     // Finding the rescaled equator
     //
     
-    
-    
     T b = omega*omega/(2*Omega3),
       bcrit =  4/27.;               // critical b
     
