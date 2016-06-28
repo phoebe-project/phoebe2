@@ -25,6 +25,9 @@ ext_modules = [
     Extension('libphoebe',
       sources = ['./phoebe/lib/libphoebe.cpp']),
 
+    Extension('phoebe.algorithms.ceclipse',
+              sources = ['phoebe/algorithms/ceclipse.cpp']),
+
     Extension('phoebe.algorithms.interp',
              sources = ['phoebe/algorithms/interp.c']),
 

@@ -392,7 +392,7 @@ class ProtoMesh(object):
                   'areas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume',
-                  'phi', 'theta',
+                  'phis', 'thetas',
                   'compute_at_vertices',
                   'loggs', 'gravs', 'teffs', 'abuns']
         self._keys = keys + kwargs.pop('keys', [])
