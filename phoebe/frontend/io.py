@@ -2,7 +2,7 @@ import numpy as np
 import phoebe as phb
 
 import logging
-logger = logging.getLogger("BUNDLE")
+logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
 """
@@ -24,7 +24,7 @@ _parsect = {'t0':'component',  'period':'component', 'dpdt':'component', 'pshift
 _bool2to1 = {True:1, False:0}
 
 """
-ld_legacy - 
+ld_legacy -
 
 """
 
@@ -45,9 +45,9 @@ def ld_to_phoebe(pn, d, rvdep=None, dataid=None):
         pnew = 'ld_model'
     if 'x' in pn:
         d['index'] = 0
-    elif 'y' in pn: 
+    elif 'y' in pn:
         d['index'] = 1
-    
+
     return [pnew, d]
 """
 ret_dict - finds the phoebe 2 twig associated with a given parameter
@@ -70,13 +70,13 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
        pnew = pieces[1]
        if pnew  == 'proximity':
            pnew = pnew+'_'+pieces[2]
-           d['context'] = 'compute' 
+           d['context'] = 'compute'
 # component specific parameters end with 1 or 2 in phoebe1
     if pnew[-1] == '1':
         d['component'] = 'primary'
 #        d.setdefault('context', 'component')
         d['context'] = 'component'
-        pnew = pnew[:-1] 
+        pnew = pnew[:-1]
 
     elif pnew[-1] == '2':
         d['component'] = 'secondary'
@@ -97,8 +97,8 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
         d['context'] = 'dataset'
 
     elif pieces[1] == 'ld':
-        
-        pnew, d  = ld_to_phoebe(pnew, d, rvdep, dataid)        
+
+        pnew, d  = ld_to_phoebe(pnew, d, rvdep, dataid)
 
     if pnew == 'hla':
         d['component'] = 'primary'
@@ -114,19 +114,19 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
                 d['context']
             except:
                 d['context'] = None
-        
+
         if 'finesize' in pnew:
             d['context'] = 'compute'
-        
+
         if 'proximity' in pnew:
             d['context'] = 'compute'
 
         if d['context'] == 'component':
-        
+
             d.setdefault('component', 'binary')
 
         if d['context'] == 'compute':
-            d.setdefault('compute', comid) 
+            d.setdefault('compute', comid)
 
         d['value'] = val
         d['qualifier'] = _1to2par[pnew]
@@ -156,7 +156,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
 
 # build your original dictionary
 #    pnew, d = ret_dict(pname, dataid, rvdep, comid)
-    
+
 # now for exceptions
 
 #    if pnew == 'filter':
@@ -164,7 +164,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
        # write method for this
 
 #    elif pnew == 'excess':
-        
+
 #    elif pnew == 'alb':
 #        val = 1-val
 
@@ -178,7 +178,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
 #            d['unit'] = _units1[pnew]
 #    try:
 #        phb.set_value(**d, check_relevant=False)
-        
+
 #    except:
 
 #        logger.warning('Cannot find relevant phoebe 2 parameter for '+str(pname))
@@ -194,14 +194,14 @@ Load in datasets from files listed in .phoebe file
 """
 
 def load_dataset(eb, filename, dataid, indep, dep, indweight, typ, mzero=None):#, comp='primary'):
-    
+
     #unpack data if it exists
     rvs = eb.get_dataset(method='RV').datasets
     #it can't be an empty array or checking against it will fail
     if len(rvs) == 0:
         rvs.append(' ')
     if filename != 'Undefined':
-        
+
         if indweight == 'Undefined':
             times, var = np.loadtxt(filename, unpack = True)
             vals = [times, var]
@@ -231,8 +231,8 @@ def load_dataset(eb, filename, dataid, indep, dep, indweight, typ, mzero=None):#
 ## add dataset
 
     if dataid == 'Undefined':
-        dataid = None 
-        
+        dataid = None
+
     if dataid != rvs[0]:
         try:
             eb._check_label(dataid)
@@ -252,14 +252,14 @@ def load_dataset(eb, filename, dataid, indep, dep, indweight, typ, mzero=None):#
         d['section'] = 'dataset'
         d['method'] = typ
         d['dataset'] = dataid
-        
+
         if typ == 'lc':
 
-            params = ['time', 'flux', 'sigma']   
-            
+            params = ['time', 'flux', 'sigma']
+
         if typ == 'rv':
             d['component'] = dep
-            params = ['time', 'rv', 'sigma'] 
+            params = ['time', 'rv', 'sigma']
 
         for x in range(len(vals)):
 
@@ -305,7 +305,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     ind = [list(params[:,0]).index(s) for s in params[:,0] if not ".ADJ" in s and not ".MIN" in s and not ".MAX" in s and not ".STEP" in s and not "gui_" in s]
     params = params[ind]
 
-# determine number of lcs and rvs 
+# determine number of lcs and rvs
     rvno = np.int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
     lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
 # delete parameters that have already been accounted for and find lc and rv parameters
@@ -331,7 +331,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # but first FORCE hla and cla to follow conventions so the parser doesn't freak out.
 
-    
+
 
 # First LCs
     for x in range(1,lcno+1):
@@ -345,14 +345,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         dataid = lcpt[:,1][datain].strip('"')
         lcpt = np.delete(lcpt, datain, axis=0)
         if dataid == 'Undefined':
-            dataid = None 
+            dataid = None
         try:
             eb._check_label(dataid)
             if not dataid:
                 eb.add_dataset('lc')
             else:
                 eb.add_dataset('lc', dataset=dataid)
-        except ValueError: 
+        except ValueError:
             # TODO: add custom exception for forbiddenlabelerror?
             logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
 #            alcn = "%02d" % (x,)
@@ -365,7 +365,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     # now go through parameters and input the results into phoebe2
         for y in range(len(lcpt)):
             for j in comid:
-                
+
                 pname = lcpt[:,0][y]
                 val = lcpt[:,1][y].strip('"')
                 pname = pname.split('[')[0]
@@ -379,13 +379,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #            pnew, twig = ret_twig(pname, dataid)
             # PUT parameter change here
 
-#Now RVs          
+#Now RVs
     for x in range(1,rvno+1):
         rvs = eb.get_dataset(method='RV').datasets
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
-        rvpt = rvpars[rvint] 
-    # get name of dataset and add   
+        rvpt = rvpars[rvint]
+    # get name of dataset and add
         datapars = ['filename','id', 'indep', 'dep', 'indweight']
         datavals = []
         for y in datapars:
@@ -414,10 +414,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             for j in comid:
                 pname = rvpt[:,0][y]
                 val = rvpt[:,1][y].strip('"')
-                pname = pname.split('[')[0] 
+                pname = pname.split('[')[0]
                 pnew, d = ret_dict(pname, val, dataid = dataid, rvdep=rvdep, comid=j)
                 if len(d) > 0:
-                
+
                     if pnew not in ['filter']:
                         eb.set_value_all(check_relevant=False, **d) #Theoretically set value all is FINE, but I'm not sure if i like this. It comes about because certain parameters may exist in more than one place where it isn't easy to catch.
 
@@ -470,7 +470,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if len(d) > 0:
 
                 if pnew not in ['filter']:
-                    
+
                     eb.set_value_all(check_relevant=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
@@ -479,22 +479,22 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
-    # turn on relevant switches like heating. If 
+    # turn on relevant switches like heating. If
     return eb
 
 """
 
 Return phoebe1 parameter value in the right units (or without units)
 eb -phoebe 2 bundle
-d - dictionary with parameter, context, dataset etc. 
+d - dictionary with parameter, context, dataset etc.
 
 """
 
 
 def par_value(param, index=None):
 
-# build a dictionary 
-        
+# build a dictionary
+
     d={}
     d['qualifier'] = param.qualifier
     d['component'] = param.component
@@ -511,7 +511,7 @@ def par_value(param, index=None):
         except:
             unit = None
 
-        val = param.get_quantity(unit=unit).value    
+        val = param.get_quantity(unit=unit).value
         if d['qualifier'] == 'alb':
             val = [1.0-val]
         else:
@@ -521,7 +521,7 @@ def par_value(param, index=None):
         val = [param.get_value()]
         if d['qualifier'] == 'atm':
         # in phoebe one this is a boolean parameter because you have the choice of either kurucz or blackbody
-            
+
             ptype='boolean'
         if d['qualifier'] == 'ld_func':
             val = val[0]
@@ -565,7 +565,7 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
             pnew1 = str(dtype)+'x'
             pnew2 = str(dtype)+'y'
             pnew = [pnew1, pnew2]
-    
+
     if component == 'primary':
         pnew = [x + '1' for x in pnew]
 
@@ -583,7 +583,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
 # separate lds from everything because they suck
     if 'ld' in param:
-     
+
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
@@ -594,7 +594,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
             elif param in ['enabled','statweight','l3','passband']:
                 pnew = _2to1par[param]
-     
+
             else:
                 pnew = _2to1par[param]+'1'
 
@@ -620,10 +620,10 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
         if dtype != None:
             dtype = dtype+'_'
-            
+
         else:
             dtype = ''
-        
+
         if dnum != None:
 
             dset = '['+str(dnum)+']'
@@ -633,19 +633,19 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
         if ptype == 'float':
             det = '.VAL'
-            
+
         elif ptype == 'boolean' and dtype=='':
             det = '_switch'
         else:
             det = ''
-        
+
         pname = ['phoebe_'+str(dtype)+str(pnew)+dset+det]
 
     return pname
 
 """
 
-Create a .phoebe file from phoebe 1 from a phoebe 2 bundle. 
+Create a .phoebe file from phoebe 1 from a phoebe 2 bundle.
 
 """
 
@@ -689,7 +689,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     # get primary parameters and convert
 
     for param in prpars.to_list():
-        
+
 
 #        if isinstance(eb.get_parameter(prpars[x], component='primary'), phoebe.parameters.FloatParameter):
 
@@ -700,7 +700,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                 param = None
             elif 'ld_' in param.qualifier:
                 param = None
- 
+
         except:
             logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
             param=None
@@ -754,7 +754,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     rvs = eb.get_dataset(method='RV').datasets
 
 # add all important parameters that must go at the top of the file
-    
+
 
 # loop through lcs
 
@@ -775,15 +775,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #                if isinstance(eb.get_parameter(prpars[0], component='primary'), phoebe.parameters.Float                elif 'ld_' in param.qualifier:
 #                    param = None
 #Parameter):
-#                param = eb.get_parameter(quals[y])   
-#                ptype = str(type(eb.get_parameter(prpars[x], component='primary'))).split("'")[1].split('.')[-1]        
+#                param = eb.get_parameter(quals[y])
+#                ptype = str(type(eb.get_parameter(prpars[x], component='primary'))).split("'")[1].split('.')[-1]
 
             try:
                 pnew = _2to1par[param.qualifier]
                 if param.qualifier in [ 'alb', 'l3', 'ld_func']:
                     param = None
             except:
-                    
+
                 logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
                 param = None
 
@@ -792,12 +792,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                 val, ptype = par_value(param)
                 if param.qualifier == 'pblum':
                     pname = ret_parname(param.qualifier, component= param.component, dnum = x+1, ptype=ptype)
-                    
+
                 else:
                     pname = ret_parname(param.qualifier, component=param.component, dtype='lc', dnum = x+1, ptype=ptype)
-                if pname[0] not in parnames:                  
+                if pname[0] not in parnames:
                     parnames.extend(pname)
-                    parvals.extend(val)  
+                    parvals.extend(val)
                     if ptype == 'array':
                         types.append(ptype)
                         types.append(ptype)
@@ -811,7 +811,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #                except:
 #                    param1 = None
 #                    logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
-            
+
 #                if param1 != None:
 
 
@@ -832,7 +832,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
     for y in range(len(rvs)):
         quals = eb.filter(dataset=rvs[y], context='dataset')
-       
+
         #if there is more than 1 rv try this
         try:
             comp = eb.get_parameter(qualifier='time', dataset=rvs[y]).component
@@ -859,7 +859,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                     param = None
 
                 if param != None:
-                    val, ptype = par_value(param)                 
+                    val, ptype = par_value(param)
                     pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = y+1, ptype=ptype)
 # if is tries to append a value that already exists...stop that from happening
                     if pname[0] not in parnames:
@@ -900,7 +900,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                         param = None
 
                     if param != None:
-                        val, ptype = par_value(param)                 
+                        val, ptype = par_value(param)
                         pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = i+1, ptype=ptype)
     # if is tries to append a value that already exists...stop that from happening
                         if pname[0] not in parnames:
@@ -914,21 +914,21 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
 
 #            else:
-#                
+#
 #                try:
 #                    pnew = _1to2par(param.qualifier)
 #                except:
 #                    param = None
 #                    logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
-            
+
 #                if param != None:
 
-#                    val, ptype = par_value(param)                
+#                    val, ptype = par_value(param)
 #                    pname = ret_parname(quals[y], component=comp, dtype='rv', dnum = x+1,ptype=ptype)
 
 #                    parnames.append(pname)
 #                    parvals.append(val)
-    
+
 #loop through the orbit
 
     oquals = eb.get_orbit(orbits[0])
@@ -944,7 +944,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
             param = None
         if param != None:
-            val, ptype = par_value(param) 
+            val, ptype = par_value(param)
             pname = ret_parname(param.qualifier,ptype=ptype)
             parnames.extend(pname)
             parvals.extend(val)
@@ -953,10 +953,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                 types.append(ptype)
                 types.append(ptype)
             else:
-                types.append(ptype)             
+                types.append(ptype)
 
 #loop through LEGACY compute parameter set
-    
+
     comquals = eb.get_compute(method='legacy')-eb.get_compute(method='legacy', component='_default')
 
     for param in comquals.to_list():
@@ -971,24 +971,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
         try:
             pnew = _2to1par[param.qualifier]
             if param.qualifier in ['ld_func']:
-                param = None  
+                param = None
         except:
-            
+
             logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
             param = None
 
         if param != None:
-            val, ptype = par_value(param) 
+            val, ptype = par_value(param)
             if param.qualifier == 'gridsize':
                 pname = ret_parname(param.qualifier, component = param.component, dtype='grid', ptype=ptype)
             elif param.qualifier =='atm':
                 atmval = {'kurucz':1, 'blackbody':0}
                 pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
-                 
+
                 val = str(atmval[val[0]])
             else:
                 pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
-                
+
             if pname[0] not in parnames:
                 parnames.extend(pname)
                 parvals.extend(val)
@@ -997,7 +997,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                     types.append(ptype)
                     types.append(ptype)
                 else:
-                    types.append(ptype)  
+                    types.append(ptype)
 
     sysquals = eb.filter('system')
 
@@ -1007,7 +1007,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
         except:
             logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
             param = None
-        
+
         if param != None:
 
             val, ptype = par_value(param)
@@ -1016,7 +1016,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                 parnames.extend(pname)
                 parvals.extend(val)
                 types.append(ptype)
- 
+
 # Now loop through all the ld_coeffs because they are such a pain that they need their own context
 
 #    ldquals = eb.filter(qualifier='ld_*')
@@ -1028,21 +1028,21 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #            if param.qualifier == 'ld_func':
 #                param = None
 #        except:
-            
+
 #            logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
 #            param = None
 
 #        if param != None:
 
 #            if isinstance(param, phb.parameters.FloatArrayParameter):
-#                val1, ptype = par_value(param, index=0) 
-#                val2, ptype = par_value(param, index=1) 
+#                val1, ptype = par_value(param, index=0)
+#                val2, ptype = par_value(param, index=1)
 #                pname1 = ret_ldparname(param.qualifier,component = param.component,ptype=ptype,index=0)
 #                pname2 = ret_ldparname(param.qualifier,component = param.component, ptype=ptype, index=1)
 #                parnames.append(pname1)
 #                parnames.append(pname2)
-#                parvals.append(val1)   
-#                parvals.append(val2)   
+#                parvals.append(val1)
+#                parvals.append(val2)
 #            else:
 #                val, ptype = par_value(param)
 #                pname = ret_ldparname(param.qualifier,ptype=ptype)
@@ -1052,7 +1052,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #        prpars = eb.filter(dataset=lcs[x], component='primary').to_list()
 #        secpars = eb.filter(dataset=lcs[x], component='secondary').to_list()
 #        lcpars = eb.filter(dataset=lcs[x])-eb.filter(dataset=lcs[x], component=primary, secondary
-        
+
     # write to file
     f = open(filename, 'w')
     f.write('# Phoebe 1 file created from phoebe 2 bundle\n')
@@ -1065,7 +1065,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
         value = parvals[x]
         # TODO: set precision on floats?
         f.write(str(parnames[x])+' = '+str(value)+'\n')
-    
+
     f.close()
 #    raise NotImplementedError
 

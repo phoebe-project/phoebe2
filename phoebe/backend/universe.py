@@ -648,7 +648,7 @@ class Body(object):
 
 
         #-- Volume Conservation
-        if self.needs_volume_conservation:
+        if self.needs_volume_conservation and self.distortion_method in ['roche']:
 
             # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
 
@@ -1216,7 +1216,7 @@ class Star(Body):
                                                          volume=True)
 
                 # TODO: which volume(s) do we want to report?  Either way, make
-                # sure to do the same for the OC case
+                # sure to do the same for the OC case and rotstar
                 av = libphoebe.roche_area_volume(*mesh_args,
                                                  choice=0,
                                                  larea=True,
@@ -1227,6 +1227,30 @@ class Star(Body):
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
+
+            elif self.distortion_method == 'rotstar':
+
+                rpole = libphoebe.rotstar_pole(*mesh_args,
+                                               delta=delta,
+                                               max_triangles=maxpoints,
+                                               vertices=True,
+                                               centers=True,
+                                               vnormals=True,
+                                               tnormals=True,
+                                               cnormals=True,
+                                               vnormgrads=True,
+                                               cnormgrads=False,
+                                               areas=True,
+                                               volume=True)
+
+                av = libphoebe.rotstar_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
+
+                new_mesh['volume'] = av['lvolume']
+
+                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
@@ -1253,11 +1277,13 @@ class Star(Body):
         """
         TODO: add documentation
         """
+        pole_func = getattr(libphoebe, '{}_pole'.format(self.distortion_method))
+        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format(self.distortion_method))
 
-        r_pole = libphoebe.roche_pole(*self._mesh_args)
+        r_pole = pole_func(*self._mesh_args)
         r_pole_ = np.array([0., 0., r_pole])
         args = list(self._mesh_args)[:3]+[r_pole_]
-        grads = libphoebe.roche_gradOmega_only(*args)
+        grads = gradOmega_func(*args)
         g_pole = np.linalg.norm(grads)
 
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
@@ -1854,21 +1880,15 @@ class Envelope(Body):
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
-            elif self.distortion_method == 'sphere':
-                # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'sphere' distortion method not yet supported - try roche")
             elif self.distortion_method == 'nbody':
-                # TODO: implement this (discretize and save mesh_args)
+                # TODO: implement this? - can OCs be done in NBody mode?
                 raise NotImplementedError("'nbody' distortion method not yet supported - try roche")
             else:
                 raise NotImplementedError
 
         elif mesh_method == 'wd':
-
-            N = int(kwargs.get('gridsize', self.gridsize))
-
-            the_grid = potentials.discretize_wd_style(N, *mesh_args)
-            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
+            # TODO: WD-style meshing for OCs (Angela)
+            raise NotImplementedError("WD-meshing not yet supported for overcontacts")
 
         else:
             raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))

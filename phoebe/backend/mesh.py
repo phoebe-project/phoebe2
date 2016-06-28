@@ -153,8 +153,8 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     # TESTING ONLY - remove this eventually ??? (currently being used
     # to test WD-style eclipse detection by using theta and phi (lat and long)
     # to determine which triangles are in the same "strip")
-    new_mesh['theta'] = the_grid[:,16]
-    new_mesh['phi'] = the_grid[:,17]
+    new_mesh['thetas'] = the_grid[:,16]
+    new_mesh['phis'] = the_grid[:,17]
 
     # TODO: get rid of this list comprehension
     # grads = np.array([libphoebe.roche_gradOmega_only(q, F, d, c) for c in new_mesh['centers']])
@@ -367,8 +367,8 @@ class ProtoMesh(object):
         self._volume            = None  # scalar
 
         ### TESTING FOR WD METHOD ###
-        self._phi               = None # Nx1
-        self._theta             = None # Nx1
+        self._phis               = None # Nx1
+        self._thetas             = None # Nx1
 
 
         ### PHYSICAL QUANTITIES
@@ -713,18 +713,18 @@ class ProtoMesh(object):
         return self._volume
 
     @property
-    def phi(self):
+    def phis(self):
         """
         TODO: add documentation
         """
-        return self._phi
+        return self._phis
 
     @property
-    def theta(self):
+    def thetas(self):
         """
         TODO: add documentation
         """
-        return self._theta
+        return self._thetas
 
     @property
     def loggs(self):
