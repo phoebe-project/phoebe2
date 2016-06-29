@@ -407,23 +407,27 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     distance = b.get_value(qualifier='distance', context='system', unit=u.m)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
-    if dynamics_method == 'nbody':
-        # if distortion_method == 'roche':
-            # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
+    if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0]) in ['roche']:
+        raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0])))
 
-        # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-        t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle(b, [t0], ltte=ltte)
-        ethetas0, elongans0, eincls0 = None, None, None
-        ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
+    if len(starrefs) > 1:
+        if dynamics_method == 'nbody':
+            # if distortion_method == 'roche':
+                # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
 
-    elif dynamics_method=='keplerian':
+            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle(b, [t0], ltte=ltte)
+            ethetas0, elongans0, eincls0 = None, None, None
+            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
 
-        # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-        t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], ltte=ltte, return_euler=True)
-        ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte, return_euler=True)
+        elif dynamics_method=='keplerian':
 
-    else:
-        raise NotImplementedError
+            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], ltte=ltte, return_euler=True)
+            ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte, return_euler=True)
+
+        else:
+            raise NotImplementedError
 
     # TODO: automatically guess body type for each case... based on things like whether the stars are aligned
     # TODO: handle different distortion_methods

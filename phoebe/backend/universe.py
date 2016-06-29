@@ -1102,8 +1102,13 @@ class Star(Body):
 
 
         masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
-        sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
-        ecc = b.get_value('ecc', component=label_orbit, context='component')
+        if b.hierarchy.get_parent_of(component) != 'component':
+            sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
+            ecc = b.get_value('ecc', component=label_orbit, context='component')
+        else:
+            # single star case
+            sma = 1.0  # TODO: make sure this is correct
+            ecc = 0.0
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
         gravb_law = b.get_value('gravblaw', component=component, context='component')

@@ -101,6 +101,7 @@ _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
                       'unit', 'timederiv', 'relevant_if', 'description']
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'automesh']
+_forbidden_labels += ['component']
 
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
@@ -4339,7 +4340,7 @@ class HierarchyParameter(StringParameter):
         orbits = []
         for star in self.get_stars():
             parent = self.get_parent_of(star)
-            if parent not in orbits:
+            if parent not in orbits and parent!='component':
                 orbits.append(parent)
         return orbits
 
@@ -4417,7 +4418,8 @@ class HierarchyParameter(StringParameter):
             kind = [kind]
 
         if item_kind not in ['orbit']:
-            return None
+            # return None
+            return []
         else:
             items = self._get_by_trace(structure, trace[:-1]+[trace[-1]+1])
             # we want to ignore suborbits
@@ -4465,6 +4467,10 @@ class HierarchyParameter(StringParameter):
         component in its parent orbit
         """
         parent = self.get_parent_of(component)
+        if parent=='component':
+            # then this is a single component, not in a binary
+            return 'primary'
+
         children_of_parent = self.get_children_of(parent)
 
         ind = children_of_parent.index(component)
