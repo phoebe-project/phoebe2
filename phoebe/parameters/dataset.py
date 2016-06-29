@@ -340,9 +340,9 @@ def mesh_syn(syn=True, **kwargs):
     if syn:
         # syns ignore copy_for anyways
         for t in kwargs.get('time', []):
-            syn_params += [FloatArrayParameter(qualifier='x', time=t, value=kwargs.get('x', []), default_unit=u.solRad, description='X coordinate of center of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='y', time=t, value=kwargs.get('y', []), default_unit=u.solRad, description='Y coordinate of center of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='z', time=t, value=kwargs.get('z', []), default_unit=u.solRad, description='Z coordinate of center of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='x', time=t, value=kwargs.get('x', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='X coordinate of center of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='y', time=t, value=kwargs.get('y', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Y coordinate of center of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='z', time=t, value=kwargs.get('z', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Z coordinate of center of triangles')]
             if t is not None:
                 # skip these for protomeshes
                 syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
@@ -355,20 +355,20 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='vz', time=t, value=kwargs.get('vz', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
             syn_params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**3, description='Area of triangles')]
             # syn_params += [FloatArrayParameter(qualifier='volumes', time=t, value=kwargs.get('volumes', []), default_unit=u.solRad**3, description='Volume of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad, description='Vertices of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
+            syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Vertices of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
             syn_params += [FloatArrayParameter(qualifier='normals', time=t, value=kwargs.get('normals', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles')]
             syn_params += [FloatArrayParameter(qualifier='nx', time=t, value=kwargs.get('nx', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
             syn_params += [FloatArrayParameter(qualifier='ny', time=t, value=kwargs.get('ny', []), default_unit=u.dimensionless_unscaled, description='Y component of normals')]
             syn_params += [FloatArrayParameter(qualifier='nz', time=t, value=kwargs.get('nz', []), default_unit=u.dimensionless_unscaled, description='Z component of normals')]
 
 
-            syn_params += [FloatArrayParameter(qualifier='cosbeta', time=t, value=kwargs.get('cosbeta', []), default_unit=u.solRad, description='')]
+            syn_params += [FloatArrayParameter(qualifier='cosbeta', time=t, value=kwargs.get('cosbeta', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='')]
 
             syn_params += [FloatArrayParameter(qualifier='logg', time=t, value=kwargs.get('logg', []), default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
             syn_params += [FloatArrayParameter(qualifier='teff', time=t, value=kwargs.get('teff', []), default_unit=u.K, description='Local effective temperature')]
 
-            syn_params += [FloatArrayParameter(qualifier='r', time=t, value=kwargs.get('r', []), default_unit=u.solRad, description='Distance of each triangle from center of mass')]
+            syn_params += [FloatArrayParameter(qualifier='r', time=t, value=kwargs.get('r', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Distance of each triangle from center of mass')]
 
 
             if t is not None:
