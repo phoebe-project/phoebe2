@@ -1593,9 +1593,12 @@ class ParameterSet(object):
                 sending a Quantity object (ie 2.4*u.rad)
         :parameter **kwargs: meta-tags to search
         """
-        # TODO throw error if none in filter?
         # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
-        for param in self.filter(twig=twig, **kwargs).to_list():
+        params = self.filter(twig=twig, **kwargs).to_list()
+        if not len(params):
+            raise ValueError("no parameters found")
+
+        for param in params:
             if "index" in kwargs.keys():
                 return self.get_parameter(twig=twig,
                                           **kwargs).set_index_value(value=value,
