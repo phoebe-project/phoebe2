@@ -75,27 +75,27 @@ if _use_resolution:
     ns = None
 
     solMass = def_unit(['solMass', 'M_sun', 'Msun'], c.si.M_sun, namespace=ns,
-             prefixes=True, doc="Solar mass",
+             prefixes=True, doc="Solar mass (nominal)",
              format={'latex': r'{\mathcal{M}^{\rm N}_\odot}'})
 
     _register_unit(solMass)
 
 
     solRad = def_unit(['solRad', 'R_sun', 'Rsun'], c.si.R_sun, namespace=ns,
-             doc="Solar radius", prefixes=True,
+             doc="Solar radius (nominal)", prefixes=True,
              format={'latex': r'{\mathcal{R}^{\rm N}_\odot}'})
 
     _register_unit(solRad)
 
     solLum = def_unit(['solLum', 'L_sun', 'Lsun'], c.si.L_sun, namespace=ns,
-             prefixes=True, doc="Solar luminance",
+             prefixes=True, doc="Solar luminance (nominal)",
              format={'latex': r'{\mathcal{L}^{\rm N}_\odot}'})
 
     _register_unit(solLum)
 
 
     solTeff = def_unit(['solTeff', 'T_sun', 'Tsun'], c.si.T_sun, namespace=ns,
-            prefixes=True, doc="Solar effective temperature",
+            prefixes=True, doc="Solar effective temperature (nominal)",
             format={'latex': r'{\mathcal{T}^{\rm N}_\odot}'})
 
     _register_unit(solTeff)

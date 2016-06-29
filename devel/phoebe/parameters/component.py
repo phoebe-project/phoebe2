@@ -17,21 +17,21 @@ from phoebe import u
 def orbit(component, **kwargs):
     """
     Create parameters for a new orbit.
-    
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
     params = []
-    
+
     #~ params += [ObjrefParameter(value=component)]
     params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 3.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, description='Orbital frequency')]
     params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, description='Period change')]
-    params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Periastron')]    
+    params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Periastron')]
     params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Eccentricity')]
     params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, description='Eccentricity change')]
@@ -64,15 +64,15 @@ def orbit(component, **kwargs):
 def star(component, **kwargs):
     """
     Create parameters for a new star.
-    
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s    
+        created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    
+
     params = []
 
     #~ params += [ObjrefParameter(value=component)]
@@ -100,7 +100,8 @@ def star(component, **kwargs):
     # params += [FloatParameter(qualifier='redist', value=kwargs.get('redist', 0.0), unit=u.dimensionless_unscaled, description='Global redist par (1-redist) local heating, redist global heating')]
     # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
 
-    # TODO: add others from star context as well?
+    params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
+
 
     # TODO: add others or move to a bol_dep (in which case create the bol_dep now)?
 
@@ -112,22 +113,22 @@ def star(component, **kwargs):
     # - rotation_period
     # - incl_aligned
 
-    constraints += [(constraint.freq, component)]       
+    constraints += [(constraint.freq, component)]
 
-    
+
     return ParameterSet(params), constraints
 
 def envelope(component, **kwargs):
     """
     Create parameters for an envelope (usually will be attached to two stars solRad
         that they can share a common-envelope)
-    
+
     Generally, this will be used as an input to the method argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
-    
+
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
-        created :class:`phoebe.parameters.parameters.Parameter`s    
+        created :class:`phoebe.parameters.parameters.Parameter`s
     """
 
     params = []
