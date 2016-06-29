@@ -1349,6 +1349,12 @@ class Bundle(ParameterSet):
         else:
             raise NotImplementedError
 
+        # Let's handle the case where the user accidentally sends times instead
+        # of time
+        if kwargs.get('times', None) and not kwargs.get('time', None):
+            logger.warning("assuming you meant 'time' instead of 'times'")
+            kwargs['time'] = kwargs.pop('times')
+
         if not np.all([component in allowed_components
                        for component in components]):
             raise ValueError("'{}' not a recognized component".format(component))
