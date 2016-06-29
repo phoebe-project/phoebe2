@@ -339,7 +339,7 @@ class System(object):
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
-            return {'flux': np.sum(intens_proj_rel*areas*mus*visibilities)/((distance/10.)**2)+l3}
+            return {'flux': np.sum(intens_proj_rel*areas*mus*visibilities)/(distance**2)+l3}
 
 
         elif method == 'IFM':

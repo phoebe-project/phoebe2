@@ -404,7 +404,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
 
-    distance_pc = b.get_value(qualifier='distance', context='system', unit=u.pc)
+    distance = b.get_value(qualifier='distance', context='system', unit=u.solRad)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
     if dynamics_method == 'nbody':
@@ -624,7 +624,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').methods, this_syn.filter(qualifier='rv').components
                     # if len(this_syn.filter(qualifier='rv').twigs)>1:
                         # print "***2", this_syn.filter(qualifier='rv')[1].method, this_syn.filter(qualifier='rv')[1].component
-                    rv = system.observe(info['dataset'], method=method, components=info['component'], distance=distance_pc)['rv']
+                    rv = system.observe(info['dataset'], method=method, components=info['component'], distance=distance)['rv']
                     this_syn['rv'].append(rv*u.solRad/u.d)
                 else:
                     # then rv_method == 'dynamical'
@@ -636,7 +636,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 # print "***", info['component']
                 # print "***", system.observe(info['dataset'], method=method, components=info['component'])
                 l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-                this_syn['flux'].append(system.observe(info['dataset'], method=method, components=info['component'], distance=distance_pc, l3=l3)['flux'])
+                this_syn['flux'].append(system.observe(info['dataset'], method=method, components=info['component'], distance=distance, l3=l3)['flux'])
 
             elif method=='ETV':
 
@@ -650,7 +650,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn['etv'].append(time_ecl-time)  # NOTE: no longer under constraint control
 
             elif method=='IFM':
-                observables_ifm = system.observe(info['dataset'], method=method, components=info['component'], distance=distance_pc)
+                observables_ifm = system.observe(info['dataset'], method=method, components=info['component'], distance=distance)
                 for key in observables_ifm.keys():
                     this_syn[key] = observables_ifm[key]
 
