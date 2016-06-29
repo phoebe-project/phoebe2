@@ -24,12 +24,20 @@ Here we'll override astropy's constants to adhere to the IAU Resolution for nomi
 if _use_resolution:
     # TODO: find correct error estimate for this value of G
     G = Constant('G', "Gravitational constant", 6.67408e-11, 'm3 / (kg s2)', 0.00080e-11, 'NSFA 2011', system='si')
-    c.G = G 
+    c.G = G
     c.si.G = G
 
     GM_sun = Constant('GM_sun', "Solar G*M", 1.3271244e20,  'm3 / (s2)', None, "IAU 2015 Resolution B3", system='si')
     c.GM_sun = GM_sun
     c.si.GM_sun = GM_sun
+
+    GM_earth = Constant('GM_earth', "Earth G*M", 3.986004e14, 'm3 / (s2)', None, "IAU 2015 Resolution B3", system='si')
+    c.GM_earth = GM_earth
+    c.si.GM_earth = GM_earth
+
+    GM_jup = Constant('GM_jup', "Juptiter G*M", 1.2668653e17, 'm3 / (s2)', None, "IAU 2015 Resolution B3", system='si')
+    c.GM_jup = GM_jup
+    c.si.GM_jup = GM_jup
 
     M_sun = Constant('M_sun', "Solar mass", c.GM_sun.value/c.G.value, 'kg', None, "IAU 2015 Resolution B3 (derived from GM_sun and G)", system='si')
     c.M_sun = M_sun
