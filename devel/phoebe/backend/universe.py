@@ -767,12 +767,9 @@ class Body(object):
         # limbdarkening laws still darken/brighten at mu=0, we'll compute the
         # limbdarkening for each element as if it were at mu=0 (directly along
         # the normal).
-        # ld_coeffs = kwargs.get('ld_coeffs', [0.0,0.0])
-        # ld_func = kwargs.get('ld_func', 'logarithmic')
-        # ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.zeros(len(mesh.mus)), ld_coeffs)
-
-        # TODO NOW: ENBABLE LIMBDARKENING
-        ld = 1.0
+        ld_coeffs = kwargs.get('ld_coeffs', [0.0,0.0])
+        ld_func = kwargs.get('ld_func', 'logarithmic')
+        ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.zeros(len(self.mesh.mus)), ld_coeffs)
 
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
@@ -1213,6 +1210,9 @@ class Star(Body):
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
+                # TODO: need to figure this out, this currently causes issues
+                # with large sma (too many triangles).  rpole*sma /helps/ but
+                # doesn't quite do the right thing.
                 rpole = libphoebe.roche_pole(*mesh_args)
                 delta *= rpole
 
@@ -1605,9 +1605,6 @@ class Star(Body):
             # is causing issues when ld_logarithmic with negative mus (well
             # I mean the reason it fails is obvious)
             ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus_for_computations), ld_coeffs)
-
-            # TODO: FIX AND ENABLE LIMB DARKENING
-            # ld = np.ones(self.mesh.mus.shape)
 
             # Apply boosting/beaming and limb-darkening to the projected intensities
 

@@ -89,9 +89,12 @@ def chi2(b, dataset, model1='phoebe1model', model2='phoebe2model'):
 
     chi2 = 0.0
     for comp in ds.components if len(ds.components) else [None]:
+        if comp=='_default':
+            continue
         # phoebe gives nans for RVs when a star is completely eclipsed, whereas
         # phoebe1 will give a value.  So let's use nansum to just ignore those
         # regions of the RV curve
+        print "***", depvar, dataset, model1, model2, comp
         chi2 += np.nansum((b.get_value(qualifier=depvar, dataset=dataset, model=model1, component=comp, context='model')\
             -b.get_value(qualifier=depvar, dataset=dataset, model=model2, component=comp, context='model'))**2)
 
@@ -205,28 +208,39 @@ if __name__ == '__main__':
                 # we really want to sample from 0-1 in phase, so let's reset the time arrays
                 b.set_value_all('time@dataset', np.linspace(0, period, N))
 
+                print("*** PHOEBE 2")
+                try:
+                    b.run_compute('phoebe', model='phoebe2model')
+                except ValueError:
+                    phoebe2_passed = False
+                    print "phoebe2 failed overflow checks, skipping"
+                    continue
+                else:
+                    phoebe2_passed = True
+
+
                 print("*** PHOEBE 1")
                 # Let's skip overflow tests (within PHOEBE 2) on this first run
                 # so that we will let PHOEBE 1 run forever and fail.  We do this
                 # so that we can also test the failing cases vs each other
-                phoebe1_passed = run_with_limited_time(b.run_compute, ('phoebe1', ), {'model': 'phoebe1model', 'skip_checks': True}, 10)
+                phoebe1_passed = run_with_limited_time(b.run_compute,
+                                                       ('phoebe1',),
+                                                       {'model': 'phoebe1model',
+                                                        'skip_checks': True},
+                                                       time=10)
                 if phoebe1_passed:
                     # this is horrendously hideous - the only way I could get the
                     # timeout to work means that we can't access the output, so
                     # b isn't updated.  But now we know that it won't timeout, so
                     # we can rerun compute
-                    b.run_compute('phoebe1', model='phoebe1model', skip_checks=True)
-
-                print("*** PHOEBE 2")
-                try:
-                    b.run_compute('phoebe', model='phoebe2model')
-                except ValueError:
-                    phoebe_passed = False
-                else:
-                    phoebe_passed = True
+                    b.run_compute('phoebe1',
+                                  model='phoebe1model',
+                                  skip_checks=True)
 
 
-                if phoebe1_passed != phoebe_passed:
+
+
+                if phoebe1_passed != phoebe2_passed:
                     if phoebe1_passed:
                         # phoebe failed, phoebe 1 passed
                         chi2lc = -1
@@ -235,13 +249,16 @@ if __name__ == '__main__':
                         # phoebe passed, phoebe 1 failed
                         chi2lc = -2
                         chi2rv = -2
-                elif phoebe1_passed and phoebe_passed:
+                elif phoebe1_passed and phoebe2_passed:
                     chi2lc = chi2(b, 'lc01')/N
                     # TODO: need to deal with NaNs in the phoebe RVs when occulted
                     # with proximity effects phoebe1 reverts to dynamical during these times
                     chi2rv = chi2(b, 'rv01')/N
                 else:
                     # then both failed, perfect score!
+                    # NOTE: this probably won't happen anymore since legacy
+                    # is now segfaulting and so we're bailing once PHOEBE2
+                    # fails overflow checks
                     chi2lc = 0.0
                     chi2rv = 0.0
 
@@ -259,6 +276,10 @@ if __name__ == '__main__':
 
             except KeyboardInterrupt:
                 break
+            except ValueError, err:
+                print err
+                import pdb; pdb.set_trace()  # breakpoint d8e3dc28 //
+
 
         print("*** CLOSING LOG FILE ***")
         f.close()

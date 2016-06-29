@@ -3585,9 +3585,9 @@ class IntParameter(Parameter):
             raise ValueError("could not cast value to integer")
         else:
 
-            # make sure the value is within the units
+            # make sure the value is within the limits
             if not self.within_limits(value):
-                raise ValueError("value must be within limits of {}".format(self.limits))
+                raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
 
             self._value = value
 
@@ -3851,9 +3851,9 @@ class FloatParameter(Parameter):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
-        # make sure the value is within the units
+        # make sure the value is within the limits
         if not self.within_limits(value):
-            raise ValueError("value must be within limits of {}".format(self.limits))
+            raise ValueError("value of {} must be within limits of {}".format(self.qualifier, self.limits))
 
         # make sure we can convert back to the default_unit
         try:
