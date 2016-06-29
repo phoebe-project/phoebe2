@@ -37,7 +37,7 @@ namespace rot_star {
   template <class T>
   T lagrange_point(const T & omega) {
     if (omega == 0) return std::nan("");
-    return std::cbrt(2/(omega*omega));
+    return std::cbrt(omega*omega);
   }
   
   
@@ -141,7 +141,7 @@ namespace rot_star {
   T critical_potential(const T & omega) {
     if (omega == 0) return std::nan("");
     //return potential_on_x_axis(lagrange_point(omega), omega);
-    return std::pow(2*omega, 2./3);
+    return 3*std::pow(omega, 2./3)/2;
   }
   
  /*
@@ -190,7 +190,7 @@ namespace rot_star {
     T Omega2 = Omega0*Omega0,
       Omega3 = Omega0*Omega2;
       
-    if (omega != 0) {
+    if (omega == 0) {
       
       if (b_area) av[0] = utils::M_4PI/Omega2;
       if (b_volume) av[1] = utils::M_4PI/(3*Omega3); 
@@ -223,30 +223,29 @@ namespace rot_star {
     
     // u du/dv = 1/2 ds/dv = v*ds/dt
     
-    int m = 1 << 16;
+    const int m = 1 << 16;
     
-    T dt = 1./m, 
-      t = 1,
+    T dv = 1./m, 
+      v = 1,
       s = 0, A = 0, V = 0,
       k[4][3],
       
       // auxiliary variables  
-      t1, s1, q, dv, F;
+      v1, s1, q, F;
 
     for (int i = 0; i < m; ++i) {
       
       //
       // 1. step
       //
-      t1 = t; 
+      v1 = v; 
       s1 = s; 
-      q = t1 + s1; 
-      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
-      dv = dt/(2*std::sqrt(s1));
+      q = v1*v1 + s1; 
+      F = 2*v1/(1 - 2*b*q*std::sqrt(q));              // = ds/dv
       
-      k[0][0] = dt*F;                                   // = dt*ds/dt
-      if (b_area) k[0][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
-      if (b_volume) k[0][2] = dv*s1;                    // dv u^2
+      k[0][0] = dv*F;                                 // = dv*ds/dv
+      if (b_area) k[0][1] = dv*std::sqrt(s1 + F*F/4); // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[0][2] = dv*s1;                  // dv u^2
         
       // prepare: y1 = y + k0/2
       s1 = s + k[0][0]/2;
@@ -254,14 +253,13 @@ namespace rot_star {
       //
       // 2. step 
       //
-      t1 = t - dt/2;
-      q = t1 + s1; 
-      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
-      dv = dt/(2*std::sqrt(s1));
-      
-      k[1][0] = dt*F;                                   // = dt*ds/dt
-      if (b_area) k[1][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
-      if (b_volume) k[1][2] = dv*s1;                    // dv u^2
+      v1 = v - dv/2;
+      q = v1*v1 + s1; 
+      F = 2*v1/(1 - 2*b*q*std::sqrt(q));               // =ds/dv
+       
+      k[1][0] = dv*F;                                  // = dv*ds/dv
+      if (b_area) k[1][1] = dv*std::sqrt(s1 + F*F/4);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[1][2] = dv*s1;                   // dv u^2
       
       // prepare: y1 = y + k1/2
       s1 = s + k[1][0]/2;
@@ -269,12 +267,11 @@ namespace rot_star {
       //
       // 3. step
       //
-      q = t1 + s1; 
-      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
-      dv = dt/(2*std::sqrt(s1));
+      q = v1*v1 + s1; 
+      F = 2*v1/(1 - 2*b*q*std::sqrt(q));                // =ds/dv
       
-      k[2][0] = dt*F;                                   // = dt*ds/dt
-      if (b_area) k[2][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      k[2][0] = dv*F;                                   // = dv*ds/dv
+      if (b_area) k[2][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
       if (b_volume) k[2][2] = dv*s1;                    // dv u^2
       
       
@@ -282,25 +279,23 @@ namespace rot_star {
       s1 = s + k[2][0];
       
       // 4. step
-      t1 = t - dt;
-      q = t1 + s1; 
-      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
-      dv = dt/(2*std::sqrt(s1));
+      v1 = v - dv;
+      q = v1*v1 + s1; 
+      F = 2*v1/(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
       
-      k[3][0] = dt*F;                                   // = dt*ds/dt
-      if (b_area) k[3][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      k[3][0] = dv*F;                                   // = dt*ds/dt
+      if (b_area) k[3][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
       if (b_volume) k[3][2] = dv*s1;                    // dv u^2
     
       s += (k[0][0] + 2*(k[1][0] + k[2][0]) + k[3][0])/6;  
       if (b_area) A += (k[0][1] + 2*(k[1][1] + k[2][1]) + k[3][1])/6;
       if (b_volume) V += (k[0][2] + 2*(k[1][2] + k[2][2]) + k[3][2])/6;
-      
-      t -= dt;
+          
+      v -= dv;
     }
     
     if (b_area) av[0] = utils::M_4PI*A/Omega2;
     if (b_volume) av[1] = utils::M_2PI*V/Omega3;
-
   }
   
   

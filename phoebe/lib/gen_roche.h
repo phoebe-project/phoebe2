@@ -90,7 +90,71 @@ namespace gen_roche {
     omega_crit[2] = 
       potential_on_x_axis(lagrange_point_L3(q, F, delta), q, F, delta);
   }
+  /*
+    Unified treatment of the common equation for the poles of the 
+    Roche lobes basicaly solving:
+    
+      q/sqrt(1+ h^2) + 1/h = w
+    
+  */
+  
+  template<class T>
+  T poleLR(const T &w, const T &q){
+    
+    if (w < 0 || q < 0)  return -1;
+        
+    if (w < 100 && q < 100) { // some normal regime
+    
+      T a[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
+      
+      std::vector<T> roots;
+    
+      utils::solve_quartic(a, roots);
+            
+      for (auto && z : roots) if (z > 0 && w*z >= 1) return z;
+      
+      return -1;
+    }
+    
+    T s, h;
+    
+    if (w > 10 && q < 4*w) {          // asymptotics in w
+      s = 1/w;
+      h = s*(1 + q*s*(1 + q*s));
 
+    } else if (q > 10 && w < 4*q) {      // asymptotics in q
+      s = 1/q;
+      h = 1/(s*w*(1 + s*(-1 + s*(1 + w*w/2))));
+    } else { 
+       
+      h = 1;
+    }  
+      
+    const int iter_max = 100;
+    const T eps = 4*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+    
+    int it = 0;
+    
+    T t1, t2, h2, f, dh, df;
+    
+    do {
+      h2 = h*h;
+      t1 = 1 + h2;
+      t2 = std::sqrt(t1);
+      
+      f = 1/h + q/t2 - w;
+      df = -1/h2 - h*q/(t1*t2); 
+      
+      h -= (dh = f/df);
+      
+    } while (std::abs(dh) <  eps*std::abs(h) + min && (++it) < iter_max);
+    
+    
+    return h;  
+  }
+  
+  
   /*
     Pole of the first star at (0,0,z), z > 0, i.e. 
     smallest z > 0 such that
@@ -122,60 +186,10 @@ namespace gen_roche {
     const T & F = 1,
     const T & delta = 1
   ) {
-  
-    T w = Omega0*delta;
-    
-    if (w < 0)  return -1;
-    
-    
-    if (w < 100 && q < 100) { 
-    
-      T a[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
-      
-      std::vector<T> roots;
-    
-      utils::solve_quartic(a, roots);
-            
-      for (auto && z : roots) if (z > 0 && w*z >= 1) return delta*z;
-      
-      return -1;
-    }
-    
-    T h;
-    
-    if (w > 100 && q < 5*w) { // asymptotics in w
-      T s = 1/w;
-      
-      h = s*(1 + q*s*(1 + q*s));
-    } else {
-      
-      h = 1;
-    }  
-      
-    
-    const int iter_max = 100;
-    const T eps = 4*std::numeric_limits<T>::epsilon();
-    const T min = 10*std::numeric_limits<T>::min();
-    
-    int it = 0;
-    
-    T t1, t2, h2, f, dh, df;
-    
-    do {
-      h2 = h*h;
-      t1 = 1 + h2;
-      t2 = std::sqrt(t1);
-      
-      f = 1/h + q/t2 - w;
-      df = -1/h2 - h*q/(t1*t2); 
-      
-      h -= (dh = f/df);
-      
-    } while (std::abs(dh) <  eps*std::abs(h) + min && (++it) < iter_max);
-    
-    
-    return delta*h;
+
+    return delta*poleLR(Omega0*delta, q);
   }
+
   
   /*
     Pole of the second star at (delta,0,z), z > 0, i.e. 
@@ -204,20 +218,11 @@ namespace gen_roche {
   ) {
   
     T p = 1/q,
-      nu = 1 + Omega0*delta*p - F*F*delta*delta*delta*(1 + p)/2,
-      a[5] = {1, -2*nu, 1 + (nu + p)*(nu - p), -2*nu, nu*nu};
-
-    if (nu > 0){
-      std::vector<T> roots;
-    
-      utils::solve_quartic(a, roots);
-      
-      for (auto && z : roots) 
-        if (z > 0 && nu*z > 1) return delta*z;
-    }
-
-    return -1;
+      nu = 1 + Omega0*delta*p - F*F*delta*delta*delta*(1 + p)/2;
+     
+    return delta*poleLR(nu, q);
   }
+
    
   /*
     Based on the critical omegas determine the type of system we can 
