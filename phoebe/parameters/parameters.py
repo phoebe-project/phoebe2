@@ -1595,8 +1595,8 @@ class ParameterSet(object):
         """
         # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
         params = self.filter(twig=twig, **kwargs).to_list()
-        if not len(params):
-            raise ValueError("no parameters found")
+        # if not len(params):
+            # raise ValueError("no parameters found")
 
         for param in params:
             if "index" in kwargs.keys():

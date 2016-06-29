@@ -1395,6 +1395,13 @@ class Bundle(ParameterSet):
         # components will not be empty
         kwargs.setdefault('time', [0.])
 
+
+        # pbscale/pblum defaults depend on the hierarchy, calling set_hierarchy
+        # will handle these
+        # TODO: should this happen before kwargs?
+        # TODO: can we avoid rebuilding ALL the constraints when we call this?
+        self.set_hierarchy()
+
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 for component, value in v.items():
@@ -1417,11 +1424,7 @@ class Bundle(ParameterSet):
                                    value=v,
                                    check_relevant=False)
 
-        # pbscale/pblum defaults depend on the hierarchy, calling set_hierarchy
-        # will handle these
-        # TODO: should this happen before kwargs?
-        # TODO: can we avoid rebuilding ALL the constraints when we call this?
-        self.set_hierarchy()
+
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['func'] = func.func_name
