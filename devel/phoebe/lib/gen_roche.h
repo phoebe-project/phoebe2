@@ -97,6 +97,12 @@ namespace gen_roche {
   
       Omega(0,0,z) = Omega0
     
+    Solving
+      q/sqrt(h^2+1) + 1/h = delta Omega
+      
+      z = delta h
+      
+    
     Input:
       Omega0 - value of potential
       q - mass ratio M2/M1
@@ -117,18 +123,58 @@ namespace gen_roche {
     const T & delta = 1
   ) {
   
-  T w = Omega0*delta;
+    T w = Omega0*delta;
     
-    if (w > 0) {
+    if (w < 0)  return -1;
+    
+    
+    if (w < 100 && q < 100) { 
+    
       T a[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
       
       std::vector<T> roots;
     
       utils::solve_quartic(a, roots);
+            
+      for (auto && z : roots) if (z > 0 && w*z >= 1) return delta*z;
       
-      for (auto && z : roots) if (z > 0 && w*z > 1) return delta*z;
+      return -1;
+    }
+    
+    T h;
+    
+    if (w > 100 && q < 5*w) { // asymptotics in w
+      T s = 1/w;
+      
+      h = s*(1 + q*s*(1 + q*s));
+    } else {
+      
+      h = 1;
     }  
-    return -1;
+      
+    
+    const int iter_max = 100;
+    const T eps = 4*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+    
+    int it = 0;
+    
+    T t1, t2, h2, f, dh, df;
+    
+    do {
+      h2 = h*h;
+      t1 = 1 + h2;
+      t2 = std::sqrt(t1);
+      
+      f = 1/h + q/t2 - w;
+      df = -1/h2 - h*q/(t1*t2); 
+      
+      h -= (dh = f/df);
+      
+    } while (std::abs(dh) <  eps*std::abs(h) + min && (++it) < iter_max);
+    
+    
+    return delta*h;
   }
   
   /*
@@ -157,9 +203,9 @@ namespace gen_roche {
     const T & delta = 1
   ) {
   
-   T p = 1/q,
-     nu = 1 + Omega0*delta*p - F*F*delta*delta*delta*(1 + p)/2,
-     a[5] = {1, -2*nu, 1 + (nu + p)*(nu - p), -2*nu, nu*nu};
+    T p = 1/q,
+      nu = 1 + Omega0*delta*p - F*F*delta*delta*delta*(1 + p)/2,
+      a[5] = {1, -2*nu, 1 + (nu + p)*(nu - p), -2*nu, nu*nu};
 
     if (nu > 0){
       std::vector<T> roots;

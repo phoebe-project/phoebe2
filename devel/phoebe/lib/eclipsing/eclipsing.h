@@ -17,7 +17,8 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
-#include <set>
+#include <map>
+#include <list>
 #include <ctime>
 
 #include "../triang/triang_marching.h"
@@ -786,6 +787,7 @@ void triangle_mesh_rough_visibility_elegant(
   Output: optional
     M - vector of the fractions of triangle that is visible
     W - weights for averaging over visible area of triangles
+    H - horizon given in indices of vertices
   
   Ref:
   * http://web.cecs.pdx.edu/~karlaf/CS447_Slides/Set5.pdf
@@ -800,10 +802,11 @@ void triangle_mesh_visibility(
   std::vector<T3Dpoint<int>> & Tr,
   std::vector<T3Dpoint<T>> & N,
   std::vector<T> *M = 0,
-  std::vector<T3Dpoint<T>> *W = 0
-  ) {
+  std::vector<T3Dpoint<T>> *W = 0,
+  std::vector<std::vector<int>> *H = 0) 
+{
  
-  if (M == 0 && W == 0) return; 
+  if (M == 0 && W == 0 && H == 0) return; 
   //
   // Defining the on-screen vector basis (t1,t2,view)
   //
@@ -957,6 +960,10 @@ void triangle_mesh_visibility(
   
     auto it = Tv.begin(), it_end = Tv.end();
   
+    //
+    //  Process the first triangle
+    //
+    
     // add the first triangle to the shadow
     t = Tr[it->index].data;
             
@@ -972,7 +979,7 @@ void triangle_mesh_visibility(
     
     double r;
   
-    while (++it != it_end) {
+    while (++it != it_end) { // loop over visible triangles
       
       t = Tr[it->index].data;
             
@@ -1053,6 +1060,102 @@ void triangle_mesh_visibility(
           else ++jt;
         }   
       }
+    }
+  }
+  
+  //
+  // Calculating the horizon
+  //
+  
+  if (H) {
+    
+    // ordered pair
+    struct Tedge {
+      int i, j;  
+      
+      Tedge();
+      
+      Tedge(const int & ii, const int &jj): i(ii), j(jj) {
+        if (i > j) {
+          int k = i; 
+          i = j; 
+          j = k;
+        } 
+      }
+      
+      bool operator == (const Tedge & rhs) const {
+        return i == rhs.i && j == rhs.j;  
+      }
+  
+      bool operator != (const Tedge & rhs) const {
+        return i != rhs.i && j != rhs.j;  
+      }
+      
+      bool operator < (const Tedge & rhs) const {
+        return  i < rhs.i || (i == rhs.i && j < rhs.j);
+      }
+    };
+    
+    // collection of edges
+    std::map<Tedge, int> collected_edges;
+    for (auto && v : Tv) {  // loop over visible triangles
+      int *t = Tr[v.index].data;
+      ++collected_edges[Tedge(t[0],t[1])];
+      ++collected_edges[Tedge(t[1],t[2])];
+      ++collected_edges[Tedge(t[2],t[0])];
+    }
+  
+    // extract only the edges that are repeated once
+    std::list<Tedge> uniq_edges;
+    for (auto && e : collected_edges)
+      if (e.second == 1)
+        uniq_edges.push_back(e.first);
+    
+      
+    // connect the edges
+    while (uniq_edges.size() != 0) {
+      
+      std::list<int> h;
+      
+      auto & e = uniq_edges.front();
+      
+      int head, tail;
+      h.push_back(head = e.i);
+      h.push_back(tail = e.j);
+      uniq_edges.pop_front();
+            
+      while (uniq_edges.size() != 0) {
+        
+        bool found = false;
+        
+        auto it = uniq_edges.begin(), it_end = uniq_edges.end(); 
+        
+        do {
+        
+          if (it->i == tail) { 
+            h.push_back(tail = it->j);
+            found = true;
+          } else if (it->j == tail) {
+            h.push_back(tail = it->i);
+            found = true;
+          } else if (it->i == head) {
+            h.push_front(head = it->j);
+            found = true;
+          } else if (it->j == head) {
+            h.push_front(head = it->i);
+            found = true;
+          } else ++it;
+          
+        }  while (!found && it != it_end);
+        
+        if (found)
+          uniq_edges.erase(it);
+        else
+          break;
+        
+      } 
+    
+      H->emplace_back(h.begin(), h.end());
     }
   }
   

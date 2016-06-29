@@ -262,16 +262,17 @@ namespace utils {
       
       int it;
       
-      T dx, f, df;
+      T dx;
       
       for (auto && x : roots) {
         
         it = 0;  
         
         do {
-          
+          #if 0
           // Horner algorithm to compute value and derivative
-          f = a[n], df = 0;
+          // http://www.physics.utah.edu/~detar/lessons/c++/array/node4.html
+          T f = a[n], df = 0;
           for (int i = n - 1; i >= 0; --i) { 
             df = f + x*df;
             f  = a[i] + x*f;
@@ -279,6 +280,21 @@ namespace utils {
           
           // Newton-Raphson step
           x -= (dx = f/df); 
+          #else
+          // Horner algorithm to compute value, derivative and second derivative
+          // http://www.ece.rice.edu/dsp/software/FVHDP/horner2.pdf
+          T f = a[n], df = 0, d2f = 0;
+          for (int i = n - 1; i >= 0; --i) { 
+            d2f = df + x*d2f;
+            df = f + x*df;
+            f  = a[i] + x*f;
+          }
+          d2f *= 2;
+          
+          // Newton-Raphson step for multiple roots
+          // https://www.math.uwaterloo.ca/~wgilbert/Research/GilbertNewtonMultiple.pdf
+          x -= (dx = f*df/(df*df - f*d2f)); 
+          #endif
           
         } while (std::abs(dx) > eps*std::abs(x) + min && (++it) < iter_max); 
         
@@ -371,6 +387,8 @@ namespace utils {
     
     roots.clear();
     
+    const T eps = std::numeric_limits<T>::epsilon();
+    
     if (a[3] != 0) {
       
       //
@@ -393,12 +411,15 @@ namespace utils {
               
         A = 2*std::sqrt(std::abs(p)/3), phi;
       
-      if (D <= 0){ // 3 real roots, of 1 real roots if (p=q=0)
+      if (D <= 0 || std::abs(D) < eps){ // 3 real roots, of 1 real roots if (p=q=0)
         
         if (p == 0 && q == 0) 
           roots.push_back(-b/3);
-        else {
-          phi = std::acos(3*q/(A*p));
+        else { 
+          
+          T r = 3*q/(A*p);
+          
+          phi = (std::abs(r) > 1 ? 0 : std::acos(r));
         
           for (int i = 2; i >= 0; --i)
             roots.push_back(A*std::cos((phi - M_2PI*i)/3) - b/3);
@@ -421,6 +442,8 @@ namespace utils {
         }
       }
       
+      polish(3, a, roots);
+    
     } else { 
       //
       // Working with a quadatic equation 
@@ -496,10 +519,16 @@ namespace utils {
         
         std::vector<T> roots1;
         solve_cubic(s, roots1);
-        
+            
+        #if 0
         // using the first 
-        T t  = 2*roots1.front() + p;
-        
+        T t = 2*roots1.front() + p;
+        #else
+        // using the one which is positive
+        T t = -1;
+        for (auto && r: roots1) if ((t = 2*r + p) >=0) break;
+        #endif
+         
         if (t >= 0){
           
           T st = std::sqrt(t)/2, b_ = b/4, t1;
@@ -507,9 +536,9 @@ namespace utils {
           for (int s1 = -1; s1 <= 1; s1 += 2){
             
             t1 = -(2*p + t + s1*q/st);
-
-            if (t1 >= 0) {
-              t1 = std::sqrt(t1)/2;
+                        
+            if (t1 >= 0 || std::abs(t1) < 1e-6) {
+              t1 = std::sqrt(std::abs(t1))/2;
               for (int s2 = -1; s2 <= 1; s2 += 2)
                 roots.push_back(s1*st + s2*t1 - b_);
             }

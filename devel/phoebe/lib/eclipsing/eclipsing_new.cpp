@@ -30,13 +30,13 @@ int main(){
  
  
   clock_t start, end;
+  int  max_triangles = 10000000;
      
   //
   // Overcontact case
   //
   
-  int  max_triangles = 10000000;
-    
+  /*  
   double 
     q = 0.5,
     F = 0.5,
@@ -44,7 +44,15 @@ int main(){
     Omega0 = 2.65,
     
     delta = 0.01;
-
+  */
+  double 
+    q = 1,
+    F = 1,
+    deltaR = 1,
+    Omega0 = 10,
+    
+    delta = 0.01;
+    
   std::vector<double> x_points;
     
   gen_roche::points_on_x_axis(x_points, Omega0, q, F, deltaR);
@@ -103,13 +111,13 @@ int main(){
   
   std::vector<double> M;
   std::vector<T3Dpoint<double>> W;
-  
+  std::vector<std::vector<int>> H;
   
   double 
     theta = 20./180*M_PI, 
     view[3] = {std::cos(theta), 0, std::sin(theta)};
     
-  triangle_mesh_visibility(view, V, Tr, N, &M, &W);
+  triangle_mesh_visibility(view, V, Tr, N, &M, &W, &H);
 
   end = clock();
   
@@ -148,14 +156,24 @@ int main(){
   fr.close();
  
  
-   //
-  // Saving mask
+  //
+  // Saving weights
   //
   fr.open("mask_weights.dat");
   for (auto && w : W) fr << w << '\n';
   fr.close();
   
+  //
+  // Saving horizon
+  //
+  fr.open("horizon.dat");
+  for (auto && h : H) {
+    fr << h.size() << '\n';
+    for (auto && index : h) fr << V[index] << '\n';
+  }
+  fr.close();
   
+
   end = clock();
   std::cout << " time= " << end - start << " um\n";
 

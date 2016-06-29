@@ -3,5 +3,5 @@ CXXFLAGS=-O3 -Wall -std=c++11
 
 all:cubic_quartic
 
-cubic_quartic:cubic_quartic.cpp
+cubic_quartic:cubic_quartic.cpp utils.h
 	$(CC) cubic_quartic.cpp -o cubic_quartic $(CXXFLAGS)
