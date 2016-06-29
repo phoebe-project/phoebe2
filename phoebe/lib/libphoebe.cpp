@@ -1055,7 +1055,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     b_areas = false,
     b_area = false,
     b_volume = false;
-  
+    
   // http://wingware.com/psupport/python-manual/2.3/api/boolObjects.html
   PyObject
     *o_vertices = 0, 
@@ -1068,7 +1068,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     *o_cnormgrads = 0,
     *o_areas = 0,
     *o_area = 0,
-    *o_volume = 0; 
+    *o_volume = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "ddddd|iiO!O!O!O!O!O!O!O!O!O!O!", kwlist,
@@ -1148,6 +1148,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr; 
   std::vector<double> *GatV = 0;
+     
    
   if (b_vnormgrads) GatV = new std::vector<double>;
   
@@ -1253,7 +1254,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   Python:
 
-    dict = marching_mesh(omega, Omega0, delta, <keyword>=[true,false], ... )
+    dict = rotstar_marching_mesh(omega, Omega0, delta, <keyword>=[true,false], ... )
     
   where parameters
   
@@ -1584,33 +1585,37 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
     (char*)"tnormals",
     (char*)"tvisibilities",
     (char*)"taweights",
+    (char*)"horizon",
     NULL};
        
   PyArrayObject *ov = 0, *oV = 0, *oT = 0, *oN = 0;
   
-  PyObject *o_tvisibilities = 0, *o_taweights = 0;
+  PyObject *o_tvisibilities = 0, *o_taweights = 0, *o_horizon = 0;
   
   bool 
     b_tvisibilities = true,
-    b_taweights = false;
+    b_taweights = false,
+    b_horizon = false;
   
   // parse arguments
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds, "O!O!O!O!|O!O!", kwlist,
+        args, keywds, "O!O!O!O!|O!O!O!", kwlist,
         &PyArray_Type, &ov,
         &PyArray_Type, &oV, 
         &PyArray_Type, &oT,
         &PyArray_Type, &oN,
         &PyBool_Type, &o_tvisibilities,
-        &PyBool_Type, &o_taweights
+        &PyBool_Type, &o_taweights,
+        &PyBool_Type, &o_horizon    
         )
       )
     return NULL;
   
   if (o_tvisibilities) b_tvisibilities = PyObject_IsTrue(o_tvisibilities);
   if (o_taweights) b_taweights = PyObject_IsTrue(o_taweights);
-    
-  if (!b_tvisibilities && !b_taweights) return NULL;
+  if (o_horizon) b_horizon = PyObject_IsTrue(o_horizon);
+      
+  if (!b_tvisibilities && !b_taweights && !b_horizon) return NULL;
   
   if (!PyArray_ISCONTIGUOUS(ov)|| 
       !PyArray_ISCONTIGUOUS(oV)|| 
@@ -1638,10 +1643,13 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   std::vector<T3Dpoint<double>> *W = 0;
   if (b_taweights) W = new std::vector<T3Dpoint<double>>;
   
+  std::vector<std::vector<int>> *H = 0;
+  if (b_horizon) H = new std::vector<std::vector<int>>;
+  
   //
   //  Calculate visibility
   //
-  triangle_mesh_visibility(view, V, T, N, M, W);
+  triangle_mesh_visibility(view, V, T, N, M, W, H);
   
   //
   // Storing results in dictionary
@@ -1657,7 +1665,14 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   
   if (b_taweights) {
     PyDict_SetItemString(results,"taweights", PyArray_From3DPointVector(*W));
-    delete W;  
+    delete W; 
+  }
+
+  if (b_horizon) {
+    PyObject *list = PyList_New(0);
+    for (auto && h : *H) PyList_Append(list, PyArray_FromVector(h));
+    PyDict_SetItemString(results, "horizon", list);
+    delete H;  
   }
 
   return results;
@@ -1925,7 +1940,7 @@ static PyMethodDef Methods[] = {
       (PyCFunction)roche_area_volume,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the area and volume of the generalized Roche lobes for given "
-      "values of q, F, d and Omega0"},
+      "values of q, F, d and Omega0."},
    
     { "rotstar_area_volume", 
       (PyCFunction)rotstar_area_volume,   
@@ -1937,31 +1952,38 @@ static PyMethodDef Methods[] = {
       (PyCFunction)roche_Omega_at_vol,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the value of the generalized Kopal potential at "
-      "values of q, F, d and volume"},
+      "values of q, F, d and volume."},
    
     { "roche_points_on_x_axis",
       roche_points_on_x_axis,
       METH_VARARGS, 
       "Calculate the points on x-axis of the generalized Roche lobes "
-      "ar values of q, F, d and Omega0"},
+      "ar values of q, F, d and Omega0."},
   
     { "roche_gradOmega", 
       roche_gradOmega,   
       METH_VARARGS, 
       "Calculate the gradient and the value of the generalized Kopal potentil"
-      " at given point [x,y,z] for given values of q, F and d"},  
+      " at given point [x,y,z] for given values of q, F and d."},  
+  
+      { "rotstar_gradOmega", 
+      rotstar_gradOmega,   
+      METH_VARARGS, 
+      "Calculate the gradient and the value of the rotating star potential"
+      " at given point [x,y,z] for given values of omega."},  
+  
       
     { "roche_gradOmega_only", 
       roche_gradOmega_only,   
       METH_VARARGS, 
       "Calculate the gradient of the generalized Kopal potential"
-      " at given point [x,y,z] for given values of q, F and d"},   
+      " at given point [x,y,z] for given values of q, F and d."},   
     
     { "rotstar_gradOmega_only", 
       rotstar_gradOmega_only,   
       METH_VARARGS, 
-      "Calculate the gradient of the rotating star  potentil"
-      " at given point [x,y,z] for given values of omega"},   
+      "Calculate the gradient of the rotating star potential"
+      " at given point [x,y,z] for given values of omega."},   
     
     { "roche_marching_mesh", 
       (PyCFunction)roche_marching_mesh,   

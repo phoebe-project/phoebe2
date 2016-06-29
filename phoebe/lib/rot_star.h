@@ -199,44 +199,104 @@ namespace rot_star {
     }  
     
     //
-    // Finding the rescaled equator
+    // Testing if the solution exists
     //
     
-    T b = omega*omega/(2*Omega3),
-      bcrit =  4/27.;               // critical b
+    T b = omega*omega/(2*Omega3);
     
     
-    if (b > bcrit) {
+    if (b > 4/27.) { // critical b = 4/27
       std::cerr << "rotstar::area_volume:There is no solution for equator.\n";
       return;
     }
     
-    T u0;
+    //
+    // Integrate using new variables
+    //  v = Omega z, u = Omega rho  rho^2 = x^2 + y^2 
+    // we additionally introduce
+    //  s = u^2, t = v^2  dt = 2v dv
+    // and rewrite equation for potential:
+    //  1 = 1/sqrt(s + t) + b s     t in [0,1]   
+    // where
+    //  t=1 is pole, t=0 is equator
+    // with b = 1/2 omega^2/Omega^3
     
-    if (b == bcrit )  
-      u0 = 1.5;
-    else {
-      T a[4] = {1, -1, 0, b};
-        
-      std::vector<T> roots;
+    // u du/dv = 1/2 ds/dv = v*ds/dt
+    
+    int m = 1 << 16;
+    
+    T dt = 1./m, 
+      t = 1,
+      s = 0, A = 0, V = 0,
+      k[4][3],
       
-      utils::solve_cubic(a, roots);
-     
-      for (auto && u: roots) if (u > 0) {
-        u0 = u;
-        break;
-      }
+      // auxiliary variables  
+      t1, s1, q, dv, F;
+
+    for (int i = 0; i < m; ++i) {
+      
+      //
+      // 1. step
+      //
+      t1 = t; 
+      s1 = s; 
+      q = t1 + s1; 
+      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
+      dv = dt/(2*std::sqrt(s1));
+      
+      k[0][0] = dt*F;                                   // = dt*ds/dt
+      if (b_area) k[0][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[0][2] = dv*s1;                    // dv u^2
+        
+      // prepare: y1 = y + k0/2
+      s1 = s + k[0][0]/2;
+      
+      //
+      // 2. step 
+      //
+      t1 = t - dt/2;
+      q = t1 + s1; 
+      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
+      dv = dt/(2*std::sqrt(s1));
+      
+      k[1][0] = dt*F;                                   // = dt*ds/dt
+      if (b_area) k[1][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[1][2] = dv*s1;                    // dv u^2
+      
+      // prepare: y1 = y + k1/2
+      s1 = s + k[1][0]/2;
+      
+      //
+      // 3. step
+      //
+      q = t1 + s1; 
+      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
+      dv = dt/(2*std::sqrt(s1));
+      
+      k[2][0] = dt*F;                                   // = dt*ds/dt
+      if (b_area) k[2][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[2][2] = dv*s1;                    // dv u^2
+      
+      
+      // prepare: y1 = y + k1/2
+      s1 = s + k[2][0];
+      
+      // 4. step
+      t1 = t - dt;
+      q = t1 + s1; 
+      F = 1./(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
+      dv = dt/(2*std::sqrt(s1));
+      
+      k[3][0] = dt*F;                                   // = dt*ds/dt
+      if (b_area) k[3][1] = dv*std::sqrt(s1 + t1*F*F);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[3][2] = dv*s1;                    // dv u^2
+    
+      s += (k[0][0] + 2*(k[1][0] + k[2][0]) + k[3][0])/6;  
+      if (b_area) A += (k[0][1] + 2*(k[1][1] + k[2][1]) + k[3][1])/6;
+      if (b_volume) V += (k[0][2] + 2*(k[1][2] + k[2][2]) + k[3][2])/6;
+      
+      t -= dt;
     }
-    
-    //
-    // Integrate
-    //
-    
-    T A, V, s0 = u0*u0;
-    
-    // ??????
-    // Need to insert the actual integrals
-    
     
     if (b_area) av[0] = utils::M_4PI*A/Omega2;
     if (b_volume) av[1] = utils::M_2PI*V/Omega3;

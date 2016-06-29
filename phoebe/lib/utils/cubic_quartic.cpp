@@ -46,5 +46,18 @@ int main(){
   
   for (auto && v : roots) std::cout << v << '\n';  
   
+  
+  double 
+    w = 27092.1846036,
+    q = 1,
+    a5[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
+  
+  utils::solve_quartic(a5, roots);
+  
+  std::cout << "Quartic:\n";
+  
+  for (auto && v : roots) std::cout << v << '\n'; 
+  
+  
   return 0;
 }

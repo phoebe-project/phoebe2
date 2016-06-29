@@ -60,6 +60,40 @@ int main(){
   #if 1
   
   //
+  // Some simple Roche lobe
+  //
+  
+  int  max_triangles = 10000000;
+    
+  double 
+    q = 1,
+    F = 1,
+    deltaR = 1,
+    Omega0 = 27092.1846036;
+    
+
+  std::vector<double> x_points;
+    
+  gen_roche::points_on_x_axis(x_points, Omega0, q, F, deltaR);
+  
+      
+  double  
+    x0 = x_points.front(),               
+    delta = std::abs(x0)/10,
+    params[5] = {q, F, deltaR, Omega0, x0};   
+  
+  std::cout.precision(16);
+  std::cout << x0 << '\n';
+  
+  
+  Tmarching<double, Tgen_roche<double>> march(params);
+  #endif
+  
+  
+  
+  #if 0
+  
+  //
   // Overcontact case
   //
   
@@ -196,6 +230,7 @@ int main(){
     
     std::ofstream fr("vertices.dat");
     fr.precision(16);
+    fr << std::scientific;
     for (auto && v: V) fr << v << '\n';
     fr.close();
     
