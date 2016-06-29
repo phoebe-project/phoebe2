@@ -404,7 +404,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
 
-    distance = b.get_value(qualifier='distance', context='system', unit=u.solRad)
+    distance = b.get_value(qualifier='distance', context='system', unit=u.m)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
     if dynamics_method == 'nbody':

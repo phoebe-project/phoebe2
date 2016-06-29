@@ -296,7 +296,7 @@ class System(object):
 
         Integrate over visible surface elements and return a dictionary of observable values
 
-        distance (solRad)
+        distance (m)
         """
 
         meshes = self.meshes
