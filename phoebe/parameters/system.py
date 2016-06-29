@@ -23,7 +23,7 @@ def system(**kwargs):
     #params += [FloatParameter(qualifier='pmra', value=kwargs.get('pmra', 0.0), default_unit=u.mas/u.yr, description='Proper motion in right ascension')]
     #params += [FloatParameter(qualifier='pmdec', value=kwargs.get('pmdec', 0.0), default_unit=u.mas/u.yr, description='Proper motion in declination')]
 
-    params += [FloatParameter(qualifier='distance', value=kwargs.get('distance', 1.0), default_unit=u.solRad, description='Distance to the system')]
+    params += [FloatParameter(qualifier='distance', value=kwargs.get('distance', 1.0), default_unit=u.m, description='Distance to the system')]
     params += [FloatParameter(qualifier='vgamma', value=kwargs.get('vgamma', 0.0), default_unit=u.km/u.s, description='Systemic velocity')]
 
     return ParameterSet(params)

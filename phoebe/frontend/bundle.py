@@ -1409,7 +1409,8 @@ class Bundle(ParameterSet):
                                        dataset=kwargs['dataset'],
                                        component=component,
                                        value=value,
-                                       check_relevant=False)
+                                       check_relevant=False,
+                                       ignore_none=True)
             else:
                 if components == [None]:
                     components_ = None
@@ -1422,7 +1423,8 @@ class Bundle(ParameterSet):
                                    dataset=kwargs['dataset'],
                                    component=components_,
                                    value=v,
-                                   check_relevant=False)
+                                   check_relevant=False,
+                                   ignore_none=True)
 
 
 
