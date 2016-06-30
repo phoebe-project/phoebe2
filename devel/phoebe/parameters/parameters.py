@@ -4461,7 +4461,7 @@ class HierarchyParameter(StringParameter):
 
 
 
-    def get_primary_or_secondary(self, component):
+    def get_primary_or_secondary(self, component, return_ind=False):
         """
         return whether a given component is the 'primary' or 'secondary'
         component in its parent orbit
@@ -4477,6 +4477,9 @@ class HierarchyParameter(StringParameter):
 
         if ind > 1:
             return None
+
+        if return_ind:
+            return ind + 1
 
         return ['primary', 'secondary'][ind]
 
