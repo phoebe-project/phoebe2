@@ -676,7 +676,7 @@ struct Tmarching: public Tbody {
     T g[4], t, dr1, r1, fac;
     
     // decreasing precision is dangerous as it can miss the surface
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 1e-12; //10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
     
     if (r != ri) for (int i = 0; i <3; ++i) r[i] = ri[i];

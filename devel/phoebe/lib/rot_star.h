@@ -223,6 +223,8 @@ namespace rot_star {
     
     const int m = 1 << 16;
     
+    int j;
+    
     T dv = 1./m, v = 1,
       s = 0, A = 0, V = 0, k[4][3],
       
@@ -234,58 +236,70 @@ namespace rot_star {
       //
       // 1. step
       //
+      j = 0;
       v1 = v; 
       s1 = s; 
       q = v1*v1 + s1; 
       F = 2*v1/(1 - 2*b*q*std::sqrt(q));              // = ds/dv
       
-      k[0][0] = dv*F;                                 // = dv*ds/dv
-      if (b_area) k[0][1] = dv*std::sqrt(s1 + F*F/4); // dv (u^2 + (udu/dv)^2)^(1/2)
-      if (b_volume) k[0][2] = dv*s1;                  // dv u^2
+      k[j][0] = dv*F;                                 // = dv*ds/dv
+      if (b_area) k[j][1] = dv*std::sqrt(s1 + F*F/4); // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[j][2] = dv*s1;                  // dv u^2
         
       // prepare: y1 = y + k0/2
-      s1 = s + k[0][0]/2;
+      s1 = s + k[j][0]/2;
       
       //
       // 2. step 
       //
+      j = 1;
       v1 = v - dv/2;
       q = v1*v1 + s1; 
       F = 2*v1/(1 - 2*b*q*std::sqrt(q));               // =ds/dv
        
-      k[1][0] = dv*F;                                  // = dv*ds/dv
-      if (b_area) k[1][1] = dv*std::sqrt(s1 + F*F/4);  // dv (u^2 + (udu/dv)^2)^(1/2)
-      if (b_volume) k[1][2] = dv*s1;                   // dv u^2
+      k[j][0] = dv*F;                                  // = dv*ds/dv
+      if (b_area) k[j][1] = dv*std::sqrt(s1 + F*F/4);  // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[j][2] = dv*s1;                   // dv u^2
       
       // prepare: y1 = y + k1/2
-      s1 = s + k[1][0]/2;
+      s1 = s + k[j][0]/2;
       
       //
       // 3. step
       //
+      j = 2;
       q = v1*v1 + s1; 
       F = 2*v1/(1 - 2*b*q*std::sqrt(q));                // =ds/dv
       
-      k[2][0] = dv*F;                                   // = dv*ds/dv
-      if (b_area) k[2][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
-      if (b_volume) k[2][2] = dv*s1;                    // dv u^2
+      k[j][0] = dv*F;                                   // = dv*ds/dv
+      if (b_area) k[j][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[j][2] = dv*s1;                    // dv u^2
       
       
       // prepare: y1 = y + k1/2
-      s1 = s + k[2][0];
+      s1 = s + k[j][0];
       
       // 4. step
+      j = 3;
       v1 = v - dv;
       q = v1*v1 + s1; 
       F = 2*v1/(1 - 2*b*q*std::sqrt(q));                // =ds/dv
       
-      k[3][0] = dv*F;                                   // = dv*ds/dv
-      if (b_area) k[3][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
-      if (b_volume) k[3][2] = dv*s1;                    // dv u^2
+      k[j][0] = dv*F;                                   // = dv*ds/dv
+      if (b_area) k[j][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
+      if (b_volume) k[j][2] = dv*s1;                    // dv u^2
     
-      s += (k[0][0] + 2*(k[1][0] + k[2][0]) + k[3][0])/6;  
-      if (b_area) A += (k[0][1] + 2*(k[1][1] + k[2][1]) + k[3][1])/6;
-      if (b_volume) V += (k[0][2] + 2*(k[1][2] + k[2][2]) + k[3][2])/6;
+      j = 0; 
+      s += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
+      
+      if (b_area) {
+        j = 1;
+        A += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
+      }
+      if (b_volume) {
+        j = 2;
+        V += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
+      }
           
       v -= dv;
     }
