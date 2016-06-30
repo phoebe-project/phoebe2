@@ -757,7 +757,7 @@ class Body(object):
 
         # intens_norm_abs are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)].for_observations
+        intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)].centers
 
         # The luminosity will be the integrated NORMAL intensities, but since some
         # limbdarkening laws still darken/brighten at mu=0, we'll compute the
@@ -766,6 +766,9 @@ class Body(object):
         ld_coeffs = kwargs.get('ld_coeffs', [0.0,0.0])
         ld_func = kwargs.get('ld_func', 'logarithmic')
         ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.zeros(len(self.mesh.mus)), ld_coeffs)
+
+        # TODO: remove this once ld is tested
+        ld = 1.0
 
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
@@ -1612,7 +1615,7 @@ class Star(Body):
                 alpha_b = 0.0
 
             # light speed in Rsol/d
-            # TODO: should we mutliply velo__bol_ by -1?
+            # TODO: should we mutliply velocities by -1 (z convention)?
             ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
 
@@ -1624,7 +1627,6 @@ class Star(Body):
             ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus_for_computations), ld_coeffs)
 
             # Apply boosting/beaming and limb-darkening to the projected intensities
-
             intens_proj_abs = intens_norm_abs * ld * ampl_boost
             intens_proj_rel = intens_norm_rel * ld * ampl_boost
 
