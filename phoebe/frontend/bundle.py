@@ -14,6 +14,7 @@ from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.backend import backends
+from phoebe.distortions import roche
 from phoebe.frontend import io
 import libphoebe
 
@@ -241,23 +242,6 @@ class Bundle(ParameterSet):
         return io.load_legacy(filename)
 
     @classmethod
-    def default_star(cls, starname='sun'):
-        """Load a bundle with a default single star as the system.
-
-        sun
-
-        This is a constructor, so should be called as:
-
-        >>> b = Bundle.default_binary()
-
-        :return: instatiated :class`Bundle` object
-        """
-        b = cls()
-        b.add_star(component=starname)
-        b.set_hierarchy(_hierarchy.component(b[starname]))
-        return b
-
-    @classmethod
     def default_binary(cls, overcontact=False):
         """Load a bundle with a default binary as the system.
 
@@ -270,9 +254,9 @@ class Bundle(ParameterSet):
         :return: instantiated :class:`Bundle` object
         """
         b = cls()
-        b.add_star(component='primary')
-        b.add_star(component='secondary')
-        b.add_orbit(component='binary')
+        b.add_component('star', component='primary')
+        b.add_component('star', component='secondary')
+        b.add_component('orbit', component='binary')
         if overcontact:
             b.add_component('envelope', component='common_envelope')
             b.set_hierarchy(_hierarchy.binaryorbit,
@@ -792,92 +776,88 @@ class Bundle(ParameterSet):
                 else:
                     param.set_value(starrefs[0])
 
-        stars = self.hierarchy.get_stars()
-        orbits = self.hierarchy.get_orbits()
-
         # Handle inter-PS constraints
-        for component in stars:
-            if len(orbits):
-                logger.info('re-creating mass constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                if len(self.filter(context='constraint',
-                                   constraint_func='mass',
-                                component=component)):
-                    constraint_param = self.get_constraint(constraint_func='mass',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='mass',
-                                           component=component)
-                    self.add_constraint(constraint.mass, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.mass, component,
-                                        constraint=self._default_label('mass', context='constraint'))
+        for component in self.hierarchy.get_stars():
+            logger.info('re-creating mass constraint for {}'.format(component))
+            # TODO: will this cause problems if the constraint has been flipped?
+            if len(self.filter(context='constraint',
+                               constraint_func='mass',
+                            component=component)):
+                constraint_param = self.get_constraint(constraint_func='mass',
+                                                       component=component)
+                self.remove_constraint(constraint_func='mass',
+                                       component=component)
+                self.add_constraint(constraint.mass, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.mass, component,
+                                    constraint=self._default_label('mass', context='constraint'))
 
-                logger.info('re-creating comp_sma constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                if len(self.filter(context='constraint',
-                                   constraint_func='comp_sma',
-                                   component=component)):
-                    constraint_param = self.get_constraint(constraint_func='comp_sma',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='comp_sma',
-                                           component=component)
-                    self.add_constraint(constraint.comp_sma, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.comp_sma, component,
-                                        constraint=self._default_label('comp_sma', context='constraint'))
+            logger.info('re-creating comp_sma constraint for {}'.format(component))
+            # TODO: will this cause problems if the constraint has been flipped?
+            if len(self.filter(context='constraint',
+                               constraint_func='comp_sma',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='comp_sma',
+                                                       component=component)
+                self.remove_constraint(constraint_func='comp_sma',
+                                       component=component)
+                self.add_constraint(constraint.comp_sma, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.comp_sma, component,
+                                    constraint=self._default_label('comp_sma', context='constraint'))
 
-                logger.info('re-creating rotation_period constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                if len(self.filter(context='constraint',
-                                   constraint_func='rotation_period',
-                                   component=component)):
-                    constraint_param = self.get_constraint(constraint_func='rotation_period',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='rotation_period',
-                                           component=component)
-                    self.add_constraint(constraint.rotation_period, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.rotation_period, component,
-                                        constraint=self._default_label('rotation_period', context='constraint'))
+            logger.info('re-creating rotation_period constraint for {}'.format(component))
+            # TODO: will this cause problems if the constraint has been flipped?
+            if len(self.filter(context='constraint',
+                               constraint_func='rotation_period',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='rotation_period',
+                                                       component=component)
+                self.remove_constraint(constraint_func='rotation_period',
+                                       component=component)
+                self.add_constraint(constraint.rotation_period, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.rotation_period, component,
+                                    constraint=self._default_label('rotation_period', context='constraint'))
 
-                logger.info('re-creating incl_aligned constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                # TODO: what if the user disabled/removed this constraint?
-                if len(self.filter(context='constraint',
-                                   constraint_func='incl_aligned',
-                                component=component)):
-                    constraint_param = self.get_constraint(constraint_func='incl_aligned',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='incl_aligned',
-                                           component=component)
-                    self.add_constraint(constraint.incl_aligned, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.incl_aligned, component,
-                                        constraint=self._default_label('incl_aligned', context='constraint'))
+            logger.info('re-creating incl_aligned constraint for {}'.format(component))
+            # TODO: will this cause problems if the constraint has been flipped?
+            # TODO: what if the user disabled/removed this constraint?
+            if len(self.filter(context='constraint',
+                               constraint_func='incl_aligned',
+                            component=component)):
+                constraint_param = self.get_constraint(constraint_func='incl_aligned',
+                                                       component=component)
+                self.remove_constraint(constraint_func='incl_aligned',
+                                       component=component)
+                self.add_constraint(constraint.incl_aligned, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.incl_aligned, component,
+                                    constraint=self._default_label('incl_aligned', context='constraint'))
 
-                logger.info('re-creating potential constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                if len(self.filter(context='constraint',
-                                   constraint_func='potential',
-                                   component=component)):
-                    constraint_param = self.get_constraint(constraint_func='potential',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='potential',
-                                           component=component)
-                    self.add_constraint(constraint.potential, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.potential, component,
-                                        constraint=self._default_label('potential', context='constraint'))
+            logger.info('re-creating potential constraint for {}'.format(component))
+            # TODO: will this cause problems if the constraint has been flipped?
+            if len(self.filter(context='constraint',
+                               constraint_func='potential',
+                               component=component)):
+                constraint_param = self.get_constraint(constraint_func='potential',
+                                                       component=component)
+                self.remove_constraint(constraint_func='potential',
+                                       component=component)
+                self.add_constraint(constraint.potential, component,
+                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                    constraint=constraint_param.constraint)
+            else:
+                self.add_constraint(constraint.potential, component,
+                                    constraint=self._default_label('potential', context='constraint'))
 
 
         redo_kwargs = {k: v for k, v in hier_param.to_dict().items()
@@ -957,26 +937,28 @@ class Bundle(ParameterSet):
             comp_ps = self.get_component(component)
             parent_ps = self.get_component(hier.get_parent_of(component))
             if kind in ['star']:
-                if parent_ps.component is not None:
-                    # MUST NOT be overflowing at PERIASTRON (1-ecc)
-                    # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
-                    # TODO: only do this if distortion_method == 'roche'
-                    pot = comp_ps.get_value('pot')
-                    q = parent_ps.get_value('q')
-                    # TODO: do we need to invert q for secondary or not (pot is defined as if this was primary)
-                    if hier.get_primary_or_secondary(component) == 'secondary':
-                        q = 1./q
-                    F = comp_ps.get_value('syncpar')
-                    d = 1 - parent_ps.get_value('ecc')
+                # MUST NOT be overflowing at PERIASTRON (1-ecc)
+                # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
+                # TODO: only do this if distortion_method == 'roche'
+                q = parent_ps.get_value('q')
+                pot = comp_ps.get_value('pot')
 
-                    # TODO: this needs to be generalized once other potentials are supported
-                    critical_pots = libphoebe.roche_critical_potential(q, F, d)
+                # Check if the component is primary or secondary; if the
+                # latter, flip q and transform pot.
+                comp = hier.get_primary_or_secondary(component, return_ind=True)
+                q = roche.q_for_component(q, comp)
+                pot = roche.pot_for_component(pot, q, comp)
 
-                    if pot < critical_pots[0] or\
-                            pot < critical_pots[1] or\
-                            pot < critical_pots[2]:
-                        return False,\
-                            '{} is overflowing at periastron ({:.02f}, {:.02f}, {:.02f})'.format(component, *critical_pots)
+                F = comp_ps.get_value('syncpar')
+                d = 1 - parent_ps.get_value('ecc')
+
+                # TODO: this needs to be generalized once other potentials are supported
+                critical_pots = libphoebe.roche_critical_potential(q, F, d)
+                print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
+
+                if pot < critical_pots[0] or pot < critical_pots[1]:
+                    return False,\
+                        '{} is overflowing at periastron ({:.02f}, {:.02f}, {:.02f})'.format(component, *critical_pots)
             elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
                 # TODO: implement this check based of fillout factor or crit_pots constrained parameter

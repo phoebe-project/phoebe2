@@ -1,5 +1,4 @@
-
-# import numpy as np
+import numpy as np
 # from numpy import cos, sin, tan, pi, sqrt
 
 from phoebe import c
@@ -38,7 +37,13 @@ def rpole2potential(rpole, q, e, F, sma=1.0, component=1):
     d = 1-e
     q = q_for_component(q, component=component)
     rpole_ = np.array([0, 0, rpole/sma])
-    return libphoebe.roche_Omega(q, F, d, rpole_)
+    pot = libphoebe.roche_Omega(q, F, d, rpole_)
+    if component == 1:
+        return pot
+    elif component == 2:
+        return pot/q + 0.5*(q-1)/q
+    else:
+        raise NotImplementedError
 
 def potential2rpole(pot, q, e, F, sma=1.0, component=1):
     """
@@ -47,5 +52,4 @@ def potential2rpole(pot, q, e, F, sma=1.0, component=1):
     d = 1-e
     q = q_for_component(q, component=component)
     Phi = pot_for_component(pot, q, component=component)
-    rpole_ = libphoebe.roche_pole(q, F, d, Phi)
-    return rpole_[2] * sma
+    return libphoebe.roche_pole(q, F, d, Phi) * sma
