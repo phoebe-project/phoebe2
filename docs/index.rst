@@ -206,14 +206,14 @@ and assume you're comfortable with the general concepts and syntax of both
 Python and PHOEBE.
 
 
-Single Stars
+Single Stars (NOT YET OFFICIALLY SUPPORTED)
 ------------------------------
 
 .. toctree::
    :maxdepth: 1
    :titlesonly:
 
-   Sun (rotating single star)<examples/sun>
+   Sun (rotating single star) (TESTING - not yet supported)<examples/sun>
 
 
 Binary Stars
@@ -234,7 +234,7 @@ Binary Stars
 COMING SOON (examples from literature)
 
 
-Triple Stars
+Triple Stars (NOT YET OFFICIALLY SUPPORTED)
 -------------------------------
 
 .. toctree::
@@ -249,7 +249,19 @@ Triple Stars
 COMING SOON (examples from literature)
 
 
-Advanced Constraints
+Planetary System (NOT YET OFFICIALLY SUPPORTED)
+-------------------------------
+
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   Sun-Earth (TESTING - not yet supported)<examples/sun_earth>
+
+COMING SOON (examples from literature)
+
+
+Advanced Constraints (NOT YET OFFICIALLY SUPPORTED)
 ------------------------------
 
 COMING SOON (creating custom constraints, main-sequence, etc)
