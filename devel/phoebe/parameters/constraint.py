@@ -113,18 +113,31 @@ def sqrt(param):
 
 #}
 #{ Built-in functions
-def rpole2potential(rpole, q, e, syncpar, sma, compno=1):
+def rocherpole2potential(rpole, q, e, syncpar, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(rpole._bundle, "rpole2potential(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (rpole,q,e,syncpar,sma)]), compno))
+    return ConstraintParameter(rpole._bundle, "rocherpole2potential(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (rpole,q,e,syncpar,sma)]), compno))
 
 
-def potential2rpole(pot, q, e, syncpar, sma, compno=1):
+def rochepotential2rpole(pot, q, e, syncpar, sma, compno=1):
     """
     TODO: add documentation
     """
-    return ConstraintParameter(pot._bundle, "potential2rpole(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (pot,q,e,syncpar,sma)]), compno))
+    return ConstraintParameter(pot._bundle, "rochepotential2rpole(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (pot,q,e,syncpar,sma)]), compno))
+
+def rotstarrpole2potential(rpole, rotfreq):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(rpole._bundle, "rotstarrpole2potential(%s)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (rpole, rotfreq)])))
+
+def rotstarpotential2rpole(pot, rotfreq):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(pot._bundle, "rotstarpotential2rpole(%s)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (pot, rotfreq)])))
+
 
 def esinw2per0(ecc, esinw):
     """
@@ -720,42 +733,62 @@ def potential(b, component, solve_for=None, **kwargs):
         # TODO: check whether the problem is 0 hierarchies or more than 1
         raise NotImplementedError("constraint for comp_sma requires hierarchy")
 
+
     component_ps = _get_system_ps(b, component)
 
     parentorbit = hier.get_parent_of(component)
-    parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    # metawargs = component_ps.meta
-    # metawargs.pop('qualifier')
 
-    pot = component_ps.get_parameter(qualifier='pot')
-    rpole = component_ps.get_parameter(qualifier='rpole')
-    syncpar = component_ps.get_parameter(qualifier='syncpar')
+    if parentorbit == 'component':
+        # then single star (rotstar) case
+        pot = component_ps.get_parameter(qualifier='pot')
+        rpole = component_ps.get_parameter(qualifier='rpole')
+        rotfreq = component_ps.get_parameter(qualifier='freq')
 
-    sma = parentorbit_ps.get_parameter(qualifier='sma')
-    q = parentorbit_ps.get_parameter(qualifier='q')
-    ecc = parentorbit_ps.get_parameter(qualifier='ecc')
-
-    if solve_for in [None, pot]:
-        lhs = pot
-        # Eq 3.20 from PHOEBE scientific reference
-        # delta = separation / a
-        # at periastron: separation = a(1-e)
-        # so delta at periastron = (1-e)
-
-        # TODO: this needs to include syncpar
-        # TODO: this probably should care about primary vs secondary (flip q?)
-
-        # rhs = 1./(rpole/sma) + q / ((1-ecc)**2+(rpole/sma)**2)**0.5
-
-        compno = {'primary': 1, 'secondary': 2}
-        rhs = rpole2potential(rpole, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
-    elif solve_for == rpole:
-        lhs = rpole
-        compno = {'primary': 1, 'secondary': 2}
-        rhs = potential2rpole(pot, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
+        if solve_for in [None, pot]:
+            lhs = pot
+            rhs = rotstarrpole2potential(rpole, rotfreq)
+        elif solve_for == rpole:
+            lhs = rpole
+            rhs = rotstarpotential2rpole(pot, rotfreq)
+        else:
+            raise NotImplementedError
     else:
-        raise NotImplementedError
+        # then binary (roche) case
+
+        parentorbit_ps = _get_system_ps(b, parentorbit)
+
+        # metawargs = component_ps.meta
+        # metawargs.pop('qualifier')
+
+        pot = component_ps.get_parameter(qualifier='pot')
+        rpole = component_ps.get_parameter(qualifier='rpole')
+        syncpar = component_ps.get_parameter(qualifier='syncpar')
+
+        sma = parentorbit_ps.get_parameter(qualifier='sma')
+        q = parentorbit_ps.get_parameter(qualifier='q')
+        ecc = parentorbit_ps.get_parameter(qualifier='ecc')
+
+        if solve_for in [None, pot]:
+            lhs = pot
+            # Eq 3.20 from PHOEBE scientific reference
+            # delta = separation / a
+            # at periastron: separation = a(1-e)
+            # so delta at periastron = (1-e)
+
+            # TODO: this needs to include syncpar
+            # TODO: this probably should care about primary vs secondary (flip q?)
+
+            # rhs = 1./(rpole/sma) + q / ((1-ecc)**2+(rpole/sma)**2)**0.5
+
+            compno = {'primary': 1, 'secondary': 2}
+            rhs = rocherpole2potential(rpole, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
+        elif solve_for == rpole:
+            lhs = rpole
+            compno = {'primary': 1, 'secondary': 2}
+            rhs = rochepotential2rpole(pot, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
+        else:
+            raise NotImplementedError
 
     return lhs, rhs, {'component': component}
 

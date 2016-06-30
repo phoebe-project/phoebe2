@@ -59,8 +59,10 @@ import logging
 logger = logging.getLogger("PARAMETERS")
 logger.addHandler(logging.NullHandler())
 
-_constraint_builtin_funcs = ['rpole2potential',
-                             'potential2rpole',
+_constraint_builtin_funcs = ['rocherpole2potential',
+                             'rochepotential2rpole',
+                             'rotstarrpole2potential',
+                             'rotstarpotential2rpole',
                              'esinw2per0',
                              'ecosw2per0',
                              'sin', 'cos', 'tan',
@@ -4856,7 +4858,12 @@ class ConstraintParameter(Parameter):
 
                 values = {var.user_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0, potential2rpole, rpole2potential
+                from phoebe.constraints.builtin import ecosw2per0, esinw2per0, rochepotential2rpole, rocherpole2potential, rotstarpotential2rpole, rotstarrpole2potential
+                # if len(self.hierarchy.get_meshables())==1:
+                    # from phoebe.distortions.rotstar import potential2rpole, rpole2potential
+                # else:
+                    # from phoebe.distortions.roche import potential2rpole, rpole2potential
+
                 #print "*** else if", eq.format(**values)
                 # print "***", eval(eq.format(**values))
                 value = float(eval(eq.format(**values)))
