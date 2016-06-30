@@ -407,10 +407,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     distance = b.get_value(qualifier='distance', context='system', unit=u.m)
     t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
 
-    if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0]) in ['roche']:
-        raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0])))
+    if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
+        raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
 
-    if len(starrefs) > 1:
+    if len(meshablerefs) > 1:
         if dynamics_method == 'nbody':
             # if distortion_method == 'roche':
                 # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
@@ -499,7 +499,13 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     if 'LC' in methods or 'RV' in methods:  # TODO this needs to be WAY more general
         # we only need to handle pblum_scale if we have a dataset method which requires
         # intensities
-        x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+        if len(meshablerefs) > 1:
+            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+        else:
+            x0, y0, z0 = [0.], [0.], [0.]
+            vx0, vy0, vz0 = [0.], [0.], [0.]
+            # TODO: star needs long_an (yaw?)
+            etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
 
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0)
 
@@ -565,8 +571,13 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 raise NotImplementedError('nbody not supported for meshes yet')
 
             # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
-            xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
-
+            if len(meshablerefs) > 1:
+                xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
+            else:
+                xi, yi, zi = [0.], [0.], [0.]
+                vxi, vyi, vzi = [0.], [0.], [0.]
+                # TODO: star needs long_an (yaw?)
+                ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', unit=u.rad)]
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
             # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]

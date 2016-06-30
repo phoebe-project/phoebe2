@@ -5,7 +5,7 @@ import os
 import copy
 
 from phoebe.atmospheres import limbdark, passbands
-from phoebe.distortions import roche
+from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, subdivision, potentials, mesh
 import libphoebe
 
@@ -35,7 +35,7 @@ def _value(obj):
     elif isinstance(obj, np.ndarray):
         return np.array([o.value for o in obj])
     elif hasattr(obj, '__iter__'):
-        return [o.value for o in obj]
+        return [_value(o) for o in obj]
     return obj
 
 
@@ -547,15 +547,15 @@ class Body(object):
 
         N = len(new_mesh_dict['triangles'])
 
-        if mesh_method == 'marching':
-            maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
-            if N>=(maxpoints-1):
-                raise ValueError(("Maximum number of triangles reached ({}). "
-                                  "Consider raising the value of the parameter "
-                                  "'maxpoints', or "
-                                  "decrease the mesh density. It is also "
-                                  "possible that the equipotential surface is "
-                                  "not closed.").format(N))
+        # if mesh_method == 'marching':
+        #     maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
+        #     if N>=(maxpoints-1):
+        #         raise ValueError(("Maximum number of triangles reached ({}). "
+        #                           "Consider raising the value of the parameter "
+        #                           "'maxpoints', or "
+        #                           "decrease the mesh density. It is also "
+        #                           "possible that the equipotential surface is "
+        #                           "not closed.").format(N))
 
 
         logger.info("covered surface with %d triangles"%(N))
@@ -685,11 +685,7 @@ class Body(object):
                                                Omega0=Phi)
 
             # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
-            if self.comp_no == 2:
-                # TODO: may need to invert this equation?
-                self._instantaneous_pot = self.q*Phi - 0.5 * (self.q-1)
-            else:
-                self._instantaneous_pot = Phi
+            self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
 
             #-- Reprojection
             logger.info("reprojecting mesh onto Phi={} at d={}".format(Phi, d))
@@ -1004,7 +1000,7 @@ class Star(Body):
         :parameter masses: mass of each component in the system (solMass)
         :type masses: list of floats
         :parameter float sma: sma of this component's parent orbit (solRad)
-        :parameter float freq_rot: rotation frequency (1/d)
+        :parameter float freq_rot: rotation frequency (rad/d)
         :parameter float abun: abundance of this star
         :parameter int ind_self: index in all arrays (positions, masses, etc) for this object
         :parameter int ind_sibling: index in all arrays (positions, masses, etc)
@@ -1035,10 +1031,8 @@ class Star(Body):
         # to translate Phi since all meshing methods assume a primary component
         self.Phi_user = Phi  # this is the value set by the user (not translated)
         self._instantaneous_pot = Phi  # this is again the value set by the user but will be updated for eccentric orbits at each time
-        if self.comp_no == 2:
-            self.Phi = self.q*Phi - 0.5 * (self.q-1)
-        else:
-            self.Phi = Phi
+        # NOTE: self.q may be flipped her for the secondary
+        self.Phi = roche.pot_for_component(Phi, self.q, self.comp_no)
 
         self.teff = teff
         self.gravb_bol = gravb_bol
@@ -1098,7 +1092,7 @@ class Star(Body):
         F = self_ps.get_value('syncpar')
         Phi = self_ps.get_value('pot')
         freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
-        # NOTE: we need F for roche geometry (marching, reprojection), but freq_rot for ctrans.place_in_orbit
+        # NOTE: we need F for roche geometry (marching, reprojection), but freq_rot for ctrans.place_in_orbit and rotstar.marching
 
 
         masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
@@ -1107,7 +1101,8 @@ class Star(Body):
             ecc = b.get_value('ecc', component=label_orbit, context='component')
         else:
             # single star case
-            sma = 1.0  # TODO: make sure this is correct
+            # here sma is meaningless, but we'll compute the mesh using the polar radius as the scaling factor
+            sma = 1.0 #b.get_value('rpole', component=star, context='component', unit=u.solRad)
             ecc = 0.0
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
@@ -1220,7 +1215,7 @@ class Star(Body):
                 # doesn't quite do the right thing.
                 rpole = libphoebe.roche_pole(*mesh_args)
                 delta *= rpole
-                print delta
+                # print delta
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
@@ -1252,10 +1247,25 @@ class Star(Body):
 
             elif self.distortion_method == 'rotstar':
 
-                mesh_args = (self.freq_rot, Phi)
+                # freq_rot (1./d)
+                omega = rotstar.rotfreq_to_omega(self.freq_rot, scale=sma, solar_units=True)
 
-                rpole = libphoebe.rotstar_pole(*mesh_args)
+
+                sma /= 695700000.0
+
+                # rpole = libphoebe.rotstar_pole(*mesh_args) / sma # / 695700000.0  # TODO: is the 6.957 necessary?
+                rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)
+                # rpole is now in solar units
+                # rpole /= 695700000.0
+                rpole /= sma
                 delta *= rpole
+
+
+
+                mesh_args = (omega, Phi)
+
+                print "*** rotstar_marching_mesh", mesh_args, self.freq_rot, sma, rpole, delta
+                delta = 0.01
 
                 new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
                                                delta=delta,
@@ -1271,6 +1281,7 @@ class Star(Body):
                                                areas=True,
                                                volume=True)
 
+                # TODO: enable this once its supported by libphoebe
                 # av = libphoebe.rotstar_area_volume(*mesh_args,
                 #                                    larea=True,
                 #                                    lvolume=True)

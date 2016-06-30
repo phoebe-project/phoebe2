@@ -209,7 +209,11 @@ Python and PHOEBE.
 Single Stars
 ------------------------------
 
-COMING SOON - not yet supported
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   Sun (rotating single star)<examples/sun>
 
 
 Binary Stars
