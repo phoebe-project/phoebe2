@@ -160,15 +160,15 @@ namespace rot_star {
        
     Output:
       av[2] = {area, volume}
-  
+    
+    Precision is at least 10^-5.
+    
     Ref: 
       * https://en.wikipedia.org/wiki/Gaussian_quadrature
       * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
       * http://mathworld.wolfram.com/LobattoQuadrature.html <-- this would be better  
   */
  
- 
-  
   template<class T> 
   void area_volume(
     double *av, 
@@ -183,7 +183,6 @@ namespace rot_star {
     bool 
       b_area = (choice & 1u) == 1u,
       b_volume = (choice & 2u) == 2u;
-
 
     if (!b_area && !b_volume) return;
     
@@ -204,12 +203,11 @@ namespace rot_star {
     
     T b = omega*omega/(2*Omega3);
     
-    
     if (b > 4/27.) { // critical b = 4/27
       std::cerr << "rotstar::area_volume:There is no solution for equator.\n";
       return;
     }
-    
+
     //
     // Integrate using new variables
     //  v = Omega z, u = Omega rho  rho^2 = x^2 + y^2 
@@ -225,10 +223,8 @@ namespace rot_star {
     
     const int m = 1 << 16;
     
-    T dv = 1./m, 
-      v = 1,
-      s = 0, A = 0, V = 0,
-      k[4][3],
+    T dv = 1./m, v = 1,
+      s = 0, A = 0, V = 0, k[4][3],
       
       // auxiliary variables  
       v1, s1, q, F;
@@ -281,9 +277,9 @@ namespace rot_star {
       // 4. step
       v1 = v - dv;
       q = v1*v1 + s1; 
-      F = 2*v1/(1 - 2*b*q*std::sqrt(q));                  // =ds/dt
+      F = 2*v1/(1 - 2*b*q*std::sqrt(q));                // =ds/dv
       
-      k[3][0] = dv*F;                                   // = dt*ds/dt
+      k[3][0] = dv*F;                                   // = dv*ds/dv
       if (b_area) k[3][1] = dv*std::sqrt(s1 + F*F/4);   // dv (u^2 + (udu/dv)^2)^(1/2)
       if (b_volume) k[3][2] = dv*s1;                    // dv u^2
     

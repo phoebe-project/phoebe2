@@ -1166,11 +1166,59 @@ struct Tmarching: public Tbody {
         if (C) C->emplace_back(v);
         if (NatC) NatC->emplace_back(n); 
         if (GatC) GatC->emplace_back(g);
-      } else
-        std::cerr << "Warning: Projection did not converge\n";
-
+      } else std::cerr << "Warning: Projection did not converge\n";
     }    
   }
+  
+  /*
+  
+  
+  
+  */
+  bool find_point_on_horizon(
+    T view[3], 
+    T p[3], 
+    T *p_near, 
+    int max_iter = 100){
+      
+    return false;
+  }
+  
+  bool horizon(
+    T view[3], 
+    T p[3], 
+    std::vector<T3Dpoint<T>> H, 
+    int length=100) {
+    /*
+    int i, j;
+    
+    T sum, r[3], h[3], g[3], H[3][3];
+    
+    while () {
+      
+      // calculate gradient
+      this->grad_only(r, g);
+      
+      // calc hessian matrix H
+      this->hessian(r, H);
+      
+      // calc h = H view
+      sum = 0;
+      for (i = 0; i < 3; ++i){
+        sum = 0;
+        for (j = 0; j < 3; ++j) sum += H[i][j]*view[j];
+        h[i] = sum;
+      } 
+    
+      
+    }
+    
+    
+    
+    */
+    return false;
+  }
+
 }; // class marching
 
 
