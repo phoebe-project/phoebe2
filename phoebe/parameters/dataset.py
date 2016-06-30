@@ -392,7 +392,7 @@ def mesh_syn(syn=True, **kwargs):
                         raise NotImplementedError
 
                     if method in ['LC', 'RV']:
-                        syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.watt, description='Passband Luminosity of entire star')]
+                        syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
 
 
                     for indep, default_unit in indeps.items():
