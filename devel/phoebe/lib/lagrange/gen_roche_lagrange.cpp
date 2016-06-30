@@ -24,6 +24,7 @@
 
 int main(){
   
+  #if 0 
   std::string s;
   
   double x, q, F;
@@ -90,6 +91,22 @@ int main(){
     
     f.close();
   }
+  #else
   
+  double 
+    q = 3.00348934885e-06, 
+    F = 365.25;
+  
+  std::cout.precision(16);
+  std::cout << std::scientific;
+  
+  std::cout  
+    << gen_roche::lagrange_point_L1<double>(q, F) << '\t'
+    << gen_roche::lagrange_point_L2<double>(q, F) << '\t'
+    << gen_roche::lagrange_point_L3<double>(q, F) << '\n';
+   
+  
+  
+  #endif
   return 0;
 }

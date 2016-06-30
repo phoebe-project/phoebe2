@@ -197,7 +197,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
   
     (x,0,0)
   
-  of the generalized Roche lobes define by  generalized Kopal potential:
+  of the generalized Roche lobes define by generalized Kopal potential:
     
       Omega(x,y,z) = Omega0
   
@@ -566,7 +566,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
   if (b_larea) res_choice |= 1u;
   if (b_lvolume) res_choice |= 2u;
   
-  double av[2];
+  double av[2] = {0,0};
   
   rot_star::area_volume(av, res_choice, Omega0, omega);
     
@@ -908,6 +908,86 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
 }
 
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the value of the potential of the generalized
+  Kopal potential Omega at a given point
+
+      Omega (x,y,z; q, F, d)
+  
+  Python:
+    
+    Omega0 = roche_Omega(q, F, d, r)
+   
+   with parameters
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+
+static PyObject *roche_Omega(PyObject *self, PyObject *args) {
+
+  double p[4];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
+    return NULL;
+  
+  p[3] = 0;
+  
+  Tgen_roche<double> b(p, false);
+
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+
+
+
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the value of the potential of the rotating star at 
+  a given point
+
+      Omega (x,y,z; omega)
+  
+  Python:
+    
+    Omega0 = rotstar_Omega(omega, r)
+   
+   with parameters
+  
+      omega: float - parameter of the potential
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+
+static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
+
+  double p[2];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X))
+    return NULL;
+
+  Trot_star<double> b(p, false);
+  p[1] = 0;
+  
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
 
 /*
   Python wrapper for C++ code:
@@ -1900,9 +1980,103 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   return results;
 }
 
+/*
+  Python wrapper for C++ code:
 
-/*  define functions in module */
-/* 
+    Calculating the horizon on the Roche lobes based on a nearby point.
+    
+  Python:
+
+    H = roche_horizon(v, q, F, d, Omega0, <keywords>=<value>)
+    
+  with arguments
+  
+  positionals: necessary
+    v[3] - 1-rank numpy array: direction of the viewer  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    Omega0: float - value of the generalized Kopal potential
+  
+  keywords:
+    length: integer, default 1000, number of points on horizon
+    point_near: 1-rank numpy array: point near to the horizon
+  
+  Return: 
+    H: 2-rank numpy array of 3D point on a horizon
+*/
+static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"v",
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"length",
+    (char*)"point_near",
+    NULL
+  };
+  
+  PyArrayObject *oV, *oP = 0;
+  
+  double q, F, d, Omega0;   
+    
+  int 
+    length = 1000,
+    max_iter = 100;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!dddd|iO!", kwlist,
+      &PyArray_Type, &oV, 
+      &q, &F, &d, &Omega0,
+      &length,
+      &PyArray_Type, &oP)) return NULL;
+
+  bool b_point_near = (oP != 0);
+
+  if (!b_point_near){
+    std::cerr 
+    << "roche_horizon::Currently supporting only with given point_near\n";
+    return NULL;
+  } 
+  
+  double 
+    params[] = {q, F, d, Omega0},
+    *view = (double*) PyArray_DATA(oV),
+    *p_near= (double*) PyArray_DATA(oP);
+    
+  Tmarching<double, Tgen_roche<double>> march(params, false);
+
+  double p_on[3];
+  
+  if (!march.find_point_on_horizon(view, p_on, p_near, max_iter)) {
+    std::cerr 
+    << "roche_horizon::Convergence to the point on horizon failed\n";
+    return NULL;
+  }
+
+  std::vector<T3Dpoint<double>> H;
+  
+  if (!march.horizon(view, p_on, H, length)) {
+   std::cerr 
+    << "roche_horizon::Convergence to the point on horizon failed\n";
+    return NULL;
+  }
+  
+  return PyArray_From3DPointVector(H);
+}
+
+
+
+
+/*
+  Define functions in module
+   
   Some modification in declarations due to use of keywords
   Ref:
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
@@ -1920,9 +2094,9 @@ static PyMethodDef Methods[] = {
       METH_VARARGS, 
       "Determine the critical potentials of the rotating star potental "
       "for given values of omega."},
-    
-    
-    
+      
+// --------------------------------------------------------------------
+      
     { "roche_pole", 
       (PyCFunction)roche_pole,   
       METH_VARARGS|METH_KEYWORDS, 
@@ -1933,8 +2107,8 @@ static PyMethodDef Methods[] = {
       (PyCFunction)rotstar_pole,   
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the height of the pole of rotating star for given a omega."},
-   
-   
+
+// --------------------------------------------------------------------
    
     { "roche_area_volume", 
       (PyCFunction)roche_area_volume,   
@@ -1947,6 +2121,8 @@ static PyMethodDef Methods[] = {
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the area and volume of the rotating star for given a omega "
       "and Omega0"},
+
+// --------------------------------------------------------------------
    
     { "roche_Omega_at_vol", 
       (PyCFunction)roche_Omega_at_vol,   
@@ -1959,6 +2135,8 @@ static PyMethodDef Methods[] = {
       METH_VARARGS, 
       "Calculate the points on x-axis of the generalized Roche lobes "
       "ar values of q, F, d and Omega0."},
+
+// --------------------------------------------------------------------
   
     { "roche_gradOmega", 
       roche_gradOmega,   
@@ -1971,7 +2149,22 @@ static PyMethodDef Methods[] = {
       METH_VARARGS, 
       "Calculate the gradient and the value of the rotating star potential"
       " at given point [x,y,z] for given values of omega."},  
+ 
+// --------------------------------------------------------------------
   
+    { "roche_Omega", 
+      roche_Omega,   
+      METH_VARARGS, 
+      "Calculate the value of the generalized Kopal potentil"
+      " at given point [x,y,z] for given values of q, F and d."},  
+  
+      { "rotstar_Omega", 
+      rotstar_Omega,   
+      METH_VARARGS, 
+      "Calculate the value of the rotating star potential"
+      " at given point [x,y,z] for given values of omega."},  
+   
+// --------------------------------------------------------------------
       
     { "roche_gradOmega_only", 
       roche_gradOmega_only,   
@@ -1984,6 +2177,8 @@ static PyMethodDef Methods[] = {
       METH_VARARGS, 
       "Calculate the gradient of the rotating star potential"
       " at given point [x,y,z] for given values of omega."},   
+
+// --------------------------------------------------------------------
     
     { "roche_marching_mesh", 
       (PyCFunction)roche_marching_mesh,   
@@ -1998,24 +2193,37 @@ static PyMethodDef Methods[] = {
       "Determine the triangular meshing of a rotating star for given "
       "values of omega and value of the star potential Omega. The edge "
       "of triangles used in the mesh are approximately delta."},
-    
+
+// --------------------------------------------------------------------    
     
     { "mesh_visibility",
       (PyCFunction)mesh_visibility,
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the ratio of triangle surfaces that are visible in a triangular mesh."},
     
+    { "mesh_rough_visibility",
+      mesh_rough_visibility,
+      METH_VARARGS,
+      "Classify the visibility of triangles of the mesh into hidden, partially hidden and visible"},
+
+// --------------------------------------------------------------------    
+
     { "roche_reprojecting_vertices",
       (PyCFunction)roche_reprojecting_vertices,
       METH_VARARGS|METH_KEYWORDS, 
       "Reprojecting vertices onto the Roche lobe defined by q,F,d, and the value of"
       " generalized Kopal potential Omega."},
-    
-    { "mesh_rough_visibility",
-      mesh_rough_visibility,
-      METH_VARARGS,
-      "Classify the visibility of triangles of the mesh into hidden, partially hidden and visible"},
       
+// --------------------------------------------------------------------    
+
+    { "roche_horizon",
+      (PyCFunction)roche_horizon,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculating the horizon starting near to a given point of the "
+      " Roche lobe defined by q,F,d, and the value of generalized Kopal "
+      " potential Omega."},
+          
+            
     {NULL,  NULL, 0, NULL} // terminator record
 };
 

@@ -265,6 +265,23 @@ struct Tgen_roche {
   }
   
   /*
+    Definition of the potential minus the reference.
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+      Omega0 - Omega(x,y,z)
+  */
+  
+  T constrain(T r[3]) {
+    return Omega0 - (
+      1/utils::hypot3(r[0], r[1], r[2]) + 
+      q*(1/utils::hypot3(r[0] - delta, r[1], r[2]) - f0*r[0]) + b*(r[0]*r[0] + r[1]*r[1])/2
+    ); 
+  }
+  
+  /*
     Definition of the potential minus the reference and the 
     gradient of it:
       
@@ -382,6 +399,21 @@ struct Trot_star {
     w2 = omega*omega;
   }
   
+  /*
+    Definition of the potential minus the reference.
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+      Omega0 - Omega(x,y,z)
+  */
+  
+  T constrain(T r[3]) {
+    return 
+      Omega0 - 
+      (1/utils::hypot3(r[0], r[1], r[2]) + w2*(r[0]*r[0] + r[1]*r[1])/2); 
+  }
   /*
     Definition of the potential minus the reference and the 
     gradient of it:

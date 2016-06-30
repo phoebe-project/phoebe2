@@ -54,12 +54,10 @@ namespace gen_roche {
     const T & q,
     const T & F = 1,
     const T & delta = 1)
-  {
-    
-    T d2 = delta*delta,
-      x2 = x*x; 
-      
-    return 1/std::abs(x) + q*(1/std::abs(delta - x) - x/d2) + F*F*(1 + q)*x2/2;
+  {      
+    return 1/std::abs(x)
+           + q*(1/std::abs(delta - x) - x/(delta*delta))
+           + F*F*(1 + q)*x*x/2;
   }
 
   /*
@@ -90,20 +88,65 @@ namespace gen_roche {
     omega_crit[2] = 
       potential_on_x_axis(lagrange_point_L3(q, F, delta), q, F, delta);
   }
+  
   /*
     Unified treatment of the common equation for the poles of the 
     Roche lobes basicaly solving:
     
-      q/sqrt(1+ h^2) + 1/h = w
-    
+      q/sqrt(1 + h^2) + 1/h = w
   */
   
   template<class T>
   T poleLR(const T &w, const T &q){
     
     if (w < 0 || q < 0)  return -1;
+    
+    T s, h;
+    
+    bool iterative = true;
+    
+    if (w >= 10 && q < 4*w) {                //  w -> infty
+      s = 1/w;
+      h = s*(1 + q*s*(1 + q*s));
+    } else if (q >= 10 && w < 4*q) {         // q -> infty
+      s = 1/q;
+      h = 1/(s*w*(1 + s*(-1 + s*(1 + w*w/2))));
+    } else if (w < 2 + 2./3*q){              // w -> 0
+      s = w/(1 + q); 
+      h = 1/(s*(1 + q*s*s/(2*(1 + q))));
+    } else if (2*q < w + 2) {                // q -> 0
+      T t = 1 + w*w, t2 = t*t, t4 = t2*t2,
+        a = 1/(w*std::sqrt(t)),
+        b = w/t2,
+        c = (2*w*w - 3)/(2*t4*a);
         
-    if (w < 100 && q < 100) { // some normal regime
+      h = 1/w + q*(a + q*(b + c*q));
+    } else iterative = false;
+    
+    if (iterative) {  
+    
+      const int iter_max = 100;
+      const T eps = 4*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      int it = 0;
+      
+      T t1, t2, h2, f, dh, df;
+      
+      do {
+        h2 = h*h;
+        t1 = 1 + h2;
+        t2 = std::sqrt(t1);
+        
+        f = 1/h + q/t2 - w;
+        df = -1/h2 - h*q/(t1*t2); 
+        
+        h -= (dh = f/df);
+        
+      } while (std::abs(dh) <  eps*std::abs(h) + min && (++it) < iter_max);
+    
+    } else {  // some generic regime
+     
     
       T a[5] = {1, -2*w, 1 + (w + q)*(w - q), -2*w, w*w};
       
@@ -115,41 +158,6 @@ namespace gen_roche {
       
       return -1;
     }
-    
-    T s, h;
-    
-    if (w > 10 && q < 4*w) {          // asymptotics in w
-      s = 1/w;
-      h = s*(1 + q*s*(1 + q*s));
-
-    } else if (q > 10 && w < 4*q) {      // asymptotics in q
-      s = 1/q;
-      h = 1/(s*w*(1 + s*(-1 + s*(1 + w*w/2))));
-    } else { 
-       
-      h = 1;
-    }  
-      
-    const int iter_max = 100;
-    const T eps = 4*std::numeric_limits<T>::epsilon();
-    const T min = 10*std::numeric_limits<T>::min();
-    
-    int it = 0;
-    
-    T t1, t2, h2, f, dh, df;
-    
-    do {
-      h2 = h*h;
-      t1 = 1 + h2;
-      t2 = std::sqrt(t1);
-      
-      f = 1/h + q/t2 - w;
-      df = -1/h2 - h*q/(t1*t2); 
-      
-      h -= (dh = f/df);
-      
-    } while (std::abs(dh) <  eps*std::abs(h) + min && (++it) < iter_max);
-    
     
     return h;  
   }
