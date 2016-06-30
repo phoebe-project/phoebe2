@@ -1220,6 +1220,7 @@ class Star(Body):
                 # doesn't quite do the right thing.
                 rpole = libphoebe.roche_pole(*mesh_args)
                 delta *= rpole
+                print delta
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,

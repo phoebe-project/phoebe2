@@ -60,16 +60,18 @@ def wd_horizon(meshes, xs, ys, zs):
     horizon_inds = []
     # we only need the horizon of the ECLIPSING star, so we'll use mesh_front
     # and mus[i_front], xs[i_front], etc
-    lats = list(set(mesh_front.thetas))
+    lats = list(set(mesh_front.theta))
     for lat in lats:
-        lat_strip_inds = mesh_front.thetas == lat
+        lat_strip_inds = mesh_front.theta == lat
 
         # let's get the x-coordinate wrt THIS star so we can do left vs right
         x_rel = mesh_front.centers[:,0] - xs[i_front]
 
+        print lat, x_rel[lat_strip_inds].min(), x_rel[lat_strip_inds].max()
+
         # and since we want the first element in the front, let's just get rid of the back
         front_inds = mesh_front.mus >= 0.0
-        back_inds = mesh_front.mus <= 0.0
+        back_inds = mesh_front.mus < 0.0
 
         left_inds = x_rel < 0.0
         right_inds = x_rel >= 0.0
@@ -79,7 +81,7 @@ def wd_horizon(meshes, xs, ys, zs):
             no_triangles = len(mesh_front.mus[lat_strip_inds * side_inds * fb_inds])
             # print "*** no triangles at lat", lat, no_triangles
 
-            if no_triangles > 3:
+            if no_triangles > 0:
                 if side=='left':
                     # then we want the first triangle on the FRONT of the star
                     first_horizon_mu = mesh_front.mus[lat_strip_inds * side_inds * fb_inds].min()
