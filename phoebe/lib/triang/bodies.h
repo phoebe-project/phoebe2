@@ -303,7 +303,8 @@ struct Tgen_roche {
   
   void grad(T r[3], T ret[4]){
     
-    T x1 = r[0], 
+    long double 
+      x1 = r[0], 
       x2 = r[0] - delta, 
       y = r[1], 
       z = r[2], 
