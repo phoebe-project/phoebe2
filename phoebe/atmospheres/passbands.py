@@ -25,7 +25,7 @@ logger.addHandler(logging.NullHandler())
 _pbtable = {}
 
 class Passband:
-    def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, reference='', version=1.0, comments='', oversampling=1, from_file=False):
+    def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
         """
         Passband class holds data and tools for passband-related computations, such as
         blackbody intensity, model atmosphere intensity, etc.
@@ -36,6 +36,8 @@ class Passband:
         @pbname: name of the passband name (i.e. V)
         @effwl: effective wavelength in @wlunits
         @wlunits: wavelength units from astropy.units used in @ptf and @effwl
+        @calibrated: true if transmission is in true fractional light,
+                     false if it is in relative proportions
         @reference: passband transmission data reference (i.e. ADPS)
         @version: file version
         @comments: any additional comments about the passband
@@ -49,7 +51,7 @@ class Passband:
         
         .. testcode::
         
-            >>> pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, reference='ADPS', version=1.0, comments='')
+            >>> pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
 
         Step #2: compute intensities for blackbody radiation:
         
@@ -111,6 +113,7 @@ class Passband:
         self.pbset = pbset
         self.pbname = pbname
         self.effwl = effwl
+        self.calibrated = calibrated
         
         # Passband transmission function table:
         ptf_table = np.loadtxt(ptf).T
@@ -119,9 +122,7 @@ class Passband:
 
         # Spline fit to the passband transmission function table:
         self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0)
-        ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
-        self.ptf_area = integrate.quad(ptf, self.ptf_table['wl'][0], self.ptf_table['wl'][-1])[0]
-        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)/self.ptf_area
+        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
         # Working wavelength array:
         self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
@@ -133,8 +134,8 @@ class Passband:
         struct['pbset']         = self.pbset
         struct['pbname']        = self.pbname
         struct['effwl']         = self.effwl
+        struct['calibrated']    = self.calibrated
         struct['ptf_table']     = self.ptf_table
-        struct['ptf_area']      = self.ptf_area
         struct['ptf_func']      = self.ptf_func
         struct['ptf_wl']        = self.wl
         if 'blackbody' in self.content:
@@ -163,10 +164,10 @@ class Passband:
         self.pbset = struct['pbset']
         self.pbname = struct['pbname']
         self.effwl = struct['effwl']
+        self.calibrated = struct['calibrated']
         self.ptf_table = struct['ptf_table']
         self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
         self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
-        self.ptf_area = struct['ptf_area']
         self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
 
         if 'blackbody' in self.content:
@@ -180,7 +181,7 @@ class Passband:
         self.ptf_func[0] = np.fromstring(self.ptf_func[0])
         self.ptf_func[1] = np.fromstring(self.ptf_func[1])
         self.ptf_func = tuple(self.ptf_func)
-        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)/self.ptf_area
+        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
         if 'atmcof' in self.content:
             if not atmcof.meta.initialized:
@@ -214,11 +215,13 @@ class Passband:
         self._log10_Inorm_bb = lambda Teff: interpolate.splev(Teff, self._bb_func)
         self.content.append('blackbody')
 
-    def compute_ck2004_response(self, path):
+    def compute_ck2004_response(self, path, verbose=False):
         models = os.listdir(path)
         Teff, logg, met, Inorm = [], [], [], []
         
-        print('Computing Castelli-Kurucz passband intensities. This will take a while.')
+        if verbose:
+            print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+
         for i, model in enumerate(models):
             spc = np.loadtxt(path+'/'+model).T
             Teff.append(float(model[1:6]))
@@ -230,10 +233,10 @@ class Passband:
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
-            Inorm.append(np.log10(fl.sum()/1e10))  # 1e10 because of the 1AA dispersion
-            if 100*i % (len(models)) == 0:
-                print('%d%% done.' % (100*i/(len(models)-1)))
-            #~ print Teff[-1], logg[-1], met[-1], Inorm[-1]
+            Inorm.append(np.log10(fl.sum())-10)  # -10 because of the 1AA dispersion
+            if verbose:
+                if 100*i % (len(models)) == 0:
+                    print('%d%% done.' % (100*i/(len(models)-1)))
 
         Teff = np.array(Teff)
         logg = np.array(logg)/10
@@ -379,7 +382,7 @@ class Passband:
         return log10_Inorm
 
 
-    def Inorm(self, Teff=5860., logg=4.43, met=0.0, atm='blackbody'):
+    def Inorm(self, Teff=5772., logg=4.43, met=0.0, atm='blackbody'):
         if atm == 'blackbody':
             return 10**self._log10_Inorm_bb(Teff)
         elif atm == 'extern_planckint':
@@ -419,13 +422,13 @@ if __name__ == '__main__':
     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
     atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
 
-    jV = Passband('JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, reference='ADPS', version=1.0, comments='')
+    jV = Passband('tables/ptf/JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, calibrated=True, wlunits=u.AA, reference='ADPS', version=1.0, comments='')
     jV.compute_blackbody_response()
     jV.compute_ck2004_response('tables/ck2004')
     jV.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
     jV.save('tables/passbands/JOHNSON.V')
     
-    pb = Passband('KEPLER.PTF', pbset='Kepler', pbname='mean', effwl=5920.0, wlunits=u.AA, reference='Bachtell & Peters (2008)', version=1.0, comments='')
+    pb = Passband('tables/ptf/KEPLER.PTF', pbset='Kepler', pbname='mean', effwl=5920.0, calibrated=True, wlunits=u.AA, reference='Bachtell & Peters (2008)', version=1.0, comments='')
     pb.compute_blackbody_response()
     pb.compute_ck2004_response('tables/ck2004')
     pb.save('tables/passbands/KEPLER.PTF')
