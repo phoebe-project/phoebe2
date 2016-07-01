@@ -1,6 +1,7 @@
 import numpy as np
 
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
+import libphoebe
 import os
 
 import logging
@@ -184,7 +185,7 @@ def discretize_wd_style(N, q, F, d, Phi):
     Ts = []
 
     potential = 'BinaryRoche'
-    r0 = -project_onto_potential(np.array((-0.02, 0.0, 0.0)), potential, q, d, F, Phi).r[0]
+    r0 = libphoebe.roche_pole(q, F, d, Phi)
 
     # The following is a hack that needs to go!
     pot_name = potential
@@ -259,13 +260,13 @@ def discretize_wd_style(N, q, F, d, Phi):
             # does it and assign it to each element even though that isn't
             # quite its area:
             #
-            #   dsigma = r^2 sin(theta)/cos(gamma) dtheta dphi,
+            #   dsigma = || r^2 sin(theta)/cos(gamma) dtheta dphi ||,
             #
             # where gamma is the angle between l and n.
 
             cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
-            dsigma = np.dot(vc, vc)*np.sin(theta[t])/cosgamma*dtheta*dphi
-
+            dsigma = np.abs(np.dot(vc, vc)*np.sin(theta[t])/cosgamma*dtheta*dphi)
+            
             if DEBUG:
                 fc = 'orange'
 
