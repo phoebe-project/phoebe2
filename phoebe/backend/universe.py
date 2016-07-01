@@ -777,6 +777,8 @@ class Body(object):
 
         total_integrated_intensity = np.sum(intens_norm_abs*ld*areas) * np.pi
 
+        # NOTE: when this is computed the first time (for the sake of determing
+        # pblum_scale), get_pblum_scale will return 1.0
         return total_integrated_intensity * self.get_pblum_scale(dataset)
 
     def compute_pblum_scale(self, dataset, pblum, **kwargs):
@@ -1483,7 +1485,7 @@ class Star(Body):
         mesh.update_columns(abuns=abun)
 
 
-    def _populate_ifm(self, dataset, **kwargs):
+    def _populate_ifm(self, dataset, passband, **kwargs):
         """
         TODO: add documentation
 
@@ -1496,7 +1498,6 @@ class Star(Body):
         # given effective wavelength, i.e
         # eff_wave = kwargs.get('eff_wave', 6562e-7)
         # passband = kwargs.get('passband', eff_wave)
-        passband = kwargs.get('passband', 'Johnson:V')
         ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
         ld_func = kwargs.get('ld_func', 'logarithmic')
         atm = kwargs.get('atm', 'kurucz')
@@ -1509,7 +1510,7 @@ class Star(Body):
 
         return cols
 
-    def _populate_rv(self, dataset, **kwargs):
+    def _populate_rv(self, dataset, passband, **kwargs):
         """
         TODO: add documentation
 
@@ -1518,7 +1519,6 @@ class Star(Body):
         """
 
         # print "*** Star._populate_rv"
-        passband = kwargs.get('passband', 'Johnson:V')
         ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
         ld_func = kwargs.get('ld_func', 'logarithmic')
         atm = kwargs.get('atm', 'kurucz')
@@ -1547,7 +1547,7 @@ class Star(Body):
         return cols
 
 
-    def _populate_lc(self, dataset, **kwargs):
+    def _populate_lc(self, dataset, passband, **kwargs):
         """
         TODO: add documentation
 
@@ -1558,7 +1558,6 @@ class Star(Body):
         """
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
-        passband = kwargs.get('passband', 'Johnson:V')
 
         ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
         ld_func = kwargs.get('ld_func', 'logarithmic')
