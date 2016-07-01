@@ -1,8 +1,9 @@
-# PASS_SET  Johnson
-# PASSBAND  V
-# EFFWL     5500.0
-# WLFACTOR  1.0
-# REFERENCE Johnson, H. L. (1965), ApJ 141, 923
+# PASS_SET   Johnson
+# PASSBAND   V
+# EFFWL      5500.0
+# WLFACTOR   1.0
+# CALIBRATED True
+# REFERENCE  Johnson, H. L. (1965), ApJ 141, 923
 # Table taken from ADPS http://ulisse.pd.astro.it/Astro/ADPS/Systems/index.html         
 4750  0.000
 4800  0.030
