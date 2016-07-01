@@ -527,9 +527,11 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 # let's populate the intensities for THIS dataset at t0
                 #print "***", method, dataset, component, {p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()}
+                kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()+b.filter(qualifier='passband', dataset=dataset, method='*dep').to_list()}]
+
                 system.populate_observables(t0,
                     [method], [dataset],
-                    [{p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()}])
+                    kwargss)
 
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
@@ -604,10 +606,12 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
             # print "*** system.populate_observables", [info['method'] for info in infolist if info['needs_mesh']], [info['dataset'] for info in infolist if info['needs_mesh']]
+            kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], method='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()+b.filter(qualifier='passband', dataset=info['dataset'], method='*dep').to_list()} for info in infolist if info['needs_mesh']]
+
             system.populate_observables(time,
                     [info['method'] for info in infolist if info['needs_mesh']],
                     [info['dataset'] for info in infolist if info['needs_mesh']],
-                    [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], method='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()} for info in infolist if info['needs_mesh']]
+                    kwargss
                     )
 
 
