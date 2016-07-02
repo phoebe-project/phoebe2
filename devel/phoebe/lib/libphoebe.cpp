@@ -1768,7 +1768,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     
   Python:
 
-    Vnew = mesh_offseting(A, V, NatV, T)
+    dict = mesh_offseting(A, V, NatV, T, <keyword> = <value>)
     
   with arguments
     area : float - reference area
@@ -1777,10 +1777,30 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     T    : 2-rank numpy array of indices of vertices composing triangles
   
   (optional)
-   max_iter:integer, default 1000, maximal number of iterations
+    max_iter:integer, default 1000, maximal number of iterations
+    vertices: boolean, default True
+    tnormals: boolean, default False
+    areas: boolean, default False
+    volume: boolean, default False
   
-  Returns: 
-    Vnew: 2-rank numpy array of new vertices  
+  Returns: dictionary with keywords
+  
+    vertices
+      Vnew: 2-rank numpy array of new vertices
+    
+    tnormals: default false
+      NatT: 2-rank numpy array of normals of triangles
+  
+    areas:  default false
+      A: 1-rank numpy array of areas of triangles
+    
+    area:  default false
+      area: float - area of triangles of mesh
+    
+    volume:  default false
+      volume:float, volume of body enclosed by triangular mesh
+  
+  
 */
 
 static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywds){
@@ -1795,14 +1815,34 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     (char*)"NatV",
     (char*)"T",
     (char*)"max_iter",
+    (char*)"vertices",
+    (char*)"tnormals",
+    (char*)"areas",
+    (char*)"volume",
+    (char*)"area",
     NULL
   };
-  
+
   double area;
-    
-  PyArrayObject *oV, *oNatV, *oT;
-    
+  
   int max_iter = 100;
+    
+  bool 
+    b_vertices = true,
+    b_tnormals = false,
+    b_areas = false,
+    b_volume = false,
+    b_area = false;
+    
+      
+  PyArrayObject *oV, *oNatV, *oT;
+  
+  PyObject  
+    *o_vertices = 0,
+    *o_tnormals = 0,
+    *o_areas = 0,
+    *o_volume = 0,
+    *o_area = 0;
     
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dO!O!O!|i", kwlist,
@@ -1810,24 +1850,80 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
       &PyArray_Type, &oV, 
       &PyArray_Type, &oNatV, 
       &PyArray_Type, &oT,
-      &max_iter)) return NULL;
+      &max_iter,
+      &PyBool_Type, &o_vertices,
+      &PyBool_Type, &o_tnormals,
+      &PyBool_Type, &o_areas,
+      &PyBool_Type, &o_volume,
+      &PyBool_Type, &o_area
+      )) return NULL;
+
+
+
+  if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
+  if (o_tnormals) b_tnormals = PyObject_IsTrue(o_tnormals);
+  if (o_areas) b_areas = PyObject_IsTrue(o_areas);
+  if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+  if (o_area) b_area = PyObject_IsTrue(o_area);
 
   // storing data
   std::vector<T3Dpoint<double>> V, NatV;
-  std::vector<T3Dpoint<int>> T;
+  std::vector<T3Dpoint<int>> Tr;
 
   PyArray_To3DPointVector(oV, V);
   PyArray_To3DPointVector(oNatV, NatV);
-  PyArray_To3DPointVector(oT, T);
+  PyArray_To3DPointVector(oT, Tr);
 
+  //
   // running mesh offseting
-  if (!mesh_offseting_matching_area(area, V, NatV, T, max_iter)){
+  //
+  if (!mesh_offseting_matching_area(area, V, NatV, Tr, max_iter)){
     std::cerr << "mesh_offseting_matching_area::Offseting failed\n";
     return NULL;
   }
+
+  //
+  // calculate mesh properties
+  //
   
-  // returning 
-  return PyArray_From3DPointVector(V);
+  std::vector<T3Dpoint<double>> *NatT = 0;
+  if (b_tnormals) NatT = new std::vector<T3Dpoint<double>>; 
+
+  std::vector<double> *A = 0;
+  if (b_areas) A = new std::vector<double>;
+ 
+  double area_new, *p_area = 0, volume, *p_volume = 0;
+  
+  if (b_area) p_area = &area_new;
+  if (b_volume) p_volume = &volume;
+
+  mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume);
+  
+  //
+  // returning results
+  //  
+  PyObject *results = PyDict_New();
+  
+  if (b_vertices)
+    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+  
+  if (b_tnormals) {
+    PyDict_SetItemString(results,"tnormals", PyArray_From3DPointVector(*NatT));
+    delete NatT; 
+  }
+  
+  if (b_areas) {
+    PyDict_SetItemString(results,"areas", PyArray_FromVector(*A));
+    delete A; 
+  }
+
+  if (b_volume)
+    PyDict_SetItemString(results,"volume", PyFloat_FromDouble(volume));
+
+  if (b_area)
+    PyDict_SetItemString(results,"area", PyFloat_FromDouble(area_new));
+
+  return results;
 }
 
 /*
