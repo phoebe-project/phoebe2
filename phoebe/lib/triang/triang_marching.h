@@ -1239,118 +1239,7 @@ struct Tmarching: public Tbody {
     Output:
       H - trajectory on surface of the body 
   */
-  /*
-  bool horizon(
-    std::vector<T3Dpoint<T>> & H, 
-    T view[3], 
-    T p[3], 
-    const T &dt0,
-    const int max_iter = 100000) {
-         
-    T tol = 1e-14, 
-      min = 1e-100,
-      tmp, 
-      scale, tol_eff, err, t, dt_, dt = dt0, 
-      f[3][3], r[3][3], F[3];
-    
-    horizon_derivative(p, F, view);
-    
-    for (int i = 0; i < 3; ++i)  {
-      r[0][i] = p[i];
-      f[i][0] = f[i][1] = f[i][2] = 0;
-    }
-    
-    std::vector<T3Dpoint<T>> Hint;
-    
-    int it = 0;
-    
-    do {
-      
-      //
-      // Adaptive RK4 step
-      // Ref: http://www.aip.de/groups/soe/local/numres/bookcpdf/c16-2.pdf
-      
-      do {   
-        
-        for (int i = 0; i < 3; ++i) r[2][i] = r[1][i] = r[0][i];
-        
-        horizon_RK4step(r[1], dt, view);
-        horizon_RK4step(r[2], dt/2, view);
-        horizon_RK4step(r[2], dt/2, view);
-        
-        err = scale = 0;
-        for (int i = 0; i < 3; ++i) {
-          if ((tmp = std::abs(r[2][i] - r[1][i])) > err) err = tmp;
-          if ((tmp = std::abs(r[2][i])) > scale) scale = tmp; 
-        }
-        err /= scale;
-        
-        if (err > tol) {
-          dt_= 0.9*dt*std::pow(tol/err, 0.25);
-          dt = std::max(dt_, dt*0.1);
-        } else {
-          if (err > 1.89e-4) 
-            dt *= 0.9*std::pow(tol/err, 0.20);
-          else
-            dt *= 5; 
-            
-          dt = std::min(dt, dt0);
-          break;
-        }
-      
-        
-      } while (1);
-      
-      for (int i = 0; i < 3; ++i) 
-        r[0][i] = r[2][i] + (r[2][i] - r[1][i])/15;
-   
-      // shifted data about discrepancy
-      for (int i = 0; i < 3; ++i) {
-        f[2][i] = f[1][i];
-        f[1][i] = f[0][i];
-        f[0][i] = 0;
-      }
-      
-      // new data about discrepancy
-      for (int i = 0; i < 3; ++i) {
-        f[0][2] += (t = r[0][i] - p[i])*F[i];                // scalar product
-        if (f[0][0] < (t = std::abs(t))) f[0][0] = t;     // difference in points
-        if (f[0][1] < (t = std::abs(r[0][i]))) f[0][1] = t;  // size of points
-      }
-      
-      std::cout << dt << '\t' << f[0][0] << '\t' << f[0][1] << '\t' << f[0][2] << '\n';
-      
-      tol_eff = (it + 1)*tol;
-      
-      if (f[1][0] < tol_eff*f[1][1] + min && f[1][2] < 0 && f[0][2] > 0) 
-        break;    
-      else 
-        Hint.emplace_back(r[0]);
-          
-    } while (++it < max_iter);
-    
-    if (it == max_iter) return false;
-    
-    int N = 100,
-        Nint = Hint.size();
-    
-    if (Nint > N) {
-      
-      int i = 0;
-      
-      T n = 0, dn = T(N)/N;
-      
-      for (auto && v: Hint){
-        if (n >= i++) H.push_back(v);
-        n += dn;
-      }
-      
-    } else H = Hint;
-      
-    return true;
-  }
-  */
-  
+
   
   bool horizon(
     std::vector<T3Dpoint<T>> & H, 
@@ -1359,46 +1248,29 @@ struct Tmarching: public Tbody {
     const T &dt,
     const int max_iter = 100000) {
          
-    T t, f[3][3], r[3][3], F[3];
+    T f[2] = {0,0}, r[2][3], F[3];
     
     horizon_derivative(p, F, view);
     
-    for (int i = 0; i < 3; ++i)  {
-      r[0][i] = p[i];
-      f[i][0] = f[i][1] = f[i][2] = 0;
-    }
-    
+    for (int i = 0; i < 3; ++i)  r[0][i] = p[i];
+
     int it = 0;
     
     do {
       
-      for (int i = 0; i < 3; ++i) r[2][i] = r[1][i] = r[0][i];
-      
+      for (int i = 0; i < 3; ++i) r[1][i] = r[0][i];
+      horizon_RK4step(r[0], dt/2, view);
+      horizon_RK4step(r[0], dt/2, view);
       horizon_RK4step(r[1], dt, view);
-      horizon_RK4step(r[2], dt/2, view);
-      horizon_RK4step(r[2], dt/2, view);
-      
+
       // 2 x RK4 => error of O(dt^6)  
-      for (int i = 0; i < 3; ++i) 
-        r[0][i] = r[2][i] + (r[2][i] - r[1][i])/15;
+      for (int i = 0; i < 3; ++i) r[0][i] += (r[0][i] - r[1][i])/15;
    
-      // shifted data about discrepancy
-      for (int i = 0; i < 3; ++i) {
-        f[2][i] = f[1][i];
-        f[1][i] = f[0][i];
-        f[0][i] = 0;
-      }
+      f[1] = f[0], f[0] = 0;
+      for (int i = 0; i < 3; ++i) f[0] += (r[0][i] - p[i])*F[i];  
       
-      // new data about discrepancy
-      for (int i = 0; i < 3; ++i) {
-        f[0][2] += (t = r[0][i] - p[i])*F[i];                // scalar product
-        if (f[0][0] < (t = std::abs(t))) f[0][0] = t;     // difference in points
-        if (f[0][1] < (t = std::abs(r[0][i]))) f[0][1] = t;  // size of points
-      }
-      
-      //std::cout << dt << '\t' << f[0][0] << '\t' << f[0][1] << '\t' << f[0][2] << '\n';
-      
-      if (f[1][2] < 0 && f[0][2] > 0) 
+      // check the crossing through SOC
+      if (f[1] < 0 && f[0] > 0) 
         break;    
       else 
         H.emplace_back(r[0]);
