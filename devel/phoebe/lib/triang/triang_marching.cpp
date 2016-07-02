@@ -57,10 +57,10 @@ int main(){
   #endif
   
   
-  #if 1
+  #if 0
   
   //
-  // Some simple Roche lobe
+  // Some simple Roche lobe: large Omega limit
   //
   
   int  max_triangles = 10000000;
@@ -71,27 +71,27 @@ int main(){
     deltaR = 1,
     Omega0 = 27092.1846036;
     
-
-  std::vector<double> x_points;
-    
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, deltaR);
+  double xrange[2];
   
-      
-  double  
-    x0 = x_points.front(),               
-    delta = std::abs(x0)/10,
-    params[5] = {q, F, deltaR, Omega0, x0};   
-  
+  if (!gen_roche::lobe_x_points(xrange, 0, Omega0, q, F, deltaR, true)){
+    std::cerr << "Determing lobe's boundaries failed\n";
+    return EXIT_FAILURE;
+  }
   std::cout.precision(16);
-  std::cout << x0 << '\n';
+  std::cout << std::scientific;
   
-  
+  std::cout << xrange[0] << '\t' << xrange[1] << '\n';   
+      
+  double 
+    delta = std::abs(xrange[0])/10,
+    params[5] = {q, F, deltaR, Omega0, xrange[0]};   
+    
   Tmarching<double, Tgen_roche<double>> march(params);
   #endif
   
   
   
-  #if 0
+  #if 1
   
   //
   // Overcontact case
@@ -117,18 +117,23 @@ int main(){
   // Nr. of triangles=96988
   // real	0m0.060s (no ouput)
 
-  std::vector<double> x_points;
-    
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, deltaR);
+
   
-    
-  double  
-    x0 = x_points.front(),               //-0.49447358607935404,
-    params[5] = {q, F, deltaR, Omega0, x0};   
+  double xrange[2];
+  
+  if (!gen_roche::lobe_x_points(xrange, 2, Omega0, q, F, deltaR, true)){
+    std::cerr << "Determing lobe's boundaries failed\n";
+    return EXIT_FAILURE;
+  }
   
   std::cout.precision(16);
-  std::cout << x0 << '\n';
+  std::cout << std::scientific;
   
+  std::cout << xrange[0] << '\t' << xrange[1] << '\n';
+  
+  double  params[5] = {q, F, deltaR, Omega0, xrange[0]};   
+  
+
   Tmarching<double, Tgen_roche<double> > march(params);
   #endif
   

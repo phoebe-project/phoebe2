@@ -1,7 +1,7 @@
 CC=g++
 CXXFLAGS=-O3 -Wall -std=c++11
 
-all:triang_marching sphere_area_volume
+all:triang_marching sphere_area_volume horizon
 
 %:%.cpp *.h
 	$(CC) $(CXXFLAGS) $*.cpp -o $*

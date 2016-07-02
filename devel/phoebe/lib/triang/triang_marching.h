@@ -37,6 +37,8 @@ struct T3Dpoint {
   
   T3Dpoint() {}
   
+  T3Dpoint(const T3Dpoint & v):data{v.data[0],v.data[1],v.data[2]} { }
+  
   T3Dpoint(const T &x1, const T &x2, const T &x3) : data{x1, x2, x3} {}
    
   T3Dpoint(T *data) : data{data[0], data[1], data[2]} {}
@@ -1170,55 +1172,244 @@ struct Tmarching: public Tbody {
     }    
   }
   
+
   /*
-  
-  
-  
+    Derivative the curve along the horizon
   */
-  bool find_point_on_horizon(
-    T view[3], 
-    T p[3], 
-    T *p_near, 
-    int max_iter = 100){
-      
-    return false;
-  }
   
-  bool horizon(
-    T view[3], 
-    T p[3], 
-    std::vector<T3Dpoint<T>> H, 
-    int length=100) {
-    /*
-    int i, j;
+  void horizon_derivative(T r[3], T F[3], T view[3]){
     
-    T sum, r[3], h[3], g[3], H[3][3];
+    T h[3], g[3], H[3][3];
     
-    while () {
-      
-      // calculate gradient
-      this->grad_only(r, g);
-      
-      // calc hessian matrix H
-      this->hessian(r, H);
-      
-      // calc h = H view
-      sum = 0;
-      for (i = 0; i < 3; ++i){
-        sum = 0;
-        for (j = 0; j < 3; ++j) sum += H[i][j]*view[j];
-        h[i] = sum;
-      } 
+    // calculate gradient
+    this->grad_only(r, g);
     
-      
-    }
+    // calc hessian matrix H
+    this->hessian(r, H);
     
+    // calc h = H view
+    utils::dot3D(H, view, h);
     
+    // cross product F = h x g
+    utils::cross3D(h, g, F);
     
-    */
-    return false;
+    // normalize for normal parametrization
+    T f = 1/utils::hypot3(F);
+    for (int i = 0; i < 3; ++i) F[i] *= f;
   }
 
+  /*
+    RK4 step
+  */
+
+  void horizon_RK4step(T r[3], T dt, T view[3]){
+    
+    T r1[3], k[4][3];
+  
+    horizon_derivative(r, k[0], view);
+
+    for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[0][i] *= dt)/2;
+
+    horizon_derivative(r1, k[1], view);
+
+    for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[1][i] *= dt)/2;
+       
+    horizon_derivative(r1, k[2], view);
+
+    for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[2][i] *= dt);
+
+    horizon_derivative(r1, k[3], view);
+
+    for (int i = 0; i < 3; ++i) k[3][i] *= dt;
+    
+    for (int i = 0; i < 3; ++i)
+      r[i] += (k[0][i] + 2*(k[1][i] + k[2][i]) + k[3][i])/6;
+  }
+  
+    
+  /*
+    Calculate the horizon on the body in the light is coming from direction v.
+    
+    Input:
+      view - direction of the viewer/or the light
+      p - point on the horizon
+      dt - step in length  
+      max_iter - maximal number of iterations
+      
+    Output:
+      H - trajectory on surface of the body 
+  */
+  /*
+  bool horizon(
+    std::vector<T3Dpoint<T>> & H, 
+    T view[3], 
+    T p[3], 
+    const T &dt0,
+    const int max_iter = 100000) {
+         
+    T tol = 1e-14, 
+      min = 1e-100,
+      tmp, 
+      scale, tol_eff, err, t, dt_, dt = dt0, 
+      f[3][3], r[3][3], F[3];
+    
+    horizon_derivative(p, F, view);
+    
+    for (int i = 0; i < 3; ++i)  {
+      r[0][i] = p[i];
+      f[i][0] = f[i][1] = f[i][2] = 0;
+    }
+    
+    std::vector<T3Dpoint<T>> Hint;
+    
+    int it = 0;
+    
+    do {
+      
+      //
+      // Adaptive RK4 step
+      // Ref: http://www.aip.de/groups/soe/local/numres/bookcpdf/c16-2.pdf
+      
+      do {   
+        
+        for (int i = 0; i < 3; ++i) r[2][i] = r[1][i] = r[0][i];
+        
+        horizon_RK4step(r[1], dt, view);
+        horizon_RK4step(r[2], dt/2, view);
+        horizon_RK4step(r[2], dt/2, view);
+        
+        err = scale = 0;
+        for (int i = 0; i < 3; ++i) {
+          if ((tmp = std::abs(r[2][i] - r[1][i])) > err) err = tmp;
+          if ((tmp = std::abs(r[2][i])) > scale) scale = tmp; 
+        }
+        err /= scale;
+        
+        if (err > tol) {
+          dt_= 0.9*dt*std::pow(tol/err, 0.25);
+          dt = std::max(dt_, dt*0.1);
+        } else {
+          if (err > 1.89e-4) 
+            dt *= 0.9*std::pow(tol/err, 0.20);
+          else
+            dt *= 5; 
+            
+          dt = std::min(dt, dt0);
+          break;
+        }
+      
+        
+      } while (1);
+      
+      for (int i = 0; i < 3; ++i) 
+        r[0][i] = r[2][i] + (r[2][i] - r[1][i])/15;
+   
+      // shifted data about discrepancy
+      for (int i = 0; i < 3; ++i) {
+        f[2][i] = f[1][i];
+        f[1][i] = f[0][i];
+        f[0][i] = 0;
+      }
+      
+      // new data about discrepancy
+      for (int i = 0; i < 3; ++i) {
+        f[0][2] += (t = r[0][i] - p[i])*F[i];                // scalar product
+        if (f[0][0] < (t = std::abs(t))) f[0][0] = t;     // difference in points
+        if (f[0][1] < (t = std::abs(r[0][i]))) f[0][1] = t;  // size of points
+      }
+      
+      std::cout << dt << '\t' << f[0][0] << '\t' << f[0][1] << '\t' << f[0][2] << '\n';
+      
+      tol_eff = (it + 1)*tol;
+      
+      if (f[1][0] < tol_eff*f[1][1] + min && f[1][2] < 0 && f[0][2] > 0) 
+        break;    
+      else 
+        Hint.emplace_back(r[0]);
+          
+    } while (++it < max_iter);
+    
+    if (it == max_iter) return false;
+    
+    int N = 100,
+        Nint = Hint.size();
+    
+    if (Nint > N) {
+      
+      int i = 0;
+      
+      T n = 0, dn = T(N)/N;
+      
+      for (auto && v: Hint){
+        if (n >= i++) H.push_back(v);
+        n += dn;
+      }
+      
+    } else H = Hint;
+      
+    return true;
+  }
+  */
+  
+  
+  bool horizon(
+    std::vector<T3Dpoint<T>> & H, 
+    T view[3], 
+    T p[3], 
+    const T &dt,
+    const int max_iter = 100000) {
+         
+    T t, f[3][3], r[3][3], F[3];
+    
+    horizon_derivative(p, F, view);
+    
+    for (int i = 0; i < 3; ++i)  {
+      r[0][i] = p[i];
+      f[i][0] = f[i][1] = f[i][2] = 0;
+    }
+    
+    int it = 0;
+    
+    do {
+      
+      for (int i = 0; i < 3; ++i) r[2][i] = r[1][i] = r[0][i];
+      
+      horizon_RK4step(r[1], dt, view);
+      horizon_RK4step(r[2], dt/2, view);
+      horizon_RK4step(r[2], dt/2, view);
+      
+      // 2 x RK4 => error of O(dt^6)  
+      for (int i = 0; i < 3; ++i) 
+        r[0][i] = r[2][i] + (r[2][i] - r[1][i])/15;
+   
+      // shifted data about discrepancy
+      for (int i = 0; i < 3; ++i) {
+        f[2][i] = f[1][i];
+        f[1][i] = f[0][i];
+        f[0][i] = 0;
+      }
+      
+      // new data about discrepancy
+      for (int i = 0; i < 3; ++i) {
+        f[0][2] += (t = r[0][i] - p[i])*F[i];                // scalar product
+        if (f[0][0] < (t = std::abs(t))) f[0][0] = t;     // difference in points
+        if (f[0][1] < (t = std::abs(r[0][i]))) f[0][1] = t;  // size of points
+      }
+      
+      //std::cout << dt << '\t' << f[0][0] << '\t' << f[0][1] << '\t' << f[0][2] << '\n';
+      
+      if (f[1][2] < 0 && f[0][2] > 0) 
+        break;    
+      else 
+        H.emplace_back(r[0]);
+          
+    } while (++it < max_iter);
+          
+    return (it < max_iter);
+  }
+  
+  
+  
 }; // class marching
 
 

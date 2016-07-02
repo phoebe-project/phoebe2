@@ -90,6 +90,52 @@ namespace gen_roche {
   }
   
   /*
+    Returning the critical values of the generalized Kopal potential, i.e.
+    the values at the L1, L2, L3 point
+    
+    Input:
+      choice - 
+        if 1st bit is set : L1 is stored in omega_crit[0]
+        if 2nd bit is set : L2 is stored in omega_crit[1]
+        if 3ed bit is set : L3 is stored in omega_crit[2]
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+    
+    Output:
+      omega_crit[3] - critical value of the potential at L1, L2, L3 point
+      L_points[3] - value of  L1, L2, L3 point
+  */
+  template<class T> 
+  void critical_potential(
+    T omega_crit[3], 
+    T L_points[3], 
+    unsigned choice, 
+    const T & q, const T & F = 1, const T & delta = 1) {
+    
+    // note: x in [0, delta]
+    if ((choice & 1u) == 1u )
+      omega_crit[0] = 
+        potential_on_x_axis(
+          L_points[0] = lagrange_point_L1(q, F, delta), 
+          q, F, delta);
+      
+    // note: x < 0
+    if ((choice & 2u) == 2u)
+      omega_crit[1] = 
+        potential_on_x_axis(
+          L_points[1] = lagrange_point_L2(q, F, delta), 
+          q, F, delta);
+  
+    // note : x > delta
+    if ((choice & 4u) == 4u)
+      omega_crit[2] = 
+        potential_on_x_axis(
+          L_points[2] = lagrange_point_L3(q, F, delta), 
+          q, F, delta);
+  }
+  
+  /*
     Unified treatment of the common equation for the poles of the 
     Roche lobes basicaly solving:
     
@@ -228,7 +274,7 @@ namespace gen_roche {
     T p = 1/q,
       nu = 1 + Omega0*delta*p - F*F*delta*delta*delta*(1 + p)/2;
      
-    return delta*poleLR(nu, q);
+    return delta*poleLR(nu, p);
   }
 
    
@@ -394,8 +440,6 @@ namespace gen_roche {
     
     std::sort(points.begin(), points.end());
     
- 
-    
     if (trimming) {
       
       if (points.size() > 1) {
@@ -425,6 +469,159 @@ namespace gen_roche {
         }
       }
     }
+  }
+  
+
+  /*
+    Calculate the upper and lowe limit of Roche lobes on x-axis
+    satisfying
+    
+      Omega(x,0,0) = Omega_0
+
+    Input:
+      Omega0 - reference value of the potential
+      choice :
+        0 - left
+        1 - right
+        2 - overcontact        
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+
+    Output:
+      p - x-values of the points on x-axis
+  */
+  template<class T> 
+  bool lobe_x_points(
+    T xrange[2],
+    int choice,
+    const T & Omega0, 
+    const T & q, 
+    const T & F = 1, 
+    const T & delta = 1,
+    bool enable_checks = false
+    ){
+    
+    T omega_crit[3], L_points[3],
+      fa = F*F*delta*delta*delta, // rescaled F^2
+      rO = delta*Omega0,          // rescaled pontential 
+      p = 1/q,
+      b1 = fa*(1 + q),
+      b2 = fa*(1 + p);
+      
+    std::vector<T> roots;
+    
+    
+    if (choice < 0 || choice > 2) return false;
+     
+    //
+    //  left lobe
+    //
+    if (choice == 0) {
+
+      if (enable_checks) { 
+        // omega_crit[0] = Omega(L1), omega_crit[1] = Omega(L2)
+        critical_potential(omega_crit, L_points, 1+2, q, F, delta);
+       
+        if (!(omega_crit[0] < Omega0 && omega_crit[1] < Omega0)) {
+          std::cerr << "lobe_x_points::left lobe does not seem to exist\n";
+          return false;
+        }
+      }
+      
+      // left side, x < 0
+      T aL[5] = {2, 2*(1 + q - rO), 2*(q - rO), b1 + 2*q, b1};
+      
+      utils::solve_quartic(aL, roots);
+      
+      // grab smallest root positive
+      for (auto && v : roots) 
+        if (v > 0) { xrange[0] = - delta*v; break;}
+      
+      
+      // central part
+      T aC[5] = {-2, 2*(1 - q + rO), 2*(q - rO), -b1 - 2*q, b1};
+    
+      utils::solve_quartic(aC, roots);
+     
+      // grab the smallest/first root in [0,1]
+      
+      for (auto && v : roots) 
+        if (0 < v && v < 1) {xrange[1] = delta*v; break;}
+    }
+    
+    //
+    //  right lobe
+    //
+    
+    if (choice == 1) {
+      
+      if (enable_checks){
+        
+        // omega_crit[0] = Omega(L1), omega_crit[2] = Omega(L3)
+        critical_potential(omega_crit, L_points, 1+4, q, F, delta);
+       
+        if (!(omega_crit[0] < Omega0 && omega_crit[2] < Omega0)) {
+          std::cerr << "lobe_x_points::right lobe does not seem to exist\n";
+          return false;
+        }
+      }
+
+      // central part
+      T aC[5] = {-2, 2*(1 - q + rO), 2*(q - rO), -b1 - 2*q, b1};
+    
+      utils::solve_quartic(aC, roots);
+      
+      // grab the largest/second root in [0,1] 
+      int i = 0;     
+      for (auto && v : roots) 
+        if (0 < v && v < 1) if (i++ == 1) {xrange[0] = delta*v; break;}  
+      
+      // right side, x > 0
+      T aR[5] = {2, b2 - 2*p*(-1 + rO), -4 + 3*b2 - 2*p*rO, -2 + 3*b2, b2};
+    
+      utils::solve_quartic(aR, roots);
+      // grab smallest root positive 
+      for (auto && v : roots) if (v > 0) {xrange[1] = delta*(1 + v); break;};
+    }
+    
+    
+    //
+    // overcontact
+    //
+    
+    if (choice == 2){
+      
+      if (enable_checks) {
+        // omega_crit[0] = Omega(L1), omega_crit[1] = Omega(L2), omega_crit[2] = Omega(L3)
+        critical_potential(omega_crit, L_points, 1+2+4, q, F, delta);
+       
+        if (!(Omega0 < omega_crit[0] && Omega0 > omega_crit[1] && Omega0 > omega_crit[2])) {
+          std::cerr << "lobe_x_points::overcontact lobe does not seem to exist\n";
+          return false;
+        }
+      }
+      
+      // left side, x < 0
+      T aL[5] = {2, 2*(1 + q - rO), 2*(q - rO), b1 + 2*q, b1};
+      
+      utils::solve_quartic(aL, roots);
+      
+      // grab smallest root positive
+      for (auto && v : roots) 
+        if (v > 0) { xrange[0] = -delta*v; break;} 
+      
+      
+      T aR[5] = {2, b2 - 2*p*(-1 + rO), -4 + 3*b2 - 2*p*rO, -2 + 3*b2, b2};
+    
+      utils::solve_quartic(aR, roots);
+      
+      // grab smallest root positive
+      for (auto && v : roots) 
+        if (v > 0) {xrange[1] = delta*(1 + v); break;};
+    }
+
+    return true;
   }
 
 } // namespace gen_roche
