@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[   2891199,      47658]
-NotebookOptionsPosition[   2888462,      47567]
-NotebookOutlinePosition[   2888799,      47582]
-CellTagsIndexPosition[   2888756,      47579]
+NotebookDataLength[   2891248,      47659]
+NotebookOptionsPosition[   2888511,      47568]
+NotebookOutlinePosition[   2888848,      47583]
+CellTagsIndexPosition[   2888805,      47580]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -47552,7 +47552,7 @@ dMvVjbUs6I0n8zurl8TBPP+3nDe6RoUVNzN6lKMmcbtfCL5e3uroi14mKruT
     FormBox["\"x\"", TraditionalForm], 
     FormBox["\"y\"", TraditionalForm], 
     FormBox["\"z\"", TraditionalForm]},
-  ImageSize->{600., 567.9799966697262},
+  ImageSize->600,
   PlotRangePadding->0,
   Ticks->Automatic,
   ViewPoint->{-3.3005745436882528`, 0.32638902222897387`, 0.6705802619563985},
@@ -47560,7 +47560,8 @@ dMvVjbUs6I0n8zurl8TBPP+3nDe6RoUVNzN6lKMmcbtfCL5e3uroi14mKruT
   ViewVertical->{-0.4139998714849891, 0.08505447954461724, 
    0.9104979702592001}]], "Output",
  CellChangeTimes->{3.6761981419356823`*^9, 3.676414964574905*^9, 
-  3.676428029204015*^9}]
+  3.676428029204015*^9, 3.676429160975505*^9, 3.6764292332151833`*^9, 
+  3.676429344509272*^9}]
 }, Open  ]]
 }, Open  ]]
 }, Open  ]]
@@ -47656,7 +47657,7 @@ Cell[2561643, 42174, 223, 3, 65, "Section"],
 Cell[2561869, 42179, 847, 22, 55, "Input"],
 Cell[CellGroupData[{
 Cell[2562741, 42205, 1579, 31, 165, "Input"],
-Cell[2564323, 42238, 324099, 5324, 583, "Output"]
+Cell[2564323, 42238, 324148, 5325, 622, "Output"]
 }, Open  ]]
 }, Open  ]]
 }, Open  ]]
