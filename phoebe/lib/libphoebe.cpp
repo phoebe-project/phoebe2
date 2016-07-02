@@ -190,48 +190,6 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
   return PyFloat_FromDouble(rot_star::critical_potential(omega));
 }
 
-/*
-  Python wrapper for C++ code:
-  
-  Calculate point on x-axis 
-  
-    (x,0,0)
-  
-  of the generalized Roche lobes define by generalized Kopal potential:
-    
-      Omega(x,y,z) = Omega0
-  
-  Python:
-    
-    points=roche_points_on_x_axis(q, F, d, Omega0)
-  
-  where parameters are
-  
-    q: float = M2/M1 - mass ratio
-    F: float - synchronicity parameter
-    d: float - separation between the two objects
-    Omega0: float - separation between the two objects
-     
-  
-  and returns
-  
-    points : 1-rank numpy array of floats
-*/
-
-static PyObject *roche_points_on_x_axis(PyObject *self, PyObject *args) {
-    
-  // parse input arguments   
-  double q, F, delta, Omega0;
-  
-  if (!PyArg_ParseTuple(args, "dddd", &q, &F, &delta, &Omega0))
-    return NULL;
-      
-  // calculate x points
-  std::vector<double> points;
-  gen_roche::points_on_x_axis(points, Omega0, q, F, delta);
-
-  return PyArray_FromVector(points);
-}
 
 /*
   Python wrapper for C++ code:
@@ -370,9 +328,10 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
   
   keywords:
     choice: integer, default 0
-            0 for discussing left lobe or overcontact 
+            0 for discussing left lobe
             1 for discussing right lobe
-  
+            2 for discussing overcontact 
+            
     lvolume: boolean, default True
     larea: boolean, default True
     
@@ -386,6 +345,7 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
       float:  
       
     larea: area of the left or right Roche lobe
+      float:
 */
 
 static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
@@ -432,30 +392,15 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   if (!b_larea && !b_lvolume) return NULL;
  
   //
-  // Getting the starting point of the lobe on X-axis
+  // Choosing boundaries on x-axis
   //
-  std::vector<double> x_points;
- 
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, delta);
   
-  if (x_points.size() == 0) {
-    std::cerr << "roche_area_volume::No X-points found\n";
+  double xrange[2];
+    
+  if (!gen_roche::lobe_x_points( xrange, choice, Omega0, q, F, delta, true)){
+    std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
     return NULL;
   }
-
-  //
-  // Choosing boundaries on x-axis
-  // Note:
-  //   We assume that the user knows how many lobes we have
-  //   There are no additional checks
-   
-  int ofs = 0;
-
-  double xrange[2], av[2]; 
-  
-  if (choice == 1 && x_points.size() == 4) ofs = 2;
-  
-  for (int k = 0; k < 2; ++k) xrange[k] = x_points[k + ofs];
   
   //
   // Calculate area and volume
@@ -469,6 +414,8 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   int m = 1 << 14;        // TODO: this should be more precisely stated 
   
   bool polish = false;    // TODO: why does not it work all the time
+  
+  double av[2];
   
   gen_roche::area_volume(av, res_choice, xrange, Omega0, q, F, delta, m, polish);
     
@@ -609,9 +556,9 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
   keywords: (optional)
     Omega0 - guess for value potential Omega1
     choice: integer, default 0
-            0 for discussing left lobe or overcontact 
+            0 for discussing left lobe
             1 for discussing right lobe
-  
+            2 for discussing overcontact
     precision: float, default 1e-10
       aka relative precision
     accuracy: float, default 1e-10
@@ -626,6 +573,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
       is equal to the case (q,F,d,Omega0)
 */
 
+//#define DEBUG
 static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
   
   //
@@ -679,8 +627,6 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
       
   double Omega = Omega0, dOmega, V[2], xrange[2];
   
-  std::vector<double> x_points;
-  
   bool polish = false;
   
   #if defined(DEBUG)
@@ -688,16 +634,10 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   #endif
   do {
 
-    gen_roche::points_on_x_axis(x_points, Omega, q, F, delta);
-
-    if (x_points.size() == 0) {
-      std::cerr << "roche_Omega_at_vol::No X-points found\n";
+    if (!gen_roche::lobe_x_points(xrange, choice, Omega, q, F, delta)){
+      std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
       return NULL;
     }
-    
-    int ofs = (choice == 1 && x_points.size() == 4 ? 2 : 0);
-
-    for (int k = 0; k < 2; ++k) xrange[k] = x_points[k + ofs];
         
     gen_roche::volume(V, 3, xrange, Omega, q, F, delta, m, polish);
         
@@ -1207,21 +1147,19 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   // Chosing the lobe (left or right or overcontact) 
   //
   
-  double x0; 
+  double xrange[2];
   
-  if (choice == 0) {    // left lobe
-    x0 = x_points.front();
-    if (x0 > 0) return NULL;
-  } else {              // right lobe
-    x0 = x_points.back();
-    if (x0 < d) return NULL;
+  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, delta, true)){
+    std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
+    return NULL;
   }
+  
   
   //
   //  Marching triangulation of the Roche lobe 
   //
     
-  double params[5] = {q, F, d, Omega0, x0};
+  double params[5] = {q, F, d, Omega0, xrange[0]};
   
   Tmarching<double, Tgen_roche<double>> march(params);  
   
@@ -1233,7 +1171,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   if (b_vnormgrads) GatV = new std::vector<double>;
   
   if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
-    std::cerr << "There is too much triangles\n";
+    std::cerr << "roche_marching_mesh::There are too many triangles\n";
     return NULL;
   }
   
@@ -1999,9 +1937,12 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
     Omega0: float - value of the generalized Kopal potential
   
   keywords:
-    length: integer, default 1000, number of points on horizon
-    point_near: 1-rank numpy array: point near to the horizon
-  
+    length: integer, default 1000, 
+      approximate number of points on a horizon
+    choice: interr, default 0:
+      0 - searching a point on left lobe
+      1 - searching a point on right lobe
+      2 - searching a point for overcontact case
   Return: 
     H: 2-rank numpy array of 3D point on a horizon
 */
@@ -2018,51 +1959,61 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
     (char*)"d",
     (char*)"Omega0",
     (char*)"length",
-    (char*)"point_near",
+    (char*)"choice",
     NULL
   };
   
-  PyArrayObject *oV, *oP = 0;
+  PyArrayObject *oV;
   
   double q, F, d, Omega0;   
     
   int 
     length = 1000,
+    choice  = 0,
     max_iter = 100;
   
+  
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!dddd|iO!", kwlist,
+      args, keywds,  "O!dddd|ii", kwlist,
       &PyArray_Type, &oV, 
       &q, &F, &d, &Omega0,
       &length,
-      &PyArray_Type, &oP)) return NULL;
+      &choice)) return NULL;
 
-  bool b_point_near = (oP != 0);
-
-  if (!b_point_near){
-    std::cerr 
-    << "roche_horizon::Currently supporting only with given point_near\n";
-    return NULL;
-  } 
-  
   double 
     params[] = {q, F, d, Omega0},
-    *view = (double*) PyArray_DATA(oV),
-    *p_near= (double*) PyArray_DATA(oP);
+    *view = (double*) PyArray_DATA(oV);
     
   Tmarching<double, Tgen_roche<double>> march(params, false);
 
-  double p_on[3];
+  double p[3];
   
-  if (!march.find_point_on_horizon(view, p_on, p_near, max_iter)) {
+  //
+  //  Find a point on horizon
+  //
+  if (!march.point_on_horizon(p, view, choice, max_iter)) {
     std::cerr 
     << "roche_horizon::Convergence to the point on horizon failed\n";
     return NULL;
   }
-
-  std::vector<T3Dpoint<double>> H;
   
-  if (!march.horizon(view, p_on, H, length)) {
+  //
+  // Estimate the step
+  //
+  double dt = 0; 
+  
+  if (choice == 0 || choice == 1)
+    dt = utils::M_2PI*utils::hypot3(p)/length;
+  else
+    dt = 2*utils::M_2PI*utils::hypot3(p)/length;
+  
+  //
+  //  Find the horizon
+  //
+  
+  std::vector<T3Dpoint<double>> H;
+ 
+  if (!march.horizon(H, view, p, dt)) {
    std::cerr 
     << "roche_horizon::Convergence to the point on horizon failed\n";
     return NULL;
@@ -2129,12 +2080,6 @@ static PyMethodDef Methods[] = {
       METH_VARARGS|METH_KEYWORDS, 
       "Determine the value of the generalized Kopal potential at "
       "values of q, F, d and volume."},
-   
-    { "roche_points_on_x_axis",
-      roche_points_on_x_axis,
-      METH_VARARGS, 
-      "Calculate the points on x-axis of the generalized Roche lobes "
-      "ar values of q, F, d and Omega0."},
 
 // --------------------------------------------------------------------
   

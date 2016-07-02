@@ -152,13 +152,47 @@ namespace utils {
       mm[1] = x[1];      
     }
     
-    if (mm[0] > x[2]) 
+    if (mm[0] > x[2])
       mm[0] = x[2]; 
     else if (mm[1] < x[2]) 
       mm[1] = x[2];
   }
 
-
+  // y  = A x 
+  template <class T> void dot3D(T A[3][3], T x[3], T y[3]) {
+    for (int i = 0; i < 3; ++i) 
+      y[i] = A[i][0]*x[0] + A[i][1]*x[1] + A[i][2]*x[2];
+  }
+  
+  // y^T  = x^T A
+  template <class T> void dot3D(T x[3], T A[3][3], T y[3]) {
+    for (int i = 0; i < 3; ++i) 
+      y[i] = A[0][i]*x[0] + A[1][i]*x[1] + A[2][i]*x[2];
+  }
+  
+  // x^T.y
+  template <class T> T dot3D(T x[3], T y[3]) {
+    return x[0]*y[0] + x[1]*y[1] + x[2]*y[2];
+  }
+  
+  // z = x cross y  
+  template <class T> void cross3D(T x[3], T y[3], T z[3]) {
+    z[0] = x[1]*y[2] - x[2]*y[1];
+    z[1] = x[2]*y[0] - x[0]*y[2];
+    z[2] = x[0]*y[1] - x[1]*y[0];
+  }
+  
+  // solve for x: A x = b
+  template <class T> bool inverse2D(T A[2][2], T b[2], T x[2]){
+    T det = A[0][0]*A[1][1] - A[1][0]*A[0][1];
+    
+    if (det == 0) return false;
+    
+    x[0] = (A[1][1]*b[0] - A[0][1]*b[1])/det;
+    x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
+    return true;
+  }
+  
   /*
     Calculate L2 norm of 3D vector
     
@@ -183,6 +217,34 @@ namespace utils {
     
     return a[0]*std::sqrt(1 + t);
   }
+  
+  
+  /*
+    Calculate L2 norm of 3D vector
+    
+    Input:
+      x[3]
+       
+    Return:
+      std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
+  */ 
+  template <class T>
+  T hypot3 (T x[3]){
+    
+    T a[3] = {std::abs(x[0]), std::abs(x[1]), std::abs(x[2])}, t;
+    
+    if (a[0] < a[1]) { t = a[0]; a[0] = a[1]; a[1] = t;}
+    if (a[0] < a[2]) { t = a[0]; a[0] = a[2]; a[2] = t;}
+      
+    a[1] /= a[0]; 
+    a[2] /= a[0];
+        
+    t = a[1]*a[1] + a[2]*a[2];
+    
+    return a[0]*std::sqrt(1 + t);
+  }
+  
+  
   
   /*
     Returning the square of the argument.
@@ -257,7 +319,7 @@ namespace utils {
    void polish(const int & n, T *a, std::vector<T> & roots){
       
       const int iter_max = 10;
-      const T eps = 4*std::numeric_limits<T>::epsilon();
+      const T eps = 10*std::numeric_limits<T>::epsilon();
       const T min = 10*std::numeric_limits<T>::min();
       
       int it;
@@ -295,10 +357,18 @@ namespace utils {
           // https://www.math.uwaterloo.ca/~wgilbert/Research/GilbertNewtonMultiple.pdf
           x -= (dx = f*df/(df*df - f*d2f)); 
           #endif
-          
+          /*
+          std::cout.precision(16);
+          std::cout << std::scientific;
+          std::cout << x << '\t' << dx << '\t' << f  << '\n';
+          */
+            
         } while (std::abs(dx) > eps*std::abs(x) + min && (++it) < iter_max); 
         
-        if (it == iter_max) std::cerr << "Warning: Root polishing did not succeed\n";
+        //std::cout << "-----\n";
+        
+        if (it == iter_max) 
+          std::cerr << "Warning: Root polishing did not succeed\n";
         
       }
    }
@@ -421,6 +491,7 @@ namespace utils {
           
           phi = (std::abs(r) > 1 ? 0 : std::acos(r));
         
+        
           for (int i = 2; i >= 0; --i)
             roots.push_back(A*std::cos((phi - M_2PI*i)/3) - b/3);
         }
@@ -537,7 +608,7 @@ namespace utils {
             
             t1 = -(2*p + t + s1*q/st);
                         
-            if (t1 >= 0 || std::abs(t1) < 1e-6) {
+            if (t1 >= 0) {
               t1 = std::sqrt(std::abs(t1))/2;
               for (int s2 = -1; s2 <= 1; s2 += 2)
                 roots.push_back(s1*st + s2*t1 - b_);
