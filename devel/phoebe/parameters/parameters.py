@@ -72,7 +72,7 @@ _constraint_builtin_funcs = ['rocherpole2potential',
 _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
                                         'ConstraintParameter', 'JobParameter']
 
-_meta_fields_twig = ['time', 'qualifier', 'history', 'component',
+_meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'compute', 'model', 'fitting',
                      'feedback', 'plugin', 'method',
                      'context']
@@ -420,6 +420,33 @@ class ParameterSet(object):
         :return: list of strings
         """
         return self.histories
+
+    @property
+    def features(self):
+        """Return a list of all this features of teh Parameters.
+
+        :return: list of string
+        """
+        return self.to_dict(field='feature').keys()
+
+    @property
+    def feature(self):
+        """Return the value for feature if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all this properties of all parameters, see :func:`properties`.
+
+        :return: str or None
+        """
+        return self._feature
+
+    @property
+    def properties(self):
+        """Return a list of all the properties of the Parameters.
+
+        :return: list of strings
+        """
+        return self.to_dict(field='feature').keys()
 
     @property
     def component(self):
@@ -2625,6 +2652,7 @@ class Parameter(object):
 
         :parameter float time: (optional) value for the time tag
         :parameter str history: (optional) label for the history tag
+        :parameter str feature: (optional) label for the feature tag
         :parameter str component: (optional) label for the component tag
         :parameter str dataset: (optional) label for the dataset tag
         :parameter str constraint: (optional) label for the constraint tag
@@ -2657,6 +2685,7 @@ class Parameter(object):
         self._qualifier = qualifier
         self._time = kwargs.get('time', None)
         self._history = kwargs.get('history', None)
+        self._feature = kwargs.get('feature', None)
         self._component = kwargs.get('component', None)
         self._dataset = kwargs.get('dataset', None)
         self._constraint = kwargs.get('constraint', None)
@@ -2875,6 +2904,13 @@ class Parameter(object):
         :return: history tag of this Parameter
         """
         return self._history
+
+    @property
+    def feature(self):
+        """
+        :return: feature tag of this Parameter
+        """
+        return self._feature
 
     @property
     def component(self):

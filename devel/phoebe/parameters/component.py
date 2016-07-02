@@ -146,5 +146,3 @@ def envelope(component, **kwargs):
     constraints = []
 
     return ParameterSet(params), constraints
-
-

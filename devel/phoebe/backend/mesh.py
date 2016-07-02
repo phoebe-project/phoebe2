@@ -311,6 +311,7 @@ class ComputedColumn(object):
         if self.mesh._compute_at_vertices:
             # TODO: make this an option at some point?
             # return self.averages
+            # for now this can just be achieved by calling self.centers directly
             return self.weighted_averages
         else:
             return self.centers
