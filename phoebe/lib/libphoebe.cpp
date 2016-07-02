@@ -397,7 +397,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   
   double xrange[2];
     
-  if (!gen_roche::lobe_x_points( xrange, choice, Omega0, q, F, delta, true)){
+  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, delta, true)){
     std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
     return NULL;
   }
@@ -1127,33 +1127,17 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   // https://docs.python.org/2/c-api/dict.html
   //
   PyObject *results = PyDict_New();
-  
-  //
-  // Points on the x - axis 
-  //
-  
-  std::vector<double> x_points;
     
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, d);
-
-  
-  if (x_points.size() == 0) {
-    std::cerr << 
-      "roche_marching_mesh::No intersection with x-axis found\n";
-    return NULL;
-  }
-  
   //
   // Chosing the lobe (left or right or overcontact) 
   //
   
   double xrange[2];
   
-  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, delta, true)){
+  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, d, true)){
     std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
     return NULL;
   }
-  
   
   //
   //  Marching triangulation of the Roche lobe 

@@ -133,6 +133,7 @@ namespace gen_roche {
         potential_on_x_axis(
           L_points[2] = lagrange_point_L3(q, F, delta), 
           q, F, delta);
+
   }
   
   /*
@@ -522,9 +523,11 @@ namespace gen_roche {
       if (enable_checks) { 
         // omega_crit[0] = Omega(L1), omega_crit[1] = Omega(L2)
         critical_potential(omega_crit, L_points, 1+2, q, F, delta);
-       
+        
         if (!(omega_crit[0] < Omega0 && omega_crit[1] < Omega0)) {
-          std::cerr << "lobe_x_points::left lobe does not seem to exist\n";
+          std::cerr 
+            << "lobe_x_points::left lobe does not seem to exist\n"
+            << "omegaL1=" << omega_crit[0] << " omegaL2=" << omega_crit[1] << '\n';
           return false;
         }
       }
@@ -562,7 +565,9 @@ namespace gen_roche {
         critical_potential(omega_crit, L_points, 1+4, q, F, delta);
        
         if (!(omega_crit[0] < Omega0 && omega_crit[2] < Omega0)) {
-          std::cerr << "lobe_x_points::right lobe does not seem to exist\n";
+          std::cerr 
+            << "lobe_x_points::right lobe does not seem to exist\n"
+            << "omegaL1=" << omega_crit[0] << " omegaL3=" << omega_crit[2] << '\n';
           return false;
         }
       }
@@ -597,7 +602,11 @@ namespace gen_roche {
         critical_potential(omega_crit, L_points, 1+2+4, q, F, delta);
        
         if (!(Omega0 < omega_crit[0] && Omega0 > omega_crit[1] && Omega0 > omega_crit[2])) {
-          std::cerr << "lobe_x_points::overcontact lobe does not seem to exist\n";
+          std::cerr 
+            << "lobe_x_points::overcontact lobe does not seem to exist\n"
+            << "omegaL1=" << omega_crit[0] 
+            << " omegaL2=" << omega_crit[1] 
+            << " omegaL3=" << omega_crit[2] << '\n';
           return false;
         }
       }
