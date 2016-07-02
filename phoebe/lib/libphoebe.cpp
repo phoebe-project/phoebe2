@@ -1784,7 +1784,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     
   Python:
 
-    Vnew = mesh_offseting(A, V, NatT, T)
+    Vnew = mesh_offseting(A, V, NatV, T)
     
   with arguments
     area : float - reference area
