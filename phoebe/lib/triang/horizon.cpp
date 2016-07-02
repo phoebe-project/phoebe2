@@ -1,3 +1,9 @@
+/*
+  Testing the calculating of the horizons
+  
+  Author: Martin Horvat, June 2016
+*/
+
 #include <iostream>
 #include <cmath>
 

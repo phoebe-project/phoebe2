@@ -277,7 +277,7 @@ void trans_basis(T u[3], T v[3], T b[3][3]){
   
   Input:
     V - vector of vertices
-    NatV - vector of normals
+    NatV - vector of normals at vertices
     Tr - vector of triangles 
     choice - index of vertex as reference normal
     
@@ -363,6 +363,63 @@ void mesh_area_volume(
   av[0] = sumA/2;
   av[1] = sumV/6;
 }
+
+
+/*
+  Calculate area of the triangulated of surfaces.
+  
+  Input:
+    V - vector of vertices
+    Tr - vector of triangles 
+    choice - index of vertex as reference normal
+    
+  Output:
+    av[2] = {area, volume}
+  
+  Ref: 
+  * Cha Zhang and Tsuhan Chen, Efficient feature extraction for 2d/3d 
+    objects in mesh representation, Image Processing, 2001.
+
+*/ 
+template <class T> 
+T mesh_area(
+  std::vector <T3Dpoint<T>> & V,
+  std::vector <T3Dpoint<int>> & Tr) { 
+
+  T a[3], b[3], c[3], *v[3];
+  
+  long double sumA = 0;
+    
+  for (auto && t: Tr) {
+    
+    //
+    // link data data
+    //
+    
+    for (int i = 0; i < 3; ++i) v[i] = V[t[i]].data;
+    
+    //
+    // Computing surface element
+    //
+    
+    for (int i = 0; i < 3; ++i) {
+      a[i] = v[1][i] - v[0][i];
+      b[i] = v[2][i] - v[0][i];
+    }
+  
+    // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
+    // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
+  
+    c[0] = a[1]*b[2] - a[2]*b[1];
+    c[1] = a[2]*b[0] - a[0]*b[2];
+    c[2] = a[0]*b[1] - a[1]*b[0];
+      
+    sumA += utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
+  }
+  
+  return sumA/2;
+}
+
 /*
   Calculate properties of triangles -- areas of triangles and a normal
     
@@ -511,6 +568,65 @@ void mesh_attributes(
   }
 }
 
+/*
+  Offseting the mesh to match the reference area.
+
+  Input:
+    A0 - reference area
+    V - vector of vertices
+    NatV - vector of normals
+    Tr - vector of triangles 
+    max_iter - maximal number of iterator
+  Output:
+    Vnew - vector of new vertices
+  
+  Return:
+    false - If somethings fails
+     
+*/ 
+template <class T>
+bool mesh_offseting_matching_area(
+  const T &A0,
+  std::vector <T3Dpoint<T>> & V,
+  std::vector <T3Dpoint<T>> & NatV,
+  std::vector <T3Dpoint<int>> & Tr,
+  const int max_iter = 100) {
+ 
+  const T eps = 10*std::numeric_limits<T>::epsilon();
+    
+  int it = 0, Nv = V.size();
+  
+  T A[2], dt = 1e-12;
+  
+  A[0] = mesh_area(V, Tr); 
+  
+  do {
+        
+    // shift of the vertices
+    for (int i = 0; i < Nv; ++i)
+      for (int j = 0; j < 3; ++j) 
+        V[i][j] += dt*NatV[i][j];
+    
+    // calculating area
+    A[1] = A[0];
+    A[0] = mesh_area(V, Tr);    
+    
+    
+    // secant step
+    dt *= (A0 - A[0])/(A[0] - A[1]);  
+    
+    /*
+    std::cerr.precision(16);
+    std::cerr <<std::scientific;
+    std::cerr << dt << '\t' << A0 << '\t' << A[0] << '\t' << A[1] << '\n';
+    */
+    
+    if (std::abs(1 - A[0]/A0) < eps) break;
+    
+  } while (++it < max_iter);
+    
+  return it < max_iter;
+}
 
 /*
   Triangulization of closed surfaces using maching algorithm.
@@ -1239,7 +1355,6 @@ struct Tmarching: public Tbody {
     Output:
       H - trajectory on surface of the body 
   */
-
   
   bool horizon(
     std::vector<T3Dpoint<T>> & H, 
@@ -1279,9 +1394,7 @@ struct Tmarching: public Tbody {
           
     return (it < max_iter);
   }
-  
-  
-  
+    
 }; // class marching
 
 

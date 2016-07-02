@@ -1726,7 +1726,6 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
 
 static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
 
-
   //
   // Storing/Reading arguments
   //
@@ -1776,6 +1775,76 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
 }
 
+
+/*
+  Python wrapper for C++ code:
+
+    Offseting the mesh along the normals of vertices to match the area 
+    of the mesh with the reference area.
+    
+  Python:
+
+    Vnew = mesh_offseting(A, V, NatT, T)
+    
+  with arguments
+    area : float - reference area
+    V    : 2-rank numpy array of vertices  
+    NatV : 2-rank numpy array of normals at vertices
+    T    : 2-rank numpy array of indices of vertices composing triangles
+  
+  (optional)
+   max_iter:integer, default 1000, maximal number of iterations
+  
+  Returns: 
+    Vnew: 2-rank numpy array of new vertices  
+*/
+
+static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywds){
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"area",
+    (char*)"V",
+    (char*)"NatV",
+    (char*)"T",
+    (char*)"max_iter",
+    NULL
+  };
+  
+  double area;
+    
+  PyArrayObject *oV, *oNatV, *oT;
+    
+  int max_iter = 100;
+    
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dO!O!O!|i", kwlist,
+      &area,
+      &PyArray_Type, &oV, 
+      &PyArray_Type, &oNatV, 
+      &PyArray_Type, &oT,
+      &max_iter)) return NULL;
+
+  // storing data
+  std::vector<T3Dpoint<double>> V, NatV;
+  std::vector<T3Dpoint<int>> T;
+
+  PyArray_To3DPointVector(oV, V);
+  PyArray_To3DPointVector(oNatV, NatV);
+  PyArray_To3DPointVector(oT, T);
+
+  // running mesh offseting
+  if (!mesh_offseting_matching_area(area, V, NatV, T, max_iter)){
+    std::cerr << "mesh_offseting_matching_area::Offseting failed\n";
+    return NULL;
+  }
+  
+  // returning 
+  return PyArray_From3DPointVector(V);
+}
 
 /*
   Python wrapper for C++ code:
@@ -2023,8 +2092,6 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
 }
 
 
-
-
 /*
   Define functions in module
    
@@ -2150,6 +2217,11 @@ static PyMethodDef Methods[] = {
       mesh_rough_visibility,
       METH_VARARGS,
       "Classify the visibility of triangles of the mesh into hidden, partially hidden and visible"},
+    
+    { "mesh_offseting",
+      (PyCFunction)mesh_offseting,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Offset the mesh along the normals in vertices to match the area with reference area."},
 
 // --------------------------------------------------------------------    
 
