@@ -34,10 +34,20 @@ from libphoebe import *
 #scanner.dump_all_objects('big.dump')
 
 # overcontact case
-q = 0.5
-F = 0.5
+#q = 0.5
+#F = 0.5
+#d = 1
+#Omega0 = 2.65
+#delta = 0.01
+#choice = 2
+#max_triangles = 10000000 # 10^7
+
+
+
+q = 1
+F = 1
 d = 1
-Omega0 = 2.65
+Omega0 = 10
 delta = 0.01
 choice = 0
 max_triangles = 10000000 # 10^7
