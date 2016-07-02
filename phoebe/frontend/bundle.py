@@ -13,6 +13,7 @@ from phoebe.parameters import setting as _setting
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
+from phoebe.parameters import feature as _feature
 from phoebe.backend import backends
 from phoebe.distortions import roche
 from phoebe.frontend import io
@@ -1022,6 +1023,119 @@ class Bundle(ParameterSet):
 
         # we've survived all tests
         return True, ''
+
+    def add_feature(self, method, component, **kwargs):
+        """
+        Add a new feature (spot, etc) to a component in the system.  If not
+        provided, 'feature' (the name of the new feature) will be created
+        for you and can be accessed by the 'feature' attribute of the returned
+        ParameterSet
+
+        >>> b.add_feature(feature.spot, component='mystar')
+
+        or
+
+        >>> b.add_feature('spot', 'mystar', colat=90)
+
+        Available methods include:
+            * :func:`phoebe.parameters.feature.spot`
+
+        :parameter method: function to call that returns a
+            ParameterSet or list of parameters.  This must either be
+            a callable function that accepts nothing but default values,
+            or the name of a function (as a string) that can be found in the
+            :mod:`phoebe.parameters.feature` module (ie. 'spot')
+        :type method: str or callable
+        :parameter str component: name of the component to attach the feature
+        :parameter str feature: (optional) name of the newly-created feature
+        :parameter **kwargs: default value for any of the newly-created
+            parameters
+        :return: :class:`phoebe.parameters.parameters.ParameterSet` of
+            all parameters that have been added
+        :raises NotImplementedError: if required constraint is not implemented
+        """
+        func = _get_add_func(_feature, method)
+
+        kwargs.setdefault('feature',
+                          self._default_label(func.func_name,
+                                              **{'context': 'feature',
+                                                 'method': func.func_name}))
+
+        self._check_label(kwargs['feature'])
+
+        if component not in self.components:
+            raise ValueError('component not recognized')
+
+        params, constraints = func(**kwargs)
+
+        metawargs = {'context': 'feature',
+                     'component': component,
+                     'feature': kwargs['feature'],
+                     'method': func.func_name}
+
+        self._attach_params(params, **metawargs)
+
+        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs['func'] = func.func_name
+        self._add_history(redo_func='add_feature',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='remove_feature',
+                          undo_kwargs={'feature': kwargs['feature']})
+
+        for constraint in constraints:
+            self.add_constraint(*constraint)
+
+        return params
+
+    def get_feature(self, feature=None, **kwargs):
+        """
+        Filter in the 'proerty' context
+
+        :parameter str feature: name of the feature (optional)
+        :parameter **kwargs: any other tags to do the filter
+            (except component or context)
+        :return: :class:`phoebe.parameters.parameters.ParameterSet`
+        """
+        if feature is not None:
+            kwargs['feature'] = feature
+        kwargs['context'] = 'feature'
+        return self.filter(**kwargs)
+
+    def remove_feature(self, feature=None, **kwargs):
+        """
+        [NOT IMPLEMENTED]
+
+        Remove a 'feature' from the bundle
+
+        :raises NotImplementedError: because this isn't implemented yet
+        """
+        # TODO: don't forget to add_history
+        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
+        raise NotImplementedError
+
+    def add_spot(self, component, feature=None, **kwargs):
+        """
+        Shortcut to :meth:`add_feature` but with method='spot'
+        """
+        kwargs.setdefault('component', component)
+        kwargs.setdefault('feature', feature)
+        return self.add_feature('spot', **kwargs)
+
+    def get_spot(self, feature=None, **kwargs):
+        """
+        Shortcut to :meth:`get_feature` but with method='spot'
+        """
+        kwargs.setdefault('method', 'spot')
+        return self.get_feature(feature, **kwargs)
+
+    def remove_spot(self, feature=None, **kwargs):
+        """
+        [NOT IMPLEMENTED]
+
+        Shortcut to :meth:`remove_feature` but with method='spot'
+        """
+        kwargs.setdefault('method', 'spot')
+        return self.remove_feature(feature, **kwargs)
 
     def add_component(self, method, **kwargs):
         """

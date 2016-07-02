@@ -6,7 +6,7 @@ import copy
 
 from phoebe.atmospheres import limbdark, passbands
 from phoebe.distortions import roche, rotstar
-from phoebe.backend import eclipse, subdivision, potentials, mesh
+from phoebe.backend import eclipse, potentials, mesh
 import libphoebe
 
 from phoebe import u
@@ -955,7 +955,7 @@ class CustomBody(Body):
         """
         self.mesh.update_columns(abuns=abun)
 
-    def _populate_ifm(self, dataset, **kwargs):
+    def _populate_ifm(self, dataset, passband, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -967,7 +967,7 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
-    def _populate_rv(self, dataset, **kwargs):
+    def _populate_rv(self, dataset, passband, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -981,7 +981,7 @@ class CustomBody(Body):
         raise NotImplementedError
 
 
-    def _populate_lc(self, dataset, **kwargs):
+    def _populate_lc(self, dataset, passband, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -998,7 +998,7 @@ class CustomBody(Body):
 
 
 class Star(Body):
-    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law, abun, mesh_method='marching', dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], do_rv_grav=False, **kwargs):
+    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law, abun, mesh_method='marching', dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], do_rv_grav=False, features=[], **kwargs):
         """
 
         :parameter float F: syncpar
@@ -1045,11 +1045,13 @@ class Star(Body):
         self.gravb_law = gravb_law
         self.abun = abun
 
+        self.features = features
 
         # Volume "conservation"
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
 
         self._pbs = {}
+
 
 
     @classmethod
@@ -1136,10 +1138,21 @@ class Star(Body):
         else:
             raise NotImplementedError
 
+        features = []
+        # print "*** checking for features of", component, b.filter(component=component).features
+        for feature in b.filter(component=component).features:
+            # print "*** creating features", star, feature
+            feature_ps = b.filter(feature=feature, component=component)
+            feature_cls = globals()[feature_ps.method.title()]
+            features.append(feature_cls.from_bundle(b, feature))
+
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
                 abun, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
-                datasets=datasets, do_rv_grav=do_rv_grav, **mesh_kwargs)
+                datasets=datasets, do_rv_grav=do_rv_grav, features=features, **mesh_kwargs)
 
+    @property
+    def spots(self):
+        return [f for f in self.features if f.__class__.__name__=='Spot']
 
     @property
     def needs_recompute_instantaneous(self):
@@ -1222,6 +1235,8 @@ class Star(Body):
                 rpole = libphoebe.roche_pole(*mesh_args)
                 delta *= rpole
                 # print delta
+
+                # print mesh_args, delta
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
@@ -1470,6 +1485,10 @@ class Star(Body):
 
         # Now we can compute the local temperatures.
         teffs = (mesh.gravs.for_computations * Tpole**4)**0.25
+
+        for spot in self.spots:
+            teffs = spot.process_teffs(teffs, mesh.coords_for_computations)
+
         mesh.update_columns(teffs=teffs)
 
         # logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(teffs.min(), teffs.max(), Tpole))
@@ -1994,7 +2013,7 @@ class Envelope(Body):
         """
         raise NotImplementedError
 
-    def _populate_rv(self, dataset, **kwargs):
+    def _populate_rv(self, dataset, passband, **kwargs):
         """
         TODO: add documentation
 
@@ -2003,7 +2022,6 @@ class Envelope(Body):
         """
 
         # print "*** Star._populate_rv"
-        passband = kwargs.get('passband', 'Johnson:V')
         ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
         ld_func = kwargs.get('ld_func', 'logarithmic')
         atm = kwargs.get('atm', 'kurucz')
@@ -2031,7 +2049,7 @@ class Envelope(Body):
         return cols
 
 
-    def _populate_lc(self, dataset, **kwargs):
+    def _populate_lc(self, dataset, passband, **kwargs):
         """
         TODO: add documentation
 
@@ -2042,7 +2060,6 @@ class Envelope(Body):
         """
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
-        passband = kwargs.get('passband', 'Johnson:V')
 
         ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
         ld_func = kwargs.get('ld_func', 'logarithmic')
@@ -2070,3 +2087,53 @@ class Envelope(Body):
         return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
             'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
             'ampl_boost': ampl_boost, 'ld': ld}
+
+
+
+
+
+
+
+
+
+class Feature(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+class Spot(Feature):
+    def __init__(self, colat, colon, radius, relteff, **kwargs):
+        super(Spot, self).__init__(**kwargs)
+        self._colat = colat
+        self._colon = colon
+        self._radius = radius
+        self._relteff = relteff
+
+        x = np.sin(colat)*np.cos(colon)
+        y = np.sin(colat)*np.sin(colon)
+        z = np.cos(colat)
+        self._pointing_vector = np.array([x,y,z])
+
+    @classmethod
+    def from_bundle(cls, b, feature):
+        """
+        """
+
+        feature_ps = b.get_feature(feature)
+        colat = feature_ps.get_value('colat', unit=u.rad)
+        colon = feature_ps.get_value('colon', unit=u.rad)
+        radius = feature_ps.get_value('radius', unit=u.rad)
+        relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
+        return cls(colat, colon, radius, relteff)
+
+    def process_teffs(self, teffs, coords):
+        """
+        """
+
+        cos_alpha_coords = np.dot(coords, self._pointing_vector) / np.linalg.norm(coords, axis=1)
+        cos_alpha_spot = np.cos(self._radius)
+
+        filter = cos_alpha_coords > cos_alpha_spot
+
+        teffs[filter] = teffs[filter] * self._relteff
+
+        return teffs

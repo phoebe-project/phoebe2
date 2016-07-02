@@ -229,6 +229,7 @@ Binary Stars
    Minimal Overcontact System<examples/minimal_overcontact>
    Rossiter-McLaughlin Effect (RVs)<examples/rossiter_mclaughlin>
    Wilson-Devinney Style Meshing<examples/mesh_wd>
+   Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
 
 
 COMING SOON (examples from literature)
@@ -259,6 +260,16 @@ Planetary System (NOT YET OFFICIALLY SUPPORTED)
    Sun-Earth (TESTING - not yet supported)<examples/sun_earth>
 
 COMING SOON (examples from literature)
+
+
+Spots (NOT YET OFFICIALLY SUPPORTED)
+------------------------------------
+
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
 
 
 Advanced Constraints (NOT YET OFFICIALLY SUPPORTED)
