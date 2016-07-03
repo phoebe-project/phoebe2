@@ -10,11 +10,13 @@ Dictionaries of parameters for conversion between phoebe1 and phoebe 2
 
 """
 
-_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rv': 'ld_coeffs', 'lc':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filename': 'filename', 'sigma': 'statweight', 'filter': 'passband', 'excess': 'extinction', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reffect': 'mult_refl', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie', 'proximity_rv':'proximity_rv','atm': 'atm'}
+_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reffect': 'mult_refl', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time'}
+#TODO: add back proximity_rv maybe?
+#TODO: add back 'excess': 'extinction',
 
 _2to1par = {v:k for k,v in _1to2par.items()}
 
-_units1 = {'incl': 'deg', 'period': 'd', 'dpdt': 'd/d', 'sma': 'Rsun', 'vga':'km/s', 'teff': 'K', 'perr0': 'rad', 'dperdt': 'rad/d'}
+_units1 = {'incl': 'deg', 'period': 'd', 'dpdt': 'd/d', 'sma': 'Rsun', 'vga':'km/s', 'teff': 'K', 'perr0': 'rad', 'dperdt': 'rad/d', 'flux':'W/m2', 'sigmalc': 'W/m2', 'sigmarv': 'km/s', 'vel':'km/s', 'time':'d'}
 
 _parsect = {'t0':'component',  'period':'component', 'dpdt':'component', 'pshift':'component', 'sma':'component', 'rm': 'component', 'incl':'component', 'perr0':'component', 'dperdt':'component', 'hla': 'component', 'cla':'component', 'el3':'component', 'reffect':'compute', 'reflections':'compute', 'finegrid':'mesh', 'vga':'system', 'msc1_switch': 'compute', 'msc2_switch': 'compute', 'ie_switch':'compute', 'proximity_rv1':'compute', 'proximity_rv2': 'compute'}
 
@@ -29,18 +31,17 @@ ld_legacy -
 """
 
 def ld_to_phoebe(pn, d, rvdep=None, dataid=None):
-
     if 'bol' in pn:
         d['context'] = 'component'
         pnew = 'bol'
     elif 'rv' in pn:
         d['context'] = 'dataset'
-        d['dataset'] = rvdep
-        pnew = 'lc'
+        d['dataset'] = dataid
+        pnew = 'rvcoff'
     elif 'lc' in pn:
         d['context'] = 'dataset'
         d['dataset'] = dataid
-        pnew = 'rv'
+        pnew = 'lccoff'
     else:
         pnew = 'ld_model'
     if 'x' in pn:
@@ -97,7 +98,6 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
         d['context'] = 'dataset'
 
     elif pieces[1] == 'ld':
-
         pnew, d  = ld_to_phoebe(pnew, d, rvdep, dataid)
 
     if pnew == 'hla':
@@ -115,8 +115,8 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
             except:
                 d['context'] = None
 
-        if 'finesize' in pnew:
-            d['context'] = 'compute'
+        if pnew in ['atm', 'model', 'cindex', 'finesize', 'reffect', 'reflections']:
+            d['context']  ='compute'
 
         if 'proximity' in pnew:
             d['context'] = 'compute'
@@ -125,149 +125,126 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
 
             d.setdefault('component', 'binary')
 
-        if d['context'] == 'compute':
-            d.setdefault('compute', comid)
+#        if d['context'] == 'compute':
+#            d.setdefault('compute', comid)
 
-        d['value'] = val
+        if pnew == 'reflections':
+            d['value'] = int(val)+1
+
+        else:
+            d['value'] = val
+
         d['qualifier'] = _1to2par[pnew]
 
         if pnew in _units1:
             d['unit'] = _units1[pnew]
+
     else:
         d ={}
         logger.info("Parameter "+str(pname)+" has no Phoebe 2 counterpart")
 
-#    d['qualifier'] = pnew
-#    else:
 
-    # check if it belongs in the component parameter set
-#        if len(comp) > 0:
-#            twig = comp
-
-#        else:
-#            twig = ''
     return pnew, d
 
-#def par_swap(pname, val, dataid=None, rvdep=None, comid=None):
-#    pieces = pname.split('_')
-#    pnew = pieces[-1]
-#    if pnew == 'switch':
-#       pnew = pieces[1]
+def load_lc_data(filename, indep, dep, indweight=None, mzero=None):
 
-# build your original dictionary
-#    pnew, d = ret_dict(pname, dataid, rvdep, comid)
+    """
+    load dictionary with lc data
+    """
+   
+    lcdata = np.loadtxt(filename)
+    ncol = len(lcdata[0])
+    if dep == 'Magnitude':
+        mag = lcdata[:,1]
+        flux = 10**(-0.4*(mag-mzero))
+        lcdata[:,1] = flux
 
-# now for exceptions
-
-#    if pnew == 'filter':
-
-       # write method for this
-
-#    elif pnew == 'excess':
-
-#    elif pnew == 'alb':
-#        val = 1-val
-
-#    elif pnew == 'atm':
-
-#    elif pnew == 'finegrid':
-
-#    else:
-#        d['qualifier'] = _1to2par[pnew]
-#        if pnew in _units1:
-#            d['unit'] = _units1[pnew]
-#    try:
-#        phb.set_value(**d, check_relevant=False)
-
-#    except:
-
-#        logger.warning('Cannot find relevant phoebe 2 parameter for '+str(pname))
-
-"""
-Load in datasets from files listed in .phoebe file
-
-"""
-
-"""
-Load in datasets from files listed in .phoebe file
-
-"""
-
-def load_dataset(eb, filename, dataid, indep, dep, indweight, typ, mzero=None):#, comp='primary'):
-
-    #unpack data if it exists
-    rvs = eb.get_dataset(method='RV').datasets
-    #it can't be an empty array or checking against it will fail
-    if len(rvs) == 0:
-        rvs.append(' ')
-    if filename != 'Undefined':
-
-        if indweight == 'Undefined':
-            times, var = np.loadtxt(filename, unpack = True)
-            vals = [times, var]
+    d = {}
+    d['phoebe_lc_time'] = lcdata[:,0]
+    d['phoebe_lc_flux'] = lcdata[:,1]
+    if indweight:
+        if ncol >= 3:
+            d['phoebe_lc_sigmalc'] = lcdata[:,2]
         else:
-            times, var, sigmas = np.loadtxt(filename, unpack = True)
-            vals = [times, var, sigmas]
-        if dep == 'Magnitude':
-            m = vals[1]
-            flux = 10**(-0.4*(m-mzero))
-            vals[1] = flux
+            logger.warning('A sigma column was is mentioned in the .phoebe file but is not present in the data file') 
 
-            #vals = vals[0:1]
-    #determine if we need 1 rv dataset or 2
 
-#        rvs = eb.get_dataset(method='RV').datasets
-        if typ == 'rv':
-            if dep == 'primary':
-                odep = 'secondary'
-            else:
-                odep='primary'
-            try:
-                timeso = eb.get_value(section = 'dataset', dataset=rvs[0], qualifier='time', component=odep)
-                if timeso.all() == times.all():
-                    dataid = rvs[0]
-            except:
-                dataid = dataid
-## add dataset
 
+#    dataset.set_value(check_relevant=False, **d)
+
+    return d
+
+def load_rv_data(filename, indep, dep, indweight=None):
+
+    """
+    load dictionary with rv data.
+    """
+    rvdata = np.loadtxt(filename)
+
+    d ={}
+    d['phoebe_rv_time'] = rvdata[:,0]
+    d['phoebe_rv_vel'] = rvdata[:,1]
+    if indweight:
+        d['phoebe_rv_sigmarv'] = rvdata[:,2]
+
+    return d
+
+def det_dataset(eb, passband, dataid, comp, time):
+
+    """
+    Since RV datasets can have values related to each component in phoebe2, but are component specific in phoebe1, it is important to determine which dataset to add parameters to. This function will do that.
+    eb - bundle
+    rvpt - relevant phoebe 1 parameters
+
+    """
+    rvs = eb.get_dataset(method='RV').datasets
+    #first check to see if there are currently in RV datasets
     if dataid == 'Undefined':
         dataid = None
+    if len(rvs) == 0:
+    #if there isn't we add one the easy part
 
-    if dataid != rvs[0]:
         try:
             eb._check_label(dataid)
-            if not dataid:
-                eb.add_dataset(typ)
-            else:
-                eb.add_dataset(typ, dataset=dataid)
-        except:
-            logger.warning("The name picked for the "+typ+" dataset is forbidden. Applying default name instead")
-#           alcn = "%02d" % (x,)
-#            dataid = 'lc'+str(alcn)
-            eb.add_dataset(typ)
 
+            rv_dataset = eb.add_dataset('rv', dataset=dataid, time = [])
 
-    if filename != 'Undefined':
-        d = {}
-        d['section'] = 'dataset'
-        d['method'] = typ
-        d['dataset'] = dataid
+        except ValueError:
+        
+            logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
+            rv_dataset = eb.add_dataset('rv', time =[])
 
-        if typ == 'lc':
+    else:
+    #now we have to determine if we add to an existing dataset or make a new one
+        rvs = eb.get_dataset(method='RV').datasets
+        found = False
+        #set the component of the companion
+        if comp == 'primary':
+            comp_o = 'secondary'
+        else:
+            comp_o = 'primary'
+        for x in rvs:
+            test_dataset = eb.get_dataset(x)
+            if len(test_dataset.get_value(qualifier='rv', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length           
+                time_o = test_dataset.get_value('time', component=comp_o)
+                passband_o = test_dataset.get_value('passband')
+                if np.all(time_o == time) and (passband == passband_o):
+                    rv_dataset = test_dataset
+                    found = True
+        
+        if not found:
+            try:
+                eb._check_label(dataid)
 
-            params = ['time', 'flux', 'sigma']
+                rv_dataset = eb.add_dataset('rv', dataset=dataid, time = [])
 
-        if typ == 'rv':
-            d['component'] = dep
-            params = ['time', 'rv', 'sigma']
+            except ValueError:
+        
+                logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
+                rv_dataset = eb.add_dataset('rv', time =[])
 
-        for x in range(len(vals)):
+    return rv_dataset
 
-            d['qualifier'] = params[x]
-            d['value'] = vals[x]
-            eb.set_value(check_relevant=False, **d)
-
-    return eb
 
 """
 Load a phoebe legacy file complete with all the bells and whistles
@@ -288,14 +265,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     if add_compute_phoebe == True:
         comid.append('backend')
         eb.add_compute('legacy', compute=comid[-1])
-#    eb = phb2.Bundle()
-
-# phoebe 1 is all about binaries so initialize both components
-
-#    eb.add_component('star', component='primary')
-#    eb.add_component('star', component='secondary')
-#    eb.add_orbit('binary')
-#    eb.set_hierarchy(phb2.hierarchy.binaryorbit, eb['binary'], eb['primary'], eb['secondary'])
 
 # load the phoebe file
 
@@ -309,15 +278,20 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     rvno = np.int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
     lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
 # delete parameters that have already been accounted for and find lc and rv parameters
-    mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+    
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
-# but first FORCE hla and cla to follow conventions so the parser doesn't freak out.
+# create mzero and grab it if it exists
+    mzero = None
+    if 'phoebe_mnorm' in params:
+        mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+# FORCE hla and cla to follow conventions so the parser doesn't freak out.
     for x in range(1,lcno+1):
         hlain = list(params[:,0]).index('phoebe_hla['+str(x)+'].VAL')
         clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
-
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
         params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
+
+#and split into lc and rv parameters
 
     lcin = [list(params[:,0]).index(s) for s in params[:,0] if "lc" in s]
     rvin = [list(params[:,0]).index(s) for s in params[:,0] if "rv" in s and not "proximity" in s]
@@ -329,55 +303,81 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # create datasets and fill with the correct parameters
 
-# but first FORCE hla and cla to follow conventions so the parser doesn't freak out.
 
-
-
-# First LCs
+# First LC
     for x in range(1,lcno+1):
-        lcs = eb.get_dataset(method='LC').datasets
-    #list of parameters related to current dataset
+    
+        #list of parameters related to current dataset
 
         lcint = [list(lcpars[:,0]).index(s) for s in lcpars[:,0] if "["+str(x)+"]" in s]
         lcpt = lcpars[lcint]
-    # get name of dataset and add
-        datain = list(lcpt[:,0]).index('phoebe_lc_id['+str(x)+']')
-        dataid = lcpt[:,1][datain].strip('"')
-        lcpt = np.delete(lcpt, datain, axis=0)
+#STARTS HERE
+        lc_dict = {}
+        for x in range(len(lcpt)):
+            parameter = lcpt[x][0].split('[')[0]
+            lc_dict[parameter] = lcpt[:,1][x].strip('"')
+
+    # Determine the correct dataset to open
+    # create rv data dictionary
+        indweight = lc_dict['phoebe_lc_indweight']
+
+        if indweight == 'Undefined':
+            indweight = None
+
+        if mzero != None and lc_dict['phoebe_lc_filename'] != 'Undefined':
+
+            data_dict = load_lc_data(filename = lc_dict['phoebe_lc_filename'],  indep=lc_dict['phoebe_lc_indep'], dep=lc_dict['phoebe_lc_dep'], indweight=indweight, mzero=mzero)
+
+            lc_dict.update(data_dict)
+
+    # get dataid and load
+#datain = list(lcpt[:,0]).index('phoebe_lc_id['+str(x)+']')
+        dataid = lc_dict['phoebe_lc_id']
+        del lc_dict['phoebe_lc_id']
+
         if dataid == 'Undefined':
-            dataid = None
-        try:
-            eb._check_label(dataid)
-            if not dataid:
-                eb.add_dataset('lc')
-            else:
-                eb.add_dataset('lc', dataset=dataid)
-        except ValueError:
-            # TODO: add custom exception for forbiddenlabelerror?
-            logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-#            alcn = "%02d" % (x,)
-#            dataid = 'lc'+str(alcn)
-            eb.add_dataset('lc')
-        lcsnew = eb.get_dataset(method='LC').datasets
-        dataid = [i for i in lcsnew if not i in lcs]
-        dataid = dataid[0]
 
-    # now go through parameters and input the results into phoebe2
-        for y in range(len(lcpt)):
-            for j in comid:
+            lc_dataset = eb.add_dataset('lc')
 
-                pname = lcpt[:,0][y]
-                val = lcpt[:,1][y].strip('"')
-                pname = pname.split('[')[0]
-                pnew, d = ret_dict(pname, val, dataid=dataid, comid=j)
-                if len(d) > 0:
-                    #TODO: change filter in several places when this is implemented
-                        if pnew not in ['filter']:
-                            eb.set_value_all(check_relevant=False, **d)
-                        else:
-                            logger.warning("this parameter should be, but is not currently supported") #to do
-#            pnew, twig = ret_twig(pname, dataid)
-            # PUT parameter change here
+        else:
+
+            try:
+                eb._check_label(dataid)
+
+                lc_dataset = eb.add_dataset('lc', dataset=dataid)
+
+            except ValueError:
+        
+                logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
+                lc_dataset = eb.add_dataset('lc')
+
+    # get name of new dataset
+
+        dataid = lc_dataset.dataset
+
+    #enable dataset
+        enabled = lc_dict['phoebe_lc_active']
+        del lc_dict['phoebe_lc_active']
+    
+        d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
+        eb.set_value_all(check_relevant= False, **d)
+
+    #get available passbands
+
+        choices = lc_dataset.get_parameter('passband').choices
+
+    #create parameter dictionary
+
+    # cycle through all parameters. separate out data parameters and model parameters. add model parameters
+
+        for k in lc_dict:
+            pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+        # as long as the parameter exists add it 
+            if len(d) > 0:
+
+                if d['qualifier'] == 'passband' and d['value'] not in choices:
+                    d['value'] = 'Johnson:V'
+                eb.set_value_all(check_relevant=False, **d)
 
 #Now RVs
     for x in range(1,rvno+1):
@@ -385,93 +385,115 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
         rvpt = rvpars[rvint]
-    # get name of dataset and add
-        datapars = ['filename','id', 'indep', 'dep', 'indweight']
-        datavals = []
-        for y in datapars:
-            datain = list(rvpt[:,0]).index('phoebe_rv_'+y+'['+str(x)+']')
-            if y == 'dep':
-                rvdep = rvpt[:,1][datain].split(' ')[0].lower().strip('"')
-                dataid = rvdep
-            else:
-                dataid = rvpt[:,1][datain].strip('"')
+#create rv dictionary
+        rv_dict = {}
+        for x in range(len(rvpt)):
+#    parameter = rvpt[x][0].split('_')[-1].split('[')[0]
+            parameter = rvpt[x][0].split('[')[0]
+            rv_dict[parameter] = rvpt[:,1][x].strip('"')
+    # grab some parameters we'll need
+        passband = rv_dict['phoebe_rv_filter']
+        time = []
+        dataid = rv_dict['phoebe_rv_id']
+        del rv_dict['phoebe_rv_id']
 
-            datavals.append(dataid)
-        datavals.append('rv')
-        eb = load_dataset(eb, *datavals)
+        comp = rv_dict['phoebe_rv_dep'].split(' ')[0].lower()
 
-        #in place to take make sure the dataset name is correct. Issues can occur if the dataset name is forbidden
-        rvsnew = eb.get_dataset(method='RV').datasets
-        dataid = [i for i in rvsnew if not i in rvs]
-        if len(rvsnew) == 1:
-            dataid = rvsnew[0]
-        else:
-            dataid = dataid[0]
+    # create rv data dictionary
+        indweight = rv_dict['phoebe_rv_indweight']
 
-    # now go through parameters and input the results into phoebe2
+        if indweight == 'Undefined':
+            indweight = None
 
-        for y in range(len(rvpt)):
-            for j in comid:
-                pname = rvpt[:,0][y]
-                val = rvpt[:,1][y].strip('"')
-                pname = pname.split('[')[0]
-                pnew, d = ret_dict(pname, val, dataid = dataid, rvdep=rvdep, comid=j)
-                if len(d) > 0:
+        if rv_dict['phoebe_rv_filename'] != 'Undefined':
+            data_dict = load_rv_data(filename = rv_dict['phoebe_rv_filename'],  indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight)
+    
+            rv_dict.update(data_dict)
+            time = rv_dict['phoebe_rv_time']
+        # 
 
-                    if pnew not in ['filter']:
-                        eb.set_value_all(check_relevant=False, **d) #Theoretically set value all is FINE, but I'm not sure if i like this. It comes about because certain parameters may exist in more than one place where it isn't easy to catch.
+        rv_dataset = det_dataset(eb, passband, dataid, comp, time)
+        dataid = rv_dataset.dataset
+        #enable dataset
+        enabled = rv_dict['phoebe_rv_active']
+        del rv_dict['phoebe_rv_active']
+    
+        d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
+        eb.set_value_all(check_relevant= False, **d)
+
+    #get available passbands and set
+
+        choices = rv_dataset.get_parameter('passband').choices
+        pnew, d = ret_dict('phoebe_rv_filter', rv_dict['phoebe_rv_filter'], dataid=dataid)
+        if d['qualifier'] == 'passband' and d['value'] not in choices:
+                d['value'] = 'Johnson:V'
+        eb.set_value_all(check_relevant= False, **d)
+        del rv_dict['phoebe_rv_filter']
+# now go through parameters and input the results into phoebe2
+        for k  in rv_dict:
+            
+            pnew, d = ret_dict(k, rv_dict[k], rvdep = comp, dataid=dataid)
+            if len(d) > 0:
+                eb.set_value_all(check_relevant= False, **d)
+
 
     for x in range(len(params)):
-        for j in comid:
-            pname = params[:,0][x]
-            pname = pname.split('.')[0]
-            val = params[:,1][x].strip('"')
-            pnew, d = ret_dict(pname, val, comid=j)
-            if pnew == 'ld_model':
-                val = val.split(' ')[0]
-                d['value'] = val[0].lower()+val[1::]
-            if pnew == 'pot':
-                #print "dict", d
-                d['method'] = 'star'
-                d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
-                d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
-                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
-                #print "val", val
-                d['value'] = val
-                d['qualifier'] = 'pot'
-                d['method'] = None
-                d['context'] = 'component'
-                #print "d end", d
+        
+        pname = params[:,0][x]
+        pname = pname.split('.')[0]
+        val = params[:,1][x].strip('"')
+        pnew, d = ret_dict(pname, val)
+        if pnew == 'ld_model':
+            val = val.split(' ')[0]
+            d['value'] = val[0].lower()+val[1::]
+        if pnew == 'pot':
+            #print "dict", d
+            d['method'] = 'star'
+            d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
+            d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
+            eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
+            #print "val", val
+            d['value'] = val
+            d['qualifier'] = 'pot'
+            d['method'] = None
+            d['context'] = 'component'
+            #print "d end", d
     #        elif pnew == 'filter':
 
              # write method for this
 
     #        elif pnew == 'excess':
                      # requires two parameters that phoebe 1 doesn't have access to Rv and extinction
-            elif pnew == 'alb':
-                val = 1.-float(val)
-                d['value'] = val
-            elif pnew == 'atm':
-                val = int(val)
+        elif pnew == 'alb':
+            val = 1.-float(val)
+            d['value'] = val
+        elif pnew == 'atm':
+            val = int(val)
 
-                if val == 0:
-                    d['value'] = 'blackbody'
-                if val == 1:
-                    d['value'] = 'kurucz'
-                logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
-            elif pnew == 'finesize':
+            if val == 0:
+                d['value'] = 'blackbody'
+            if val == 1:
+                d['value'] = 'kurucz'
+            logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
+            d['compute'] = 'backend' 
+            eb.set_value(check_relevant=False, **d)
+            d['compute'] = 'detailed'
+            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
+            if d['value'] not in choices:
+                #TODO FIND appropriate default
+                d['value'] = 'atmcof'
+
+        elif pnew == 'finesize':
                     # set gridsize
-                d['value'] = val
-                eb.set_value(check_relevant=False, **d)
-                    # change parameter and value to delta
-                val = 10**(-0.98359345*np.log10(np.float(val))+0.4713824)
-                d['qualifier'] = 'delta'
-                d['value'] = val
-            if len(d) > 0:
+            d['value'] = val
+            eb.set_value_all(check_relevant=False, **d)
+            # change parameter and value to delta
+            val = 10**(-0.98359345*np.log10(np.float(val))+0.4713824)
+            d['qualifier'] = 'delta'
+            d['value'] = val
+        if len(d) > 0:
 
-                if pnew not in ['filter']:
-
-                    eb.set_value_all(check_relevant=False, **d)
+            eb.set_value_all(check_relevant=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
 
@@ -492,7 +514,6 @@ d - dictionary with parameter, context, dataset etc.
 
 
 def par_value(param, index=None):
-
 # build a dictionary
 
     d={}
@@ -514,6 +535,7 @@ def par_value(param, index=None):
         val = param.get_quantity(unit=unit).value
         if d['qualifier'] == 'alb':
             val = [1.0-val]
+
         else:
             val = [val]
     elif isinstance(param, phb.parameters.ChoiceParameter):
@@ -534,6 +556,14 @@ def par_value(param, index=None):
     elif isinstance(param, phb.parameters.IntParameter):
         ptype = 'int'
         val = [param.get_value()]
+
+        if d['qualifier'] == 'refl_num':
+
+            val = [param.get_value()-1]   
+
+        else:
+            val = [param.get_value()]
+
     elif isinstance(param, phb.parameters.FloatArrayParameter):
         val1 = param.get_value()[0]
         val2 = param.get_value()[1]
@@ -576,7 +606,6 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
         dset = '['+str(dnum)+'].VAL'
     else:
         dset = ''
-
     return ['phoebe_ld_'+x+dset for x in pnew]
 
 def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=None):
@@ -696,16 +725,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #        param = eb.get_parameter(prpars[x], component='primary')
         try:
             pnew = _2to1par[param.qualifier]
-            if param.qualifier in ['sma', 'period', 'incl','enabled','statweight','l3', 'ld_func']:
+            if param.qualifier in ['sma', 'period', 'incl','enabled','statweight','l3', 'ld_func'] or param.component == '_default':
                 param = None
-            elif 'ld_' in param.qualifier:
-                param = None
+#            elif 'ld_' in param.qualifier:
+#                param = None
 
         except:
             logger.warning(str(param.qualifier)+' has no phoebe 1 corollary')
             param=None
         if param != None:
-
             val, ptype = par_value(param)
             if param.qualifier == 'alb_bol':
                 val = [1-float(val[0])]
@@ -724,7 +752,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #        param = eb.get_parameter(secpars[x], component= 'secondary')
         try:
             pnew = _2to1par[param.qualifier]
-            if param.qualifier in ['sma', 'period', 'incl', 'ld_func', 'ld_func_bol']:
+            if param.qualifier in ['sma', 'period', 'incl', 'ld_func', 'ld_func_bol'] or param.component == '_default':
                 param = None
 
         except:
@@ -780,7 +808,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
             try:
                 pnew = _2to1par[param.qualifier]
-                if param.qualifier in [ 'alb', 'l3', 'ld_func']:
+                if param.qualifier in [ 'alb', 'l3', 'ld_func', 'flux', 'sigma', 'time'] or param.component == '_default':
+                    
                     param = None
             except:
 
@@ -851,7 +880,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
                 try:
                     pnew = _2to1par[param.qualifier]
-                    if param.qualifier in ['ld_func']:
+                    if param.qualifier in ['ld_func', 'rv', 'time', 'sigma'] or param.component == '_default':
                         param = None
 
                 except:
@@ -892,7 +921,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
                     try:
                         pnew = _2to1par[param.qualifier]
-                        if param.qualifier in ['ld_func']:
+                        if param.qualifier in ['ld_func', 'time', 'rv', 'sigma']or param.component == '_default':
+                            
                             param = None
 
                     except:
@@ -957,10 +987,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
 #loop through LEGACY compute parameter set
 
-    comquals = eb.get_compute(method='legacy')-eb.get_compute(method='legacy', component='_default')
+    comquals = eb.get_compute(method='legacy', check_relevant=False)-eb.get_compute(method='legacy', component='_default')
 
     for param in comquals.to_list():
-
+            
         if param.qualifier == 'heating':
             if param.get_value() == False:
                in1 =  parnames.index('phoebe_alb1.VAL')
