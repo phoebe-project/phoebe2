@@ -1295,7 +1295,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       NatV[][3] - 2-rank numpy array of normals at vertices
  
     vnormgrads:
-      GatV[]  - 1-rank numpy array of norms of the gradients at central points
+      GatV[]  - 1-rank numpy array of norms of the gradients at vertices
  
     triangles:
       T[][3]    - 2-rank numpy array of 3 indices of vertices 
@@ -1759,7 +1759,6 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
 }
 
-
 /*
   Python wrapper for C++ code:
 
@@ -1783,6 +1782,9 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     areas: boolean, default False
     volume: boolean, default False
     area : boolean, default False
+    centers: boolean, default False 
+    cnormals: boolean, default False 
+    cnormgrads: boolean, default False 
   
   Returns: dictionary with keywords
   
@@ -1794,14 +1796,12 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   
     areas:  default false
       A: 1-rank numpy array of areas of triangles
-    
-    area:  default false
-      area: float - area of triangles of mesh
-    
+        
     volume:  default false
       volume:float, volume of body enclosed by triangular mesh
   
-  
+    area:  default false
+      area: float - area of triangles of mesh
 */
 
 static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywds){
@@ -1844,6 +1844,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     *o_areas = 0,
     *o_volume = 0,
     *o_area = 0;
+    
     
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dO!O!O!|iO!O!O!O!O!", kwlist,
@@ -1924,8 +1925,159 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   if (b_area)
     PyDict_SetItemString(results, "area", PyFloat_FromDouble(area_new));
 
+
   return results;
 }
+
+/*
+  Python wrapper for C++ code:
+
+  Calculate the central points corresponding to the mesh and Roche lobe.
+  
+  Python:
+
+    dict = roche_centers(q, F, d, Omega0, V, T, <keyword>=[true,false], ... )
+    
+  where parameters
+  
+    positional:
+  
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      Omega0: float - value of the generalized Kopal potential
+      V: 2-rank numpy array of vertices  
+      T: 2-rank numpy array of indices of vertices composing triangles
+       
+    keywords: 
+     
+      centers: boolean, default False
+      cnormals: boolean, default False
+      cnormgrads: boolean, default False
+      
+  Returns:
+  
+    dictionary
+  
+  with keys
+  
+  centers:
+    C: 2-rank numpy array of new centers
+
+  cnormals: default false
+    NatC: 2-rank numpy array of normals of centers
+
+  cnormgrads: default false
+    GatC: 1-rank numpy array of norms of gradients at centers
+*/
+static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject *keywds){
+  
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"vertices",
+    (char*)"triangles",
+    (char*)"centers", 
+    (char*)"cnormals",
+    (char*)"cnormgrads",
+    NULL};
+  
+  double q, F, d, Omega0;   
+
+  bool 
+    b_centers = false,
+    b_cnormals = false,
+    b_cnormgrads = false;
+    
+  PyArrayObject *oV,  *oT;
+ 
+  PyObject
+    *o_centers = 0,
+    *o_cnormals = 0,
+    *o_cnormgrads = 0;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dddddO!O!|O!O!O!", kwlist,
+      &q, &F, &d, &Omega0,         // neccesary 
+      &PyArray_Type, &oV, 
+      &PyArray_Type, &oT,
+      &PyBool_Type, &o_centers,    // optional
+      &PyBool_Type, &o_cnormals,
+      &PyBool_Type, &o_cnormgrads
+      ))
+    return NULL;
+  
+  if (o_centers) b_centers = PyObject_IsTrue(o_centers);
+  if (o_cnormals) b_cnormals = PyObject_IsTrue(o_cnormals);
+  if (o_cnormgrads) b_cnormgrads = PyObject_IsTrue(o_cnormgrads);
+
+
+  if (!b_centers && !b_cnormals && !b_cnormgrads) return NULL;
+  
+  //
+  // Storing data
+  //
+  
+  std::vector<T3Dpoint<double>> V;
+  PyArray_To3DPointVector(oV, V);
+  
+  std::vector<T3Dpoint<int>> Tr;
+  PyArray_To3DPointVector(oT, Tr);
+  
+  //
+  //  Init marching triangulation for the Roche lobe 
+  //
+    
+  double params[4] = {q, F, d, Omega0};
+  
+  Tmarching<double, Tgen_roche<double>> march(params, false);  
+  
+  //
+  // Calculte the central points
+  // 
+
+  std::vector<double> *GatC = 0;
+  
+  std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
+  
+  if (b_centers) C = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormgrads) GatC = new std::vector<double>;
+ 
+  march.central_points(V, Tr, C, NatC, GatC);
+  
+  //
+  // Returning values
+  //
+  
+  PyObject *results = PyDict_New();
+    
+  if (b_centers) {
+    PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
+    delete C;  
+  }
+
+  if (b_cnormals) {
+    PyDict_SetItemString(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    delete NatC;
+  }
+  
+  if (b_cnormgrads) {
+    PyDict_SetItemString(results, "cnormgrads", PyArray_FromVector(*GatC));
+    delete GatC;
+  }
+  
+  return results; 
+}
+
 
 /*
   Python wrapper for C++ code:
@@ -2311,6 +2463,14 @@ static PyMethodDef Methods[] = {
       METH_VARARGS|METH_KEYWORDS, 
       "Reprojecting vertices onto the Roche lobe defined by q,F,d, and the value of"
       " generalized Kopal potential Omega."},
+      
+// --------------------------------------------------------------------    
+
+    { "roche_central_points",
+      (PyCFunction)roche_central_points,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determining the central points of triangular mesh on the Roche lobe"
+      " defined by q,F,d, and the value of generalized Kopal potential Omega."},
       
 // --------------------------------------------------------------------    
 
