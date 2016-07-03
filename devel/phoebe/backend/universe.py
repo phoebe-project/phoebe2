@@ -1250,9 +1250,12 @@ class Star(Body):
                                                          cnormals=False,
                                                          vnormgrads=True,
                                                          cnormgrads=False,
-                                                         areas=True,
-                                                         volume=True)
+                                                         areas=False,
+                                                         volume=False)
 
+
+                # Now we'll get the area and volume of the Roche potential
+                # itself (not the mesh).
                 # TODO: which volume(s) do we want to report?  Either way, make
                 # sure to do the same for the OC case and rotstar
                 av = libphoebe.roche_area_volume(*mesh_args,
@@ -1262,7 +1265,32 @@ class Star(Body):
 
                 new_mesh['volume'] = av['lvolume']
 
+                # vertices directly from meshing are placed directly on the
+                # potential, causing the volume and surface area to always
+                # (for convex surfaces) be underestimated.  Now let's jitter
+                # each of the vertices along their normals to recover the
+                # expected volume/surface area.  Since they are moved along
+                # their normals, vnormals applies to both vertices and
+                # pvertices.
+                new_mesh['pvertices'] = new_mesh.pop('vertices')
+                mo = libphoebe.mesh_offseting(av['larea'],
+                                              new_mesh['pvertices'],
+                                              new_mesh['vnormals'],
+                                              new_mesh['triangles'],
+                                              vertices=True,
+                                              tnormals=False,
+                                              areas=True,
+                                              volume=False)
+
+                new_mesh['vertices'] = mo['vertices']
+                new_mesh['areas'] = mo['areas']
+
+                # We only need the gradients where we'll compute local
+                # quantities which, for a marching mesh, is at the vertices.
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+
+                # And lastly, let's fill the velocities column - with zeros
+                # at each of the vertices
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
 
