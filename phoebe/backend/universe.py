@@ -998,7 +998,7 @@ class CustomBody(Body):
 
 
 class Star(Body):
-    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law, abun, mesh_method='marching', dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], do_rv_grav=False, features=[], **kwargs):
+    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law, abun, mesh_method='marching', dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
 
         :parameter float F: syncpar
@@ -1046,6 +1046,8 @@ class Star(Body):
         self.abun = abun
 
         self.features = features
+
+        self._do_mesh_offset = do_mesh_offset
 
         # Volume "conservation"
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
@@ -1146,9 +1148,11 @@ class Star(Body):
             feature_cls = globals()[feature_ps.method.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
+        do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
                 abun, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
-                datasets=datasets, do_rv_grav=do_rv_grav, features=features, **mesh_kwargs)
+                datasets=datasets, do_rv_grav=do_rv_grav, features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
     @property
     def spots(self):
@@ -1250,7 +1254,7 @@ class Star(Body):
                                                          cnormals=False,
                                                          vnormgrads=True,
                                                          cnormgrads=False,
-                                                         areas=False,
+                                                         areas=True,
                                                          volume=False)
 
 
@@ -1265,25 +1269,31 @@ class Star(Body):
 
                 new_mesh['volume'] = av['lvolume']
 
-                # vertices directly from meshing are placed directly on the
-                # potential, causing the volume and surface area to always
-                # (for convex surfaces) be underestimated.  Now let's jitter
-                # each of the vertices along their normals to recover the
-                # expected volume/surface area.  Since they are moved along
-                # their normals, vnormals applies to both vertices and
-                # pvertices.
-                new_mesh['pvertices'] = new_mesh.pop('vertices')
-                mo = libphoebe.mesh_offseting(av['larea'],
-                                              new_mesh['pvertices'],
-                                              new_mesh['vnormals'],
-                                              new_mesh['triangles'],
-                                              vertices=True,
-                                              tnormals=False,
-                                              areas=True,
-                                              volume=False)
+                if self._do_mesh_offset:
+                    # vertices directly from meshing are placed directly on the
+                    # potential, causing the volume and surface area to always
+                    # (for convex surfaces) be underestimated.  Now let's jitter
+                    # each of the vertices along their normals to recover the
+                    # expected volume/surface area.  Since they are moved along
+                    # their normals, vnormals applies to both vertices and
+                    # pvertices.
+                    new_mesh['pvertices'] = new_mesh.pop('vertices')
+                    mo = libphoebe.mesh_offseting(av['larea'],
+                                                  new_mesh['pvertices'],
+                                                  new_mesh['vnormals'],
+                                                  new_mesh['triangles'],
+                                                  vertices=True,
+                                                  tnormals=False,
+                                                  areas=True,
+                                                  volume=False)
 
-                new_mesh['vertices'] = mo['vertices']
-                new_mesh['areas'] = mo['areas']
+                    new_mesh['vertices'] = mo['vertices']
+                    new_mesh['areas'] = mo['areas']
+                else:
+                    # pvertices should just be a copy of vertice
+                    new_mesh['pvertices'] = new_mesh['vertices']
+
+
 
                 # We only need the gradients where we'll compute local
                 # quantities which, for a marching mesh, is at the vertices.
