@@ -461,6 +461,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             this_syn['z'] = protomesh.centers[:,2]# * u.solRad
             this_syn['vertices'] = protomesh.vertices_per_triangle
             this_syn['areas'] = protomesh.areas # * u.solRad**2
+            this_syn['tareas'] = protomesh.tareas # * u.solRad**2
             this_syn['normals'] = protomesh.tnormals
             this_syn['nx'] = protomesh.tnormals[:,0]
             this_syn['ny'] = protomesh.tnormals[:,1]

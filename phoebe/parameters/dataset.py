@@ -354,6 +354,7 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='vy', time=t, value=kwargs.get('vy', []), default_unit=u.solRad/u.d, description='Y velocity of center of triangles')]
                 syn_params += [FloatArrayParameter(qualifier='vz', time=t, value=kwargs.get('vz', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
             syn_params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of WD triangles')]
             # syn_params += [FloatArrayParameter(qualifier='volumes', time=t, value=kwargs.get('volumes', []), default_unit=u.solRad**3, description='Volume of triangles')]
             syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Vertices of triangles')]
             syn_params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]

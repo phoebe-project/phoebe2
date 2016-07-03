@@ -149,6 +149,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     # NOTE: there are no vnormals in wd-style mesh
 
     new_mesh['areas'] = the_grid[:,3]
+    new_mesh['tareas'] = the_grid[:,18]
 
     # TESTING ONLY - remove this eventually ??? (currently being used
     # to test WD-style eclipse detection by using theta and phi (lat and long)
@@ -356,6 +357,7 @@ class ProtoMesh(object):
         self._triangles         = None  # Nx3
         self._centers           = None  # Nx3
         self._areas             = None  # Nx1
+        self._tareas            = None  # Nx1
 
         self._velocities        = ComputedColumn(mesh=self)  # Nx1
 
@@ -391,7 +393,7 @@ class ProtoMesh(object):
         keys = ['pvertices', 'vertices', 'triangles', 'centers',
                   'coords_for_computations', 'normals_for_computations',
                   'rs', 'rprojs', 'cosbetas',
-                  'areas', 'areas_si',
+                  'areas', 'tareas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume',
                   'phis', 'thetas',
@@ -677,6 +679,17 @@ class ProtoMesh(object):
         (Nx1)
         """
         return self._areas
+
+    @property
+    def tareas(self):
+        """
+        Return the array of triangle areas, where each item is a scalar/float.
+
+        TODO: UNIT?
+
+        (Nx1)
+        """
+        return self._tareas
 
     @property
     def areas_si(self):
