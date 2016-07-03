@@ -350,6 +350,7 @@ class ProtoMesh(object):
         """
 
 
+        self._pvertices         = None  # Vx3
         self._vertices          = None  # Vx3
 
         self._triangles         = None  # Nx3
@@ -387,7 +388,7 @@ class ProtoMesh(object):
         # we call something like ScaledProtoMesh.from_proto we don't have
         # to do all the on-the-fly computations just to discard them because
         # they aren't setable.
-        keys = ['vertices', 'triangles', 'centers',
+        keys = ['pvertices', 'vertices', 'triangles', 'centers',
                   'coords_for_computations', 'normals_for_computations',
                   'rs', 'rprojs', 'cosbetas',
                   'areas', 'areas_si',
@@ -536,6 +537,16 @@ class ProtoMesh(object):
         return len(self.triangles)
 
     @property
+    def pvertices(self):
+        """
+        Return the array of vertices on the potential, where each item is a
+        triplet representing cartesian coordinates.
+
+        (Vx3)
+        """
+        return self._pvertices
+
+    @property
     def vertices(self):
         """
         Return the array of vertices, where each item is a triplet
@@ -544,6 +555,17 @@ class ProtoMesh(object):
         (Vx3)
         """
         return self._vertices
+
+    @property
+    def pvertices_per_triangle(self):
+        """
+        TODO: add documentation
+
+        TODO: confirm shape
+        (Nx3x3)
+        """
+        return self.pvertices[self.triangles]
+
 
     @property
     def vertices_per_triangle(self):
@@ -584,7 +606,10 @@ class ProtoMesh(object):
 
         # TODO: need to subtract the position offset if a Mesh (in orbit)
         if self._compute_at_vertices:
-            return self.vertices - self._pos
+            if self.pvertices is not None:
+                return self.pvertices - self._pos
+            else:
+                return self.vertices - self._pos
         else:
             return self.centers - self._pos
 
