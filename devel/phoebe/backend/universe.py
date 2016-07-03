@@ -733,6 +733,15 @@ class Body(object):
                                               polar_dir*self.freq_rot)
 
 
+        # TODO: enable support for features to edit mesh
+        # for feature in self.features:
+            # vertices = feature.process_coords(self.mesh.vertices, t=self.time)
+            # centers = feature.process_coords(self.mesh.centers, t=self.time)
+            # areas
+            # volume
+            # gross
+
+
         # Lastly, we'll recompute physical quantities (not observables) if
         # needed for this time-step.
         if not self.mesh.loggs.for_computations or self.needs_recompute_instantaneous:
@@ -1287,11 +1296,14 @@ class Star(Body):
                                                   areas=True,
                                                   volume=False)
 
-                    # TODO: need to update centers (so that they get passed
-                    # to the frontend as x, y, z)
-
                     new_mesh['vertices'] = mo['vertices']
                     new_mesh['areas'] = mo['areas']
+
+                    # TODO: need to update centers (so that they get passed
+                    # to the frontend as x, y, z)
+                    # new_mesh['centers'] = mo['centers']
+
+
                 else:
                     # pvertices should just be a copy of vertice
                     new_mesh['pvertices'] = new_mesh['vertices']
@@ -1410,6 +1422,10 @@ class Star(Body):
         g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
 
         loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
+
+        for feature in self.features:
+            loggs = feature.process_teffs(loggs, mesh.coords_for_computations, t=self.time)
+
         mesh.update_columns(loggs=loggs)
 
         # logger.info("derived surface gravity: %.3f <= log g<= %.3f (g_p=%s and Rp=%s Rsol)"%(loggs.min(), loggs.max(), self._instantaneous_gpole, self._instantaneous_rpole*self._scale))
@@ -1529,8 +1545,8 @@ class Star(Body):
         # Now we can compute the local temperatures.
         teffs = (mesh.gravs.for_computations * Tpole**4)**0.25
 
-        for spot in self.spots:
-            teffs = spot.process_teffs(teffs, mesh.coords_for_computations)
+        for feature in self.features:
+            teffs = feature.process_teffs(teffs, mesh.coords_for_computations, t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -2143,8 +2159,36 @@ class Feature(object):
     def __init__(self, *args, **kwargs):
         pass
 
+    def process_coords(self, coords, t=None):
+        """
+        Method for a feature to process the coordinates (NOTE: currently not
+        supported).
+
+        Features that affect coordinates should override this method.
+        """
+        return coords
+
+    def process_loggs(self, loggs, coords, t=None):
+        """
+        Method for a feature to process the loggs.
+
+        Features that affect loggs should override this method
+        """
+        return loggs
+
+    def process_teffs(self, teffs, coords, t=None):
+        """
+        Method for a feature to process the teffs.
+
+        Features that affect teffs should override this method
+        """
+        return teffs
+
 class Spot(Feature):
     def __init__(self, colat, colon, radius, relteff, **kwargs):
+        """
+        Initialize a Spot feature
+        """
         super(Spot, self).__init__(**kwargs)
         self._colat = colat
         self._colon = colon
@@ -2159,6 +2203,7 @@ class Spot(Feature):
     @classmethod
     def from_bundle(cls, b, feature):
         """
+        Initialize a Spot feature from the bundle.
         """
 
         feature_ps = b.get_feature(feature)
@@ -2168,8 +2213,15 @@ class Spot(Feature):
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
         return cls(colat, colon, radius, relteff)
 
-    def process_teffs(self, teffs, coords):
+    def process_teffs(self, teffs, coords, t=None):
         """
+        Change the local effective temperatures for any values within the
+        "cone" defined by the spot.  Any teff within the spot will have its
+        current value multiplied by the "relteff" factor
+
+        :parameter array teffs: array of teffs for computations
+        :parameter array coords: array of coords for computations
+        :t float: current time
         """
 
         cos_alpha_coords = np.dot(coords, self._pointing_vector) / np.linalg.norm(coords, axis=1)
