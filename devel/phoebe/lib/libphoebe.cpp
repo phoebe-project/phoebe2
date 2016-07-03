@@ -1782,6 +1782,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     tnormals: boolean, default False
     areas: boolean, default False
     volume: boolean, default False
+    area : boolean, default False
   
   Returns: dictionary with keywords
   
@@ -1845,12 +1846,12 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     *o_area = 0;
     
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dO!O!O!|i", kwlist,
+      args, keywds,  "dO!O!O!|iO!O!O!O!O!", kwlist,
       &area,
       &PyArray_Type, &oV, 
       &PyArray_Type, &oNatV, 
       &PyArray_Type, &oT,
-      &max_iter,
+      &max_iter,                      // optionals ...
       &PyBool_Type, &o_vertices,
       &PyBool_Type, &o_tnormals,
       &PyBool_Type, &o_areas,
@@ -1883,7 +1884,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   }
 
   //
-  // calculate mesh properties
+  // calculate properties of the mesh with new vertices 
   //
   
   std::vector<T3Dpoint<double>> *NatT = 0;
@@ -1921,7 +1922,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     PyDict_SetItemString(results,"volume", PyFloat_FromDouble(volume));
 
   if (b_area)
-    PyDict_SetItemString(results,"area", PyFloat_FromDouble(area_new));
+    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area_new));
 
   return results;
 }
