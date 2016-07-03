@@ -2003,7 +2003,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
     *o_cnormgrads = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddddO!O!|O!O!O!", kwlist,
+      args, keywds,  "ddddO!O!|O!O!O!", kwlist,
       &q, &F, &d, &Omega0,         // neccesary 
       &PyArray_Type, &oV, 
       &PyArray_Type, &oT,
