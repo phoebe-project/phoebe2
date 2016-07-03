@@ -1287,6 +1287,9 @@ class Star(Body):
                                                   areas=True,
                                                   volume=False)
 
+                    # TODO: need to update centers (so that they get passed
+                    # to the frontend as x, y, z)
+
                     new_mesh['vertices'] = mo['vertices']
                     new_mesh['areas'] = mo['areas']
                 else:
@@ -1302,6 +1305,8 @@ class Star(Body):
                 # And lastly, let's fill the velocities column - with zeros
                 # at each of the vertices
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
+
+                new_mesh['tareas'] = np.array([])
 
 
             elif self.distortion_method == 'rotstar':
