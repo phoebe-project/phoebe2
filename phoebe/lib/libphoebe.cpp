@@ -43,7 +43,7 @@
   http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
 */ 
 template <class T>
-PyObject  *PyArray_SimpleNewFromVector(
+PyObject *PyArray_SimpleNewFromVector(
   int np, 
   npy_intp *dims, 
   int typenum, 
@@ -57,7 +57,11 @@ PyObject  *PyArray_SimpleNewFromVector(
   void *p = malloc(size);
   memcpy(p, V, size);
   
-  return PyArray_SimpleNewFromData(np, dims, typenum, p); 
+  PyObject *pya = PyArray_SimpleNewFromData(np, dims, typenum, p);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *) pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 /*
@@ -80,7 +84,12 @@ PyObject *PyArray_FromVector(std::vector<T> &V){
   
   npy_intp dims[1] = {N};
   
-  return PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p); 
+  PyObject *pya = 
+    PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p); 
+
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 
@@ -106,7 +115,12 @@ PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
   
   npy_intp dims[2] = {N, 3};
   
-  return PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p); 
+  PyObject *pya =
+    PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p); 
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 
@@ -157,7 +171,12 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
   // return the results
   npy_intp dims[1] = {3};
 
-  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, omega);
+  PyObject *pya = 
+    PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, omega);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 /*
@@ -1450,10 +1469,9 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     return NULL;
   }
   
-
-  
+ 
   //
-  // Calculte the mesh properties
+  // Calculate the mesh properties
   //
   int vertex_choice = 0;
   
@@ -1679,8 +1697,11 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   }
 
   if (b_horizon) {
-    PyObject *list = PyList_New(0);
-    for (auto && h : *H) PyList_Append(list, PyArray_FromVector(h));
+    PyObject *list = PyList_New(H->size());
+    
+    int i = 0;
+    for (auto && h : *H) PyList_SetItem(list, i++, PyArray_FromVector(h));
+    
     PyDict_SetItemString(results, "horizon", list);
     delete H;  
   }

@@ -703,7 +703,9 @@ void mesh_attributes(
 }
 
 /*
-  Offseting the mesh to match the reference area.
+  Offseting the mesh to match the reference area by moving vertices along the normals in vertices so that the total area matches its reference value.
+  
+  Currently supporting only curvature independent.
 
   Input:
     A0 - reference area
