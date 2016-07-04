@@ -1450,19 +1450,6 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     return NULL;
   }
   
-  if (b_vertices)
-    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
-
-  if (b_vnormals)
-    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
-
-  if (b_vnormgrads) {
-    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
-    delete GatV;
-  }
-  
-  if (b_triangles)
-    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
 
   
   //
@@ -1485,24 +1472,9 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   if (b_tnormals) NatT = new std::vector<T3Dpoint<double>>;
   
   if (b_volume) p_volume = &volume;
-   
-  mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
-
-  if (b_areas) {
-    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
-    delete A;  
-  }
   
-  if (b_area)
-    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
-
-  if (b_tnormals) {
-    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
-    delete NatT;
-  }
-
-  if (b_volume)
-    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+  // We do reordering triangles, so that NatT is pointing out
+  mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
 
   //
   // Calculte the central points
@@ -1519,6 +1491,42 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   if (b_cnormgrads) GatC = new std::vector<double>;
  
   march.central_points(V, Tr, C, NatC, GatC);
+ 
+  //
+  // Returning results
+  //
+  
+ if (b_vertices)
+    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+
+  if (b_vnormals)
+    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
+
+  if (b_vnormgrads) {
+    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    delete GatV;
+  }
+  
+  if (b_triangles)
+    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
+
+  
+  if (b_areas) {
+    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
+    delete A;  
+  }
+  
+  if (b_area)
+    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
+
+  if (b_tnormals) {
+    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    delete NatT;
+  }
+
+  if (b_volume)
+    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+    
   
   if (b_centers) {
     PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
@@ -1835,7 +1843,6 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     b_volume = false,
     b_area = false;
     
-      
   PyArrayObject *oV, *oNatV, *oT;
   
   PyObject  
@@ -1844,7 +1851,6 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     *o_areas = 0,
     *o_volume = 0,
     *o_area = 0;
-    
     
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dO!O!O!|iO!O!O!O!O!", kwlist,
@@ -1860,15 +1866,15 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
       &PyBool_Type, &o_area
       )) return NULL;
 
-
-
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_tnormals) b_tnormals = PyObject_IsTrue(o_tnormals);
   if (o_areas) b_areas = PyObject_IsTrue(o_areas);
   if (o_volume) b_volume = PyObject_IsTrue(o_volume);
   if (o_area) b_area = PyObject_IsTrue(o_area);
 
-  // storing data
+  //
+  // Storing input data
+  //
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr;
 
@@ -1877,7 +1883,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   PyArray_To3DPointVector(oT, Tr);
 
   //
-  // running mesh offseting
+  // Running mesh offseting
   //
   if (!mesh_offseting_matching_area(area, V, NatV, Tr, max_iter)){
     std::cerr << "mesh_offseting_matching_area::Offseting failed\n";
@@ -1885,7 +1891,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   }
 
   //
-  // calculate properties of the mesh with new vertices 
+  // Calculate properties of the mesh with new vertices 
   //
   
   std::vector<T3Dpoint<double>> *NatT = 0;
@@ -1898,12 +1904,14 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   
   if (b_area) p_area = &area_new;
   if (b_volume) p_volume = &volume;
-
+  
+  // note: no need to reorder
   mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume);
   
   //
-  // returning results
+  // Returning results
   //  
+  
   PyObject *results = PyDict_New();
   
   if (b_vertices)
@@ -1928,6 +1936,157 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
 
   return results;
 }
+
+/*
+  Python wrapper for C++ code:
+
+  Calculate mesh properties Marching meshing of Roche lobes implicitely defined by generalized Kopal potential:
+    
+      Omega_0 = Omega(x,y,z)
+    
+  Python:
+
+    dict = mesh_properties(V, T, <keyword>=[true,false], ... )
+    
+  where positional parameters
+  
+    V[][3]: 2-rank numpy array of a pairs of vertices 
+    T[][3]: 2-rank numpy array of 3 indices of vertices 
+            composing triangles of the mesh aka connectivity matrix
+
+  and optional keywords:  
+   
+    tnormals: boolean, default False
+    areas: boolean, default False
+    area: boolean, default False
+    volume: boolean, default False
+    
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    tnormals:
+      NatT[][3] - 2-rank numpy array of normals of triangles
+  
+    areas:
+      A[]       - 1-rank numpy array of areas of triangles
+    
+    area:
+      area      - area of triangles of mesh
+    
+    volume:
+      volume    - volume of body enclosed by triangular mesh
+*/
+
+static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"vertices",
+    (char*)"triangles", 
+    (char*)"tnormals", 
+    (char*)"areas",
+    (char*)"area",
+    (char*)"volume",
+    NULL};
+  
+  bool 
+    b_tnormals = false, 
+    b_areas = false,
+    b_area = false,
+    b_volume = false;
+  
+  PyArrayObject *oV, *oT;
+    
+  PyObject
+    *o_tnormals = 0, 
+    *o_areas = 0,
+    *o_area = 0,
+    *o_volume = 0;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!O!|O!O!O!O!", kwlist,
+      &PyArray_Type, &oV, // neccesary 
+      &PyArray_Type, &oT,
+      &PyBool_Type, &o_tnormals,  // optional
+      &PyBool_Type, &o_areas,
+      &PyBool_Type, &o_area,
+      &PyBool_Type, &o_volume 
+      ))
+    return NULL;
+  
+  
+  if (o_tnormals) b_tnormals = PyObject_IsTrue(o_tnormals);
+  if (o_areas) b_areas = PyObject_IsTrue(o_areas);
+  if (o_area) b_area = PyObject_IsTrue(o_area);
+  if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+
+  if (!b_tnormals && !b_areas && !b_area && !b_volume) return NULL;
+  
+  //
+  // Storing input data
+  //
+  std::vector<T3Dpoint<double>> V;
+  std::vector<T3Dpoint<int>> Tr;
+
+  PyArray_To3DPointVector(oV, V);
+  PyArray_To3DPointVector(oT, Tr);
+
+  //
+  // Calculte the mesh properties
+  //
+  
+  double 
+    area, volume, 
+    *p_area = 0, *p_volume = 0;
+  
+  std::vector<double> *A = 0; 
+  
+  std::vector<T3Dpoint<double>> *NatT = 0;
+  
+  if (b_areas) A = new std::vector<double>;
+  
+  if (b_area) p_area = &area;
+  
+  if (b_tnormals) NatT = new std::vector<T3Dpoint<double>>;
+  
+  if (b_volume) p_volume = &volume;
+  
+  
+  mesh_attributes(V, Tr, A, NatT, p_area, p_volume);
+
+  //
+  // Returning results
+  //  
+  
+  PyObject *results = PyDict_New();
+  
+
+  if (b_areas) {
+    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
+    delete A;  
+  }
+  
+  if (b_area)
+    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
+
+  if (b_tnormals) {
+    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    delete NatT;
+  }
+
+  if (b_volume)
+    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+
+  
+  return results;
+}
+
 
 /*
   Python wrapper for C++ code:
@@ -2055,7 +2214,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   march.central_points(V, Tr, C, NatC, GatC);
   
   //
-  // Returning values
+  // Returning results
   //
   
   PyObject *results = PyDict_New();
@@ -2455,6 +2614,13 @@ static PyMethodDef Methods[] = {
       (PyCFunction)mesh_offseting,
       METH_VARARGS|METH_KEYWORDS, 
       "Offset the mesh along the normals in vertices to match the area with reference area."},
+      
+          
+    { "mesh_properties",
+      (PyCFunction)mesh_properties,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculate the properties of the triangular mesh."},
+
 
 // --------------------------------------------------------------------    
 
