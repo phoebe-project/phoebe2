@@ -37,34 +37,6 @@
 #include <numpy/arrayobject.h>
 
 /*
-  Creating PyArray from std::vector.
-  
-  Ref: 
-  http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
-*/ 
-template <class T>
-PyObject *PyArray_SimpleNewFromVector(
-  int np, 
-  npy_intp *dims, 
-  int typenum, 
-  void *V){
-  
-  int size = dims[0];
-  for (int i = 1; i < np; ++i) size *= dims[i];
-  size *= sizeof(T);
-  
-  // Note: p is interpreted in C-style contiguous fashion
-  void *p = malloc(size);
-  memcpy(p, V, size);
-  
-  PyObject *pya = PyArray_SimpleNewFromData(np, dims, typenum, p);
-  
-  PyArray_ENABLEFLAGS((PyArrayObject *) pya, NPY_ARRAY_OWNDATA);
-  
-  return pya;
-}
-
-/*
   Getting the Python typename 
 */
 
@@ -731,7 +703,11 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
   
   npy_intp dims[1] = {4};
 
-  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 /*
@@ -779,7 +755,11 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
   
   npy_intp dims[1] = {4};
 
-  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+    
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
  
 /*
@@ -823,7 +803,11 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
   npy_intp dims[1] = {3};
 
-  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 /*
@@ -864,7 +848,11 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
 
   npy_intp dims[1] = {3};
 
-  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 
@@ -1170,28 +1158,12 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   std::vector<T3Dpoint<int>> Tr; 
   std::vector<double> *GatV = 0;
      
-   
   if (b_vnormgrads) GatV = new std::vector<double>;
   
   if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
     std::cerr << "roche_marching_mesh::There are too many triangles\n";
     return NULL;
   }
-  
-  if (b_vertices)
-    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
-
-  if (b_vnormals)
-    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
-
-  if (b_vnormgrads) {
-    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
-    delete GatV;
-  }
-  
-  if (b_triangles)
-    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
-
   
   //
   // Calculte the mesh properties
@@ -1215,6 +1187,37 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   if (b_volume) p_volume = &volume;
    
   mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
+ 
+  //
+  // Calculte the central points
+  // 
+
+  std::vector<double> *GatC = 0;
+  
+  std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
+  
+  if (b_centers) C = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormgrads) GatC = new std::vector<double>;
+ 
+  march.central_points(V, Tr, C, NatC, GatC);
+  
+  
+  if (b_vertices)
+    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+
+  if (b_vnormals)
+    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
+
+  if (b_vnormgrads) {
+    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    delete GatV;
+  }
+  
+  if (b_triangles)
+    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
 
   if (b_areas) {
     PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
@@ -1231,22 +1234,6 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
 
   if (b_volume)
     PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
-
-  //
-  // Calculte the central points
-  // 
-
-  std::vector<double> *GatC = 0;
-  
-  std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
-  
-  if (b_centers) C = new std::vector<T3Dpoint<double>>;
- 
-  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
- 
-  if (b_cnormgrads) GatC = new std::vector<double>;
- 
-  march.central_points(V, Tr, C, NatC, GatC);
   
   if (b_centers) {
     PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
