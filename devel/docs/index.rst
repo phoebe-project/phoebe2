@@ -230,6 +230,7 @@ Binary Stars
    Rossiter-McLaughlin Effect (RVs)<examples/rossiter_mclaughlin>
    Wilson-Devinney Style Meshing<examples/mesh_wd>
    Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
+   Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
 
 
 COMING SOON (examples from literature)
@@ -270,6 +271,16 @@ Spots (NOT YET OFFICIALLY SUPPORTED)
    :titlesonly:
 
    Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
+
+
+Pulsations (NOT YET OFFICIALLY SUPPORTED)
+------------------------------------------
+
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
 
 
 Advanced Constraints (NOT YET OFFICIALLY SUPPORTED)

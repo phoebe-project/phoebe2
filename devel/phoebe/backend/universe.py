@@ -713,38 +713,43 @@ class Body(object):
             # has likely changed since periastron
             scaledprotomesh = mesh.ScaledProtoMesh(scale=scale, **new_mesh_dict)
 
-            # Now we'll save the current mesh in its orbit
-            self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh,
-                                                    pos, vel, euler,
-                                                    polar_dir*self.freq_rot)
 
         else:
 
-            # Since we don't have to handle volume conservation, we'll just
-            # grab the protomesh standard (unscaled) and scale and place it
-            # in orbit in one step
-            protomesh = self.get_standard_mesh(scaled=False)
+            # We still need to go through scaledprotomesh instead of directly
+            # to mesh since features may want to process the body-centric
+            # coordinates before placing in orbit
+            scaledprotomesh = self.get_standard_mesh(scaled=True)
             # TODO: can we avoid an extra copy here?
 
-            # Now we'll save the current mesh in its orbit
-            self._mesh = mesh.Mesh.from_proto(protomesh,
-                                              self._scale,
-                                              pos, vel, euler,
-                                              polar_dir*self.freq_rot)
 
+        for feature in self.features:
+            coords = feature.process_coords(scaledprotomesh.coords_for_computations, t=self.time)
+            if scaledprotomesh._compute_at_vertices:
+                scaledprotomesh.update_columns(vertices=coords)
+                # TODO: centers either need to be supported or we need to report
+                # vertices in the frontend as x, y, z instead of centers
 
-        # TODO: enable support for features to edit mesh
-        # for feature in self.features:
-            # vertices = feature.process_coords(self.mesh.vertices, t=self.time)
-            # centers = feature.process_coords(self.mesh.centers, t=self.time)
-            # areas
-            # volume
-            # gross
+                updated_props = libphoebe.mesh_properties(scaledprotomesh.vertices,
+                                                          scaledprotomesh.triangles,
+                                                          tnormals=True,
+                                                          areas=True)
+
+                scaledprotomesh.update_columns(**updated_props)
+
+            else:
+                scaledprotomesh.update_columns(centers=coords)
+                raise NotImplementedError("areas are not updated for changed mesh")
+
+        self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh,
+                                                pos, vel, euler,
+                                                polar_dir*self.freq_rot)
+
 
 
         # Lastly, we'll recompute physical quantities (not observables) if
         # needed for this time-step.
-        if not self.mesh.loggs.for_computations or self.needs_recompute_instantaneous:
+        if self.mesh.loggs.for_computations is None or self.needs_recompute_instantaneous:
             self._compute_instantaneous_quantities(xs, ys, zs)
 
             # Now fill local instantaneous quantities
@@ -1424,7 +1429,7 @@ class Star(Body):
         loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
 
         for feature in self.features:
-            loggs = feature.process_teffs(loggs, mesh.coords_for_computations, t=self.time)
+            loggs = feature.process_loggs(loggs, mesh.coords_for_computations, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -2156,13 +2161,22 @@ class Envelope(Body):
 
 
 class Feature(object):
+    """
+    Note that for all features, each of the methods below will be called.  So
+    changing the coordinates WILL affect the original/intrinsic loggs which
+    will then be used as input for that method call.
+
+    In other words, its probably safest if each feature only overrides a
+    SINGLE one of the methods.  Overriding multiple methods should be done
+    with great care.
+    """
     def __init__(self, *args, **kwargs):
         pass
 
     def process_coords(self, coords, t=None):
         """
-        Method for a feature to process the coordinates (NOTE: currently not
-        supported).
+        Method for a feature to process the coordinates.  Coordinates are
+        processed AFTER scaling but BEFORE being placed in orbit.
 
         Features that affect coordinates should override this method.
         """
@@ -2232,3 +2246,28 @@ class Spot(Feature):
         teffs[filter] = teffs[filter] * self._relteff
 
         return teffs
+
+class Pulsation(Feature):
+    def __init__(self, freq, relampl, **kwargs):
+        self._freq = freq
+        self._relampl = relampl
+
+    @classmethod
+    def from_bundle(cls, b, feature):
+        """
+        Initialize a Pulsation feature from the bundle.
+        """
+
+        feature_ps = b.get_feature(feature)
+        freq = feature_ps.get_value('freq', unit=u.d**-1)
+        relampl = feature_ps.get_value('relampl', unit=u.dimensionless_unscaled)
+        return cls(freq, relampl)
+
+    def process_coords(self, coords, t):
+        """
+        """
+        # NOTE: this isn't really fair since it's multiplying each coordinate
+        # by the amplitude, but oh well.
+        coords *= self._relampl * np.sin(2 * np.pi * self._freq * t)
+
+        return coords

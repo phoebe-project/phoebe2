@@ -726,11 +726,12 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 this_syn['visibility'] = body.mesh.visibilities
 
-                vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
-                for i,vc in enumerate(vcs):
-                    if np.all(vc==np.array([0,0,0])):
-                        vcs[i] = np.full(3, np.nan)
-                this_syn['visible_centroids'] = vcs
+                # vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
+                # for i,vc in enumerate(vcs):
+                #     if np.all(vc==np.array([0,0,0])):
+                #         vcs[i] = np.full(3, np.nan)
+                # this_syn['visible_centroids'] = vcs
+                this_syn['visible_centroids'] = []
 
                 indeps = {'RV': ['rv', 'intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost', 'ld'], 'LC': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost', 'ld'], 'IFM': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel']}
                 for infomesh in infolist:
