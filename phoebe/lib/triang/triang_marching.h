@@ -568,6 +568,140 @@ void mesh_attributes(
   }
 }
 
+
+
+/*
+  Calculate properties of triangles with assumption that normals taken in 
+  given order point triangles outwards
+    
+  Input:
+    V - vector of vertices
+    Tr - vector of triangles
+
+  Output:
+    A - triangle areas 
+    N - triangle normals
+    area - total area of the triangles
+    volume - volume of the body enclosed by the mesh
+  
+  Ref: 
+  * Cha Zhang and Tsuhan Chen, Efficient feature extraction for 2d/3d 
+    objects in mesh representation, Image Processing, 2001.
+*/
+template<class T> 
+void mesh_attributes(
+  std::vector <T3Dpoint<T>> & V,
+  std::vector <T3Dpoint<int>> & Tr,
+  std::vector <T> *A = 0,
+  std::vector <T3Dpoint<T>> * N = 0,
+  T *area = 0,
+  T *volume = 0
+) {
+  
+  if (A == 0 && area == 0 && volume == 0 && N == 0) return;
+  
+  
+  if (A) {
+    A->clear();
+    A->reserve(Tr.size());
+  }
+  
+  if (N) {
+    N->clear();
+    N->reserve(Tr.size());
+  }
+  
+  if (area)  *area = 0;
+  if (volume) *volume = 0;
+  
+  int i, j;
+  
+  T a[3], b[3], c[3], v[3][3], *p, f, fv, norm;
+  
+  bool 
+    st_area = (area != 0) || (A != 0),
+    st_N = (N != 0),
+    st_area_N = st_area || st_N,
+    st_volume = (volume != 0),
+    st_N_volume = st_N || st_volume;
+        
+  for (auto && t: Tr) {
+    
+    //
+    // copy data
+    //
+    
+    for (i = 0; i < 3; ++i) {
+      p = V[t[i]].data;
+      for (j = 0; j < 3; ++j) v[i][j] = p[j];
+    }
+    
+    //
+    // Computing surface element
+    //
+    
+    for (i = 0; i < 3; ++i) {
+      a[i] = v[1][i] - v[0][i]; // v1-v0
+      b[i] = v[2][i] - v[0][i]; // v2-v0
+    }
+  
+    // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
+    // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
+  
+    c[0] = a[1]*b[2] - a[2]*b[1];
+    c[1] = a[2]*b[0] - a[0]*b[2];
+    c[2] = a[0]*b[1] - a[1]*b[0];
+    
+    if (st_area_N) { 
+      
+      // std::hypot(,,) is comming in C++17
+      norm = utils::hypot3(c[0], c[1], c[2]); 
+      
+      f  = norm/2;
+      
+      if (A) A->emplace_back(f);
+      if (area) *area += f;
+    }
+    
+    if (st_N_volume) {
+      
+      //
+      // Compute normal to the surface element
+      //
+      
+      // normalize the normal 
+      if (st_N) {
+        f = 1/norm;
+        for (i = 0; i < 3; ++i) c[i] *= f; 
+        N->emplace_back(c);
+      }
+    
+      //
+      // Computing volume of signed tetrahedron
+      //
+         
+      if (st_volume) {
+       
+        // determine the sign tetrahedron
+        p = v[0];
+        f = 0;
+        for (i = 0; i < 3; ++i) f += p[i]*c[i];
+        
+        if (f != 0) {
+          // volume of tetrahedron
+          fv = std::abs(
+            (-v[2][0]*v[1][1] + v[1][0]*v[2][1])*v[0][2] +
+            (+v[2][0]*v[0][1] - v[0][0]*v[2][1])*v[1][2] +
+            (-v[1][0]*v[0][1] + v[0][0]*v[1][1])*v[2][2] 
+          )/6;
+          
+          if (f > 0) *volume += fv; else  *volume -= fv;
+        }
+      }
+    }
+  }
+}
+
 /*
   Offseting the mesh to match the reference area.
 
