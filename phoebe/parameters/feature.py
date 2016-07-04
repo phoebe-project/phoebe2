@@ -11,7 +11,7 @@ def spot(**kwargs):
     :meth:`phoebe.frontend.bundle.Bundle.add_feature`
 
     :parameter **kwargs: defaults for the values of any of the parameters
-    :return: a :class:`phoebe.parameters.parameters.Parameters`s
+    :return: a :class:`phoebe.parameters.parameters.ParameterSet`
     """
 
     params = []
@@ -23,6 +23,26 @@ def spot(**kwargs):
 
     params += [FloatParameter(qualifier='relteff', value=kwargs.get('relteff', 1.0), default_unit=u.dimensionless_unscaled, description='Temperature of the spot relative to the intrinsic temperature')]
     # params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 10000), deafault_unit=u.K, description='Temperature of the spot')]
+
+    constraints = []
+
+    return ParameterSet(params), constraints
+
+def pulsation(**kwargs):
+    """
+    Create parameters for a pulsation feature
+
+    Generally, this will be used as input to the method argument in
+    :meth:`phoebe.frontend.bundle.Bundle.add_feature`
+
+    :parameter **kwargs: defaults for the values of any of the parameters
+    :return: a :class:`phoebe.parameters.parameters.ParameterSet`
+    """
+
+    params = []
+
+    params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 1.0), default_unit=u.d**-1, description='Frequency of the pulsations')]
+    params += [FloatParameter(qualifier='relampl', value=kwargs.get('relampl', 1.1), default_unit=u.dimensionless_unscaled, description='Relative (to the radius) amplitude of the pulsations')]
 
     constraints = []
 
