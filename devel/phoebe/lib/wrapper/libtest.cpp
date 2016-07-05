@@ -29,6 +29,20 @@ static PyObject *fun1(PyObject *self, PyObject *args) {
   return pya; 
 }
 
+
+static PyObject *fun2(PyObject *self, PyObject *args) {
+  
+  double x;
+  
+  if (!PyArg_ParseTuple(args, "d", &x)) return NULL;
+  
+  PyObject *tuple = PyTuple_New(3);
+  
+  for (int i = 0; i< 3; ++i) 
+    PyTuple_SetItem(tuple, i, PyFloat_FromDouble(x + i)); 
+      
+  return tuple; 
+}
 /*
   Define functions in module
    
@@ -42,6 +56,12 @@ static PyMethodDef Methods[] = {
       fun1,   
       METH_VARARGS, 
       "Testing function 1."},
+
+    { "fun2", 
+      fun2,   
+      METH_VARARGS, 
+      "Testing function 2."},
+
 
     {NULL,  NULL, 0, NULL} // terminator record
 };

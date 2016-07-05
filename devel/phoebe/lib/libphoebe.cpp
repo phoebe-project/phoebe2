@@ -45,6 +45,22 @@ template<typename T> NPY_TYPES PyArray_TypeNum();
 template<>  NPY_TYPES PyArray_TypeNum<int>() { return NPY_INT;}
 template<>  NPY_TYPES PyArray_TypeNum<double>() { return NPY_DOUBLE;}
 
+
+/*
+  Insert into dictionary and deferences the inserted object
+  Ref:
+  https://robinelvin.wordpress.com/2011/03/24/python-c-extension-memory-leak/
+*/
+
+int PyDict_SetItemStringStealRef(PyObject *p, const char *key, PyObject *val){
+ 
+ int status = PyDict_SetItemString(p, key, val);
+ 
+ if (status < 0) Py_XDECREF(val);
+ 
+ return status;
+}
+
 template <typename T>
 PyObject *PyArray_FromVector(std::vector<T> &V){
   
@@ -72,7 +88,6 @@ void PyArray_ToVector(PyArrayObject *oV, std::vector<T> & V){
   
   V.assign(V_begin, V_begin + PyArray_DIM(oV, 0));
 }
-
 
 template <typename T>
 PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
@@ -413,10 +428,10 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   PyObject *results = PyDict_New();
       
   if (b_larea)
-    PyDict_SetItemString(results, "larea", PyFloat_FromDouble(av[0]));
+    PyDict_SetItemStringStealRef(results, "larea", PyFloat_FromDouble(av[0]));
 
   if (b_lvolume)
-    PyDict_SetItemString(results, "lvolume", PyFloat_FromDouble(av[1]));
+    PyDict_SetItemStringStealRef(results, "lvolume", PyFloat_FromDouble(av[1]));
   
   return results;
 }
@@ -511,10 +526,10 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
   PyObject *results = PyDict_New();
       
   if (b_larea)
-    PyDict_SetItemString(results, "larea", PyFloat_FromDouble(av[0]));
+    PyDict_SetItemStringStealRef(results, "larea", PyFloat_FromDouble(av[0]));
 
   if (b_lvolume)
-    PyDict_SetItemString(results, "lvolume", PyFloat_FromDouble(av[1]));
+    PyDict_SetItemStringStealRef(results, "lvolume", PyFloat_FromDouble(av[1]));
   
   return results;
 }
@@ -1206,47 +1221,47 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   
   if (b_vertices)
-    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+    PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
 
   if (b_vnormals)
-    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
+    PyDict_SetItemStringStealRef(results, "vnormals", PyArray_From3DPointVector(NatV));
 
   if (b_vnormgrads) {
-    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    PyDict_SetItemStringStealRef(results, "vnormgrads", PyArray_FromVector(*GatV));
     delete GatV;
   }
   
   if (b_triangles)
-    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
+    PyDict_SetItemStringStealRef(results, "triangles", PyArray_From3DPointVector(Tr));
 
   if (b_areas) {
-    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
+    PyDict_SetItemStringStealRef(results, "areas", PyArray_FromVector(*A));
     delete A;  
   }
   
   if (b_area)
-    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
+    PyDict_SetItemStringStealRef(results, "area", PyFloat_FromDouble(area));
 
   if (b_tnormals) {
-    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    PyDict_SetItemStringStealRef(results, "tnormals", PyArray_From3DPointVector(*NatT));
     delete NatT;
   }
 
   if (b_volume)
-    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+    PyDict_SetItemStringStealRef(results, "volume", PyFloat_FromDouble(volume));
   
   if (b_centers) {
-    PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
+    PyDict_SetItemStringStealRef(results, "centers", PyArray_From3DPointVector(*C));
     delete C;  
   }
 
   if (b_cnormals) {
-    PyDict_SetItemString(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    PyDict_SetItemStringStealRef(results, "cnormals", PyArray_From3DPointVector(*NatC));
     delete NatC;
   }
   
   if (b_cnormgrads) {
-    PyDict_SetItemString(results, "cnormgrads", PyArray_FromVector(*GatC));
+    PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
   
@@ -1502,49 +1517,49 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   //
   
  if (b_vertices)
-    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+    PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
 
   if (b_vnormals)
-    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(NatV));
+    PyDict_SetItemStringStealRef(results, "vnormals", PyArray_From3DPointVector(NatV));
 
   if (b_vnormgrads) {
-    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    PyDict_SetItemStringStealRef(results, "vnormgrads", PyArray_FromVector(*GatV));
     delete GatV;
   }
   
   if (b_triangles)
-    PyDict_SetItemString(results, "triangles", PyArray_From3DPointVector(Tr));
+    PyDict_SetItemStringStealRef(results, "triangles", PyArray_From3DPointVector(Tr));
 
   
   if (b_areas) {
-    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
+    PyDict_SetItemStringStealRef(results, "areas", PyArray_FromVector(*A));
     delete A;  
   }
   
   if (b_area)
-    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
+    PyDict_SetItemStringStealRef(results, "area", PyFloat_FromDouble(area));
 
   if (b_tnormals) {
-    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    PyDict_SetItemStringStealRef(results, "tnormals", PyArray_From3DPointVector(*NatT));
     delete NatT;
   }
 
   if (b_volume)
-    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+    PyDict_SetItemStringStealRef(results, "volume", PyFloat_FromDouble(volume));
     
   
   if (b_centers) {
-    PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
+    PyDict_SetItemStringStealRef(results, "centers", PyArray_From3DPointVector(*C));
     delete C;  
   }
 
   if (b_cnormals) {
-    PyDict_SetItemString(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    PyDict_SetItemStringStealRef(results, "cnormals", PyArray_From3DPointVector(*NatC));
     delete NatC;
   }
   
   if (b_cnormgrads) {
-    PyDict_SetItemString(results, "cnormgrads", PyArray_FromVector(*GatC));
+    PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
   
@@ -1674,12 +1689,12 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   PyObject *results = PyDict_New();
   
   if (b_tvisibilities) {
-    PyDict_SetItemString(results, "tvisibilities", PyArray_FromVector(*M));
+    PyDict_SetItemStringStealRef(results, "tvisibilities", PyArray_FromVector(*M));
     delete M;
   }
   
   if (b_taweights) {
-    PyDict_SetItemString(results,"taweights", PyArray_From3DPointVector(*W));
+    PyDict_SetItemStringStealRef(results,"taweights", PyArray_From3DPointVector(*W));
     delete W; 
   }
 
@@ -1689,7 +1704,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
     int i = 0;
     for (auto && h : *H) PyList_SetItem(list, i++, PyArray_FromVector(h));
     
-    PyDict_SetItemString(results, "horizon", list);
+    PyDict_SetItemStringStealRef(results, "horizon", list);
     delete H;  
   }
 
@@ -1923,23 +1938,23 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   PyObject *results = PyDict_New();
   
   if (b_vertices)
-    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+    PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
   
   if (b_tnormals) {
-    PyDict_SetItemString(results,"tnormals", PyArray_From3DPointVector(*NatT));
+    PyDict_SetItemStringStealRef(results,"tnormals", PyArray_From3DPointVector(*NatT));
     delete NatT; 
   }
   
   if (b_areas) {
-    PyDict_SetItemString(results,"areas", PyArray_FromVector(*A));
+    PyDict_SetItemStringStealRef(results,"areas", PyArray_FromVector(*A));
     delete A; 
   }
 
   if (b_volume)
-    PyDict_SetItemString(results,"volume", PyFloat_FromDouble(volume));
+    PyDict_SetItemStringStealRef(results,"volume", PyFloat_FromDouble(volume));
 
   if (b_area)
-    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area_new));
+    PyDict_SetItemStringStealRef(results, "area", PyFloat_FromDouble(area_new));
 
 
   return results;
@@ -2076,20 +2091,20 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
   
 
   if (b_areas) {
-    PyDict_SetItemString(results, "areas", PyArray_FromVector(*A));
+    PyDict_SetItemStringStealRef(results, "areas", PyArray_FromVector(*A));
     delete A;  
   }
   
   if (b_area)
-    PyDict_SetItemString(results, "area", PyFloat_FromDouble(area));
+    PyDict_SetItemStringStealRef(results, "area", PyFloat_FromDouble(area));
 
   if (b_tnormals) {
-    PyDict_SetItemString(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    PyDict_SetItemStringStealRef(results, "tnormals", PyArray_From3DPointVector(*NatT));
     delete NatT;
   }
 
   if (b_volume)
-    PyDict_SetItemString(results, "volume", PyFloat_FromDouble(volume));
+    PyDict_SetItemStringStealRef(results, "volume", PyFloat_FromDouble(volume));
 
   
   return results;
@@ -2228,17 +2243,17 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   PyObject *results = PyDict_New();
     
   if (b_centers) {
-    PyDict_SetItemString(results, "centers", PyArray_From3DPointVector(*C));
+    PyDict_SetItemStringStealRef(results, "centers", PyArray_From3DPointVector(*C));
     delete C;  
   }
 
   if (b_cnormals) {
-    PyDict_SetItemString(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    PyDict_SetItemStringStealRef(results, "cnormals", PyArray_From3DPointVector(*NatC));
     delete NatC;
   }
   
   if (b_cnormgrads) {
-    PyDict_SetItemString(results, "cnormgrads", PyArray_FromVector(*GatC));
+    PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
   
@@ -2372,15 +2387,15 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   PyObject *results = PyDict_New();
   
   if (b_vertices)
-    PyDict_SetItemString(results, "vertices", PyArray_From3DPointVector(V));
+    PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
   
   if (b_vnormals) {
-    PyDict_SetItemString(results, "vnormals", PyArray_From3DPointVector(*NatV));
+    PyDict_SetItemStringStealRef(results, "vnormals", PyArray_From3DPointVector(*NatV));
     delete NatV;
   }    
 
   if (b_vnormgrads) {
-    PyDict_SetItemString(results, "vnormgrads", PyArray_FromVector(*GatV));
+    PyDict_SetItemStringStealRef(results, "vnormgrads", PyArray_FromVector(*GatV));
     delete GatV;
   }    
 
