@@ -17,5 +17,9 @@ int main(){
   
   std::cout << av[0] << '\t' << av[1] << '\n';
   
+  rot_star::volume(av, 3, Omega0, omega);
+  
+  std::cout << av[0] << '\t' << av[1] << '\n';
+  
   return 0;
 }

@@ -534,13 +534,11 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
   return results;
 }
 
-
-
 /*
   Python wrapper for C++ code:
   
-  Calculate the value of the generalized Kopal potential Omega1 at
-  that corresponds to (q,F,d) and volume of the Roche lobes equals to vol.  
+  Calculate the value of the generalized Kopal potential Omega1 corresponding 
+  to parameters (q,F,d) and the volume of the Roche lobes equals to vol.  
     
   The Roche lobe(s) is defined as equipotential of the generalized
   Kopal potential Omega:
@@ -549,7 +547,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
   
   Python:
     
-    Omega1 = roche_Omega_at_vol(vol, q, F, d, <keyword>=<value>)
+    Omega1 = roche_Omega_at_vol(vol, q, F, d, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -558,9 +556,9 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
+    Omega0: float - guess for value potential Omega1
     
   keywords: (optional)
-    Omega0 - guess for value potential Omega1
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
@@ -603,12 +601,12 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     
   double
     vol, 
+    q, F, delta, 
+    Omega0 = nan(""),
     precision = 1e-10,
     accuracy = 1e-10;
   
   int max_iter = 100;  
-    
-  double q, F, delta, Omega0 = nan("");
   
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "ddddd|iddi", kwlist, 
@@ -631,7 +629,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   int m = 1 << 14, // TODO: this should be more precisely stated 
       it = 0;
       
-  double Omega = Omega0, dOmega, V[2], xrange[2];
+  double Omega = Omega0, dOmega, V[2] = {0,0}, xrange[2];
   
   bool polish = false;
   
@@ -669,6 +667,116 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   return PyFloat_FromDouble(Omega);
 }
 
+/*
+  Python wrapper for C++ code:
+  
+  Calculate the value of the rotating star potential Omega1 at parameter
+  omega and star's volume equal to vol.  
+    
+  The  rotating star is defined as equipotential of the generalized
+  Kopal potential Omega:
+
+      Omega_i = Omega(x,y,z; omega) = 1/r + 1/2 omega^2 (x^2 + y^2)
+  
+  Python:
+    
+    Omega1 = rotstar_Omega_at_vol(vol, omega, Omega0, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    vol: float - volume of the star's lobe
+    omega: float  - parameter of the potential
+    Omega0 - guess for value potential Omega1
+  
+  keywords: (optional)
+    precision: float, default 1e-10
+      aka relative precision
+    accuracy: float, default 1e-10
+      aka absolute precision
+    max_iter: integer, default 100
+      maximal number of iterations in the Newton-Raphson
+    
+  Returns:
+  
+    Omega1 : float
+      value of the Kopal potential for (q,F,d1) such that volume
+      is equal to the case (q,F,d,Omega0)
+*/
+
+//#define DEBUG
+static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"vol",
+    (char*)"omega",
+    (char*)"Omega0",
+    (char*)"precision",
+    (char*)"accuracy",
+    (char*)"max_iter",
+    NULL};
+    
+  double
+    vol, omega, 
+    Omega0 = nan(""),
+    precision = 1e-10,
+    accuracy = 1e-10;
+  
+  int max_iter = 100;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddd|ddi", kwlist, 
+      &vol, &omega, &Omega0,
+      &precision,
+      &accuracy,
+      &max_iter
+      )
+    )
+    return NULL;
+    
+  bool b_Omega0 = !std::isnan(Omega0);
+  
+  if (!b_Omega0) {
+    std::cerr << "Currently not supporting lack of guessed Omega.\n";
+    return NULL;
+  }
+    
+  int it = 0;
+      
+  double Omega = Omega0, dOmega, V[2] = {0,0};
+  
+  #if defined(DEBUG)
+  std::cout.precision(16); std::cout << std::scientific;
+  #endif
+  do {
+
+    rot_star::volume(V, 3, Omega, omega);
+        
+    Omega -= (dOmega = (V[0] - vol)/V[1]);
+    
+    #if defined(DEBUG) 
+    std::cout 
+      << "Omega=" << Omega 
+      << "\tvol=" << vol 
+      << "\tV[0]= " << V[0] 
+      << "\tdOmega=" << dOmega << '\n';
+    #endif
+    
+  } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
+   
+  if (!(it < max_iter)){
+    std::cerr << "rotstar_Omega_at_vol: Maximum number of iterations exceeded\n";
+    return NULL;
+  }
+  // We use the condition on the argument (= Omega) ~ constraining backward error, 
+  // but we could also use condition on the value (= Volume) ~ constraing forward error
+  
+  return PyFloat_FromDouble(Omega);
+}
 
 /*
   Python wrapper for C++ code:
@@ -2568,6 +2676,12 @@ static PyMethodDef Methods[] = {
       "Determine the value of the generalized Kopal potential at "
       "values of q, F, d and volume."},
 
+
+    { "rotstar_Omega_at_vol", 
+      (PyCFunction)rotstar_Omega_at_vol,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine the value of the rotating star potential at "
+      "values of omega and volume."},
 // --------------------------------------------------------------------
   
     { "roche_gradOmega", 
