@@ -54,11 +54,11 @@ template<>  NPY_TYPES PyArray_TypeNum<double>() { return NPY_DOUBLE;}
 
 int PyDict_SetItemStringStealRef(PyObject *p, const char *key, PyObject *val){
  
- int status = PyDict_SetItemString(p, key, val);
+  int status = PyDict_SetItemString(p, key, val);
  
- if (status < 0) Py_XDECREF(val);
+  Py_XDECREF(val);
  
- return status;
+  return status;
 }
 
 template <typename T>
@@ -1216,6 +1216,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
  
   if (b_cnormgrads) GatC = new std::vector<double>;
+ 
  
   march.central_points(V, Tr, C, NatC, GatC);
   

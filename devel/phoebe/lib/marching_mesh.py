@@ -60,7 +60,8 @@ max_triangles = 10000000 # 10^7
 #   Ntriangles x 3 integer indices
 
 start = time.time()
-res = roche_marching_mesh(q, F, d, Omega0, delta, choice, max_triangles, vertices=True, vnormals=True, triangles=True, tnormals=True, areas=True, area=True, volume=True)
+for i in xrange(100000):
+  res = roche_marching_mesh(q, F, d, Omega0, delta, choice, max_triangles, vertices=True, vnormals=True, triangles=True, tnormals=True, areas=True, area=True, volume=True)
 end = time.time()
 
 V = res["vertices"]
