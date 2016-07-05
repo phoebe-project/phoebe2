@@ -1787,7 +1787,11 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
   for (auto && m: Mt) 
     *(p++) = (m == hidden ? 0 : (m == partially_hidden ? 0.5 : 1.0));
   
-  return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
 }
 
 /*
