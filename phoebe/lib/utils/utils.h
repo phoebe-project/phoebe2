@@ -201,19 +201,22 @@ namespace utils {
        
     Return:
       std::sqrt(x*x + y*y + z*z)
+    
+    Ref: fallowing idea from 
+      BLAS  http://www.netlib.org/blas/snrm2.f
   */ 
   template <class T>
   T hypot3 (const T & x, const T& y, const T& z){
     
-    T a[3] = {std::abs(x), std::abs(y), std::abs(z)}, t;
+    T a[3] = {std::abs(x), std::abs(y), std::abs(z)};
     
-    if (a[0] < a[1]) { t = a[0]; a[0] = a[1]; a[1] = t;}
-    if (a[0] < a[2]) { t = a[0]; a[0] = a[2]; a[2] = t;}
+    if (a[0] < a[1]) std::swap(a[0], a[1]);
+    if (a[0] < a[2]) std::swap(a[0], a[2]);
       
     a[1] /= a[0]; 
     a[2] /= a[0];
         
-    t = a[1]*a[1] + a[2]*a[2];
+    T t = a[1]*a[1] + a[2]*a[2];
     
     return a[0]*std::sqrt(1 + t);
   }
@@ -227,10 +230,13 @@ namespace utils {
        
     Return:
       std::sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
-  */ 
-  template <class T>
-  T hypot3 (T x[3]){
     
+    Ref: fallowing idea from 
+      BLAS  http://www.netlib.org/blas/snrm2.f
+  */ 
+  #if 0
+  template <class T>  T hypot3 (T x[3]){
+   
     T a[3] = {std::abs(x[0]), std::abs(x[1]), std::abs(x[2])}, t;
     
     if (a[0] < a[1]) { t = a[0]; a[0] = a[1]; a[1] = t;}
@@ -240,10 +246,28 @@ namespace utils {
     a[2] /= a[0];
         
     t = a[1]*a[1] + a[2]*a[2];
-    
+       
     return a[0]*std::sqrt(1 + t);
   }
   
+  #else
+  template <class T> T hypot3 (T x[3]){
+   
+    T a[3] = {std::abs(x[0]), std::abs(x[1]), std::abs(x[2])},
+      *p[3] = {a, a + 1, a + 2};
+    
+    if (*(p[0]) < *(p[1])) std::swap(p[0], p[1]);
+    if (*(p[0]) < *(p[2])) std::swap(p[0], p[2]);
+      
+    *(p[1]) /= *(p[0]); 
+    *(p[2]) /= *(p[0]);
+        
+    T t = (*p[1])*(*p[1]) + (*p[2])*(*p[2]);
+       
+    return (*(p[0]))*std::sqrt(1 + t);
+  }
+  
+  #endif
   
   
   /*
