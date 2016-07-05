@@ -1,9 +1,9 @@
-
 from libtest import *
-from numpy import np
+import numpy as np
 import sys
 
-for i in xrange(100000000):
-  a = fun1(10.)
-    
+for i in xrange(10):
+  #a = fun1(10.)
+  a = fun2(10.)
+  print sys.getrefcount(a)
 
