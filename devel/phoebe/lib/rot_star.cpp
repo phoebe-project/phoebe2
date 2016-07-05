@@ -7,7 +7,7 @@ int main(){
   
   double 
     av[2], 
-    Omega0 = 2,
+    Omega0 = 3,
     omega = 1;     
         
   std::cout.precision(16);

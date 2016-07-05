@@ -197,16 +197,44 @@ namespace rot_star {
       return;
     }  
     
+    
+    T t = omega*omega/Omega3; // t in [t_crit], t_crit = 8/27
+    
+    if (t > 8./27) {   // critical value
+      std::cerr << "rotstar::area_volume:There is no solution for equator.\n";
+      return;
+    }
+
+    //
+    // Analytic approximation (generated in rot_star.nb)
+    // relative precision at least 1e-5 for t < 0.1
+    
+    if (t < 0.1) {
+      
+      if (b_area) {
+        const T a[] = {1.,0.6666666666666666,1.,1.9428571428571428,4.314285714285714,10.398268398268398,26.48877788877789,70.22541902541903,191.8665770657039,536.7383091809828,1536.0162254282043};
+              
+        T A = a[0] + t*(a[1] + t*(a[2] + t*(a[3] + t*(a[4] + t*(a[5] + t*(a[6] + t*(a[7] + t*(a[8] + t*(a[9] + t*a[10])))))))));
+        
+        av[0] = utils::M_4PI*A/Omega2;
+      }
+      
+      if (b_volume) {
+        const T a[] = {1.,1.,1.6,3.142857142857143,6.933333333333334,16.484848484848484,41.302697302697304,107.56923076923077,288.6243489583333,793.03125,2230.111036424513};
+        
+        T V = a[0] + t*(a[1] + t*(a[2] + t*(a[3] + t*(a[4] + t*(a[5] + t*(a[6] + t*(a[7] + t*(a[8] + t*(a[9] + t*a[10])))))))));
+        
+        av[1] = utils::M_4PI*V/Omega3/3;
+      }
+      
+      return;
+    }
+
     //
     // Testing if the solution exists
     //
     
-    T b = omega*omega/(2*Omega3);
-    
-    if (b > 4/27.) { // critical b = 4/27
-      std::cerr << "rotstar::area_volume:There is no solution for equator.\n";
-      return;
-    }
+    T b = t/2;
 
     //
     // Integrate using new variables
