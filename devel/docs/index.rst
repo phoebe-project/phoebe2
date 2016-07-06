@@ -260,6 +260,7 @@ Planetary System (NOT YET OFFICIALLY SUPPORTED)
 
    Sun-Earth (TESTING - not yet supported)<examples/sun_earth>
 
+
 COMING SOON (examples from literature)
 
 
@@ -281,6 +282,7 @@ Pulsations (NOT YET OFFICIALLY SUPPORTED)
    :titlesonly:
 
    Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
+
 
 
 Advanced Constraints (NOT YET OFFICIALLY SUPPORTED)

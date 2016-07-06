@@ -411,7 +411,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
 
     if len(meshablerefs) > 1:
-        if dynamics_method == 'nbody':
+        if dynamics_method in ['nbody', 'rebound']:
             # if distortion_method == 'roche':
                 # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
 
@@ -419,6 +419,17 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle(b, [t0], ltte=ltte)
             ethetas0, elongans0, eincls0 = None, None, None
             ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
+
+        elif dynamics_method == 'bs':
+            # if distortion_method == 'roche':
+                # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
+
+
+            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], ltte=ltte)
+            ethetas0, elongans0, eincls0 = None, None, None
+            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle_bs(b, times, ltte=ltte)
+
 
         elif dynamics_method=='keplerian':
 
