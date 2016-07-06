@@ -472,6 +472,145 @@ namespace gen_roche {
     }
   }
   
+  /*
+    Rescaled potential on x - axis
+    
+      Tilde{Omega} = delta Omega 
+                 = 1/|t| + q(1/|t-1| -t) + 1/2 b t^2
+    Input:
+      t = x/delta
+      q - mass ratio M2/M1
+      b = F^2 delta^3 (1+q) - parameter of the rescaled potential
+      choice:
+        1st bit set: v[0] = value  
+        2nd bit set: v[1] = dTilde{Omega}/dt 
+        3rd bit set: v[2] = d^2Tilde{Omega}/dt^2 
+    Output:
+      v = {value, dTilde{Omega}/dt, d^2Tilde{Omega}/dt^2}
+   
+  */ 
+
+  template<class T> 
+  void rescaled_potential_on_x_axis(
+    T *v,
+    unsigned choice,
+    const T & t,
+    const T & q,
+    const T & b)
+  {      
+    int 
+      s1 = (t > 0 ? 1 : -1),
+      s2 = (t > 1 ? 1 : -1);
+      
+    T
+      t1 = std::abs(t),
+      t2 = std::abs(t - 1);
+    
+    if ( (choice & 1u) == 1u)
+      v[0] = 1/t1 + q*(1/t2 - t) + b*t*t/2;
+    
+    if ( (choice & 2u) == 2u)
+      v[1] = -s1/(t1*t1) - q*(s2/(t2*t2) + 1) + b*t;
+    
+    if ( (choice & 4u) == 4u)
+      v[2] = 2*(1/(t1*t1*t1) + q/(t2*t2*t2)) + b;
+  }
+  
+  /*
+    Finding range on x-axis for each lobe separaterly
+    
+      w = delta Omega
+      q = M2/M1
+      b = delta^3 F^2(1 + q)
+  */ 
+  
+  template <class T>
+  T left_lobe_left_xborder(
+    const T & w, 
+    const T & q, 
+    const T & b,
+    const T & tL2
+  ) {
+    std::vector<T> roots;
+
+    T a[5] = {2, 2*(1 + q - w), 2*(q - w), b + 2*q, b};
+    
+    utils::solve_quartic(a, roots);
+    
+    // grab smallest root positive
+    for (auto && v : roots) if (v > 0) return  -v;
+    
+    return std::nan("");
+  }
+
+
+
+  template <class T>
+  T left_lobe_right_xborder(
+    const T & w, 
+    const T & q, 
+    const T & b,
+    const T & tL1
+  ) {
+    std::vector<T> roots;
+
+    T a[5] = {-2, 2*(1 - q + w), 2*(q - w), -b - 2*q, b};
+
+    utils::solve_quartic(a, roots);
+
+    // grab the smallest/first root in [0,1]
+
+    for (auto && v : roots) if (0 < v && v < 1) return v;
+    
+    return std::nan("");
+  }
+  
+  
+  
+  template <class T>
+  T right_lobe_left_xborder(
+    const T & w, 
+    const T & q, 
+    const T & b,
+    const T & tL1
+  ) {
+    std::vector<T> roots;
+    
+    T p = 1/q, c = b/q,
+      a[5] = {2, -4 + c - 2*p*(-1 + w), 4 - 3*c + 2*p*w, -2 + 3*c, -c};
+   
+    utils::solve_quartic(a, roots);
+      
+    // grab the smallest root in [0,1] 
+    for (auto && v : roots) if (0 < v && v < 1) return 1 - v;
+    
+    return std::nan("");
+  }
+
+
+
+  template <class T>
+  T right_lobe_right_xborder(
+    const T & w, 
+    const T & q, 
+    const T & b,
+    const T & tL3
+  ) {
+    
+    std::vector<T> roots;
+    
+    T p = 1/q, c = b/q,  
+      a[5] = {2, c - 2*p*(-1 + w), -4 + 3*c - 2*p*w, -2 + 3*c, c};
+
+    utils::solve_quartic(a, roots);
+    
+    // grab smallest root positive 
+    for (auto && v : roots) if (v > 0) return 1 + v;
+  
+    return std::nan("");
+  }
+  
+  
 
   /*
     Calculate the upper and lowe limit of Roche lobes on x-axis
@@ -503,54 +642,32 @@ namespace gen_roche {
     bool enable_checks = false
     ){
     
-    T omega_crit[3], L_points[3],
-      fa = F*F*delta*delta*delta, // rescaled F^2
-      rO = delta*Omega0,          // rescaled pontential 
-      p = 1/q,
-      b1 = fa*(1 + q),
-      b2 = fa*(1 + p);
+    T omega[3], L[3],
+      w = Omega0*delta,                   // rescaled potential 
+      b = F*F*delta*delta*delta*(1 + q);  // rescaled F^2
       
-    std::vector<T> roots;
-    
     
     if (choice < 0 || choice > 2) return false;
      
     //
     //  left lobe
     //
+    
     if (choice == 0) {
-
-      if (enable_checks) { 
-        // omega_crit[0] = Omega(L1), omega_crit[1] = Omega(L2)
-        critical_potential(omega_crit, L_points, 1+2, q, F, delta);
+      
+      // omega[0] = Omega(L1), omega[1] = Omega(L2)
+      critical_potential(omega, L, 1+2, q, F, delta);
+ 
+      if (enable_checks && !(omega[0] < Omega0 && omega[1] < Omega0)) {
         
-        if (!(omega_crit[0] < Omega0 && omega_crit[1] < Omega0)) {
-          std::cerr 
-            << "lobe_x_points::left lobe does not seem to exist\n"
-            << "omegaL1=" << omega_crit[0] << " omegaL2=" << omega_crit[1] << '\n';
-          return false;
-        }
+        std::cerr 
+          << "lobe_x_points::left lobe does not seem to exist\n"
+          << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n';
+        return false;
       }
       
-      // left side, x < 0
-      T aL[5] = {2, 2*(1 + q - rO), 2*(q - rO), b1 + 2*q, b1};
-      
-      utils::solve_quartic(aL, roots);
-      
-      // grab smallest root positive
-      for (auto && v : roots) 
-        if (v > 0) { xrange[0] = - delta*v; break;}
-      
-      
-      // central part
-      T aC[5] = {-2, 2*(1 - q + rO), 2*(q - rO), -b1 - 2*q, b1};
-    
-      utils::solve_quartic(aC, roots);
-     
-      // grab the smallest/first root in [0,1]
-      
-      for (auto && v : roots) 
-        if (0 < v && v < 1) {xrange[1] = delta*v; break;}
+      xrange[0] = delta*left_lobe_left_xborder(w, q, b, L[1]/delta);
+      xrange[1] = delta*left_lobe_right_xborder(w, q, b, L[0]/delta);
     }
     
     //
@@ -559,37 +676,19 @@ namespace gen_roche {
     
     if (choice == 1) {
       
-      if (enable_checks){
-        
-        // omega_crit[0] = Omega(L1), omega_crit[2] = Omega(L3)
-        critical_potential(omega_crit, L_points, 1+4, q, F, delta);
-       
-        if (!(omega_crit[0] < Omega0 && omega_crit[2] < Omega0)) {
-          std::cerr 
-            << "lobe_x_points::right lobe does not seem to exist\n"
-            << "omegaL1=" << omega_crit[0] << " omegaL3=" << omega_crit[2] << '\n';
-          return false;
-        }
+      // omega[0] = Omega(L1), omega[2] = Omega(L3)
+      critical_potential(omega, L, 1+4, q, F, delta);
+    
+      if (enable_checks && !(omega[0] < Omega0 && omega[2] < Omega0)) {
+        std::cerr 
+          << "lobe_x_points::right lobe does not seem to exist\n"
+          << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n';
+        return false;      
       }
-
-      // central part
-      T aC[5] = {-2, 2*(1 - q + rO), 2*(q - rO), -b1 - 2*q, b1};
-    
-      utils::solve_quartic(aC, roots);
       
-      // grab the largest/second root in [0,1] 
-      int i = 0;     
-      for (auto && v : roots) 
-        if (0 < v && v < 1) if (i++ == 1) {xrange[0] = delta*v; break;}  
-      
-      // right side, x > 0
-      T aR[5] = {2, b2 - 2*p*(-1 + rO), -4 + 3*b2 - 2*p*rO, -2 + 3*b2, b2};
-    
-      utils::solve_quartic(aR, roots);
-      // grab smallest root positive 
-      for (auto && v : roots) if (v > 0) {xrange[1] = delta*(1 + v); break;};
+      xrange[0] = delta*right_lobe_left_xborder(w, q, b, L[0]/delta);
+      xrange[1] = delta*right_lobe_right_xborder(w, q, b, L[2]/delta);  
     }
-    
     
     //
     // overcontact
@@ -597,37 +696,29 @@ namespace gen_roche {
     
     if (choice == 2){
       
-      if (enable_checks) {
-        // omega_crit[0] = Omega(L1), omega_crit[1] = Omega(L2), omega_crit[2] = Omega(L3)
-        critical_potential(omega_crit, L_points, 1+2+4, q, F, delta);
+      // omega[0] = Omega(L1), omega[1] = Omega(L2), omega[2] = Omega(L3)
+      critical_potential(omega, L, 1+2+4, q, F, delta);
        
-        if (!(Omega0 < omega_crit[0] && Omega0 > omega_crit[1] && Omega0 > omega_crit[2])) {
-          std::cerr 
-            << "lobe_x_points::overcontact lobe does not seem to exist\n"
-            << "omegaL1=" << omega_crit[0] 
-            << " omegaL2=" << omega_crit[1] 
-            << " omegaL3=" << omega_crit[2] << '\n';
-          return false;
-        }
+      if (enable_checks && !(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
+        std::cerr 
+          << "lobe_x_points::overcontact lobe does not seem to exist\n"
+          << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n';
+        return false;
       }
       
-      // left side, x < 0
-      T aL[5] = {2, 2*(1 + q - rO), 2*(q - rO), b1 + 2*q, b1};
-      
-      utils::solve_quartic(aL, roots);
-      
-      // grab smallest root positive
-      for (auto && v : roots) 
-        if (v > 0) { xrange[0] = -delta*v; break;} 
-      
-      
-      T aR[5] = {2, b2 - 2*p*(-1 + rO), -4 + 3*b2 - 2*p*rO, -2 + 3*b2, b2};
-    
-      utils::solve_quartic(aR, roots);
-      
-      // grab smallest root positive
-      for (auto && v : roots) 
-        if (v > 0) {xrange[1] = delta*(1 + v); break;};
+      xrange[0] = delta*left_lobe_left_xborder(w, q, b, L[1]/delta);
+      xrange[1] = delta*right_lobe_right_xborder(w, q, b, L[2]/delta);
+    }
+
+
+    if (std::isnan(xrange[0])) {
+      std::cerr << "lobe_x_points::problems with left boundary\n";
+      return false;
+    }  
+
+    if (std::isnan(xrange[1])) {
+      std::cerr << "lobe_x_points::problems with right boundary\n";
+      return false;
     }
 
     return true;

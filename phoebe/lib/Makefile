@@ -4,7 +4,7 @@ PYTHON=-I/usr/include/python2.7/ -lpython2.7
 
 LIBP=libphoebe
 
-all:omega_crit points_on_x_axis pole rot_star $(LIBP).so
+all:omega_crit points_on_x_axis lobe_x_points pole rot_star $(LIBP).so
 
 
 $(LIBP).so: $(LIBP).cpp
