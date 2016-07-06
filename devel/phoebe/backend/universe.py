@@ -1610,7 +1610,7 @@ class Star(Body):
 
         # We need to fill all the flux-related columns so that we can weigh each
         # triangle's RV by its flux in the requested passband.
-        lc_cols = self._populate_lc(dataset, **kwargs)
+        lc_cols = self._populate_lc(dataset, passband, **kwargs)
 
         # RV per element is just the z-component of the velocity vectory.  Note
         # the change in sign from our right-handed system to RV conventions.
