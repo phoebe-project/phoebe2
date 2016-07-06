@@ -388,7 +388,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     :return: a list of new synthetic :class:`phoebe.parameters.parameters.ParameterSet`s
     """
 
-    computeparams = b.get_compute(compute, force_ps=True)
+    computeparams = b.get_compute(compute, force_ps=True, check_relevant=False)
     hier = b.get_hierarchy()
 
     starrefs  = hier.get_stars()
@@ -415,16 +415,19 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # if distortion_method == 'roche':
                 # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
 
-            # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle(b, [t0], ltte=ltte)
+            # gr = computeparams.get_value('gr', check_relevant=False, **kwargs)
+
+            # TODO: pass stepsize
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, **kwargs)
             ethetas0, elongans0, eincls0 = None, None, None
-            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
+            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle(b, times, compute, **kwargs)
 
         elif dynamics_method == 'bs':
             # if distortion_method == 'roche':
                 # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
 
-
+            # TODO: pass stepsize
+            # TODO: pass orbiterror
             # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
             t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], ltte=ltte)
             ethetas0, elongans0, eincls0 = None, None, None
@@ -433,6 +436,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
         elif dynamics_method=='keplerian':
 
+            # TODO: change syntax to be same format as rebound above (compute, **kwargs)
             # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
             t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], ltte=ltte, return_euler=True)
             ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte, return_euler=True)
