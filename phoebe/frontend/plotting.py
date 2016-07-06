@@ -226,7 +226,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             'xlim', 'ylim', 'zlim',
             'xunit', 'yunit', 'zunit', 'time', 'highlight', 'highlight_ms',
             'highlight_marker', 'highlight_color', 'uncover',
-            'facecolor', 'edgecolor', 'correct', 'plotting_backend']}
+            'facecolor', 'edgecolor', 'facecmap', 'edgecmap', 'correct', 'plotting_backend']}
 
     if ps.method in ['MESH', 'MESH_syn'] and kwargs.get('polycollection', False):
         # here plot_inds is used to sort in the z-direction
