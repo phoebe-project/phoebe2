@@ -2615,7 +2615,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
     << "roche_horizon::Convergence to the point on horizon failed\n";
     return NULL;
   }
-  
+
   return PyArray_From3DPointVector(H);
 }
 
