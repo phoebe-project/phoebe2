@@ -173,8 +173,10 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     for mass, sma, ecc, incl, per0, long_an, mean_anom in zip(masses, smas, eccs, incls, per0s, long_ans, mean_anoms):
         N = sim.N
-        sim.add(primary=None if N==0 else sim.particles[-1],
-                m=mass,
+        # TODO: this assume building from the inside out.  Make sure that will
+        # always happen or we need to send the particle as primary
+        # (ie primary=sim.particles[-1])
+        sim.add(m=mass,
                 a=sma,
                 e=ecc,
                 inc=incl,
