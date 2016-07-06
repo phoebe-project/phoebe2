@@ -22,6 +22,13 @@ except ImportError:
 else:
     _can_rebound = True
 
+try:
+    import reboundx
+except ImportError:
+    _can_reboundx = False
+else:
+    _can_reboundx = True
+
 import logging
 logger = logging.getLogger("DYNAMICS.NBODY")
 logger.addHandler(logging.NullHandler())
@@ -51,7 +58,7 @@ def _ensure_tuple(item):
     else:
         raise NotImplementedError
 
-def dynamics_from_bundle(b, times, stepsize=0.01, orbiterror=1e-16, ltte=False):
+def dynamics_from_bundle(b, times, compute, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
@@ -65,6 +72,7 @@ def dynamics_from_bundle(b, times, stepsize=0.01, orbiterror=1e-16, ltte=False):
         orbiterror: (float, optional) orbiterror for the integration
             [default: 1e-16]
         ltte: (bool, default False) whether to account for light travel time effects.
+        gr: (bool, default False) whether to account for general relativity effects.
 
     Returns:
         t, xs, ys, zs, vxs, vys, vzs.  t is a numpy array of all times,
@@ -75,6 +83,12 @@ def dynamics_from_bundle(b, times, stepsize=0.01, orbiterror=1e-16, ltte=False):
     """
 
     hier = b.hierarchy
+
+    computeps = b.get_compute(compute, check_relevant=False, force_ps=True)
+    stepsize = computeps.get_value('stepsize', check_relevant=False, **kwargs)
+    ltte = computeps.get_value('ltte', check_relevant=False, **kwargs)
+    gr = computeps.get_value('gr', check_relevant=False, **kwargs)
+    integrator = computeps.get_value('integrator', check_relevant=False, **kwargs)
 
     starrefs = hier.get_stars()
     orbitrefs = [hier.get_parent_of(star) for star in starrefs]
@@ -100,14 +114,19 @@ def dynamics_from_bundle(b, times, stepsize=0.01, orbiterror=1e-16, ltte=False):
     mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, \
-                    mean_anoms, t0, vgamma, stepsize, orbiterror, ltte)
+                    mean_anoms, t0, vgamma, stepsize, ltte, gr,
+                    integrator)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
-        t0=0.0, vgamma=0.0, stepsize=0.01, orbiterror=1e-16, ltte=False):
+        t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
+        integrator='ias15'):
 
     if not _can_rebound:
         raise ImportError("rebound is not installed")
+
+    if gr and not _can_reboundx:
+        raise ImportError("reboundx is not installed (required for gr effects)")
 
     def particle_ltte(sim, particle_N, t_obs):
         c_AU_d = c.c.to(u.AU/u.d).value
@@ -115,7 +134,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
         def residual(t):
             # print "*** ltte trying t:", t
             if sim.t != t:
-                sim.integrate(t)
+                sim.integrate(t, exact_finish_time=True)
             ltte_dt = sim.particles[particle_N].z / c_AU_d
             t_barycenter = t - ltte_dt
             # print "***** ", t_barycenter-t_obs
@@ -133,15 +152,26 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     times = np.asarray(times)
     # print "***", times.shape
 
-    # TODO: remove or implement stepsize
-    # TODO: remove or implement orbiterror
     # TODO: implement LTTE
     # TODO: implement vgamma
 
-    sim = rebound.Simulation()
-    for mass, sma, ecc, incl, per0, long_an, mean_anom in zip(masses, smas, eccs, incls, per0s, long_ans, mean_anoms):
-        # print "*** adding", mass, sma, ecc, incl, per0, long_an, mean_anom
+    # TODO: check constants on units, since G is 1 this shouldn't matter?
+    # You can check the units’ exact values and add Additional units in rebound/rebound/units.py. Units should be set before adding particles to the simulation (will give error otherwise).
 
+    sim = rebound.Simulation()
+
+    if gr:
+        logger.info("enabling 'gr_full' in reboundx")
+        rebx = reboundx.Extras(sim)
+        # TODO: switch between different GR setups based on masses/hierarchy
+        # http://reboundx.readthedocs.io/en/latest/effects.html#general-relativity
+        params = rebx.add_gr_full()
+
+    sim.integrator = integrator
+    # NOTE: according to rebound docs: "stepsize will change for adaptive integrators such as IAS15"
+    sim.dt = stepsize
+
+    for mass, sma, ecc, incl, per0, long_an, mean_anom in zip(masses, smas, eccs, incls, per0s, long_ans, mean_anoms):
         N = sim.N
         sim.add(primary=None if N==0 else sim.particles[-1],
                 m=mass,
@@ -158,9 +188,6 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     for particle in sim.particles:
         particle.vz += vgamma
 
-    # fig = rebound.OrbitPlot(sim, slices=True)
-    # fig.show()
-
     xs = [np.zeros(times.shape) for m in masses]
     ys = [np.zeros(times.shape) for m in masses]
     zs = [np.zeros(times.shape) for m in masses]
@@ -172,7 +199,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     for i,time in enumerate(times):
 
-        sim.integrate(time)
+        sim.integrate(time, exact_finish_time=True)
 
         for j in range(len(masses)):
 
