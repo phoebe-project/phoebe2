@@ -10,32 +10,35 @@ import logging
 logger = logging.getLogger("DYNAMICS.KEPLERIAN")
 logger.addHandler(logging.NullHandler())
 
-def dynamics_from_bundle(b, times, ltte=False, return_euler=False):
+def dynamics_from_bundle(b, times, compute, return_euler=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
-    
+
     See :func:`dynamics` for more detailed information.
-    
+
     Args:
         b: (Bundle) the bundle with a set hierarchy
         times: (list or array) times at which to run the dynamics
         return_euler: (bool, default=False) whether to include euler angles
             in the return
-    
+
     Returns:
-        t, xs, ys, zs, vxs, vys, vzs [, theta, longan, incl].  
+        t, xs, ys, zs, vxs, vys, vzs [, theta, longan, incl].
         t is a numpy array of all times,
         the remaining are a list of numpy arrays (a numpy array per
         star - in order given by b.hierarchy.get_stars()) for the cartesian
         positions and velocities of each star at those same times.
         Euler angles (theta, longan, incl) are only returned if return_euler is
         set to True.
-            
+
     """
+
+    computeps = b.get_compute(compute, check_relevant=False, force_ps=True)
+    ltte = computeps.get_value('ltte', check_relevant=False, **kwargs)
 
     # make sure times is an array and not a list
     times = np.array(times)
-    
+
     vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
     t0 = b.get_value('t0', context='system', unit=u.d)
 
@@ -70,7 +73,7 @@ def dynamics_from_bundle(b, times, ltte=False, return_euler=False):
         dpdts.append([s.get_value('dpdt', u.d/u.d, component=orbit) for orbit in ancestororbits])
         deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit) for orbit in ancestororbits])
         dperdts.append([s.get_value('dperdt', u.rad/u.d, component=orbit) for orbit in ancestororbits])
-        
+
         # sma needs to be the COMPONENT sma.  This is stored in the bundle for stars, but is NOT
         # for orbits in orbits, so we'll need to recompute those from the mass-ratio and sma of
         # the parent orbit.
@@ -97,8 +100,8 @@ def dynamics_from_bundle(b, times, ltte=False, return_euler=False):
         # components is whether an entry is the primary or secondary in its parent orbit, so here we want
         # to start with component and end one level short of the top-level orbit
         components.append([hier.get_primary_or_secondary(component=comp) for comp in [component]+ancestororbits[:-1]])
-    
-    
+
+
     return  dynamics(times, periods, eccs, smas, t0_perpasses, per0s, \
                     long_ans, incls, dpdts, deccdts, dperdts, \
                     components, t0, vgamma, \
@@ -107,24 +110,24 @@ def dynamics_from_bundle(b, times, ltte=False, return_euler=False):
 
 
 
-def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls, 
+def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             dpdts, deccdts, dperdts, components, t0=0.0, vgamma=0.0,
             mass_conservation=True, ltte=False, return_euler=False):
     """
     Compute the positions and velocites of each star in their nested
     Keplerian orbits at a given list of times.
-    
+
     See :func:`dynamics_from_bundle` for a wrapper around this function
     which automatically handles passing everything in the correct order
     and in the correct units.
-        
+
     Args:
         times: (iterable) times at which to compute positions and
             velocities for each star
-        periods: (iterable) period of the parent orbit for each star 
+        periods: (iterable) period of the parent orbit for each star
             [days]
         eccs: (iterable) eccentricity of the parent orbit for each star
-        smas: (iterable) semi-major axis of the parent orbit for each 
+        smas: (iterable) semi-major axis of the parent orbit for each
             star [solRad]
         t0_perpasses: (iterable) t0_perpass of the parent orbit for each
             star [days]
@@ -134,7 +137,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             parent orbit for each star [rad]
         incls: (iterable) inclination of the parent orbit for each
             star [rad]
-        dpdts: (iterable) change in period with respect to time of the 
+        dpdts: (iterable) change in period with respect to time of the
             parent orbit for each star [days/day]
         deccdts: (iterable) change in eccentricity with respect to time
             of the parent orbit for each star [1/day]
@@ -142,16 +145,16 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             of the parent orbit for each star [rad/d]
         components: (iterable) component ('primary' or 'secondary') of
             each star within its parent orbit [string]
-        t0: (float, default=0) time at which all initial values (ie period, per0) 
+        t0: (float, default=0) time at which all initial values (ie period, per0)
             are given [days]
         mass_conservation: (bool, optional) whether to require mass
             conservation if any of the derivatives (dpdt, dperdt, etc)
             are non-zero [default: True]
         return_euler: (bool, default=False) whether to include euler angles
             in the return
-    
+
     Returns:
-        t, xs, ys, zs, vxs, vys, vzs [, theta, longan, incl].  
+        t, xs, ys, zs, vxs, vys, vzs [, theta, longan, incl].
         t is a numpy array of all times,
         the remaining are a list of numpy arrays (a numpy array per
         star - in order given by b.hierarchy.get_stars()) for the cartesian
@@ -162,16 +165,16 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
     # TODO: NOTE: smas must be per-component, not per-orbit
     # TODO: steal some documentation from 2.0a:keplerorbit.py:get_orbit
     # TODO: deal with component number more smartly
-    
+
     def binary_dynamics(times, period, ecc, sma, t0_perpass, per0, long_an,
-                        incl, dpdt, deccdt, dperdt, component='primary', 
+                        incl, dpdt, deccdt, dperdt, component='primary',
                         t0=0.0, vgamma=0.0, mass_conservation=True,
                         com_pos=(0.,0.,0.), com_vel=(0.,0.,0.), com_euler=(0.,0.,0.)):
         """
         """
         # TODO: steal some documentation from 2.0a:keplerorbit.py:get_orbit
-    
-                                
+
+
         #-- if dpdt is non-zero, the period is actually an array, and the semi-
         #   major axis changes to match Kepler's third law (unless
         #   `mass_conservation` is set to False)
@@ -190,8 +193,8 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         #-- if deccdt is non-zero, the eccentricity is actually an array
         if deccdt!=0:
             ecc = deccdt*(times-t0) + ecc
-            
-            
+
+
         #-- compute orbit
         n = 2*pi/period
         ma = n*(times-t0_perpass)
@@ -225,7 +228,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         #   the Euler angles Omega and i.
         vx_ = cos_theta_*rdot - sin_theta_*r*thetadot
         vy_ = sin_theta_*rdot + cos_theta_*r*thetadot
-        vx = cos_longan*vx_ - sin_longan*vy_*cos(incl) 
+        vx = cos_longan*vx_ - sin_longan*vy_*cos(incl)
         vy = sin_longan*vx_ + cos_longan*vy_*cos(incl)
         vz = sin(-incl)*vy_
         #-- that's it!
@@ -233,10 +236,11 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         # correct by vgamma (only z-direction)
         vz += vgamma
         z += vgamma * (times-t0)
-        
+
         return (x+com_pos[0],y+com_pos[1],z+com_pos[2]),\
                 (vx+com_vel[0],vy+com_vel[1],vz+com_vel[2]),\
-                (theta_+com_euler[0],long_an+com_euler[1],incl+com_euler[2])
+                (theta_,long_an,incl)
+                # (theta_+com_euler[0],long_an+com_euler[1],incl+com_euler[2])
 
     def binary_dynamics_nested(times, periods, eccs, smas, \
                             t0_perpasses, per0s, long_ans, incls, dpdts, deccdts, \
@@ -289,7 +293,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
 
                 pos, vel, euler = binary_dynamics(times, period, ecc, sma, t0_perpass, \
                                     per0, long_an, incl, dpdt, deccdt, dperdt, component, \
-                                    t0, vgamma, mass_conservation, 
+                                    t0, vgamma, mass_conservation,
                                     com_pos=pos, com_vel=vel, com_euler=euler)
 
 
@@ -298,13 +302,13 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
 
 
 
-    
+
     xs, ys, zs = [], [], []
     vxs, vys, vzs = [], [], []
-    
+
     if return_euler:
         ethetas, elongans, eincls = [], [], []
-    
+
     for period, ecc, sma, t0_perpass, per0, long_an, incl, dpdt, deccdt, \
             dperdt, component in zip(periods, eccs, smas, t0_perpasses, per0s, long_ans, \
             incls, dpdts, deccdts, dperdts, components):
@@ -314,7 +318,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         if ltte:
             #scale_factor = 1.0/c.c.value * c.R_sun.value/(24*3600.)
             scale_factor = (c.R_sun/c.c).to(u.d).value
-            
+
             def propertime_barytime_residual(t):
                 pos, vel, euler = binary_dynamics_nested(time, period, ecc, sma, \
                                 t0_perpass, per0, long_an, incl, dpdt, deccdt, \
@@ -322,12 +326,12 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
                                 mass_conservation=mass_conservation)
                 z = pos[2]
                 return t - z*scale_factor - time
-            
+
             # Finding that right time is easy with a Newton optimizer:
             propertimes = [newton(propertime_barytime_residual, time) for \
                time in times]
             propertimes = np.array(propertimes).ravel()
-            
+
             pos, vel, euler = binary_dynamics_nested(propertimes, period, ecc, sma, \
                             t0_perpass, per0, long_an, incl, dpdt, deccdt, \
                             dperdt, components=component, t0=t0, vgamma=vgamma, \
@@ -340,7 +344,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
                     dperdt, components=component, t0=t0, vgamma=vgamma, \
                     mass_conservation=mass_conservation)
 
-                            
+
         xs.append(pos[0])
         ys.append(pos[1])
         zs.append(pos[2])
@@ -352,7 +356,7 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             elongans.append([euler[1]]*len(euler[0]))
             eincls.append([euler[2]]*len(euler[0]))
 
-    
+
     if return_euler:
         return times, \
             xs*u.solRad, ys*u.solRad, zs*u.solRad, \
@@ -364,32 +368,32 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d
 
 
-    
+
 
 def _true_anomaly(M,ecc,itermax=8):
     r"""
     Calculation of true and eccentric anomaly in Kepler orbits.
-    
+
     ``M`` is the phase of the star, ``ecc`` is the eccentricity
-    
+
     See p.39 of Hilditch, 'An Introduction To Close Binary Stars':
-    
+
     Kepler's equation:
-    
+
     .. math::
-    
+
         E - e\sin E = \frac{2\pi}{P}(t-T)
-        
+
     with :math:`E` the eccentric anomaly. The right hand size denotes the
     observed phase :math:`M`. This function returns the true anomaly, which is
     the position angle of the star in the orbit (:math:`\theta` in Hilditch'
     book). The relationship between the eccentric and true anomaly is as
     follows:
-    
+
     .. math::
-    
+
         \tan(\theta/2) = \sqrt{\frac{1+e}{1-e}} \tan(E/2)
-    
+
     @parameter M: phase
     @type M: float
     @parameter ecc: eccentricity
@@ -401,7 +405,7 @@ def _true_anomaly(M,ecc,itermax=8):
     """
     # Initial value
     Fn = M + ecc*sin(M) + ecc**2/2.*sin(2*M)
-    
+
     # Iterative solving of the transcendent Kepler's equation
     for i in range(itermax):
         F = Fn
@@ -413,8 +417,8 @@ def _true_anomaly(M,ecc,itermax=8):
                 break
         elif (abs((Fn-F)/F)<0.00001):
             break
-            
+
     # relationship between true anomaly (theta) and eccentric anomaly (Fn)
     true_an = 2.*arctan(sqrt((1.+ecc)/(1.-ecc))*tan(Fn/2.))
-    
+
     return Fn,true_an
