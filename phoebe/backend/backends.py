@@ -432,17 +432,17 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # TODO: pass stepsize
             # TODO: pass orbiterror
             # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], ltte=ltte)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle_bs(b, [t0], compute, **kwargs)
             ethetas0, elongans0, eincls0 = None, None, None
-            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle_bs(b, times, ltte=ltte)
+            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle_bs(b, times, compute, **kwargs)
 
 
         elif dynamics_method=='keplerian':
 
             # TODO: change syntax to be same format as rebound above (compute, **kwargs)
             # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], ltte=ltte, return_euler=True)
-            ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte, return_euler=True)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
+            ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
 
         else:
             raise NotImplementedError

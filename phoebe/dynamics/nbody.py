@@ -226,7 +226,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     return times, xs, ys, zs, vxs, vys, vzs
 
 
-def dynamics_from_bundle_bs(b, times, stepsize=0.01, orbiterror=1e-16, ltte=False):
+def dynamics_from_bundle_bs(b, times, compute, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
@@ -248,6 +248,12 @@ def dynamics_from_bundle_bs(b, times, stepsize=0.01, orbiterror=1e-16, ltte=Fals
         positions and velocities of each star at those same times.
 
     """
+
+    stepsize = 0.01
+    orbiterror = 1e-16
+    computeps = b.get_compute(compute, check_relevant=False, force_ps=True)
+    ltte = computeps.get_value('ltte', check_relevant=False, **kwargs)
+
 
     hier = b.hierarchy
 
