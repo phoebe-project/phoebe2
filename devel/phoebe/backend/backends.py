@@ -356,6 +356,9 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     When using this backend, please cite
         * TODO: include list of citations
 
+    When using dynamics_method=='nbody', please cite:
+        * TODO: include list of citations for reboundx
+
     Parameters that are used by this backend:
 
     * Compute:
