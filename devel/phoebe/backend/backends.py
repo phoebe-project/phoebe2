@@ -439,7 +439,6 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
         elif dynamics_method=='keplerian':
 
-            # TODO: change syntax to be same format as rebound above (compute, **kwargs)
             # TODO: make sure that this takes systemic velocity and corrects positions and velocities (including ltte effects if enabled)
             t0, xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0 = dynamics.keplerian.dynamics_from_bundle(b, [t0], compute, return_euler=True, **kwargs)
             ts, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls = dynamics.keplerian.dynamics_from_bundle(b, times, compute, return_euler=True, **kwargs)
@@ -518,7 +517,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     if 'LC' in methods or 'RV' in methods:  # TODO this needs to be WAY more general
         # we only need to handle pblum_scale if we have a dataset method which requires
         # intensities
-        if len(meshablerefs) > 1:
+        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
         else:
             x0, y0, z0 = [0.], [0.], [0.]
@@ -592,7 +591,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 raise NotImplementedError('nbody not supported for meshes yet')
 
             # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
-            if len(meshablerefs) > 1:
+            if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
                 xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
             else:
                 xi, yi, zi = [0.], [0.], [0.]
