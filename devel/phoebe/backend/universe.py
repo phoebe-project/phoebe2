@@ -1766,7 +1766,7 @@ class Star(Body):
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, abun, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
-            datasets=[], do_rv_grav=False, **kwargs):
+            datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1812,11 +1812,14 @@ class Envelope(Body):
         #self.gravb_law = gravb_law
         self.abun = abun
 
+        self.features = features  # TODO: move this to Body
 
         # Volume "conservation"
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
 
         self._pbs = {}
+
+        self._do_mesh_offset = do_mesh_offset
 
 
     @classmethod
@@ -1906,9 +1909,20 @@ class Envelope(Body):
         else:
             raise NotImplementedError
 
+        features = []
+        # print "*** checking for features of", component, b.filter(component=component).features
+        for feature in b.filter(component=component).features:
+            # print "*** creating features", star, feature
+            feature_ps = b.filter(feature=feature, component=component)
+            feature_cls = globals()[feature_ps.method.title()]
+            features.append(feature_cls.from_bundle(b, feature))
+
+        do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+
         return cls(Phi, masses, sma, ecc, freq_rot, abun,
                 mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
-                datasets=datasets, do_rv_grav=do_rv_grav, **mesh_kwargs)
+                datasets=datasets, do_rv_grav=do_rv_grav,
+                features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
     @property
     def needs_recompute_instantaneous(self):
@@ -1984,8 +1998,8 @@ class Envelope(Body):
                 delta *= rpole
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
-                                                         choice=0,
                                                          delta=delta,
+                                                         choice=2,
                                                          max_triangles=maxpoints,
                                                          vertices=True,
                                                          triangles=True,
@@ -1996,10 +2010,59 @@ class Envelope(Body):
                                                          vnormgrads=True,
                                                          cnormgrads=False,
                                                          areas=True,
-                                                         volume=True)
+                                                         volume=False)
 
+
+                # Now we'll get the area and volume of the Roche potential
+                # itself (not the mesh).
+                # TODO: which volume(s) do we want to report?  Either way, make
+                # sure to do the same for the OC case and rotstar
+                av = libphoebe.roche_area_volume(*mesh_args,
+                                                 choice=2,
+                                                 larea=True,
+                                                 lvolume=True)
+
+                new_mesh['volume'] = av['lvolume']
+
+                if self._do_mesh_offset:
+                    # vertices directly from meshing are placed directly on the
+                    # potential, causing the volume and surface area to always
+                    # (for convex surfaces) be underestimated.  Now let's jitter
+                    # each of the vertices along their normals to recover the
+                    # expected volume/surface area.  Since they are moved along
+                    # their normals, vnormals applies to both vertices and
+                    # pvertices.
+                    new_mesh['pvertices'] = new_mesh.pop('vertices')
+                    mo = libphoebe.mesh_offseting(av['larea'],
+                                                  new_mesh['pvertices'],
+                                                  new_mesh['vnormals'],
+                                                  new_mesh['triangles'],
+                                                  vertices=True,
+                                                  tnormals=False,
+                                                  areas=True,
+                                                  volume=False)
+
+                    new_mesh['vertices'] = mo['vertices']
+                    new_mesh['areas'] = mo['areas']
+
+                    # TODO: need to update centers (so that they get passed
+                    # to the frontend as x, y, z)
+                    # new_mesh['centers'] = mo['centers']
+
+
+                else:
+                    # pvertices should just be a copy of vertice
+                    new_mesh['pvertices'] = new_mesh['vertices']
+
+                # We only need the gradients where we'll compute local
+                # quantities which, for a marching mesh, is at the vertices.
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+
+                # And lastly, let's fill the velocities column - with zeros
+                # at each of the vertices
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
+
+                new_mesh['tareas'] = np.array([])
 
             elif self.distortion_method == 'nbody':
                 # TODO: implement this? - can OCs be done in NBody mode?
