@@ -834,7 +834,7 @@ void triangle_mesh_visibility(
   // Prepare triangle to be sorted according to depth 
   struct Tt {
     
-    int index;         // triangle index
+    int index;              // triangle index
          
     double z;               // maximal depth of the triangle
       
