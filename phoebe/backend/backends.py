@@ -503,22 +503,12 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     # TODO: only do this if we need the mesh for actual computations
     # TODO: move as much of this pblum logic into mesh.py as possible
 
-    def dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas=None, elongans=None, eincls=None, i=0):
-        xi, yi, zi = [x[i].to(u.solRad) for x in xs], [y[i].to(u.solRad) for y in ys], [z[i].to(u.solRad) for z in zs]
-        vxi, vyi, vzi = [vx[i].to(u.solRad/u.d) for vx in vxs], [vy[i].to(u.solRad/u.d) for vy in vys], [vz[i].to(u.solRad/u.d) for vz in vzs]
-        if ethetas is not None:
-            ethetai, elongani, eincli = [etheta[i].to(u.rad) for etheta in ethetas], [elongan[i].to(u.rad) for elongan in elongans], [eincl[i].to(u.rad) for eincl in eincls]
-        else:
-            ethetai, elongani, eincli = None, None, None
-
-        return xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli
-
     methods = b.get_dataset().methods
     if 'LC' in methods or 'RV' in methods:  # TODO this needs to be WAY more general
         # we only need to handle pblum_scale if we have a dataset method which requires
         # intensities
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
+            x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
         else:
             x0, y0, z0 = [0.], [0.], [0.]
             vx0, vy0, vz0 = [0.], [0.], [0.]
@@ -584,21 +574,22 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         # Check to see what we might need to do that requires a mesh
         # TOOD: make sure to use the requested distortion_method
 
-        if True in [info['needs_mesh'] for info in infolist]:
 
+        # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
+        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
+            xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
+        else:
+            xi, yi, zi = [0.], [0.], [0.]
+            vxi, vyi, vzi = [0.], [0.], [0.]
+            # TODO: star needs long_an (yaw?)
+
+            ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', component=meshablerefs[0], unit=u.rad)]
+
+        if True in [info['needs_mesh'] for info in infolist]:
 
             if dynamics_method == 'nbody':
                 raise NotImplementedError('nbody not supported for meshes yet')
 
-            # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
-            if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-                xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
-            else:
-                xi, yi, zi = [0.], [0.], [0.]
-                vxi, vyi, vzi = [0.], [0.], [0.]
-                # TODO: star needs long_an (yaw?)
-
-                ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', component=hier.get_parent_of(meshablerefs[0]), unit=u.rad)]
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
             # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
@@ -666,8 +657,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     this_syn['rv'].append(rv*u.solRad/u.d)
                 else:
                     # then rv_method == 'dynamical'
-                    # TODO: send in with units
-                    this_syn['rv'].append(-1*vzs[cind][i])
+                    this_syn['rv'].append(-1*vzi[cind]*u.solRad/u.d)
 
             elif method=='LC':
 
@@ -696,12 +686,12 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
 
                 ### this_syn['time'].append(ts[i])  # time array was set when initializing the syns
-                this_syn['x'].append(xs[cind][i])
-                this_syn['y'].append(ys[cind][i])
-                this_syn['z'].append(zs[cind][i])
-                this_syn['vx'].append(vxs[cind][i])
-                this_syn['vy'].append(vys[cind][i])
-                this_syn['vz'].append(vzs[cind][i])
+                this_syn['x'].append(xi[cind])
+                this_syn['y'].append(yi[cind])
+                this_syn['z'].append(zi[cind])
+                this_syn['vx'].append(vxi[cind])
+                this_syn['vy'].append(vyi[cind])
+                this_syn['vz'].append(vzi[cind])
 
             elif method=='MESH':
                 # print "*** info['component']", info['component'], " info['dataset']", info['dataset']
@@ -744,12 +734,11 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 this_syn['visibility'] = body.mesh.visibilities
 
-                # vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
-                # for i,vc in enumerate(vcs):
-                #     if np.all(vc==np.array([0,0,0])):
-                #         vcs[i] = np.full(3, np.nan)
-                # this_syn['visible_centroids'] = vcs
-                this_syn['visible_centroids'] = []
+                vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
+                for i,vc in enumerate(vcs):
+                    if np.all(vc==np.array([0,0,0])):
+                        vcs[i] = np.full(3, np.nan)
+                this_syn['visible_centroids'] = vcs
 
                 indeps = {'RV': ['rv', 'intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost', 'ld'], 'LC': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost', 'ld'], 'IFM': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel']}
                 for infomesh in infolist:

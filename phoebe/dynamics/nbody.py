@@ -58,11 +58,14 @@ def _ensure_tuple(item):
     else:
         raise NotImplementedError
 
-def dynamics_from_bundle(b, times, compute, **kwargs):
+def dynamics_from_bundle(b, times, compute=None, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
     See :func:`dynamics` for more detailed information.
+
+    NOTE: you must either provide compute (the label) OR all relevant options
+    as kwargs (ltte, stepsize, gr, integrator)
 
     Args:
         b: (Bundle) the bundle with a set hierarchy
@@ -223,14 +226,18 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
             vzs[j][i] = particle.vz * au_to_solrad # solRad/d
 
 
+    # d, solRad, solRad/d, rad
     return times, xs, ys, zs, vxs, vys, vzs
 
 
-def dynamics_from_bundle_bs(b, times, compute, **kwargs):
+def dynamics_from_bundle_bs(b, times, compute=None, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
     See :func:`dynamics` for more detailed information.
+
+    NOTE: you must either provide compute (the label) OR all relevant options
+    as kwargs (ltte)
 
     Args:
         b: (Bundle) the bundle with a set hierarchy
@@ -358,14 +365,14 @@ def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     # TODO: need to return euler angles... if that even makes sense?? Or maybe we
     # need to make a new place in orbit??
 
-    # define scale_factor to convert from au to solRad and return values in solRad
-    scale_factor = c.au/c.R_sun
+    au_to_solrad = (1*u.AU).to(u.solRad).value
 
+    # d, solRad, solRad/d, rad
     return np.array(d['t']), \
-        [(-1*np.array([d['x'][ti][oi] for ti in range(ntimes)])*scale_factor*u.solRad) for oi in range(nobjects)], \
-        [(-1*np.array([d['y'][ti][oi] for ti in range(ntimes)])*scale_factor*u.solRad) for oi in range(nobjects)], \
-        [(np.array([d['z'][ti][oi] for ti in range(ntimes)])*scale_factor*u.solRad) for oi in range(nobjects)], \
-        [(-1*np.array([d['vx'][ti][oi] for ti in range(ntimes)])*scale_factor*u.solRad/u.d) for oi in range(nobjects)], \
-        [(-1*np.array([d['vy'][ti][oi] for ti in range(ntimes)])*scale_factor*u.solRad/u.d) for oi in range(nobjects)], \
-        [(np.array([d['vz'][ti][oi] for ti in range(ntimes)])*scale_factor*u.solRad/u.d) for oi in range(nobjects)]
+        [(-1*np.array([d['x'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
+        [(-1*np.array([d['y'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
+        [(np.array([d['z'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
+        [(-1*np.array([d['vx'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
+        [(-1*np.array([d['vy'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
+        [(np.array([d['vz'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
 

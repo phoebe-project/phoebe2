@@ -151,7 +151,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None):
     """
     load dictionary with lc data
     """
-   
+
     lcdata = np.loadtxt(filename)
     ncol = len(lcdata[0])
     if dep == 'Magnitude':
@@ -166,7 +166,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None):
         if ncol >= 3:
             d['phoebe_lc_sigmalc'] = lcdata[:,2]
         else:
-            logger.warning('A sigma column was is mentioned in the .phoebe file but is not present in the data file') 
+            logger.warning('A sigma column was is mentioned in the .phoebe file but is not present in the data file')
 
 
 
@@ -210,7 +210,7 @@ def det_dataset(eb, passband, dataid, comp, time):
             rv_dataset = eb.add_dataset('rv', dataset=dataid, time = [])
 
         except ValueError:
-        
+
             logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
             rv_dataset = eb.add_dataset('rv', time =[])
 
@@ -225,13 +225,13 @@ def det_dataset(eb, passband, dataid, comp, time):
             comp_o = 'primary'
         for x in rvs:
             test_dataset = eb.get_dataset(x)
-            if len(test_dataset.get_value(qualifier='rv', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length           
+            if len(test_dataset.get_value(qualifier='rv', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length
                 time_o = test_dataset.get_value('time', component=comp_o)
                 passband_o = test_dataset.get_value('passband')
                 if np.all(time_o == time) and (passband == passband_o):
                     rv_dataset = test_dataset
                     found = True
-        
+
         if not found:
             try:
                 eb._check_label(dataid)
@@ -239,7 +239,7 @@ def det_dataset(eb, passband, dataid, comp, time):
                 rv_dataset = eb.add_dataset('rv', dataset=dataid, time = [])
 
             except ValueError:
-        
+
                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
                 rv_dataset = eb.add_dataset('rv', time =[])
 
@@ -278,7 +278,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     rvno = np.int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
     lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
 # delete parameters that have already been accounted for and find lc and rv parameters
-    
+
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
 # create mzero and grab it if it exists
     mzero = None
@@ -306,7 +306,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # First LC
     for x in range(1,lcno+1):
-    
+
         #list of parameters related to current dataset
 
         lcint = [list(lcpars[:,0]).index(s) for s in lcpars[:,0] if "["+str(x)+"]" in s]
@@ -347,7 +347,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 lc_dataset = eb.add_dataset('lc', dataset=dataid)
 
             except ValueError:
-        
+
                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
                 lc_dataset = eb.add_dataset('lc')
 
@@ -358,7 +358,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     #enable dataset
         enabled = lc_dict['phoebe_lc_active']
         del lc_dict['phoebe_lc_active']
-    
+
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
         eb.set_value_all(check_relevant= False, **d)
 
@@ -372,7 +372,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         for k in lc_dict:
             pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
-        # as long as the parameter exists add it 
+        # as long as the parameter exists add it
             if len(d) > 0:
 
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
@@ -407,17 +407,17 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         if rv_dict['phoebe_rv_filename'] != 'Undefined':
             data_dict = load_rv_data(filename = rv_dict['phoebe_rv_filename'],  indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight)
-    
+
             rv_dict.update(data_dict)
             time = rv_dict['phoebe_rv_time']
-        # 
+        #
 
         rv_dataset = det_dataset(eb, passband, dataid, comp, time)
         dataid = rv_dataset.dataset
         #enable dataset
         enabled = rv_dict['phoebe_rv_active']
         del rv_dict['phoebe_rv_active']
-    
+
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
         eb.set_value_all(check_relevant= False, **d)
 
@@ -431,14 +431,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         del rv_dict['phoebe_rv_filter']
 # now go through parameters and input the results into phoebe2
         for k  in rv_dict:
-            
+
             pnew, d = ret_dict(k, rv_dict[k], rvdep = comp, dataid=dataid)
             if len(d) > 0:
                 eb.set_value_all(check_relevant= False, **d)
 
 
     for x in range(len(params)):
-        
+
         pname = params[:,0][x]
         pname = pname.split('.')[0]
         val = params[:,1][x].strip('"')
@@ -475,11 +475,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if val == 1:
                 d['value'] = 'kurucz'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
-            d['compute'] = 'backend' 
+            d['compute'] = 'backend'
             eb.set_value(check_relevant=False, **d)
             d['compute'] = 'detailed'
             atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
-            if d['value'] not in choices:
+            if d['value'] not in atm_choices:
                 #TODO FIND appropriate default
                 d['value'] = 'atmcof'
 
@@ -559,7 +559,7 @@ def par_value(param, index=None):
 
         if d['qualifier'] == 'refl_num':
 
-            val = [param.get_value()-1]   
+            val = [param.get_value()-1]
 
         else:
             val = [param.get_value()]
@@ -809,7 +809,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             try:
                 pnew = _2to1par[param.qualifier]
                 if param.qualifier in [ 'alb', 'l3', 'ld_func', 'flux', 'sigma', 'time'] or param.component == '_default':
-                    
+
                     param = None
             except:
 
@@ -922,7 +922,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                     try:
                         pnew = _2to1par[param.qualifier]
                         if param.qualifier in ['ld_func', 'time', 'rv', 'sigma']or param.component == '_default':
-                            
+
                             param = None
 
                     except:
@@ -990,7 +990,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     comquals = eb.get_compute(method='legacy', check_relevant=False)-eb.get_compute(method='legacy', component='_default')
 
     for param in comquals.to_list():
-            
+
         if param.qualifier == 'heating':
             if param.get_value() == False:
                in1 =  parnames.index('phoebe_alb1.VAL')

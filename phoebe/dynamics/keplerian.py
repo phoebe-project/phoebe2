@@ -10,11 +10,14 @@ import logging
 logger = logging.getLogger("DYNAMICS.KEPLERIAN")
 logger.addHandler(logging.NullHandler())
 
-def dynamics_from_bundle(b, times, compute, return_euler=False, **kwargs):
+def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
     See :func:`dynamics` for more detailed information.
+
+    NOTE: you must either provide compute (the label) OR all relevant options
+    as kwargs (ltte)
 
     Args:
         b: (Bundle) the bundle with a set hierarchy
@@ -357,15 +360,26 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
             eincls.append([euler[2]]*len(euler[0]))
 
 
+    # if return_euler:
+    #     return times, \
+    #         xs*u.solRad, ys*u.solRad, zs*u.solRad, \
+    #         vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d, \
+    #         ethetas*u.rad, elongans*u.rad, eincls*u.rad
+    # else:
+    #     return times, \
+    #         xs*u.solRad, ys*u.solRad, zs*u.solRad, \
+    #         vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d    if return_euler:
+
+    # d, solRad, solRad/d, rad
     if return_euler:
         return times, \
-            xs*u.solRad, ys*u.solRad, zs*u.solRad, \
-            vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d, \
-            ethetas*u.rad, elongans*u.rad, eincls*u.rad
+            xs, ys, zs, \
+            vxs, vys, vzs, \
+            ethetas, elongans, eincls
     else:
         return times, \
-            xs*u.solRad, ys*u.solRad, zs*u.solRad, \
-            vxs*u.solRad/u.d, vys*u.solRad/u.d, vzs*u.solRad/u.d
+            xs, ys, zs, \
+            vxs, vys, vzs
 
 
 
