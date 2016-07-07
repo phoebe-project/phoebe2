@@ -413,7 +413,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
         raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
 
-    if len(meshablerefs) > 1:
+    if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
         if dynamics_method in ['nbody', 'rebound']:
             # if distortion_method == 'roche':
                 # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
@@ -598,7 +598,8 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 xi, yi, zi = [0.], [0.], [0.]
                 vxi, vyi, vzi = [0.], [0.], [0.]
                 # TODO: star needs long_an (yaw?)
-                ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', unit=u.rad)]
+
+                ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', component=hier.get_parent_of(meshablerefs[0]), unit=u.rad)]
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
             # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
