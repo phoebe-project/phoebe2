@@ -67,7 +67,7 @@ int main(){
     delta = 1;
   #endif
   
-  #if 1
+  #if 0
   // Overcontact
   // Expected result: -4.6961743405803708e-01	1.4696174340580370e+00
   int choice = 2;  
@@ -97,6 +97,29 @@ int main(){
     Omega0 = 30000, 
     q = 3.00348934885e-06,
     F = 365.25,
+    delta = 1;
+  #endif
+  
+  
+  #if 0
+  // Left lobe, large Omega, small q
+  // Expected result: 
+  int choice = 0;  
+  double 
+    Omega0 = 30000, 
+    q = 1,
+    F = 1,
+    delta = 1;
+  #endif
+  
+  #if 1
+  // Right lobe, large Omega, small q
+  // Expected result: 
+  int choice = 1;  
+  double 
+    Omega0 = 30000, 
+    q = 1,
+    F = 1,
     delta = 1;
   #endif
   

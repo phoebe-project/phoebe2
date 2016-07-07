@@ -517,11 +517,19 @@ namespace gen_roche {
   }
   
   /*
-    Finding range on x-axis for each lobe separaterly
+    Finding range on x-axis for each lobe separately
     
       w = delta Omega
       q = M2/M1
       b = delta^3 F^2(1 + q)
+    
+    by solving 
+      
+      Tilde{Omega} = w = 1/|t| + q(1/|t-1| -t) + 1/2 b t'^2
+    
+    Solving: 
+      1/t + 1/2 b t^2 + q (t + 1/(1 + t)) = w
+      solution = -t
   */ 
   
   template <class T>
@@ -531,6 +539,45 @@ namespace gen_roche {
     const T & b,
     const T & tL2
   ) {
+
+    if (w > 100 && w > 2*q){  // w->infty
+      
+      const int iter_max = 10;
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      T q2 = q*q,
+        s = 1/w,
+        a[8] = {1, q, q2, b/2 + q*(1 + q2), 
+          q*(-1 + 2*b + q*(4 + q2)),
+          q*(1 + q*(-5 + 5*b + q*(10 + q2))), 
+          b*(3*b/4 + q*(3 + 10*q2)) + q*(-1 + q*(9 + q*(-15 + q*(20 + q2)))),
+          q*(1 + b*(-3.5 + 21*b/4) + q*(-14 + 21*b + q*(42 + q*(-35 + 35*b/2 + q*(35 + q2)))))
+        },
+        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        
+       int it = 0;
+       
+       T dt, v[2]; 
+       
+       t = -t;
+       
+       do {
+          // note: working with 
+          rescaled_potential_on_x_axis(v, 3, t, q, b);
+          
+          t -= (dt = (v[0] - w)/v[1]); 
+          
+          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+          
+       } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      
+      if (!(it < iter_max))
+        std::cerr << "left_lobe_left_xborder::slow convergence\n";
+
+      return t;
+    }
+    
     std::vector<T> roots;
 
     T a[5] = {2, 2*(1 + q - w), 2*(q - w), b + 2*q, b};
@@ -543,7 +590,13 @@ namespace gen_roche {
     return std::nan("");
   }
 
+  /* 
+    Solving:
 
+      q (1/(1 - t) - t) + 1/t + 1/2 b t^2 = w
+      
+      solution = t
+  */
 
   template <class T>
   T left_lobe_right_xborder(
@@ -552,9 +605,45 @@ namespace gen_roche {
     const T & b,
     const T & tL1
   ) {
+  
+    if (w > 100 && w > 2*q){  // w->infty
+      
+      const int iter_max = 10;
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      T q2 = q*q,
+        s = 1/w,
+        a[8] = {1, q, q2, b/2 + q*(1 + q2), 
+          q*(1 + 2*b + q*(4 + q2)), 
+          q*(1 + q*(5 + 5*b + q*(10 + q2))), 
+          b*(3*b/4 + q*(3 + 10*q2)) + q*(1 + q*(9 + q*(15 + q*(20 + q2)))),
+          q*(1 + b*(3.5 + 21*b/4) + q*(14 + 21*b + q*(42 + q*(35 + 35*b/2 + q*(35 + q2)))))
+        },
+        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        
+       int it = 0;
+       
+       T dt, v[2]; 
+
+       do {
+          rescaled_potential_on_x_axis(v, 3, t, q, b);
+          
+          t -= (dt = (v[0] - w)/v[1]); 
+          
+          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+          
+       } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      
+      if (!(it < iter_max))
+        std::cerr << "left_lobe_right_xborder::slow convergence\n";
+
+      return t;
+    }
+    
     std::vector<T> roots;
 
-    T a[5] = {-2, 2*(1 - q + w), 2*(q - w), -b - 2*q, b};
+    T a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
 
     utils::solve_quartic(a, roots);
 
@@ -565,8 +654,15 @@ namespace gen_roche {
     return std::nan("");
   }
   
-  
-  
+  /* 
+    Solving:
+    
+      p = 1/q,  c = p b, r = (w + q - b/2)/q = p(w - b/2) + 1
+     
+      p/(1 - t) + 1/t + t(1 - c) + 1/2 c t^2 = r
+    
+      solution = 1 - t
+  */
   template <class T>
   T right_lobe_left_xborder(
     const T & w, 
@@ -574,10 +670,53 @@ namespace gen_roche {
     const T & b,
     const T & tL1
   ) {
+    
+     T p = 1/q,
+       c = p*b,
+       r = p*(w - b/2) + 1;
+     
+     if (r > 100 && r > 2*p){  // w->infty
+      
+      const int iter_max = 10;
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      T p2 = p*p,
+        s = 1/r,
+        a[8] = {1, p, 1 - c + p*(1 + p), c*(0.5 - 3*p) + p*(4 + p*(3 + p)),
+          2 + c*(-4 + 2*c + (-2 - 6*p)*p) + p*(5 + p*(12 + p*(6 + p))),
+          c*(2.5 + c*(-2.5 + 10*p) + p*(-22.5 + (-15 - 10*p)*p)) + p*(16 + p*(30 + p*(30 + p*(10 + p)))),
+          5 + c*(-15 + c*(15.75 - 5*c + 30*p2) + p*(-18 + p*(-90 + (-50 - 15*p)*p))) + p*(22 + p*(90 + p*(110 + p*(65 + p*(15 + p))))),
+          c*(10.5 + c*(-21 + c*(10.5 - 35*p) + p*(110.25 + p*(52.5 + 70*p))) + p*(-129.5 + p*(-210 + p*(-297.5 + (-122.5 - 21*p)*p)))) + p*(64 + p*(210 + p*(385 + p*(315 + p*(126 + p*(21 + p))))))
+        },
+        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        
+       int it = 0;
+       
+       T dt, v[2]; 
+       
+       t = 1 - t;
+       
+       do {
+          // note: working with 
+          rescaled_potential_on_x_axis(v, 3, t, q, b);
+          
+          t -= (dt = (v[0] - w)/v[1]); 
+          
+          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+          
+       } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      
+      if (!(it < iter_max))
+        std::cerr << "right_lobe_left_xborder::slow convergence\n";
+
+      return t;
+    }
+    
+  
     std::vector<T> roots;
     
-    T p = 1/q, c = b/q,
-      a[5] = {2, -4 + c - 2*p*(-1 + w), 4 - 3*c + 2*p*w, -2 + 3*c, -c};
+    T a[5] = {2, 2*(-1 + p - r), 2*(1 - c + r), 2 + 3*c, -c};
    
     utils::solve_quartic(a, roots);
       
@@ -587,7 +726,14 @@ namespace gen_roche {
     return std::nan("");
   }
 
-
+  /* 
+    Solving:
+      p = 1/q,  c = p b, r = p(w - b/2) + 1,
+    
+      1/t + (-1 + c) t + (c t^2)/2 + p/(1 + t)  = r
+      
+      solution = 1 + t 
+  */
 
   template <class T>
   T right_lobe_right_xborder(
@@ -596,17 +742,59 @@ namespace gen_roche {
     const T & b,
     const T & tL3
   ) {
+      
+     T p = 1/q,
+       c = p*b,
+       r = p*(w - b/2) + 1;
+     
+     if (r > 100 && r > 2*p){  // w->infty
+      
+      const int iter_max = 10;
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      T p2 = p*p,
+        s = 1/r,
+        a[8] = {1, p, -1 + c + (-1 + p)*p, c*(0.5 + 3*p) + p*(-2 + (-3 + p)*p),
+          2 + p*(3 + (-6 + p)*p2) + c*(-4 + 2*c + p*(-2 + 6*p)), 
+          c*(-2.5 + c*(2.5 + 10*p) + p*(-17.5 + p*(-15 + 10*p))) + p*(6 + p*(10 + p*(10 + (-10 + p)*p))),
+          -5 + p*(-10 + p2*(10 + p*(35 + (-15 + p)*p))) + c*(15 + c*(-14.25 + 5*c + 30*p2) + p*(12 + p*(-30 + p*(-50 + 15*p)))),
+          c*(10.5 + c*(-21 + c*(10.5 + 35*p) + p*(-99.75 + p*(-52.5 + 70*p))) + p*(87.5 + p*(105 + p*(17.5 + p*(-122.5 + 21*p))))) + p*(-20 + p*(-42 + p*(-35 + p*(-35 + p*(84 + (-21 + p)*p)))))
+        },
+        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        
+       int it = 0;
+       
+       T dt, v[2]; 
+       
+       t = 1 + t;
+       
+       do {
+          // note: working with 
+          rescaled_potential_on_x_axis(v, 3, t, q, b);
+          
+          t -= (dt = (v[0] - w)/v[1]); 
+          
+          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+          
+       } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      
+      if (!(it < iter_max))
+        std::cerr << "right_lobe_right_xborder::slow convergence\n";
+
+      return t;
+    }
     
+  
     std::vector<T> roots;
     
-    T p = 1/q, c = b/q,  
-      a[5] = {2, c - 2*p*(-1 + w), -4 + 3*c - 2*p*w, -2 + 3*c, c};
-
+    T a[5] = {2, 2*(1 + p - r), 2*(-1 + c - r), -2 + 3*c, c};
+   
     utils::solve_quartic(a, roots);
-    
-    // grab smallest root positive 
-    for (auto && v : roots) if (v > 0) return 1 + v;
-  
+      
+    // grab the smallest root in [0,1] 
+    for (auto && v : roots) if (0 < v && v < 1) return 1 + v;
+      
     return std::nan("");
   }
   
@@ -699,7 +887,8 @@ namespace gen_roche {
       // omega[0] = Omega(L1), omega[1] = Omega(L2), omega[2] = Omega(L3)
       critical_potential(omega, L, 1+2+4, q, F, delta);
        
-      if (enable_checks && !(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
+      if (enable_checks && 
+          !(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
         std::cerr 
           << "lobe_x_points::overcontact lobe does not seem to exist\n"
           << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n';
