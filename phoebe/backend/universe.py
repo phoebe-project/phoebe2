@@ -746,7 +746,6 @@ class Body(object):
                                                 polar_dir*self.freq_rot)
 
 
-
         # Lastly, we'll recompute physical quantities (not observables) if
         # needed for this time-step.
         if self.mesh.loggs.for_computations is None or self.needs_recompute_instantaneous:
