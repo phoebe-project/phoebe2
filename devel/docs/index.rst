@@ -11,12 +11,26 @@ interface.
 That said, PHOEBE 2.0 can not yet handle:
 
 * overcontact systems
-* spots
-* misaligned binaries
+* semi-detached/contact systems
+* fitting (DC)
 * TODO: anything else?
+
+And PHOEBE 2.0 is intentionally dropping support for:
+
+* data in magnitudes (convert manually)
+* data in phases (function provided to convert during import)
 
 More advanced physics can be found in the PHOEBE 2.0-alpha releases
 and will be ported to beta as soon as they can be tested robustly.
+
+Planned (new) future features include:
+
+* triple and N-body systems
+* misaligned binaries
+* pulsations
+* bayesian (MCMC) fitting
+* synthetic spectra
+* synthetic eclipse timing variations (ETVs)
 
 
 Download and Installation

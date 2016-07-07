@@ -926,7 +926,7 @@ class Mesh(ScaledProtoMesh):
         # if passing new values (and then make this a public method).  See note
         # below!
 
-        pos_ks = ['vertices', 'centers']
+        pos_ks = ['vertices', 'pvertices', 'centers']
         norm_ks = ['vnormals', 'tnormals'] #, 'cnormals']
         vel_ks = ['velocities']
 
@@ -938,7 +938,7 @@ class Mesh(ScaledProtoMesh):
         # TODO: handle velocity from mesh reprojection during volume conservation
 
         # handle rotation/displacement
-        # NOTE: mus will automatically be updated when updating normals
+        # NOTE: mus will automatically be updated on-the-fly
         self.update_columns_dict({k: transform_position_array(self[k], pos, euler, False) for k in pos_ks if self[k] is not None})
         self.update_columns_dict({k: transform_position_array(self[k], pos, euler, True) for k in norm_ks if self[k] is not None})
 

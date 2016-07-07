@@ -634,7 +634,7 @@ class Body(object):
         :parameter list vzs: a list/array of z-velocities of ALL COMPONENTS in the :class:`System`
         :parameter list ethetas: a list/array of euler-thetas of ALL COMPONENTS in the :class:`System`
         :parameter list elongans: a list/array of euler-longans of ALL COMPONENTS in the :class:`System`
-        :parameter list eincls: a list/array of euler-incles of ALL COMPONENTS in the :class:`System`
+        :parameter list eincls: a list/array of euler-incls of ALL COMPONENTS in the :class:`System`
         :raises NotImplementedError: if the dynamics_method is not supported
         """
         if not self.mesh_initialized:
@@ -741,9 +741,17 @@ class Body(object):
                 scaledprotomesh.update_columns(centers=coords)
                 raise NotImplementedError("areas are not updated for changed mesh")
 
-        self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh,
+
+        # print "*** scaledprotomesh.vz", scaledprotomesh.velocities.for_computations[:,2].min(), scaledprotomesh.velocities.for_computations[:,2].max(), scaledprotomesh.velocities.for_computations[:,2].mean()
+        # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the mesh velocities build-up and do terrible things
+        self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh.copy(),
                                                 pos, vel, euler,
                                                 polar_dir*self.freq_rot)
+
+        # print "time: {}\npos: {}\nvel: {}\neuler: {}".format(time, pos, vel, euler)
+        # print "*** mesh.vz", self._mesh.velocities.for_computations[:,2].min(), self._mesh.velocities.for_computations[:,2].max(), self._mesh.velocities.for_computations[:,2].mean()
+
+
 
 
         # Lastly, we'll recompute physical quantities (not observables) if
@@ -1362,14 +1370,53 @@ class Star(Body):
                                                volume=True)
 
                 # TODO: enable this once its supported by libphoebe
-                # av = libphoebe.rotstar_area_volume(*mesh_args,
-                #                                    larea=True,
-                #                                    lvolume=True)
+                av = libphoebe.rotstar_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
 
-                # new_mesh['volume'] = av['lvolume']
+                new_mesh['volume'] = av['lvolume']
 
+                if self._do_mesh_offset:
+                    # vertices directly from meshing are placed directly on the
+                    # potential, causing the volume and surface area to always
+                    # (for convex surfaces) be underestimated.  Now let's jitter
+                    # each of the vertices along their normals to recover the
+                    # expected volume/surface area.  Since they are moved along
+                    # their normals, vnormals applies to both vertices and
+                    # pvertices.
+                    new_mesh['pvertices'] = new_mesh.pop('vertices')
+                    mo = libphoebe.mesh_offseting(av['larea'],
+                                                  new_mesh['pvertices'],
+                                                  new_mesh['vnormals'],
+                                                  new_mesh['triangles'],
+                                                  vertices=True,
+                                                  tnormals=False,
+                                                  areas=True,
+                                                  volume=False)
+
+                    new_mesh['vertices'] = mo['vertices']
+                    new_mesh['areas'] = mo['areas']
+
+                    # TODO: need to update centers (so that they get passed
+                    # to the frontend as x, y, z)
+                    # new_mesh['centers'] = mo['centers']
+
+                else:
+                    # pvertices should just be a copy of vertice
+                    new_mesh['pvertices'] = new_mesh['vertices']
+
+
+
+                # We only need the gradients where we'll compute local
+                # quantities which, for a marching mesh, is at the vertices.
                 new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+
+                # And lastly, let's fill the velocities column - with zeros
+                # at each of the vertices
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
+
+                new_mesh['tareas'] = np.array([])
+
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
@@ -1602,10 +1649,10 @@ class Star(Body):
         """
 
         # print "*** Star._populate_rv"
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'kurucz')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        # ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
+        # ld_func = kwargs.get('ld_func', 'logarithmic')
+        # atm = kwargs.get('atm', 'kurucz')
+        # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         # We need to fill all the flux-related columns so that we can weigh each
         # triangle's RV by its flux in the requested passband.
@@ -1616,6 +1663,7 @@ class Star(Body):
         # These will be weighted by the fluxes when integrating
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
+
 
         # Gravitational redshift
         if self.do_rv_grav:
@@ -2147,32 +2195,10 @@ class Envelope(Body):
         or :meth:`System.populate_observables`
         """
 
-        # print "*** Star._populate_rv"
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'kurucz')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        # can probably do similar to star?
+        raise NotImplementedError
 
-        # We need to fill all the flux-related columns so that we can weigh each
-        # triangle's RV by its flux in the requested passband.
-        lc_cols = self._populate_lc(dataset, **kwargs)
 
-        # RV per element is just the z-component of the velocity vectory.  Note
-        # the change in sign from our right-handed system to RV conventions.
-        # These will be weighted by the fluxes when integrating
-        rvs = -1*self.mesh['velo___bol_'][:,2]
-
-        # Gravitational redshift
-        if self.do_rv_grav:
-            rv_grav = c.G*(self.mass*u.solMass)/(self._instantaneous_rpole*u.solRad)/c.c
-            # rvs are in solrad/d internally
-            rv_grav = rv_grav.to('solRad/d').value
-
-            rvs += rv_grav
-
-        cols = lc_cols
-        cols['rv'] = rvs
-        return cols
 
 
     def _populate_lc(self, dataset, passband, **kwargs):
@@ -2185,37 +2211,8 @@ class Envelope(Body):
         :raises NotImplementedError: if lc_method is not supported
         """
 
-        lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
-
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'blackbody')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
-
-        pblum = kwargs.get('pblum', 4*np.pi)
-
-        mesh = self.mesh
-        #mus = mesh['mu']
-
-        if lc_method=='numerical':
-            raise NotImplementedError
-
-
-        elif lc_method=='analytical':
-            raise NotImplementedError("analytical fluxes not yet ported to beta")
-
-        else:
-            raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
-
-
-        # TODO: do we really need to store all of these if store_mesh==False?  Can we optimize by
-        # only returning the essential if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost, 'ld': ld}
-
-
-
+        # can probably do similar to star?
+        raise NotImplementedError
 
 
 
