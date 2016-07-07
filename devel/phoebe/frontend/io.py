@@ -446,6 +446,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         if pnew == 'ld_model':
             val = val.split(' ')[0]
             d['value'] = val[0].lower()+val[1::]
+            # since ld_coeffs is dataset specific make sure there is at least one dataset
+            if lcno != 0 or rvno != 0:
+                eb.set_value_all(check_relevant=False, **d)
+            #now change to take care of bolometric values 
+            d['qualifier'] = d['qualifier']+'_bol' 
         if pnew == 'pot':
             #print "dict", d
             d['method'] = 'star'
@@ -492,7 +497,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['qualifier'] = 'delta'
             d['value'] = val
         if len(d) > 0:
-
             eb.set_value_all(check_relevant=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
