@@ -3040,6 +3040,63 @@ class Parameter(object):
             therefore shown in ParameterSets and visible to :meth:`ParameterSet.filter`)
         :rtype: bool
         """
+        def is_relevant_single(relevant_if):
+            if relevant_if.lower() == 'false':
+                return False
+
+            # otherwise we need to find the parameter we're referencing and check its value
+            qualifier, value = relevant_if.split(':')
+
+            if 'hierarchy.' in qualifier:
+                # TODO: set specific syntax (hierarchy.get_meshables:2)
+                # then this needs to do some logic on the hierarchy
+                hier = self._bundle.hierarchy
+                if not len(hier.get_value()):
+                    # then hierarchy hasn't been set yet, so we can't do any
+                    # of these tests
+                    return True
+
+                method = qualifier.split('.')[1]
+
+                if value in ['true', 'True']:
+                    value = True
+                elif value in ['false', 'False']:
+                    value = False
+
+                return getattr(hier, method)(self.component) == value
+
+            else:
+
+                # the parameter needs to have all the same meta data except qualifier
+                # TODO: switch this to use self.get_parent_ps ?
+                metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']).items() if v is not None}
+                metawargs['qualifier'] = qualifier
+                metawargs['twig'] = None
+                metawargs['uniquetwig'] = None
+                metawargs['uniqueid'] = None
+                # if metawargs.get('component', None) == '_default':
+                    # metawargs['component'] = None
+
+                try:
+                    param = self._bundle.get_parameter(check_relevant=False, **metawargs)
+                except ValueError:
+                    # let's not let this hold us up - sometimes this can happen when copying
+                    # parameters (from copy_for) in order that the relevant_if parameter
+                    # happens later
+                    logger.debug("parameter not found when trying to determine if relevant, {}".format(metawargs))
+                    return True
+
+                #~ print "***", qualifier, param.qualifier, param.get_value(), value
+
+                if isinstance(param, BoolParameter):
+                    if value in ['true', 'True']:
+                        value = True
+                    elif value in ['false', 'False']:
+                        value = False
+
+                return param.get_value() == value
+
+
         if self.relevant_if is None:
             return True
 
@@ -3047,40 +3104,9 @@ class Parameter(object):
             # then we may not be able to do the check, for now let's just return True
             return True
 
-        if self.relevant_if.lower() == 'false':
-            return False
+        return np.all([is_relevant_single(relevant_if_i) for relevant_if_i in self.relevant_if.split(',')])
 
-        # otherwise we need to find the parameter we're referencing and check its value
-        qualifier, value = self.relevant_if.split(':')
 
-        # the parameter needs to have all the same meta data except qualifier
-        # TODO: switch this to use self.get_parent_ps ?
-        metawargs = {k:v for k,v in self.get_meta(ignore=['twig', 'uniquetwig', 'uniqueid']).items() if v is not None}
-        metawargs['qualifier'] = qualifier
-        metawargs['twig'] = None
-        metawargs['uniquetwig'] = None
-        metawargs['uniqueid'] = None
-        # if metawargs.get('component', None) == '_default':
-            # metawargs['component'] = None
-
-        try:
-            param = self._bundle.get_parameter(check_relevant=False, **metawargs)
-        except ValueError:
-            # let's not let this hold us up - sometimes this can happen when copying
-            # parameters (from copy_for) in order that the relevant_if parameter
-            # happens later
-            logger.debug("parameter not found when trying to determine if relevant, {}".format(metawargs))
-            return True
-
-        #~ print "***", qualifier, param.qualifier, param.get_value(), value
-
-        if isinstance(param, BoolParameter):
-            if value in ['true', 'True']:
-                value = True
-            elif value in ['false', 'False']:
-                value = False
-
-        return param.get_value() == value
 
     @property
     def copy_for(self):
@@ -4343,7 +4369,7 @@ class HierarchyParameter(StringParameter):
     def _get_structure_and_trace(self, component):
         """
         """
-        obj = self._bundle.filter(component=component, context='component')
+        obj = self._bundle.filter(component=component, context='component', check_relevant=False)
         our_item = '{}:{}'.format(obj.method, component)
 
 
@@ -4548,6 +4574,25 @@ class HierarchyParameter(StringParameter):
         return item_kind
 
 
+    def is_overcontact(self, component):
+        """
+        especially useful for constraints
+
+        tells whether any component (star, envelope) is part of an overcontact
+        by checking its siblings for an envelope
+        """
+        return self.get_kind_of(component)=='envelope' or (self.get_sibling_of(component, kind='envelope') is not None)
+
+    def is_binary(self, component):
+        """
+        especially useful for constraints
+
+        tells whether any component (star, envelope) is part of a binary
+        by checking its parent
+        """
+        return self.get_kind_of(self.get_parent_of(component))=='orbit'
+
+
 
 
 
@@ -4584,6 +4629,10 @@ class ConstraintParameter(Parameter):
         self.set_default_unit(default_unit)
         self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    @property
+    def is_relevant(self):
+        return self.constrained_parameter.is_relevant
 
     @property
     def constraint_func(self):
@@ -4641,9 +4690,9 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, method=self.method, model=self.model) - self._bundle.filter(context='constraint')
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, method=self.method, model=self.model, check_relevant=False) - self._bundle.filter(context='constraint', check_relevant=False)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter()
+                constrained_parameter = ps.get_parameter(check_relevant=False)
             else:
                 raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
 
@@ -4658,16 +4707,16 @@ class ConstraintParameter(Parameter):
     def constrained_parameter(self):
         """
         """
-        try:
-        #~ if True:
+        # try:
+        if True:
             return self.get_constrained_parameter()
-        except: # TODO exception type
-            return None
+        # except: # TODO exception type
+            # return None
 
     def get_constrained_parameter(self):
         """
         """
-        return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset)
+        return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_relevant=False)
 
     def get_parameter(self, twig=None, **kwargs):
         """
@@ -4676,7 +4725,7 @@ class ConstraintParameter(Parameter):
         kwargs['twig'] = twig
         ps = self.vars.filter(**kwargs)
         if len(ps)==1:
-            return ps.get()
+            return ps.get(check_relevant=False)
         elif len(ps) > 1:
             # TODO: is this safe?  Some constraints may have a parameter listed
             # twice, so we can do this then, but maybe should check to make sure

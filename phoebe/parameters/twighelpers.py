@@ -5,13 +5,13 @@ def _uniqueid_to_uniquetwig(bundle, uniqueid):
     """
     """
     # print "*** parameters.twighelpers._uniqueid_to_uniquetwig uniqueid: {}".format(uniqueid)
-    return bundle.get_parameter(uniqueid=uniqueid).uniquetwig
+    return bundle.get_parameter(uniqueid=uniqueid, check_relevant=False).uniquetwig
 
 def _twig_to_uniqueid(bundle, twig, **kwargs):
     """
     kwargs are passed on to filter
     """
-    res = bundle.filter(twig=twig, force_ps=True, **kwargs)
+    res = bundle.filter(twig=twig, force_ps=True, check_relevant=False, **kwargs)
     # we force_ps instead of checking is_instance(res, ParameterSet) to avoid
     # having to import from parameters
     if len(res) == 1:

@@ -1119,8 +1119,8 @@ class Star(Body):
         # F we can get now
         # Phi we can get now
 
-        self_ps = b.filter(component=component, context='component')
-        F = self_ps.get_value('syncpar')
+        self_ps = b.filter(component=component, context='component', check_relevant=False)
+        F = self_ps.get_value('syncpar', check_relevant=False) # not relevant for single stars... but doesn't hurt to load
         Phi = self_ps.get_value('pot')
         freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
         # NOTE: we need F for roche geometry (marching, reprojection), but freq_rot for ctrans.place_in_orbit and rotstar.marching
