@@ -992,7 +992,7 @@ class Mesh(ScaledProtoMesh):
 
         (Nx3)
         """
-        if self._weights is not None:
+        if self._weights is not None and len(self._weights):
             return self._weights
         else:
             return np.full((self.N, 3), 1./3)
