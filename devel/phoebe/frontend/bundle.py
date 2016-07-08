@@ -537,7 +537,7 @@ class Bundle(ParameterSet):
         """
 
         kwargs['context'] = context
-        params = len(getattr(self.filter(**kwargs), '{}s'.format(context)))
+        params = len(getattr(self.filter(check_relevant=False,**kwargs), '{}s'.format(context)))
 
         return "{}{:02d}".format(base, params+1)
 
@@ -817,6 +817,7 @@ class Bundle(ParameterSet):
                     self.add_constraint(constraint.mass, component,
                                         constraint=self._default_label('mass', context='constraint'))
 
+
                 logger.info('re-creating comp_sma constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
@@ -833,54 +834,61 @@ class Bundle(ParameterSet):
                     self.add_constraint(constraint.comp_sma, component,
                                         constraint=self._default_label('comp_sma', context='constraint'))
 
-                logger.info('re-creating rotation_period constraint for {}'.format(component))
+
+                if not self.hierarchy.is_overcontact(component):
+
+                    logger.info('re-creating rotation_period constraint for {}'.format(component))
+                    # TODO: will this cause problems if the constraint has been flipped?
+                    if len(self.filter(context='constraint',
+                                       constraint_func='rotation_period',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='rotation_period',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='rotation_period',
+                                               component=component)
+                        self.add_constraint(constraint.rotation_period, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.rotation_period, component,
+                                            constraint=self._default_label('rotation_period', context='constraint'))
+
+                    logger.info('re-creating incl_aligned constraint for {}'.format(component))
+                    # TODO: will this cause problems if the constraint has been flipped?
+                    # TODO: what if the user disabled/removed this constraint?
+                    if len(self.filter(context='constraint',
+                                       constraint_func='incl_aligned',
+                                    component=component)):
+                        constraint_param = self.get_constraint(constraint_func='incl_aligned',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='incl_aligned',
+                                               component=component)
+                        self.add_constraint(constraint.incl_aligned, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.incl_aligned, component,
+                                            constraint=self._default_label('incl_aligned', context='constraint'))
+
+
+            if not self.hierarchy.is_overcontact(component) or self.hierarchy.get_kind_of(component)=='envelope':
+                # potential constraint shouldn't be done for STARS in OVERCONTACTS
+
+                logger.info('re-creating potential constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
                 if len(self.filter(context='constraint',
-                                   constraint_func='rotation_period',
+                                   constraint_func='potential',
                                    component=component)):
-                    constraint_param = self.get_constraint(constraint_func='rotation_period',
+                    constraint_param = self.get_constraint(constraint_func='potential',
                                                            component=component)
-                    self.remove_constraint(constraint_func='rotation_period',
+                    self.remove_constraint(constraint_func='potential',
                                            component=component)
-                    self.add_constraint(constraint.rotation_period, component,
+                    self.add_constraint(constraint.potential, component,
                                         solve_for=constraint_param.constrained_parameter.uniquetwig,
                                         constraint=constraint_param.constraint)
                 else:
-                    self.add_constraint(constraint.rotation_period, component,
-                                        constraint=self._default_label('rotation_period', context='constraint'))
-
-                logger.info('re-creating incl_aligned constraint for {}'.format(component))
-                # TODO: will this cause problems if the constraint has been flipped?
-                # TODO: what if the user disabled/removed this constraint?
-                if len(self.filter(context='constraint',
-                                   constraint_func='incl_aligned',
-                                component=component)):
-                    constraint_param = self.get_constraint(constraint_func='incl_aligned',
-                                                           component=component)
-                    self.remove_constraint(constraint_func='incl_aligned',
-                                           component=component)
-                    self.add_constraint(constraint.incl_aligned, component,
-                                        solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                        constraint=constraint_param.constraint)
-                else:
-                    self.add_constraint(constraint.incl_aligned, component,
-                                        constraint=self._default_label('incl_aligned', context='constraint'))
-
-            logger.info('re-creating potential constraint for {}'.format(component))
-            # TODO: will this cause problems if the constraint has been flipped?
-            if len(self.filter(context='constraint',
-                               constraint_func='potential',
-                               component=component)):
-                constraint_param = self.get_constraint(constraint_func='potential',
-                                                       component=component)
-                self.remove_constraint(constraint_func='potential',
-                                       component=component)
-                self.add_constraint(constraint.potential, component,
-                                    solve_for=constraint_param.constrained_parameter.uniquetwig,
-                                    constraint=constraint_param.constraint)
-            else:
-                self.add_constraint(constraint.potential, component,
-                                    constraint=self._default_label('potential', context='constraint'))
+                    self.add_constraint(constraint.potential, component,
+                                        constraint=self._default_label('potential', context='constraint'))
 
 
         redo_kwargs = {k: v for k, v in hier_param.to_dict().items()
