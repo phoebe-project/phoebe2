@@ -230,7 +230,7 @@ Single Stars (NOT YET OFFICIALLY SUPPORTED)
    Sun (rotating single star) (TESTING - not yet supported)<examples/sun>
 
 
-Binary Stars
+Detached Binary Stars
 ------------------------------
 
 
@@ -240,7 +240,6 @@ Binary Stars
 
    Minimal Example to Produce a Synthetic Light Curve<examples/minimal_synthetic>
    Complete Binary Animation<examples/animation_binary_complete>
-   Minimal Overcontact System<examples/minimal_overcontact>
    Rossiter-McLaughlin Effect (RVs)<examples/rossiter_mclaughlin>
    Wilson-Devinney Style Meshing<examples/mesh_wd>
    Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
@@ -249,6 +248,20 @@ Binary Stars
 
 COMING SOON (examples from literature)
 
+
+Overcontact Binary Stars (NOT YET OFFICIALLY SUPPORTED)
+----------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   Minimal Overcontact System<examples/minimal_overcontact>
+   Comparing Overcontact System PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_overcontact>
+
+
+COMING SOON (examples from literature)
 
 Triple Stars (NOT YET OFFICIALLY SUPPORTED)
 -------------------------------
@@ -324,6 +337,7 @@ Alternate Backends
    :titlesonly:
 
    Comparing PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy>
+   Comparing Overcontact System PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_overcontact>
    Comparing PHOEBE 2.0 vs Photodynam (Binary)<examples/photodynam>
    Comparing PHOEBE 2.0 vs Photodynam (Hierarchical Triple)<examples/hierarchical_triple>
    Comparing PHOEBE 2.0 vs JKTEBOP <examples/jktebop>

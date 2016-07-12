@@ -4313,7 +4313,10 @@ class HierarchyParameter(StringParameter):
             #~ str_ += _print_item(str(item), tab, '')
 #~
         #~ return str_
-        return json.dumps(self._parse_repr(), indent=4).replace(',','').replace('[','').replace(']','').replace('"', '').replace('\n\n','\n')
+        if not len(self.get_value()):
+            return 'NO HIERARCHY'
+        else:
+            return json.dumps(self._parse_repr(), indent=4).replace(',','').replace('[','').replace(']','').replace('"', '').replace('\n\n','\n')
 
     @send_if_client
     def set_value(self, value, **kwargs):
