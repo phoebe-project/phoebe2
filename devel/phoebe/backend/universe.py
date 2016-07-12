@@ -1338,22 +1338,18 @@ class Star(Body):
                 # freq_rot (1./d)
                 omega = rotstar.rotfreq_to_omega(self.freq_rot, scale=sma, solar_units=True)
 
-
-                sma /= 695700000.0
+                # sma /= 695700000.0
 
                 # rpole = libphoebe.rotstar_pole(*mesh_args) / sma # / 695700000.0  # TODO: is the 6.957 necessary?
                 rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)
                 # rpole is now in solar units
                 # rpole /= 695700000.0
-                rpole /= sma
+                # rpole /= sma
                 delta *= rpole
-
-
 
                 mesh_args = (omega, Phi)
 
-                print "*** rotstar_marching_mesh", mesh_args, self.freq_rot, sma, rpole, delta
-                delta = 0.01
+                # print "*** rotstar_marching_mesh omega: {}, Phi: {}, freq_rot:{}, sma:{}, rpole:{}, delta:{}".format(mesh_args[0], mesh_args[1], self.freq_rot, sma, rpole, delta)
 
                 new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
                                                delta=delta,
@@ -1369,7 +1365,6 @@ class Star(Body):
                                                areas=True,
                                                volume=True)
 
-                # TODO: enable this once its supported by libphoebe
                 av = libphoebe.rotstar_area_volume(*mesh_args,
                                                    larea=True,
                                                    lvolume=True)
@@ -1402,10 +1397,8 @@ class Star(Body):
                     # new_mesh['centers'] = mo['centers']
 
                 else:
-                    # pvertices should just be a copy of vertice
+                    # pvertices should just be a copy of vertices
                     new_mesh['pvertices'] = new_mesh['vertices']
-
-
 
                 # We only need the gradients where we'll compute local
                 # quantities which, for a marching mesh, is at the vertices.
