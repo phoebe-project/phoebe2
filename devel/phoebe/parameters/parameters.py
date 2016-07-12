@@ -290,9 +290,11 @@ class ParameterSet(object):
     def __str__(self):
         """String representation for the ParameterSet."""
         if len(self._params):
-            return "\n".join([p.to_string_short() for p in self._params])
+            param_info = "\n".join([p.to_string_short() for p in self._params])
         else:
-            return "NO PARAMETERS"
+            param_info = "NO PARAMETERS"
+
+        return "ParameterSet: {} parameters\n".format(len(self._params))+param_info
 
     @property
     def meta(self):
@@ -2743,17 +2745,21 @@ class Parameter(object):
     def __str__(self):
         """
         """
-        str_ = "Qualifier: {}\nDescription: {}\nValue: {}".format(self.qualifier, self.description, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+        str_ = "{}: {}\n".format("Parameter", self.uniquetwig)
+        str_ += "{:>32}: {}\n".format("Qualifier", self.qualifier)
+        str_ += "{:>32}: {}\n".format("Description", self.description)
+        str_ += "{:>32}: {}\n".format("Value", self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+
         if hasattr(self, 'choices'):
-            str_ += '\nChoices: {}'.format(", ".join(self.choices))
+            str_ += "{:>32}: {}\n".format("Choices", ", ".join(self.choices))
         if hasattr(self, 'constrained_by'):
-            str_ += '\nConstrained by: {}'.format(", ".join([p.uniquetwig for p in self.constrained_by]) if self.constrained_by is not None else 'None')
+            str_ += "{:>32}: {}\n".format("Constrained by", ", ".join([p.uniquetwig for p in self.constrained_by]) if self.constrained_by is not None else 'None')
         if hasattr(self, 'constrains'):
-            str_ += '\nConstrains: {}'.format(", ".join([p.uniquetwig for p in self.constrains]) if len(self.constrains) else 'None')
+            str_ += "{:>32}: {}\n".format("Constrains", ", ".join([p.uniquetwig for p in self.constrains]) if len(self.constrains) else 'None')
         if hasattr(self, 'related_to'):
-            str_ += '\nRelated to: {}'.format(", ".join([p.uniquetwig for p in self.related_to]) if len(self.related_to) else 'None')
+            str_ += "{:>32}: {}\n".format("Related to", ", ".join([p.uniquetwig for p in self.related_to]) if len(self.related_to) else 'None')
         if self.relevant_if is not None:
-            str_ += '\nOnly relevant if: {}'.format(self.relevant_if)
+            str_ += "{:>32}: {}\n".format("Only relevant if", self.relevant_if)
 
         return str_
 
@@ -2801,9 +2807,9 @@ class Parameter(object):
         :return: a shorter abreviated string reprentation of the parameter
         """
         if hasattr(self, 'constrained_by') and len(self.constrained_by) > 0:
-            return "*{}: {}".format(self.uniquetwig, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            return "* {:>30}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
         else:
-            return "{}: {}".format(self.uniquetwig, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+            return "{:>32}: {}".format(self.uniquetwig_trunc, self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
 
     def __dict__(self):
         """
@@ -2988,6 +2994,19 @@ class Parameter(object):
         :return: uniqueid of this Parameter
         """
         return self._uniqueid
+
+    @property
+    def uniquetwig_trunc(self):
+        """
+        Uniquetwig but truncated if necessary to be <=12 characters
+        """
+        uniquetwig = self.uniquetwig
+        if len(uniquetwig) > 30:
+            return uniquetwig[:27]+'...'
+        else:
+            return uniquetwig
+
+
 
     @property
     def uniquetwig(self, ps=None):
