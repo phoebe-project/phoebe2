@@ -504,7 +504,10 @@ namespace utils {
         D = p*p*p/27 + q*q/4,
               
         A = 2*std::sqrt(std::abs(p)/3), phi;
-      
+     
+      //std::cerr << "cubic::a=" << d  << ' ' << c << ' ' << b << ' ' << 1 << '\n';
+      //std::cerr << "cubic::D=" << D << " q =" << q << " p=" << p << '\n';
+       
       if (D <= 0 || std::abs(D) < eps){ // 3 real roots, of 1 real roots if (p=q=0)
         
         if (p == 0 && q == 0) 
@@ -515,9 +518,14 @@ namespace utils {
           
           phi = (std::abs(r) > 1 ? 0 : std::acos(r));
         
-        
-          for (int i = 2; i >= 0; --i)
-            roots.push_back(A*std::cos((phi - M_2PI*i)/3) - b/3);
+      
+          for (int i = 2; i >= 0; --i) {
+            /*T t;
+            roots.push_back(t = A*std::cos((phi - M_2PI*i)/3) - b/3);
+            std::cerr << "cubic::x=" << t << '\n';
+            */
+           roots.push_back(A*std::cos((phi - M_2PI*i)/3) - b/3);
+          }
         }
       } else {
         
@@ -614,17 +622,12 @@ namespace utils {
         
         std::vector<T> roots1;
         solve_cubic(s, roots1);
-            
-        #if 0
-        // using the first 
-        T t = 2*roots1.front() + p;
-        #else
+        
         // using the one which is positive
         T t = -1;
-        for (auto && r: roots1) if ((t = 2*r + p) >=0) break;
-        #endif
-         
-        if (t >= 0){
+        for (auto && r: roots1) if ((t = 2*r + p) > 0) break;
+        
+        if (t > 0) {
           
           T st = std::sqrt(t)/2, b_ = b/4, t1;
           

@@ -644,7 +644,8 @@ namespace gen_roche {
     std::vector<T> roots;
 
     T a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
-
+    
+    //for (int i = 0; i < 5; ++i) std::cout << "a=" << a[i] << '\n';
     utils::solve_quartic(a, roots);
 
     // grab the smallest/first root in [0,1]
