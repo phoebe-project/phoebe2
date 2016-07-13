@@ -772,7 +772,7 @@ class ParameterSet(object):
                 # attrs is a list of the attributes for which we need a copy of
                 # this parameter for any pair
 
-                ps = self._bundle.filter(**param.copy_for)
+                ps = self._bundle.filter(check_relevant=False, force_ps=True, **param.copy_for)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
                     if k not in ['twig', 'uniquetwig'] and k not in attrs:
@@ -998,7 +998,7 @@ class ParameterSet(object):
             keys_for_this_field = set([getattr(p, field)
                                        for p in self.to_list()
                                        if getattr(p, field) is not None])
-            return {k: self.filter(**{field: k}) for k in keys_for_this_field}
+            return {k: self.filter(check_relevant=False, **{field: k}) for k in keys_for_this_field}
 
         # we want to find the first level (from the bottom) in which filtering
         # further would shorten the list (ie there are more than one unique
