@@ -112,7 +112,7 @@ int main(){
     delta = 1;
   #endif
   
-  #if 1
+  #if 0
   // Right lobe, large Omega, small q
   // Expected result: 
   int choice = 1;  
@@ -122,6 +122,18 @@ int main(){
     F = 1,
     delta = 1;
   #endif
+  
+  #if 1
+  // Right lobe, large Omega, small q
+  // Expected result: 
+  int choice = 0;  
+  double 
+    Omega0 = 8.992277876713667,
+    q = 1,
+    F = 1,
+    delta = 1.0000000000000002;
+  #endif
+  
   
   double xrange[2];
   

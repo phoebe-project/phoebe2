@@ -19,10 +19,18 @@ from libphoebe import *
 
 
 # detacted case
+#q = 1
+#F = 1
+#d = 1
+#Omega0 = 10
+#delta = 0.01
+#choice = 0
+
+# detacted case
 q = 1
 F = 1
-d = 1
-Omega0 = 10
+d=1.0000000000000002
+Omega0 = 8.992277876713667
 delta = 0.01
 choice = 0
 
