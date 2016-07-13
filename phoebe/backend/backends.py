@@ -415,15 +415,8 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
     if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
         if dynamics_method in ['nbody', 'rebound']:
-            # if distortion_method == 'roche':
-                # raise ValueError("distortion method '{}' not compatible with dynamics_method '{}'".format(distortion_method, dynamics_method))
-
-            # gr = computeparams.get_value('gr', check_relevant=False, **kwargs)
-
-            # TODO: pass stepsize
-            t0, xs0, ys0, zs0, vxs0, vys0, vzs0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, **kwargs)
-            ethetas0, elongans0, eincls0 = None, None, None
-            ts, xs, ys, zs, vxs, vys, vzs = dynamics.nbody.dynamics_from_bundle(b, times, compute, **kwargs)
+            t0, xs0, ys0, zs0, vxs0, vys0, vzs0, inst_ds0, inst_Fs0, ethetas0, elongans0, eincls0 = dynamics.nbody.dynamics_from_bundle(b, [t0], compute, return_roche_euler=True, **kwargs)
+            ts, xs, ys, zs, vxs, vys, vzs, inst_ds, inst_Fs, ethetas, elongans, eincls = dynamics.nbody.dynamics_from_bundle(b, times, compute, return_roche_euler=True, **kwargs)
 
         elif dynamics_method == 'bs':
             # if distortion_method == 'roche':
@@ -587,15 +580,24 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
         if True in [info['needs_mesh'] for info in infolist]:
 
-            if dynamics_method == 'nbody':
-                raise NotImplementedError('nbody not supported for meshes yet')
+            if dynamics_method in ['nbody', 'rebound']:
+                di = dynamics.at_i(inst_ds, i)
+                Fi = dynamics.at_i(inst_Fs, i)
+                # by passing these along to update_positions, volume conservation will
+                # handle remeshing the stars
+            else:
+                # then allow d to be determined from orbit and original sma
+                # and F to remain fixed
+                di = None
+                Fi = None
+
 
 
             # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
             # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
             # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
 
-            system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli)
+            system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
 
             # Now we need to determine which triangles are visible and handle subdivision
             # NOTE: this should come after populate_observables so that each subdivided triangle

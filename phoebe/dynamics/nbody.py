@@ -58,7 +58,7 @@ def _ensure_tuple(item):
     else:
         raise NotImplementedError
 
-def dynamics_from_bundle(b, times, compute=None, **kwargs):
+def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
@@ -111,19 +111,25 @@ def dynamics_from_bundle(b, times, compute=None, **kwargs):
     t0_perpasses = [b.get_value('t0_perpass', u.d, component=component, context='component') for component in orbitrefs]
     periods = [b.get_value('period', u.d, component=component, context='component') for component in orbitrefs]
 
+    if return_roche_euler:
+        # rotperiods are only needed to compute instantaneous syncpars
+        rotperiods = [b.get_value('period', u.d, component=component, context='component') for component in starrefs]
+    else:
+        rotperiods = None
+
     vgamma = b.get_value('vgamma', context='system', unit=u.AU/u.d)
     t0 = b.get_value('t0', context='system', unit=u.d)
 
     mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, \
-                    mean_anoms, t0, vgamma, stepsize, ltte, gr,
-                    integrator)
+                    mean_anoms, rotperiods, t0, vgamma, stepsize, ltte, gr,
+                    integrator, return_roche_euler=return_roche_euler)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
-        t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
-        integrator='ias15'):
+        rotperiods=None, t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
+        integrator='ias15', return_roche_euler=False):
 
     if not _can_rebound:
         raise ImportError("rebound is not installed")
@@ -200,11 +206,24 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     vys = [np.zeros(times.shape) for m in masses]
     vzs = [np.zeros(times.shape) for m in masses]
 
+    if return_roche_euler:
+        # from instantaneous Keplerian dynamics for Roche meshing
+        ds = [np.zeros(times.shape) for m in masses]
+        Fs = [np.zeros(times.shape) for m in masses]
+
+        ethetas = [np.zeros(times.shape) for m in masses]
+        elongans = [np.zeros(times.shape) for m in masses]
+        eincls = [np.zeros(times.shape) for m in masses]
+
     au_to_solrad = (1*u.AU).to(u.solRad).value
 
     for i,time in enumerate(times):
 
         sim.integrate(time, exact_finish_time=True)
+
+        # if return_roche:
+            # TODO: do we need to do this after handling LTTE???
+            # orbits = sim.calculate_orbits()
 
         for j in range(len(masses)):
 
@@ -225,9 +244,43 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
             vys[j][i] = -1 * particle.vy * au_to_solrad # solRad/d
             vzs[j][i] = particle.vz * au_to_solrad # solRad/d
 
+            if return_roche_euler:
+                # TODO: do we want the LTTE-adjust particles?
 
-    # d, solRad, solRad/d, rad
-    return times, xs, ys, zs, vxs, vys, vzs
+                # NOTE: this won't work for the first particle (as its the
+                # primary in the simulation)
+                if j==0:
+                    particle = sim.particles[j+1]
+                else:
+                    particle = sim.particles[j]
+
+                # get the orbit based on the primary component defined already
+                # in the simulation.
+                orbit = particle.calculate_orbit()
+
+                # for instantaneous separation, we need the current separation
+                # from the sibling component in units of its instantaneous (?) sma
+                ds[j][i] = orbit.d / orbit.a
+                # for syncpar (F), assume that the rotational FREQUENCY will
+                # remain fixed - so we simply need to updated syncpar based
+                # on the INSTANTANEOUS orbital PERIOD.
+                Fs[j][i] = orbit.P / rotperiods[j]
+
+                # TODO: need to add np.pi for secondary component
+                ethetas[j][i] = orbit.f + orbit.omega # true anomaly + periastron
+
+                elongans[j][i] = orbit.Omega
+
+                eincls[j][i] = orbit.inc
+
+
+    if return_roche_euler:
+        # d, solRad, solRad/d, rad, unitless (sma), unitless, rad, rad, rad
+        return times, xs, ys, zs, vxs, vys, vzs, ds, Fs, ethetas, elongans, eincls
+
+    else:
+        # d, solRad, solRad/d, rad
+        return times, xs, ys, zs, vxs, vys, vzs
 
 
 def dynamics_from_bundle_bs(b, times, compute=None, **kwargs):

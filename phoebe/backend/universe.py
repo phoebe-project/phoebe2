@@ -181,7 +181,7 @@ class System(object):
                 body.initialize_mesh()
 
 
-    def update_positions(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls):
+    def update_positions(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None):
         """
         TODO: add documentation
 
@@ -193,7 +193,7 @@ class System(object):
 
         for starref,body in self.items():
             #logger.debug("updating position of mesh for {}".format(starref))
-            body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls)
+            body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs)
 
 
     def populate_observables(self, time, methods, datasets, kwargss):
@@ -621,7 +621,7 @@ class Body(object):
 
         return
 
-    def update_position(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, **kwargs):
+    def update_position(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, **kwargs):
         """
         Update the position of the star into its orbit
 
@@ -635,6 +635,8 @@ class Body(object):
         :parameter list ethetas: a list/array of euler-thetas of ALL COMPONENTS in the :class:`System`
         :parameter list elongans: a list/array of euler-longans of ALL COMPONENTS in the :class:`System`
         :parameter list eincls: a list/array of euler-incls of ALL COMPONENTS in the :class:`System`
+        :parameter list ds: (optional) a list/array of instantaneous distances of ALL COMPONENTS in the :class:`System`
+        :parameter list Fs: (optional) a list/array of instantaneous syncpars of ALL COMPONENTS in the :class:`System`
         :raises NotImplementedError: if the dynamics_method is not supported
         """
         if not self.mesh_initialized:
@@ -644,7 +646,7 @@ class Body(object):
 
 
         #-- Get current position/euler information
-        if self.dynamics_method == 'keplerian':
+        if self.dynamics_method in ['keplerian', 'nbody', 'rebound']:
             # if we can't get the polar direction, assume it's in the negative Z-direction
             try:
                 # TODO: implement get_polar_direction (see below for alpha version)
@@ -671,13 +673,24 @@ class Body(object):
             q, F, d, Phi = self._mesh_args
 
             # override d to be the current value
-            d = self.instantaneous_distance(xs, ys, zs, self.sma)
+            if ds is not None:
+                # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
+                d = ds[self.ind_self]
+                # TODO: if we change d here based on the new sma, do we need to update self._scale?
+            else:
+                d = self.instantaneous_distance(xs, ys, zs, self.sma)
+
+            if Fs is not None:
+                # then the instantaneous F was likely changing (ie roche geometry but nbody orbits)
+                F = Fs[self.ind_self]
 
             # TODO: TESTING should this be unscaled with the new scale or old scale?
             # self._scale = d
             target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
             logger.info("volume conservation: target_volume={}".format(target_volume))
 
+
+            # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi
 
             # TODO: need to send a better guess for Omega0
             Phi = libphoebe.roche_Omega_at_vol(target_volume,
@@ -698,6 +711,7 @@ class Body(object):
             # NOTE: Phi is not Phi_user so doesn't need to be flipped for the
             # secondary component
             new_mesh_dict, scale, mesh_args = self._build_mesh(d=d,
+                                                               F=F,
                                                                mesh_method=self.mesh_method,
                                                                Phi=Phi)
             # TODO: do we need to update self.scale or self._mesh_args???
@@ -1201,8 +1215,9 @@ class Star(Body):
         TODO: add documentation
 
         we can skip volume conservation only for circular orbits
+        even for circular orbits - if we're using nbody but roche distortion, we must remesh to handle instantaneous changes to d or F
         """
-        return self.ecc != 0
+        return self.ecc != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche')
 
 
     def get_target_volume(self, etheta, scaled=False):
@@ -1241,6 +1256,7 @@ class Star(Body):
         Phi = kwargs.get('Phi', self.Phi)  # NOTE: self.Phi automatically corrects for the secondary star
         q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
 
+        # TODO: remove rounding once libphoebe can handle more decimal places
         mesh_args = (q, F, d, Phi)
 
         if mesh_method == 'marching':
@@ -1261,7 +1277,7 @@ class Star(Body):
                 delta *= rpole
                 # print delta
 
-                # print mesh_args, delta
+                # print "*** libphoebe.roche_marcing_mesh", mesh_args, delta
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
