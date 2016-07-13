@@ -311,6 +311,84 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
 }
 
 
+/*
+  Python wrapper for C++ code:
+  
+  Calculate parameters of the rotating star from Roche binary model by 
+  matching the poles and centrifugal force.
+  
+  Python:
+    
+   param_rotstar
+      = rotstar_from_roche(q, F, d, Omega0, <keywords> = <value>)
+  
+  where parameters are
+   
+    positionals:
+    
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      delta: float - separation between the two objects
+      Omega0: float - value potential 
+
+    keywords:
+
+      choice: default 0
+        0 - primary star
+        1 - secondary star -- not yet supported
+        2 - overcontact -- not permitted
+      
+  and returns vector of parameters float
+  
+    param_rotstar : 1-rank numpy array = (omega_rotstar, Omega0_rotstar) 
+*/
+
+static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"delta",
+    (char*)"Omega0",
+    (char*)"choice",
+    NULL};
+  
+  int choice = 0;
+  
+  double q, F, delta, Omega0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dddd|i", kwlist, 
+      &q, &F, &delta, &Omega0, 
+      &choice)
+    )
+    return NULL;
+  
+  if (choice != 0) {
+    std::cerr 
+      << "rotstar_from_roche::Choice != 0 is not yet supported\n";
+    return NULL;
+  }
+  
+  double *data = new double [2];
+  
+  data[0] = F*std::sqrt(1 + q);
+  data[1] = 1/gen_roche::poleL(Omega0, q, F, delta);
+  
+  npy_intp dims[1] = {2};
+  
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, data);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);   
+      
+  return  pya;
+}
+
+
 
 /*
   Python wrapper for C++ code:
@@ -2655,6 +2733,13 @@ static PyMethodDef Methods[] = {
       "Determine the height of the pole of rotating star for given a omega."},
 
 // --------------------------------------------------------------------
+    { "rotstar_from_roche", 
+      (PyCFunction)rotstar_from_roche,   
+      METH_VARARGS|METH_KEYWORDS, 
+      "Determine parameters of the rotating stars from parameters Roche "
+      " by matching the poles"},
+
+// --------------------------------------------------------------------
    
     { "roche_area_volume", 
       (PyCFunction)roche_area_volume,   
@@ -2789,7 +2874,6 @@ static PyMethodDef Methods[] = {
       " Roche lobe defined by q,F,d, and the value of generalized Kopal "
       " potential Omega."},
           
-            
     {NULL,  NULL, 0, NULL} // terminator record
 };
 
