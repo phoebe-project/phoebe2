@@ -2445,7 +2445,16 @@ class Pulsation(Feature):
         return cls(radamp, freq, l, m, tanamp, teffext)
 
     def dYdtheta(self, m, l, theta, phi):
-        return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*Y(m+1, l, theta, phi)
+        if abs(m) > l:
+            return 0
+
+        # TODO: just a quick hack
+        if abs(m+1) > l:
+            last_term = 0.0
+        else:
+            Y(m+1, l, theta, phi)
+
+        return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*last_term
 
     def dYdphi(self, m, l, theta, phi):
         return 1j*m*Y(m, l, theta, phi)
