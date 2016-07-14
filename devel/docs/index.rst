@@ -242,6 +242,7 @@ Detached Binary Stars
    Complete Binary Animation<examples/animation_binary_complete>
    Rossiter-McLaughlin Effect (RVs)<examples/rossiter_mclaughlin>
    Wilson-Devinney Style Meshing<examples/mesh_wd>
+   Detached Binary: Roche vs Rotstar (TESTING - not yet supported)<examples/detached_rotstar>
    Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
    Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
 
