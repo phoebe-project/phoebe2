@@ -2415,11 +2415,12 @@ class Pulsation(Feature):
         return coords_for_observations
 
 class TruePulsation(Feature):
-    def __init__(self, radamp, freq, l, m, **kwargs):
+    def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, **kwargs):
         self._freq = freq
         self._radamp = radamp
         self._l = l
         self._m = m
+        self._tanamp = tanamp
 
     @classmethod
     def from_bundle(cls, b, feature):
@@ -2432,8 +2433,13 @@ class TruePulsation(Feature):
         radamp = feature_ps.get_value('radamp', unit=u.dimensionless_unscaled)
         l = feature_ps.get_value('l', unit=u.dimensionless_unscaled)
         m = feature_ps.get_value('m', unit=u.dimensionless_unscaled)
-        # get GMstar and Rstar here
-        return cls(radamp, freq, l, m)
+        
+        GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, section='component', unit=u.solMass)
+        R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad)
+        
+        tanamp = GM/R**3/freq**2
+        
+        return cls(radamp, freq, l, m, tanamp)
 
     def dYdtheta(m, l, theta, phi):
         return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*Y(m+1, l, theta, phi)
@@ -2454,13 +2460,13 @@ class TruePulsation(Feature):
           b(r) = a(r) GM/(R^3*f^2)
         """
 
-        theta = 0.5 # get from coords instead
-        phi = 0.5   # get from coords instead
-        tanamp = radamp*0.5 # compute b(r) correctly
+        x, y, z, r = coords[:,0], coords[:,1], coords[:,2], np.sqrt((coords**2).sum(axis=1))
+        theta = np.arccos(z/r)
+        phi = np.arctan2(y, x)
 
         xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_t = tanamp * dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_p = tanamp/np.sin(theta) * dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_t = self._tanamp * dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_p = self._tanamp/np.sin(theta) * dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
 
         # modify coords.
 
