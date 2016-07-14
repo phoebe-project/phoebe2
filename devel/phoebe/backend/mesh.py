@@ -600,6 +600,21 @@ class ProtoMesh(object):
         return self._centers
 
     @property
+    def coords_for_observations(self):
+        """
+        Return the coordinates from the center of the star for each element
+        (either centers or vertices depending on the setting in the mesh)
+        after perturbations (either by features or by offsetting to get
+        the correct volume).  NOTE: this is NOT necessarily where the physical
+        parameters were computed, but IS where eclipse detection, etc, is
+        handled.
+        """
+        if self._compute_at_vertices:
+            return self.vertices - self._pos
+        else:
+            return self.centers - self._pos
+
+    @property
     def coords_for_computations(self):
         """
         Return the coordinates from the center of the star for each element

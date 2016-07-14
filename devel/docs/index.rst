@@ -272,6 +272,7 @@ Triple Stars (NOT YET OFFICIALLY SUPPORTED)
    :titlesonly:
 
    Minimal Hierarchical Triple (TESTING - not yet supported)<examples/hierarchical_triple>
+   Minimal Dynamical Triple (TESTING - not yet supported)<examples/dynamical_triple>
    Hierarchical Triple vs Photodynam (TESTING - not yet supported) <examples/hierarchical_triple_pd>
    LTTE ETVs in a Hierarchical Triple (TESTING - not yet supported) <examples/hierarchical_triple_etvs>
 
