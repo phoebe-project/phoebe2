@@ -2492,8 +2492,8 @@ class Pulsation(Feature):
         xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
 
         new_coords = np.zeros(coords_for_observations.shape)
-        new_coords[:,0] = coords_for_observations[:,0] + xi_r * np.sin(xi_t) * np.cos(xi_p)
-        new_coords[:,1] = coords_for_observations[:,1] + xi_r * np.sin(xi_t) * np.sin(xi_p)
-        new_coords[:,2] = coords_for_observations[:,2] + xi_r * np.cos(xi_t)
+        new_coords[:,0] = coords_for_observations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
+        new_coords[:,1] = coords_for_observations[:,1] + xi_r * np.sin(theta) * np.sin(phi)
+        new_coords[:,2] = coords_for_observations[:,2] + xi_r * np.cos(theta)
 
         return new_coords
