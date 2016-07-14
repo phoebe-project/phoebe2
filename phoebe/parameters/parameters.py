@@ -4603,6 +4603,9 @@ class HierarchyParameter(StringParameter):
         tells whether any component (star, envelope) is part of an overcontact
         by checking its siblings for an envelope
         """
+        if 'envelope' not in self.get_value():
+            return False
+
         return self.get_kind_of(component)=='envelope' or (self.get_sibling_of(component, kind='envelope') is not None)
 
     def is_binary(self, component):
