@@ -737,10 +737,26 @@ class Body(object):
             # TODO: can we avoid an extra copy here?
 
 
+        # First allow features to edit the coords_for_computations (pvertices).
+        # Changes here WILL affect future computations for logg, teff,
+        # intensities, etc.  Note that these WILL NOT affect the
+        # coords_for_observations automatically - those should probably be
+        # perturbed as well, unless there is a good reason not to.
         for feature in self.features:
-            coords = feature.process_coords(scaledprotomesh.coords_for_computations, t=self.time)
+            coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, t=self.time)
             if scaledprotomesh._compute_at_vertices:
-                scaledprotomesh.update_columns(vertices=coords)
+                scaledprotomesh.update_columns(pvertices=coords_for_observations)
+
+            else:
+                scaledprotomesh.update_columns(centers=coords_for_observations)
+                raise NotImplementedError("areas are not updated for changed mesh")
+
+
+        for feature in self.features:
+            coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, t=self.time)
+            if scaledprotomesh._compute_at_vertices:
+                scaledprotomesh.update_columns(vertices=coords_for_observations)
+
                 # TODO: centers either need to be supported or we need to report
                 # vertices in the frontend as x, y, z instead of centers
 
@@ -752,7 +768,7 @@ class Body(object):
                 scaledprotomesh.update_columns(**updated_props)
 
             else:
-                scaledprotomesh.update_columns(centers=coords)
+                scaledprotomesh.update_columns(centers=coords_for_observations)
                 raise NotImplementedError("areas are not updated for changed mesh")
 
 
@@ -2268,14 +2284,35 @@ class Feature(object):
     def __init__(self, *args, **kwargs):
         pass
 
-    def process_coords(self, coords, t=None):
+    def process_coords_for_computations(self, coords_for_computations, t):
         """
         Method for a feature to process the coordinates.  Coordinates are
         processed AFTER scaling but BEFORE being placed in orbit.
 
-        Features that affect coordinates should override this method.
+        NOTE: coords_for_computations affect physical properties only and
+        not geometric properties (areas, eclipse detection, etc).  If you
+        want to override geometric properties, use the hook for
+        process_coords_for_observations as well.
+
+        Features that affect coordinates_for_computations should override
+        this method
         """
-        return coords
+        return coords_for_computations
+
+    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
+        """
+        Method for a feature to process the coordinates.  Coordinates are
+        processed AFTER scaling but BEFORE being placed in orbit.
+
+        NOTE: coords_for_observations affect the geometry only (areas of each
+        element and eclipse detection) but WILL NOT affect any physical
+        parameters (loggs, teffs, intensities).  If you want to override
+        physical parameters, use the hook for process_coords_for_computations
+        as well.
+
+        Features that affect coordinates_for_observations should override this method.
+        """
+        return coords_for_observations
 
     def process_loggs(self, loggs, coords, t=None):
         """
@@ -2347,6 +2384,8 @@ class Pulsation(Feature):
         self._freq = freq
         self._relampl = relampl
 
+        self.teffext = False
+
     @classmethod
     def from_bundle(cls, b, feature):
         """
@@ -2358,11 +2397,18 @@ class Pulsation(Feature):
         relampl = feature_ps.get_value('relampl', unit=u.dimensionless_unscaled)
         return cls(freq, relampl)
 
-    def process_coords(self, coords, t):
+    def process_coords_for_computations(self, coords_for_computations, t):
         """
         """
-        # NOTE: this isn't really fair since it's multiplying each coordinate
-        # by the amplitude, but oh well.
-        coords *= self._relampl * np.sin(2 * np.pi * self._freq * t)
+        if not self.teffext:
+            return coords_for_computations
 
-        return coords
+        return coords_for_computations
+
+    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
+        """
+        """
+        if self.teffext:
+            return coords_for_observations
+
+        return coords_for_observations
