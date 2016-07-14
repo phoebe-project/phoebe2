@@ -1033,7 +1033,11 @@ class CustomBody(Body):
 
 
 class Star(Body):
-    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law, abun, mesh_method='marching', dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
+    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
+                 gravb_law, abun, mesh_method='marching',
+                 dynamics_method='keplerian', ind_self=0, ind_sibling=1,
+                 comp_no=1, is_single=False, datasets=[], do_rv_grav=False,
+                 features=[], do_mesh_offset=True, **kwargs):
         """
 
         :parameter float F: syncpar
@@ -1082,6 +1086,7 @@ class Star(Body):
 
         self.features = features
 
+        self._is_single = is_single # TODO: move to Body class?
         self._do_mesh_offset = do_mesh_offset
 
         # Volume "conservation"
@@ -1144,11 +1149,13 @@ class Star(Body):
         if b.hierarchy.get_parent_of(component) != 'component':
             sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
             ecc = b.get_value('ecc', component=label_orbit, context='component')
+            is_single = False
         else:
             # single star case
             # here sma is meaningless, but we'll compute the mesh using the polar radius as the scaling factor
             sma = 1.0 #b.get_value('rpole', component=star, context='component', unit=u.solRad)
             ecc = 0.0
+            is_single = True
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
         gravb_law = b.get_value('gravblaw', component=component, context='component')
@@ -1187,7 +1194,8 @@ class Star(Body):
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
                 abun, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
-                datasets=datasets, do_rv_grav=do_rv_grav, features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
+                is_single=is_single, datasets=datasets, do_rv_grav=do_rv_grav,
+                features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
     @property
     def spots(self):
@@ -1270,6 +1278,9 @@ class Star(Body):
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
+                rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
+                # print "*** as roche", Phi, F, sma, rpole*sma
+
                 # TODO: need to figure this out, this currently causes issues
                 # with large sma (too many triangles).  rpole*sma /helps/ but
                 # doesn't quite do the right thing.
@@ -1348,19 +1359,32 @@ class Star(Body):
 
                 new_mesh['tareas'] = np.array([])
 
+                scale = sma
+
 
             elif self.distortion_method == 'rotstar':
 
-                # freq_rot (1./d)
-                omega = rotstar.rotfreq_to_omega(self.freq_rot, scale=sma, solar_units=True)
+                if not self._is_single:
+                    # Then we're in a binary that is using the roche
+                    # pot<->rpole constraint.  So, let's get the Phi that
+                    # would match the same polar radius as if it were a roche
+                    # potential.
+                    rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
+                    # print "*** before rotstar_from_roche", Phi, F, sma, rpole*sma
+                    omega, Phi = libphoebe.rotstar_from_roche(*mesh_args)
+                    rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)  # TODO: REMOVE
+                    # print "*** after rotstar_from_roche", Phi, omega, sma, rpole*sma
 
-                # sma /= 695700000.0
+                else:
+                    # then we used the rotstar pot<->rpole constraint and
+                    # can directly pass Phi and omega (from freq_rot)
 
-                # rpole = libphoebe.rotstar_pole(*mesh_args) / sma # / 695700000.0  # TODO: is the 6.957 necessary?
+                    # freq_rot (1./d)
+                    omega = rotstar.rotfreq_to_omega(self.freq_rot, scale=sma, solar_units=True)
+                    Phi = self.Phi_user # because we don't want to do conversion for secondary
+
+
                 rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)
-                # rpole is now in solar units
-                # rpole /= 695700000.0
-                # rpole /= sma
                 delta *= rpole
 
                 mesh_args = (omega, Phi)
@@ -1426,6 +1450,8 @@ class Star(Body):
 
                 new_mesh['tareas'] = np.array([])
 
+                scale = sma
+
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
@@ -1442,11 +1468,12 @@ class Star(Body):
 
             the_grid = potentials.discretize_wd_style(N, *mesh_args)
             new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
+            scale = sma
 
         else:
             raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
 
-        return new_mesh, sma, mesh_args
+        return new_mesh, scale, mesh_args
 
     def _compute_instantaneous_quantities(self, xs, ys, zs, **kwargs):
         """
