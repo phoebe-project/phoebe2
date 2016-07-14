@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import newton
+from scipy.special import sph_harm as Y
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import os
 import copy
@@ -2412,3 +2413,55 @@ class Pulsation(Feature):
             return coords_for_observations
 
         return coords_for_observations
+
+class TruePulsation(Feature):
+    def __init__(self, radamp, freq, l, m, **kwargs):
+        self._freq = freq
+        self._radamp = radamp
+        self._l = l
+        self._m = m
+
+    @classmethod
+    def from_bundle(cls, b, feature):
+        """
+        Initialize a Pulsation feature from the bundle.
+        """
+
+        feature_ps = b.get_feature(feature)
+        freq = feature_ps.get_value('freq', unit=u.d**-1)
+        radamp = feature_ps.get_value('radamp', unit=u.dimensionless_unscaled)
+        l = feature_ps.get_value('l', unit=u.dimensionless_unscaled)
+        m = feature_ps.get_value('m', unit=u.dimensionless_unscaled)
+        # get GMstar and Rstar here
+        return cls(radamp, freq, l, m)
+
+    def dYdtheta(m, l, theta, phi):
+        return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*Y(m+1, l, theta, phi)
+
+    def dYdphi(m, l, theta, phi):
+        return 1j*m*Y(m, l, theta, phi)
+
+    def process_coords_for_observations(self, coords, t):
+        """
+        Displacement equations:
+        
+          xi_r(r, theta, phi)     = a(r) Y_lm (theta, phi) exp(-i*2*pi*f*t)
+          xi_theta(r, theta, phi) = b(r) dY_lm/dtheta (theta, phi) exp(-i*2*pi*f*t)
+          xi_phi(r, theta, phi)   = b(r)/sin(theta) dY_lm/dphi (theta, phi) exp(-i*2*pi*f*t)
+          
+        where:
+        
+          b(r) = a(r) GM/(R^3*f^2)
+        """
+
+        theta = 0.5 # get from coords instead
+        phi = 0.5   # get from coords instead
+        tanamp = radamp*0.5 # compute b(r) correctly
+
+        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_t = tanamp * dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_p = tanamp/np.sin(theta) * dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+
+        # modify coords.
+
+        return coords
