@@ -228,6 +228,7 @@ Single Stars (NOT YET OFFICIALLY SUPPORTED)
    :titlesonly:
 
    Sun (rotating single star) (TESTING - not yet supported)<examples/sun>
+   Single Star with Pulsations (TESTING - not yet supported)<examples/rotstar_pulsations>
 
 
 Detached Binary Stars
@@ -310,6 +311,7 @@ Pulsations (NOT YET OFFICIALLY SUPPORTED)
    :maxdepth: 1
    :titlesonly:
 
+   Single Star with Pulsations (TESTING - not yet supported)<examples/rotstar_pulsations>
    Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
 
 
