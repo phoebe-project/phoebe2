@@ -2381,40 +2381,6 @@ class Spot(Feature):
         return teffs
 
 class Pulsation(Feature):
-    def __init__(self, freq, relampl, **kwargs):
-        self._freq = freq
-        self._relampl = relampl
-
-        self.teffext = False
-
-    @classmethod
-    def from_bundle(cls, b, feature):
-        """
-        Initialize a Pulsation feature from the bundle.
-        """
-
-        feature_ps = b.get_feature(feature)
-        freq = feature_ps.get_value('freq', unit=u.d**-1)
-        relampl = feature_ps.get_value('relampl', unit=u.dimensionless_unscaled)
-        return cls(freq, relampl)
-
-    def process_coords_for_computations(self, coords_for_computations, t):
-        """
-        """
-        if not self.teffext:
-            return coords_for_computations
-
-        return coords_for_computations
-
-    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
-        """
-        """
-        if self.teffext:
-            return coords_for_observations
-
-        return coords_for_observations
-
-class Pulsation(Feature):
     def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, teffext=False, **kwargs):
         self._freq = freq
         self._radamp = radamp
@@ -2462,11 +2428,23 @@ class Pulsation(Feature):
     def process_coords_for_computations(self, coords_for_computations, t):
         """
         """
-        if not self._teffext:
+        if self._teffext:
             return coords_for_computations
 
-        raise NotImplementedError
-        return coords_for_computations
+        x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
+        theta = np.arccos(z/r)
+        phi = np.arctan2(y, x)
+
+        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+
+        new_coords = np.zeros(coords_for_computations.shape)
+        new_coords[:,0] = coords_for_computations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
+        new_coords[:,1] = coords_for_computations[:,1] + xi_r * np.sin(theta) * np.sin(phi)
+        new_coords[:,2] = coords_for_computations[:,2] + xi_r * np.cos(theta)
+
+        return new_coords
 
     def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
         """
@@ -2480,8 +2458,9 @@ class Pulsation(Feature):
 
           b(r) = a(r) GM/(R^3*f^2)
         """
-        if self._teffext:
-            return coords_for_observations
+        # TODO: we do want to displace the coords_for_observations, but the x,y,z,r below are from the ALSO displaced coords_for_computations
+        # if not self._teffext:
+            # return coords_for_observations
 
         x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
         theta = np.arccos(z/r)
@@ -2497,3 +2476,11 @@ class Pulsation(Feature):
         new_coords[:,2] = coords_for_observations[:,2] + xi_r * np.cos(theta)
 
         return new_coords
+
+    def process_teffs(self, teffs, coords, t=None):
+        """
+        """
+        if not self._teffext:
+            return teffs
+
+        raise NotImplementedError("teffext=True not yet supported for pulsations")
