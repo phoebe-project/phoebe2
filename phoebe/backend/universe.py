@@ -2418,7 +2418,7 @@ class Pulsation(Feature):
         if abs(m+1) > l:
             last_term = 0.0
         else:
-            Y(m+1, l, theta, phi)
+            last_term = Y(m+1, l, theta, phi)
 
         return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*last_term
 
