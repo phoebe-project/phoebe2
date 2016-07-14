@@ -771,6 +771,7 @@ class ProtoMesh(object):
         """
         TODO: add documentation
         """
+        # TODO: if self._phis is None then compute from cartesian
         return self._phis
 
     @property
@@ -778,6 +779,7 @@ class ProtoMesh(object):
         """
         TODO: add documentation
         """
+        # TODO: if self._thetas is None then compute from cartesian
         return self._thetas
 
     @property

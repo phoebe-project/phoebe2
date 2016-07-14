@@ -2033,7 +2033,7 @@ class ParameterSet(object):
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'time_ecl'
         else:
-            raise NotImplementedError("plotting for dataset '{}' with method {} is not yet implemented".format(ps.dataset, ps.method))
+            raise NotImplementedError("plotting for dataset '{}' with method '{}' is not yet implemented".format(ps.dataset, ps.method))
 
         # We'll set these as kwarg defaults so that they can easily be passed
         # through any other call to plot (when looping over models, components,

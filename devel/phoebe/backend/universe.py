@@ -2414,13 +2414,15 @@ class Pulsation(Feature):
 
         return coords_for_observations
 
-class TruePulsation(Feature):
-    def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, **kwargs):
+class Pulsation(Feature):
+    def __init__(self, radamp, freq, l=0, m=0, tanamp=0.0, teffext=False, **kwargs):
         self._freq = freq
         self._radamp = radamp
         self._l = l
         self._m = m
         self._tanamp = tanamp
+
+        self._teffext = teffext
 
     @classmethod
     def from_bundle(cls, b, feature):
@@ -2433,41 +2435,56 @@ class TruePulsation(Feature):
         radamp = feature_ps.get_value('radamp', unit=u.dimensionless_unscaled)
         l = feature_ps.get_value('l', unit=u.dimensionless_unscaled)
         m = feature_ps.get_value('m', unit=u.dimensionless_unscaled)
-        
-        GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, section='component', unit=u.solMass)
-        R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad)
-        
-        tanamp = GM/R**3/freq**2
-        
-        return cls(radamp, freq, l, m, tanamp)
+        teffext = feature_ps.get_value('teffext')
 
-    def dYdtheta(m, l, theta, phi):
+        GM = c.G.to('solRad3 / (solMass d2)').value*b.get_value(qualifier='mass', component=feature_ps.component, context='component', unit=u.solMass)
+        R = b.get_value(qualifier='rpole', component=feature_ps.component, section='component', unit=u.solRad)
+
+        tanamp = GM/R**3/freq**2
+
+        return cls(radamp, freq, l, m, tanamp, teffext)
+
+    def dYdtheta(self, m, l, theta, phi):
         return m/np.tan(theta)*Y(m, l, theta, phi) + np.sqrt((l-m)*(l+m+1))*np.exp(-1j*phi)*Y(m+1, l, theta, phi)
 
-    def dYdphi(m, l, theta, phi):
+    def dYdphi(self, m, l, theta, phi):
         return 1j*m*Y(m, l, theta, phi)
 
-    def process_coords_for_observations(self, coords, t):
+    def process_coords_for_computations(self, coords_for_computations, t):
+        """
+        """
+        if not self._teffext:
+            return coords_for_computations
+
+        raise NotImplementedError
+        return coords_for_computations
+
+    def process_coords_for_observations(self, coords_for_computations, coords_for_observations, t):
         """
         Displacement equations:
-        
+
           xi_r(r, theta, phi)     = a(r) Y_lm (theta, phi) exp(-i*2*pi*f*t)
           xi_theta(r, theta, phi) = b(r) dY_lm/dtheta (theta, phi) exp(-i*2*pi*f*t)
           xi_phi(r, theta, phi)   = b(r)/sin(theta) dY_lm/dphi (theta, phi) exp(-i*2*pi*f*t)
-          
+
         where:
-        
+
           b(r) = a(r) GM/(R^3*f^2)
         """
+        if self._teffext:
+            return coords_for_observations
 
-        x, y, z, r = coords[:,0], coords[:,1], coords[:,2], np.sqrt((coords**2).sum(axis=1))
+        x, y, z, r = coords_for_computations[:,0], coords_for_computations[:,1], coords_for_computations[:,2], np.sqrt((coords_for_computations**2).sum(axis=1))
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
         xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_t = self._tanamp * dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        xi_p = self._tanamp/np.sin(theta) * dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
 
-        # modify coords.
+        new_coords = np.zeros(coords_for_observations.shape)
+        new_coords[:,0] = coords_for_observations[:,0] + xi_r * np.sin(xi_t) * np.cos(xi_p)
+        new_coords[:,1] = coords_for_observations[:,1] + xi_r * np.sin(xi_t) * np.sin(xi_p)
+        new_coords[:,2] = coords_for_observations[:,2] + xi_r * np.cos(xi_t)
 
-        return coords
+        return new_coords
