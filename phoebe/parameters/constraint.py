@@ -374,6 +374,28 @@ def t0(b, orbit, solve_for=None, **kwargs):
     return lhs, rhs, {'orbit': orbit}
 
 
+def mean_anom(b, orbit, solve_for=None, **kwargs):
+    """
+    """
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    mean_anom = orbit_ps.get_parameter(qualifier='mean_anom')
+    t0_perpass = orbit_ps.get_parameter(qualifier='t0_perpass')
+    period = orbit_ps.get_parameter(qualifier='period')
+    time0 = b.get_parameter(qualifier='t0', context='system')
+
+    if solve_for in [None, mean_anom]:
+        lhs = mean_anom
+        rhs = 2 * np.pi * (time0 - t0_perpass) / period
+    elif solve_for in [t0_perpass]:
+        lhs = t0_perpass
+        rhs = time0 - (mean_anom*period)/(2*np.pi*u.rad)
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'orbit': orbit}
+
 def _true_anom_to_phase(true_anom, period, ecc, per0):
     """
     TODO: add documentation

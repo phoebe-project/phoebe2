@@ -1244,12 +1244,15 @@ def photodynam(b, compute, time=[], **kwargs):
             l = b.get_value('long_an', component=orbitref,
                 context='component', unit=u.rad)
 
-            t0 = b.get_value('t0_perpass', component=orbitref,
-                context='component', unit=u.d)
-            period = b.get_value('period', component=orbitref,
-                context='component', unit=u.d)
+            # t0 = b.get_value('t0_perpass', component=orbitref,
+                # context='component', unit=u.d)
+            # period = b.get_value('period', component=orbitref,
+                # context='component', unit=u.d)
 
-            om = 2 * np.pi * (time0 - t0) / period
+            # om = 2 * np.pi * (time0 - t0) / period
+            om = b.get_value('mean_anom', component=orbitref,
+                             context='component', unit=u.rad)
+
             fi.write('{} {} {} {} {} {}\n'.format(a, e, i, o, l, om))
         fi.close()
 
