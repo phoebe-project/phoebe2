@@ -292,7 +292,10 @@ class Bundle(ParameterSet):
         return b
 
     @classmethod
-    def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False):
+    def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
+                       starA='starA', starB='starB', starC='starC',
+                       inner='inner', outer='outer',
+                       common_envelope='common_envelope'):
         """Load a bundle with a default triple system.
 
         Set inner_as_primary based on what hierarchical configuration you want.
@@ -314,29 +317,29 @@ class Bundle(ParameterSet):
         :return: instantiated :class:`Bundle` object
         """
         b = cls()
-        b.add_component('star', component='starA')
-        b.add_component('star', component='starB')
-        b.add_component('star', component='starC')
-        b.add_component('orbit', component='inner', period=1)
-        b.add_component('orbit', component='outer', period=10)
+        b.add_star(component=starA)
+        b.add_star(component=starB)
+        b.add_star(component=starC)
+        b.add_orbit(component=inner, period=1)
+        b.add_orbit(component=outer, period=10)
 
         if inner_as_overcontact:
-            b.add_component('envelope', component='common_envelope')
-            inner = _hierarchy.binaryorbit(b['inner'],
-                                           b['starA'],
-                                           b['starB'],
-                                           b['common_envelope'])
+            b.add_envelope(component=common_envelope)
+            inner_hier = _hierarchy.binaryorbit(b[inner],
+                                           b[starA],
+                                           b[starB],
+                                           b[common_envelope])
         else:
-            inner = _hierarchy.binaryorbit(b['inner'], b['starA'], b['starB'])
+            inner_hier = _hierarchy.binaryorbit(b[inner], b[starA], b[starB])
 
         if inner_as_primary:
-            hierstring = _hierarchy.binaryorbit(b['outer'], inner, b['starC'])
+            hierstring = _hierarchy.binaryorbit(b[outer], inner_hier, b[starC])
         else:
-            hierstring = _hierarchy.binaryorbit(b['outer'], b['starC'], inner)
+            hierstring = _hierarchy.binaryorbit(b[outer], b[starC], inner_hier)
         b.set_hierarchy(hierstring)
 
         b.add_constraint(constraint.keplers_third_law_hierarchical,
-                         'outer', 'inner')
+                         outer, inner)
 
         # TODO: does this constraint need to be rebuilt when things change?
         # (ie in set_hierarchy)
