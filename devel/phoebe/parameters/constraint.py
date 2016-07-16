@@ -545,6 +545,8 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
     TODO: add documentation
     """
 
+    hier = b.hierarchy
+
     orbit1_ps = _get_system_ps(b, orbit1)
     orbit2_ps = _get_system_ps(b, orbit2)
 
@@ -557,9 +559,16 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
     period1 = orbit1_ps.get_parameter(qualifier='period')
     period2 = orbit2_ps.get_parameter(qualifier='period')
 
+    # NOTE: orbit1 is the outer, so we need to check orbit2... which will
+    # be the OPPOSITE component as that of the mass we're solving for
+    if hier.get_primary_or_secondary(orbit2_ps.component) == 'primary':
+        qthing1 = 1.0+q1
+    else:
+        qthing1 = 1.0+1./q1
+
     if solve_for in [None, sma1]:
         lhs = sma1
-        rhs = (sma2**3 * (1+q1) * period1**2/period2**2)**(1./3)
+        rhs = (sma2**3 * qthing1 * period1**2/period2**2)**(1./3)
     else:
         # TODO: add other options to solve_for
         raise NotImplementedError
