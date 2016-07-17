@@ -1207,11 +1207,11 @@ def photodynam(b, compute, time=[], **kwargs):
                     for star in starrefs]  # TODO: units or unitless?
             u1s, u2s = [], []
             for star in starrefs:
-                if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'linear':
+                if b.get_value(qualifier='ld_func', component=star, dataset=info['dataset'], context='dataset') == 'quadratic':
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=star, dataset=info['dataset'], context='dataset')
                 else:
                     ld_coeffs = (0,0)
-                    logger.warning("ld_func for {} {} must be linear for the photodynam backend, but is not: defaulting to linear with coeffs of {}".format(star, info['dataset'], ld_coeffs))
+                    logger.warning("ld_func for {} {} must be 'quadratic' for the photodynam backend, but is not: defaulting to quadratic with coeffs of {}".format(star, info['dataset'], ld_coeffs))
 
                 u1s.append(str(ld_coeffs[0]))
                 u2s.append(str(ld_coeffs[1]))
@@ -1280,7 +1280,7 @@ def photodynam(b, compute, time=[], **kwargs):
         nbodies = len(starrefs)
         if info['method']=='LC':
             this_syn['time'] = stuff[0] * u.d
-            this_syn['flux'] = stuff[1] + 1  # TODO: figure out why and actually fix the problem instead of fudging it!?!!?
+            this_syn['flux'] = stuff[1] # + 1  # TODO: figure out why and actually fix the problem instead of fudging it!?!!?
         elif info['method']=='ORB':
             cind = starrefs.index(info['component'])
             this_syn['time'] = stuff[0] * u.d
