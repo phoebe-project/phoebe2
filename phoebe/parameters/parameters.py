@@ -4208,6 +4208,9 @@ class FloatArrayParameter(FloatParameter):
         # if isinstance(value, str):
             # value = np.fromstring(value)
 
+        if isinstance(value, float):
+            value = np.array([value])
+
         if not (isinstance(value, list) or isinstance(value, np.ndarray)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
