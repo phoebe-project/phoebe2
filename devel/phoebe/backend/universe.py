@@ -2196,7 +2196,7 @@ class Envelope(Body):
         #self._instantaneous_gpole = g_pole * rel_to_abs
         #self._instantaneous_rpole = np.sqrt((r_pole_*r_pole_).sum())
 
-    def _fill_loggs(self):
+    def _fill_loggs(self, mesh=None):
         """
         TODO: add documentation
 
@@ -2205,31 +2205,43 @@ class Envelope(Body):
         GMSunNom = 1.3271244e20 m**3 s**-2
         RSunNom = 6.597e8 m
         """
-        self.mesh.update_columns(loggs=0.0)
+
+        if mesh is None:
+            mesh = self.mesh
+
+        mesh.update_columns(loggs=0.0)
 
 
-    def _fill_gravs(self, **kwargs):
+    def _fill_gravs(self, mesh=None, **kwargs):
         """
         TODO: add documentation
 
         requires _fill_loggs to have been called
         """
+        if mesh is None:
+            mesh = self.mesh
 
-        self.mesh.update_columns(gravs=0.0)
+        mesh.update_columns(gravs=0.0)
 
-    def _fill_teffs(self, **kwargs):
+    def _fill_teffs(self, mesh=None, **kwargs):
         """
         [NOT IMPLEMENTED]
         requires _fill_loggs and _fill_gravs to have been called
         """
-        self.mesh.update_columns(teffs=0.0)
+        if mesh is None:
+            mesh = self.mesh
+
+        mesh.update_columns(teffs=0.0)
 
 
-    def _fill_abuns(self, abun=0.0):
+    def _fill_abuns(self, mesh=None, abun=0.0):
         """
         TODO: add documentation
         """
-        self.mesh.update_columns(abuns=abun)
+        if mesh is None:
+            mesh = self.mesh
+
+        mesh.update_columns(abuns=abun)
 
     def _populate_ifm(self, dataset, **kwargs):
         """
