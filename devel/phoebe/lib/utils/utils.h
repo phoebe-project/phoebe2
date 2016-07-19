@@ -193,6 +193,11 @@ namespace utils {
     return true;
   }
   
+  // z = x - y
+  template <class T> void sub3D(T x[3], T y[3], T z[3]) {
+    for (int i = 0; i < 3; ++i) z[i] = x[i] - y[i];
+  }
+  
   /*
     Calculate L2 norm of 3D vector
     

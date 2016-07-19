@@ -836,13 +836,13 @@ void triangle_mesh_visibility(
     
     int index;              // triangle index
          
-    double z;               // maximal depth of the triangle
+    T z;               // maximal depth of the triangle
       
     Tt(){}
     
     Tt(const struct Tt & t): index(t.index), z(t.z) {}
     
-    Tt(const int& index, const double &z):index(index), z(z) {}
+    Tt(const int& index, const T &z):index(index), z(z) {}
     
     bool operator < (const Tt & rhs) const { return z > rhs.z; }
   };
