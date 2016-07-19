@@ -37,7 +37,7 @@ struct T3Dpoint {
   
   T3Dpoint() {}
   
-  T3Dpoint(const T3Dpoint & v):data{v.data[0],v.data[1],v.data[2]} { }
+  T3Dpoint(const T3Dpoint & v) : data{v.data[0],v.data[1],v.data[2]} { }
   
   T3Dpoint(const T &x1, const T &x2, const T &x3) : data{x1, x2, x3} {}
    

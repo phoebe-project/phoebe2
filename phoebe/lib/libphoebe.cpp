@@ -1,7 +1,9 @@
 /* 
-  Wrappers for calculations concerning the generalized Kopal potential or
-  Roche lobes.
-   
+  Wrappers for calculations concerning the 
+    
+    * generalized Kopal potential or Roche lobes
+    * rotating stars  
+    * triangular meshes
   
   Need to install for Python.h header:
     apt-get install python-dev
@@ -2877,15 +2879,20 @@ static PyMethodDef Methods[] = {
     {NULL,  NULL, 0, NULL} // terminator record
 };
 
+static char *Docstring =
+  "This module wraps routines dealing with models of the stars and "
+  "triangular mesh generation and their manipulation.";
+
 /* module initialization */
 PyMODINIT_FUNC initlibphoebe (void)
 {
-  PyObject *backend = Py_InitModule("libphoebe", Methods);
   
+  PyObject *backend = Py_InitModule3("libphoebe", Methods, Docstring);
+
+  if (!backend) return;
+    
   // Added to handle Numpy arrays
   // Ref: 
   // * http://docs.scipy.org/doc/numpy-1.10.1/user/c-info.how-to-extend.html
   import_array();
-  
-  if (!backend) return;
 }
