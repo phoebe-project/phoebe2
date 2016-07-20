@@ -2146,6 +2146,9 @@ class ParameterSet(object):
             yparam, yarray, default_yunit = _get_param_array(ps,
                                                              yqualifier,
                                                              kwargs.get('yunit', None))
+            if kwargs.pop('norm'):
+                yarray /= yarray.max()
+
             kwargs.setdefault('yunit', default_yunit)
 
         if isinstance(zqualifier, float) or isinstance(zqualifier, int):
