@@ -166,7 +166,11 @@ int main(){
     << "Nr. of vertices =" << V.size()  << '\n'
     << "Nr. of triangles=" << Tr.size() << '\n';
   
+  //
+  // Example 1
+  //
   
+  #if 0
   std::ofstream file("scene.pov");
   
   // povray +R2 +A0.1 +J1.2 +Am2 +Q9 +H480 +W640 scene.pov
@@ -190,6 +194,61 @@ int main(){
     plane_z,
     file, 
     V, NatV, Tr); 
+  
+  #endif
+  
+  
+  //
+  // Example 2
+  //
+  
+  #if 1
+  std::ofstream file("scene2.pov");
+  
+  // povray +R2 +A0.1 +J1.2 +Am2 +Q9 +H480 +W640 scene.pov
+  
+  file.precision(16);
+  
+  std::string color_body("Red");
+  
+  T3Dpoint<double> 
+    camera_location(0,2,2),
+    camera_look_at(0,0,0),
+    light_source(100, 100, 100);
+  
+  double plane_z = -1;
+  
+  int Nv = V.size();
+  
+  std::vector <T3Dpoint<double> > V1(V);
+  std::vector <T3Dpoint<int>> Tr1(Tr); 
+  std::vector <T3Dpoint<double> >NatV1(NatV);
+  
+  for (auto  && v : V)  {
+    T3Dpoint<double> v1(v);
+    v[1] -= 2;
+    V1.push_back(v);
+  }
+  
+  for (auto  && n : NatV)  NatV1.push_back(n);
+  
+  for (auto  && t : Tr) {
+    T3Dpoint<int> t1(t);
+    for (int i = 0; i < 3; ++i) t1[i] += Nv;
+    Tr1.push_back(t1);
+  }
+  
+  triangle_mesh_export_povray (
+    color_body,
+    camera_location, 
+    camera_look_at, 
+    light_source,
+    plane_z,
+    file, 
+    V1, NatV1, Tr1); 
+  
+  #endif
+  
   
   return 0;
 }

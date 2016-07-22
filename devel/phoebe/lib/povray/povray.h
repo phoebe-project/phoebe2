@@ -9,6 +9,8 @@
   Ref:
   * http://xahlee.info/3d/povray-surface.html
   * http://www.povray.org/documentation/3.7.0/
+  * http://jmsoler.free.fr/util/blenderfile/fr/povanim_Mesh2_en.htm
+  * http://paulbourke.net/miscellaneous/povexamples/
 */ 
 
 #include <iostream>
@@ -44,7 +46,7 @@ namespace povray_export_support {
 
 template <class T>
 void triangle_mesh_export_povray (
-  std::string color_body,
+  std::string body_color,
   T3Dpoint<T> camera_location,
   T3Dpoint<T> camera_look_at,
   T3Dpoint<T> light_source,
@@ -60,7 +62,22 @@ void triangle_mesh_export_povray (
   int n = 0;
  
   // colors
-  file << sep(n) << "#include \"colors.inc\"\n\n" ;
+  file << sep(n) << "#include \"colors.inc\"\n" ;
+  file << sep(n) << "#include \"rad_def.inc\"\n\n";
+  
+  // global settings
+  // http://wiki.povray.org/content/HowTo:Use_radiosity
+  file << sep(n) << "global_settings {\n";
+  ++n;
+  file << sep(n)<< "radiosity {\n";
+  ++n;
+  file << sep(n) << "Rad_Settings(Radiosity_Normal,off,off)\n";
+  --n;
+  file << sep(n) << "}\n";
+  --n;
+  file << sep(n) <<  "}\n\n";
+  
+  file << sep(n) << "#default {finish{ambient 0}}\n\n";
   
   //
   // camera
@@ -97,7 +114,6 @@ void triangle_mesh_export_povray (
   file << sep(n) << "pigment {checker color White, color Gray}\n";
   --n;
   file << sep(n) << "}\n\n"; // plane
- 
  
   
   //
@@ -136,7 +152,7 @@ void triangle_mesh_export_povray (
   // color of the triangles
   file << sep(n) << "pigment {\n";
   ++n;
-  file << sep(n) << "color " << color_body << "\n";
+  file << sep(n) << "color " << body_color << "\n";
   --n;
   file << sep(n) << "}\n";
     
