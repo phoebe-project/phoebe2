@@ -6,6 +6,7 @@
 #include <limits>
 #include <fstream>
 
+#include "../utils/utils.h"
 
 /*
   Calculating volume and area of generalized Roche lobes implicitely 
@@ -103,7 +104,7 @@ namespace gen_roche {
   */
   
   template<class T> 
-  void area_volume(
+  void area_volume_integration(
     T av[2],
     const unsigned & choice,
     T xrange[2],
@@ -649,8 +650,83 @@ template<class T>
     delete [] A;
     delete [] V;
   }
+  
+  /*
+    Computing surface area and the volume of the primary Roche lobe in the limit of high w=delta*Omega. It should precise at least up to 5.5 digits for
+      
+      w > 10 &&  w > 5(q + b^(2/3)/4)  (empirically found bound)
+    
+     Analysis available in volume.nb
+    
+    Input:
+      Omega0 
+      w - Omega0*delta - rescaled Omega
+      q - mass ratio M2/M1
+      b = (1+q)F^2 delta^3 - rescalted synchronicity parameter
+      choice -
+        1  - area
+        2  - volume
+        3  - both
+                 
+    Using: series approximation generated in volume.nb
+       
+    Output:
+      av[2] = {area, volume}
+  
+    
+    Ref: 
+      * https://en.wikipedia.org/wiki/Gaussian_quadrature
+      * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
+      * http://mathworld.wolfram.com/LobattoQuadrature.html <-- this would be better  
+  */
+  
+  template<class T> 
+  void area_volume_primary_approx_internal(
+    T av[2],
+    const unsigned & choice,
+    const T & Omega0,
+    const T & w,
+    const T & q,
+    const T & b) {
+  
+    T s = 1/w,
+      q2 = q*q,
+      q3 = q2*q,
+      b2 = b*b,
+      b3 = b2*b;
+    
+   
+    // calculate area
+    if ((choice & 1U) == 1U) {
+      
+      T a[10] = {1, 2*q, 3*q2, 2*b/3. + 4*q3, q*(10*b/3. + 5*q3), 
+          q2*(10*b + 6*q3), b2 + q*(2*b/3. + q*(2 + q*(70*b/3. + 7*q3))),
+          q*(8*b2 + q*(16*b/3. + q*(16 + q*(140*b/3. + 8*q3)))),
+          q2*(2.142857142857143 + 36*b2 + q*(24*b + q*(72 + q*(84*b + 9*q3)))),
+          68*b3/35. + q*(82*b2/35. + q*(342*b/35. + q*(24.17142857142857 + 120*b2 + q*(80*b + q*(240 + q*(140*b + 10*q3))))))
+        },
+        sum = a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*(a[7] + s*(a[8] + s*a[9]))))))));
+      
+      av[0] = utils::M_4PI/(Omega0*Omega0)*sum;
+    }
+    
+    
+    // calculate volume
+    if ((choice & 2U) == 2U) {
+      
+      T a[10] = {1, 3*q, 6*q2, b + 10*q3, q*(6*b + 15*q3), 
+          q2*(21*b + 21*q3), 8*b2/5. + q*(4*b/5. + q*(2.4 + q*(56*b + 28*q3))),
+          q*(72*b2/5. + q*(36*b/5. + q*(21.6 + q*(126*b + 36*q3)))),
+          q2*(2.142857142857143 + 72*b2 + q*(36*b + q*(108 + q*(252*b + 45*q3)))),
+          22*b3/7. + q*(22*b2/7. + q*(88*b/7. + q*(26.714285714285715 + 264*b2 + q*(132*b + q*(396 + q*(462*b + 55*q3))))))
+        },
+        sum = a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*(a[7] + s*(a[8] + s*a[9]))))))));
 
-
+      av[1] = utils::M_4PI/(3*Omega0*Omega0*Omega0)*sum;
+    }
+  }
+  
+  
   /*
     Computing the volume of the Roche lobes intersecting x-axis
     

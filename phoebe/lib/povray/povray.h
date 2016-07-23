@@ -42,19 +42,20 @@ namespace povray_export_support {
 
   Exporting triangular mesh in face-vertex format to povray file.
   
+  
 */ 
 
 template <class T>
 void triangle_mesh_export_povray (
+  std::ostream & file,
+  std::vector <T3Dpoint<T>> & V,           
+  std::vector <T3Dpoint<T>> & NatV,
+  std::vector <T3Dpoint<int>> & Tr,
   std::string body_color,
   T3Dpoint<T> camera_location,
   T3Dpoint<T> camera_look_at,
   T3Dpoint<T> light_source,
-  T plane_z,
-  std::ostream & file,
-  std::vector <T3Dpoint<T>> & V,            // inputs
-  std::vector <T3Dpoint<T>> & NatV,
-  std::vector <T3Dpoint<int>> & Tr){
+  T *plane_z = 0){
  
   using namespace povray_export_support;
  
@@ -106,16 +107,16 @@ void triangle_mesh_export_povray (
   // plane
   // http://www.povray.org/documentation/3.7.0/r3_4.html#r3_4_5_3_1
   //
-  T3Dpoint<T> plane_n(0,0,1);
-  
-  file << sep(n) << "plane {\n";
-  ++n;
-  file << sep(n) << Tprn<T>(plane_n) << "," << plane_z << '\n'; 
-  file << sep(n) << "pigment {checker color White, color Gray}\n";
-  --n;
-  file << sep(n) << "}\n\n"; // plane
- 
-  
+  if (plane_z) {
+    T3Dpoint<T> plane_n(0,0,1);
+    
+    file << sep(n) << "plane {\n";
+    ++n;
+    file << sep(n) << Tprn<T>(plane_n) << "," << *plane_z << '\n'; 
+    file << sep(n) << "pigment {checker color White, color Gray}\n";
+    --n;
+    file << sep(n) << "}\n\n"; // plane
+  }
   //
   // mesh2
   // http://www.povray.org/documentation/3.7.0/r3_4.html#r3_4_5_2_4 

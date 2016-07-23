@@ -177,7 +177,7 @@ int main(){
   
   file.precision(16);
   
-  std::string color_body("Red");
+  std::string body_color("Red");
   
   T3Dpoint<double> 
     camera_location(0,2,2),
@@ -187,13 +187,13 @@ int main(){
   double plane_z = -1;
   
   triangle_mesh_export_povray (
-    color_body,
+    file, 
+    V, NatV, Tr,
+    body_color,
     camera_location, 
     camera_look_at, 
     light_source,
-    plane_z,
-    file, 
-    V, NatV, Tr); 
+    &plane_z); 
   
   #endif
   
@@ -209,7 +209,7 @@ int main(){
   
   file.precision(16);
   
-  std::string color_body("Red");
+  std::string body_color("Red");
   
   T3Dpoint<double> 
     camera_location(0,2,2),
@@ -239,13 +239,14 @@ int main(){
   }
   
   triangle_mesh_export_povray (
-    color_body,
+    file, 
+    V1, NatV1, Tr1,
+    body_color,
     camera_location, 
     camera_look_at, 
     light_source,
-    plane_z,
-    file, 
-    V1, NatV1, Tr1); 
+    &plane_z);
+     
   
   #endif
   

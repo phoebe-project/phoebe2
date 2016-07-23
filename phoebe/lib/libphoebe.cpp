@@ -478,33 +478,49 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   if (!b_larea && !b_lvolume) return NULL;
  
   //
-  // Choosing boundaries on x-axis
+  // define result-choice
   //
-  
-  double xrange[2];
-    
-  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, delta, true)){
-    std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
-    return NULL;
-  }
-  
-  //
-  // Calculate area and volume
-  //
-  
   unsigned res_choice = 0;
   
   if (b_larea) res_choice |= 1u;
   if (b_lvolume) res_choice |= 2u;
+ 
+  //
+  // Posibility of using approximation
+  //
   
-  int m = 1 << 14;        // TODO: this should be more precisely stated 
+  double 
+    w = delta*Omega0,
+    b = (1 + q)*F*F*delta*delta*delta,
+    av[2];            // for results
   
-  bool polish = false;    // TODO: why does not it work all the time
+  if (choice == 0 && w >= 10 && w >= 5*(q + std::cbrt(b*b)/4)){  // approximation
   
-  double av[2];
-  
-  gen_roche::area_volume(av, res_choice, xrange, Omega0, q, F, delta, m, polish);
+    gen_roche::area_volume_primary_approx_internal(av, res_choice, Omega0, w, q, b);
     
+  } else { // integration 
+    //
+    // Choosing boundaries on x-axis
+    //
+    
+    double xrange[2];
+      
+    if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, delta, true)){
+      std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
+      return NULL;
+    }
+    
+    //
+    // Calculate area and volume
+    //
+    
+    int m = 1 << 14;        // TODO: this should be more precisely stated 
+    
+    bool polish = false;    // TODO: why does not it work all the time
+      
+    gen_roche::area_volume_integration(av, res_choice, xrange, Omega0, q, F, delta, m, polish);
+  }
+   
   PyObject *results = PyDict_New();
       
   if (b_larea)
@@ -1499,7 +1515,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   with keywords
   
     vertices: 
-      V[][3]    - 2-rank numpy array of a pairs of vertices 
+      V[][3]    - 2-rank numpy array of vertices 
     
     vnormals:
       NatV[][3] - 2-rank numpy array of normals at vertices
@@ -2156,17 +2172,15 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
 /*
   Python wrapper for C++ code:
 
-  Calculate mesh properties Marching meshing of Roche lobes implicitely defined by generalized Kopal potential:
-    
-      Omega_0 = Omega(x,y,z)
-    
+  Calculate properties of the tringular mesh.
+  
   Python:
 
     dict = mesh_properties(V, T, <keyword>=[true,false], ... )
     
   where positional parameters
   
-    V[][3]: 2-rank numpy array of a pairs of vertices 
+    V[][3]: 2-rank numpy array of vertices 
     T[][3]: 2-rank numpy array of 3 indices of vertices 
             composing triangles of the mesh aka connectivity matrix
 
@@ -2301,6 +2315,154 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
 
   
   return results;
+}
+
+
+
+/*
+  Python wrapper for C++ code:
+
+  Export the mesh into povray file.
+   
+  Python:
+
+    dict = mesh_export_povray("scene.pov", V, NatV T,  [..],[..],[..])
+  
+  Commandline: for povray
+    povray +R2 +A0.1 +J1.2 +Am2 +Q9 +H480 +W640 scene.pov
+  
+  where positional parameters
+    filename: string
+
+    V[][3]: 2-rank numpy array of vertices 
+    NatV[][3]: 2-rank numpy array of a pairs of vertices 
+    T[][3]: 2-rank numpy array of 3 indices of vertices 
+            composing triangles of the mesh aka connectivity matrix
+
+
+    camera_location: 1-rank numpy array -- location of the camera
+    camera_look_at: 1-rank numpy array -- point to which camera is pointing
+    light_source: 1-rank numpy array -- location of point light source
+     
+  optional:
+   
+    body_color: string, default Red
+      color of the body, e.g. White, Red, Yellow, .., 
+    
+    plane_enable: boolean, default false
+      enabling infinite horizontal plane
+    
+    plane_height: float, default zmin{mesh} - 25%(zmax{mesh} - zmin{mesh}) 
+      height at which is the infinite horizontal plane
+      
+  Returns:
+    
+    None
+
+*/
+
+static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"filename",
+    (char*)"vertices",
+    (char*)"vnormals",
+    (char*)"triangles", 
+    (char*)"camera_location",
+    (char*)"camera_look_at",
+    (char*)"light_source",
+    (char*)"body_color",
+    (char*)"plane_enable",
+    (char*)"plane_height",
+    NULL};
+    
+  PyArrayObject 
+    *oV, *oNatV, *oT, *o_camera_location, 
+    *o_camera_look_at, *o_light_source;
+    
+  PyObject 
+    *o_filename, *o_body_color = 0, 
+    *o_plane_enable = 0, *o_plane_height = 0;
+   
+  bool plane_enable = false;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!O!O!O!O!O!O!|O!O!O!", kwlist,
+      &PyString_Type, &o_filename, // neccesary
+      &PyArray_Type, &oV,  
+      &PyArray_Type, &oNatV,
+      &PyArray_Type, &oT, 
+      &PyArray_Type, &o_camera_location,
+      &PyArray_Type, &o_camera_look_at, 
+      &PyArray_Type, &o_light_source,
+      &PyString_Type, &o_body_color,   // optional
+      &PyBool_Type, &o_plane_enable,
+      &PyFloat_Type, &o_plane_height))
+    return NULL;
+    
+  //
+  // Storing input data
+  //
+  
+  char *filename = PyString_AsString(o_filename);
+    
+  std::vector<T3Dpoint<double>> V, NatV;
+  std::vector<T3Dpoint<int>> Tr;
+
+  PyArray_To3DPointVector(oV, V);
+  PyArray_To3DPointVector(oNatV, NatV);
+  PyArray_To3DPointVector(oT, Tr);
+
+  T3Dpoint<double> 
+    camera_location((double *)PyArray_DATA(o_camera_location)),
+    camera_look_at((double *)PyArray_DATA(o_camera_look_at)),
+    light_source((double *)PyArray_DATA(o_light_source));
+
+  std::string body_color((o_body_color ? PyString_AsString(o_body_color):"Red"));
+  
+  double plane_height, *p_plane_height = 0;
+    
+  if (o_plane_enable) plane_enable = PyObject_IsTrue(o_plane_enable);
+
+  if (plane_enable) {
+    
+    p_plane_height = &plane_height;
+    
+    if (o_plane_height)
+      plane_height = PyFloat_AsDouble(o_plane_height);
+    else {
+      double t, zmin, zmax;
+      
+      zmax= -(zmin = std::numeric_limits<double>::max());
+      
+      for (auto && v: V) {
+        t = v[2];
+        if (t > zmax) zmax = t;
+        if (t < zmin) zmin = t;
+      }
+    
+      plane_height = zmin - 0.25*(zmax - zmin);
+    }
+  }
+
+  std::ofstream file(filename);
+    
+  triangle_mesh_export_povray(
+    file, 
+    V, NatV, Tr,
+    body_color,
+    camera_location, 
+    camera_look_at, 
+    light_source,
+    p_plane_height);
+
+
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 
@@ -2845,12 +3007,16 @@ static PyMethodDef Methods[] = {
       "Offset the mesh along the normals in vertices to match the area with reference area."},
       
           
-    { "mesh_properties",
+    { "mesh_properties", 
       (PyCFunction)mesh_properties,
       METH_VARARGS|METH_KEYWORDS, 
       "Calculate the properties of the triangular mesh."},
 
-
+    { "mesh_export_povray",
+      (PyCFunction)mesh_export_povray,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Exporting triangular mesh into a Pov-Ray file."},
+      
 // --------------------------------------------------------------------    
 
     { "roche_reprojecting_vertices",
@@ -2879,7 +3045,7 @@ static PyMethodDef Methods[] = {
     {NULL,  NULL, 0, NULL} // terminator record
 };
 
-static char *Docstring =
+static char const *Docstring =
   "This module wraps routines dealing with models of the stars and "
   "triangular mesh generation and their manipulation.";
 

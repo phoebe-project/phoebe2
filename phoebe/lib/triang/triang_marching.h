@@ -41,7 +41,7 @@ struct T3Dpoint {
   
   T3Dpoint(const T &x1, const T &x2, const T &x3) : data{x1, x2, x3} {}
    
-  T3Dpoint(T *data) : data{data[0], data[1], data[2]} {}
+  T3Dpoint(T *p) : data{p[0], p[1], p[2]} {}
   
   T & operator[](const int &idx) { return data[idx]; }
   
