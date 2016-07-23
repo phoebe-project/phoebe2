@@ -183,7 +183,7 @@ namespace utils {
   }
   
   // solve for x: A x = b
-  template <class T> bool inverse2D(T A[2][2], T b[2], T x[2]){
+  template <class T> bool solve2D(T A[2][2], T b[2], T x[2]){
     T det = A[0][0]*A[1][1] - A[1][0]*A[0][1];
     
     if (det == 0) return false;
@@ -192,6 +192,41 @@ namespace utils {
     x[1] = (A[0][0]*b[1] - A[1][0]*b[0])/det;
     return true;
   }
+  
+  // solve for x: A x = b
+  template <class T> bool solve3D(T A[3][3], T b[3], T x[3]){
+    
+    T det = A[0][2]*(A[1][1]*A[2][0]-A[1][0]*A[2][1])+A[0][1]*(-A[1][2]*A[2][0]+A[1]*A[2][2])+A[0][0]*(A[1][2]*A[2][1]-A[1][1]*A[2][2]);
+    
+    if (det == 0) return false;
+    
+    det = 1/det;
+    
+    x[0] = det*(b[2]*(A[0][2]*A[1][1]-A[0][1]*A[1][2])+b[1]*(-A[0][2]*A[2][1]+A[0][1]*A[2][2])+b[0]*(A[1][2]*A[2][1]-A[1][1]*A[2][2]));
+    x[1] = det*(b[2]*(-A[0][2]*A[1][0]+A[0][0]*A[1][2])+b[1]*(A[0][2]*A[2][0]-A[0][0]*A[2][2])+b[0]*(-A[1][2]*A[2][0]+A[1][0]*A[2][2])); 
+    x[2] = det*(b[2]*(A[0][1]*A[1][0]-A[0][0]*A[1][1])+b[1]*(-A[0][1]*A[2][0]+A[0][0]*A[2][1])+b[0]*(A[1][1]*A[2][0]-A[1][0]*A[2][1]));
+
+    return true;
+  }
+  
+  
+  // solve for x: x^t A = b^t
+  template <class T> bool solve3D(T b[3], T A[3][3], T x[3]){
+    T det = A[0][2]*(A[1][1]*A[2][0]-A[1][0]*A[2][1])+A[0][1]*(-A[1][2]*A[2][0]+A[1]*A[2][2])+A[0][0]*(A[1][2]*A[2][1]-A[1][1]*A[2][2]);
+    
+    if (det == 0) return false;
+    
+    det = 1/det;
+    
+    x[0] = det*(b[2]*(A[1][1]*A[2][0]-A[1][0]*A[2][1])+b[1]*(-A[1][2]*A[2][0]+A[1][0]*A[2][2])+b[0]*(A[1][2]*A[2][1]-A[1][1]*A[2][2]));
+    x[1] = det*(b[2]*(-A[0][1]*A[2][0]+A[0][0]*A[2][1])+b[1]*(A[0][2]*A[2][0]-A[0][0]*A[2][2])+b[0]*(-A[0][2]*A[2][1]+A[0][1]*A[2][2]));
+    x[2] = det*(b[2]*(A[0][1]*A[1][0]-A[0][0]*A[1][1])+b[1]*(-A[0][2]*A[1][0]+A[0][0]*A[1][2])+b[0]*(A[0][2]*A[1][1]-A[0][1]*A[1][2]));
+    
+    return true;
+  }
+  
+  
+  
   
   // z = x - y
   template <class T> void sub3D(T x[3], T y[3], T z[3]) {
@@ -600,9 +635,10 @@ namespace utils {
       // getting depressed quartic: x = y - b/4
       // y^4 + p y^2  + q y + r = 0
          
-      T  p = c - 3*b*b/8,
-         q = b*(b*b/8 - c/2) + d,
-         r = b*(b*(-3*b*b/256 + c/16) - d/4) + e;
+      T  b2= b*b,
+         p = c - 3*b2/8,
+         q = b*(b2/8 - c/2) + d,
+         r = b*(b*(-3*b2/256 + c/16) - d/4) + e;
         
       if (q == 0) { // Biquadratic equations
         

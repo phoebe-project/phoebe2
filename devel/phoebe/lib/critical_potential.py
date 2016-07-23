@@ -1,17 +1,6 @@
-#  Testing the C++ routine wrapped in lib_phoebe_roche  
+#  Testing the C++ routine wrapped for critical potentials in lib_phoebe_roche  
 #
-#  Install for memory analyzer:
-#   apt-get install python-meliae
-#   apt-get install runsnakerun
-#
-#  Run:
-#   python phoebe_roche.py > /dev/null
-#   runsnakemem big.dump
-#
-#  Tutorial:
-#    http://jam-bazaar.blogspot.com/2009/11/memory-debugging-with-meliae.html
-
-#  Author: Martin Horvat, May 2016
+#  Author: Martin Horvat, June 2016
 
 from libphoebe import *
 #from meliae import scanner, loader

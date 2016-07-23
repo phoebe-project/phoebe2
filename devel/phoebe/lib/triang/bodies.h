@@ -483,7 +483,7 @@ struct Tgen_roche {
       
       dr_max = r_max = 0;
     
-      if (utils::inverse2D(A, u, x)){ 
+      if (utils::solve2D(A, u, x)){ 
         
         //shift along the directions that the constrains change
         for (i = 0; i < 3; ++i) {
