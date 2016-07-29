@@ -68,6 +68,8 @@
 #include <functional>
 #include <queue>
 
+#include "../utils/utils.h"
+
 namespace ClipperLib {
 
 enum ClipType { ctIntersection, ctUnion, ctDifference, ctXor };
@@ -4847,11 +4849,13 @@ void ClipperOffset::DoOffset(double delta)
   if (steps > std::abs(delta) * pi) 
     steps = std::abs(delta) * pi;  //ie excessive precision check
   
-  /*
+
+  #if TARGET_HAS_SINCOS
+  sincos(two_pi/steps, &m_sin, &m_cos);
+  #else
   m_sin = std::sin(two_pi / steps);
   m_cos = std::cos(two_pi / steps);
-  */
-  sincos(two_pi/steps, &m_sin, &m_cos);
+  #endif
   
   m_StepsPerRad = steps / two_pi;
   if (delta < 0.0) m_sin = -m_sin;

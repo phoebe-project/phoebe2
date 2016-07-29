@@ -26,7 +26,6 @@
 
 #include "../utils/utils.h"
 
-
 /*
   Structure describing 3D point
 */
@@ -973,63 +972,6 @@ struct Tmarching: public Tbody {
   }
   
   
-  /* 
-  void sincos(const long double& f, long double *s, long double *c){
-    sincosl(f, s, c);
-  }
-  */
-  
-  /*
-    Calculate array of scaled sinus and cosinus
-  
-    Input:
-      n >= 0 - number of angles
-      f - elementary angle
-      scale - prefactor
-    
-    Output:
-      sa[n+1] = {0, sin(f), sin(2*f), ..., sin(n*f) }
-      ca[n+1] = {1, cos(f), cos(2*f), ..., cos(n*f) }
-  */ 
-  void calc_sincos(const int & n, const T &f, T *sa, T *ca, const T & scale = 1){
-   
-    sa[0] = 0;
-    ca[0] = scale;
-    
-    if (n == 0) return;
-    
-    #if 1
-    
-    T s, c;
-    
-    sincos(f, &s, &c);   
-    
-    sa[1] = s*scale;
-    ca[1] = c*scale;
-    
-    for (int i = 1; i < n; ++i) {
-      ca[i+1] = ca[i]*c - sa[i]*s;
-      sa[i+1] = ca[i]*s + sa[i]*c;
-    }
-    #else // slower version, but preciser
-    
-    for (int i = 1; i <= n; ++i) {
-      sincos(i*f, sa + i, ca + i);
-      ca[i] *= scale;
-      sa[i] *= scale;
-    }
-    #endif
-  }
- 
-   /*
-    Return square of the value.
-    
-    Input: x
-    
-    Return: x^2
-  */ 
-  T sqr(const T &x){ return x*x; }
-  
   /*
     Distance between the two 3D vectors.
     
@@ -1038,7 +980,8 @@ struct Tmarching: public Tbody {
     
     Return:
       |a-b|_2 -- L2 norm of th difference of vectors
-  */ 
+  */
+  
   T dist(T *a, T *b){
     //T s = 0;
     //for (int i = 0; i < 3; ++i) s += sqr(a[i] - b[i]);
@@ -1108,7 +1051,7 @@ struct Tmarching: public Tbody {
     
     T s, c, st, ct, sa[6], ca[6];
     
-    calc_sincos(5, M_PI3, sa, ca, delta);
+    utils::sincos_array(5, M_PI3, sa, ca, delta);
       
     for (int k = 0; k < 6; ++k){
       
@@ -1258,7 +1201,7 @@ struct Tmarching: public Tbody {
         // returning fac*(sin(k domega), cos(k domega)) 
         // where fac = delta/|(c, s)|
         //calc_sincos(nt - 1, domega, sa, ca, delta/std::sqrt(c*c + s*s));
-        calc_sincos(nt - 1, domega, sa, ca, delta/std::hypot(c, s));
+        utils::sincos_array(nt - 1, domega, sa, ca, delta/std::hypot(c, s));
         
         vp = Pi;        // new front from it_min 
         n = V.size();   // size of the set of vertices

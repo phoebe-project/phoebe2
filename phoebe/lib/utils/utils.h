@@ -12,12 +12,89 @@
 #include <limits>
 #include <vector>
 #include <algorithm>
+#include <cmath>
+
+//#define TARGET_HAS_SINCOS 1
 
 namespace utils {
   
   const double M_2PI = 6.2831853071795864769252867665590083999;  // 2 pi
   const double M_4PI = 12.5663706143591729538505735331180167998; // 4 pi
   
+  #if TARGET_HAS_SINCOS
+  inline void sincos(const float &theta, float *s, float *c){
+   sincosf(theta, s, c);
+  }
+  
+  inline void sincos(const double &theta, double *s, double *c){
+    asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (theta) : "st(7)");
+  }
+  
+  inline void sincos(const long double &theta, long double *s, long double *c){
+    sincosl(theta, s, c);
+  }
+  #else 
+ 
+  template<class T> 
+  inline void sincos(const T &theta, T *s, T *c){
+   *s = std::sin(theta);
+   *c = std::cos(theta);
+  }
+ 
+  #endif
+    
+  /*
+    Calculate array of scaled sinus and cosinus
+  
+    Input:
+      n >= 0 - number of angles
+      f - elementary angle
+      scale - prefactor
+    
+    Output:
+      sa[n+1] = {0, sin(f), sin(2*f), ..., sin(n*f) }
+      ca[n+1] = {1, cos(f), cos(2*f), ..., cos(n*f) }
+  */
+  template <class T>
+  void sincos_array(const int & n, const T &f, T *sa, T *ca, const T & scale = 1){
+   
+    sa[0] = 0;
+    ca[0] = scale;
+    
+    if (n == 0) return;
+    
+    #if 1
+    
+    T s, c;
+    
+    utils::sincos(f, &s, &c);   
+    
+    sa[1] = s*scale;
+    ca[1] = c*scale;
+    
+    for (int i = 1; i < n; ++i) {
+      ca[i+1] = ca[i]*c - sa[i]*s;
+      sa[i+1] = ca[i]*s + sa[i]*c;
+    }
+    #else // slower version, but preciser
+    
+    for (int i = 1; i <= n; ++i) {
+      utils::sincos(i*f, sa + i, ca + i);
+      ca[i] *= scale;
+      sa[i] *= scale;
+    }
+    #endif
+  }
+ 
+   /*
+    Return square of the value.
+    
+    Input: x
+    
+    Return: x^2
+  */
+  template <class T>
+  T sqr(const T &x){ return x*x; }
   
   /*
     Calculate the max of 3D vector.
@@ -226,8 +303,7 @@ namespace utils {
   }
   
   
-  
-  
+
   // z = x - y
   template <class T> void sub3D(T x[3], T y[3], T z[3]) {
     for (int i = 0; i < 3; ++i) z[i] = x[i] - y[i];
@@ -308,14 +384,6 @@ namespace utils {
   }
   
   #endif
-  
-  
-  /*
-    Returning the square of the argument.
-  */ 
-  template <class T> T sqr(const T & x ) {
-    return x*x;
-  }
   
   
   /* Swap two elements 
