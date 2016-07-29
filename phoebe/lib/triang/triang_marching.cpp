@@ -227,7 +227,7 @@ int main(){
   mesh_area_volume(V, NatV, T, av);
   std::cout << "Area=" << av[0] << "\nVolume=" << av[1] << '\n';
  
-  #if 1
+  #if 0
   //
   // Storing triagulation results
   //

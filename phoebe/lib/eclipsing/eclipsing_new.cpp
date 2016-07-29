@@ -18,25 +18,23 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <ctime>
 
 #include "eclipsing.h"
 #include "../gen_roche.h"
 #include "../triang/triang_marching.h"
 #include "../triang/bodies.h"
 
-#include <ctime>
-
 int main(){
  
  
   clock_t start, end;
   int  max_triangles = 10000000;
-     
+  
+  #if 0   
   //
   // Overcontact case
   //
-  
-  /*  
   double 
     q = 0.5,
     F = 0.5,
@@ -44,7 +42,12 @@ int main(){
     Omega0 = 2.65,
     
     delta = 0.01;
-  */
+  #endif
+  
+  #if 1
+  //
+  // Generic case
+  //
   double 
     q = 1,
     F = 1,
@@ -52,6 +55,7 @@ int main(){
     Omega0 = 10,
     
     delta = 0.01;
+  #endif
     
   std::vector<double> x_points;
     
