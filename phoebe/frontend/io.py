@@ -1,6 +1,6 @@
 import numpy as np
 import phoebe as phb
-
+import os.path
 import logging
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
@@ -151,8 +151,14 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None):
     """
     load dictionary with lc data
     """
+    if '/' in filename:
+        path = os.path.dirname(filename)
+        filename = filename.split('/')[-1]
+    else:
+        path = './'
 
-    lcdata = np.loadtxt(filename)
+    load_file = os.path.join(path, filename)
+    lcdata = np.loadtxt(load_file)
     ncol = len(lcdata[0])
     if dep == 'Magnitude':
         mag = lcdata[:,1]
@@ -179,8 +185,16 @@ def load_rv_data(filename, indep, dep, indweight=None):
     """
     load dictionary with rv data.
     """
-    rvdata = np.loadtxt(filename)
 
+    if '/' in filename:
+        path = os.path.dirname(filename)
+        filename = filename.split('/')[-1]
+    else:
+        path = './'
+
+    load_file = os.path.join(path, filename)
+    rvdata = np.loadtxt(load_file)
+    
     d ={}
     d['phoebe_rv_time'] = rvdata[:,0]
     d['phoebe_rv_vel'] = rvdata[:,1]
