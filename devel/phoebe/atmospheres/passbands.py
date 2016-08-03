@@ -14,6 +14,7 @@ import types
 from phoebe.atmospheres import atmcof
 from phoebe.algorithms import interp
 import os
+import glob
 
 import logging
 logger = logging.getLogger("PASSBANDS")
@@ -216,18 +217,18 @@ class Passband:
         self.content.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
-        models = os.listdir(path)
+        models = glob.glob(path+'/*M1.000.spectrum')
         Teff, logg, met, Inorm = [], [], [], []
         
         if verbose:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
-            spc = np.loadtxt(path+'/'+model).T
-            Teff.append(float(model[1:6]))
-            logg.append(float(model[7:9]))
-            sign = 1. if model[9]=='P' else -1.
-            met.append(sign*float(model[10:12]))
+            spc = np.loadtxt(model).T
+            Teff.append(float(model[-26:-21]))
+            logg.append(float(model[-20:-18]))
+            sign = 1. if model[-18]=='P' else -1.
+            met.append(sign*float(model[-17:-15]))
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
@@ -252,6 +253,15 @@ class Passband:
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('ck2004')
+
+    def compute_ck2004_ldc(self, path, verbose=False, photon_weighted=True, weight_by_mu=False):
+        models = os.listdir(path)
+        Teff, logg, met, mu, Imu = [], [], [], [], []
+        
+        if verbose:
+            print('Computing Castelli-Kurucz limb darkening coefficients for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+        
+        
         
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nmet=19, Nlogg=11, Npb=25, Nints=4):
         """
