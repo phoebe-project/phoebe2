@@ -29,8 +29,9 @@
 #include <typeinfo>
 #include <algorithm>
 
-#include "gen_roche.h"
-#include "rot_star.h"
+#include "mesh.h"                  // support for triangular grid            
+#include "gen_roche.h"             // support for generalized Roche lobes 
+#include "rot_star.h"              // support for rotating stars
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
  
@@ -1815,9 +1816,9 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
 
   static char *kwlist[] = {
     (char*)"viewdir",
-    (char*)"vertices",
-    (char*)"triangles",
-    (char*)"tnormals",
+    (char*)"V",
+    (char*)"T",
+    (char*)"N",
     (char*)"tvisibilities",
     (char*)"taweights",
     (char*)"horizon",
@@ -2217,8 +2218,8 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
   //
 
  char *kwlist[] = {
-    (char*)"vertices",
-    (char*)"triangles", 
+    (char*)"V",
+    (char*)"T", 
     (char*)"tnormals", 
     (char*)"areas",
     (char*)"area",
@@ -2369,9 +2370,9 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
 
  char *kwlist[] = {
     (char*)"filename",
-    (char*)"vertices",
-    (char*)"vnormals",
-    (char*)"triangles", 
+    (char*)"V",
+    (char*)"NatV",
+    (char*)"T", 
     (char*)"camera_location",
     (char*)"camera_look_at",
     (char*)"light_source",
@@ -2465,6 +2466,259 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
   return Py_None;
 }
 
+/*
+  Python wrapper for C++ code:
+
+  Calculate radiosity of triangles due to reflection according to 
+  Wilson's reflection model.
+  
+  Python:
+
+    M = mesh_radiosity_Wilson(V, Tr, NatT, A, R, M0, LDmod, LDidx, <keyword>=<value>, ... )
+    
+  where positional parameters:
+  
+    V[][3]: 2-rank numpy array of vertices 
+    T[][3]: 2-rank numpy array of 3 indices of vertices 
+            composing triangles of the mesh aka connectivity matrix
+    NatT[][3]: 2-rank numpy array of 3 indices of vertices 
+            composing triangles of the mesh aka connectivity matrix
+    A[]: 1-rank numpy array of areas of triangles
+    R[]: 1-rank numpy array of albedo/reflection of triangles
+    M0[]: 1-rank numpy array of intrisic radiant exitance of triangles
+
+    LDmod: list of tuples of the format ("name", sequence of parameters)
+    LDidx[]: 1-rank numpy array of indices of LD models used on each of triangles
+ 
+  optionally:
+
+    epsC: float, default 0.00872654 = cos(89.5deg) 
+          threshold for permitted cos(view-angle)
+    epsM: float, default 1e-12
+          relative precision of radiosity vector in sense of L_infty norm
+    max_iter: integer, default 100
+          maximal number of iterations in the solver of the radiosity eq.
+ 
+  Returns:
+    M[]: 1-rank numpy array of radiosities (intrinsic and reflection) of triangles
+  
+  Ref:
+  * Wilson, R. E.  Accuracy and efficiency in the binary star reflection effect, 
+    Astrophysical Journal,  356, 613-622, 1990 June
+*/
+
+static PyObject *mesh_radiosity_Wilson(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"V",
+    (char*)"Tr", 
+    (char*)"NatT", 
+    (char*)"A",
+    (char*)"R",
+    (char*)"M0",
+    (char*)"LDmod",
+    (char*)"LDidx",
+    (char*)"epsC",
+    (char*)"epsM",
+    (char*)"max_iter",
+    NULL
+  };
+  
+  int max_iter = 100;         // default value
+  
+  double 
+    epsC = 0.00872654,        // default value
+    epsM = 1e-12;             // default value
+  
+  PyArrayObject *oV, *oT, *oNatT, *oA, *oR, *oM0, *oLDidx;
+     
+  PyObject *oLDmod;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!O!O!O!O!O!O!O!|ddi", kwlist,
+      &PyArray_Type, &oV,         // neccesary 
+      &PyArray_Type, &oT,
+      &PyArray_Type, &oNatT,
+      &PyArray_Type, &oA,
+      &PyArray_Type, &oR,
+      &PyArray_Type, &oM0,
+      &PyList_Type, &oLDmod,
+      &PyArray_Type, &oLDidx,
+      &epsC,                      // optional
+      &epsM,
+      &max_iter))
+    return NULL;
+  
+    
+  //
+  // Storing input data
+  //  
+
+  std::vector<TLDmodel<double>*> LDmod;
+  
+  {
+    int len = PyList_Size(oLDmod);
+    
+    for (int i = 0; i < len; ++i) {
+      
+      PyObject *p = PyList_GetItem(oLDmod, i); 
+      
+       // item should be a tuple of the format: 
+       // ("name of LD model", sequence of float parameters)
+      
+      if (!PyTuple_CheckExact(p)){
+        std::cerr << "mesh_radiosity_Wilson::LD model description is not a tuple.\n";
+        return NULL;
+      }
+      
+      if (PyTuple_Size(p) == 0){
+        std::cerr << "mesh_radiosity_Wilson::LD model tuple is empty.\n";
+        return NULL;
+      }
+      
+      PyObject *q = PyTuple_GetItem(p, 0);
+      
+      if (!PyString_Check(q)){
+        std::cerr << "mesh_radiosity_Wilson::LD model name is not string.\n";
+        return NULL;
+      }
+      
+      char *s = PyString_AsString(q);
+      
+      try {
+      
+        if (strcmp(s, "uniform") == 0) {
+        
+          LDmod.push_back(new TLDuniform<double>());
+        
+        } else if (strcmp(s, "linear") == 0){
+                    
+          double x = PyFloat_AsDouble(PyTuple_GetItem(p, 1));
+
+          if (PyErr_Occurred()) throw 20;
+          
+          LDmod.push_back(new TLDlinear<double>(x));
+       
+        } else if (strcmp(s, "quadratic") == 0){
+          
+          if (PyTuple_Size(p) != 3) throw 10;
+          
+          double 
+            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
+            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2));
+                
+          if (PyErr_Occurred()) throw 20;
+          
+          LDmod.push_back(new TLDquadratic<double>(x,y));
+        
+        } else if (strcmp(s, "nonlinear") == 0){
+          
+          if (PyTuple_Size(p) != 4) throw 10;
+          
+          double 
+            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
+            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2)),
+            pp = PyFloat_AsDouble(PyTuple_GetItem(p, 3));
+          
+          if (PyErr_Occurred()) throw 20;
+            
+          LDmod.push_back(new TLDnonlinear<double>(x, y, pp));
+        
+        } else if (strcmp(s, "logarithmic") == 0){
+          
+          if (PyTuple_Size(p) != 3) throw 10;
+          
+          double 
+            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
+            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2));
+        
+          if (PyErr_Occurred()) throw 20;
+          
+          LDmod.push_back(new TLDlogarithmic<double>(x, y));
+        
+        } else if (strcmp(s, "square_root") == 0){
+          
+          if (PyTuple_Size(p) != 3) throw 10;
+          
+          double 
+            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
+            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2));
+          
+          if (PyErr_Occurred()) throw 20;
+            
+          LDmod.push_back(new TLDsquare_root<double>(x, y));
+        } else {
+          
+          throw 30;
+        }
+      
+      } catch (int e) {
+        
+        switch (e) {
+          case 10:
+            std::cerr << "mesh_radiosity_Wilson::LD model tuple does not have appropriate size.\n"; 
+            break;
+          case 20:
+            std::cerr << "mesh_radiosity_Wilson::LD model tuple conversion error.\n";
+            break;
+          case 30:
+            std::cerr << "mesh_radiosity_Wilson::Don't know to handle this LD model.\n";
+            break;
+        }
+        return NULL;
+      }
+    }
+  }
+
+  std::vector<int> LDidx;
+  PyArray_ToVector(oLDidx, LDidx);
+ 
+  std::vector<T3Dpoint<double>> V, NatT;
+  std::vector<T3Dpoint<int>> Tr;
+
+  std::vector<double> A;
+  PyArray_ToVector(oA, A);
+
+  PyArray_To3DPointVector(oV, V);
+  PyArray_To3DPointVector(oT, Tr);
+  PyArray_To3DPointVector(oNatT, NatT);
+ 
+    
+  //
+  // Determine the LD view-factor matrix
+  //
+
+  std::vector<Tmat_elem<double>> Fmat;
+    
+  triangle_mesh_radiosity_wilson(V, Tr, NatT, A, LDmod, LDidx,  Fmat);
+  
+  for (auto && ld: LDmod) delete ld;
+  
+  LDmod.clear();
+  LDidx.clear();
+  V.clear();
+  Tr.clear();
+  NatT.clear();
+  A.clear();
+  
+  //
+  // Solving the radiosity equation
+  //
+  
+  std::vector<double> M0, M, R;
+  
+  PyArray_ToVector(oR, R);
+  PyArray_ToVector(oM0, M0);
+  
+  if (!solve_radiosity_equation(Fmat, R, M0, M))
+    std::cerr << "mesh_reflection_Wilson::slow convergence\n";
+   
+  return PyArray_FromVector(M);
+}
 
 /*
   Python wrapper for C++ code:
@@ -3006,7 +3260,6 @@ static PyMethodDef Methods[] = {
       METH_VARARGS|METH_KEYWORDS, 
       "Offset the mesh along the normals in vertices to match the area with reference area."},
       
-          
     { "mesh_properties", 
       (PyCFunction)mesh_properties,
       METH_VARARGS|METH_KEYWORDS, 
@@ -3016,6 +3269,11 @@ static PyMethodDef Methods[] = {
       (PyCFunction)mesh_export_povray,
       METH_VARARGS|METH_KEYWORDS, 
       "Exporting triangular mesh into a Pov-Ray file."},
+   
+    { "mesh_radiosity_Wilson",
+      (PyCFunction)mesh_radiosity_Wilson,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Solving the radiosity problem with limb darkening as defined by Wilson."},
       
 // --------------------------------------------------------------------    
 
@@ -3046,7 +3304,7 @@ static PyMethodDef Methods[] = {
 };
 
 static char const *Docstring =
-  "This module wraps routines dealing with models of the stars and "
+  "Module wraps routines dealing with models of the stars and "
   "triangular mesh generation and their manipulation.";
 
 /* module initialization */

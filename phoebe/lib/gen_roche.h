@@ -23,12 +23,8 @@
 #include <vector>
 #include <algorithm>
 
-// general routines
+// General rotines
 #include "utils/utils.h"                  // Misc routines (sqr, solving poly eq,..)
-#include "triang/triang_marching.h"       // Maching triangulation
-#include "triang/bodies.h"                // Definitions of different potentials
-#include "eclipsing/eclipsing.h"          // Eclipsing/Hidden surface removal
-#include "povray/povray.h"                // Exporting meshes to povray (minimalistic)
 
 // Roche specific routines and part of gen_roche namespace
 #include "lagrange/gen_roche_lagrange.h"  // Lagrange points for gen Kopal potential

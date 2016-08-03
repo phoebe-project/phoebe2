@@ -875,7 +875,7 @@ struct Tmarching: public Tbody {
       this->grad(r, g);
       
       // fac = F/|grad(F)|^2
-      fac = g[3]/(g[0]*g[0] + g[1]*g[1] + g[2]*g[2]);
+      fac = g[3]/utils::norm2(g);
       
       // dr = F/|grad(F)|^2 grad(F) 
       // r' = r - dr 
@@ -940,7 +940,7 @@ struct Tmarching: public Tbody {
       this->grad(r, g);
       
       // fac = F/|grad(F)|^2
-      fac = g[3]/(g[0]*g[0] + g[1]*g[1] + g[2]*g[2]);
+      fac = g[3]/utils::norm2(g);
       
       // dr = F/|grad(F)|^2 grad(F) 
       // r' = r - dr 
