@@ -16,6 +16,7 @@
 #include <list>
 
 #include "../gen_roche.h" 
+#include "../mesh.h"
 #include "povray.h"
 
 int main(){

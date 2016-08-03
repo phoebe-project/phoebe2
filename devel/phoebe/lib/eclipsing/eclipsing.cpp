@@ -8,14 +8,12 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>
+#include <ctime>
 
 #include "eclipsing.h"
 #include "../gen_roche.h"
-#include "../triang/triang_marching.h"
-#include "../triang/bodies.h"
+#include "../mesh.h"
 
-
-#include <ctime>
 
 int main(){
  

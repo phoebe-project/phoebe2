@@ -22,8 +22,7 @@
 
 #include "eclipsing.h"
 #include "../gen_roche.h"
-#include "../triang/triang_marching.h"
-#include "../triang/bodies.h"
+#include "../mesh.h"
 
 int main(){
  

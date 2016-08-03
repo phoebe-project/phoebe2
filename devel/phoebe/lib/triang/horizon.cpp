@@ -7,7 +7,10 @@
 #include <iostream>
 #include <cmath>
 
-#include "../gen_roche.h"
+#include "triang_marching.h"
+#include "bodies.h"
+
+#include "../gen_roche.h" 
 
 int main(){
   
