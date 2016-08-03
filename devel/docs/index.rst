@@ -220,7 +220,7 @@ and assume you're comfortable with the general concepts and syntax of both
 Python and PHOEBE.
 
 
-Single Stars (NOT YET OFFICIALLY SUPPORTED)
+Single Stars (NOT YET SUPPORTED)
 ------------------------------
 
 .. toctree::
@@ -229,6 +229,7 @@ Single Stars (NOT YET OFFICIALLY SUPPORTED)
 
    Sun (rotating single star) (TESTING - not yet supported)<examples/sun>
    Single Star with Pulsations (TESTING - not yet supported)<examples/rotstar_pulsations>
+
 
 
 Detached Binary Stars
@@ -248,10 +249,8 @@ Detached Binary Stars
    Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
 
 
-COMING SOON (examples from literature)
 
-
-Overcontact Binary Stars (NOT YET OFFICIALLY SUPPORTED)
+Overcontact Binary Stars (NOT YET SUPPORTED)
 ----------------------------------------------------------
 
 
@@ -259,13 +258,12 @@ Overcontact Binary Stars (NOT YET OFFICIALLY SUPPORTED)
    :maxdepth: 1
    :titlesonly:
 
-   Minimal Overcontact System<examples/minimal_overcontact>
+   Minimal Overcontact System (TESTING - not yet supported)<examples/minimal_overcontact>
    Comparing Overcontact System PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_overcontact>
 
 
-COMING SOON (examples from literature)
 
-Triple Stars (NOT YET OFFICIALLY SUPPORTED)
+Triple Stars (NOT YET SUPPORTED)
 -------------------------------
 
 .. toctree::
@@ -276,12 +274,11 @@ Triple Stars (NOT YET OFFICIALLY SUPPORTED)
    Minimal Dynamical Triple (TESTING - not yet supported)<examples/dynamical_triple>
    Hierarchical Triple vs Photodynam (TESTING - not yet supported) <examples/hierarchical_triple_pd>
    LTTE ETVs in a Hierarchical Triple (TESTING - not yet supported) <examples/hierarchical_triple_etvs>
+   KOI 126 (TESTING - not yet supported)<examples/koi126>
 
 
-COMING SOON (examples from literature)
 
-
-Planetary System (NOT YET OFFICIALLY SUPPORTED)
+Planetary System (NOT YET SUPPORTED)
 -------------------------------
 
 .. toctree::
@@ -291,10 +288,19 @@ Planetary System (NOT YET OFFICIALLY SUPPORTED)
    Sun-Earth (TESTING - not yet supported)<examples/sun_earth>
 
 
-COMING SOON (examples from literature)
+
+Circumbinary Planets (NOT YET SUPPORTED)
+------------------------------------------------------
+
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   Kepler 16 (TESTING - not yet supported)<examples/kepler16>
 
 
-Spots (NOT YET OFFICIALLY SUPPORTED)
+
+Spots (NOT YET SUPPORTED)
 ------------------------------------
 
 .. toctree::
@@ -304,7 +310,8 @@ Spots (NOT YET OFFICIALLY SUPPORTED)
    Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
 
 
-Pulsations (NOT YET OFFICIALLY SUPPORTED)
+
+Pulsations (NOT YET SUPPORTED)
 ------------------------------------------
 
 .. toctree::
@@ -316,10 +323,11 @@ Pulsations (NOT YET OFFICIALLY SUPPORTED)
 
 
 
-Advanced Constraints (NOT YET OFFICIALLY SUPPORTED)
+Advanced Constraints (NOT YET SUPPORTED)
 ------------------------------
 
 COMING SOON (creating custom constraints, main-sequence, etc)
+
 
 
 Advanced Plotting
@@ -343,7 +351,7 @@ Alternate Backends
    Comparing PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy>
    Comparing Overcontact System PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_overcontact>
    Comparing PHOEBE 2.0 vs Photodynam (Binary)<examples/photodynam>
-   Comparing PHOEBE 2.0 vs Photodynam (Hierarchical Triple)<examples/hierarchical_triple>
+   Comparing PHOEBE 2.0 vs Photodynam (Hierarchical Triple)<examples/hierarchical_triple_pd>
    Comparing PHOEBE 2.0 vs JKTEBOP <examples/jktebop>
 
 

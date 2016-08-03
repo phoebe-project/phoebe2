@@ -647,7 +647,8 @@ class Body(object):
 
 
         #-- Get current position/euler information
-        if self.dynamics_method in ['keplerian', 'nbody', 'rebound']:
+        # TODO: remove this if/else if all dynamics method now support eulerian elements
+        if self.dynamics_method in ['keplerian', 'nbody', 'rebound', 'bs']:
             # if we can't get the polar direction, assume it's in the negative Z-direction
             try:
                 # TODO: implement get_polar_direction (see below for alpha version)
