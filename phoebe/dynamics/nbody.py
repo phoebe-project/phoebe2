@@ -58,7 +58,7 @@ def _ensure_tuple(item):
     else:
         raise NotImplementedError
 
-def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwargs):
+def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_kepcart=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
@@ -94,7 +94,7 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     integrator = computeps.get_value('integrator', check_relevant=False, **kwargs)
 
     starrefs = hier.get_stars()
-    orbitrefs = [hier.get_parent_of(star) for star in starrefs]
+    orbitrefs = hier.get_orbits() if use_kepcart else [hier.get_parent_of(star) for star in starrefs]
 
     def mean_anom(t0, t0_perpass, period):
         # TODO: somehow make this into a constraint where t0 and mean anom
@@ -120,16 +120,17 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, **kwa
     vgamma = b.get_value('vgamma', context='system', unit=u.AU/u.d)
     t0 = b.get_value('t0', context='system', unit=u.d)
 
-    mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
+    # mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
+    mean_anoms = [b.get_value('mean_anom', u.rad, component=component, context='component') for component in orbitrefs]
 
     return dynamics(times, masses, smas, eccs, incls, per0s, long_ans, \
                     mean_anoms, rotperiods, t0, vgamma, stepsize, ltte, gr,
-                    integrator, return_roche_euler=return_roche_euler)
+                    integrator, use_kepcart=use_kepcart, return_roche_euler=return_roche_euler)
 
 
 def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
         rotperiods=None, t0=0.0, vgamma=0.0, stepsize=0.01, ltte=False, gr=False,
-        integrator='ias15', return_roche_euler=False):
+        integrator='ias15', return_roche_euler=False, use_kepcart=False):
 
     if not _can_rebound:
         raise ImportError("rebound is not installed")
@@ -159,13 +160,6 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
 
     times = np.asarray(times)
-    # print "***", times.shape
-
-    # TODO: implement LTTE
-    # TODO: implement vgamma
-
-    # TODO: check constants on units, since G is 1 this shouldn't matter?
-    # You can check the units’ exact values and add Additional units in rebound/rebound/units.py. Units should be set before adding particles to the simulation (will give error otherwise).
 
     sim = rebound.Simulation()
 
@@ -180,20 +174,59 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     # NOTE: according to rebound docs: "stepsize will change for adaptive integrators such as IAS15"
     sim.dt = stepsize
 
-    for mass, sma, ecc, incl, per0, long_an, mean_anom in zip(masses, smas, eccs, incls, per0s, long_ans, mean_anoms):
-        N = sim.N
-        # TODO: this assume building from the inside out.  Make sure that will
-        # always happen or we need to send the particle as primary
-        # (ie primary=sim.particles[-1])
-        sim.add(m=mass,
-                a=sma,
-                e=ecc,
-                inc=incl,
-                Omega=long_an,
-                omega=per0,
-                M=mean_anom)
+    if use_kepcart:
+        # print "*** bs.kep2cartesian", masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0
+        init_conds = bs.kep2cartesian(_ensure_tuple(masses), _ensure_tuple(smas),
+                                      _ensure_tuple(eccs), _ensure_tuple(incls),
+                                      _ensure_tuple(per0s), _ensure_tuple(long_ans),
+                                      _ensure_tuple(mean_anoms), t0)
+        for i in range(len(masses)):
+            mass = masses[i]
+            x = init_conds['x'][i]
+            y = init_conds['y'][i]
+            z = init_conds['z'][i]
+            vx = init_conds['vx'][i]
+            vy = init_conds['vy'][i]
+            vz = init_conds['vz'][i]
+            # print "*** adding simulation particle for mass:", mass, x, y, z, vx, vy, vz
+            sim.add(m=mass,
+                    x=x, y=y, z=z,
+                    vx=vx, vy=vy, vz=vz
+                    )
 
-    sim.move_to_com()
+            # just in case that was stupid and did things in Jacobian, let's for the positions and velocities
+            p = sim.particles[-1]
+            p.x = x
+            p.y = y
+            p.z = z
+            p.vx = vx
+            p.vy = vy
+            p.vz = vz
+    else:
+        for mass, sma, ecc, incl, per0, long_an, mean_anom in zip(masses, smas, eccs, incls, per0s, long_ans, mean_anoms):
+            N = sim.N
+            # TODO: this assumes building from the inside out (Jacobi coordinates).
+            # Make sure that will always happen.
+            # This assumption will currently probably fail if inner_as_primary==False.
+            # But for now even the inner_as_primary=True case is broken, probably
+            # because of the way we define some elements WRT nesting orbits (sma)
+            # and others WRT sky (incl, long_an, per0)
+
+            if N==0:
+                # print "*** adding simulation particle for mass:", mass
+                sim.add(m=mass)
+            else:
+                # print "*** adding simulation particle for mass:", mass, sma, ecc, incl, long_an, per0, mean_anom
+                sim.add(primary=None,
+                        m=mass,
+                        a=sma,
+                        e=ecc,
+                        inc=incl,
+                        Omega=long_an,
+                        omega=per0,
+                        M=mean_anom)
+
+            sim.move_to_com()
 
     # Now handle vgamma by editing the initial vz on each particle
     for particle in sim.particles:
@@ -283,7 +316,7 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
         return times, xs, ys, zs, vxs, vys, vzs
 
 
-def dynamics_from_bundle_bs(b, times, compute=None, **kwargs):
+def dynamics_from_bundle_bs(b, times, compute=None, return_roche_euler=False, **kwargs):
     """
     Parse parameters in the bundle and call :func:`dynamics`.
 
@@ -338,16 +371,19 @@ def dynamics_from_bundle_bs(b, times, compute=None, **kwargs):
     vgamma = b.get_value('vgamma', context='system', unit=u.solRad/u.d)
     t0 = b.get_value('t0', context='system', unit=u.d)
 
-    mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
+    # mean_anoms = [mean_anom(t0, t0_perpass, period) for t0_perpass, period in zip(t0_perpasses, periods)]
+    mean_anoms = [b.get_value('mean_anom', u.rad, component=component, context='component') for component in orbitrefs]
 
     return dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, \
-                    mean_anoms, t0, vgamma, stepsize, orbiterror, ltte)
+                    mean_anoms, t0, vgamma, stepsize, orbiterror, ltte,
+                    return_roche_euler=return_roche_euler)
 
 
 
 
 def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
-        t0=0.0, vgamma=0.0, stepsize=0.01, orbiterror=1e-16, ltte=False):
+        t0=0.0, vgamma=0.0, stepsize=0.01, orbiterror=1e-16, ltte=False,
+        return_roche_euler=False):
     """
     Burlisch-Stoer integration of orbits to give positions and velocities
     of any given number of stars in hierarchical orbits.  This code
@@ -409,7 +445,8 @@ def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     mean_anoms = _ensure_tuple(mean_anoms)
 
     # TODO: include vgamma!!!!
-    d = bs.do_dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0, stepsize, orbiterror, ltte)
+    # print "*** bs.do_dynamics", masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0
+    d = bs.do_dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0, stepsize, orbiterror, ltte, return_roche_euler)
     # d is in the format: {'t': (...), 'x': ( (1,2,3), (1,2,3), ...), 'y': ..., 'z': ...}
 
     nobjects = len(masses)
@@ -420,12 +457,36 @@ def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     au_to_solrad = (1*u.AU).to(u.solRad).value
 
-    # d, solRad, solRad/d, rad
-    return np.array(d['t']), \
-        [(-1*np.array([d['x'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
-        [(-1*np.array([d['y'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
-        [(np.array([d['z'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
-        [(-1*np.array([d['vx'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
-        [(-1*np.array([d['vy'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)], \
-        [(np.array([d['vz'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+    ts = np.array(d['t'])
+    xs = [(-1*np.array([d['x'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+    ys = [(-1*np.array([d['y'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+    zs = [(np.array([d['z'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+    vxs = [(-1*np.array([d['vx'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+    vys = [(-1*np.array([d['vy'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+    vzs = [(np.array([d['vz'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+
+    if return_roche_euler:
+        # raise NotImplementedError("euler angles for BS not currently supported")
+        # a (sma), e (ecc), in (incl), o (per0?), ln (long_an?), m (mean_anom?)
+        ds = [(np.array([d['kepl_a'][ti][oi] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+        # TODO: fix this
+        Fs = [(np.array([1.0 for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+        # TODO: check to make sure this is the right angle
+        # TODO: need to add np.pi for secondary component?
+        # true anomaly + periastron
+        ethetas = [(np.array([d['kepl_o'][ti][oi]+d['kepl_m'][ti][oi]+np.pi/2 for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+        # elongans = [(np.array([d['kepl_ln'][ti][oi]+long_ans[0 if oi==0 else oi-1] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+        elongans = [(np.array([d['kepl_ln'][ti][oi]+long_ans[0 if oi==0 else oi-1] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+        # eincls = [(np.array([d['kepl_in'][ti][oi]+incls[0 if oi==0 else oi-1] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+        eincls = [(np.array([d['kepl_in'][ti][oi]+np.pi-incls[0 if oi==0 else oi-1] for ti in range(ntimes)])*au_to_solrad) for oi in range(nobjects)]
+
+
+
+        # d, solRad, solRad/d, rad
+        return ts, xs, ys, zs, vxs, vys, vzs, ds, Fs, ethetas, elongans, eincls
+
+    else:
+
+        # d, solRad, solRad/d
+        return ts, xs, ys, zs, vxs, vys, vzs
 
