@@ -126,6 +126,21 @@ void PyArray_To3DPointVector(PyArrayObject *oV, std::vector<T3Dpoint<T>> &V){
     V.emplace_back(p);
 }
 
+
+// return 0 : if OK
+int ReadFloatFromTuple(PyObject *p, int len, int start, double *par){
+  if (len) { 
+    if (PyTuple_Size(p) >= start + len) return 10;
+
+    for (int i = 0; i < len; ++i) 
+      par[i] = PyFloat_AsDouble(PyTuple_GetItem(p, start + i));
+
+    if (PyErr_Occurred()) return 20;
+  }
+  return 0;
+}
+          
+
 /*
   Python wrapper for C++ code:
   
@@ -2588,87 +2603,87 @@ static PyObject *mesh_radiosity_Wilson(PyObject *self, PyObject *args, PyObject 
       }
       
       char *s = PyString_AsString(q);
+    
+      int e;
       
-      try {
+      double par[3];
       
-        if (strcmp(s, "uniform") == 0) {
+      /*
+      if (strcmp(s, "uniform") == 0) {
+        LDmod.push_back(new TLDuniform<double>());
+      } else if (strcmp(s, "linear") == 0){
+        e = ReadFloatFromTuple(p, 1, 1, par);
+        if (e == 0) LDmod.push_back(new TLDlinear<double>(par));
+      } else if (strcmp(s, "quadratic") == 0){          
+        e = ReadFloatFromTuple(p, 2, 1, par);
+        if (e == 0) LDmod.push_back(new TLDquadratic<double>(par));
+      } else if (strcmp(s, "nonlinear") == 0){
+        e = ReadFloatFromTuple(p, 3, 1, par);
+        if (e == 0) LDmod.push_back(new TLDnonlinear<double>(par));
+      } else if (strcmp(s, "logarithmic") == 0){
+        e = ReadFloatFromTuple(p, 2, 1, par);
+        if (e == 0)  LDmod.push_back(new TLDlogarithmic<double>(par));
+      } else if (strcmp(s, "square_root") == 0){
+        e = ReadFloatFromTuple(p, 2, 1, par);
+        if (e == 0)  LDmod.push_back(new TLDsquare_root<double>(par));
+      } else e = 30;
+      */
+      
+      switch (fnv1a_64::hash(s)){
         
+        case "uniform"_hash : 
           LDmod.push_back(new TLDuniform<double>());
+        break;
+          
+        case "linear"_hash :
+          e = ReadFloatFromTuple(p, 1, 1, par);
+          if (e == 0) LDmod.push_back(new TLDlinear<double>(par));
+        break;
         
-        } else if (strcmp(s, "linear") == 0){
-                    
-          double x = PyFloat_AsDouble(PyTuple_GetItem(p, 1));
-
-          if (PyErr_Occurred()) throw 20;
-          
-          LDmod.push_back(new TLDlinear<double>(x));
-       
-        } else if (strcmp(s, "quadratic") == 0){
-          
-          if (PyTuple_Size(p) != 3) throw 10;
-          
-          double 
-            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
-            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2));
-                
-          if (PyErr_Occurred()) throw 20;
-          
-          LDmod.push_back(new TLDquadratic<double>(x,y));
+        case "quadratic"_hash:
+          e = ReadFloatFromTuple(p, 2, 1, par);
+          if (e == 0) LDmod.push_back(new TLDquadratic<double>(par));
+        break;
         
-        } else if (strcmp(s, "nonlinear") == 0){
-          
-          if (PyTuple_Size(p) != 4) throw 10;
-          
-          double 
-            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
-            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2)),
-            pp = PyFloat_AsDouble(PyTuple_GetItem(p, 3));
-          
-          if (PyErr_Occurred()) throw 20;
-            
-          LDmod.push_back(new TLDnonlinear<double>(x, y, pp));
+        case "nonlinear"_hash:
+          e = ReadFloatFromTuple(p, 3, 1, par);
+          if (e == 0) LDmod.push_back(new TLDnonlinear<double>(par));
+        break;
         
-        } else if (strcmp(s, "logarithmic") == 0){
-          
-          if (PyTuple_Size(p) != 3) throw 10;
-          
-          double 
-            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
-            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2));
+        case "logarithmic"_hash:
+          e = ReadFloatFromTuple(p, 2, 1, par);
+          if (e == 0) LDmod.push_back(new TLDlogarithmic<double>(par));
+        break;
         
-          if (PyErr_Occurred()) throw 20;
-          
-          LDmod.push_back(new TLDlogarithmic<double>(x, y));
+        case "square_root"_hash:
+          e = ReadFloatFromTuple(p, 2, 1, par);
+          if (e == 0)  LDmod.push_back(new TLDsquare_root<double>(par));
+        break;
         
-        } else if (strcmp(s, "square_root") == 0){
-          
-          if (PyTuple_Size(p) != 3) throw 10;
-          
-          double 
-            x = PyFloat_AsDouble(PyTuple_GetItem(p, 1)),
-            y = PyFloat_AsDouble(PyTuple_GetItem(p, 2));
-          
-          if (PyErr_Occurred()) throw 20;
-            
-          LDmod.push_back(new TLDsquare_root<double>(x, y));
-        } else {
-          
-          throw 30;
-        }
+        default:
+          e = 30;
+      }
       
-      } catch (int e) {
+      if (e != 0) {
         
         switch (e) {
-          case 10:
-            std::cerr << "mesh_radiosity_Wilson::LD model tuple does not have appropriate size.\n"; 
-            break;
-          case 20:
-            std::cerr << "mesh_radiosity_Wilson::LD model tuple conversion error.\n";
-            break;
-          case 30:
-            std::cerr << "mesh_radiosity_Wilson::Don't know to handle this LD model.\n";
-            break;
+        
+        case 10:
+          std::cerr 
+            << "mesh_radiosity_Wilson::LD model tuple does not have appropriate size.\n"; 
+          break;
+        case 20:
+          std::cerr 
+            << "mesh_radiosity_Wilson::LD model tuple conversion error.\n";
+          break;
+        case 30:
+          std::cerr 
+            << "mesh_radiosity_Wilson::Don't know to handle this LD model.\n";
+          break;
         }
+        
+        for (auto && ld: LDmod) delete ld;
+          
         return NULL;
       }
     }
@@ -2727,7 +2742,7 @@ static PyObject *mesh_radiosity_Wilson(PyObject *self, PyObject *args, PyObject 
   
   Python:
 
-    dict = roche_centers(q, F, d, Omega0, V, T, <keyword>=[true,false], ... )
+    dict = roche_centers(q, F, d, Omega0, V, T, <keyword>=[true,false])
     
   where parameters
   
@@ -3117,6 +3132,158 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
 
 
 /*
+  Python wrapper for C++ code:
+
+    Calculating the limb darkening function D(mu) in speherical coordinates
+    
+    vec r = r (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+  
+    and mu=cos(theta)
+  
+  Python:
+
+    value = ld_funcD(mu, description)
+    
+  with arguments
+
+    mu: float
+    description: tuple defining the LD model of the form
+                  ("name", float parameters)  
+  
+  Return: 
+    value of D(mu) for a given LD model 
+*/
+
+static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"mu",          
+    (char*)"description",
+    NULL
+  };
+  
+  double mu;
+  
+  PyObject *t;
+  
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!", kwlist, 
+      &mu, &PyTuple_Type, &t)) return NULL;
+
+  // NO CHECKING
+  int nr_par;
+  
+  TLDmodel_type type;
+    
+  char *s = PyString_AsString(PyTuple_GetItem(t, 0));
+  
+  switch (fnv1a_64::hash(s)){
+
+    case "uniform"_hash: type = UNIFORM; nr_par = 0; break;
+    case "linear"_hash : type = LINEAR; nr_par = 1; break;
+    case "quadratic"_hash: type = QUADRATIC; nr_par = 2; break;
+    case "nonlinear"_hash: type = NONLINEAR; nr_par = 3; break;
+    case "logarithmic"_hash: type = LOGARITHMIC; nr_par = 2; break;
+    case "square_root"_hash: type = SQUARE_ROOT; nr_par = 2; break;
+    
+    default:
+      std::cerr << "limbdarkening_D::This model is not supported\n";
+      return NULL;
+  }    
+  
+  double par[3];
+  
+  ReadFloatFromTuple(t, nr_par, 1, par);
+   
+  return PyFloat_FromDouble(LD::D(type, mu, par));
+}
+
+
+/*
+  Python wrapper for C++ code:
+
+    Calculating the gradient fo the limb darkening function D(mu) with respect to parameters
+    at constant argument in speherical coordinates
+    
+    vec r = r (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+  
+    and mu = cos(theta)
+  
+  Python:
+
+    grad_{parameters} D = ld_gradparD(mu, description)
+    
+  with arguments
+
+    mu: float
+    description: tuple defining the LD model of the form
+                  ("name", float parameters)  
+  
+  Return: 
+    1-rank numpy array: gradient of the function D(mu) w.r.t. parameters
+*/
+
+static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"mu",          
+    (char*)"description",
+    NULL
+  };
+  
+  double mu;
+  
+  PyObject *t;
+  
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!", kwlist, 
+      &mu, &PyTuple_Type, &t)) return NULL;
+
+  // NO CHECKING
+  
+  int nr_par;
+  
+  TLDmodel_type type;
+    
+  char *s = PyString_AsString(PyTuple_GetItem(t, 0));
+  
+  switch (fnv1a_64::hash(s)){
+
+    case "uniform"_hash: type = UNIFORM; nr_par = 0; break;
+    case "linear"_hash : type = LINEAR; nr_par = 1; break;
+    case "quadratic"_hash: type = QUADRATIC; nr_par = 2; break;
+    case "nonlinear"_hash: type = NONLINEAR; nr_par = 3; break;
+    case "logarithmic"_hash: type = LOGARITHMIC; nr_par = 2; break;
+    case "square_root"_hash: type = SQUARE_ROOT; nr_par = 2; break;
+    
+    default:
+      std::cerr << "limbdarkening_D::This model is not supported\n";
+      return NULL;
+  }    
+  
+  double par[3], *g = new double [nr_par];
+  
+  ReadFloatFromTuple(t, nr_par, 1, par);
+  
+  LD::gradparD(type, mu, par, g);
+    
+  // return the results
+  npy_intp dims[1] = {nr_par};
+
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+
+  return pya;
+}
+
+/*
   Define functions in module
    
   Some modification in declarations due to use of keywords
@@ -3299,7 +3466,23 @@ static PyMethodDef Methods[] = {
       "Calculating the horizon starting near to a given point of the "
       " Roche lobe defined by q,F,d, and the value of generalized Kopal "
       " potential Omega."},
-          
+// --------------------------------------------------------------------
+
+
+      { "ld_funcD",
+      (PyCFunction)ld_funcD,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculating the value of the limb darkening function."},
+      
+      
+    { "ld_gradparD",
+      (PyCFunction)ld_gradparD,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculating the gradient of the limb darkening function w.r.t. "
+      "parameters."},
+    
+// --------------------------------------------------------------------
+        
     {NULL,  NULL, 0, NULL} // terminator record
 };
 
