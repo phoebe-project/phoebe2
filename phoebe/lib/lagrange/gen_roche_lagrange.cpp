@@ -91,7 +91,9 @@ int main(){
     
     f.close();
   }
-  #else
+  #endif
+  
+  #if 0
   
   double 
     q = 3.00348934885e-06, 
@@ -105,8 +107,24 @@ int main(){
     << gen_roche::lagrange_point_L2<double>(q, F) << '\t'
     << gen_roche::lagrange_point_L3<double>(q, F) << '\n';
    
+  #endif
   
   
+  
+  #if 1
+  
+  double 
+    q = 1e-6, 
+    F = 1e-12;
+  
+  std::cout.precision(16);
+  std::cout << std::scientific;
+  
+  std::cout  
+    << gen_roche::lagrange_point_L1<double>(q, F) << '\t'
+    << gen_roche::lagrange_point_L2<double>(q, F) << '\t'
+    << gen_roche::lagrange_point_L3<double>(q, F) << '\n';
+   
   #endif
   return 0;
 }

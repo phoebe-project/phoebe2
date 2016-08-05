@@ -91,6 +91,32 @@ T lagrange_point_L2(
   const T & delta = 1
 ) {
  
+  //
+  // Discussing F = 0 
+  //
+
+  if (F == 0) {
+    
+    T s;
+    
+    if (q > 1e-4) {
+      // Using Q: Solving  (1-s)^2 - q(2-s) = 0
+      const T sqrt3 = std::sqrt(3);
+      
+      T q2 = q*q,
+        f1 = std::cbrt(1 + 54*q2 - 6*sqrt3*q*std::sqrt(1 + 27*q2)),
+        f2 = (3 - 2/q + (1/f1 + f1)/q)/3,
+        f2s = std::sqrt(f2);
+      
+      s = (1 + f2s - std::sqrt(3 - 2/q - f2 + 2*(1 + 1/q)/f2s))/2;      
+    } else {
+      T u = std::sqrt(q);
+      s = 1 + u*(-1 + u*(1 + u*(-0.5 + u*(-1 + u*(3.625 + u*(-6 + u*(3.6875 + 11*u)))))));
+    }
+    
+    return -delta*s/(1 - s); 
+  }
+  
   T x, 
     a = F*F*delta*delta*delta;
   
@@ -132,6 +158,7 @@ T lagrange_point_L2(
        x = 1/(1 + s);
        
     } else { // q in [0.5, 1.5]
+      
       T t0 = 0.69840614455492,
         w = q - 1,
         c[8]={
@@ -242,7 +269,8 @@ T lagrange_point_L2(
       
       x = x0 + u;
     }
-  } else {
+    
+  } else {          // q != 1
   
     if (a > 2){ // using Q
       
@@ -252,6 +280,7 @@ T lagrange_point_L2(
       x = s/(1 - s);
       
     } else if (q > 2) {  // using Q
+      
       T w = std::pow((2 + a)*q, -1./3)/(3*(2 + a)),
         c[8]= {
           3,
@@ -279,7 +308,7 @@ T lagrange_point_L2(
     
     //
     // I have another approximation for a very near to 0 (a < 0.1) and finite size q
-    // As the range is not very fide is has limited use.
+    // As the range of convergence is not well defined is has limited use.
     
   }
   
