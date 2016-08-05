@@ -2617,33 +2617,33 @@ static PyObject *mesh_radiosity_Wilson(PyObject *self, PyObject *args, PyObject 
       
       double par[3];
       
-      switch (fnv1a_64::hash(s)){
+      switch (fnv1a_32::hash(s)){
         
-        case "uniform"_hash : 
+        case "uniform"_hash32: 
           LDmod.push_back(new TLDuniform<double>());
         break;
           
-        case "linear"_hash :
+        case "linear"_hash32:
           e = ReadFloatFromTuple(p, 1, 1, par);
           if (e == 0) LDmod.push_back(new TLDlinear<double>(par));
         break;
         
-        case "quadratic"_hash:
+        case "quadratic"_hash32:
           e = ReadFloatFromTuple(p, 2, 1, par);
           if (e == 0) LDmod.push_back(new TLDquadratic<double>(par));
         break;
         
-        case "nonlinear"_hash:
+        case "nonlinear"_hash32:
           e = ReadFloatFromTuple(p, 3, 1, par);
           if (e == 0) LDmod.push_back(new TLDnonlinear<double>(par));
         break;
         
-        case "logarithmic"_hash:
+        case "logarithmic"_hash32:
           e = ReadFloatFromTuple(p, 2, 1, par);
           if (e == 0) LDmod.push_back(new TLDlogarithmic<double>(par));
         break;
         
-        case "square_root"_hash:
+        case "square_root"_hash32:
           e = ReadFloatFromTuple(p, 2, 1, par);
           if (e == 0)  LDmod.push_back(new TLDsquare_root<double>(par));
         break;
@@ -3174,14 +3174,14 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
     
   char *s = PyString_AsString(PyTuple_GetItem(t, 0));
   
-  switch (fnv1a_64::hash(s)){
+  switch (fnv1a_32::hash(s)){
 
-    case "uniform"_hash: type = UNIFORM; nr_par = 0; break;
-    case "linear"_hash : type = LINEAR; nr_par = 1; break;
-    case "quadratic"_hash: type = QUADRATIC; nr_par = 2; break;
-    case "nonlinear"_hash: type = NONLINEAR; nr_par = 3; break;
-    case "logarithmic"_hash: type = LOGARITHMIC; nr_par = 2; break;
-    case "square_root"_hash: type = SQUARE_ROOT; nr_par = 2; break;
+    case "uniform"_hash32: type = UNIFORM; nr_par = 0; break;
+    case "linear"_hash32 : type = LINEAR; nr_par = 1; break;
+    case "quadratic"_hash32: type = QUADRATIC; nr_par = 2; break;
+    case "nonlinear"_hash32: type = NONLINEAR; nr_par = 3; break;
+    case "logarithmic"_hash32: type = LOGARITHMIC; nr_par = 2; break;
+    case "square_root"_hash32: type = SQUARE_ROOT; nr_par = 2; break;
     
     default:
       std::cerr << "limbdarkening_D::This model is not supported\n";
@@ -3257,14 +3257,14 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
     
   char *s = PyString_AsString(PyTuple_GetItem(t, 0));
   
-  switch (fnv1a_64::hash(s)){
+  switch (fnv1a_32::hash(s)){
 
-    case "uniform"_hash: type = UNIFORM; nr_par = 0; break;
-    case "linear"_hash : type = LINEAR; nr_par = 1; break;
-    case "quadratic"_hash: type = QUADRATIC; nr_par = 2; break;
-    case "nonlinear"_hash: type = NONLINEAR; nr_par = 3; break;
-    case "logarithmic"_hash: type = LOGARITHMIC; nr_par = 2; break;
-    case "square_root"_hash: type = SQUARE_ROOT; nr_par = 2; break;
+    case "uniform"_hash32: type = UNIFORM; nr_par = 0; break;
+    case "linear"_hash32 : type = LINEAR; nr_par = 1; break;
+    case "quadratic"_hash32: type = QUADRATIC; nr_par = 2; break;
+    case "nonlinear"_hash32: type = NONLINEAR; nr_par = 3; break;
+    case "logarithmic"_hash32: type = LOGARITHMIC; nr_par = 2; break;
+    case "square_root"_hash32: type = SQUARE_ROOT; nr_par = 2; break;
     
     default:
       std::cerr << "limbdarkening_D::This model is not supported\n";
