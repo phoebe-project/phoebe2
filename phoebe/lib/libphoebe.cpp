@@ -128,10 +128,11 @@ void PyArray_To3DPointVector(PyArrayObject *oV, std::vector<T3Dpoint<T>> &V){
 
 
 // return 0 : if OK
-int ReadFloatFromTuple(PyObject *p, int len, int start, double *par){
+int ReadFloatFromTuple(PyObject *p, int len, int start, double *par, bool checks = true){
+  
   if (len) { 
-    if (PyTuple_Size(p) >= start + len) return 10;
-
+    if (PyTuple_Size(p) < start + len) return 10;
+    
     for (int i = 0; i < len; ++i) 
       par[i] = PyFloat_AsDouble(PyTuple_GetItem(p, start + i));
 
@@ -2502,7 +2503,15 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
     R[]: 1-rank numpy array of albedo/reflection of triangles
     M0[]: 1-rank numpy array of intrisic radiant exitance of triangles
 
-    LDmod: list of tuples of the format ("name", sequence of parameters)
+    LDmod: list of tuples of the format 
+            ("name", sequence of parameters)
+            supported ld models:
+              "uniform"     0 parameters
+              "linear"      1 parameters
+              "quadratic"   2 parameters
+              "nonlinear"   3 parameters
+              "logarithmic" 2 parameters
+              "square_root" 2 parameters
     LDidx[]: 1-rank numpy array of indices of LD models used on each of triangles
  
   optionally:
@@ -2607,27 +2616,6 @@ static PyObject *mesh_radiosity_Wilson(PyObject *self, PyObject *args, PyObject 
       int e;
       
       double par[3];
-      
-      /*
-      if (strcmp(s, "uniform") == 0) {
-        LDmod.push_back(new TLDuniform<double>());
-      } else if (strcmp(s, "linear") == 0){
-        e = ReadFloatFromTuple(p, 1, 1, par);
-        if (e == 0) LDmod.push_back(new TLDlinear<double>(par));
-      } else if (strcmp(s, "quadratic") == 0){          
-        e = ReadFloatFromTuple(p, 2, 1, par);
-        if (e == 0) LDmod.push_back(new TLDquadratic<double>(par));
-      } else if (strcmp(s, "nonlinear") == 0){
-        e = ReadFloatFromTuple(p, 3, 1, par);
-        if (e == 0) LDmod.push_back(new TLDnonlinear<double>(par));
-      } else if (strcmp(s, "logarithmic") == 0){
-        e = ReadFloatFromTuple(p, 2, 1, par);
-        if (e == 0)  LDmod.push_back(new TLDlogarithmic<double>(par));
-      } else if (strcmp(s, "square_root") == 0){
-        e = ReadFloatFromTuple(p, 2, 1, par);
-        if (e == 0)  LDmod.push_back(new TLDsquare_root<double>(par));
-      } else e = 30;
-      */
       
       switch (fnv1a_64::hash(s)){
         
@@ -3147,9 +3135,15 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   with arguments
 
     mu: float
-    description: tuple defining the LD model of the form
-                  ("name", float parameters)  
-  
+    description:  tuple defining the LD model of the form
+                    ("name", float parameters)  
+                  supported ld models:
+                    "uniform"     0 parameters
+                    "linear"      1 parameters
+                    "quadratic"   2 parameters
+                    "nonlinear"   3 parameters
+                    "logarithmic" 2 parameters
+                    "square_root" 2 parameters
   Return: 
     value of D(mu) for a given LD model 
 */
@@ -3196,8 +3190,11 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
   
   double par[3];
   
-  ReadFloatFromTuple(t, nr_par, 1, par);
+  //ReadFloatFromTuple(t, nr_par, 1, par); // contains checks
    
+  for (int i = 0; i < nr_par; ++i) 
+    par[i] = PyFloat_AsDouble(PyTuple_GetItem(t, i + 1));
+     
   return PyFloat_FromDouble(LD::D(type, mu, par));
 }
 
@@ -3221,6 +3218,13 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
     mu: float
     description: tuple defining the LD model of the form
                   ("name", float parameters)  
+                  supported ld models:
+                    "uniform"     0 parameters
+                    "linear"      1 parameters
+                    "quadratic"   2 parameters
+                    "nonlinear"   3 parameters
+                    "logarithmic" 2 parameters
+                    "square_root" 2 parameters
   
   Return: 
     1-rank numpy array: gradient of the function D(mu) w.r.t. parameters
@@ -3269,7 +3273,10 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
   
   double par[3], *g = new double [nr_par];
   
-  ReadFloatFromTuple(t, nr_par, 1, par);
+  //ReadFloatFromTuple(t, nr_par, 1, par); // contains checks
+  
+  for (int i = 0; i < nr_par; ++i) 
+    par[i] = PyFloat_AsDouble(PyTuple_GetItem(t, i + 1));
   
   LD::gradparD(type, mu, par, g);
     
