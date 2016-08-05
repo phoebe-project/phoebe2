@@ -342,13 +342,13 @@ namespace LD{
 
   TLDmodel_type type(const char *s) {
     
-    switch (fnv1a_64::hash(s)){
-      case "uniform"_hash: return UNIFORM;
-      case "linear"_hash:  return LINEAR;
-      case "quadratic"_hash: return QUADRATIC;
-      case "nonlinear"_hash: return NONLINEAR;
-      case "logarithmic"_hash: return LOGARITHMIC;
-      case "square_root"_hash: return SQUARE_ROOT;
+    switch (fnv1a_32::hash(s)){
+      case "uniform"_hash32: return UNIFORM;
+      case "linear"_hash32:  return LINEAR;
+      case "quadratic"_hash32: return QUADRATIC;
+      case "nonlinear"_hash32: return NONLINEAR;
+      case "logarithmic"_hash32: return LOGARITHMIC;
+      case "square_root"_hash32: return SQUARE_ROOT;
       default:
         std::cerr << "LD::type::This model is not supported\n";
       return NONE;
