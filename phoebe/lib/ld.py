@@ -12,3 +12,10 @@ for i in range(1, 400):
   
 
 print d, " ", g
+
+for i in range(1, 400):
+  d = ld_funcD(mu, ("quadratic", 0.1, 0.2))
+  g = ld_gradparD(mu, ("quadratic", 0.1, 0.2))
+  
+
+print d, " ", g
