@@ -1096,7 +1096,9 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
-        return params
+        #return params
+        # NOTE: we need to call get_ in order to make sure all metawargs are applied
+        return self.get_feature(**metawargs)
 
     def get_feature(self, feature=None, **kwargs):
         """
@@ -1208,7 +1210,8 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
-        return params
+        # return params
+        return self.get_component(**metawargs)
 
     def get_component(self, component=None, **kwargs):
         """
@@ -1816,6 +1819,7 @@ class Bundle(ParameterSet):
         self.run_constraint(uniqueid=constraint_param.uniqueid)
 
         return params
+        # return self.get_constraint(**metawargs)
 
     def get_constraint(self, twig=None, **kwargs):
         """
@@ -1995,7 +1999,8 @@ class Bundle(ParameterSet):
                           undo_func='remove_compute',
                           undo_kwargs={'compute': kwargs['compute']})
 
-        return params
+        # return params
+        return self.get_compute(**metawargs)
 
     def get_compute(self, compute=None, **kwargs):
         """
@@ -2334,7 +2339,8 @@ class Bundle(ParameterSet):
                           undo_func='remove_prior',
                           undo_kwargs={'twig': param.uniquetwig})
 
-        return params
+        # return params
+        return self.get_prior(**metawargs)
 
     def get_prior(self, twig=None, **kwargs):
         """
