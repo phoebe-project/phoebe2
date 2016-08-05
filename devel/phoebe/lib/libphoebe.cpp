@@ -2495,10 +2495,9 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
   where positional parameters:
   
     V[][3]: 2-rank numpy array of vertices 
-    T[][3]: 2-rank numpy array of 3 indices of vertices 
+    Tr[][3]: 2-rank numpy array of 3 indices of vertices 
             composing triangles of the mesh aka connectivity matrix
-    NatT[][3]: 2-rank numpy array of 3 indices of vertices 
-            composing triangles of the mesh aka connectivity matrix
+    NatT[][3]: 2-rank numpy array of normals of face triangles
     A[]: 1-rank numpy array of areas of triangles
     R[]: 1-rank numpy array of albedo/reflection of triangles
     M0[]: 1-rank numpy array of intrisic radiant exitance of triangles
@@ -2700,8 +2699,8 @@ static PyObject *mesh_radiosity_Wilson(PyObject *self, PyObject *args, PyObject 
   triangle_mesh_radiosity_wilson(V, Tr, NatT, A, LDmod, LDidx,  Fmat);
   
   for (auto && ld: LDmod) delete ld;
-  
   LDmod.clear();
+  
   LDidx.clear();
   V.clear();
   Tr.clear();

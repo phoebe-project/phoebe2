@@ -140,15 +140,36 @@ T lagrange_point_L1(
 ) 
 {
 
+  //
+  // Discussing F = 0 
+  //
+
+  
+  if (F == 0){
+    
+    //
+    // t0 is exact root of P at a = 0, i.e. (1-t)^2+qt^3(t-2) = 0
+    //
+    const T sqrt3 = std::sqrt(3);
+    
+    T q2 = q*q,
+      f1 = std::cbrt(1 + 54*q2 + 6*sqrt3*q*std::sqrt(1 + 27*q2)),
+      f2 = std::sqrt((1 + f1*(3*q - 2 + f1))/(f1*q)),
+      t0 = (3 + sqrt3*f2 - sqrt3*std::sqrt(6 - (1/f1 + f1 + 4)/q + 6*sqrt3*(1+q)/(q*f2)))/6;
+    
+    return delta*t0;
+  } 
+  
+  //
+  // Discussing the case a = 1
+  //
+  
   T x, 
     a = F*F*delta*delta*delta;
   
   const T eps = 10*std::numeric_limits<T>::epsilon();
   const T min = 10*std::numeric_limits<T>::min();
- 
-  //
-  // Discussing the case a = 1
-  //
+  
   
   if (a == 1) {   // simple Roche lobe/Kopal potential
     
@@ -327,21 +348,36 @@ T lagrange_point_L1(
       
       x = s/(1 + s);
       
-    }  else if (a < 1 && q >= 0.5) {  // small a and q ~ 1
+    }  else if (q < 1 && a > 1) {  // small q, finite a
+      
+      //
+      // Approximation: using P=0 in limit q->0 expressed in the form 
+      //  q = (1-t)^2 (1-ct) R(t)  R(t) = (1 + (ct)^2 + (ct)^2)/(t^3 (2-t))
+      //  c = (a(1+q))^(1/3)
+      // and solved by iteration
+      //    q/R(t_{n-1}) = (1-t_n)^2 (1-c t_n)
+      // Convergence is usually good for small q < 0.5 and best for c > 1
+      
+      T c = std::cbrt(a*(1 + q)),
+        t = (c > 1 ? 1/c : 1),
+        R;
+      
+      for (int i = 0; i < 4; ++i) {
+        R = (1 + c*t*(1 + c*t))/(t*t*t*(2 - t));
+        t = solve_cubic1(c, q/R);
+      }
+      
+      x = t;
+      
+    } else if (a < 1) {  // small a and finite size q
       
       //
       // Working with P=0 in the limit a->0 expressed in the form  
       //   R(t) := ((1-t)^2+qt^3(t-2))/t^3(1-t)^2 = b := a(1+q)
       // Works good for small a and q > 0.1 
+          
+      T t0 = lagrange_point_L1(q, 0., 1.);  
       
-      //
-      // t0 is exact root of P at a = 0, i.e. (1-t)^2+qt^3(t-2) = 0
-      //
-      T sqrt3 = std::sqrt(3),
-        f1 = std::pow(1 + 54*q*q + 6*sqrt3*q*std::sqrt(1 + 27*q*q), 1./3),
-        f2 = std::sqrt((1 - 2*f1 + f1*f1 + 3*f1*q)/(f1*q)),
-        t0 = (3 + sqrt3*f2 - sqrt3*std::sqrt(6 - (1/f1 + f1 + 4)/q + 6*sqrt3*(1+q)/(q*f2)))/6;
-        
       //
       // Derivaties of R(t) at t0 /n!
       //
@@ -381,27 +417,6 @@ T lagrange_point_L1(
         s = w*(c[0] + w*(c[1] + w*(c[2] + w*(c[3] + w*(c[4] + w*(c[5] + w*(c[6] + w*c[7]))))))); 
         
       x = t0 + s;
-      
-    } else if (q  < 0.5) {  // small q, finite a
-      
-      //
-      // Approximation: using P=0 in limit q->0 expressed in the form 
-      //  q = (1-t)^2 (1-ct) R(t)  R(t) = (1 + (ct)^2 + (ct)^2)/(t^3 (2-t))
-      //  c = (a(1+q))^(1/3)
-      // and solved by iteration
-      //    q/R(t_{n-1}) = (1-t_n)^2 (1-c t_n)
-      // Convergence is usually good for small q < 0.5 and best for c > 1
-      
-      T c = std::pow(a*(1 + q), 1./3),
-        t = (c > 1 ? 1/c : 1),
-        R;
-      
-      for (int i = 0; i < 4; ++i) {
-        R = (1 + c*t*(1 + c*t))/(t*t*t*(2 - t));
-        t = solve_cubic1(c, q/R);
-      }
-      
-      x = t;
       
     } else { //  a in [1, 4.5] and q in [0.5, 2]
       

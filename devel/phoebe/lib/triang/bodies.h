@@ -496,7 +496,7 @@ struct Tgen_roche {
         
       } else {
         
-        //alterantive path in direction of grad(Omega)
+        //alternative path in direction of grad(Omega)
         f = u[0]/(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
         
         for (i = 0; i < 3; ++i) {

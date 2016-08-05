@@ -131,10 +131,17 @@ T lagrange_point_L3(
   const T & F = 1,
   const T & delta = 1
 ) {
+
+  T p = 1/q;
+ 
+  //
+  // Discussing F = 0 
+  //
+  
+  if (F == 0)  return std::nan("");
   
   T x, 
-    a = F*F*delta*delta*delta,
-    p = 1/q; 
+    a = F*F*delta*delta*delta;
 
   const T eps = 10*std::numeric_limits<T>::epsilon();
   const T min = 10*std::numeric_limits<T>::min();
@@ -146,7 +153,8 @@ T lagrange_point_L3(
   if (a == 1) {  // t in [0,1]
     
     if (p > 1.5){ // using P
-      T w = std::pow(3*(1 + p), -1./3),
+      
+      T w = 1./std::cbrt(3*(1 + p)),
         c[8] ={1.,
           0.3333333333333333,
           -0.1111111111111111,
