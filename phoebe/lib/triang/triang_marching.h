@@ -1366,9 +1366,7 @@ struct Tmarching: public Tbody {
       } else std::cerr << "Warning: Projection did not converge\n";
     }    
   }
-  
-
-    
+      
 }; // class marching
 
 
