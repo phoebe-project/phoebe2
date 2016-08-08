@@ -8,7 +8,7 @@ try:
 
     from matplotlib import animation
 
-except ImportError:
+except (ImportError, TypeError):
     _use_mpl = False
 else:
     _use_mpl = True

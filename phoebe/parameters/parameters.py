@@ -50,7 +50,7 @@ try:
     from mpl_toolkits.mplot3d import Axes3D
     from matplotlib.collections import LineCollection, PolyCollection
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-except ImportError:
+except (ImportError, TypeError):
     _use_mpl = False
 else:
     _use_mpl = True
