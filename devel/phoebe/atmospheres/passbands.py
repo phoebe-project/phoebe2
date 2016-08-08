@@ -144,6 +144,9 @@ class Passband:
         if 'ck2004' in self.content:
             struct['_ck2004_axes']  = self._ck2004_axes
             struct['_ck2004_grid']  = self._ck2004_grid
+        if 'ck2004_all' in self.content:
+            struct['_ck2004_intensity_axes']  = self._ck2004_intensity_axes
+            struct['_ck2004_intensity_grid']  = self._ck2004_intensity_grid
         if 'atmcof' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -197,6 +200,14 @@ class Passband:
             #~ self._ck2004_axes = (np.fromstring(x, dtype='float64') for x in struct['_ck2004_axes'])
             self._ck2004_grid = np.fromstring(struct['_ck2004_grid'], dtype='float64')
             self._ck2004_grid = self._ck2004_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+
+        if 'ck2004_all' in self.content:
+            # CASTELLI & KURUCZ (2004) all intensities:
+            # Axes needs to be a tuple of np.arrays, and grid a np.array:
+            self._ck2004_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_intensity_axes']))
+            #~ self._ck2004_axes = (np.fromstring(x, dtype='float64') for x in struct['_ck2004_axes'])
+            self._ck2004_intensity_grid = np.fromstring(struct['_ck2004_intensity_grid'], dtype='float64')
+            self._ck2004_intensity_grid = self._ck2004_intensity_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
         
         return self
 
@@ -247,21 +258,58 @@ class Passband:
         # nans where the grid isn't complete.
         self._ck2004_axes = (np.unique(Teff), np.unique(logg), np.unique(abun))
         self._ck2004_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
-        for i, Inorm in enumerate(Inorm):
-            self._ck2004_grid[Teff[i] == self._ck2004_axes[0], logg[i] == self._ck2004_axes[1], abun[i] == self._ck2004_axes[2], 0] = Inorm
+        for i, I0 in enumerate(Inorm):
+            self._ck2004_grid[Teff[i] == self._ck2004_axes[0], logg[i] == self._ck2004_axes[1], abun[i] == self._ck2004_axes[2], 0] = I0
 
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('ck2004')
 
-    def compute_ck2004_ldc(self, path, verbose=False, photon_weighted=True, weight_by_mu=False):
+    def compute_ck2004_intensities(self, path, verbose=False, photon_weighted=True, weight_by_mu=False):
         models = os.listdir(path)
         Teff, logg, met, mu, Imu = [], [], [], [], []
         
         if verbose:
-            print('Computing Castelli-Kurucz limb darkening coefficients for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
         
+        for i, model in enumerate(models):
+            spc = np.loadtxt(path+'/'+model).T
+            Teff.append(float(model[-26:-21]))
+            logg.append(float(model[-20:-18]))
+            sign = 1. if model[-18]=='P' else -1.
+            met.append(sign*float(model[-17:-15]))
+            mu.append(float(model[-14:-9]))
+            spc[0] /= 1e10 # AA -> m
+            spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl *= self.ptf(wl)
+            Imu.append(np.log10(fl.sum())-10)  # -10 because of the 1AA dispersion
+            if verbose:
+                if 100*i % (len(models)) == 0:
+                    print('%d%% done.' % (100*i/(len(models)-1)))
+
+        Teff = np.array(Teff)
+        logg = np.array(logg)/10
+        abun = np.array(met)/10
+        mu = np.array(mu)
+        Imu = np.array(Imu)
+
+        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
+        # nans where the grid isn't complete.
+        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
+        self._ck2004_intensity_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        for i, Im in enumerate(Imu):
+            self._ck2004_intensity_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Im
+
+        self.content.append('ck2004_all')
+    
+    def compute_ck2004_ldcoeffs(self):
+        if 'ck2004_all' not in self.content:
+            print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
+            return None
         
+        print self._ck2004_intensity_grid[0,0,0,:].ravel()
         
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nmet=19, Nlogg=11, Npb=25, Nints=4):
         """
@@ -391,6 +439,15 @@ class Passband:
 
         return log10_Inorm
 
+    def _log10_Imu_ck2004(self, Teff, logg, met, mu):
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, met, mu),))
+            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_intensity_grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, met, mu)).T
+            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_intensity_grid).T[0]
+
+        return log10_Imu
 
     def Inorm(self, Teff=5772., logg=4.43, met=0.0, atm='blackbody'):
         if atm == 'blackbody':
@@ -405,6 +462,13 @@ class Passband:
             return 10**self._log10_Inorm_wd(Teff, logg, met)
         elif atm == 'ck2004':
             return 10**self._log10_Inorm_ck2004(Teff, logg, met)
+        else:
+            print('received atm=%s' % atm)
+            raise NotImplementedError
+
+    def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004'):
+        if atm == 'ck2004':
+            return 10**self._log10_Imu_ck2004(Teff, logg, met, mu)
         else:
             print('received atm=%s' % atm)
             raise NotImplementedError
@@ -427,6 +491,13 @@ def init_passbands():
 
 
 if __name__ == '__main__':
+    
+    # Testing LD stuff:
+    jV = Passband.load('tables/passbands/johnson_v.pb')
+    jV.compute_ck2004_intensities('tables/ck2004i', verbose=True)
+    jV.save('johnson_V.new.pb')
+    exit()
+    
     # Constructing a passband:
 
     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -443,7 +514,7 @@ if __name__ == '__main__':
     pb.compute_ck2004_response('tables/ck2004')
     pb.save('tables/passbands/KEPLER.PTF')
 
-    #~ jV = Passband.load('tables/passbands/JOHNSON.V')
+    #~ jV = Passband.load('tables/passbands/johnson_v.pb')
     
     #~ teffs = np.arange(5000, 10001, 25)
     #~ req = np.vstack((teffs, 4.43*np.ones(len(teffs)), np.zeros(len(teffs)))).T
