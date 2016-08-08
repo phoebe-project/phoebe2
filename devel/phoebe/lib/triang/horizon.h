@@ -21,7 +21,7 @@ struct Thorizon: public Tbody {
     Derivative the curve along the horizon
   */
   
-  void horizon_derivative(T r[3], T F[3], T view[3]){
+  void derivative(T r[3], T F[3], T view[3]){
     
     T h[3], g[3], H[3][3];
     
@@ -46,23 +46,23 @@ struct Thorizon: public Tbody {
     RK4 step
   */
 
-  void horizon_RK4step(T r[3], T dt, T view[3]){
+  void RK4step(T r[3], T dt, T view[3]){
     
     T r1[3], k[4][3];
   
-    horizon_derivative(r, k[0], view);
+    derivative(r, k[0], view);
 
     for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[0][i] *= dt)/2;
 
-    horizon_derivative(r1, k[1], view);
+    derivative(r1, k[1], view);
 
     for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[1][i] *= dt)/2;
        
-    horizon_derivative(r1, k[2], view);
+    derivative(r1, k[2], view);
 
     for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[2][i] *= dt);
 
-    horizon_derivative(r1, k[3], view);
+    derivative(r1, k[3], view);
 
     for (int i = 0; i < 3; ++i) k[3][i] *= dt;
     
@@ -84,7 +84,7 @@ struct Thorizon: public Tbody {
       H - trajectory on surface of the body 
   */
   
-  bool horizon(
+  bool calc(
     std::vector<T3Dpoint<T>> & H, 
     T view[3], 
     T p[3], 
@@ -93,7 +93,7 @@ struct Thorizon: public Tbody {
          
     T f[2] = {0,0}, r[2][3], F[3];
     
-    horizon_derivative(p, F, view);
+    derivative(p, F, view);
     
     for (int i = 0; i < 3; ++i)  r[0][i] = p[i];
 
@@ -102,9 +102,9 @@ struct Thorizon: public Tbody {
     do {
       
       for (int i = 0; i < 3; ++i) r[1][i] = r[0][i];
-      horizon_RK4step(r[0], dt/2, view);
-      horizon_RK4step(r[0], dt/2, view);
-      horizon_RK4step(r[1], dt, view);
+      RK4step(r[0], dt/2, view);
+      RK4step(r[0], dt/2, view);
+      RK4step(r[1], dt, view);
 
       // 2 x RK4 => error of O(dt^6)  
       for (int i = 0; i < 3; ++i) r[0][i] += (r[0][i] - r[1][i])/15;
