@@ -42,8 +42,6 @@ from libphoebe import *
 #choice = 2
 #max_triangles = 10000000 # 10^7
 
-
-
 q = 1
 F = 1
 d = 1
@@ -108,8 +106,7 @@ av = roche_area_volume(q, F, d, Omega0, 0, larea=True, lvolume=True)
 end = time.time()
 
 print "roche_area_volume, time[ms]=", 1000*(end-start)
-print "lobe:area=%.16e, volume=%.16e" % (av["larea"], av["lvolume"])
-print "mesh:area=%.16e, volume=%.16e" % (res["area"], res["volume"])
+print "roche_area_volume, area=%.16e, volume=%.16e" % (res["area"], res["volume"])
   
 #print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 

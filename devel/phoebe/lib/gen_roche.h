@@ -25,6 +25,7 @@
 
 // General rotines
 #include "utils/utils.h"                  // Misc routines (sqr, solving poly eq,..)
+#include "mesh.h"                         // Mesh manipulation and others
 
 // Roche specific routines and part of gen_roche namespace
 #include "lagrange/gen_roche_lagrange.h"  // Lagrange points for gen Kopal potential
@@ -533,8 +534,7 @@ namespace gen_roche {
   T left_lobe_left_xborder(
     const T & w, 
     const T & q, 
-    const T & b,
-    const T & tL2
+    const T & b
   ) {
 
     if (w > 100 && w > 2*q){  // w->infty
@@ -599,8 +599,7 @@ namespace gen_roche {
   T left_lobe_right_xborder(
     const T & w, 
     const T & q, 
-    const T & b,
-    const T & tL1
+    const T & b
   ) {
   
     if (w > 100 && w > 2*q){  // w->infty
@@ -665,8 +664,7 @@ namespace gen_roche {
   T right_lobe_left_xborder(
     const T & w, 
     const T & q, 
-    const T & b,
-    const T & tL1
+    const T & b
   ) {
     
      T p = 1/q,
@@ -737,8 +735,7 @@ namespace gen_roche {
   T right_lobe_right_xborder(
     const T & w, 
     const T & q, 
-    const T & b,
-    const T & tL3
+    const T & b
   ) {
       
      T p = 1/q,
@@ -841,19 +838,21 @@ namespace gen_roche {
     
     if (choice == 0) {
       
-      // omega[0] = Omega(L1), omega[1] = Omega(L2)
-      critical_potential(omega, L, 1+2, q, F, delta);
- 
-      if (enable_checks && !(omega[0] < Omega0 && omega[1] < Omega0)) {
+      if (enable_checks) {
         
-        std::cerr 
-          << "lobe_x_points::left lobe does not seem to exist\n"
-          << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n';
-        return false;
+        // omega[0] = Omega(L1), omega[1] = Omega(L2)
+        critical_potential(omega, L, 1+2, q, F, delta);
+        
+        if (!(omega[0] < Omega0 && omega[1] < Omega0)) {
+          std::cerr 
+            << "lobe_x_points::left lobe does not seem to exist\n"
+            << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n';
+          return false;
+        }
       }
       
-      xrange[0] = delta*left_lobe_left_xborder(w, q, b, L[1]/delta);
-      xrange[1] = delta*left_lobe_right_xborder(w, q, b, L[0]/delta);
+      xrange[0] = delta*left_lobe_left_xborder(w, q, b);
+      xrange[1] = delta*left_lobe_right_xborder(w, q, b);
     }
     
     //
@@ -862,18 +861,23 @@ namespace gen_roche {
     
     if (choice == 1) {
       
-      // omega[0] = Omega(L1), omega[2] = Omega(L3)
-      critical_potential(omega, L, 1+4, q, F, delta);
+
     
-      if (enable_checks && !(omega[0] < Omega0 && omega[2] < Omega0)) {
-        std::cerr 
-          << "lobe_x_points::right lobe does not seem to exist\n"
-          << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n';
-        return false;      
+      if (enable_checks) {
+        
+        // omega[0] = Omega(L1), omega[2] = Omega(L3)
+        critical_potential(omega, L, 1+4, q, F, delta);
+        
+        if (!(omega[0] < Omega0 && omega[2] < Omega0)) {
+          std::cerr 
+            << "lobe_x_points::right lobe does not seem to exist\n"
+            << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n';
+          return false;      
+        }
       }
       
-      xrange[0] = delta*right_lobe_left_xborder(w, q, b, L[0]/delta);
-      xrange[1] = delta*right_lobe_right_xborder(w, q, b, L[2]/delta);  
+      xrange[0] = delta*right_lobe_left_xborder(w, q, b);
+      xrange[1] = delta*right_lobe_right_xborder(w, q, b);  
     }
     
     //
@@ -882,19 +886,21 @@ namespace gen_roche {
     
     if (choice == 2){
       
-      // omega[0] = Omega(L1), omega[1] = Omega(L2), omega[2] = Omega(L3)
-      critical_potential(omega, L, 1+2+4, q, F, delta);
-       
-      if (enable_checks && 
-          !(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
-        std::cerr 
-          << "lobe_x_points::overcontact lobe does not seem to exist\n"
-          << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n';
-        return false;
+      if (enable_checks) {
+        
+        // omega[0] = Omega(L1), omega[1] = Omega(L2), omega[2] = Omega(L3)
+        critical_potential(omega, L, 1+2+4, q, F, delta);
+         
+        if (!(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
+          std::cerr 
+            << "lobe_x_points::overcontact lobe does not seem to exist\n"
+            << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n';
+          return false;
+        }
       }
       
-      xrange[0] = delta*left_lobe_left_xborder(w, q, b, L[1]/delta);
-      xrange[1] = delta*right_lobe_right_xborder(w, q, b, L[2]/delta);
+      xrange[0] = delta*left_lobe_left_xborder(w, q, b);
+      xrange[1] = delta*right_lobe_right_xborder(w, q, b);
     }
 
 
@@ -910,6 +916,222 @@ namespace gen_roche {
 
     return true;
   }
+
+
+  /* 
+    Find the point on the horizon around individual lobes.
+  
+    Input:
+      view - direction of the view
+      choice :
+        0 - left -- around (0, 0, 0)
+        1 - right -- around (delta, 0, 0)
+        2 - overcontact  ???       
+      Omega0 - reference value of the potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      max_iter - maximal number of iteration in search algorithm
+    
+    Output:
+      p - point on the horizon
+  */
+  template<class T> 
+  bool point_on_horizon(
+    T r[3], 
+    T view[3], 
+    int choice,
+    const T & Omega0, 
+    const T & q, 
+    const T & F = 1, 
+    const T & delta = 1,  
+    int max_iter = 1000){
+    
+    //
+    // Starting points 
+    //
+      
+    
+    if (choice != 0 && choice != 1) {
+      std::cerr 
+        << "point_on_horizon:: choices != 0,1 not supported yet\n";
+      return false;
+    }
+    
+    #if 0
+
+    if (choice == 0) {
+      r[0] = 0; 
+      r[1] = 0;
+      r[2] = 1e-6;
+    } else {  // choice == 1
+      r[0] = delta; 
+      r[1] = 0; 
+      r[2] = 1e-6;
+    } 
+    #else
+    
+    // determine direction of initial point
+    T fac;
+    if (std::abs(view[0]) >= 0.5 || std::abs(view[1]) >= 0.5){
+      fac = 1/std::hypot(view[0], view[1]);
+      r[0] = fac*view[1];
+      r[1] = -fac*view[0];
+      r[2] = 0.0;
+    } else {
+      fac = 1/std::hypot(view[0], view[2]);
+      r[0] = -fac*view[2];
+      r[1] = 0.0;
+      r[2] = fac*view[0];
+    }
+
+    // estimate of the radius of sphere that is 
+    // inside the Roche lobe
+    T r0 = 0.5*(choice == 0 ? 
+                poleL(Omega0, q, F, delta): 
+                poleR(Omega0, q, F, delta));
+    
+    // rescaled the vector fo that the point on the sphere  
+    for (int i = 0; i < 3; ++i) r[i] *= r0;
+   
+    // shift if we discuss the right lobe 
+    if (choice == 1) r[0] += delta;
+    #endif
+    
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+ 
+    //
+    // Initialize body class
+    //
+    
+    T params[] = {q, F, delta, Omega0};
+    
+    Tgen_roche<T> roche(params);
+    
+    // Solving both constrains at the same time
+    //  Omega_0 - Omega(r) = 0
+    //  grad(Omega) n = 0
+    
+    int i, it = 0;
+    
+    T dr_max, r_max, t, f, H[3][3], 
+      A[2][2], a[4], b[3], u[2], x[2];
+    
+    do {
+
+      // a = {grad constrain, constrain}   
+      roche.grad(r, a);
+      
+      // get the hessian on the constrain
+      roche.hessian(r, H);
+      
+      utils::dot3D(H, view, b);
+      
+      // define the matrix of direction that constrains change
+      A[0][0] = utils::dot3D(a,a);
+      A[0][1] = A[1][0] = utils::dot3D(a,b);
+      A[1][1] = utils::dot3D(b,b);
+      
+      // negative remainder in that directions
+      u[0] = -a[3];
+      u[1] = -utils::dot3D(a, view);
+      
+      // solving 2x2 system: 
+      //  A x = u
+      // and  
+      //  making shifts 
+      //  calculating sizes for stopping criteria 
+      //
+      
+      dr_max = r_max = 0;
+    
+      if (utils::solve2D(A, u, x)){ 
+        
+        //shift along the directions that the constrains change
+        for (i = 0; i < 3; ++i) {
+          r[i] += (t = x[0]*a[i] + x[1]*b[i]);
+          
+          // max of dr, max of r
+          if ((t = std::abs(t)) > dr_max) dr_max = t;
+          if ((t = std::abs(r[i])) > r_max) r_max = t;
+        }
+        
+      } else {
+        
+        //alternative path in direction of grad(Omega)
+        f = u[0]/(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+        
+        for (i = 0; i < 3; ++i) {
+          r[i] += (t = f*a[i]); 
+          
+          // max of dr, max of r
+          if ((t = std::abs(t)) > dr_max) dr_max = t;
+          if ((t = std::abs(r[i])) > r_max) r_max = t;
+        }
+      }
+      
+      //std::cout << "P----\n";
+      //std::cout << r[0] << '\t' << r[1] << '\t' << r[2] << '\n';
+      //std::cout << it << '\t' << dr_max << '\n';
+      
+    } while (dr_max > eps*r_max + min && ++it < max_iter);
+    
+    
+    return (it < max_iter);
+  }
+  
+    
+  /*
+    Starting point for meshing the Roche lobe is on x-axis.
+    
+    Input:
+  
+      choice :
+        0 - left
+        1 - right
+        2 - overcontact        
+      Omega0 - reference value of the potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+
+    Output:
+       r - position
+       g - gradient
+  */ 
+  template <class T>
+  bool meshing_start_point(
+    T r[3], 
+    T g[3],
+    int choice,
+    const T & Omega0, 
+    const T & q, 
+    const T & F = 1,
+    const T & delta = 1
+  ){
+    
+    T xrange[2];
+  
+    if (!lobe_x_points(xrange, choice, Omega0, q, F, delta, true)) return false;
+  
+    T b = (1 + q)*F*F,
+      f0 = 1/(delta*delta),
+      x = xrange[0],
+      x1 = x - delta;
+    
+    r[0] = x;
+    r[1] = r[2] = 0;
+    
+    
+    g[0] = - x*b 
+           + (x > 0 ? 1/(x*x) : (x < 0 ? -1/(x*x) : 0)) 
+           + q*(f0 + (x1 > 0 ? 1/(x1*x1) : (x1 < 0 ? -1/(x1*x1) : 0))); 
+   
+    g[1] = g[2] = 0;
+    
+    return true;
+  } 
 
 } // namespace gen_roche
 

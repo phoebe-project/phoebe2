@@ -16,7 +16,7 @@
   * Heart -- Theart <-- not entirely smooth, trouble for simple marching
   * Generalized Roche -- Tgen_roche
   * Rotating star -- Trotating_star
-  * 
+  
   Author: Martin Horvat, March, April, June 2016
 */
 
@@ -251,14 +251,12 @@ struct Tgen_roche {
     Reading and storing the parameters
   */
   
-  Tgen_roche(void *params, bool init_param = true) 
+  Tgen_roche(void *params) 
   : q(((T*)params)[0]),
     F(((T*)params)[1]),
     delta(((T*)params)[2]),
     Omega0(((T*)params)[3])
   { 
-    
-    if (init_param) x0 = ((T*)params)[4];
     
     b = (1 + q)*F*F; 
     f0 = 1/(delta*delta);
@@ -352,24 +350,7 @@ struct Tgen_roche {
     ret[1] = y*(f1 + q*f2 - b);
     ret[2] = z*(f1 + q*f2);
   }
-  
-  /*
-    Initial point: it is on the x-axis
-  */ 
-  void init(T r[3], T g[3]){
-    
-    T x = r[0] = x0;
-    r[1] = r[2] = 0;
-    
-    
-    T x1 = x0 - delta;
-    
-    g[0] = - x*b 
-           + (x > 0 ? 1/(x*x) : (x < 0 ? -1/(x*x) : 0)) 
-           + q*(f0 + (x1 > 0 ? 1/(x1*x1) : (x1 < 0 ? -1/(x1*x1) : 0))); 
-   
-    g[1] = g[2] = 0;
-  } 
+ 
 
   /*
     Calculate Hessian matrix of the constrain Omega0 - Omega:
@@ -403,121 +384,6 @@ struct Tgen_roche {
     H[2][2] = -f13*(1 + q) - 3*(f15 + f25*q)*z2;
   }
 
-
-  /* 
-    Find the point the point on the horizon around individual lobes.
-  
-    Input:
-      view - direction of the view
-      choice - searching  
-        0 - left lobe -- around (0, 0, 0)
-        1 - right lobe -- around (delta, 0, 0)
-        2 - overcontact ??
-      max_iter - maximal number of iteration in search algorithm
-    
-    Output:
-      p - point on the horizon
-  */
-  
-  bool point_on_horizon(
-    T r[3], 
-    T view[3], 
-    int choice = 0,
-    int max_iter = 1000){
-   
-    const T eps = 10*std::numeric_limits<T>::epsilon();
-    const T min = 10*std::numeric_limits<T>::min();
-
-    //
-    // Starting points (TODO: need to optimize its choice)
-    //
-    
-    if (choice == 0) {
-     r[0] = 0; 
-     r[1] = 0;
-     r[2] = 1e-6;
-    } else if (choice == 1) {
-     r[0] = delta; 
-     r[1] = 0; 
-     r[2] = 1e-6;  
-    } else {
-      std::cerr 
-        << "point_on_horizon:: choices != 0,1 not supported yet\n";
-      return false;
-    }
-    
-    // Solving both constrains at the same time
-    //  Omega_0 - Omega(r) = 0
-    //  grad(Omega) n = 0
-    
-    int i, it = 0;
-    
-    T dr_max, r_max, t, f, H[3][3], 
-      A[2][2], a[4], b[3], u[2], x[2];
-    
-    do {
-
-      // a = {grad constrain, constrain}   
-      grad(r, a);
-      
-      // get the hessian on the constrain
-      hessian(r, H);
-      
-      utils::dot3D(H, view, b);
-      
-      // define the matrix of direction that constrains change
-      A[0][0] = utils::dot3D(a,a);
-      A[0][1] = A[1][0] = utils::dot3D(a,b);
-      A[1][1] = utils::dot3D(b,b);
-      
-      // negative remainder in that directions
-      u[0] = -a[3];
-      u[1] = -utils::dot3D(a, view);
-      
-      // solving 2x2 system: 
-      //  A x = u
-      // and  
-      //  making shifts 
-      //  calculating sizes for stopping criteria 
-      //
-      
-      dr_max = r_max = 0;
-    
-      if (utils::solve2D(A, u, x)){ 
-        
-        //shift along the directions that the constrains change
-        for (i = 0; i < 3; ++i) {
-          r[i] += (t = x[0]*a[i] + x[1]*b[i]);
-          
-          // max of dr, max of r
-          if ((t = std::abs(t)) > dr_max) dr_max = t;
-          if ((t = std::abs(r[i])) > r_max) r_max = t;
-        }
-        
-      } else {
-        
-        //alternative path in direction of grad(Omega)
-        f = u[0]/(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
-        
-        for (i = 0; i < 3; ++i) {
-          r[i] += (t = f*a[i]); 
-          
-          // max of dr, max of r
-          if ((t = std::abs(t)) > dr_max) dr_max = t;
-          if ((t = std::abs(r[i])) > r_max) r_max = t;
-        }
-      }
-      
-      //std::cout << "P----\n";
-      //std::cout << r[0] << '\t' << r[1] << '\t' << r[2] << '\n';
-      //std::cout << it << '\t' << dr_max << '\n';
-      
-    } while (dr_max > eps*r_max + min && ++it < max_iter);
-    
-    
-    return (it < max_iter);
-  }
-
 };
 
 /* 
@@ -540,8 +406,7 @@ struct Trot_star {
     
   */
   
-  Trot_star(void *params, bool init_param = true)
-  : omega(((T*)params)[0]), Omega0(((T*)params)[1]) { 
+  Trot_star(void *params) : omega(((T*)params)[0]), Omega0(((T*)params)[1]) { 
     
     w2 = omega*omega;
   }
@@ -624,18 +489,7 @@ struct Trot_star {
     ret[1] = (-w2 + r1)*y;
     ret[2] = z*r1;
   }
-  
-  /*
-    Initial point: it is on the z-axis, z>0
-  */ 
-  void init(T r[3], T g[3]){
-    
-    r[0] = r[1] = 0;
-    r[2] = 1/Omega0;
-    
-    g[0] = g[1] = 0;
-    g[2] = Omega0*Omega0;
-  }
+
   
   /*
     Calculate Hessian matrix of the constrain Omega0 - Omega:
@@ -665,6 +519,4 @@ struct Trot_star {
   }
   
 };
-
-
 #endif // #if !defined(__bodies_h)

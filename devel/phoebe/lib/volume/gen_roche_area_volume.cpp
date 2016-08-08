@@ -16,6 +16,7 @@ int main(){
   //
   // overcontact case
   //
+  int choice = 2;
   double 
     q = 0.5,
     F = 0.5,
@@ -28,6 +29,7 @@ int main(){
   //
   // Phoebe generic case: detached case
   //
+  int choice = 0;
   double
     q = 1,
     F = 1,
@@ -35,20 +37,19 @@ int main(){
     Omega0 = 10;
   #endif
    
-  
   std::cout.precision(16);
+  std::cout << std::scientific;
   
-  std::vector<double> x_points;
+  double xrange[2];
+
+  gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, deltaR);
   
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, deltaR);
   
-  std::cout << "x0=" << x_points[0] << " x1=" << x_points[1] << '\n';
+  std::cout << "x0=" << xrange[0] << " x1=" << xrange[1] << '\n';
   
-  double
-    xrange[2] = {x_points[0], x_points[1]},
-    av[2]; 
+  double av[2]; 
      
-  gen_roche::area_volume(av, 3, xrange, Omega0, q, F, deltaR);
+  gen_roche::area_volume_integration(av, 3, xrange, Omega0, q, F, deltaR);
   
   std::cout << "A=" << av[0] << " V=" << av[1] << '\n';
   

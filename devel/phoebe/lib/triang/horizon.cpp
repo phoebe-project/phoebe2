@@ -19,27 +19,31 @@ int main(){
   // Phoebe generic case: detached case
   //
   
-  int  max_triangles = 10000000;
-
+  int  
+    max_triangles = 10000000,
+    choice = 0;
+     
   double 
     q = 1,
     F = 1,
     deltaR = 1,
     Omega0 = 10,
-    delta = 0.01,
-    xrange[2] = {0, 0};
+    
+    delta = 0.01;
   
-  if (!gen_roche::lobe_x_points(xrange, 0, Omega0, q, F, deltaR, true)){
-    std::cerr << "Determing lobe's boundaries failed\n";
-    return EXIT_FAILURE;
-  }
-  
-  double params[5] = {q, F, deltaR, Omega0, xrange[0]};   
-
   std::cout.precision(16);
   std::cout << std::scientific;
-  
+
+  double params[4] = {q, F, deltaR, Omega0};   
+
   Tmarching<double, Tgen_roche<double> > march(params);
+
+  double r[3], g[3];
+   
+  if (!gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, deltaR)) {
+    std::cerr << "Don't fiding the starting point\n";
+    return EXIT_FAILURE;
+  }
   
   //
   //  Generate the mesh
@@ -49,7 +53,7 @@ int main(){
   std::vector <T3Dpoint<int>> T; 
   std::vector <T3Dpoint<double> >NatV;
     
-  if (!march.triangulize(delta, max_triangles, V, NatV, T)){
+  if (!march.triangulize(r, g, delta, max_triangles, V, NatV, T)){
     std::cerr << "There is too much triangles\n";
   }
 
@@ -62,8 +66,6 @@ int main(){
     max_iter = 100,
     length = 10000;
   
-  unsigned choice = 0;
-  
   double 
     p[3],
     theta = 20./180*M_PI, 
@@ -74,7 +76,7 @@ int main(){
   //  Find a point on horizon
   //
   
-  if (!march.point_on_horizon(p, view, choice, max_iter)) {
+  if (!gen_roche::point_on_horizon(p, view, choice, Omega0, q, F, deltaR, max_iter)) {
     std::cerr 
     << "roche_horizon::Convergence to the point on horizon failed\n";
     return 0;
@@ -95,9 +97,11 @@ int main(){
   //  Find the horizon
   //
   
+  Thorizon<double, Tgen_roche<double>> horizon(params);
+  
   std::vector<T3Dpoint<double>> H;
  
-  if (!march.horizon(H, view, p, dt)) {
+  if (!horizon.calc(H, view, p, dt)) {
    std::cerr 
     << "roche_horizon::Calculation of the horizon failed\n";
     return 0;

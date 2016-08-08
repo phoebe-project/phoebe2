@@ -243,16 +243,20 @@ void triangle_mesh_radiosity_wilson(
         // vector connected centroids c -> c1: a = c1 - c
         utils::sub3D(c1, c, a);
         
-        //s = utils::hypot3(a); <-- to slow
-        s = std::sqrt(s2 = utils::norm2(a));
-        
         // looking at Tj from Ti
-        if ((p.h = utils::dot3D(n, a)) <= (tmp = epsC*s)) continue;
+        if ((p.h = utils::dot3D(n, a)) <= 0) continue;
        
         n1 = NatT[j].data;            // normal of Tj
                
         // looking at Ti from Tj
-        if ((p1.h = -utils::dot3D(n1, a)) <= tmp) continue;
+        if ((p1.h = -utils::dot3D(n1, a)) <= 0) continue;
+     
+  
+        tmp = epsC*(s = std::sqrt(s2 = utils::norm2(a)));
+        
+        // throw away also all pairs with to large viewing angle
+        if (p.h <= tmp || p1.h <= tmp) continue;
+       
       
         // conclusion: probably Tj illuminates Ti and vice versa
          

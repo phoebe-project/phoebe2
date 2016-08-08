@@ -57,8 +57,7 @@ namespace rot_star {
     return 1/std::abs(x) + omega*omega*x*x/2;
   }
   
-  
-   /*
+  /*
     Points of on the x-axis satisfying
     
       Omega(x,0,0) = Omega_0
@@ -117,15 +116,101 @@ namespace rot_star {
       
     Return:
       height of pole > 0
-    
-    Comment:
-      if pole is not found it return -1
   */
+  
   template <class T>
   T pole(const T & Omega0, const T & omega) {
     return 1/Omega0; 
   }
   
+  
+  /*
+    Radious of the equator of the star i.e. such  that
+  
+      Omega(r,0,0) = Omega0
+    
+    solving
+       1/r + 1/2 omega^2 r = Omega0
+     
+    The rescaled version with variable r = 1/Omega v is 
+  
+       1/v + 1/2 t v^2 = 1      or 
+        
+      1/2 t v^3 - v + 1 = 0
+    
+    with parameter 
+      
+      t = omega^2/Omega0^3
+    
+    Input:
+      Omega0 - value of potential
+      omega - parameter of the potential connected to rotation > 0
+      
+    Return:
+      radius of the equator
+    
+    Comment:
+      if equator does not exist return std::nan()
+  */
+  template <class T>
+  T equator(const T & Omega0, const T & omega) {
+    
+    // if we are discussing sphere
+    if (omega == 0) return 1/Omega0;
+        
+    //
+    // Testing if the solution exists
+    //  
+    
+    T t = omega*omega/(Omega0*Omega0*Omega0);
+    
+    if (t > 8./27) {   // critical value
+      std::cerr << "equator::area_volume:There is no solution for equator.\n";
+      return std::nan("");
+    }
+   
+    // Approximation: series are generated in rot_star.nb
+    
+    T r;
+    if (t < 0.2) {
+      r = 1 + t*(0.5 + t*(0.75 + t*(1.5 + t*(3.4375 + t*(8.53125 + t*(22.3125 + t*(60.5625 + 168.99609375*t)))))));
+    } else {
+      T u = 8./27 - t;
+      r = 1.5*(1. + u*(-1.0606601717798214 + u*(1.5 +u*(-2.3201941257683596 + u*(3.75 + u*(-6.221020499716413 + u*(10.5 + u*(-17.940978762575014 + 30.9375*u))))))));
+    }
+    
+    //
+    // Newton-Raphson iteration
+    // as approximations are so good it should not fail
+    //
+    
+    const int max_iter = 10;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+
+    int it = 0;
+    
+    T f, dr;
+    
+    do {
+      f = r*r*t;
+      r -= (dr = (2 + r*(-2 + f))/(-2 + 3*f)); // = poly/Dpoly
+    } while (std::abs(dr) > eps*r + min && ++it < max_iter);
+    
+    /*
+      std::vector<T> roots;
+      
+      T a[4] = {1, -1, 0, t};
+      
+      utils::solve_cubic(a, roots);
+      
+      for (auto && x: roots) if (x > 0) return x/Omega0;
+    */
+    
+    return r/Omega0; 
+  }
+    
+
   
   /*
     Returning the critical values of the star potential.
@@ -134,13 +219,15 @@ namespace rot_star {
       omega - potential parameter
     
     Return:
-      critical value of the potential : if (omega == 0) return NaN
+      critical value of the potential 
+      if it does not exist returns NaN
   */
 
   template<class T> 
   T critical_potential(const T & omega) {
+  
     if (omega == 0) return std::nan("");
-    //return potential_on_x_axis(lagrange_point(omega), omega);
+    
     return 3*std::pow(omega, 2./3)/2;
   }
   
@@ -201,7 +288,7 @@ namespace rot_star {
     // Testing if the solution exists
     //  
     
-    T t = omega*omega/Omega3; // t in [t_crit], t_crit = 8/27
+    T t = omega*omega/Omega3;
     
     if (t > 8./27) {   // critical value
       std::cerr << "rotstar::area_volume:There is no solution for equator.\n";
@@ -519,6 +606,69 @@ namespace rot_star {
     
     if (b_Vol) res[0] = f*Vol;
     if (b_dVoldOmega) res[1] = -3*f*dVoldOmega/Omega0;  
+  }
+  
+    
+  /* 
+    Find a point on the horizon around a lobe of the rotating star.
+  
+    Input:
+      view - direction of the view
+      Omega0 - value of the potential
+      omega - parameter of th potential
+    
+    Output:
+      p - point on the horizon
+  */
+  template<class T> 
+  bool point_on_horizon(
+    T r[3], 
+    T view[3],
+    const T & Omega0,
+    const T & omega
+  ){
+    
+    T r0 = equator(Omega0, omega);
+    
+    if (view[0] == 0 && view[1] == 0) {
+      r[0] = r0;
+      r[1] = r[2] = 0;
+    }
+    
+    if (std::isnan(r0)) return false;
+    
+    T f = r0/std::sqrt(view[0]*view[0] + view[1]*view[1]);
+    r[0] = -f*view[1];
+    r[1] = f*view[0];
+    r[2] = 0;
+    
+    
+    return true;
+  }
+  
+  /*
+    Initial point: it is on the z-axis, z>0
+    
+    Input:
+      Omega0 - value of the potential
+      omega - parameter of th potential
+  
+    Output:
+      r - position 
+      g - gradient
+  */ 
+  template <class T>
+  void meshing_start_point(
+    T r[3], 
+    T g[3],
+    const T & Omega0,
+    const T & omega
+  ){
+    r[0] = r[1] = 0;
+    r[2] = 1/Omega0;
+    
+    g[0] = g[1] = 0;
+    g[2] = Omega0*Omega0;
   }
   
 } // namespace rot_star
