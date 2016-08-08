@@ -21,75 +21,26 @@
 
 int main(){
   
-  #if 0
-  
-  //
-  // Sphere
-  //
-  
-  int  max_triangles = 10000000;
-    
-  double
-    R = 1,
-    delta = 0.01;  
-  
-  Tmarching<double, Tsphere<double> > march(&R);
-  #endif
 
-  #if 0
-  
-  //
-  // Some simple Roche lobe
-  //
-  
   int  max_triangles = 10000000;
     
-  double 
-    q = 0.5,
-    F = 1.5,
-    deltaR = 1,
-    Omega0 = 4,
-    x0 =-0.3020194679312359,
-    params[5] = {q, F, deltaR, Omega0, x0},
-    
-    delta = 0.01;   
-  
-  Tmarching<double, Tgen_roche<double>> march(params);
-  #endif
-  
-  
   #if 0
   
   //
   // Some simple Roche lobe: large Omega limit
   //
   
-  int  max_triangles = 10000000;
-    
+  int  choice = 0;
+  
   double 
     q = 1,
     F = 1,
     deltaR = 1,
-    Omega0 = 27092.1846036;
+    Omega0 = 27092.1846036,
     
-  double xrange[2];
-  
-  if (!gen_roche::lobe_x_points(xrange, 0, Omega0, q, F, deltaR, true)){
-    std::cerr << "Determing lobe's boundaries failed\n";
-    return EXIT_FAILURE;
-  }
-  std::cout.precision(16);
-  std::cout << std::scientific;
-  
-  std::cout << xrange[0] << '\t' << xrange[1] << '\n';   
-      
-  double 
-    delta = std::abs(xrange[0])/10,
-    params[5] = {q, F, deltaR, Omega0, xrange[0]};   
+    delta = 0.01;
     
-  Tmarching<double, Tgen_roche<double>> march(params);
   #endif
-  
   
   
   #if 1
@@ -98,7 +49,7 @@ int main(){
   // Overcontact case
   //
   
-  int  max_triangles = 10000000;
+  int choice = 2;
     
   double 
     q = 0.5,
@@ -118,24 +69,6 @@ int main(){
   // Nr. of triangles=96988
   // real	0m0.060s (no ouput)
 
-
-  
-  double xrange[2];
-  
-  if (!gen_roche::lobe_x_points(xrange, 2, Omega0, q, F, deltaR, true)){
-    std::cerr << "Determing lobe's boundaries failed\n";
-    return EXIT_FAILURE;
-  }
-  
-  std::cout.precision(16);
-  std::cout << std::scientific;
-  
-  std::cout << xrange[0] << '\t' << xrange[1] << '\n';
-  
-  double  params[5] = {q, F, deltaR, Omega0, xrange[0]};   
-  
-
-  Tmarching<double, Tgen_roche<double> > march(params);
   #endif
   
 
@@ -145,7 +78,7 @@ int main(){
   // Phoebe generic case: detached case
   //
   
-  int  max_triangles = 10000000;
+  int choice = 0;
 
   double 
     q = 1,
@@ -154,66 +87,30 @@ int main(){
     Omega0 = 10,
 
     delta = 0.01;
-  
-  //delta = 0.01
-  //Nr. of vertices =2063
-  //Nr. of triangles=4122
-  //time: real 0m0.008s  (no output)
+  #endif
 
-  std::vector<double> xp;
-
-  gen_roche::points_on_x_axis(xp, Omega0, q, F, deltaR);
-
-  if (xp.size() == 0) {
-    std::cout << "Error: Not init points exists.\n";
-    return 0;
-  }
-
-  double  
-    x0 = xp.front(),    // Left lobe          
-    params[5] = {q, F, deltaR, Omega0, x0};   
 
   std::cout.precision(16);
+  std::cout << std::scientific;
+
+  double params[4] = {q, F, deltaR, Omega0};   
 
   Tmarching<double, Tgen_roche<double> > march(params);
-  #endif
 
-
-  #if 0
-  //
-  // Torus
-  // should not work with the current algorithm 
-  //
-  
-  int  max_triangles = 10000000;
-  
-  double 
-    params[2] = {1, 0.3}, // R, A
-    delta = 0.01;
-    
-  Tmarching<double, Ttorus<double> > march(params);
-  #endif
-
-  #if 0
-  //
-  // Heart
-  // is problematic as the surface is not smooth 
-  //
-  
-  int  max_triangles = 10000000;
-  
-  double  delta = 0.01;
-  
-  Tmarching<double, Theart<double> > march(0);
-  #endif
-  
+  double r[3], g[3];
+   
+  if (!gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, deltaR)) {
+    std::cerr << "Don't fiding the starting point\n";
+    return EXIT_FAILURE;
+  }
   
   std::vector <T3Dpoint<double> > V;
   std::vector <T3Dpoint<int>> T; 
   std::vector <T3Dpoint<double> >NatV;
     
-  if (!march.triangulize(delta, max_triangles, V, NatV, T)){
+  if (!march.triangulize(r, g, delta, max_triangles, V, NatV, T)){
     std::cerr << "There is too much triangles\n";
+    return EXIT_FAILURE;
   }
 
   std::cout 

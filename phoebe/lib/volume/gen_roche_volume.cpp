@@ -16,6 +16,7 @@ int main(){
   //
   // overcontact case
   //
+  int choice = 2;
   double 
     q = 0.5,
     F = 0.5,
@@ -28,6 +29,7 @@ int main(){
   //
   // Phoebe generic case: detached case
   //
+  int choice = 0;
   double
     q = 1,
     F = 1,
@@ -44,16 +46,14 @@ int main(){
   // Direct calculation of derivative
   //   
   
-  std::vector<double> x_points;
+  double xrange[2];
+
+  gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, deltaR);
+   
+  std::cout << "x0=" << xrange[0] << " x1=" << xrange[1] << '\n';
+      
+  double v[2]; 
   
-  gen_roche::points_on_x_axis(x_points, Omega0, q, F, deltaR);
-  
-  std::cout << "x0=" << x_points[0] << "\tx1=" << x_points[1] << '\n';
-    
-  double xrange[2], v[2]; 
-  
-  for (int i = 0; i < 2; ++i) xrange[i] = x_points[i];
-    
   gen_roche::volume(v, 3, xrange, Omega0, q, F, deltaR);
   
   std::cout << "V=" << v[0] << "\tdV/dOmega=" << v[1] << '\n';
@@ -64,11 +64,9 @@ int main(){
   
   double u[2], dOmega = 0.001, Omega1 = Omega0 + dOmega;
   
-  gen_roche::points_on_x_axis(x_points, Omega1, q, F, deltaR);
+  gen_roche::lobe_x_points(xrange, choice, Omega1, q, F, deltaR);
   
-  std::cout << "x0=" << x_points[0] << "\tx1=" << x_points[1] << '\n';
-    
-  for (int i = 0; i < 2; ++i) xrange[i] = x_points[i];
+  std::cout << "x0=" << xrange[0] << " x1=" << xrange[1] << '\n';
     
   gen_roche::volume(u, 3, xrange, Omega1, q, F, deltaR);
   

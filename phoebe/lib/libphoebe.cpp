@@ -931,7 +931,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 
   p[3] = 0;
   
-  Tgen_roche<double> b(p, false);
+  Tgen_roche<double> b(p);
   
   double *g = new double [4];
 
@@ -983,7 +983,7 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
 
   p[1] = 0;
   
-  Trot_star<double> b(p, false);
+  Trot_star<double> b(p);
   
   double *g = new double [4];
 
@@ -1031,7 +1031,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
     return NULL;
 
-  Tgen_roche<double> b(p, false);
+  Tgen_roche<double> b(p);
   
   double *g = new double [3];
 
@@ -1076,7 +1076,7 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   
   if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) return NULL;
 
-  Trot_star<double> b(p, false);
+  Trot_star<double> b(p);
   
   double *g = new double [3];
 
@@ -1125,9 +1125,9 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
     return NULL;
   
-  p[3] = 0;
+  p[3] = 0; // Omega
   
-  Tgen_roche<double> b(p, false);
+  Tgen_roche<double> b(p);
 
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
 }
@@ -1166,9 +1166,10 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X))
     return NULL;
 
-  Trot_star<double> b(p, false);
-  p[1] = 0;
+  p[1] = 0; // Omega
   
+  Trot_star<double> b(p);
+
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
 }
 
@@ -1224,7 +1225,7 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
   with keywords
   
     vertices: 
-      V[][3]    - 2-rank numpy array of a pairs of vertices 
+      V[][3]    - 2-rank numpy array of vertices 
     
     vnormals:
       NatV[][3] - 2-rank numpy array of normals at vertices
@@ -1372,13 +1373,13 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   PyObject *results = PyDict_New();
     
   //
-  // Chosing the lobe (left or right or overcontact) 
+  // Choosing the meshing initial point 
   //
   
-  double xrange[2];
+  double r[3], g[3];
   
-  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, d, true)){
-    std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
+  if (!gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, d)){
+    std::cerr << "roche_area_volume:Determining initial meshing point failed\n";
     return NULL;
   }
   
@@ -1386,7 +1387,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   //  Marching triangulation of the Roche lobe 
   //
     
-  double params[5] = {q, F, d, Omega0, xrange[0]};
+  double params[4] = {q, F, d, Omega0};
   
   Tmarching<double, Tgen_roche<double>> march(params);  
   
@@ -1396,7 +1397,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
      
   if (b_vnormgrads) GatV = new std::vector<double>;
   
-  if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
+  if (!march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)){
     std::cerr << "roche_marching_mesh::There are too many triangles\n";
     return NULL;
   }
@@ -1673,7 +1674,13 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   // https://docs.python.org/2/c-api/dict.html
   //
   PyObject *results = PyDict_New();
-  
+
+  //
+  // Getting initial meshing point
+  //
+  double r[3], g[3];
+  rot_star::meshing_start_point(r, g, Omega0, omega);
+ 
   //
   //  Marching triangulation of the Roche lobe 
   //
@@ -1687,8 +1694,9 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   std::vector<double> *GatV = 0;
    
   if (b_vnormgrads) GatV = new std::vector<double>;
+ 
   
-  if (!march.triangulize(delta, max_triangles, V, NatV, Tr, GatV)){
+  if (!march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)){
     std::cerr << "There is too much triangles\n";
     return NULL;
   }
@@ -2334,8 +2342,6 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
   return results;
 }
 
-
-
 /*
   Python wrapper for C++ code:
 
@@ -2352,7 +2358,7 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
     filename: string
 
     V[][3]: 2-rank numpy array of vertices 
-    NatV[][3]: 2-rank numpy array of a pairs of vertices 
+    NatV[][3]: 2-rank numpy array of normals at vertices 
     T[][3]: 2-rank numpy array of 3 indices of vertices 
             composing triangles of the mesh aka connectivity matrix
 
@@ -2829,7 +2835,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
     
   double params[4] = {q, F, d, Omega0};
   
-  Tmarching<double, Tgen_roche<double>> march(params, false);  
+  Tmarching<double, Tgen_roche<double>> march(params);  
   
   //
   // Calculte the central points
@@ -2899,7 +2905,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   Return: 
     
     vertices: 
-      V1[][3]    - 2-rank numpy array of a pairs of vertices 
+      V1[][3]    - 2-rank numpy array of vertices 
     
     vnormals:
       NatV1[][3] - 2-rank numpy array of normals at vertices
@@ -2913,6 +2919,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
   * http://docs.scipy.org/doc/numpy/reference/c-api.array.html#creating-arrays
   * http://folk.uio.no/hpl/scripting/doc/python/NumPy/Numeric/numpy-13.html
 */
+
 static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
@@ -2965,7 +2972,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   
   double params[] = {q, F, d, Omega0};  
   
-  Tmarching<double, Tgen_roche<double>> march(params, false);
+  Tmarching<double, Tgen_roche<double>> march(params);
   
   double n[3], g, *pg = 0;
   
@@ -3016,7 +3023,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
 /*
   Python wrapper for C++ code:
 
-    Calculating the horizon on the Roche lobes based on a nearby point.
+    Calculating the horizon on the Roche lobes.
     
   Python:
 
@@ -3041,6 +3048,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   Return: 
     H: 2-rank numpy array of 3D point on a horizon
 */
+
 static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
 
   //
@@ -3078,15 +3086,13 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   double 
     params[] = {q, F, d, Omega0},
     *view = (double*) PyArray_DATA(oV);
-    
-  Tmarching<double, Tgen_roche<double>> march(params, false);
-
+  
   double p[3];
   
   //
   //  Find a point on horizon
   //
-  if (!march.point_on_horizon(p, view, choice, max_iter)) {
+  if (!gen_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, max_iter)) {
     std::cerr 
     << "roche_horizon::Convergence to the point on horizon failed\n";
     return NULL;
@@ -3106,9 +3112,101 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   //  Find the horizon
   //
   
+  Thorizon<double, Tgen_roche<double>> horizon(params);
+    
   std::vector<T3Dpoint<double>> H;
  
-  if (!march.horizon(H, view, p, dt)) {
+  if (!horizon.calc(H, view, p, dt)) {
+   std::cerr 
+    << "roche_horizon::Convergence to the point on horizon failed\n";
+    return NULL;
+  }
+
+  return PyArray_From3DPointVector(H);
+}
+
+/*
+  Python wrapper for C++ code:
+
+    Calculating the horizon on the rotating star.
+    
+  Python:
+
+    H = rotstar_horizon(v, q, F, d, Omega0, <keywords>=<value>)
+    
+  with arguments
+  
+  positionals: necessary
+    v[3] - 1-rank numpy array: direction of the viewer  
+    omega: float - parameter of the potential
+    Omega0: float - value of the potential of the rotating star
+    
+  keywords:
+    length: integer, default 1000, 
+      approximate number of points on a horizon
+
+  Return: 
+    H: 2-rank numpy array of 3D point on a horizon
+*/
+
+static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"v",
+    (char*)"omega",
+    (char*)"Omega0",
+    (char*)"length",
+    (char*)"choice",
+    NULL
+  };
+  
+  PyArrayObject *oV;
+  
+  double omega, Omega0;   
+    
+  int 
+    length = 1000;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!dd|ii", kwlist,
+      &PyArray_Type, &oV, 
+      &omega, &Omega0,
+      &length)) return NULL;
+
+  double 
+    params[] = {omega, Omega0},
+    *view = (double*) PyArray_DATA(oV);
+  
+  double p[3];
+  
+  //
+  //  Find a point on horizon
+  //
+  if (!rot_star::point_on_horizon(p, view, Omega0, omega)) {
+    std::cerr 
+    << "rotstar_horizon::Convergence to the point on horizon failed\n";
+    return NULL;
+  }
+  
+  //
+  // Estimate the step
+  //
+  
+  double dt = utils::M_2PI*utils::hypot3(p)/length;
+  
+  //
+  //  Find the horizon
+  //
+  
+  Thorizon<double, Trot_star<double>> horizon(params);
+    
+  std::vector<T3Dpoint<double>> H;
+ 
+  if (!horizon.calc(H, view, p, dt)) {
    std::cerr 
     << "roche_horizon::Convergence to the point on horizon failed\n";
     return NULL;
@@ -3196,7 +3294,6 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
      
   return PyFloat_FromDouble(LD::D(type, mu, par));
 }
-
 
 /*
   Python wrapper for C++ code:
@@ -3465,13 +3562,19 @@ static PyMethodDef Methods[] = {
       " defined by q,F,d, and the value of generalized Kopal potential Omega."},
       
 // --------------------------------------------------------------------    
-
     { "roche_horizon",
       (PyCFunction)roche_horizon,
       METH_VARARGS|METH_KEYWORDS, 
-      "Calculating the horizon starting near to a given point of the "
-      " Roche lobe defined by q,F,d, and the value of generalized Kopal "
-      " potential Omega."},
+      "Calculating the horizon on the Roche lobe defined by view direction,"
+      "q,F,d, and the value of generalized Kopal potential Omega."},
+
+
+    { "rotstar_horizon",
+      (PyCFunction)rotstar_horizon,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculating the horizon on the rotating star defined by view direction,"
+      "omega, and the value of the potential"},
+
 // --------------------------------------------------------------------
 
 

@@ -44,15 +44,19 @@ int main(){
   std::cout.precision(16);
   std::cout << std::scientific;
   
+  double r[3], g[3];
+    
   for (int i = 0; i < steps; ++i){
     
     Tmarching<double, Tsphere<double> > march(&R);
+    
+    march.init(r, g);
         
     std::vector <T3Dpoint<double> > V;
     std::vector <T3Dpoint<int>> T; 
     std::vector <T3Dpoint<double> >NatV;
       
-    if (!march.triangulize(delta, max_triangles, V, NatV, T)){
+    if (!march.triangulize(r, g, delta, max_triangles, V, NatV, T)){
       std::cerr << "There is too much triangles\n";
     }
 

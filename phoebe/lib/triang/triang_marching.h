@@ -568,7 +568,6 @@ void mesh_attributes(
 }
 
 
-
 /*
   Calculate properties of triangles with assumption that normals taken in 
   given order point triangles outwards
@@ -992,12 +991,14 @@ struct Tmarching: public Tbody {
   } 
   
 
-  Tmarching(void *params, bool init = true) : Tbody(params, init) { }
+  Tmarching(void *params) : Tbody(params) { }
   
   /*
     Triangulization using marching method of genus 0 closed and surfaces
   
     Input: 
+      init_r[3] - initial position 
+      init_g[3] - initial gradient
       delta - size of triangles edges projected to tangent space
       max_triangles - maximal number of triangles used
     Output:
@@ -1007,6 +1008,8 @@ struct Tmarching: public Tbody {
       GatV - norm of the gradient at vertices
   */ 
   bool triangulize(
+    T init_r[3],
+    T init_g[3],
     const T & delta, 
     const unsigned & max_triangles, 
     std::vector <T3Dpoint<T>> & V,
@@ -1023,15 +1026,12 @@ struct Tmarching: public Tbody {
     const T M_PI3 = 1.04719755119659774615421446109316806665;
     const T M_2PI = 6.2831853071795864769252867665590083999;
      
-    T p[3], g[3], qk[3];
+    T qk[3];
     
     Tvertex v, vk, *vp, Pi[6];
     
-    // starting point 
-    this->init(p, g);    
-    
     // construct the vector base
-    create_internal_vertex(p, g, v);
+    create_internal_vertex(init_r, init_g, v);
     //v.index = 0; v.omega_changed = true;  // NOT NEEDED!
    
     // add vertex to the set, index 0
@@ -1368,111 +1368,6 @@ struct Tmarching: public Tbody {
   }
   
 
-  /*
-    Derivative the curve along the horizon
-  */
-  
-  void horizon_derivative(T r[3], T F[3], T view[3]){
-    
-    T h[3], g[3], H[3][3];
-    
-    // calculate gradient
-    this->grad_only(r, g);
-    
-    // calc hessian matrix H
-    this->hessian(r, H);
-    
-    // calc h = H view
-    utils::dot3D(H, view, h);
-    
-    // cross product F = h x g
-    utils::cross3D(h, g, F);
-    
-    // normalize for normal parametrization
-    T f = 1/utils::hypot3(F);
-    for (int i = 0; i < 3; ++i) F[i] *= f;
-  }
-
-  /*
-    RK4 step
-  */
-
-  void horizon_RK4step(T r[3], T dt, T view[3]){
-    
-    T r1[3], k[4][3];
-  
-    horizon_derivative(r, k[0], view);
-
-    for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[0][i] *= dt)/2;
-
-    horizon_derivative(r1, k[1], view);
-
-    for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[1][i] *= dt)/2;
-       
-    horizon_derivative(r1, k[2], view);
-
-    for (int i = 0; i < 3; ++i) r1[i] = r[i] + (k[2][i] *= dt);
-
-    horizon_derivative(r1, k[3], view);
-
-    for (int i = 0; i < 3; ++i) k[3][i] *= dt;
-    
-    for (int i = 0; i < 3; ++i)
-      r[i] += (k[0][i] + 2*(k[1][i] + k[2][i]) + k[3][i])/6;
-  }
-  
-    
-  /*
-    Calculate the horizon on the body in the light is coming from direction v.
-    
-    Input:
-      view - direction of the viewer/or the light
-      p - point on the horizon
-      dt - step in length  
-      max_iter - maximal number of iterations
-      
-    Output:
-      H - trajectory on surface of the body 
-  */
-  
-  bool horizon(
-    std::vector<T3Dpoint<T>> & H, 
-    T view[3], 
-    T p[3], 
-    const T &dt,
-    const int max_iter = 100000) {
-         
-    T f[2] = {0,0}, r[2][3], F[3];
-    
-    horizon_derivative(p, F, view);
-    
-    for (int i = 0; i < 3; ++i)  r[0][i] = p[i];
-
-    int it = 0;
-    
-    do {
-      
-      for (int i = 0; i < 3; ++i) r[1][i] = r[0][i];
-      horizon_RK4step(r[0], dt/2, view);
-      horizon_RK4step(r[0], dt/2, view);
-      horizon_RK4step(r[1], dt, view);
-
-      // 2 x RK4 => error of O(dt^6)  
-      for (int i = 0; i < 3; ++i) r[0][i] += (r[0][i] - r[1][i])/15;
-   
-      f[1] = f[0], f[0] = 0;
-      for (int i = 0; i < 3; ++i) f[0] += (r[0][i] - p[i])*F[i];  
-      
-      // check the crossing through SOC
-      if (f[1] < 0 && f[0] > 0) 
-        break;    
-      else 
-        H.emplace_back(r[0]);
-          
-    } while (++it < max_iter);
-          
-    return (it < max_iter);
-  }
     
 }; // class marching
 

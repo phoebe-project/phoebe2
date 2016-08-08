@@ -19,5 +19,6 @@
 #include "eclipsing/eclipsing.h"          // Eclipsing/Hidden surface removal
 #include "povray/povray.h"                // Exporting meshes to povray (minimalistic)
 #include "reflection/reflection.h"        // Dealing with reflection effects/radiosity problem
+#include "triang/horizon.h"               // Calculation of horizons
 
 #endif
