@@ -15,7 +15,7 @@ try:
     from matplotlib import colors
     from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
     from mpl_toolkits.mplot3d import Axes3D
-except ImportError:
+except (ImportError, TypeError):
     _use_mpl = False
 else:
     _use_mpl = True
