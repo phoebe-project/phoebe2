@@ -11,6 +11,9 @@
 #include "../mesh.h"
 #include "reflection.h"
 
+
+#define PER_VERTEX
+
 int main(){
   
   
@@ -89,26 +92,50 @@ int main(){
   //
   
   std::cout << "Reflection -- determine matrix:";
-  start = clock();
    
   std::vector<TLDmodel<double>*> LDmodels;    // LD models
 
   LDmodels.push_back(new TLDlinear<double>(0.3));
+ 
+  start = clock();
+
+  
+  #if defined(PER_VERTEX)
+
+  int Nv = V.size();
   
   std::vector<int> 
-    LDidx(Tr.size(), 0);  // indices of the LD models in use
+    LDidx(Nv, 0);  // indices of the LD models in use
   
   std::vector<double> 
-    R(Tr.size(), 0.75),   // reflection coefficients
-    M0(Tr.size(), 1),     // intrinsic radient exitance 
-    M;                    // output radient radiosities
+    R(Nv, 0.3),   // reflection coefficients
+    M0(Nv, 1),     // intrinsic radient exitance 
+    M;             // output radient radiosities
   
   std::vector<Tmat_elem<double>> Fmat;
+ 
+  triangle_mesh_radiosity_wilson_vertices(V, Tr, NatV, A, LDmodels, LDidx, Fmat);
    
-  triangle_mesh_radiosity_wilson(V, Tr, NatT, A, LDmodels, LDidx, Fmat);
-   
+  #else
+    
+  int Nt = Tr.size();
+  
+  std::vector<int> 
+    LDidx(Nt, 0);  // indices of the LD models in use
+  
+  std::vector<double> 
+    R(Nt, 0.3),   // reflection coefficients
+    M0(Nt, 1),     // intrinsic radient exitance 
+    M;             // output radient radiosities
+  
+  std::vector<Tmat_elem<double>> Fmat;
+
+  triangle_mesh_radiosity_wilson_triangles(V, Tr, NatT, A, LDmodels, LDidx, Fmat);
+    
+  #endif
+     
   end = clock();
-   
+     
   std::cout << " time= " << end - start << " um\n";
   std::cout << "Fmat.size=" << Fmat.size() << '\n';   
    
@@ -153,10 +180,14 @@ int main(){
   //
   //  Intensities
   //
-  fr.open("intensity.dat");
+  #if defined(PER_VERTEX)
+  fr.open("intensity_v.dat");
+  #else
+  fr.open("intensity_t.dat");
+  #endif
   {
-    int Nt = M.size();
-    for (int i = 0; i < Nt; ++i) fr << M0[i] << '\t' << M[i] << '\n';
+    int N = M.size();
+    for (int i = 0; i < N; ++i) fr << M0[i] << '\t' << M[i] << '\n';
   }
   fr.close();
   
@@ -164,6 +195,31 @@ int main(){
   
   std::cout << " time= " << end - start << " um\n";
   
+  #if defined(PER_VERTEX)
+  // Intensities per triangles
+  {
+    
+    std::vector<double> Mt(Tr.size(), 0);
+    
+    int i = 0;
+    for (auto && t: Tr) {
+      for (int j = 0; j < 3; ++j) Mt[i] += M[t[j]]/3;
+      ++i;
+    }
+    
+    fr.open("intensity_ct.dat");
+    {
+      int N = Mt.size();
+      for (int i = 0; i < N; ++i) fr << Mt[i] << '\n';
+    }
+    fr.close();
+  }
+  #endif
+  
+  
+  end = clock();
+  
+  std::cout << " time= " << end - start << " um\n";
   
   return EXIT_FAILURE;
 }

@@ -140,9 +140,19 @@ bool triangle_cuts_line(T n[3], T *v[3], T c1[3], T c2[3]){
   return (t1 + t2 <= 1);
 }
 
+/* Matrix element of the sparse-matrix */
+template <class T>
+struct Tmat_elem {
+  int i, j;
+  T F;
+  Tmat_elem() {}
+  Tmat_elem(int i, int j, const T &F) : i(i), j(j), F(F) {}
+};
+
 /*
-  Solving the Wilson's limb-darkened radiosity problem.
-    
+  Solving the Wilson's limb-darkened radiosity problem defined as 
+  discusssing emitted and received-reflected flux per TRIANGLE.
+  
   Input:
 
     V - vector of vertices
@@ -159,17 +169,9 @@ bool triangle_cuts_line(T n[3], T *v[3], T c1[3], T c2[3]){
     Fmat - matrix of LD view factors
 */ 
 
-template <class T>
-struct Tmat_elem {
-  int i, j;
-  T F;
-  Tmat_elem() {}
-  Tmat_elem(int i, int j, const T &F) : i(i), j(j), F(F) {}
-};
-  
 
 template <class T>
-void triangle_mesh_radiosity_wilson(
+void triangle_mesh_radiosity_wilson_triangles(
   std::vector <T3Dpoint<T>> & V,                  // inputs 
   std::vector <T3Dpoint<int>> & Tr,
   std::vector <T3Dpoint<T>> & NatT,
@@ -202,8 +204,8 @@ void triangle_mesh_radiosity_wilson(
       
       c += 3;
     }
-  }
-  
+  } 
+
   // 
   // Calculate depth and view-factor matrix DF thereby
   // using over-simplified check visibility, where only line-of-sight 
@@ -228,13 +230,14 @@ void triangle_mesh_radiosity_wilson(
     
     Tp p, p1;
     
-    for (int i = 0; i < Nt; ++i, c += 3 ) {   // loop over the triangles Ti
+    for (int i = 0; i < Nt; ++i, c += 3) {   // loop over triangles Ti
       
-      n = NatT[i].data;             // normal of Ti
+      n = NatT[i].data;              // normal of Ti
 
       c1 = CatT;
-      for (int j = 0; j < i; ++j, c1 += 3) {   // loop over the triangles Tj
-        
+      
+      for (int j = 0; j < i; ++j, c1 += 3) {   // loop over triangles Tj
+                
         //  
         // Check if it is possible to see the centroid of Tj from 
         // the centroid of Ti and vice versa
@@ -373,6 +376,307 @@ void triangle_mesh_radiosity_wilson(
   }
 }
 
+
+/*
+  Check is the circle with center c and radius r laying on the plane 
+  with normal n cuts the line v[0] + (v[1] - v[0])t for t in [0,1].
+
+  Input
+    c - center
+    n - normal vector
+    r2 - square of the radius = r^2
+    
+    v - edges of the line section
+  
+  Return
+    true if the circle intersects the line, false otherwise
+*/
+
+template <class T>
+bool disk_cuts_line(T c[3], T n[3], const T & r2, T *v[2]){
+  
+  //
+  // If the line cuts the plane of the circle
+  //
+  
+  T s[2] = {0, 0}, a[3], b[3];
+
+  for (int i = 0; i < 3; ++i) {
+   a[i] = c[i] - v[0][i];
+   b[i] = v[1][i] - v[0][i];
+   
+   s[0] += a[i]*n[i];
+   s[1] += b[i]*n[i];
+  }
+  
+  if (s[1] == 0) return false;
+  
+  s[0] /= s[1];
+  
+  if (s[0] < 0 || s[0] > 1) return false;
+  
+  //
+  // If the point on the plane is inside the circle
+  //
+  
+  s[1] = 0;
+  
+  T t;
+  for (int i = 0; i < 3; ++i) {
+    t = a[i] - s[0]*b[i];
+    s[1] += t*t;
+  }
+  
+  if (s[1] > r2) return false; 
+    
+  return true; 
+}
+  
+/*
+  Solving the Wilson's limb-darkened radiosity problem defined as 
+  discusssing emitted and received-reflected flux per VERTEX. A vertex 
+  is associated with a disk in the tangent space equal to 1/3 of 
+  neighboring triangles.
+  
+  Input:
+
+    V - vector of vertices
+    Tr - vector of triangles
+    NatV - vector of normals at vertices
+    A - vector of areas of triangles
+    LDmodels - vector of limb darkening models in use 
+    LDidx - vector of indices of models used on each of vertices
+    
+    epsC - threshold for permitted cos(theta)
+              cos(theta_i) > epsC to be considered in line-of-sight
+           ideally epsC = 0, epsC=0.00872654 corresponds to 89.5deg
+  Output:
+    Fmat - matrix of LD view factors
+*/ 
+
+template <class T>
+void triangle_mesh_radiosity_wilson_vertices(
+  std::vector <T3Dpoint<T>> & V,                  // inputs 
+  std::vector <T3Dpoint<int>> & Tr,
+  std::vector <T3Dpoint<T>> & NatV,
+  std::vector <T> & A,
+  std::vector <TLDmodel<T>*> & LDmodels,           
+  std::vector <int> & LDidx,
+
+  std::vector <Tmat_elem<T>> & Fmat,              // output
+  const T & epsC = 0.00872654) {
+
+  //
+  // Calculate the areas associated to vertices
+  //  
+  
+  int Nv = V.size();
+
+  std::vector<T> AatV(Nv, 0);
+  
+  {
+    T a;
+    
+    auto itA = A.begin();  
+    
+    for (auto && t : Tr){
+      a = (*itA)/3;      
+      for (int j = 0; j < 3; ++j) AatV[t[j]] += a;
+      ++itA;
+    }
+  }
+    
+  // 
+  // Calculate depth and view-factor matrix DF thereby
+  // using over-simplified check visibility, where only line-of-sight 
+  // between centroids of triangles is checked
+  //
+
+  struct Tp {
+    
+    int i;
+    
+    T h, F;
+    
+    bool operator < (const Tp & rhs) const { return h < rhs.h; } 
+  };
+ 
+  // depth and view-factor matrix
+  std::vector<std::vector<Tp>> DF(Nv);
+  
+  { 
+    T tmp, s, s2, a[3];
+    
+    Tp p[2];
+  
+    std::vector<int>::iterator itLb = LDidx.begin(), itL[2]; 
+    
+    typename std::vector<T>::iterator itAb = AatV.begin(), itA[2];
+    
+    typename std::vector<T3Dpoint<T>>::iterator 
+      itVb = V.begin(), itVe = V.end(), itV[2], 
+      itNb = NatV.begin(), itN[2];
+    
+    p[0].i = 0; 
+    itL[0] = itLb; 
+    itA[0] = itAb;
+    itV[0] = itVb;
+    itN[0] = itNb;
+      
+    while (itV[0] != itVe) {
+      
+      p[1].i = 0;
+      itV[1] = itVb; 
+      itA[1] = itAb;
+      itN[1] = itNb; 
+      itL[1] = itLb;
+  
+      while (itV[1] != itV[0]) {
+        
+        //  
+        // Check if it is possible to see the vertex V1 from to V and 
+        // vice versa: itV pointing to V, itV1 pointing to V1
+        //
+        
+        // vector connecting vertices  a = V1 - V
+        utils::sub3D(itV[1]->data, itV[0]->data, a);
+        
+        // looking at V1 from V and vice versa
+        if ((p[0].h = +utils::dot3D(itN[0]->data, a)) > 0 &&
+            (p[1].h = -utils::dot3D(itN[1]->data, a)) > 0) {
+       
+          tmp = epsC*(s = std::sqrt(s2 = utils::norm2(a)));
+          
+          // throw away also all pairs with to large viewing angle
+          if (p[0].h > tmp && p[1].h > tmp) {
+           
+            // conclusion: probably V illuminates V1 and vice versa
+             
+            //     
+            // calculate Lambert view factor
+            //
+            p[0].F = p[1].F = p[0].h*p[1].h/(s2*s2);
+            
+            //
+            // calculate LD view factors
+            //
+            
+            // looking at V1 from V
+            p[0].F *= ((*itA)[1])*LDmodels[(*itL)[0]]->F(p[0].h/s);
+            
+            // looking at V from V1
+            p[1].F *= ((*itA)[0])*LDmodels[(*itL)[1]]->F(p[1].h/s);
+            
+            //
+            // storing the results in depth and view-factor matrix
+            //
+               
+            DF[p[0].i].push_back(p[1]);  // registering pair (p[0].i, p[1])
+            DF[p[1].i].push_back(p[0]);  // registering pair (p[1].i, p[0]) 
+          }
+        }
+        
+        ++p[1].i;
+        ++itV[1];
+        ++itN[1];
+        ++itA[1];
+        ++itL[1];
+      }
+      
+      ++p[0].i;
+      ++itV[0];
+      ++itN[0];
+      ++itA[0]; 
+      ++itL[0];
+    }
+  }
+  
+  //
+  // Divide areas associated to vertices by pi do get effective r^2
+  //
+  {
+    T fac = 1/M_PI;
+    for (auto && a : AatV) a *= fac;
+  }
+  //
+  // Check if the line of sign from centroids of triangles is obstructed
+  // and generate reduced depth-view factor matrix DF
+  // 
+  
+  {
+    int i = 0;
+    
+    bool ok_visible;
+    
+    T *v[2];
+     
+    typename std::vector<T3Dpoint<T>>::iterator itV = V.begin();
+    
+    typename std::vector<Tp>::iterator itb, it;
+    
+    for (auto && q : DF) {
+                  
+        // if there is one element visible there is no obstruction possible
+        if (q.size() > 1) {
+        
+        // sorting w.r.t. depth from triangle with index p.first 
+        std::sort(q.begin(), q.end());
+          
+        it = (itb = q.begin()) + 1;
+        
+        v[0] = itV->data;
+          
+        // look over triangles and see is line-of-sight is obstructed
+        while (it != q.end()) {
+          
+          // centroid of the triangle view from c
+          v[1] = V[it->i].data;
+          
+          ok_visible = true;
+          
+          // check if line v <-> it->V.data is cut by a circle at less depth
+          for (auto it1 = itb; ok_visible && it1 != it; ++it1)
+            ok_visible = !disk_cuts_line(V[it1->i].data, NatV[it1->i].data, AatV[it1->i], v);
+        
+          // line-of-sight between vertices with indices (i, it->i) 
+          // is obstructed, erasing these pairs 
+          if (!ok_visible) {
+            
+            // erase conjugate pair (it->i, i) from DF[it->i]
+            auto & z = DF[it->i];
+            for (auto it1 = z.begin(), it1e = z.end(); it1 != it1e; ++it1)
+              if (it1->i == i) {
+                z.erase(it1);
+                break;
+              }
+
+            // erase (i, it->i) from DF[i]
+            it = q.erase(it);                      
+          } else ++it;
+        }
+      }
+      
+      ++i;
+      ++itV;
+    }  
+  }
+
+  //
+  // Generate LD view factor matrix F by collecting data 
+  // from depth-view factor matrix
+  // 
+  
+  Fmat.clear();
+  
+  int i = 0;
+  for (auto && p : DF){
+    for (auto && q : p) Fmat.emplace_back(i, q.i, q.F);
+    ++i;
+  }
+}
+
+
+
 /*
   Solving the radiosity equation 
     
@@ -393,13 +697,13 @@ void triangle_mesh_radiosity_wilson(
   
   Input:
     Fmat - matrix of view factor 
-    R - vector of albedo/reflection of triangles
-    M0 - vector of intrisic radiant exitance of triangles
+    R - vector of albedo/reflection of triangles/of vertices
+    M0 - vector of intrisic radiant exitance of triangles/of vertices
     epsM - relative precision of radiosity    
     max_iter - maximal number of iterations
  
   Output:
-    M - vector of radiosity (intrinsic and reflection) of triangles
+    M - vector of radiosity (intrinsic and reflection) of triangles/of vertices
      
   Returns:
     true if we reached wanted relative precision, false otherwise
