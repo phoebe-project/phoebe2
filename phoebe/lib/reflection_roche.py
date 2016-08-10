@@ -61,7 +61,7 @@ LDidx = np.full(Nt, 0, dtype=np.int)
 M0 = np.full(Nt, 1, dtype=np.float)
 R = np.full(Nt, 0.75, dtype=np.float)
 
-M = mesh_radiosity_Wilson(V, Tr, NatT, A, R, M0, LDmod, LDidx)
+M = mesh_radiosity_Wilson_triangles(V, Tr, NatT, A, R, M0, LDmod, LDidx)
 
 end = time.time()
 
