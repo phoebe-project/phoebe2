@@ -382,7 +382,7 @@ class ProtoMesh(object):
         self._thetas             = None # Nx1
 
         ### WD style OCs only ###
-        self._env_comp            = None # Vx1
+        self._env_comp            = None # Nx1
 
 
         ### PHYSICAL QUANTITIES
