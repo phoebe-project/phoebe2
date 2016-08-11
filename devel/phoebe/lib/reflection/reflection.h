@@ -518,10 +518,10 @@ void triangle_mesh_radiosity_wilson_vertices(
       itNb = NatV.begin(), itN[2];
     
     p[0].i = 0; 
-    itL[0] = itLb; 
-    itA[0] = itAb;
     itV[0] = itVb;
+    itA[0] = itAb;
     itN[0] = itNb;
+    itL[0] = itLb; 
       
     while (itV[0] != itVe) {
       
@@ -562,10 +562,10 @@ void triangle_mesh_radiosity_wilson_vertices(
             //
             
             // looking at V1 from V
-            p[0].F *= ((*itA)[1])*LDmodels[(*itL)[0]]->F(p[0].h/s);
+            p[0].F *= (*itA[1])*LDmodels[*itL[0]]->F(p[0].h/s);
             
             // looking at V from V1
-            p[1].F *= ((*itA)[0])*LDmodels[(*itL)[1]]->F(p[1].h/s);
+            p[1].F *= (*itA[0])*LDmodels[*itL[1]]->F(p[1].h/s);
             
             //
             // storing the results in depth and view-factor matrix
@@ -590,7 +590,7 @@ void triangle_mesh_radiosity_wilson_vertices(
       ++itL[0];
     }
   }
-  
+
   //
   // Divide areas associated to vertices by pi do get effective r^2
   //

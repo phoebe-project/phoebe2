@@ -12,7 +12,7 @@
 #include "reflection.h"
 
 
-#define PER_VERTEX
+//#define PER_VERTEX
 
 int main(){
   
@@ -20,20 +20,20 @@ int main(){
   clock_t start, end;
      
   //
-  // Overcontact case
+  // Detached case
   //
   
   int  
     max_triangles = 10000000,
-    choice = 2;
+    choice = 0;
     
   double 
-    q = 0.5,
-    F = 0.5,
+    q = 1,
+    F = 1,
     deltaR = 1,
-    Omega0 = 2.65,
+    Omega0 = 10,
     
-    delta = 0.02;
+    delta = 0.01;
 
   double r[3], g[3];
    
@@ -41,6 +41,7 @@ int main(){
     std::cerr << "Don't fiding the starting point\n";
     return EXIT_FAILURE;
   }
+
 
   //
   // make triangulation of the surface
@@ -67,6 +68,35 @@ int main(){
   std::cout << " time=" << end - start << " um\n";
   std::cout << "V.size=" << V.size() << " Tr.size=" << Tr.size() << '\n';
 
+
+  //
+  // Make a two body case -- changing:
+  //  V, NatV, Tr
+  //
+  {  
+    std::vector<T3Dpoint<double> > Vs(V), NatVs(NatV);
+    std::vector<T3Dpoint<int>> Trs(Tr); 
+
+    int Nv = V.size();
+    
+    double shift = 10;
+    
+    for (auto && v : V) Vs.emplace_back(v[0] + shift, v[1], v[2]);
+    
+    for (auto && n : NatV) NatVs.push_back(n);
+        
+    for (auto && t : Tr) Trs.emplace_back(t[0] + Nv, t[1] + Nv, t[2] + Nv);
+    
+  
+    V = Vs;
+    NatV = NatVs;
+    Tr = Trs;
+    
+    std::cout 
+      << "V.size=" << V.size() 
+      << " NatV.size=" << NatV.size()
+      << " Tr.size=" << Tr.size() << std::endl; 
+  } 
 
   //
   // Calc triangle properties
@@ -115,7 +145,7 @@ int main(){
   std::vector<Tmat_elem<double>> Fmat;
  
   triangle_mesh_radiosity_wilson_vertices(V, Tr, NatV, A, LDmodels, LDidx, Fmat);
-   
+
   #else
     
   int Nt = Tr.size();
@@ -163,7 +193,7 @@ int main(){
   //
   // Save triangles
   //
-  std::ofstream fr("triangles.dat");
+  std::ofstream fr("triangles_detached.dat");
   fr.precision(16);
   for (auto && t: Tr)
     for (int i = 0; i < 3; ++i) fr << V[t.data[i]] << '\n';  
@@ -172,7 +202,7 @@ int main(){
   //
   // Normals
   //
-  fr.open("normals.dat");
+  fr.open("normals_detached.dat");
   
   for (auto && n: NatT)  fr << n << '\n';
   fr.close();
@@ -181,9 +211,9 @@ int main(){
   //  Intensities
   //
   #if defined(PER_VERTEX)
-  fr.open("intensity_v.dat");
+  fr.open("intensity_v_detached.dat");
   #else
-  fr.open("intensity_t.dat");
+  fr.open("intensity_t_detached.dat");
   #endif
   {
     int N = M.size();
@@ -194,7 +224,8 @@ int main(){
   end = clock();
   
   std::cout << " time= " << end - start << " um\n";
-  
+    
+
   #if defined(PER_VERTEX)
   // Intensities per triangles
   {
@@ -207,7 +238,7 @@ int main(){
       ++i;
     }
     
-    fr.open("intensity_ct.dat");
+    fr.open("intensity_ct_detached.dat");
     {
       int N = Mt.size();
       for (int i = 0; i < N; ++i) fr << Mt[i] << '\n';
