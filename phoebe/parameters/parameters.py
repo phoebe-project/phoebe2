@@ -104,6 +104,7 @@ _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'automesh']
 _forbidden_labels += ['component']
+_forbidden_labels += ['bol']
 
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'

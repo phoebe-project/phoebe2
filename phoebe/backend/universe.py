@@ -242,7 +242,6 @@ class System(object):
         alb_refls_flat = meshes.get_column_flat('alb_refl', computed_type='for_computations')
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
-        # TODO: make bol a protected label?
         intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
 
         ld_func = kwargs.get('ld_func_bol', 'logarithmic')
@@ -261,18 +260,24 @@ class System(object):
                                                                                 ld_func_and_coeffs,
                                                                                 ld_inds)
 
-        # intens_intrins_and_refl_flat = intens_intrins_flat.copy()
+        # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
+                                                                                # triangles_flat,
+                                                                                # normals_flat,
+                                                                                # areas_flat,
+                                                                                # alb_refls_flat,
+                                                                                # intens_intrins_flat,
+                                                                                # ld_func_and_coeffs,
+                                                                                # ld_inds)
 
+        # TODO: set to triangles if WD method
         meshes.set_column_flat('intens_norm_abs:bol', intens_intrins_and_refl_flat)
-        # meshes.set_column_flat('intens_norm_rel:bol', value)
 
-        # intens_refl_flat = intens_intrins_and_refl_flat - intens_intrins_flat
-        # meshes.set_column_flat('intens_refl:bol', intens_refl_flat)
-
-        # update the effective temperatures to gives this same bolometric intensity under stefan-boltzmann
-        # these effective temperatures will then be used for all passband intensities
+        # update the effective temperatures to gives this same bolometric
+        # intensity under stefan-boltzmann these effective temperatures will
+        # then be used for all passband intensities
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (intens_intrins_and_refl_flat / intens_intrins_flat) ** (1./4)
 
+        # TODO: set to triangles if WD method
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
 
