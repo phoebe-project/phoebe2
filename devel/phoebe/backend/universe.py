@@ -260,6 +260,7 @@ class System(object):
                                                                                 ld_func_and_coeffs,
                                                                                 ld_inds)
 
+
         # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
                                                                                 # triangles_flat,
                                                                                 # normals_flat,
@@ -1962,7 +1963,7 @@ class Star(Body):
 
 
 class Envelope(Body):
-    def __init__(self, Phi, masses, sma, ecc, freq_rot, abun, mesh_method='marching',
+    def __init__(self, Phi, masses, sma, ecc, freq_rot, abun, alb_refl, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
             datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
@@ -2009,6 +2010,7 @@ class Envelope(Body):
         #self.gravb_bol = gravb_bol
         #self.gravb_law = gravb_law
         self.abun = abun
+        self.alb_refl = alb_refl
 
         self.features = features  # TODO: move this to Body
 
@@ -2083,7 +2085,7 @@ class Envelope(Body):
         #gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         abun = b.get_value('abun', component=component, context='component')
-
+        alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
 
 
         try:
@@ -2117,7 +2119,7 @@ class Envelope(Body):
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
-        return cls(Phi, masses, sma, ecc, freq_rot, abun,
+        return cls(Phi, masses, sma, ecc, freq_rot, abun, alb_refl,
                 mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
