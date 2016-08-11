@@ -10,7 +10,7 @@ Dictionaries of parameters for conversion between phoebe1 and phoebe 2
 
 """
 
-_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reffect': 'mult_refl', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
+_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_refl_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reffect': 'mult_refl', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
 #TODO: add back proximity_rv maybe?
 #TODO: add back 'excess': 'extinction',
 
@@ -67,7 +67,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
     pieces = pname.split('_')
     pnew = pieces[-1]
     d = {}
-    
+
     if pnew == 'switch':
        pnew = pieces[1]
        if pnew  == 'proximity':
@@ -205,7 +205,7 @@ def load_rv_data(filename, indep, dep, indweight=None):
 
     load_file = os.path.join(path, filename)
     rvdata = np.loadtxt(load_file)
-    
+
     d ={}
     d['phoebe_rv_time'] = rvdata[:,0]
     d['phoebe_rv_vel'] = rvdata[:,1]
@@ -299,7 +299,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     ind = [list(params[:,0]).index(s) for s in params[:,0] if not ".ADJ" in s and not ".MIN" in s and not ".MAX" in s and not ".STEP" in s and not "gui_" in s]
     params = params[ind]
 
-# determine number of lcs and rvs 
+# determine number of lcs and rvs
     rvno = np.int(params[:,1][list(params[:,0]).index('phoebe_rvno')])
     lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
 # and spots
@@ -322,7 +322,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     lcin = [list(params[:,0]).index(s) for s in params[:,0] if "lc" in s]
     rvin = [list(params[:,0]).index(s) for s in params[:,0] if "rv" in s and not "proximity" in s]
-    spotin = [list(params[:,0]).index(s) for s in params[:,0] if "spots" in s] 
+    spotin = [list(params[:,0]).index(s) for s in params[:,0] if "spots" in s]
     lcpars = params[lcin]
     rvpars = params[rvin]
     spotpars = params[spotin]
@@ -470,7 +470,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     spot_unit =  spotpars[:,1][list(spotpars[:,0]).index('phoebe_spots_units')].strip('"').lower()[:-1]
 
     for x in range(1,spotno+1):
-        
+
         spotin = [list(spotpars[:,0]).index(s) for s in spotpars[:,0] if "["+str(x)+"]" in s]
         spotpt = spotpars[spotin]
         source =  np.int(spotpt[:,1][list(spotpt[:,0]).index('phoebe_spots_source['+str(x)+']')])
@@ -487,7 +487,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #   create spot
 
         spot = eb.add_feature('spot', component=component)
-        #TODO check this tomorrow 
+        #TODO check this tomorrow
         dataid = spot.features[0]
 #   add spot parameters
 
@@ -501,7 +501,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                     d['unit'] = spot_unit
                 print "dictionary", d
                 eb.set_value_all(check_relevant= False, **d)
-        
+
 
 
     for x in range(len(params)):
@@ -516,8 +516,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             # since ld_coeffs is dataset specific make sure there is at least one dataset
             if lcno != 0 or rvno != 0:
                 eb.set_value_all(check_relevant=False, **d)
-            #now change to take care of bolometric values 
-            d['qualifier'] = d['qualifier']+'_bol' 
+            #now change to take care of bolometric values
+            d['qualifier'] = d['qualifier']+'_bol'
         if pnew == 'pot':
             #print "dict", d
             d['method'] = 'star'
@@ -536,9 +536,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     #        elif pnew == 'excess':
                      # requires two parameters that phoebe 1 doesn't have access to Rv and extinction
-        elif pnew == 'alb':
-            val = 1.-float(val)
-            d['value'] = val
+        # elif pnew == 'alb':
+            # val = 1.-float(val)
+            # d['value'] = val
         elif pnew == 'atm':
             val = int(val)
 
@@ -808,7 +808,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             param=None
         if param != None:
             val, ptype = par_value(param)
-            if param.qualifier == 'alb_bol':
+            if param.qualifier == 'alb_refl_bol':
                 val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
             if pname[0] not in parnames:
@@ -837,8 +837,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
         if param != None:
 
             val, ptype = par_value(param)
-            if param.qualifier == 'alb_bol':
-                val = [1-float(val[0])]
+            # if param.qualifier == 'alb_refl_bol':
+                # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
             if pname[0] not in parnames:
                 parnames.extend(pname)
@@ -1030,14 +1030,14 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
             try:
                 pnew = _2to1par[param.qualifier]
-        
+
             except:
                 param = None
 
             if param != None:
 
                 val, ptype = par_value(param)
-    
+
                 pname = ret_parname(param.qualifier, component=None, dtype='spots', dnum = y+1, ptype=ptype)
 
                 parnames.extend(pname)
