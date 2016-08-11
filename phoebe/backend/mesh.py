@@ -381,6 +381,9 @@ class ProtoMesh(object):
         self._phis               = None # Nx1
         self._thetas             = None # Nx1
 
+        ### WD style OCs only ###
+        self._env_comp            = None # Vx1
+
 
         ### PHYSICAL QUANTITIES
         self._loggs             = ComputedColumn(mesh=self)
@@ -406,7 +409,7 @@ class ProtoMesh(object):
                   'areas', 'tareas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume',
-                  'phis', 'thetas',
+                  'phis', 'thetas', 'env_comp',
                   'compute_at_vertices',
                   'loggs', 'gravs', 'teffs', 'abuns', 'alb_refls'] # alb_heats, alb_scatts
         self._keys = keys + kwargs.pop('keys', [])
@@ -805,6 +808,13 @@ class ProtoMesh(object):
         """
         # TODO: if self._thetas is None then compute from cartesian
         return self._thetas
+
+    @property
+    def env_comp(self):
+        """
+        TODO: add documentation
+        """
+        return self._env_comp
 
     @property
     def loggs(self):
