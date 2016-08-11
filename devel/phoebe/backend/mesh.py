@@ -182,7 +182,7 @@ class ComputedColumn(object):
     (hopefully) properties for setting and retrieving values for either
     type of mesh.
     """
-    def __init__(self, mesh, value_for_computations=None):
+    def __init__(self, mesh, value_for_computations=None, **kwargs):
         """
         TODO: add documentation
         """
@@ -196,6 +196,12 @@ class ComputedColumn(object):
         self._centers = None
         if value_for_computations is not None:
             self.set_for_computations(value_for_computations)
+
+        self._compute_at_vertices = kwargs.get('compute_at_vertices', self.mesh._compute_at_vertices)
+
+    @property
+    def compute_at_vertices(self):
+        return self._compute_at_vertices
 
     @property
     def mesh(self):
@@ -350,6 +356,7 @@ class ProtoMesh(object):
             equipotential.
         """
 
+        self._compute_at_vertices = compute_at_vertices
 
         self._pvertices         = None  # Vx3
         self._vertices          = None  # Vx3
@@ -380,11 +387,14 @@ class ProtoMesh(object):
         self._gravs             = ComputedColumn(mesh=self)
         self._teffs             = ComputedColumn(mesh=self)
         self._abuns             = ComputedColumn(mesh=self)
+        self._alb_refls          = ComputedColumn(mesh=self)
+        # self._alb_heats          = ComputedColumn(mesh=self)
+        # self._alb_scatts          = ComputedColumn(mesh=self)
 
 
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
         self._scalar_fields     = ['volume']
-        self._compute_at_vertices = compute_at_vertices
+
 
         # TODO: split keys that are set vs computed-on-the-fly so when
         # we call something like ScaledProtoMesh.from_proto we don't have
@@ -398,7 +408,7 @@ class ProtoMesh(object):
                   'normgrads', 'volume',
                   'phis', 'thetas',
                   'compute_at_vertices',
-                  'loggs', 'gravs', 'teffs', 'abuns']
+                  'loggs', 'gravs', 'teffs', 'abuns', 'alb_refls'] # alb_heats, alb_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -497,10 +507,14 @@ class ProtoMesh(object):
                 # Then let's make an array with the correct length full of this
                 # scalar
 
-                # NOTE: this won't work for vertices or Nx3's, but that
+                # NOTE: this won't work for Nx3's, but that
                 # really shouldn't ever happen since they should be set
                 # within the init.
-                v = np.ones(self.N)*v
+                # v = np.ones(self.Ntriangles)*v
+                if self._compute_at_vertices:
+                    v = np.full(self.Nvertices, v)
+                else:
+                    v = np.full(self.Ntriangles, v)
 
             if isinstance(v, ComputedColumn):
                 # then let's update the mesh instance to correctly handle
@@ -530,13 +544,23 @@ class ProtoMesh(object):
         return self._compute_at_vertices
 
     @property
-    def N(self):
+    def Ntriangles(self):
         """
         Return the number of TRIANGLES/ELEMENTS in the mesh.
 
         Simply a shortcut to len(self.triangles)
         """
         return len(self.triangles)
+
+    @property
+    def Nvertices(self):
+        """
+        Return the number of VERTICES in the mesh.
+
+        Simply a shortcut to len(self.vertices)
+        """
+        return len(self.vertices)
+
 
     @property
     def pvertices(self):
@@ -824,6 +848,34 @@ class ProtoMesh(object):
         """
         return self._abuns
 
+    @property
+    def alb_refls(self):
+        """
+        Return the array of alb_refls, where each item is a scalar/float
+
+        (ComputedColumn)
+        """
+        return self._alb_refls
+
+    # @property
+    # def alb_heats(self):
+    #     """
+    #     Return the array of alb_heats, where each item is a scalar/float
+
+    #     (ComputedColumn)
+    #     """
+    #     return self._alb_heats
+
+    # @property
+    # def alb_scatts(self):
+    #     """
+    #     Return the array of alb_scatts, where each item is a scalar/float
+
+    #     (ComputedColumn)
+    #     """
+    #     return self._alb_scatts
+
+
 
 
 class ScaledProtoMesh(ProtoMesh):
@@ -893,7 +945,7 @@ class Mesh(ScaledProtoMesh):
 
         self._observables       = {}    # ComputedColumn (each)
 
-        keys = ['mus', 'vmus', 'visibilities', 'weights', 'observables']
+        keys = ['mus', 'visibilities', 'weights', 'observables']
         keys = keys + kwargs.pop('keys', [])
 
         super(Mesh, self).__init__(keys=keys, **kwargs)
@@ -1000,7 +1052,7 @@ class Mesh(ScaledProtoMesh):
         if self._visibilities is not None:
             return self._visibilities
         else:
-            return np.ones(self.N)
+            return np.ones(self.Ntriangles)
 
     @property
     def weights(self):
@@ -1012,7 +1064,7 @@ class Mesh(ScaledProtoMesh):
         if self._weights is not None and len(self._weights):
             return self._weights
         else:
-            return np.full((self.N, 3), 1./3)
+            return np.full((self.Ntriangles, 3), 1./3)
 
     @property
     def observables(self):
@@ -1110,7 +1162,7 @@ class Meshes(object):
         #return self._component_by_no[comp_no]
         return self._components[comp_no-1]
 
-    def update_columns(self, field, value_dict, inds=None):
+    def update_columns(self, field, value_dict, inds=None, computed_type=None):
         """
         update the columns of all meshes
 
@@ -1125,6 +1177,10 @@ class Meshes(object):
 
 
         for comp, value in value_dict.items():
+            if computed_type is not None:
+                # then create the ComputedColumn now to override the default value of compute_at_vertices
+                self._dict[comp]._observables[field] = ComputedColumn(self._dict[comp], compute_at_vertices=computed_type=='vertices')
+
             #print "***", comp, field, inds, value
             if inds:
                 raise NotImplementedError('setting column with indices not yet ported to new meshing')
@@ -1195,7 +1251,7 @@ class Meshes(object):
         else:
             return np.hstack(values)
 
-    def unpack_column_flat(self, value, components=None, offset=False):
+    def unpack_column_flat(self, value, components=None, offset=False, computed_type=None):
         """
         TODO: add documentation
         TODO: needs testing
@@ -1206,6 +1262,8 @@ class Meshes(object):
         else:
             components = self._dict.keys()
 
+            # TODO: add this
+
         # we need to split the flat array by the lengths of each mesh
         N_lower = 0
         N_upper = 0
@@ -1213,7 +1271,10 @@ class Meshes(object):
         value_dict = {}
         for c in components:
             mesh = self[c]
-            N = mesh.N
+            if computed_type=='vertices' or (computed_type is None and mesh._compute_at_vertices):
+                N = mesh.Nvertices
+            else:
+                N = mesh.Ntriangles
             N_upper += N
             value_dict[c] = value[N_lower:N_upper] - offsetN
             if offset:
@@ -1222,13 +1283,13 @@ class Meshes(object):
 
         return value_dict
 
-    def set_column_flat(self, field, value, components=None):
+    def set_column_flat(self, field, value, components=None, computed_type=None):
         """
         TODO: add documentation
         TODO: needs testing
         """
-        value_dict = self.unpack_column_flat(value, components)
-        self.update_columns(field, value_dict)
+        value_dict = self.unpack_column_flat(value, components, computed_type=computed_type)
+        self.update_columns(field, value_dict, computed_type=computed_type)
 
     def replace_elements(self, inds, new_submesh, component):
         """

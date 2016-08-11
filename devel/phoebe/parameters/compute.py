@@ -42,7 +42,7 @@ def phoebe(**kwargs):
 
     # PHYSICS
     #params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
-    #params += [BoolParameter(qualifier='refl', value=kwargs.get('refl', True), description='Allow irradiated bodies to reflect light')]
+    params += [BoolParameter(qualifier='refl', value=kwargs.get('refl', False), description='Enable reflection/heating/scattering')]
     #params += [IntParameter(relevant_if='refl:True', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]
 
     # TODO: boosting alg should be per-lcdep (note: not lcobs) - maybe per rvdep as well since those require intensities?

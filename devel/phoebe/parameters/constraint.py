@@ -578,18 +578,30 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 #}
 #{ Intra-component constraints
 
+def refl(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to ensure that energy is conserved and all incident
+    light is accounted for.
+    """
 
-def luminosity(b, *args, **kwargs):
-    """
-    :raises NotImplementedError: because this isn't yet
-    """
-    raise NotImplementedError
+    comp_ps = b.get_component(component=component)
 
-def logg(b, *args, **kwargs):
-    """
-    :raises NotImplementedError: because this isn't yet
-    """
-    raise NotImplementedError
+    alb_refl_bol = comp_ps.get_parameter(qualifier='alb_refl_bol')
+    # alb_heat_bol = comp_ps.get_parameter(qualifier='alb_heat_bol')
+    # alb_scatt_bol = comp_ps.get_parameter(qualifier='alb_scatt_bol')
+    alb_lost_bol = comp_ps.get_parameter(qualifier='alb_lost_bol')
+
+    if solve_for in [alb_lost_bol, None]:
+        lhs = alb_lost_bol
+        rhs = 1.0 - alb_refl_bol  #- heating_bol - scattering_bol
+    elif solve_for in [alb_refl_bol]:
+        lhs = alb_refl_bol
+        rhs = 1.0 - alb_lost_bol
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
+
 
 
 #}

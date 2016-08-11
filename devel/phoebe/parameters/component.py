@@ -95,12 +95,19 @@ def star(component, **kwargs):
     params += [ChoiceParameter(qualifier='gravblaw', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('gravblaw', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 
     params += [FloatParameter(qualifier='gravb_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, description='Bolometric gravity brightening')]
-    params += [FloatParameter(qualifier='alb_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
-    params += [ChoiceParameter(qualifier='ld_func_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Bolometric limb darkening model')]
-    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
+
+    # params += [FloatParameter(qualifier='alb_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
+    params += [FloatParameter(qualifier='alb_refl_bol', value=kwargs.get('alb_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    # params += [FloatParameter(qualifier='alb_heat_bol', value=kwargs.get('alb_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
+    # params += [FloatParameter(qualifier='alb_scatt_bol', value=kwargs.get('alb_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
+    params += [FloatParameter(qualifier='alb_lost_bol', value=kwargs.get('alb_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
     # params += [FloatParameter(qualifier='redist', value=kwargs.get('redist', 0.0), unit=u.dimensionless_unscaled, description='Global redist par (1-redist) local heating, redist global heating')]
     # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
+
+    params += [ChoiceParameter(qualifier='ld_func_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Bolometric limb darkening model')]
+    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
+
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
 
@@ -116,6 +123,7 @@ def star(component, **kwargs):
     # - incl_aligned
 
     constraints += [(constraint.freq, component)]
+    constraints += [(constraint.refl, component)]
 
 
     return ParameterSet(params), constraints
