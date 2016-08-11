@@ -27,7 +27,12 @@ import numpy as np
 
 import webbrowser
 from datetime import datetime
-import requests
+try:
+    import requests
+except ImportError:
+    _can_requests = False
+else:
+    _can_requests = True
 
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
@@ -3117,7 +3122,11 @@ class Parameter(object):
                     elif value in ['false', 'False']:
                         value = False
 
-                return param.get_value() == value
+
+                if isinstance(value, str) and value[0] in ['!', '~']:
+                    return param.get_value() != value[1:]
+                else:
+                    return param.get_value() == value
 
 
         if self.relevant_if is None:
@@ -5333,6 +5342,8 @@ class JobParameter(Parameter):
         """
         [NOT IMPLEMENTED]
         """
+        if not _can_requests:
+            raise ImportError("requests module required for external jobs")
 
         if self._value == 'loaded':
             status = 'loaded'
@@ -5388,6 +5399,9 @@ class JobParameter(Parameter):
         :raises ValueError: if not attached to a bundle
         :raises NotImplementedError: because it isn't
         """
+        if not _can_requests:
+            raise ImportError("requests module required for external jobs")
+
 
         if not self._bundle:
             raise ValueError("can only attach a job if attached to a bundle")
