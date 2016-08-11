@@ -13,12 +13,7 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
     # it will never work. Instead of letting Python raise the io clash (which
     # is uniformative to the unexperienced user), we raise the importError here
     # with a helpful error message
-    if os.getcwd() == os.path.abspath(os.path.dirname(__file__)):
-        raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
-    # Anywhere else the source tree, it should be possible to import Phoebe.
-    # However, it is still not advised to do that.
-    else:
-        print('\n\tWarning: you are importing Phoebe from inside its source tree.\n')
+    raise ImportError('\n\tYou cannot import Phoebe from inside its main source tree.\n')
 
 # If we try to load matplotlib.pyplot on a non-X system, it will fail
 # unless 'Agg' is used before the import. All X-systems define the
