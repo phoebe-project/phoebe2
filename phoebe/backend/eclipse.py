@@ -158,8 +158,8 @@ def visible_ratio(meshes, xs, ys, zs):
                                      tvisibilities=True,
                                      taweights=True)
 
-    visibilities = meshes.unpack_column_flat(info['tvisibilities'])
-    weights = meshes.unpack_column_flat(info['taweights'])
+    visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
+    weights = meshes.unpack_column_flat(info['taweights'], computed_type='triangles')
 
     return visibilities, weights
 
