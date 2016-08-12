@@ -79,7 +79,7 @@ int main(){
 
     int Nv = V.size();
     
-    double shift = 10;
+    double shift = 2;
     
     for (auto && v : V) Vs.emplace_back(v[0] + shift, v[1], v[2]);
     
