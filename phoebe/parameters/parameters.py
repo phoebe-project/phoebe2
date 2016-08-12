@@ -4472,6 +4472,16 @@ class HierarchyParameter(StringParameter):
     def get_sibling_of(self, component, kind=None):
         """
         """
+        siblings = self.get_siblings_of(component, kind=kind)
+        if not len(siblings):
+            return None
+        else:
+            return siblings[0]
+
+
+    def get_siblings_of(self, component, kind=None):
+        """
+        """
 
         structure, trace, item = self._get_structure_and_trace(component)
         #item_kind, item_label = item.split(':')
@@ -4484,9 +4494,9 @@ class HierarchyParameter(StringParameter):
             siblings.remove(component)
 
         if not len(siblings):
-            return None
+            return []
         else:
-            return siblings[0]
+            return siblings
 
 
     def get_stars_of_sibling_of(self, component):

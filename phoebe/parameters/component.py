@@ -80,7 +80,7 @@ def star(component, **kwargs):
     #~ params += [ObjrefParameter(value=component)]
     params += [FloatParameter(qualifier='rpole', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('rpole', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Polar radius at periastron')]
     params += [FloatParameter(qualifier='pot', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron')]   # TODO: correct units???
-    params += [FloatParameter(qualifier='teff', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('teff', 10000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
+    params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 10000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
     params += [FloatParameter(qualifier='abun', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
     params += [FloatParameter(qualifier='syncpar', relevant_if='hierarchy.is_overcontact:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
@@ -105,6 +105,7 @@ def star(component, **kwargs):
     # params += [FloatParameter(qualifier='redist', value=kwargs.get('redist', 0.0), unit=u.dimensionless_unscaled, description='Global redist par (1-redist) local heating, redist global heating')]
     # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
 
+    # TODO: allow for 'interp' as choice, make default, and set relevant_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
     params += [ChoiceParameter(qualifier='ld_func_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Bolometric limb darkening model')]
     params += [FloatArrayParameter(qualifier='ld_coeffs_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 

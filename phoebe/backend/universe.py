@@ -5,7 +5,7 @@ from math import sqrt, sin, cos, acos, atan2, trunc, pi
 import os
 import copy
 
-from phoebe.atmospheres import limbdark, passbands
+from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, potentials, mesh
 import libphoebe
@@ -907,22 +907,13 @@ class Body(object):
         # emergent normal intensities in this dataset's passband/atm in absolute units
         intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)].centers
 
-        # The luminosity will be the integrated NORMAL intensities, but since some
-        # limbdarkening laws still darken/brighten at mu=0, we'll compute the
-        # limbdarkening for each element as if it were at mu=0 (directly along
-        # the normal).
-        ld_coeffs = kwargs.get('ld_coeffs', [0.0,0.0])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.zeros(len(self.mesh.mus)), ld_coeffs)
-
-        # TODO: remove this once ld is tested
+        # TODO: do we need to worry about any limb-darkening functions darkening/brightening at mu=0?
         ld = 1.0
 
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=0, and multiplied by their respective areas
-
         total_integrated_intensity = np.sum(intens_norm_abs*ld*areas) * np.pi
 
         # NOTE: when this is computed the first time (for the sake of determing
@@ -1854,19 +1845,25 @@ class Star(Body):
                 self._pbs[passband] = pb
 
             # intens_norm_abs are the normal emergent passband intensities:
-            # print "*** Inorm", self.mesh.teffs.for_computations.shape, self.mesh.loggs.for_computations.shape, self.mesh.abuns.for_computations.shape
             intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
                                                         logg=self.mesh.loggs.for_computations,
                                                         met=self.mesh.abuns.for_computations,
                                                         atm=atm)
 
-            # Handle pblum - distance and l3 scaling happens when integrating (in observe)
-            # we need to scale each triangle so that the summed intens_norm_rel over the
-            # entire star is equivalent to pblum / 4pi
-            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
 
+            # intens_proj_abs are the projected (limb-darkened) passband intensities
+            intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
+                                                      logg=self.mesh.loggs.for_computations,
+                                                      met=self.mesh.abuns.for_computations,
+                                                      mu=self.mesh.mus_for_computations,
+                                                      atm=atm)
+
+            # TODO: once supported enable passing ld_func and ld_coeffs - until then all limb-darkening is disabled
+                                                      #ld_func=ld_func,
+                                                      #ld_coeffs=ld_coeffs)
 
             # Beaming/boosting
+            # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
             if boosting_alg == 'simple':
                 raise NotImplementedError("'simple' boosting_alg not yet supported")
                 # TODO: need to get alpha_b from the passband/atmosphere tables
@@ -1895,24 +1892,15 @@ class Star(Body):
             # TODO: should we mutliply velocities by -1 (z convention)?
             ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
+            # TODO: does this make sense to boost proj but not norm?
+            intens_proj_abs *= ampl_boost
 
-            # Limb-darkening
+            # Handle pblum - distance and l3 scaling happens when integrating (in observe)
+            # we need to scale each triangle so that the summed intens_norm_rel over the
+            # entire star is equivalent to pblum / 4pi
+            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
+            intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
 
-            # TODO: the abs shouldn't be necessary here, but for some reason
-            # is causing issues when ld_logarithmic with negative mus (well
-            # I mean the reason it fails is obvious)
-            # print "*** ld", ld_func, self.mesh._compute_at_vertices, self.mesh.mus_for_computations.shape, ld_coeffs
-            ld = getattr(limbdark, 'ld_{}'.format(ld_func))(np.abs(self.mesh.mus_for_computations), ld_coeffs)
-
-            # Apply boosting/beaming and limb-darkening to the projected intensities
-            # print "***", type(intens_norm_abs), type(ld), type(ampl_boost)
-            # print "***", intens_norm_abs.shape, ld.shape, ampl_boost.shape
-            intens_proj_abs = intens_norm_abs * ld * ampl_boost
-            intens_proj_rel = intens_norm_rel * ld * ampl_boost
-
-
-            # TODO: handle reflection!!!! (see alpha:universe.py:generic_projected_intensity)
-            #logger.warning("reflection/heating for fluxes not yet ported to beta")
 
 
         elif lc_method=='analytical':
@@ -1963,7 +1951,8 @@ class Star(Body):
 
 
 class Envelope(Body):
-    def __init__(self, Phi, masses, sma, ecc, freq_rot, abun, alb_refl, mesh_method='marching',
+    def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
+            abun, alb_refl, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
             datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
@@ -2006,7 +1995,9 @@ class Envelope(Body):
         # for overcontacts, we'll always build the mesh from the primary star
         self.Phi = Phi
 
-        #self.teff = teff
+        self.teff1 = teff1
+        self.teff2 = teff2
+
         #self.gravb_bol = gravb_bol
         #self.gravb_law = gravb_law
         self.abun = abun
@@ -2055,7 +2046,8 @@ class Envelope(Body):
         label_self = hier.get_sibling_of(component)  # TODO: make sure this defaults to primary
         label_sibling = hier.get_sibling_of(label_self)  # TODO: make sure this defaults to secondary
         label_orbit = hier.get_parent_of(component)
-        starrefs  = hier.get_stars()
+        # starrefs  = hier.get_stars()
+        starrefs = hier.get_siblings_of(label_envelope)
 
         ind_self = starrefs.index(label_self)
         # for the sibling, we may need to handle a list of stars (ie in the case of a hierarchical triple)
@@ -2083,6 +2075,9 @@ class Envelope(Body):
         #teff = b.get_value('teff', component=component, context='component', unit=u.K)
         #gravb_law = b.get_value('gravblaw', component=component, context='component')
         #gravb_bol= b.get_value('gravb_bol', component=component, context='component')
+
+        teff1 = b.get_value('teff', component=starrefs[0], context='component', unit=u.K)
+        teff2 = b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 
         abun = b.get_value('abun', component=component, context='component')
         alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
@@ -2119,7 +2114,7 @@ class Envelope(Body):
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
-        return cls(Phi, masses, sma, ecc, freq_rot, abun, alb_refl,
+        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, alb_refl,
                 mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
