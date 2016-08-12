@@ -216,9 +216,9 @@ class Passband:
             self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
         
         if 'ck2004_ld' in self.content:
-            self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
+            self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
             self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
-            self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
+            self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
             self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
         
         return self
@@ -342,26 +342,26 @@ class Passband:
     def _ldlaw_nonlin(self, mu, c1, c2, c3, c4):
         return 1.0-c1*(1.0-np.sqrt(mu))-c2*(1.0-mu)-c3*(1.0-mu*np.sqrt(mu))-c4*(1.0-mu*mu)
     
-    def compute_ck2004_ldcoeffs(self):
+    def compute_ck2004_ldcoeffs(self, plot_diagnostics=False):
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
 
         self._ck2004_ld_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
         self._ck2004_ld_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
-        
         mus = self._ck2004_intensity_axes[3]
 
         for Tindex in range(len(self._ck2004_intensity_axes[0])):
             for lindex in range(len(self._ck2004_intensity_axes[1])):
                 for mindex in range(len(self._ck2004_intensity_axes[2])):
-                    IsE = self._ck2004_Imu_photon_grid[Tindex,lindex,mindex,:].ravel()
+                    IsE = 10**self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].flatten()
+                    
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) == 0:
                         continue
                     IsE /= IsE[fEmask][-1]
 
-                    IsP = self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].ravel()
+                    IsP = 10**self._ck2004_Imu_photon_grid[Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
                     
@@ -379,18 +379,56 @@ class Passband:
                     cPnlin, pcov = cfit(self._ldlaw_nonlin, mus[fPmask], IsP[fPmask], p0=[0.5, 0.5, 0.5, 0.5])
                     self._ck2004_ld_photon_grid[Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
 
-                    #~ import matplotlib.pyplot as plt
-                    #~ plt.plot(mus, Is, 'bo')
-                    #~ plt.plot(mus, self._ldlaw_lin(mus, *clin), 'r-')
-                    #~ plt.plot(mus, self._ldlaw_log(mus, *clog), 'g-')
-                    #~ plt.plot(mus, self._ldlaw_sqrt(mus, *csqrt), 'y-')
-                    #~ plt.plot(mus, self._ldlaw_quad(mus, *cquad), 'm-')
-                    #~ plt.plot(mus, self._ldlaw_nonlin(mus, *cnlin), 'k-')
-                    #~ plt.show()
-
-                    #~ return
+                    if plot_diagnostics:
+                        if Tindex == 10 and lindex == 9 and mindex == 5:
+                            print self._ck2004_intensity_axes[0][Tindex], self._ck2004_intensity_axes[1][lindex], self._ck2004_intensity_axes[2][mindex]
+                            print mus, IsE
+                            print cElin, cElog, cEsqrt
+                            import matplotlib.pyplot as plt
+                            plt.plot(mus[fEmask], IsE[fEmask], 'bo')
+                            plt.plot(mus[fEmask], self._ldlaw_lin(mus[fEmask], *cElin), 'r-')
+                            plt.plot(mus[fEmask], self._ldlaw_log(mus[fEmask], *cElog), 'g-')
+                            plt.plot(mus[fEmask], self._ldlaw_sqrt(mus[fEmask], *cEsqrt), 'y-')
+                            plt.plot(mus[fEmask], self._ldlaw_quad(mus[fEmask], *cEquad), 'm-')
+                            plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
+                            plt.show()                    
 
         self.content.append('ck2004_ld')
+
+    def interpolate_ld_coeffs(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
+        """
+        Interpolate the passband-stored table of LD model coefficients.
+        """
+        
+        if 'ck2004_ld' not in self.content:
+            print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
+            return None
+        
+        if photon_weighted:
+            table = self._ck2004_ld_photon_grid
+        else:
+            table = self._ck2004_ld_energy_grid
+        
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, met),))
+            ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
+        else:
+            req = np.vstack((Teff, logg, met)).T
+            ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
+
+        if ld_func == 'linear':
+            return ld_coeffs[0:1]
+        if ld_func == 'logarithmic':
+            return ld_coeffs[1:3]
+        if ld_func == 'square_root':
+            return ld_coeffs[3:5]
+        if ld_func == 'quadratic':
+            return ld_coeffs[5:7]
+        if ld_func == 'power':
+            return ld_coeffs[7:11]
+
+        return ld_coeffs
+
         
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nmet=19, Nlogg=11, Npb=25, Nints=4):
         """
