@@ -9,6 +9,7 @@ from astropy import units as u
 
 import numpy as np
 from scipy import interpolate, integrate
+from scipy.optimize import curve_fit as cfit
 import marshal
 import types
 from phoebe.atmospheres import atmcof
@@ -146,7 +147,11 @@ class Passband:
             struct['_ck2004_grid']  = self._ck2004_grid
         if 'ck2004_all' in self.content:
             struct['_ck2004_intensity_axes']  = self._ck2004_intensity_axes
-            struct['_ck2004_intensity_grid']  = self._ck2004_intensity_grid
+            struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
+            struct['_ck2004_Imu_photon_grid'] = self._ck2004_Imu_photon_grid
+        if 'ck2004_ld' in self.content:
+            struct['_ck2004_ld_energy_grid']  = self._ck2004_ld_energy_grid
+            struct['_ck2004_ld_photon_grid']  = self._ck2004_ld_photon_grid
         if 'atmcof' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -205,9 +210,16 @@ class Passband:
             # CASTELLI & KURUCZ (2004) all intensities:
             # Axes needs to be a tuple of np.arrays, and grid a np.array:
             self._ck2004_intensity_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_intensity_axes']))
-            #~ self._ck2004_axes = (np.fromstring(x, dtype='float64') for x in struct['_ck2004_axes'])
-            self._ck2004_intensity_grid = np.fromstring(struct['_ck2004_intensity_grid'], dtype='float64')
-            self._ck2004_intensity_grid = self._ck2004_intensity_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            self._ck2004_Imu_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
+            self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
+            self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+        
+        if 'ck2004_ld' in self.content:
+            self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_Imu_energy_grid'], dtype='float64')
+            self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+            self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
+            self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
         
         return self
 
@@ -265,9 +277,9 @@ class Passband:
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('ck2004')
 
-    def compute_ck2004_intensities(self, path, verbose=False, photon_weighted=True, weight_by_mu=False):
+    def compute_ck2004_intensities(self, path, verbose=False):
         models = os.listdir(path)
-        Teff, logg, met, mu, Imu = [], [], [], [], []
+        Teff, logg, met, mu, ImuE, ImuP = [], [], [], [], [], []
         
         if verbose:
             print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
@@ -283,8 +295,11 @@ class Passband:
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-            fl *= self.ptf(wl)
-            Imu.append(np.log10(fl.sum())-10)  # -10 because of the 1AA dispersion
+            flE = self.ptf(wl)*fl
+            flP = wl*flE
+            ImuE.append(np.log10(flE.sum())-10)  # energy-weighted flux; -10 because of the 1AA dispersion
+            ImuP.append(np.log10(flP.sum()/1.9864458e-5)) # photon-weighted flux; the constant is 1e10*1e10*h*c
+
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -293,23 +308,89 @@ class Passband:
         logg = np.array(logg)/10
         abun = np.array(met)/10
         mu = np.array(mu)
-        Imu = np.array(Imu)
+        ImuE = np.array(ImuE)
+        ImuP = np.array(ImuP)
 
-        # Store axes (Teff, logg, abun) and the full grid of Inorm, with
-        # nans where the grid isn't complete.
+        # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
+        # with nans where the grid isn't complete. Imu-s come in two
+        # flavors: energy-weighted intensities and photon-weighted
+        # intensities, based on the detector used.
+        
         self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
-        self._ck2004_intensity_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
-        for i, Im in enumerate(Imu):
-            self._ck2004_intensity_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Im
+        self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+        self._ck2004_Imu_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
+
+        for i, Imu in enumerate(ImuE):
+            self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
+        for i, Imu in enumerate(ImuP):
+            self._ck2004_Imu_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
 
         self.content.append('ck2004_all')
+    
+    def _ldlaw_lin(self, mu, xl):
+        return 1.0-xl*(1-mu)
+        
+    def _ldlaw_log(self, mu, xl, yl):
+        return 1.0-xl*(1-mu)-yl*mu*np.log10(mu+1e-6)
+    
+    def _ldlaw_sqrt(self, mu, xl, yl):
+        return 1.0-xl*(1-mu)-yl*(1.0-np.sqrt(mu))
+    
+    def _ldlaw_quad(self, mu, xl, yl):
+        return 1.0-xl*(1.0-mu)-yl*(1.0-mu)*(1.0-mu)
+    
+    def _ldlaw_nonlin(self, mu, c1, c2, c3, c4):
+        return 1.0-c1*(1.0-np.sqrt(mu))-c2*(1.0-mu)-c3*(1.0-mu*np.sqrt(mu))-c4*(1.0-mu*mu)
     
     def compute_ck2004_ldcoeffs(self):
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
+
+        self._ck2004_ld_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
+        self._ck2004_ld_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
         
-        print self._ck2004_intensity_grid[0,0,0,:].ravel()
+        mus = self._ck2004_intensity_axes[3]
+
+        for Tindex in range(len(self._ck2004_intensity_axes[0])):
+            for lindex in range(len(self._ck2004_intensity_axes[1])):
+                for mindex in range(len(self._ck2004_intensity_axes[2])):
+                    IsE = self._ck2004_Imu_photon_grid[Tindex,lindex,mindex,:].ravel()
+                    fEmask = np.isfinite(IsE)
+                    if len(IsE[fEmask]) == 0:
+                        continue
+                    IsE /= IsE[fEmask][-1]
+
+                    IsP = self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].ravel()
+                    fPmask = np.isfinite(IsP)
+                    IsP /= IsP[fPmask][-1]
+                    
+                    cElin,  pcov = cfit(self._ldlaw_lin,    mus[fEmask], IsE[fEmask], p0=[0.5])
+                    cElog,  pcov = cfit(self._ldlaw_log,    mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
+                    cEsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
+                    cEquad, pcov = cfit(self._ldlaw_quad,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
+                    cEnlin, pcov = cfit(self._ldlaw_nonlin, mus[fEmask], IsE[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
+                    self._ck2004_ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
+
+                    cPlin,  pcov = cfit(self._ldlaw_lin,    mus[fPmask], IsP[fPmask], p0=[0.5])
+                    cPlog,  pcov = cfit(self._ldlaw_log,    mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
+                    cPsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
+                    cPquad, pcov = cfit(self._ldlaw_quad,   mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
+                    cPnlin, pcov = cfit(self._ldlaw_nonlin, mus[fPmask], IsP[fPmask], p0=[0.5, 0.5, 0.5, 0.5])
+                    self._ck2004_ld_photon_grid[Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
+
+                    #~ import matplotlib.pyplot as plt
+                    #~ plt.plot(mus, Is, 'bo')
+                    #~ plt.plot(mus, self._ldlaw_lin(mus, *clin), 'r-')
+                    #~ plt.plot(mus, self._ldlaw_log(mus, *clog), 'g-')
+                    #~ plt.plot(mus, self._ldlaw_sqrt(mus, *csqrt), 'y-')
+                    #~ plt.plot(mus, self._ldlaw_quad(mus, *cquad), 'm-')
+                    #~ plt.plot(mus, self._ldlaw_nonlin(mus, *cnlin), 'k-')
+                    #~ plt.show()
+
+                    #~ return
+
+        self.content.append('ck2004_ld')
         
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nmet=19, Nlogg=11, Npb=25, Nints=4):
         """
@@ -439,13 +520,13 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Imu_ck2004(self, Teff, logg, met, mu):
+    def _log10_Imu_ck2004(self, Teff, logg, met, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, met, mu),))
-            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_intensity_grid)[0][0]
+            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, met, mu)).T
-            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_intensity_grid).T[0]
+            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
 
         return log10_Imu
 
@@ -466,9 +547,9 @@ class Passband:
             print('received atm=%s' % atm)
             raise NotImplementedError
 
-    def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004'):
+    def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
         if atm == 'ck2004':
-            return 10**self._log10_Imu_ck2004(Teff, logg, met, mu)
+            return 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
         else:
             print('received atm=%s' % atm)
             raise NotImplementedError
@@ -494,7 +575,7 @@ if __name__ == '__main__':
     
     # Testing LD stuff:
     jV = Passband.load('tables/passbands/johnson_v.pb')
-    jV.compute_ck2004_intensities('tables/ck2004i', verbose=True)
+    jV.compute_ck2004_ldcoeffs()
     jV.save('johnson_V.new.pb')
     exit()
     
