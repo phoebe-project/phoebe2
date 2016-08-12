@@ -226,17 +226,19 @@ void triangle_mesh_radiosity_wilson_triangles(
   
   {
 
-    T tmp, s, s2, *n, *n1, *c = CatT, *c1, a[3];
+    T tmp, s, s2, *n[2], *c[2], a[3];
     
-    Tp p, p1;
+    Tp p[2];
     
-    for (int i = 0; i < Nt; ++i, c += 3) {   // loop over triangles Ti
+    c[0] = CatT;
+    
+    for (p[0].i = 0; p[0].i < Nt; ++p[0].i, c[0] += 3) {   // loop over triangles Ti
       
-      n = NatT[i].data;              // normal of Ti
+      n[0] = NatT[p[0].i].data;                  // normal of Ti
 
-      c1 = CatT;
+      c[1] = CatT; 
       
-      for (int j = 0; j < i; ++j, c1 += 3) {   // loop over triangles Tj
+      for (p[1].i = 0; p[1].i < p[0].i; ++p[1].i, c[1] += 3) { // loop over triangles Tj
                 
         //  
         // Check if it is possible to see the centroid of Tj from 
@@ -244,49 +246,42 @@ void triangle_mesh_radiosity_wilson_triangles(
         //
         
         // vector connected centroids c -> c1: a = c1 - c
-        utils::sub3D(c1, c, a);
+        utils::sub3D(c[1], c[0], a);
+       
+        n[1] = NatT[p[1].i].data;            // normal of Tj
         
         // looking at Tj from Ti
-        if ((p.h = utils::dot3D(n, a)) <= 0) continue;
-       
-        n1 = NatT[j].data;            // normal of Tj
-               
-        // looking at Ti from Tj
-        if ((p1.h = -utils::dot3D(n1, a)) <= 0) continue;
-     
-  
-        tmp = epsC*(s = std::sqrt(s2 = utils::norm2(a)));
-        
-        // throw away also all pairs with to large viewing angle
-        if (p.h <= tmp || p1.h <= tmp) continue;
-       
-      
-        // conclusion: probably Tj illuminates Ti and vice versa
-         
-        //     
-        // calculate Lambert view factor
-        //
-        p.F = p1.F = p.h*p1.h/(s2*s2);
-        
-        //
-        // calculate LD view factors
-        //
-        
-        // looking at Tj from Ti
-        p.i = i;
-        p.F *= A[j]*LDmodels[LDidx[i]]->F(p.h/s);
-        
-        // looking at Ti from Tj
-        p1.i = j;
-        p1.F *= A[i]*LDmodels[LDidx[j]]->F(p1.h/s);
-        
-        //
-        // storing the results in depth and view-factor matrix
-        //
+        if ((p[0].h = utils::dot3D(n[0], a)) > 0 && 
+            (p[1].h = -utils::dot3D(n[1], a)) > 0) {
+    
+          tmp = epsC*(s = std::sqrt(s2 = utils::norm2(a)));
+          
+          // throw away also all pairs with to large viewing angle
+          if (p[0].h > tmp && p[1].h > tmp) {
            
-        DF[p.i].push_back(p1);  // registering pair (p.i, p1)
-        DF[p1.i].push_back(p);  // registering pair (p1.i, p)
-
+            // conclusion: probably Tj illuminates Ti and vice versa
+             
+            //     
+            // calculate Lambert view factor
+            //
+            p[0].F = p[1].F = p[0].h*p[1].h/(s2*s2);
+            
+            //
+            // calculate LD view factors
+            //
+            
+            // looking at Tj from Ti and  vice versa
+            for (int i = 0; i < 2; ++i)
+              p[i].F *= A[p[i].i]*LDmodels[LDidx[p[i].i]]->F(p[i].h/s);
+            
+            //
+            // storing the results in depth and view-factor matrix
+            //
+               
+            DF[p[0].i].push_back(p[1]);  // registering pair (p.i, p1)
+            DF[p[1].i].push_back(p[0]);  // registering pair (p1.i, p)
+          }
+        }
       }
     }
   }
@@ -561,11 +556,9 @@ void triangle_mesh_radiosity_wilson_vertices(
             // calculate LD view factors
             //
             
-            // looking at V1 from V
-            p[0].F *= (*itA[1])*LDmodels[*itL[0]]->F(p[0].h/s);
-            
-            // looking at V from V1
-            p[1].F *= (*itA[0])*LDmodels[*itL[1]]->F(p[1].h/s);
+            // looking at V1 from V and vice versa
+            for (int i = 0; i < 2; ++i)
+              p[i].F *= (*itA[i])*LDmodels[*itL[i]]->F(p[i].h/s);
             
             //
             // storing the results in depth and view-factor matrix
