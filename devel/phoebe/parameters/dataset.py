@@ -52,8 +52,8 @@ def lc_dep(**kwargs):
 
     dep_params = []
 
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Limb darkening model')]
-    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
+    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Limb darkening model')]
+    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', relevant_if='ld_func:!interp', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
     dep_params += [ChoiceParameter(qualifier='pbscale', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pbscale', ''), choices=['pblum', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or the scaling from another component in the system')]
