@@ -395,7 +395,7 @@ class Passband:
 
         self.content.append('ck2004_ld')
 
-    def interpolate_ld_coeffs(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
+    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
         """
