@@ -24,6 +24,9 @@ def test_binary(plot=False):
     b.set_value_all('atm@phoebe2', 'extern_planckint')
     b.set_value_all('atm@phoebe1', 'blackbody')
 
+    b.set_value_all('ld_func', 'logarithmic')
+    b.set_value_all('ld_coeffs', [0.5, 0.5])
+
     print "running phoebe2 model..."
     b.run_compute(compute='phoebe2', delta=0.3, model='phoebe2model')
     print "running phoebe1 model..."
@@ -34,8 +37,10 @@ def test_binary(plot=False):
         plt.legend()
         plt.show()
 
+    return b
+
 if __name__ == '__main__':
     logger = phoebe.logger()
 
 
-    test_binary(plot=True)
+    b = test_binary(plot=True)

@@ -31,7 +31,7 @@ class Passband:
         """
         Passband class holds data and tools for passband-related computations, such as
         blackbody intensity, model atmosphere intensity, etc.
-        
+
         @ptf: passband transmission file: a 2-column file with wavelength in @wlunits
               and transmission in arbitrary units
         @pbset: name of the passband set (i.e. Johnson)
@@ -50,15 +50,15 @@ class Passband:
 
 
         Step #1: initialize passband object
-        
+
         .. testcode::
-        
+
             >>> pb = Passband(ptf='JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=True, reference='ADPS', version=1.0, comments='')
 
         Step #2: compute intensities for blackbody radiation:
-        
+
         .. testcode ::
-        
+
             >>> pb.compute_blackbody_response()
 
         Step #3: compute Castelli & Kurucz (2004) intensities. To do this,
@@ -66,14 +66,14 @@ class Passband:
         intensities available for download from %static%/ck2004.tar.
 
         .. testcode::
-            
+
             >>> atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/ck2004'))
             >>> pb.compute_ck2004_response(atmdir)
 
         Step #4: -- optional -- import WD tables for comparison. This can only
         be done if the passband is in the list of supported passbands in WD.
         The WD index of the passband is passed to the import_wd_atmcof()
-        function below as the last argument.            
+        function below as the last argument.
 
         .. testcode::
 
@@ -94,7 +94,7 @@ class Passband:
         atmospheres are available by issuing:
 
         .. testcode::
-        
+
             >>> pb.content
 
 
@@ -110,13 +110,13 @@ class Passband:
         # to the passband file needs to add a corresponding label to the
         # content list.
         self.content = []
-                
+
         # Basic passband properties:
         self.pbset = pbset
         self.pbname = pbname
         self.effwl = effwl
         self.calibrated = calibrated
-        
+
         # Passband transmission function table:
         ptf_table = np.loadtxt(ptf).T
         ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
@@ -214,13 +214,13 @@ class Passband:
             self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
             self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
             self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
-        
+
         if 'ck2004_ld' in self.content:
             self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
             self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
             self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
             self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
-        
+
         return self
 
     def _planck(self, lam, Teff):
@@ -242,7 +242,7 @@ class Passband:
     def compute_ck2004_response(self, path, verbose=False):
         models = glob.glob(path+'/*M1.000.spectrum')
         Teff, logg, met, Inorm = [], [], [], []
-        
+
         if verbose:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
@@ -265,7 +265,7 @@ class Passband:
         Teff = np.array(Teff)
         logg = np.array(logg)/10
         abun = np.array(met)/10
-        
+
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
         self._ck2004_axes = (np.unique(Teff), np.unique(logg), np.unique(abun))
@@ -280,10 +280,10 @@ class Passband:
     def compute_ck2004_intensities(self, path, verbose=False):
         models = os.listdir(path)
         Teff, logg, met, mu, ImuE, ImuP = [], [], [], [], [], []
-        
+
         if verbose:
             print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
-        
+
         for i, model in enumerate(models):
             spc = np.loadtxt(path+'/'+model).T
             Teff.append(float(model[-26:-21]))
@@ -315,7 +315,7 @@ class Passband:
         # with nans where the grid isn't complete. Imu-s come in two
         # flavors: energy-weighted intensities and photon-weighted
         # intensities, based on the detector used.
-        
+
         self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
         self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
         self._ck2004_Imu_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
@@ -326,22 +326,22 @@ class Passband:
             self._ck2004_Imu_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
 
         self.content.append('ck2004_all')
-    
+
     def _ldlaw_lin(self, mu, xl):
         return 1.0-xl*(1-mu)
-        
+
     def _ldlaw_log(self, mu, xl, yl):
         return 1.0-xl*(1-mu)-yl*mu*np.log10(mu+1e-6)
-    
+
     def _ldlaw_sqrt(self, mu, xl, yl):
         return 1.0-xl*(1-mu)-yl*(1.0-np.sqrt(mu))
-    
+
     def _ldlaw_quad(self, mu, xl, yl):
         return 1.0-xl*(1.0-mu)-yl*(1.0-mu)*(1.0-mu)
-    
+
     def _ldlaw_nonlin(self, mu, c1, c2, c3, c4):
         return 1.0-c1*(1.0-np.sqrt(mu))-c2*(1.0-mu)-c3*(1.0-mu*np.sqrt(mu))-c4*(1.0-mu*mu)
-    
+
     def compute_ck2004_ldcoeffs(self, plot_diagnostics=False):
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
@@ -355,7 +355,7 @@ class Passband:
             for lindex in range(len(self._ck2004_intensity_axes[1])):
                 for mindex in range(len(self._ck2004_intensity_axes[2])):
                     IsE = 10**self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].flatten()
-                    
+
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) == 0:
                         continue
@@ -364,7 +364,7 @@ class Passband:
                     IsP = 10**self._ck2004_Imu_photon_grid[Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
-                    
+
                     cElin,  pcov = cfit(self._ldlaw_lin,    mus[fEmask], IsE[fEmask], p0=[0.5])
                     cElog,  pcov = cfit(self._ldlaw_log,    mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
                     cEsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
@@ -391,7 +391,7 @@ class Passband:
                             plt.plot(mus[fEmask], self._ldlaw_sqrt(mus[fEmask], *cEsqrt), 'y-')
                             plt.plot(mus[fEmask], self._ldlaw_quad(mus[fEmask], *cEquad), 'm-')
                             plt.plot(mus[fEmask], self._ldlaw_nonlin(mus[fEmask], *cEnlin), 'k-')
-                            plt.show()                    
+                            plt.show()
 
         self.content.append('ck2004_ld')
 
@@ -399,16 +399,16 @@ class Passband:
         """
         Interpolate the passband-stored table of LD model coefficients.
         """
-        
+
         if 'ck2004_ld' not in self.content:
             print('Castelli & Kurucz (2004) limb darkening coefficients are not computed yet. Please compute those first.')
             return None
-        
+
         if photon_weighted:
             table = self._ck2004_ld_photon_grid
         else:
             table = self._ck2004_ld_energy_grid
-        
+
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, met),))
             ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
@@ -429,12 +429,12 @@ class Passband:
 
         return ld_coeffs
 
-        
+
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nmet=19, Nlogg=11, Npb=25, Nints=4):
         """
         Parses WD's atmcof and reads in all Legendre polynomials for the
         given passband.
-        
+
         @plfile: path and filename of atmcofplanck.dat
         @atmfile: path and filename of atmcof.dat
         @wdidx: WD index of the passed passband. This can be automated
@@ -452,15 +452,15 @@ class Passband:
         # Initialize the external atmcof module if necessary:
         if not atmcof.meta.initialized:
             atmcof.init(plfile, atmfile)
-        
+
         # That is all that was necessary for *_extern_planckint() and
         # *_extern_atmx() functions. However, we also want to support
         # circumventing WD subroutines and use WD tables directly. For
         # that, we need to do a bit more work.
-        
+
         # Store the passband index for use in planckint() and atmx():
         self.extern_wd_idx = wdidx
-        
+
         # The original atmcof.dat features 'D' instead of 'E' for
         # exponential notation. We need to provide a converter for
         # numpy's loadtxt to read that in:
@@ -470,7 +470,7 @@ class Passband:
         # Break up the table along axes and extract a single passband data:
         atmtab = np.reshape(atmtab, (Nmet, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
-        
+
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
@@ -479,36 +479,36 @@ class Passband:
     #~ def _log10_Inorm_wd(self, Teff, logg, met):
         #~ met_nodes  = np.array([-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0, -0.5, -0.3, -0.2, -0.1,  0.0,  0.1,  0.2,  0.3,  0.5, 1.0])
         #~ logg_nodes = np.array([ 0.0,  0.5,  1.0,  1.5,  2.0,  2.5,  3.0,  3.5,  4.0,  4.5,  5.0])
-        #~ 
+        #~
         #~ # Find the indices of the lower bracket elements:
         #~ met_idx = np.searchsorted(met_nodes, met)
         #~ logg_idx = np.searchsorted(logg_nodes, logg)
-#~ 
+#~
         #~ print met, met_idx
         #~ print met_nodes[met_idx-1:met_idx+1]
         #~ print logg, logg_idx
         #~ print logg_nodes[logg_idx-1:logg_idx+1]
-        #~ 
+        #~
         #~ # Compute intensities for all combinations:
         #~ for m, l in [(m, l) for l in (logg_idx-1, logg_idx) for m in (met_idx-1, met_idx)]:
             #~ # Lower temperature interval index:
             #~ i = np.searchsorted(self.atmcof[m, l, :, 0], Teff)
             #~ coeffs = self.atmcof[m, l, i, 2:]
             #~ print self.atmcof[m, l, :, 0]
-#~ 
+#~
         #~ print met_idx, logg_idx
         #~ print met_nodes[met_idx:met_idx+2]
         #~ print logg_nodes[logg_idx:logg_idx+2]
-#~ 
+#~
         #~ return 10
 
     def _log10_Inorm_extern_planckint(self, Teff):
         """
         Internal function to compute normal passband intensities using
         the external WD machinery that employs blackbody approximation.
-        
+
         @Teff: effective temperature in K
-        
+
         Returns: log10(Inorm)
         """
 
@@ -529,11 +529,11 @@ class Passband:
         Internal function to compute normal passband intensities using
         the external WD machinery that employs model atmospheres and
         ramps.
-        
+
         @Teff: effective temperature in K
         @logg: surface gravity in cgs
         @met:  metallicity in dex, Solar=0.0
-        
+
         Returns: log10(Inorm)
         """
 
@@ -603,8 +603,8 @@ class Passband:
         if ld_func == 'power':
             return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
 
-        print('received ld_func=%s' % ld_func)
-        raise NotImplementedError
+        # print('received ld_func=%s' % ld_func)
+        raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
 def init_passbands():
     """
@@ -624,13 +624,13 @@ def init_passbands():
 
 
 if __name__ == '__main__':
-    
+
     # Testing LD stuff:
     jV = Passband.load('tables/passbands/johnson_v.pb')
     jV.compute_ck2004_ldcoeffs()
     jV.save('johnson_V.new.pb')
     exit()
-    
+
     # Constructing a passband:
 
     atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -641,14 +641,14 @@ if __name__ == '__main__':
     jV.compute_ck2004_response('tables/ck2004')
     jV.import_wd_atmcof(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat', 7)
     jV.save('tables/passbands/JOHNSON.V')
-    
+
     pb = Passband('tables/ptf/KEPLER.PTF', pbset='Kepler', pbname='mean', effwl=5920.0, calibrated=True, wlunits=u.AA, reference='Bachtell & Peters (2008)', version=1.0, comments='')
     pb.compute_blackbody_response()
     pb.compute_ck2004_response('tables/ck2004')
     pb.save('tables/passbands/KEPLER.PTF')
 
     #~ jV = Passband.load('tables/passbands/johnson_v.pb')
-    
+
     #~ teffs = np.arange(5000, 10001, 25)
     #~ req = np.vstack((teffs, 4.43*np.ones(len(teffs)), np.zeros(len(teffs)))).T
 
@@ -672,7 +672,7 @@ if __name__ == '__main__':
     print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, met=0.0, atm='ck2004')
 
     # Testing arrays:
-    
+
     print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody')
     print 'planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint')
     print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), met=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
