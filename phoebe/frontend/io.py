@@ -637,9 +637,10 @@ def par_value(param, index=None):
             val = [param.get_value()]
 
     elif isinstance(param, phb.parameters.FloatArrayParameter):
-        val1 = param.get_value()[0]
-        val2 = param.get_value()[1]
-        val = [val1, val2]
+        # val1 = param.get_value()[0]
+        # val2 = param.get_value()[1]
+        # val = [val1, val2]
+        val = param.get_value().tolist()
         ptype='array'
     else:
         ptype = 'unknown'
@@ -1171,6 +1172,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     # write to file
     f = open(filename, 'w')
     f.write('# Phoebe 1 file created from phoebe 2 bundle\n')
+    # print "***", len(parnames), len(parvals)
     for x in range(len(parnames)):
 #        if types[x] == 'float':
 #            value = round(parvals[x],6)
