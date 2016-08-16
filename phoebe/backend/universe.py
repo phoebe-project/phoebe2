@@ -211,7 +211,7 @@ class System(object):
         if self.do_reflection:  # and methods includes a method that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
-                body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='uniform', atm='blackbody', boosting_alg='none')
+                body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
 
             # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
@@ -1852,15 +1852,14 @@ class Star(Body):
 
 
             # intens_proj_abs are the projected (limb-darkened) passband intensities
+            # TODO: why do we need to use abs(mus) here?
             intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
                                                       logg=self.mesh.loggs.for_computations,
                                                       met=self.mesh.abuns.for_computations,
-                                                      mu=self.mesh.mus_for_computations,
-                                                      atm=atm)
-
-            # TODO: once supported enable passing ld_func and ld_coeffs - until then all limb-darkening is disabled
-                                                      #ld_func=ld_func,
-                                                      #ld_coeffs=ld_coeffs)
+                                                      mu=abs(self.mesh.mus_for_computations),
+                                                      atm=atm,
+                                                      ld_func=ld_func,
+                                                      ld_coeffs=ld_coeffs)
 
             # Beaming/boosting
             # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
@@ -1945,7 +1944,7 @@ class Star(Body):
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
             'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost, 'ld': ld}
+            'ampl_boost': ampl_boost}
 
 
 
