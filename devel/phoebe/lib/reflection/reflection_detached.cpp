@@ -12,7 +12,7 @@
 #include "reflection.h"
 
 
-//#define PER_VERTEX
+#define PER_VERTEX
 
 int main(){
   
@@ -131,39 +131,27 @@ int main(){
 
   
   #if defined(PER_VERTEX)
-
-  int Nv = V.size();
+  int N = V.size();
+  #else // PER_TRIANGLE
+  int N = Tr.size();
+  #endif
   
   std::vector<int> 
-    LDidx(Nv, 0);  // indices of the LD models in use
+    LDidx(N, 0);  // indices of the LD models in use
   
   std::vector<double> 
-    R(Nv, 0.3),   // reflection coefficients
-    M0(Nv, 1),     // intrinsic radient exitance 
-    M;             // output radient radiosities
+    R(N, 0.3),   // reflection coefficients
+    M0(N, 1),    // intrinsic radient exitance 
+    M;           // output radient radiosities
   
   std::vector<Tmat_elem<double>> Fmat;
  
+  #if defined(PER_VERTEX)
   triangle_mesh_radiosity_wilson_vertices(V, Tr, NatV, A, LDmodels, LDidx, Fmat);
-
-  #else
-    
-  int Nt = Tr.size();
-  
-  std::vector<int> 
-    LDidx(Nt, 0);  // indices of the LD models in use
-  
-  std::vector<double> 
-    R(Nt, 0.3),   // reflection coefficients
-    M0(Nt, 1),     // intrinsic radient exitance 
-    M;             // output radient radiosities
-  
-  std::vector<Tmat_elem<double>> Fmat;
-
+  #else // PER_TRIANGLE
   triangle_mesh_radiosity_wilson_triangles(V, Tr, NatT, A, LDmodels, LDidx, Fmat);
-    
   #endif
-     
+  
   end = clock();
      
   std::cout << " time= " << end - start << " um\n";
@@ -203,16 +191,31 @@ int main(){
   // Normals
   //
   fr.open("normals_detached.dat");
-  
   for (auto && n: NatT)  fr << n << '\n';
   fr.close();
   
+  
+  //
+  // Save matrix
+  //
+
+  #if defined(PER_VERTEX)
+  fr.open("matrix_v_detached.dat");
+  #else // PER_TRIANGLE
+  fr.open("matrix_t_detached.dat");
+  #endif
+    
+  for (auto && f : Fmat) fr << f.i << ' ' << f.j << ' ' << f.F << '\n';
+  fr.close();
+  
+
   //
   //  Intensities
   //
+ 
   #if defined(PER_VERTEX)
   fr.open("intensity_v_detached.dat");
-  #else
+  #else // PER_TRIANGLE
   fr.open("intensity_t_detached.dat");
   #endif
   {
