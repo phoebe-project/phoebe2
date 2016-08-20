@@ -122,7 +122,7 @@ void PyArray_To3DPointVector(PyArrayObject *oV, std::vector<T3Dpoint<T>> &V){
   
   V.reserve(N);
   
-  for (auto *p = (T*) PyArray_DATA(oV), p_e = p + 3*N; p != p_e; p += 3)
+  for (T *p = (T*) PyArray_DATA(oV), *p_e = p + 3*N; p != p_e; p += 3)
     V.emplace_back(p);
 }
 

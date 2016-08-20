@@ -18,6 +18,7 @@
   * x86 Assembly Language Reference Manual - Oracle
     https://docs.oracle.com/cd/E19641-01/802-1948/802-1948.pdf
   * http://stackoverflow.com/questions/11165379/loading-double-to-fpu-with-gcc-inline-assembler
+  * http://www.willus.com/mingw/x87inline.h
 */
 
 #include <cmath>
@@ -32,7 +33,11 @@ namespace utils {
   #if TARGET_HAS_SINCOS
   template <class T>
   inline void sincos(const T &angle, T *s, T *c){
-    asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle) : "st(7)");
+    // works with gcc 
+    //asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle) : "st(7)");
+    
+    // works with gcc and clang
+    asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle));
   }
   #else
   template<class T> 
