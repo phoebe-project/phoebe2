@@ -234,8 +234,6 @@ class System(object):
         meshes = self.meshes
 
 
-
-
         if 'wd' in [body.mesh_method for body in self.bodies]:
             raise NotImplementedError("reflection not yet supported for WD-style meshing")
 
@@ -256,6 +254,11 @@ class System(object):
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
             # ld_inds = np.zeros(alb_refls_flat.shape)
 
+            # TESTING (also below after the refl call)
+            # intens_intrins_per_body = [i.copy() for i in intens_intrins_per_body]
+            # intens_intrins_sec = intens_intrins_per_body[1].copy()
+            # intens_intrins_per_body[1] *= 0.0
+
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -275,6 +278,8 @@ class System(object):
             #                                                                            ld_func_and_coeffs
             #                                                                            )
 
+            # TESTING
+            # intens_intrins_and_refl_per_body[1] += intens_intrins_sec
 
             intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
@@ -330,7 +335,6 @@ class System(object):
         # TODO: set to triangles if WD method
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
-
     def handle_eclipses(self, **kwargs):
         """
         Detect the triangles at the horizon and the eclipsed triangles, handling
@@ -356,10 +360,10 @@ class System(object):
         # than sum of max_rs
         possible_eclipse = False
         if len(self.bodies) == 1:
-            # then probably an overcontact - we should eventually probably
-            # deal with this differently, but for now we'll just disable
-            # eclipse detection
-            possible_eclipse = False
+            if self.bodies[0].__class__.__name__ == 'Envelope':
+                possible_eclipse = True
+            else:
+                possible_eclipse = False
         else:
             max_rs = [body.max_r for body in self.bodies]
             for i in range(0, len(self.xs)-1):
