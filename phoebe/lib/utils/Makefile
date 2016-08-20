@@ -1,7 +1,9 @@
 CC=g++
+#CC=clang++
 CXXFLAGS=-O3 -Wall -std=c++11
 
-all:cubic_quartic
+all:cubic_quartic sincos
 
-cubic_quartic:cubic_quartic.cpp utils.h
-	$(CC) cubic_quartic.cpp -o cubic_quartic $(CXXFLAGS)
+%:%.cpp *.h
+	$(CC) $(CXXFLAGS) $*.cpp -o $*
+

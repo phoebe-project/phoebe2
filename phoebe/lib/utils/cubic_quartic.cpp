@@ -18,7 +18,6 @@ int main(){
   std::vector<double> roots;
   
   
-  
   double a2[3] = {0.1, 1, 2};
   
   utils::solve_quadratic(a2, roots);

@@ -7,7 +7,6 @@
   Author: Martin Horvat, April 2016
 */ 
 
-#include <cmath>
 #include <iostream>
 #include <limits>
 #include <vector>

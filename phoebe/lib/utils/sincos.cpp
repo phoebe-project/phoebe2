@@ -8,10 +8,7 @@
 #include <cmath>
 #include <limits>
 
-template <class T>
-void my_sincos(const T &angle, T *s, T *c){
-  asm volatile("fsincos" : "=t" (*c), "=u" (*s) : "0" (angle) : "st(7)");
-}
+#include "sincos.h"
 
 int main(){
 
@@ -23,7 +20,7 @@ int main(){
   std::cout.precision(std::numeric_limits<real>::digits10);
   std::cout<< std::scientific;
   
-  my_sincos(angle, &s, &c);
+  utils::sincos(angle, &s, &c);
   
   std::cout 
     << s << '\t' << c << '\n'
@@ -40,7 +37,7 @@ int main(){
   std::cout.precision(std::numeric_limits<real>::digits10);
   std::cout<< std::scientific;
   
-  my_sincos(angle, &s, &c);
+  utils::sincos(angle, &s, &c);
   
   std::cout 
     << s << '\t' << c << '\n'
@@ -57,12 +54,18 @@ int main(){
   std::cout.precision(std::numeric_limits<real>::digits10);
   std::cout<< std::scientific;
   
-  my_sincos(angle, &s, &c);
+  utils::sincos(angle, &s, &c);
   
   std::cout 
     << s << '\t' << c << '\n'
     << std::sin(angle) << '\t' << std::cos(angle) << '\n';
   }
-    
+  
+  
+  std::cout 
+  << "Wolfram Mathematica\n"
+  << "sin(1)=0.8414709848078965066525023216302989996225630607983710657554\n"
+  << "cos(1)=0.5403023058681397174009366074429766037323104206179222275411\n";
+  
   return 0;
 }
