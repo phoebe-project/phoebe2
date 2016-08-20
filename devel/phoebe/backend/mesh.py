@@ -1246,8 +1246,11 @@ class Meshes(object):
         if components:
             if isinstance(components, str):
                 components = [components]
-        else:
+        elif isinstance(value, dict):
             components = value.keys()
+        elif isinstance(value, list):
+            components = self._dict.keys()
+            value = {c: v for c,v in zip(components, value)}
 
         if offset:
             values = []
