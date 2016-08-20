@@ -228,47 +228,96 @@ class System(object):
             return
 
 
-        logger.info("handling reflection")
-
         # meshes is an object which allows us to easily access and update columns
         # in the meshes *in memory*.  That is meshes.update_columns will propogate
         # back to the current mesh for each body.
         meshes = self.meshes
 
-        vertices_flat = meshes.get_column_flat('vertices')
-        triangles_flat = meshes.get_column_flat('triangles')
-        normals_flat = meshes.get_column_flat('vnormals')
-        areas_flat = meshes.get_column_flat('areas')
-        alb_refls_flat = meshes.get_column_flat('alb_refl', computed_type='for_computations')
+
+
+
+        if 'wd' in [body.mesh_method for body in self.bodies]:
+            raise NotImplementedError("reflection not yet supported for WD-style meshing")
+
+        if np.all([body.is_convex for body in self.bodies]):
+            logger.info("handling reflection (convex case)")
+
+            vertices_per_body = meshes.get_column('vertices').values()
+            triangles_per_body = meshes.get_column('triangles').values()
+            normals_per_body = meshes.get_column('vnormals').values()
+            areas_per_body = meshes.get_column('areas').values()
+            alb_refls_per_body = meshes.get_column('alb_refl', computed_type='for_computations').values()
+            teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
+
+            intens_intrins_per_body = meshes.get_column('intens_norm_abs:bol', computed_type='for_computations').values()
+
+            ld_func = kwargs.get('ld_func_bol', 'logarithmic')
+            ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
+            ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
+            # ld_inds = np.zeros(alb_refls_flat.shape)
+
+            intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
+                                                                                       triangles_per_body,
+                                                                                       normals_per_body,
+                                                                                       areas_per_body,
+                                                                                       alb_refls_per_body,
+                                                                                       intens_intrins_per_body,
+                                                                                       ld_func_and_coeffs
+                                                                                       )
+
+
+            # intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_triangles_nbody_convex(vertices_per_body,
+            #                                                                            triangles_per_body,
+            #                                                                            normals_per_body,
+            #                                                                            areas_per_body,
+            #                                                                            alb_refls_per_body,
+            #                                                                            intens_intrins_per_body,
+            #                                                                            ld_func_and_coeffs
+            #                                                                            )
+
+
+            intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
+            intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
+
+
+        else:
+            logger.info("handling reflection (general case)")
+
+            vertices_flat = meshes.get_column_flat('vertices')
+            triangles_flat = meshes.get_column_flat('triangles')
+            normals_flat = meshes.get_column_flat('vnormals')
+            areas_flat = meshes.get_column_flat('areas')
+            alb_refls_flat = meshes.get_column_flat('alb_refl', computed_type='for_computations')
+
+            intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
+
+            ld_func = kwargs.get('ld_func_bol', 'logarithmic')
+            ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
+            ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
+            ld_inds = np.zeros(alb_refls_flat.shape)
+
+            # TODO: this will fail for WD meshes - use triangles instead?
+            intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
+                                                                                    triangles_flat,
+                                                                                    normals_flat,
+                                                                                    areas_flat,
+                                                                                    alb_refls_flat,
+                                                                                    intens_intrins_flat,
+                                                                                    ld_func_and_coeffs,
+                                                                                    ld_inds)
+
+
+            # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
+                                                                                    # triangles_flat,
+                                                                                    # normals_flat,
+                                                                                    # areas_flat,
+                                                                                    # alb_refls_flat,
+                                                                                    # intens_intrins_flat,
+                                                                                    # ld_func_and_coeffs,
+                                                                                    # ld_inds)
+
+
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
-
-        intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
-
-        ld_func = kwargs.get('ld_func_bol', 'logarithmic')
-        ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
-        ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
-        ld_inds = np.zeros(alb_refls_flat.shape)
-
-
-        # TODO: this will fail for WD meshes - use triangles instead?
-        intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
-                                                                                triangles_flat,
-                                                                                normals_flat,
-                                                                                areas_flat,
-                                                                                alb_refls_flat,
-                                                                                intens_intrins_flat,
-                                                                                ld_func_and_coeffs,
-                                                                                ld_inds)
-
-
-        # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
-                                                                                # triangles_flat,
-                                                                                # normals_flat,
-                                                                                # areas_flat,
-                                                                                # alb_refls_flat,
-                                                                                # intens_intrins_flat,
-                                                                                # ld_func_and_coeffs,
-                                                                                # ld_inds)
 
         # TODO: set to triangles if WD method
         meshes.set_column_flat('intens_norm_abs:bol', intens_intrins_and_refl_flat)
@@ -444,6 +493,8 @@ class Body(object):
         """
         TODO: add documentation
         """
+        self._is_convex = False
+
         self._mesh_initialized = False
         self.dynamics_method = dynamics_method
 
@@ -513,6 +564,15 @@ class Body(object):
         # time (self.time).  If this isn't available yet, self.mesh will
         # return None (it is reset to None by self.reset_time())
         return self._mesh
+
+    @property
+    def is_convex(self):
+        """
+        :return: whether the mesh can be assumed to be convex
+        :rtype: bool
+        """
+        return self._is_convex
+
 
     @property
     def mesh_initialized(self):
@@ -1163,6 +1223,8 @@ class Star(Body):
         :return: instantiated :class:`Star` object
         """
         super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, datasets, dynamics_method=dynamics_method)
+
+        self._is_convex = True
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
