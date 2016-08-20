@@ -929,6 +929,8 @@ class ScaledProtoMesh(ProtoMesh):
         """
         pos_ks = ['vertices', 'centers']
 
+        # TODO: scale velocities???
+
         # handle scale
         self.update_columns_dict({k: self[k]*scale for k in pos_ks})
 
@@ -1049,6 +1051,7 @@ class Mesh(ScaledProtoMesh):
             # this requires vnormals to be NORMALIZED (assumed)
             return self.vnormals[:,2]
         else:
+            # this is just self.tnormals[:,2] from above
             return self.mus
 
     @property

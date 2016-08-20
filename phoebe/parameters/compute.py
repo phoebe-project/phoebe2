@@ -81,7 +81,7 @@ def phoebe(**kwargs):
 
 
     # PER-COMPONENT
-    params += [ChoiceParameter(copy_for = {'method': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'blackbody'), choices=_atm_choices, description='Atmosphere table')]
+    params += [ChoiceParameter(copy_for = {'method': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'ck2004'), choices=_atm_choices, description='Atmosphere table')]
 
     # PER-DATASET
 

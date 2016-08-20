@@ -385,6 +385,8 @@ class System(object):
 
             rvs = meshes.get_column_flat("rv:{}".format(dataset), components)
             intens_proj_abs = meshes.get_column_flat('intens_proj_abs:{}'.format(dataset), components)
+            # mus here will be from the tnormals of the triangle and will not
+            # be weighted by the visibility of the triangle
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
 
@@ -862,6 +864,7 @@ class Body(object):
 
         # Lastly, we'll recompute physical quantities (not observables) if
         # needed for this time-step.
+        # TODO: make sure features smartly trigger needs_recompute_instantaneous
         if self.mesh.loggs.for_computations is None or self.needs_recompute_instantaneous:
             self._compute_instantaneous_quantities(xs, ys, zs)
 
