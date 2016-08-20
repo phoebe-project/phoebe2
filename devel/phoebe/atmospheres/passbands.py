@@ -586,8 +586,11 @@ class Passband:
             raise NotImplementedError
 
     def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
-        if atm == 'ck2004' and ld_func == 'interp':
-            return 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
+        if ld_func == 'interp':
+            if atm == 'ck2004':
+                return 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
+            else:
+                raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
 
         #~ if atm == 'ck2004' and ld_coeffs == None:
             # This means we have to interpolate the tables.
@@ -603,7 +606,6 @@ class Passband:
         if ld_func == 'power':
             return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
 
-        # print('received ld_func=%s' % ld_func)
         raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
 def init_passbands():
