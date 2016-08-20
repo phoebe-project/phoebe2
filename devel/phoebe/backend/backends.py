@@ -546,7 +546,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 if pbscale=='pblum':
                     pblum = b.get_value(qualifier='pblum', component=component, dataset=dataset, context='dataset')
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset')
+                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_relevant=False)
 
                     system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs)
                 else:
