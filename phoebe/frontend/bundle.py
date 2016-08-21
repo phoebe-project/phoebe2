@@ -785,20 +785,21 @@ class Bundle(ParameterSet):
         self._attach_params([hier_param], **metawargs)
 
         # Handle choice parameters that need components as choices
-        starrefs = hier_param.get_stars()  # TODO: consider for overcontacts
+        meshablerefs = hier_param.get_meshables()  # TODO: consider for overcontacts
         for param in self.filter(qualifier='pbscale',
                                  context='dataset').to_list():
-            param._choices = ['pblum'] + starrefs
+            param._choices = ['pblum'] + meshablerefs
             if param.value == '':
                 # then this was the default from the parameter itself, so we
                 # want to set it to be pblum if its the "primary" star, and
                 # otherwise point to the primary star
-                if param.component == starrefs[0]:
+                if param.component == meshablerefs[0]:
                     param.set_value('pblum')
                 else:
-                    param.set_value(starrefs[0])
+                    param.set_value(meshablerefs[0])
 
         # Handle inter-PS constraints
+        starrefs = hier_param.get_stars()
         for component in self.hierarchy.get_stars():
             if len(starrefs)==1:
                 pass
@@ -2267,7 +2268,6 @@ class Bundle(ParameterSet):
                 # comma in the following line is necessary because compute_func
                 # is /technically/ a generator (it yields instead of returns)
                 params, = compute_func(self, compute, time=time, **kwargs)
-
             self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)

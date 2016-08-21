@@ -448,7 +448,6 @@ class System(object):
             return {'rv': np.average(rvs, weights=intens_proj_abs*areas*mus*visibilities)}
 
         elif method=='LC':
-
             visibilities = meshes.get_column_flat('visibilities')
 
             if np.all(visibilities==0):
@@ -469,6 +468,7 @@ class System(object):
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
+
             return {'flux': np.sum(intens_proj_rel*areas*mus*visibilities)/(distance**2)+l3}
 
 
@@ -2020,7 +2020,7 @@ class Star(Body):
 
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
-            abun, alb_refl, mesh_method='marching',
+            abun, alb_refl1, alb_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
             datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
@@ -2065,11 +2065,22 @@ class Envelope(Body):
 
         self.teff1 = teff1
         self.teff2 = teff2
+        
+        self.alb_refl1 = alb_refl1
+        self.alb_refl2 = alb_refl2
+        self.gravb_bol1 = gravb_bol1 
+        self.gravb_bol2 = gravb_bol2 
+        self.gravb_law = gravb_law
+        
+        # only putting this here so update_position doesn't complain
+        self.alb_refl = 0.
+        # self.gravb_law2 = gravb_law2
+        
 
-        #self.gravb_bol = gravb_bol
-        #self.gravb_law = gravb_law
+        # self.gravb_bol = gravb_bol
+        # self.gravb_law = gravb_law
         self.abun = abun
-        self.alb_refl = alb_refl
+        # self.alb_refl = alb_refl
 
         self.features = features  # TODO: move this to Body
 
@@ -2146,9 +2157,18 @@ class Envelope(Body):
 
         teff1 = b.get_value('teff', component=starrefs[0], context='component', unit=u.K)
         teff2 = b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
+        
+        alb_refl1 = b.get_value('alb_refl_bol', component=starrefs[0], context='component')
+        alb_refl2 = b.get_value('alb_refl_bol', component=starrefs[1], context='component')
 
+        gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
+        gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
+        
+        gravb_law = b.get_value('gravblaw', component=starrefs[0], context='component')
+        #gravb_law2 = b.get_value('gravblaw', component=starrefs[0], context='component')
+        
         abun = b.get_value('abun', component=component, context='component')
-        alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
+        #alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
 
 
         try:
@@ -2182,8 +2202,8 @@ class Envelope(Body):
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
-        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, alb_refl,
-                mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, alb_refl1, alb_refl2,
+                gravb_bol1, gravb_bol2, gravb_law, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
@@ -2212,7 +2232,6 @@ class Envelope(Body):
         """
         return self.ecc != 0
 
-
     def get_target_volume(self, etheta):
         """
         TODO: add documentation
@@ -2227,7 +2246,7 @@ class Envelope(Body):
         # which means the volume should always be the same as it was defined at periaston.
 
         return self.volume_at_periastron
-
+    
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
@@ -2326,6 +2345,36 @@ class Envelope(Body):
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
                 new_mesh['tareas'] = np.array([])
+                
+                # WD style overcontacts require splitting of the mesh into two components
+                # env_comp = 0 for primary part of the envelope, 1 for secondary
+               
+                # compute the positions of the minimum radii of the neck in the xy and xz planes
+                # when temperature_method becomes available, wrap this with if tmethod='wd':            
+                xy,xz,y,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
+                # choose which value of x to use as the minimum (maybe extend to average of both?
+                xmin = xz    
+                
+                # create the env_comp array and change the values of all where vertices x>xmin to 1
+                env_comp = np.zeros(len(new_mesh['vertices']))
+                env_comp[new_mesh['vertices'][:,0]>xmin] = 1
+                
+                new_mesh['env_comp'] = env_comp
+                
+                # do the similar for triangles
+                env_comp3 = np.zeros(len(new_mesh['triangles']))
+                
+                for i in range(len(new_mesh['triangles'])):
+        
+                    #take the vertex indices of each triangle
+                    vind = new_mesh['triangles'][i]
+                    env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
+                
+                new_mesh['env_comp3']=env_comp3
+                
+                # compute fractional areas of vertices
+                
+                # new_mesh['frac_areas']=potentials.compute_frac_areas(new_mesh,xmin)
 
             elif self.distortion_method == 'nbody':
                 # TODO: implement this? - can OCs be done in NBody mode?
@@ -2334,12 +2383,31 @@ class Envelope(Body):
                 raise NotImplementedError
 
         elif mesh_method == 'wd':
-            # TODO: WD-style meshing for OCs (Angela)
-            raise NotImplementedError("WD-meshing not yet supported for overcontacts")
+			
+            N = int(kwargs.get('gridsize', self.gridsize))
+
+            the_grid = potentials.discretize_wd_style_oc(N, *mesh_args)
+            new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
+            scale = sma
+ 
+            # WD style overcontacts require splitting of the mesh into two components
+            # env_comp = 0 for primary part of the envelope, 1 for secondary
+           
+            # compute the positions of the minimum radii of the neck in the xy and xz planes            
+            xy,xz,y,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
+            # choose which value of x to use as the minimum (maybe extend to average of both?
+            xmin = xz    
+            
+            # create the env_comp array and change the values of all where vertices x>xmin to 1
+            env_comp = np.zeros(len(new_mesh['centers']))
+            env_comp[new_mesh['centers'][:,0]>xmin] = 1
+            
+            new_mesh['env_comp'] = env_comp
+            new_mesh['env_comp3']=env_comp
 
         else:
             raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
-
+                
         return new_mesh, sma, mesh_args
 
 
@@ -2349,15 +2417,31 @@ class Envelope(Body):
         """
         pass  # TODO: do we need any of these things for overcontacts?
 
-        #q = self.q
-        #d = kwargs.get('d') if 'd' in kwargs.keys() else self.instantaneous_distance(xs, ys, zs, self.sma)
+        pole_func = getattr(libphoebe, '{}_pole'.format(self.distortion_method))
+        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format(self.distortion_method))
 
-        #r_pole_ = potentials.project_onto_potential(np.array((0, 0, 1e-5)), *self._mesh_args).r # instantaneous unitless r_pole (not rpole defined at periastron)
-        #g_pole = np.sqrt(dBinaryRochedx(r_pole_, d, q, self.F)**2 + dBinaryRochedz(r_pole_, d, q, self.F)**2)
-        #rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+        r_pole1 = pole_func(*self._mesh_args,choice=0)
+        r_pole2 = pole_func(*self._mesh_args,choice=1)
+        
+        r_pole1_ = np.array([0., 0., r_pole1])
+        r_pole2_ = np.array([0., 0., r_pole2])
+        
+        args1 = list(self._mesh_args)[:-1]+[r_pole1_]
+        args2 = list(self._mesh_args)[:-1]+[r_pole2_]
+        
+        grads1 = gradOmega_func(*args1)
+        grads2 = gradOmega_func(*args2)
+        
+        g_pole1 = np.linalg.norm(grads1)
+        g_pole2 = np.linalg.norm(grads2)
 
-        #self._instantaneous_gpole = g_pole * rel_to_abs
-        #self._instantaneous_rpole = np.sqrt((r_pole_*r_pole_).sum())
+        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+
+        self._instantaneous_gpole1 = g_pole1 * g_rel_to_abs
+        self._instantaneous_gpole2 = g_pole2 * g_rel_to_abs
+        # TODO NOW: check whether r_pole is in absolute units (scaled/not scaled)
+        self._instantaneous_rpole1 = r_pole1
+        self._instantaneous_rpole2 = r_pole2
 
     def _fill_loggs(self, mesh=None):
         """
@@ -2372,7 +2456,14 @@ class Envelope(Body):
         if mesh is None:
             mesh = self.mesh
 
-        mesh.update_columns(loggs=0.0)
+        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+
+        loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
+
+        for feature in self.features:
+            loggs = feature.process_loggs(loggs, mesh.coords_for_computations, t=self.time)
+
+        mesh.update_columns(loggs=loggs)
 
 
     def _fill_gravs(self, mesh=None, **kwargs):
@@ -2384,19 +2475,164 @@ class Envelope(Body):
         if mesh is None:
             mesh = self.mesh
 
-        mesh.update_columns(gravs=0.0)
+
+        # TODO: rename 'gravs' to 'gdcs' (gravity darkening corrections)
+
+        g_rel_to_abs = c.G.si.value*c.M_sun.si.value*self.masses[self.ind_self]/(self.sma*c.R_sun.si.value)**2*100. # 100 for m/s**2 -> cm/s**2
+        # TODO: check the division by 100 - is this just to change units back to m?
+        gravs1 = ((mesh.normgrads.for_computations[mesh.env_comp==0] * g_rel_to_abs)/self._instantaneous_gpole1)**self.gravb_bol1
+        gravs2 = ((mesh.normgrads.for_computations[mesh.env_comp==1] * g_rel_to_abs)/self._instantaneous_gpole2)**self.gravb_bol2
+
+        # TODO: make sure equivalent to the old way here
+        # gravs = abs(10**(self.mesh.loggs.for_computations-2)/self._instantaneous_gpole)**self.gravb_bol
+        gravs = np.zeros(len(mesh.env_comp))
+        gravs[mesh.env_comp==0]=gravs1
+        gravs[mesh.env_comp==1]=gravs2
+        
+        mesh.update_columns(gravs=gravs)
 
     def _fill_teffs(self, mesh=None, **kwargs):
-        """
-        [NOT IMPLEMENTED]
+        r"""
+
         requires _fill_loggs and _fill_gravs to have been called
+
+        Calculate local temperatureof a BinaryRocheStar.
+
+        If the law of [Espinosa2012]_ is used, some approximations are made:
+
+            - Since the law itself is too complicated too solve during the
+              computations, the table with approximate von Zeipel exponents from
+              [Espinosa2012]_ is used.
+            - The two parameters in the table are mass ratio :math:`q` and
+              filling factor :math:`\rho`. The latter is defined as the ratio
+              between the radius at the tip, and the first Lagrangian point.
+              As the Langrangian points can be badly defined for weird
+              configurations, we approximate the Lagrangian point as 3/2 of the
+              polar radius (inspired by break up radius in fast rotating stars).
+              This is subject to improvement!
+
         """
         if mesh is None:
             mesh = self.mesh
 
-        mesh.update_columns(teffs=0.0)
+        if self.gravb_law == 'espinosa':
+            # TODO: check whether we want the automatically inverted q or not
+            q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
+            F = self.syncpar
+            sma = self.sma
 
+            # TODO NOW: rewrite this to work in unscaled units
 
+            # To compute the filling factor, we're gonna cheat a little bit: we
+            # should compute the ratio of the tip radius to the first Lagrangian
+            # point. However, L1 might be poorly defined for weird geometries
+            # so we approximate it as 1.5 times the polar radius.
+            # TODO NOW: rp doesn't seem to be used anywhere...
+            rp1 = self._instantaneous_rpole1  # should be in Rsol
+            rp2 = self._instantaneous_rpole2
+            
+            # TODO NOW: is this supposed to be the scaled or unscaled rs???
+            maxr1 = self.get_standard_mesh(scaled=True).rs.for_computations[self.env_comp==0].max()
+            maxr2 = self.get_standard_mesh(scaled=True).rs.for_computations[self.env_comp==1].max()
+            
+            L1 = roche.exact_lagrangian_points(q, F=F, d=1.0, sma=sma)[0]
+            rho1 = maxr1 / L1
+            rho2 = maxr2 / L1
+
+            gravb1 = roche.zeipel_gravb_binary()(np.log10(q), rho1)[0][0]
+            gravb2 = roche.zeipel_gravb_binary()(np.log10(q), rho2)[0][0]
+
+            logger.info("gravb(Espinosa): F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
+            if gravb>1.0 or gravb<0:
+                raise ValueError('Invalid gravity darkening parameter beta={}'.format(gravb))
+
+        elif self.gravb_law == 'claret':
+            logteff1 = np.log10(self.teff1)
+            logteff2 = np.log10(self.teff2)
+            
+            logg1 = np.log10(self._instantaneous_gpole1)
+            logg2 = np.log10(self._instantaneous_gpole2)
+            
+            abun = self.abun
+            axv, pix = roche.claret_gravb()
+            
+            gravb1 = interp_nDgrid.interpolate([[logteff1], [logg1], [abun]], axv, pix)[0][0]
+            gravb2 = interp_nDgrid.interpolate([[logteff2], [logg2], [abun]], axv, pix)[0][0]
+
+            logger.info('gravb(Claret): teff1 = {:.3f}, teff2 = {:.3f}, logg1 = {:.6f}, logg2 = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**logteff1, 10**logteff2, logg1, logg2, abun, gravb))
+
+        # TODO: ditch support for polar teff as input param
+
+        # Now use the Zeipel law:
+        if 'teffpolar' in kwargs.keys():
+            Teff1 = kwargs['teffpolar1']
+            Teff2 = kwargs['teffpolar2']
+            typ = 'polar'
+        else:
+            Teff1 = kwargs.get('teff1', self.teff1)
+            Teff2 = kwargs.get('teff2', self.teff2)
+            typ = 'mean'
+
+        # Consistency check for gravity brightening
+        if Teff1 >= 8000. and self.gravb_bol1 < 0.9:
+            logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 might be a better approx than gravb={:.2f}'.format(Teff1,self.gravb_bol1))
+        elif Teff1 <= 6600. and self.gravb_bol1 >= 0.9:
+            logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff1,self.gravb_bol1))
+        elif self.gravb_bol1 < 0.32 or self.gravb_bol1 > 1.00:
+            logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
+
+        if Teff2 >= 8000. and self.gravb_bol2 < 0.9:
+            logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 might be a better approx than gravb={:.2f}'.format(Teff2,self.gravb_bol2))
+        elif Teff2 <= 6600. and self.gravb_bol2 >= 0.9:
+            logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff2,self.gravb_bol2))
+        elif self.gravb_bol2 < 0.32 or self.gravb_bol2 > 1.00:
+            logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
+        
+        # from here on, need to handle areas    
+        # Compute G and Tpole
+        if typ == 'mean':
+            # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
+            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+            Tpole1 = Teff1*(np.sum(mesh.areas[mesh.env_comp3==0]) / np.sum(mesh.gravs.centers[mesh.env_comp3==0]*mesh.areas[mesh.env_comp3==0]))**(0.25)
+            Tpole2 = Teff2*(np.sum(mesh.areas[mesh.env_comp3==1]) / np.sum(mesh.gravs.centers[mesh.env_comp3==1]*mesh.areas[mesh.env_comp3==1]))**(0.25)
+        elif typ == 'polar':
+            Tpole1 = Teff1
+            Tpole2 = Teff2
+        else:
+            raise ValueError("Cannot interpret temperature type '{}' (needs to be one of ['mean','polar'])".format(typ))
+
+        self._instantaneous_teffpole1 = Tpole1
+        self._instantaneous_teffpole2 = Tpole2
+
+        # Now we can compute the local temperatures.
+        teffs1 = (mesh.gravs.for_computations[mesh.env_comp==0] * Tpole1**4)**0.25
+        teffs2 = (mesh.gravs.for_computations[mesh.env_comp==1] * Tpole2**4)**0.25
+        
+        for feature in self.features:
+            teffs1 = feature.process_teffs(teffs1, mesh.coords_for_computations[mesh.env_comp==0], t=self.time)
+            teffs2 = feature.process_teffs(teffs2, mesh.coords_for_computations[mesh.env_comp==1], t=self.time)
+        
+        teffs = np.zeros(len(mesh.env_comp))
+        teffs[mesh.env_comp==0]=teffs1
+        teffs[mesh.env_comp==1]=teffs2
+        
+        mesh.update_columns(teffs=teffs)
+
+    def _fill_albedos(self, mesh=None, alb_refl=0.0):
+        """
+        TODO: add documentation
+        """
+        if mesh is None:
+            mesh = self.mesh
+            alb_refl1 = self.alb_refl1
+            alb_refl2 = self.alb_refl2
+        
+        alb_refl = np.zeros(len(mesh.env_comp))
+        alb_refl[mesh.env_comp==0] = alb_refl1
+        alb_refl[mesh.env_comp==1] = alb_refl2
+        
+        mesh.update_columns(alb_refl=alb_refl)
+        
     def _populate_ifm(self, dataset, **kwargs):
         """
         TODO: add documentation
@@ -2414,11 +2650,34 @@ class Envelope(Body):
         or :meth:`System.populate_observables`
         """
 
-        # can probably do similar to star?
-        raise NotImplementedError
+        # print "*** Star._populate_rv"
+        # ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
+        # ld_func = kwargs.get('ld_func', 'logarithmic')
+        # atm = kwargs.get('atm', 'kurucz')
+        # boosting_alg = kwargs.get('boosting_alg', 'none')
+
+        # We need to fill all the flux-related columns so that we can weigh each
+        # triangle's RV by its flux in the requested passband.
+        lc_cols = self._populate_lc(dataset, passband, **kwargs)
+
+        # RV per element is just the z-component of the velocity vectory.  Note
+        # the change in sign from our right-handed system to RV conventions.
+        # These will be weighted by the fluxes when integrating
+
+        rvs = -1*self.mesh.velocities.for_computations[:,2]
 
 
+        # Gravitational redshift
+        if self.do_rv_grav:
+            rv_grav = c.G*(self.mass*u.solMass)/(self._instantaneous_rpole*u.solRad)/c.c
+            # rvs are in solrad/d internally
+            rv_grav = rv_grav.to('solRad/d').value
 
+            rvs += rv_grav
+
+        cols = lc_cols
+        cols['rv'] = rvs
+        return cols
 
     def _populate_lc(self, dataset, passband, **kwargs):
         """
@@ -2430,12 +2689,126 @@ class Envelope(Body):
         :raises NotImplementedError: if lc_method is not supported
         """
 
-        # can probably do similar to star?
-        raise NotImplementedError
+        lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
+
+        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
+        ld_func = kwargs.get('ld_func', 'logarithmic')
+        atm = kwargs.get('atm', 'blackbody')
+        boosting_alg = kwargs.get('boosting_alg', 'none')
+
+        pblum = kwargs.get('pblum', 4*np.pi)
+
+
+        if lc_method=='numerical':
+
+            if passband not in self._pbs.keys():
+                passband_fname = passbands._pbtable[passband]['fname']
+                logger.info("using ptf file: {}".format(passband_fname))
+                pb = passbands.Passband.load(passband_fname)
+
+                self._pbs[passband] = pb
+
+            # intens_norm_abs are the normal emergent passband intensities:
+            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
+                                                        logg=self.mesh.loggs.for_computations,
+                                                        met=self.mesh.abuns.for_computations,
+                                                        atm=atm)
+
+
+            # intens_proj_abs are the projected (limb-darkened) passband intensities
+            # TODO: why do we need to use abs(mus) here?
+            intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
+                                                      logg=self.mesh.loggs.for_computations,
+                                                      met=self.mesh.abuns.for_computations,
+                                                      mu=abs(self.mesh.mus_for_computations),
+                                                      atm=atm,
+                                                      ld_func=ld_func,
+                                                      ld_coeffs=ld_coeffs)
+
+            # Beaming/boosting
+            # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
+            if boosting_alg == 'simple':
+                raise NotImplementedError("'simple' boosting_alg not yet supported")
+                # TODO: need to get alpha_b from the passband/atmosphere tables
+                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
+                                              red_kwargs=red_kwargs, vgamma=vgamma,
+                                              interp_all=False)
+
+
+            elif boosting_alg == 'local':
+                raise NotImplementedError("'local' boosting_alg not yet supported")
+                # TODO: need to get alpha_b from the passband/atmosphere tables
+                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
+                                              red_kwargs=red_kwargs, vgamma=vgamma)
+
+
+            elif boosting_alg == 'global':
+                raise NotImplementedError("'global' boosting_alg not yet supported")
+                # TODO: need to get alpha_b from the passband/atmosphere tables
+                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
+                                              red_kwargs=red_kwargs, vgamma=vgamma)
+
+            else:
+                alpha_b = 0.0
+
+            # light speed in Rsol/d
+            # TODO: should we mutliply velocities by -1 (z convention)?
+            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+
+            # TODO: does this make sense to boost proj but not norm?
+            intens_proj_abs *= ampl_boost
+
+            # Handle pblum - distance and l3 scaling happens when integrating (in observe)
+            # we need to scale each triangle so that the summed intens_norm_rel over the
+            # entire star is equivalent to pblum / 4pi
+            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
+            intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
 
 
 
+        elif lc_method=='analytical':
+            raise NotImplementedError("analytical fluxes not yet ported to beta")
+            #lcdep, ref = system.get_parset(ref)
+            # The projected intensity is normalised with the distance in cm, we need
+            # to reconvert that into solar radii.
+            #intens_proj = limbdark.sphere_intensity(body,lcdep)[1]/(c.Rsol)**2
 
+            # TODO: this probably needs to be moved into observe or backends.phoebe
+            # (assuming it doesn't result in per-triangle quantities)
+
+        else:
+            raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
+
+
+        # Take reddening into account (if given), but only for non-bolometric
+        # passbands and nonzero extinction
+
+        # TODO: reddening
+        #logger.warning("reddening for fluxes not yet ported to beta")
+        # if dataset != '__bol':
+
+        #     # if there is a global reddening law
+        #     red_parset = system.get_globals('reddening')
+        #     if (red_parset is not None) and (red_parset['extinction'] > 0):
+        #         ebv = red_parset['extinction'] / red_parset['Rv']
+        #         proj_intens = reddening.redden(proj_intens,
+        #                      passbands=[idep['passband']], ebv=ebv, rtype='flux',
+        #                      law=red_parset['law'])[0]
+        #         logger.info("Projected intensity is reddened with E(B-V)={} following {}".format(ebv, red_parset['law']))
+
+        #     # if there is passband reddening
+        #     if 'extinction' in idep and (idep['extinction'] > 0):
+        #         extinction = idep['extinction']
+        #         proj_intens = proj_intens / 10**(extinction/2.5)
+        #         logger.info("Projected intensity is reddened with extinction={} (passband reddening)".format(extinction))
+
+
+
+        # TODO: do we really need to store all of these if store_mesh==False?
+        # Can we optimize by only returning the essentials if we know we don't need them?
+        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
+            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
+            'ampl_boost': ampl_boost}
 
 
 class Feature(object):

@@ -538,7 +538,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pbscale_copy = {}
-            for component in starrefs:
+            for component in meshablerefs:
                 if component=='_default':
                     continue
                 #print "*** pbscale", component, dataset
@@ -555,9 +555,11 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     # component we're copying from has a chance to compute its scale
                     # first.
                     pbscale_copy[component] = pbscale
+                    
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pbscale_copy.items():
+                print pbscale_copy.items()
                 system.get_body(comp)._pblum_scale[dataset] = system.get_body(comp_copy).get_pblum_scale(dataset)
 
 

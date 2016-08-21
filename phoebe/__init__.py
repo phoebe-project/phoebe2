@@ -32,7 +32,7 @@ from .frontend.bundle import Bundle
 from .backend import *
 import utils as utils
 
-from phoebe.atmospheres.limbdark import download_atm
+# from phoebe.atmospheres.limbdark import download_atm
 
 import dynamics as dynamics
 import distortions as distortions
