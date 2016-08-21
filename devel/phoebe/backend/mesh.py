@@ -382,7 +382,8 @@ class ProtoMesh(object):
         self._thetas             = None # Nx1
 
         ### WD style OCs only ###
-        self._env_comp            = None # Nx1
+        self._env_comp            = None # Vx1
+        self._env_comp3           = None # Nx1
 
 
         ### PHYSICAL QUANTITIES
@@ -409,7 +410,7 @@ class ProtoMesh(object):
                   'areas', 'tareas', 'areas_si',
                   'velocities', 'vnormals', 'tnormals',
                   'normgrads', 'volume',
-                  'phis', 'thetas', 'env_comp',
+                  'phis', 'thetas', 'env_comp','env_comp3',
                   'compute_at_vertices',
                   'loggs', 'gravs', 'teffs', 'abuns', 'alb_refls'] # alb_heats, alb_scatts
         self._keys = keys + kwargs.pop('keys', [])
@@ -816,6 +817,13 @@ class ProtoMesh(object):
         """
         return self._env_comp
 
+    @property
+    def env_comp3(self):
+        """
+        TODO: add documentation
+        """
+        return self._env_comp3
+        
     @property
     def loggs(self):
         """
