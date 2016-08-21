@@ -559,7 +559,6 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pbscale_copy.items():
-                print pbscale_copy.items()
                 system.get_body(comp)._pblum_scale[dataset] = system.get_body(comp_copy).get_pblum_scale(dataset)
 
 
