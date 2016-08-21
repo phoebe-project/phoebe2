@@ -21,7 +21,7 @@
 #include <list>
 #include <ctime>
 
-#include "../triang/triang_marching.h"
+#include "../triang/triang_mesh.h"
 #include "../utils/utils.h"
 #include "clipper.h"
 
