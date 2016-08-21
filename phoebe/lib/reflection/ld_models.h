@@ -31,7 +31,6 @@
 #include <cmath>
 #include "hash.h"
 
-
 // Enumeration of supported types
 enum TLDmodel_type {
   UNIFORM,

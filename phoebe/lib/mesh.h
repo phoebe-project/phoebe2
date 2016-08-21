@@ -3,7 +3,7 @@
 
 /*
   Library concerning routines for creation and manipulation of 
-  triangular grid. 
+  triangular grids.
   
   Author: Martin Horvat,  July 2016 
 */
@@ -13,7 +13,7 @@
 #include <algorithm>
 
 #include "utils/utils.h"
-
+#include "triang/triang_mesh.h"           // Dealing with triangular meshes
 #include "triang/triang_marching.h"       // Maching triangulation
 #include "triang/bodies.h"                // Definitions of different potentials
 #include "eclipsing/eclipsing.h"          // Eclipsing/Hidden surface removal

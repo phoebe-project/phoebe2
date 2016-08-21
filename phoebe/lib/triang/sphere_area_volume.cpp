@@ -18,6 +18,7 @@
 #include <set>
 #include <list>
 
+#include "triang_mesh.h"
 #include "triang_marching.h"
 #include "bodies.h"
 #include "../gen_roche.h" 
@@ -64,12 +65,17 @@ int main(){
     
     mesh_area_volume(V, NatV, T, av);
    
+    double dR = 0;
+    
+    for (auto && v : V) dR = std::max(dR, v[0]*v[0]  + v[1]*v[1] + v[2]*v[2] - 1);
+     
     std::cout
       << delta << '\t'
       << V.size() << '\t' 
       << T.size() << '\t'
       << av[0] << '\t'
-      << av[1] << std::endl;
+      << av[1] << '\t'
+      << dR << std::endl;
   
     delta *= fac;
   }

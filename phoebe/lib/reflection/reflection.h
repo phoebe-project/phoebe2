@@ -28,8 +28,8 @@
 #include <utility>
 	
 #include "../utils/utils.h"
+#include "../triang/triang_mesh.h"
 #include "ld_models.h"
-#include "../triang/triang_marching.h"
 
 /*
   Check if the line segment

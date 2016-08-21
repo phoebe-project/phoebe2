@@ -21,7 +21,7 @@
 #include <limits>
 	
 #include "../utils/utils.h"
-#include "../triang/triang_marching.h"
+#include "../triang/triang_mesh.h"
 
 namespace povray_export_support {
   

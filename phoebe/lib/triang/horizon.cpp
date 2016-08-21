@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cmath>
 
+#include "triang_mesh.h"
 #include "triang_marching.h"
 #include "bodies.h"
 

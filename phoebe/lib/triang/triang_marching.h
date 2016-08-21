@@ -3,19 +3,16 @@
 
 /*
   Library for triangulation using maching algorithm specialized for 
-  closed surfaces and connected surfaces.
-   
-  !!! Currently supports only genus 0 surfaces !!!
+  closed surfaces and connected surfaces. Supports only genus 0 smooth 
+  surfaces.
   
-  The surface should be smooth enough
-
   Ref:
-    E. Hartmann, A marching method for the triangulation of surfaces, 
+    * E. Hartmann, A marching method for the triangulation of surfaces, 
     The Visual Computer (1998) 14: 95-108
      
-    https://en.wikipedia.org/wiki/Surface_triangulation
+    * https://en.wikipedia.org/wiki/Surface_triangulation
     
-  Author: April 2016
+  Author: April, August 2016
 */ 
 
 #include <iostream>
@@ -25,742 +22,7 @@
 #include <limits>
 
 #include "../utils/utils.h"
-
-/*
-  Structure describing 3D point
-*/
-template <class T>
-struct T3Dpoint {
-  
-  T data[3];     // normal vector of triangle
-  
-  T3Dpoint() {}
-  
-  T3Dpoint(const T3Dpoint & v) : data{v.data[0],v.data[1],v.data[2]} { }
-  
-  T3Dpoint(const T &x1, const T &x2, const T &x3) : data{x1, x2, x3} {}
-   
-  T3Dpoint(T *p) : data{p[0], p[1], p[2]} {}
-  
-  T & operator[](const int &idx) { return data[idx]; }
-  
-  const T & operator[](const int &idx) const { return data[idx]; }
-  
-  T* operator & () const { return data; }
-  
-  void fill(const T & val){
-    data[0] = data[1] = data[2] = val;
-  }
-  
-  void assign(const T & x1, const T & x2, const T & x3) {
-    data[0] = x1;
-    data[1] = x2;
-    data[2] = x3;
-  }
-};
-
-/*
-  Overloading printing of Tt3Dpoint
-*/ 
-template<class T>
-std::ostream& operator<<(std::ostream& os, const T3Dpoint<T> & v)
-{
-
-  os << v[0] << ' ' << v[1] << ' ' << v[2];
-  
-  return os;
-}
-
-/* 
-  Calculate the area of a triangle defined by the three vertices AND 
-  optionally normal to the surface.
-
-  Input: 
-    v1, v2, v3 - vertices of the triangle
-    n - normal at of the vertices
-
-  Output (optionally): 
-    n - normal to the surface in the same direction input n
-    
-  Return:
-    area of the triangle
-  
-*/ 
-template <class T> 
-T triangle_area (T v1[3], T v2[3], T v3[3], T *n = 0) {
-
-  T a[3], b[3];
-  
-  // a = v2 - v1
-  // b = v3 - v1
-  for (int i = 0; i < 3; ++i) {
-    a[i] = v2[i] - v1[i];
-    b[i] = v3[i] - v1[i];
-  }
-  
-  // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
-  // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
-  
-  T c[3] = {
-      a[1]*b[2] - a[2]*b[1],
-      a[2]*b[0] - a[0]*b[2],
-      a[0]*b[1] - a[1]*b[0]
-    },
-    norm = utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
-  
-  if (n) {
-    
-    // copy c -> n and calculate scalar product c.n1
-    T scalar = 0;
-    for (int i = 0; i < 3; ++i) scalar += n[i]*c[i];
-    
-    // based on the scalar prodyct normalize normal n
-    T fac = (scalar > 0 ? 1/norm : -1/norm);
-    for (int i = 0; i < 3; ++i) n[i] = fac*c[i];
-  }
-  
-  return norm/2;
-}
-
-/* 
-  Calculate the area of a triangle defined by the three vertices AND 
-  optionally normal to the surface.
-
-  Input: 
-    r[3][3]- vertices of the triangle (r[0], r[1], r[2])
-    n[3] - estimated normal vector (optional)
-    
-  Output (optional): 
-    n - normal to the surface in the same direction as input n
-    
-  Return:
-    area of the triangle
-*/ 
-template <class T> 
-T triangle_area (T r[3][3], T *n = 0) {
-
-  T a[3], b[3];
-  
-  // a = v2 - v1
-  // b = v3 - v1
-  for (int i = 0; i < 3; ++i) {
-    a[i] = r[1][i] - r[0][i];
-    b[i] = r[2][i] - r[0][i];
-  }
-  
-  // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
-  // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
-  
-  T c[3] = {
-      a[1]*b[2] - a[2]*b[1],
-      a[2]*b[0] - a[0]*b[2],
-      a[0]*b[1] - a[1]*b[0]
-    },
-    norm = utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
-  
-  if (n) {
-    
-    // copy c -> n and calculate scalar product c.n1
-    T scalar = 0;
-    for (int i = 0; i < 3; ++i) scalar += c[i]*n[i];
-    
-    // based on the scalar prodyct normalize normal n
-    T fac = (scalar > 0 ? 1/norm : -1/norm);
-    for (int i = 0; i < 3; ++i) n[i] = fac*c[i];
-  }
-  
-  return norm/2;
-}
-
-
-/* 
-  Define an orthonormal basis {t1,t2,n} based on g:
-    
-    n proportional to g
-    
-    t1, t2 -- orthogonal to g
-
-  Input:
-    n[3] - normal vector on the surface
-    norm (optional): if true normalize n
-    
-  Output:
-    b[3][3] = {t1,t2, n}
-*/
-
-template <class T>
-void create_basis(T g[3], T b[3][3], const bool & norm = false){
-  
-  //
-  // Define screen coordinate system: b[3]= {t1,t2,view}
-  //
-  T *t1 = b[0], *t2 = b[1], *n = b[2], fac;
-    
-  if (norm){
-    fac = 1/utils::hypot3(g[0], g[1], g[2]);
-    for (int i = 0; i < 3; ++i) n[i] = fac*g[i];
-  } else
-    for (int i = 0; i < 3; ++i) n[i] = g[i];
-
-  //
-  // creating base in the tangent plane
-  //
-  
-  // defining vector t1
-  if (std::abs(n[0]) >= 0.5 || std::abs(n[1]) >= 0.5){
-    //fac = 1/std::sqrt(n[1]*n[1] + n[0]*n[0]);
-    fac = 1/std::hypot(n[0], n[1]);
-    t1[0] = fac*n[1];
-    t1[1] = -fac*n[0];
-    t1[2] = 0.0;
-  } else {
-    //fac = 1/std::sqrt(n[0]*n[0] + n[2]*n[2]);
-    fac = 1/std::hypot(n[0], n[2]);
-    t1[0] = -fac*n[2];
-    t1[1] = 0.0;
-    t1[2] = fac*n[0];
-  }
-  
-  // t2 = n x t1
-  t2[0] = n[1]*t1[2] - n[2]*t1[1];
-  t2[1] = n[2]*t1[0] - n[0]*t1[2];
-  t2[2] = n[0]*t1[1] - n[1]*t1[0];
-}
-
-/* 
-  Transform coordinates of a vector r from standard cartesian basis
-   
-    r = sum_i u_i e_i   e_1= (1,0,0), e_2=(0,1,0), e_3=(0,0,1)
-  
-  into new orthonormal basis {b_1. b_2, b3}
-  
-    r = sum_i v_i b_i
-  
-  Input:
-    u[3] -- coordinate of r in cartesian basis
-    b[3][3] = {b_1, b_2, b_3} -- coordinates of the basis
-      
-  Output:
-    v[3] -- coordinate of r in  basis b
-    
-*/
-
-template <class T> 
-void trans_basis(T u[3], T v[3], T b[3][3]){
-  
-  int i, j;
-    
-  if (u != v) { 
-    
-    for (i = 0; i < 3; ++i) {
-      T s = 0;
-      for (j = 0; j < 3; ++j) s += b[i][j]*u[j]; 
-      v[i] = s; 
-    }
-    
-  } else {
-    
-    T s[3] = {0, 0, 0};
-    
-    for (i = 0; i < 3; ++i)
-      for (j = 0; j < 3; ++j) s[i] += b[i][j]*u[j];
-    
-    for (i = 0; i < 3; ++i) v[i] = s[i]; 
-  }
-}
-
-
-/*
-  Calculate area of the triangulated of surfaces and volume of the body
-  that the surface envelopes.
-  
-  Input:
-    V - vector of vertices
-    NatV - vector of normals at vertices
-    Tr - vector of triangles 
-    choice - index of vertex as reference normal
-    
-  Output:
-    av[2] = {area, volume}
-  
-  Ref: 
-  * Cha Zhang and Tsuhan Chen, Efficient feature extraction for 2d/3d 
-    objects in mesh representation, Image Processing, 2001.
-
-*/ 
-template <class T> 
-void mesh_area_volume(
-  std::vector <T3Dpoint<T>> & V,
-  std::vector <T3Dpoint<T>> & NatV,
-  std::vector <T3Dpoint<int>> & Tr,
-  T av[2],
-  int choice = 0) { 
-  
-  int i, j;
-  
-  T sumA = 0, sumV = 0, 
-    a[3], b[3], c[3], v[3][3],
-    *pv, *pn, f1, f2;
-    
-  for (auto && t: Tr) {
-    
-    //
-    // copy data
-    //
-    for (i = 0; i < 3; ++i) {
-      pv = V[t[i]].data;
-      for (j = 0; j < 3; ++j) v[i][j] = pv[j];
-    }
-    
-    //
-    // Computing surface element
-    //
-    
-    for (i = 0; i < 3; ++i) {
-      a[i] = v[1][i] - v[0][i];
-      b[i] = v[2][i] - v[0][i];
-    }
-  
-    // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
-    // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
-  
-    c[0] = a[1]*b[2] - a[2]*b[1];
-    c[1] = a[2]*b[0] - a[0]*b[2];
-    c[2] = a[0]*b[1] - a[1]*b[0];
-      
-    sumA += utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
-    // sumA += std::sqrt(c[0]*c[0] + c[1]*c[1] + c[2]*c[2])/2;
-    
-    //
-    // Computing volume of signed tetrahedron
-    //
-    
-    // determine the sign of the normal 
-    
-    pn = NatV[t[choice]].data;
-    pv = v[choice];
-    
-    f1 = f2 = 0;
-    for (i = 0; i < 3; ++i) {
-      f1 += pn[i]*c[i];
-      f2 += pv[i]*c[i];
-    }
-  
-    // volume of the signed tetrahedron
-    if (f1 != 0) {
-      
-      f2 = std::abs(
-        (-v[2][0]*v[1][1] + v[1][0]*v[2][1])*v[0][2] +
-        (+v[2][0]*v[0][1] - v[0][0]*v[2][1])*v[1][2] +
-        (-v[1][0]*v[0][1] + v[0][0]*v[1][1])*v[2][2] 
-      );
-      
-      if (f1 > 0) sumV += f2; else sumV -= f2;
-    }
-  }
-  
-  av[0] = sumA/2;
-  av[1] = sumV/6;
-}
-
-
-/*
-  Calculate area of the triangulated of surfaces.
-  
-  Input:
-    V - vector of vertices
-    Tr - vector of triangles 
-    choice - index of vertex as reference normal
-    
-  Output:
-    av[2] = {area, volume}
-  
-  Ref: 
-  * Cha Zhang and Tsuhan Chen, Efficient feature extraction for 2d/3d 
-    objects in mesh representation, Image Processing, 2001.
-
-*/ 
-template <class T> 
-T mesh_area(
-  std::vector <T3Dpoint<T>> & V,
-  std::vector <T3Dpoint<int>> & Tr) { 
-
-  T a[3], b[3], c[3], *v[3];
-  
-  long double sumA = 0;
-    
-  for (auto && t: Tr) {
-    
-    //
-    // link data data
-    //
-    
-    for (int i = 0; i < 3; ++i) v[i] = V[t[i]].data;
-    
-    //
-    // Computing surface element
-    //
-    
-    for (int i = 0; i < 3; ++i) {
-      a[i] = v[1][i] - v[0][i];
-      b[i] = v[2][i] - v[0][i];
-    }
-  
-    // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
-    // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
-  
-    c[0] = a[1]*b[2] - a[2]*b[1];
-    c[1] = a[2]*b[0] - a[0]*b[2];
-    c[2] = a[0]*b[1] - a[1]*b[0];
-      
-    sumA += utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
-  }
-  
-  return sumA/2;
-}
-
-/*
-  Calculate properties of triangles -- areas of triangles and a normal
-    
-  Input:
-    V - vector of vertices
-    NatV - vector of normals at vertices
-    Tr - vector of triangles
-    choice in {0,1,2} - which vertex is choosen as the reference
-    reorientate - if Tr should be reorientated so that normal point outwards
-    
-  Output:
-    A - triangle areas 
-    N - triangle normals
-    area - total area of the triangles
-    volume - volume of the body enclosed by the mesh
-  
-  Ref: 
-  * Cha Zhang and Tsuhan Chen, Efficient feature extraction for 2d/3d 
-    objects in mesh representation, Image Processing, 2001.
-*/
-template<class T> 
-void mesh_attributes(
-  std::vector <T3Dpoint<T>> & V,
-  std::vector <T3Dpoint<T>> & NatV,
-  std::vector <T3Dpoint<int>> & Tr,
-  std::vector <T> *A = 0,
-  std::vector <T3Dpoint<T>> * N = 0,
-  T *area = 0,
-  T *volume = 0,
-  int choice = 0,
-  bool reorientate = false
-) {
-  
-  if (A == 0 && area == 0 && volume == 0 && N == 0) return;
-  
-  
-  if (A) {
-    A->clear();
-    A->reserve(Tr.size());
-  }
-  
-  if (N) {
-    N->clear();
-    N->reserve(Tr.size());
-  }
-  
-  if (area)  *area = 0;
-  if (volume) *volume = 0;
-  
-  int i, j;
-  
-  T a[3], b[3], c[3], v[3][3], *p, f, fv, norm;
-  
-  bool 
-    st_area = (area != 0) || (A != 0),
-    st_N = (N != 0),
-    st_area_N = st_area || st_N,
-    st_volume = (volume != 0),
-    st_N_volume = st_N || st_volume || reorientate;
-        
-  for (auto && t: Tr) {
-    
-    //
-    // copy data
-    //
-    
-    for (i = 0; i < 3; ++i) {
-      p = V[t[i]].data;
-      for (j = 0; j < 3; ++j) v[i][j] = p[j];
-    }
-    
-    //
-    // Computing surface element
-    //
-    
-    for (i = 0; i < 3; ++i) {
-      a[i] = v[1][i] - v[0][i]; // v1-v0
-      b[i] = v[2][i] - v[0][i]; // v2-v0
-    }
-  
-    // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
-    // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
-  
-    c[0] = a[1]*b[2] - a[2]*b[1];
-    c[1] = a[2]*b[0] - a[0]*b[2];
-    c[2] = a[0]*b[1] - a[1]*b[0];
-    
-    if (st_area_N) { 
-      
-      norm = utils::hypot3(c[0], c[1], c[2]); // std::hypot(,,) is comming in C++17
-      
-      f  = norm/2;
-      
-      if (A) A->emplace_back(f);
-      if (area) *area += f;
-    }
-    
-    if (st_N_volume) {
-      
-      //
-      // Compute normal to the surface element
-      //
-      
-      // orienting normal vector along the normal at vertex t[choice]
-      p = NatV[t[choice]].data, 
-      
-      f = 0; 
-      for (i = 0; i < 3; ++i) f += p[i]*c[i];
-      
-      if (f < 0) {
-        for (i = 0; i < 3; ++i) c[i] = -c[i];
-        // change the order of indices
-        if (reorientate) {i = t[1]; t[1] = t[2]; t[2] = i; }
-      }
-      
-      // normalize the normal 
-      if (st_N) {
-        f = 1/norm;
-        for (i = 0; i < 3; ++i) c[i] *= f; 
-        N->emplace_back(c);
-      }
-    
-      //
-      // Computing volume of signed tetrahedron
-      //
-         
-      if (st_volume) {
-       
-        // determine the sign tetrahedron
-        p = v[0];
-        f = 0;
-        for (i = 0; i < 3; ++i) f += p[i]*c[i];
-        
-        if (f != 0) {
-          // volume of tetrahedron
-          fv = std::abs(
-            (-v[2][0]*v[1][1] + v[1][0]*v[2][1])*v[0][2] +
-            (+v[2][0]*v[0][1] - v[0][0]*v[2][1])*v[1][2] +
-            (-v[1][0]*v[0][1] + v[0][0]*v[1][1])*v[2][2] 
-          )/6;
-          
-          if (f > 0) *volume += fv; else  *volume -= fv;
-        }
-      }
-    }
-  }
-}
-
-
-/*
-  Calculate properties of triangles with assumption that normals taken in 
-  given order point triangles outwards
-    
-  Input:
-    V - vector of vertices
-    Tr - vector of triangles
-
-  Output:
-    A - triangle areas 
-    N - triangle normals
-    area - total area of the triangles
-    volume - volume of the body enclosed by the mesh
-  
-  Ref: 
-  * Cha Zhang and Tsuhan Chen, Efficient feature extraction for 2d/3d 
-    objects in mesh representation, Image Processing, 2001.
-*/
-template<class T> 
-void mesh_attributes(
-  std::vector <T3Dpoint<T>> & V,
-  std::vector <T3Dpoint<int>> & Tr,
-  std::vector <T> *A = 0,
-  std::vector <T3Dpoint<T>> * N = 0,
-  T *area = 0,
-  T *volume = 0
-) {
-  
-  if (A == 0 && area == 0 && volume == 0 && N == 0) return;
-  
-  
-  if (A) {
-    A->clear();
-    A->reserve(Tr.size());
-  }
-  
-  if (N) {
-    N->clear();
-    N->reserve(Tr.size());
-  }
-  
-  if (area)  *area = 0;
-  if (volume) *volume = 0;
-  
-  int i, j;
-  
-  T a[3], b[3], c[3], v[3][3], *p, f, fv, norm;
-  
-  bool 
-    st_area = (area != 0) || (A != 0),
-    st_N = (N != 0),
-    st_area_N = st_area || st_N,
-    st_volume = (volume != 0),
-    st_N_volume = st_N || st_volume;
-        
-  for (auto && t: Tr) {
-    
-    //
-    // copy data
-    //
-    
-    for (i = 0; i < 3; ++i) {
-      p = V[t[i]].data;
-      for (j = 0; j < 3; ++j) v[i][j] = p[j];
-    }
-    
-    //
-    // Computing surface element
-    //
-    
-    for (i = 0; i < 3; ++i) {
-      a[i] = v[1][i] - v[0][i]; // v1-v0
-      b[i] = v[2][i] - v[0][i]; // v2-v0
-    }
-  
-    // Cross[{a[0], a[1], a[2]}, {b[0], b[1], b[2]}]
-    // {-a[2] b[1] + a[1] b[2], a[2] b[0] - a[0] b[2], -a[1] b[0] + a[0] b[1]}
-  
-    c[0] = a[1]*b[2] - a[2]*b[1];
-    c[1] = a[2]*b[0] - a[0]*b[2];
-    c[2] = a[0]*b[1] - a[1]*b[0];
-    
-    if (st_area_N) { 
-      
-      // std::hypot(,,) is comming in C++17
-      norm = utils::hypot3(c[0], c[1], c[2]); 
-      
-      f  = norm/2;
-      
-      if (A) A->emplace_back(f);
-      if (area) *area += f;
-    }
-    
-    if (st_N_volume) {
-      
-      //
-      // Compute normal to the surface element
-      //
-      
-      // normalize the normal 
-      if (st_N) {
-        f = 1/norm;
-        for (i = 0; i < 3; ++i) c[i] *= f; 
-        N->emplace_back(c);
-      }
-    
-      //
-      // Computing volume of signed tetrahedron
-      //
-         
-      if (st_volume) {
-       
-        // determine the sign tetrahedron
-        p = v[0];
-        f = 0;
-        for (i = 0; i < 3; ++i) f += p[i]*c[i];
-        
-        if (f != 0) {
-          // volume of tetrahedron
-          fv = std::abs(
-            (-v[2][0]*v[1][1] + v[1][0]*v[2][1])*v[0][2] +
-            (+v[2][0]*v[0][1] - v[0][0]*v[2][1])*v[1][2] +
-            (-v[1][0]*v[0][1] + v[0][0]*v[1][1])*v[2][2] 
-          )/6;
-          
-          if (f > 0) *volume += fv; else  *volume -= fv;
-        }
-      }
-    }
-  }
-}
-
-/*
-  Offseting the mesh to match the reference area by moving vertices along the normals in vertices so that the total area matches its reference value.
-  
-  Currently supporting only curvature independent.
-
-  Input:
-    A0 - reference area
-    V - vector of vertices
-    NatV - vector of normals
-    Tr - vector of triangles 
-    max_iter - maximal number of iterator
-  Output:
-    Vnew - vector of new vertices
-  
-  Return:
-    false - If somethings fails
-     
-*/ 
-template <class T>
-bool mesh_offseting_matching_area(
-  const T &A0,
-  std::vector <T3Dpoint<T>> & V,
-  std::vector <T3Dpoint<T>> & NatV,
-  std::vector <T3Dpoint<int>> & Tr,
-  const int max_iter = 100) {
- 
-  const T eps = 10*std::numeric_limits<T>::epsilon();
-    
-  int it = 0, Nv = V.size();
-  
-  T A[2], dt = 1e-12;
-  
-  A[0] = mesh_area(V, Tr); 
-  
-  do {
-        
-    // shift of the vertices
-    for (int i = 0; i < Nv; ++i)
-      for (int j = 0; j < 3; ++j) 
-        V[i][j] += dt*NatV[i][j];
-    
-    // calculating area
-    A[1] = A[0];
-    A[0] = mesh_area(V, Tr);    
-    
-    
-    // secant step
-    dt *= (A0 - A[0])/(A[0] - A[1]);  
-    
-    /*
-    std::cerr.precision(16);
-    std::cerr <<std::scientific;
-    std::cerr << dt << '\t' << A0 << '\t' << A[0] << '\t' << A[1] << '\n';
-    */
-    
-    if (std::abs(1 - A[0]/A0) < eps) break;
-    
-  } while (++it < max_iter);
-    
-  return it < max_iter;
-}
+#include "triang_mesh.h"
 
 /*
   Triangulization of closed surfaces using maching algorithm.
@@ -857,7 +119,7 @@ struct Tmarching: public Tbody {
   bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter){
     
     //
-    // Newton-Rapson iteration to solve F(u_k - t grad(F))=0
+    // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
     //
     
     int n = 0;
@@ -920,7 +182,7 @@ struct Tmarching: public Tbody {
   bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0){
     
     //
-    // Newton-Rapson iteration to solve F(u_k - t grad(F))=0
+    // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
     //
     
     int nr_iter = 0;
@@ -931,7 +193,7 @@ struct Tmarching: public Tbody {
     const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
     
-    if (r != ri) for (int i = 0; i <3; ++i) r[i] = ri[i];
+    if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
          
     do {
     
@@ -1023,8 +285,6 @@ struct Tmarching: public Tbody {
     Tr.clear();
     
     const int max_iter = 100;
-    const T M_PI3 = 1.04719755119659774615421446109316806665;
-    const T M_2PI = 6.2831853071795864769252867665590083999;
      
     T qk[3];
     
@@ -1051,7 +311,7 @@ struct Tmarching: public Tbody {
     
     T s, c, st, ct, sa[6], ca[6];
     
-    utils::sincos_array(5, M_PI3, sa, ca, delta);
+    utils::sincos_array(5, utils::M_PI3, sa, ca, delta);
       
     for (int k = 0; k < 6; ++k){
       
@@ -1084,7 +344,7 @@ struct Tmarching: public Tbody {
     //
     int n, nt;
     
-    T domega, omega, omega_min, t;
+    T domega, omega, omega_min, t, tt;
     
     typename Tfront_polygon::iterator 
             it_min, it_begin, it_last, it, it_prev, it_next; 
@@ -1098,29 +358,28 @@ struct Tmarching: public Tbody {
 
       n = P.size();
       
+      std::cerr << Tr.size() << '\t' <<  n << std::endl;
+      
       // set it_prev, it, it_next: as circular list
       it = it_next = it_begin = P.begin();
       if (n > 1) ++it_next;
       it_last = P.end(); it_prev = --it_last; 
       
-      omega_min = M_2PI; 
+      omega_min = utils::M_2PI; 
       
       while (--n >= 0) { 
         
         if (it -> omega_changed) { // calculate frontal angle if need
            
-          c = s = 0;
+          c = s = ct = st = 0;
           for (int i = 0; i < 3; ++i) {
-            t  = it_prev->r[i] - it->r[i];  // = dr[i], dr = p_prev - p_cur
-            c += t*it->b[0][i];             // = dr[i]*t1[i]
-            s += t*it->b[1][i];             // = dr[i]*t2[i]
-          }
+            t  = it_prev->r[i] - it->r[i];  // = dr1[i], dr1 = p_prev - p_cur
+            c += t*it->b[0][i];             // = dr1[i]*t1[i]
+            s += t*it->b[1][i];             // = dr1[i]*t2[i]
           
-          ct = st = 0;
-          for (int i = 0; i < 3; ++i) {
-            t  = it_next->r[i] - it->r[i];  // = dr[i], dr = p_next - p_cur
-            ct += t*it->b[0][i];            // = dr[i]*t1[i]
-            st += t*it->b[1][i];            // = dr[i]*t2[i]
+            tt  = it_next->r[i] - it->r[i];  // = dr2[i], dr2 = p_next - p_cur
+            ct += tt*it->b[0][i];            // = dr2[i]*t1[i]
+            st += tt*it->b[1][i];            // = dr2[i]*t2[i]
           }
           
           // = arg[ dr1.dr2 + I k.(dr1 x dr2) ]  
@@ -1128,9 +387,9 @@ struct Tmarching: public Tbody {
           omega = std::atan2(c*st - s*ct, c*ct + s*st);
           
           // omega = omega mod 2 Pi (offset 0)        
-          if (omega < 0) omega += M_2PI;
+          if (omega < 0) omega += utils::M_2PI;
 
-          it-> omega = omega; 
+          it -> omega = omega; 
           it -> omega_changed = false;
           
         } else  omega = it -> omega;
@@ -1156,7 +415,7 @@ struct Tmarching: public Tbody {
       //std::cerr << "omega_min=" << omega_min << std::endl;
       
       // number of triangles to be generated
-      nt = int(omega_min/M_PI3) + 1;   
+      nt = int(omega_min/utils::M_PI3) + 1;   
       domega = omega_min/nt;
       
       if (domega < 0.8 && nt > 1) domega = omega_min/(--nt);
@@ -1217,6 +476,7 @@ struct Tmarching: public Tbody {
             qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
 
           if (!project_onto_potential(qk, *vp, max_iter)){
+            
             T g[4];
             
             std::cerr << "Warning: Projection did not converge\n";
@@ -1228,8 +488,8 @@ struct Tmarching: public Tbody {
             std::cerr 
               << "Start\n"
               << qk[0] << ' ' << qk[1] << ' ' << qk[2] << '\n'
-              << g[0] << ' ' << g[1] << ' ' << g[2] << '\n'
-              << g[3] << '\n';
+              << g[0]  << ' ' << g[1]  << ' ' << g[2]  << '\n'
+              << g[3]  << '\n';
               
           
             this->grad(vp->r, g);
@@ -1244,11 +504,10 @@ struct Tmarching: public Tbody {
           vp->index = n; // = V.size();
           vp->omega_changed = true;
           
-          //V.emplace_back(vp->r, vp->b[2]);  
+          // V.emplace_back(vp->r, vp->b[2]);  
           V.emplace_back(vp->r);                    // saving only r
           if (GatV) GatV->emplace_back(vp->norm);   // saving g
           NatV.emplace_back(vp->b[2]);              // saving only normal
-          
           
           Tr.emplace_back((k == 1 ? it_prev->index : n-1), n, it_min->index);
         }
@@ -1275,7 +534,7 @@ struct Tmarching: public Tbody {
     // Processing the last three vertices 
     //
     if (Tr.size() < max_triangles - 1) {
-      #if 1 // generic
+      #if 0 // generic
       it = P.begin();
       
       int ind[3];

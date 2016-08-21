@@ -14,6 +14,7 @@
 #include <set>
 #include <list>
 
+#include "triang_mesh.h"
 #include "triang_marching.h"
 #include "bodies.h"
 
