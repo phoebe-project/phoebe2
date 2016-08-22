@@ -1,0 +1,3 @@
+docs/* linguist-vendored=false
+tests/* linguist-vendored=false
+phoebe/atmospheres/tables/* linguist-vendored=false
