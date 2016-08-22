@@ -21,7 +21,7 @@
   Wrapping tutorial:
   * http://intermediate-and-advanced-software-carpentry.readthedocs.io/en/latest/c++-wrapping.html
   
-  Author: Martin Horvat, June 2016
+  Author: Martin Horvat, August 2016
 */
 
 #include <iostream>
@@ -29,7 +29,18 @@
 #include <typeinfo>
 #include <algorithm>
 
-#include "mesh.h"                  // support for triangular grid            
+
+#include "utils.h"                // General routines
+
+#include "triang_mesh.h"           // Dealing with triangular meshes
+#include "triang_marching.h"       // Maching triangulation
+#include "bodies.h"                // Definitions of different potentials
+#include "eclipsing.h"             // Eclipsing/Hidden surface removal
+#include "povray.h"                // Exporting meshes to povray (minimalistic)
+#include "reflection.h"            // Dealing with reflection effects/radiosity problem
+#include "horizon.h"               // Calculation of horizons
+
+    
 #include "gen_roche.h"             // support for generalized Roche lobes 
 #include "rot_star.h"              // support for rotating stars
 

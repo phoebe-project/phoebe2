@@ -15,10 +15,8 @@
 #include <algorithm>
 
 // general routines
-#include "utils/utils.h"                  // Misc routines (sqr, solving poly eq,..)
-#include "triang/triang_marching.h"       // Maching triangulation
-#include "eclipsing/eclipsing.h"          // Eclipsing/Hidden surface removal
-#include "triang/bodies.h"                // Definitions of different potentials
+#include "utils.h"      // Misc routines (sqr, solving poly eq,..)
+#include "bodies.h"     // Definitions of different potentials
 
 namespace rot_star {
   
