@@ -358,7 +358,7 @@ struct Tmarching: public Tbody {
 
       n = P.size();
       
-      std::cerr << Tr.size() << '\t' <<  n << std::endl;
+      //std::cerr << Tr.size() << '\t' <<  n << std::endl;
       
       // set it_prev, it, it_next: as circular list
       it = it_next = it_begin = P.begin();
