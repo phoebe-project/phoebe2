@@ -389,6 +389,8 @@ Development Information
    :titlesonly:
 
    Style Guidelines (coming soon)<development/style>
+   Development in the Frontend (coming soon)<development/devel_frontend>
+   Development in the Backend (coming soon)<development/devel_backend>
    Tutorials and Scripts<development/tutorials_scripts>
    API Documentation (coming soon)<development/api>
    Testing (coming soon)<development/testing>
