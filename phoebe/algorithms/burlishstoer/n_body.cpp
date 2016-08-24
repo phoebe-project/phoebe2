@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "n_body.h"
-#include <omp.h>
+//#include <omp.h>
 
 using namespace std;
 
