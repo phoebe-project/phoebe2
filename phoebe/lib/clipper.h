@@ -4851,7 +4851,7 @@ void ClipperOffset::DoOffset(double delta)
   
 
   #if TARGET_HAS_SINCOS
-  sincos(two_pi/steps, &m_sin, &m_cos);
+  utils::sincos(two_pi/steps, &m_sin, &m_cos);
   #else
   m_sin = std::sin(two_pi / steps);
   m_cos = std::cos(two_pi / steps);
