@@ -1,7 +1,7 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
 
-static char *interp_docstring =
+static char const *interp_docstring =
     "This module wraps the interpolation function.";
 
 int flt(double target, double *arr, int numElems)
@@ -106,22 +106,23 @@ static PyObject *interp(PyObject *self, PyObject *args)
     }
 	
 	numAxes = PyTuple_Size(axes);
-	ax = malloc(numAxes*sizeof(*ax));
-	axlen = malloc(numAxes*sizeof(*axlen));
-	axidx = malloc(numAxes*sizeof(*axidx));
-	lo = malloc(numAxes*sizeof(*lo));
-	hi = malloc(numAxes*sizeof(*hi));
-	prod = malloc(numAxes*sizeof(*prod));
+	ax = (double**) malloc(numAxes*sizeof(*ax));
+	axlen = (int*) malloc(numAxes*sizeof(*axlen));
+	axidx = (int*)malloc(numAxes*sizeof(*axidx));
+	lo = (double*)malloc(numAxes*sizeof(*lo));
+	hi = (double*)malloc(numAxes*sizeof(*hi));
+	prod = (double*)malloc(numAxes*sizeof(*prod));
 
-	powers = malloc((numAxes+1)*sizeof(*powers));
-	powers[0] = 1;
+	powers = (int*)malloc((numAxes+1)*sizeof(*powers));
+	
+  powers[0] = 1;
 	for (i = 1; i < numAxes+1; i++)
 		powers[i] = powers[i-1]*2;
 
 	/* Allocate space to hold all the nodes: */
-	n = malloc (powers[numAxes]*sizeof(*n));
+	n = (double**)malloc (powers[numAxes]*sizeof(*n));
 	for (i = 0; i < powers[numAxes]; i++)
-		n[i] = malloc (numAxes*sizeof(**n));
+		n[i] = (double*)malloc (numAxes*sizeof(**n));
 
 	/* Unpack the axes: */
 	for (i = 0; i < numAxes; i++) {
@@ -147,10 +148,10 @@ static PyObject *interp(PyObject *self, PyObject *args)
 
 	/* Allocate function value arrays: */
 	numFVs = (int) pow(2, numAxes);
-	fvv = malloc(numFVs*sizeof(*fvv));
+	fvv = (double**)malloc(numFVs*sizeof(*fvv));
 	for (i = 0; i < numFVs; i++)
-		fvv[i] = malloc(numVals*sizeof(**fvv));
-	retval = malloc(numVals*numPts*sizeof(*retval));
+		fvv[i] = (double*)malloc(numVals*sizeof(**fvv));
+	retval = (double*) malloc(numVals*numPts*sizeof(*retval));
 
 	//~ printf("Interpolation geometry:\n");
 	//~ printf("  numAxes = %d     # number of axes that span interpolation space.\n", numAxes);
@@ -240,6 +241,7 @@ static PyObject *interp(PyObject *self, PyObject *args)
     return ret_arr;
 }
 
+#if 0
 static PyObject *reference_function_for_decrefs_otherwise_useless(PyObject *self, PyObject *args)
 {
     PyObject *x_obj, *ll_obj, *ul_obj, *fv_obj;
@@ -333,8 +335,10 @@ static PyObject *reference_function_for_decrefs_otherwise_useless(PyObject *self
     
 }
 
+#endif
+
 static PyMethodDef interp_methods[] = {
-    {"interp",                   interp, METH_VARARGS, "Interpolate function"},
+    {"interp", interp, METH_VARARGS, "Interpolate function"},
     {NULL, NULL, 0, NULL}
 };
 
