@@ -3,7 +3,7 @@ from numpy.distutils.core import setup, Extension
 import os
 # os.environ["CC"] = "gcc"
 os.environ["CXX"] = "g++"
-os.environ["CFLAGS"] = "-std=c++11"  # numpy mixes CXXFLAGS and CFLAGS
+#os.environ["CFLAGS"] = "-std=c++11"  # numpy mixes CXXFLAGS and CFLAGS
 
 # Set to true if you want to link against electric fence:
 CDEBUG = False
@@ -23,13 +23,16 @@ ext_modules = [
               ),
 
     Extension('libphoebe',
-      sources = ['./phoebe/lib/libphoebe.cpp']),
+      sources = ['./phoebe/lib/libphoebe.cpp'],
+      extra_compile_args = ["-std=c++11"]),
 
     Extension('phoebe.algorithms.ceclipse',
-              sources = ['phoebe/algorithms/ceclipse.cpp']),
+              sources = ['phoebe/algorithms/ceclipse.cpp'],
+              extra_compile_args = ["-std=c++11"]),
 
     Extension('phoebe.algorithms.interp',
-             sources = ['phoebe/algorithms/interp.cpp']),
+             sources = ['phoebe/algorithms/interp.cpp'],
+             extra_compile_args = ["-std=c++11"]),
 
     Extension('phoebe.atmospheres.atmcof',
               sources = ['./phoebe/atmospheres/atmcof.f']),
