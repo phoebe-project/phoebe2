@@ -1,7 +1,7 @@
 from numpy.distutils.core import setup, Extension
 
 import os
-#os.environ["CC"] = "gcc"
+# os.environ["CC"] = "gcc"
 os.environ["CXX"] = "g++"
 os.environ["CFLAGS"] = "-std=c++11"  # numpy mixes CXXFLAGS and CFLAGS
 
@@ -18,7 +18,7 @@ ext_modules = [
         sources = ['./phoebe/algorithms/burlishstoer/phoebe_BS_nbody.cpp',
                     './phoebe/algorithms/burlishstoer/n_body.cpp',
                     './phoebe/algorithms/burlishstoer/n_body_state.cpp',
-                    './phoebe/algorithms/burlishstoer/kepcart.c'
+                    './phoebe/algorithms/burlishstoer/kepcart.h'
                     ]
               ),
 
@@ -29,7 +29,7 @@ ext_modules = [
               sources = ['phoebe/algorithms/ceclipse.cpp']),
 
     Extension('phoebe.algorithms.interp',
-             sources = ['phoebe/algorithms/interp.c']),
+             sources = ['phoebe/algorithms/interp.cpp']),
 
     Extension('phoebe.atmospheres.atmcof',
               sources = ['./phoebe/atmospheres/atmcof.f']),
