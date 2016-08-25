@@ -39,21 +39,15 @@ Download and Installation
 Download
 --------------------------------
 
-This version of phoebe is currently in the devel branch of the SVN.  Once released,
-it will be packaged for installation via pip, but for now requires manually
-downloading through the SVN and installing.
+PHOEBE 2.0 is now hosted on GitHub.  Once released, it will be packaged for installation
+via pip, but for now requires manually downloading and installing through
+SVN or git.
 
-To download the SVN branch anonymously:
+To download via the github repository (https://github.com/phoebe-project/phoebe2/):
 
 ::
 
-   svn checkout svn://svn.code.sf.net/p/phoebe/code/devel/ phoebe-code
-
-
-
-Or to download via your sourceforge account (for commit permissions), go to the
-following link while logged in to sourceforge:
-https://sourceforge.net/p/phoebe/code/HEAD/tree/devel/
+   git clone https://github.com/phoebe-project/phoebe2.git
 
 
 Dependencies
@@ -389,6 +383,8 @@ Development Information
    :titlesonly:
 
    Style Guidelines (coming soon)<development/style>
+   Development in the Frontend (coming soon)<development/devel_frontend>
+   Development in the Backend (coming soon)<development/devel_backend>
    Tutorials and Scripts<development/tutorials_scripts>
    API Documentation (coming soon)<development/api>
    Testing (coming soon)<development/testing>

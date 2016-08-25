@@ -1,0 +1,3 @@
+docs/* linguist-vendored
+tests/* linguist-vendored
+phoebe/atmospheres/tables/ptf/* linguist-vendored

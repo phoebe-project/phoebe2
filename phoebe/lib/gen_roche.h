@@ -24,12 +24,16 @@
 #include <algorithm>
 
 // General rotines
-#include "utils/utils.h"                  // Misc routines (sqr, solving poly eq,..)
-#include "mesh.h"                         // Mesh manipulation and others
+#include "utils.h"                  // Misc routines (sqr, solving poly eq,..)
 
 // Roche specific routines and part of gen_roche namespace
-#include "lagrange/gen_roche_lagrange.h"  // Lagrange points for gen Kopal potential
-#include "volume/gen_roche_area_volume.h" // Roche lobes volume
+
+// Lagrange fixed points L1, L2, L3
+#include "gen_roche_lagrange_L1.h"
+#include "gen_roche_lagrange_L2.h"
+#include "gen_roche_lagrange_L3.h"
+
+#include "gen_roche_area_volume.h" // Roche lobes volume
 
 namespace gen_roche {
 

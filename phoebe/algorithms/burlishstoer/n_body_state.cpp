@@ -1,6 +1,6 @@
 #include "n_body_state.h"
 #include "n_body.h"
-#include "kepcart.c"
+#include "kepcart.h"
 
 using namespace std;
 
