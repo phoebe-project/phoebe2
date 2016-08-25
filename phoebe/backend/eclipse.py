@@ -60,9 +60,9 @@ def wd_horizon(meshes, xs, ys, zs):
     horizon_inds = []
     # we only need the horizon of the ECLIPSING star, so we'll use mesh_front
     # and mus[i_front], xs[i_front], etc
-    lats = list(set(mesh_front.theta))
+    lats = list(set(mesh_front.thetas))
     for lat in lats:
-        lat_strip_inds = mesh_front.theta == lat
+        lat_strip_inds = mesh_front.thetas == lat
 
         # let's get the x-coordinate wrt THIS star so we can do left vs right
         x_rel = mesh_front.centers[:,0] - xs[i_front]
@@ -188,6 +188,10 @@ def graham(meshes, xs, ys, zs):
     """
     convex_graham
     """
+
+    # once we delete or replace this with a version in libphoebe we can also
+    # remove the ceclipse import statement, remove ceclipse from setup.py
+    # and delete ceclipse.cpp in algorithms
 
     distance_factor = 1.0  # TODO: make this an option (what does it even do)?
 
