@@ -156,6 +156,7 @@ def wd_grid_to_mesh_dict(the_grid, q, F, d):
     # to determine which triangles are in the same "strip")
     new_mesh['thetas'] = the_grid[:,16]
     new_mesh['phis'] = the_grid[:,17]
+    new_mesh['vnormals'] = the_grid[:,19:28].reshape(-1, 3)
 
     # TODO: get rid of this list comprehension
     # grads = np.array([libphoebe.roche_gradOmega_only(q, F, d, c) for c in new_mesh['centers']])
