@@ -25,6 +25,62 @@ each function must return a dictionary, with keys being component numbers and va
 def wd_horizon(meshes, xs, ys, zs):
     """
     """
+    nbodies = len(meshes.keys())
+
+    if nbodies != 2:
+        raise ValueError("wd_horizon eclipse method only works on binaries")
+
+    front_to_back_comp_nos = np.argsort(zs)[::-1]
+    i_front = front_to_back_comp_nos[0]
+    i_back = front_to_back_comp_nos[1]
+
+    comp_front = meshes.component_by_no(i_front+1)
+    comp_back = meshes.component_by_no(i_back+1)
+
+    mesh_front = meshes[comp_front]
+    mesh_back = meshes[comp_back]
+
+    # need to find TRIANGLES (eventually TRAPEZOIDS) in which the z-component
+    # of the vnormals is not shared across all vertices
+
+    vnormals_per_triangle = mesh_front.vnormals[mesh_front.triangles]
+
+    horizon_inds = []
+    horizon_centers = np.array([])
+    for i, vnormals_per_triangle in enumerate(vnormals_per_triangle):
+        # if there is more than 1 sign in the array of z normals, then
+        # the triangle is straggling the horizon and we need to store
+        # the index.
+        vnz = vnormals_per_triangle[:,2]
+        if vnz.max() * vnz.min() < 0:
+            if mesh_front.centers[i] not in horizon_centers:
+            # if True:
+                horizon_inds.append(i)
+                horizon_centers = np.append(horizon_centers, mesh_front.centers[i])
+
+    # -------------------------------------------------------------------------
+    # Now for testing let's compare the rhos and thetas
+    rhos = np.sqrt((mesh_front.centers[:,0]-xs[i_front])**2 + (mesh_front.centers[:,1]-ys[i_front])**2)
+    thetas = np.arctan2(mesh_front.centers[:,1]-ys[i_front], mesh_front.centers[:,0]-xs[i_front])
+
+    f = open('bla2', 'w')
+    for ind in horizon_inds:
+        # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
+        f.write("{} {} {}\n".format(ind, rhos[ind], thetas[ind]))
+    f.close()
+    # -------------------------------------------------------------------------
+
+    visibilities, weights = only_horizon(meshes, xs, ys, zs)
+    # now edit visibilities based on eclipsing region
+    # visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}
+
+    return visibilities, None
+
+
+
+def wd_horizon_old(meshes, xs, ys, zs):
+    """
+    """
 
     nbodies = len(meshes.keys())
 
