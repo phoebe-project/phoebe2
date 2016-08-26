@@ -5,6 +5,8 @@ import libphoebe
 
 import logging
 
+_EXPORT_HORIZON = True
+
 logger = logging.getLogger("ECLIPSE")
 
 def _graham_scan_inside_hull(front, back):
@@ -66,11 +68,13 @@ def wd_horizon(meshes, xs, ys, zs):
     thetas = np.arctan2(mesh_front.centers[:,1]-ys[i_front], mesh_front.centers[:,0]-xs[i_front])
     tnormals_zsign = np.sign(mesh_front.tnormals[:,2])
 
-    f = open('bla2', 'w')
-    for ind in horizon_inds:
-        # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
-        f.write("{} {} {} {}\n".format(ind, rhos[ind], thetas[ind], tnormals_zsign[ind]))
-    f.close()
+    if _EXPORT_HORIZON:
+        f = open('wd_horizon.horizon', 'w')
+        f.write('#ind rho, theta, nz_sign\n')
+        for ind in horizon_inds:
+            # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
+            f.write("{} {} {} {}\n".format(ind, rhos[ind], thetas[ind], tnormals_zsign[ind]))
+        f.close()
     # -------------------------------------------------------------------------
 
     visibilities, weights = only_horizon(meshes, xs, ys, zs)
@@ -215,7 +219,25 @@ def visible_ratio(meshes, xs, ys, zs):
                                      triangles_flat,
                                      normals_flat,
                                      tvisibilities=True,
-                                     taweights=True)
+                                     taweights=True,
+                                     horizon=_EXPORT_HORIZON)
+
+    if _EXPORT_HORIZON:
+        front_to_back_comp_nos = np.argsort(zs)[::-1]
+        i_front = front_to_back_comp_nos[0]
+
+        f = open('visible_ratio.horizon', 'w')
+        f.write('#ignore rho theta\n')
+
+        horizon_front = info['horizon'][-1]
+
+        for ind in horizon_front:
+            x = vertices_flat[ind][0]
+            y = vertices_flat[ind][1]
+            rho = np.sqrt((x-xs[i_front])**2 + (y-ys[i_front])**2)
+            theta = np.arctan2(y-ys[i_front], x-xs[i_front])
+            f.write('{} {} {}\n'.format(-1, rho, theta))
+        f.close()
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
     weights = meshes.unpack_column_flat(info['taweights'], computed_type='triangles')
