@@ -1840,6 +1840,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (optional)   
     tvisibilities: boolean, default True
     taweights: boolean, default False 
+    horizon: boolean, default False
           
   Returns: dictionary with keywords
    
@@ -1850,6 +1851,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   
     taweights: triangle averaging weights
       W[][3] - 2-rank numpy array of three weight one for each vertex of triangle
+ 
+    horizon: a list of horizons defined by indices of vertices
+      list of 1-rank numpy arrays of indices
+    
+    Note: They are not sorted in depth, as in principle they can not be!  
   
   Ref:
   * http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
