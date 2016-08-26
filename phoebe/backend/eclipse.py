@@ -53,8 +53,10 @@ def wd_horizon(meshes, xs, ys, zs):
         # the index.
         vnz = vnormals_per_triangle[:,2]
         if vnz.max() * vnz.min() < 0:
+            # then we found the element that is crossing the horizon.  Now
+            # let's check the triangle's znormal to see if we want this element
+            # or its neighbor
             if mesh_front.centers[i] not in horizon_centers:
-            # if True:
                 horizon_inds.append(i)
                 horizon_centers = np.append(horizon_centers, mesh_front.centers[i])
 
@@ -62,11 +64,12 @@ def wd_horizon(meshes, xs, ys, zs):
     # Now for testing let's compare the rhos and thetas
     rhos = np.sqrt((mesh_front.centers[:,0]-xs[i_front])**2 + (mesh_front.centers[:,1]-ys[i_front])**2)
     thetas = np.arctan2(mesh_front.centers[:,1]-ys[i_front], mesh_front.centers[:,0]-xs[i_front])
+    tnormals_zsign = np.sign(mesh_front.tnormals[:,2])
 
     f = open('bla2', 'w')
     for ind in horizon_inds:
         # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
-        f.write("{} {} {}\n".format(ind, rhos[ind], thetas[ind]))
+        f.write("{} {} {} {}\n".format(ind, rhos[ind], thetas[ind], tnormals_zsign[ind]))
     f.close()
     # -------------------------------------------------------------------------
 
