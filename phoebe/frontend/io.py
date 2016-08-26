@@ -494,12 +494,12 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         for k in range(len(spotpt)):
             param = spotpt[:,0][k].split('[')[0]
             value = spotpt[:,1][k]
-            print "param", param
+            # print "param", param
             pnew, d = ret_dict(param, value, rvdep = component, dataid=dataid)
             if len(d) > 0:
                 if d['qualifier'] != 'relteff':
                     d['unit'] = spot_unit
-                print "dictionary", d
+                # print "dictionary", d
                 eb.set_value_all(check_relevant= False, **d)
 
 
@@ -564,7 +564,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['qualifier'] = 'delta'
             d['value'] = val
         if len(d) > 0:
-            print d
+            # print d
             eb.set_value_all(check_relevant=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
