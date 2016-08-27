@@ -254,11 +254,6 @@ class System(object):
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
             # ld_inds = np.zeros(alb_refls_flat.shape)
 
-            # TESTING (also below after the refl call)
-            # intens_intrins_per_body = [i.copy() for i in intens_intrins_per_body]
-            # intens_intrins_sec = intens_intrins_per_body[1].copy()
-            # intens_intrins_per_body[1] *= 0.0
-
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -277,9 +272,6 @@ class System(object):
             #                                                                            intens_intrins_per_body,
             #                                                                            ld_func_and_coeffs
             #                                                                            )
-
-            # TESTING
-            # intens_intrins_and_refl_per_body[1] += intens_intrins_sec
 
             intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
@@ -2065,17 +2057,17 @@ class Envelope(Body):
 
         self.teff1 = teff1
         self.teff2 = teff2
-        
+
         self.alb_refl1 = alb_refl1
         self.alb_refl2 = alb_refl2
-        self.gravb_bol1 = gravb_bol1 
-        self.gravb_bol2 = gravb_bol2 
+        self.gravb_bol1 = gravb_bol1
+        self.gravb_bol2 = gravb_bol2
         self.gravb_law = gravb_law
-        
+
         # only putting this here so update_position doesn't complain
         self.alb_refl = 0.
         # self.gravb_law2 = gravb_law2
-        
+
 
         # self.gravb_bol = gravb_bol
         # self.gravb_law = gravb_law
@@ -2157,16 +2149,16 @@ class Envelope(Body):
 
         teff1 = b.get_value('teff', component=starrefs[0], context='component', unit=u.K)
         teff2 = b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
-        
+
         alb_refl1 = b.get_value('alb_refl_bol', component=starrefs[0], context='component')
         alb_refl2 = b.get_value('alb_refl_bol', component=starrefs[1], context='component')
 
         gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
         gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
-        
+
         gravb_law = b.get_value('gravblaw', component=starrefs[0], context='component')
         #gravb_law2 = b.get_value('gravblaw', component=starrefs[0], context='component')
-        
+
         abun = b.get_value('abun', component=component, context='component')
         #alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
 
@@ -2246,7 +2238,7 @@ class Envelope(Body):
         # which means the volume should always be the same as it was defined at periaston.
 
         return self.volume_at_periastron
-    
+
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
@@ -2345,35 +2337,35 @@ class Envelope(Body):
                 new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
 
                 new_mesh['tareas'] = np.array([])
-                
+
                 # WD style overcontacts require splitting of the mesh into two components
                 # env_comp = 0 for primary part of the envelope, 1 for secondary
-               
+
                 # compute the positions of the minimum radii of the neck in the xy and xz planes
-                # when temperature_method becomes available, wrap this with if tmethod='wd':            
+                # when temperature_method becomes available, wrap this with if tmethod='wd':
                 xy,xz,y,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
                 # choose which value of x to use as the minimum (maybe extend to average of both?
-                xmin = xz    
-                
+                xmin = xz
+
                 # create the env_comp array and change the values of all where vertices x>xmin to 1
                 env_comp = np.zeros(len(new_mesh['vertices']))
                 env_comp[new_mesh['vertices'][:,0]>xmin] = 1
-                
+
                 new_mesh['env_comp'] = env_comp
-                
+
                 # do the similar for triangles
                 env_comp3 = np.zeros(len(new_mesh['triangles']))
-                
+
                 for i in range(len(new_mesh['triangles'])):
-        
+
                     #take the vertex indices of each triangle
                     vind = new_mesh['triangles'][i]
                     env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
-                
+
                 new_mesh['env_comp3']=env_comp3
-                
+
                 # compute fractional areas of vertices
-                
+
                 # new_mesh['frac_areas']=potentials.compute_frac_areas(new_mesh,xmin)
 
             elif self.distortion_method == 'nbody':
@@ -2383,31 +2375,31 @@ class Envelope(Body):
                 raise NotImplementedError
 
         elif mesh_method == 'wd':
-			
+
             N = int(kwargs.get('gridsize', self.gridsize))
 
             the_grid = potentials.discretize_wd_style_oc(N, *mesh_args)
             new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
             scale = sma
- 
+
             # WD style overcontacts require splitting of the mesh into two components
             # env_comp = 0 for primary part of the envelope, 1 for secondary
-           
-            # compute the positions of the minimum radii of the neck in the xy and xz planes            
+
+            # compute the positions of the minimum radii of the neck in the xy and xz planes
             xy,xz,y,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
             # choose which value of x to use as the minimum (maybe extend to average of both?
-            xmin = xz    
-            
+            xmin = xz
+
             # create the env_comp array and change the values of all where vertices x>xmin to 1
             env_comp = np.zeros(len(new_mesh['centers']))
             env_comp[new_mesh['centers'][:,0]>xmin] = 1
-            
+
             new_mesh['env_comp'] = env_comp
             new_mesh['env_comp3']=env_comp
 
         else:
             raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
-                
+
         return new_mesh, sma, mesh_args
 
 
@@ -2422,16 +2414,16 @@ class Envelope(Body):
 
         r_pole1 = pole_func(*self._mesh_args,choice=0)
         r_pole2 = pole_func(*self._mesh_args,choice=1)
-        
+
         r_pole1_ = np.array([0., 0., r_pole1])
         r_pole2_ = np.array([0., 0., r_pole2])
-        
+
         args1 = list(self._mesh_args)[:-1]+[r_pole1_]
         args2 = list(self._mesh_args)[:-1]+[r_pole2_]
-        
+
         grads1 = gradOmega_func(*args1)
         grads2 = gradOmega_func(*args2)
-        
+
         g_pole1 = np.linalg.norm(grads1)
         g_pole2 = np.linalg.norm(grads2)
 
@@ -2488,7 +2480,7 @@ class Envelope(Body):
         gravs = np.zeros(len(mesh.env_comp))
         gravs[mesh.env_comp==0]=gravs1
         gravs[mesh.env_comp==1]=gravs2
-        
+
         mesh.update_columns(gravs=gravs)
 
     def _fill_teffs(self, mesh=None, **kwargs):
@@ -2530,11 +2522,11 @@ class Envelope(Body):
             # TODO NOW: rp doesn't seem to be used anywhere...
             rp1 = self._instantaneous_rpole1  # should be in Rsol
             rp2 = self._instantaneous_rpole2
-            
+
             # TODO NOW: is this supposed to be the scaled or unscaled rs???
             maxr1 = self.get_standard_mesh(scaled=True).rs.for_computations[self.env_comp==0].max()
             maxr2 = self.get_standard_mesh(scaled=True).rs.for_computations[self.env_comp==1].max()
-            
+
             L1 = roche.exact_lagrangian_points(q, F=F, d=1.0, sma=sma)[0]
             rho1 = maxr1 / L1
             rho2 = maxr2 / L1
@@ -2549,13 +2541,13 @@ class Envelope(Body):
         elif self.gravb_law == 'claret':
             logteff1 = np.log10(self.teff1)
             logteff2 = np.log10(self.teff2)
-            
+
             logg1 = np.log10(self._instantaneous_gpole1)
             logg2 = np.log10(self._instantaneous_gpole2)
-            
+
             abun = self.abun
             axv, pix = roche.claret_gravb()
-            
+
             gravb1 = interp_nDgrid.interpolate([[logteff1], [logg1], [abun]], axv, pix)[0][0]
             gravb2 = interp_nDgrid.interpolate([[logteff2], [logg2], [abun]], axv, pix)[0][0]
 
@@ -2587,8 +2579,8 @@ class Envelope(Body):
             logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff2,self.gravb_bol2))
         elif self.gravb_bol2 < 0.32 or self.gravb_bol2 > 1.00:
             logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
-        
-        # from here on, need to handle areas    
+
+        # from here on, need to handle areas
         # Compute G and Tpole
         if typ == 'mean':
             # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
@@ -2607,15 +2599,15 @@ class Envelope(Body):
         # Now we can compute the local temperatures.
         teffs1 = (mesh.gravs.for_computations[mesh.env_comp==0] * Tpole1**4)**0.25
         teffs2 = (mesh.gravs.for_computations[mesh.env_comp==1] * Tpole2**4)**0.25
-        
+
         for feature in self.features:
             teffs1 = feature.process_teffs(teffs1, mesh.coords_for_computations[mesh.env_comp==0], t=self.time)
             teffs2 = feature.process_teffs(teffs2, mesh.coords_for_computations[mesh.env_comp==1], t=self.time)
-        
+
         teffs = np.zeros(len(mesh.env_comp))
         teffs[mesh.env_comp==0]=teffs1
         teffs[mesh.env_comp==1]=teffs2
-        
+
         mesh.update_columns(teffs=teffs)
 
     def _fill_albedos(self, mesh=None, alb_refl=0.0):
@@ -2626,13 +2618,13 @@ class Envelope(Body):
             mesh = self.mesh
             alb_refl1 = self.alb_refl1
             alb_refl2 = self.alb_refl2
-        
+
         alb_refl = np.zeros(len(mesh.env_comp))
         alb_refl[mesh.env_comp==0] = alb_refl1
         alb_refl[mesh.env_comp==1] = alb_refl2
-        
+
         mesh.update_columns(alb_refl=alb_refl)
-        
+
     def _populate_ifm(self, dataset, **kwargs):
         """
         TODO: add documentation
