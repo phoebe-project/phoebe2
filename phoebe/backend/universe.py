@@ -410,6 +410,7 @@ class System(object):
             # choice
 
             # TODO: choice here will not play nice with overcontacts
+            # NOTE: this viewing angle ASSUMES viewing at phase=0 (primary eclipse)
             args = [np.array([-1.0,0.0,0.0])]+list(self.bodies[i_front]._mesh_args)
             horizon_front = libphoebe.roche_horizon(*args, choice=0)
 

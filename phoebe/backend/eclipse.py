@@ -229,14 +229,37 @@ def visible_ratio(meshes, xs, ys, zs):
         f = open('visible_ratio.horizon', 'w')
         f.write('#ignore rho theta\n')
 
-        horizon_front = info['horizon'][-1]
+        # need to find which of info['horizon'] is in the front
+        zs = [np.median(vertices_flat[horizon][:,2]) for horizon in info['horizon']]
+        h_front = np.array(zs).argmax()
+        horizon_front = info['horizon'][h_front]
 
-        for ind in horizon_front:
-            x = vertices_flat[ind][0]
-            y = vertices_flat[ind][1]
-            rho = np.sqrt((x-xs[i_front])**2 + (y-ys[i_front])**2)
-            theta = np.arctan2(y-ys[i_front], x-xs[i_front])
-            f.write('{} {} {}\n'.format(-1, rho, theta))
+        for i in range(len(horizon_front)-1):
+            # interpolate betweeen i and i+1 so we can see how the edge traces
+            # in rho,theta space
+            ind_this = horizon_front[i]
+            ind_next = horizon_front[i+1]
+            xs_edge = np.array([vertices_flat[ind_this][0], vertices_flat[ind_next][0]])
+            ys_edge = np.array([vertices_flat[ind_this][1], vertices_flat[ind_next][1]])
+            inds = xs_edge.argsort()
+            xs_edge, ys_edge = xs_edge[inds], ys_edge[inds]
+            x_sample = np.linspace(xs_edge[0], xs_edge[1], 101)
+            y_sample = np.interp(x_sample, xs_edge, ys_edge)
+
+            for x,y in zip(x_sample, y_sample):
+                rho = np.sqrt((x-xs[i_front])**2 + (y-ys[i_front])**2)
+                theta = np.arctan2(y-ys[i_front], x-xs[i_front])
+                f.write('{} {} {}\n'.format(-1, rho, theta))
+
+
+        # for ind in horizon_front:
+        #     x = vertices_flat[ind][0]
+        #     y = vertices_flat[ind][1]
+        #     rho = np.sqrt((x-xs[i_front])**2 + (y-ys[i_front])**2)
+        #     theta = np.arctan2(y-ys[i_front], x-xs[i_front])
+        #     f.write('{} {} {}\n'.format(-1, rho, theta))
+
+
         f.close()
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
