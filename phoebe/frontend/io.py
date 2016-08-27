@@ -605,11 +605,12 @@ def par_value(param, index=None):
             unit = None
 
         val = param.get_quantity(unit=unit).value
-        if d['qualifier'] == 'alb':
-            val = [1.0-val]
+        # if d['qualifier'] == 'alb':
+            # val = [1.0-val]
 
-        else:
-            val = [val]
+        # else:
+            # val = [val]
+        val = [val]
     elif isinstance(param, phb.parameters.ChoiceParameter):
         ptype = 'choice'
         val = [param.get_value()]
@@ -809,8 +810,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             param=None
         if param != None:
             val, ptype = par_value(param)
-            if param.qualifier == 'alb_refl_bol':
-                val = [1-float(val[0])]
+            # if param.qualifier == 'alb_refl_bol':
+                # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
             if pname[0] not in parnames:
                 parnames.extend(pname)
