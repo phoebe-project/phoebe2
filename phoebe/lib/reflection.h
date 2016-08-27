@@ -26,7 +26,8 @@
 #include <set>
 #include <tuple>
 #include <utility>
-	
+#include <cstring>
+
 #include "utils.h"
 #include "triang_mesh.h"
 #include "ld_models.h"

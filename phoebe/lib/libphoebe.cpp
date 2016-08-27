@@ -39,10 +39,11 @@
 #include "povray.h"                // Exporting meshes to povray (minimalistic)
 #include "reflection.h"            // Dealing with reflection effects/radiosity problem
 #include "horizon.h"               // Calculation of horizons
-
     
 #include "gen_roche.h"             // support for generalized Roche lobes 
 #include "rot_star.h"              // support for rotating stars
+
+#include "wd_atm.h"                // Wilson-Devinney atmospheres
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
  
@@ -1832,7 +1833,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     
   with arguments
   
-    viewdir[3] - 1-rank numpy array of 3 coordinates representing 3D point
+    viewdir[3] - 1-rank numpy array floats = 3 coordinates representing 3D point
     V[][3] - 2-rank numpy array of vertices  
     T[][3] - 2-rank numpy array of indices of vertices composing triangles
     N[][3] - 2-rank numpy array of normals of triangles
@@ -2394,9 +2395,9 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
             composing triangles of the mesh aka connectivity matrix
 
 
-    camera_location: 1-rank numpy array -- location of the camera
-    camera_look_at: 1-rank numpy array -- point to which camera is pointing
-    light_source: 1-rank numpy array -- location of point light source
+    camera_location: 1-rank numpy array of floats -- location of the camera
+    camera_look_at: 1-rank numpy array of floats -- point to which camera is pointing
+    light_source: 1-rank numpy array of floats -- location of point light source
      
   optional:
    
@@ -3437,7 +3438,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
     vnormgrads:boolean, default False
     max_iter: integer, default 100
     
-  Return: 
+  Return: dictionary with keys
     
     vertices: 
       V1[][3]    - 2-rank numpy array of vertices 
@@ -3567,7 +3568,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   with arguments
   
   positionals: necessary
-    v[3] - 1-rank numpy array: direction of the viewer  
+    v[3] - 1-rank numpy array of floats: direction of the viewer  
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
@@ -3672,7 +3673,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   with arguments
   
   positionals: necessary
-    v[3] - 1-rank numpy array: direction of the viewer  
+    v[3] - 1-rank numpy array of floats: direction of the viewer  
     omega: float - parameter of the potential
     Omega0: float - value of the potential of the rotating star
     
@@ -3681,7 +3682,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
       approximate number of points on a horizon
 
   Return: 
-    H: 2-rank numpy array of 3D point on a horizon
+    H: 2-rank numpy array of floats -- 3D points on a horizon
 */
 
 static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
@@ -3858,7 +3859,7 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
                     "square_root" 2 parameters
   
   Return: 
-    1-rank numpy array: gradient of the function D(mu) w.r.t. parameters
+    1-rank numpy array of floats: gradient of the function D(mu) w.r.t. parameters
 */
 
 static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
@@ -3919,6 +3920,245 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
 
   return pya;
+}
+/*
+  Python wrapper for C++ code:
+
+    Reading files with expansion coefficients needed for 
+    Wilson-Devinney type of atmospheres.
+  
+  Python:
+
+    dict = wd_readdata(filename_planck, filename_atm)
+    
+  with arguments
+  
+    filename: string - filename of the file loaded
+    
+  Returns: dictionary with keys
+    
+    planck_table: coefficients for calculating Planck intensity
+      1-rank numpy array of floats
+    
+    atm_table: coefficients for calculating light intensity with atmospheres
+      1-rank numpy array of floats
+*/ 
+static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"filename_planck",
+    (char*)"filename_atm",
+    NULL
+  };
+  
+  PyObject *ofilename_planck, *ofilename_atm;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!O!", kwlist,
+      &PyString_Type, &ofilename_planck, 
+      &PyString_Type, &ofilename_atm)
+      ) return NULL;
+  
+  
+  double 
+    *planck_table = new double[wd_atm::N_planck],
+    *atm_table = new double[wd_atm::N_atm];
+  
+  //
+  // Reading 
+  //
+  
+  int len[2] = {
+    wd_atm::read_data<double, wd_atm::N_planck>(PyString_AsString(ofilename_planck), planck_table),
+    wd_atm::read_data<double, wd_atm::N_atm>(PyString_AsString(ofilename_atm), atm_table)
+  };
+  
+  //
+  // Checks
+  //
+  if (len[0] != wd_atm::N_planck || len[1] != wd_atm::N_atm) {
+    std::cerr << "wd_readdata::Problem reading data\n";
+    delete [] planck_table;
+    delete [] atm_table;
+    return NULL;
+  } 
+  
+  //
+  // Returning results
+  //
+  
+  PyObject *results = PyDict_New();
+  
+  {
+    npy_intp dims = wd_atm::N_planck;
+    PyObject *pya = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, planck_table);
+    PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+    PyDict_SetItemStringStealRef(results, "planck_table", pya);
+  }
+
+ {
+    npy_intp dims = wd_atm::N_atm;
+    PyObject *pya = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, atm_table);
+    PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+    PyDict_SetItemStringStealRef(results, "atm_table", pya);
+  }
+
+  return results;
+}
+
+/*
+  Python wrapper for C++ code:
+
+    Computing Planck central intensity and its logarithm. Works for 
+    tempratues in the range [500,500300] K.
+
+  Python:
+   
+    result = wd_planckint(t, ifil, planck_table)
+   
+  Input:
+  
+    t: float - temperature
+    ifil: integer - index of the filter 1,2, ... 
+    planck_table: 1-rank numpy array of floats - array of coefficients 
+    
+  Return:
+    
+    result : 1-rank numpy array of floats = [ylog, y] 
+
+  with    
+    ylog: float - log of Planck central intensity
+    y: float - Planck central intensity
+
+*/
+static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"t",
+    (char*)"ifil",
+    (char*)"planck_table",
+    NULL
+  };
+  
+  int ifil;
+ 
+  double t;
+  
+  PyArrayObject *oplanck_table;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "diO!", kwlist, 
+        &t, &ifil, &PyArray_Type, &oplanck_table
+      )) return NULL;
+
+  //
+  // Calculate without checks
+  //
+  
+  double *y = new double [2];
+      
+  wd_atm::planckint(t, ifil, 
+                    (double*) PyArray_DATA(oplanck_table), 
+                    y[0], y[1]);
+  
+  //
+  // Returing result
+  //
+  
+  npy_intp dims = 2;
+  PyObject *res = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, y);
+  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
+  
+  return res;
+}
+
+/*
+  Python wrapper for C++ code:
+    
+    Calculation of the light intensity from a star with certain 
+    atmosphere model.
+  
+  Python:
+  
+    results = wd_atmint(t, logg, abunin, ifil, planck_table, atm_table)
+  
+  Input:
+  
+   t:float - temperature
+   logg:float - logarithm of surface gravity
+   abunin:float - abundance
+   ifil: integer - index of the filter 1,2, ... 
+   planck_table: 1-rank numpy array of float - planck table
+   atm_table: 1-rank numpy array of float - atmospheres table
+
+  Return:
+  
+    result : 1-rank numpy array of floats = [xintlog, xint, abunin]
+  
+  with
+  
+    xintlog - log of intensity
+    xint - intensity
+    abunin -  the allowed value nearest to the input value.
+*/
+static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"t",
+    (char*)"logg",
+    (char*)"abunin",
+    (char*)"ifil",
+    (char*)"planck_table",
+    (char*)"atm_table",
+    NULL
+  };
+
+  int ifil;
+
+  double t, logg, abunin;
+    
+  PyArrayObject *oplanck_table, *oatm_table;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "dddiO!O!", kwlist, 
+        &t, &logg, &abunin, &ifil, 
+        &PyArray_Type, &oplanck_table, 
+        &PyArray_Type, &oatm_table
+      )) return NULL;
+
+  //
+  // Calculate without checks
+  //
+  
+  double *y = new double [3];
+  
+  y[2] = abunin;
+      
+  wd_atm::atmx(t, logg, y[2], ifil, 
+              (double*)PyArray_DATA(oplanck_table), 
+              (double*)PyArray_DATA(oatm_table), 
+              y[0], y[1]);
+  
+  //
+  // Returing result
+  //
+  
+  npy_intp dims = 3;
+  PyObject *res = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, y);
+  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
+  
+  return res;
 }
 
 /*
@@ -4143,6 +4383,29 @@ static PyMethodDef Methods[] = {
       "parameters."},
     
 // --------------------------------------------------------------------
+  
+      { "wd_readdata",
+      (PyCFunction)wd_readdata,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Reading the file with WD coefficients."},
+      
+      
+    { "wd_planckint",
+      (PyCFunction)wd_planckint,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculating Planck central intensity at given temperatures,"
+      "filter index and array of coefficients"},
+
+    { "wd_atmint",
+      (PyCFunction)wd_atmint,
+      METH_VARARGS|METH_KEYWORDS, 
+      "Calculating intensity for a given atmospheres at given temperatures,"
+      "filter index and array of coefficients"},
+
+// --------------------------------------------------------------------
+    
+    
+    
         
     {NULL,  NULL, 0, NULL} // terminator record
 };
