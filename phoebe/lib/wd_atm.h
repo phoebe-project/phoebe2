@@ -3,12 +3,23 @@
 
 /*
   WD model of Planck central intensity and intensities with atmospheres
-
-  planck table: 1250 real numbers
-  atmospheres table: 250800 real numbers
+  that available in
+  
+    * atmx.f 
+    * planckint.f
+  
+  from http://phoebe-project.org/1.0/releases/wd_2007-08-15_phoebe.tar.gz
+  
+  or combined in atomcof.f in phoebe pre v2
+  
+  The tables 
+    * atmcofplanck.dat ~ planck table: 1250 real numbers
+    * atmcof.dat ~ atmospheres table: 250800 real numbers
+  
+  are available from ftp://ftp.astro.ufl.edu/pub/wilson/lcdc2015/
 
   Author: Martin Horvat, August 2016
-*/ 
+*/
 
 #include <iostream>
 #include <fstream>

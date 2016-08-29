@@ -169,7 +169,7 @@ int ReadFloatFromTuple(PyObject *p, int len, int start, double *par, bool checks
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate critical potential, that is the value of the generalized 
   Kopal potential in Lagrange points.
@@ -212,7 +212,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate critical potential of the rotating star potential.
   
@@ -243,7 +243,7 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate height h the left (right) Roche lobe at the position 
     
@@ -309,7 +309,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate height h the rotating star
     
@@ -357,7 +357,7 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate parameters of the rotating star from Roche binary model by 
   matching the poles and centrifugal force.
@@ -436,7 +436,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate area and volume of the Roche lobe(s) is defined as 
   equipotential of the generalized Kopal potential Omega:
@@ -577,7 +577,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate area and volume of rotating star lobe is defined as 
   equipotential of the potential Omega:
@@ -674,7 +674,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the value of the generalized Kopal potential Omega1 corresponding 
   to parameters (q,F,d) and the volume of the Roche lobes equals to vol.  
@@ -807,7 +807,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the value of the rotating star potential Omega1 at parameter
   omega and star's volume equal to vol.  
@@ -918,7 +918,7 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the gradient and the value of the potential of the generalized
   Kopal potential Omega at a given point
@@ -973,7 +973,7 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the gradient and the value of the potential of the generalized
   Kopal potential Omega at a given point
@@ -1025,7 +1025,7 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
 }
  
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the gradient of the potential of the generalized
   Kopal potential Omega at a given point
@@ -1073,7 +1073,7 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the gradient of the potential of the rotating star potential
 
@@ -1119,7 +1119,7 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the value of the potential of the generalized
   Kopal potential Omega at a given point
@@ -1161,7 +1161,7 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
   
   Calculate the value of the potential of the rotating star at 
   a given point
@@ -1200,7 +1200,7 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Marching meshing of Roche lobes implicitely defined by generalized 
     Kopal potential:
@@ -1518,7 +1518,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Marching meshing of rotating star implicitely defined by the potential
     
@@ -1823,7 +1823,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Calculation of visibility of triangles
     
@@ -1974,7 +1974,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Calculation of rough visibility of triangles
     
@@ -2057,7 +2057,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Offseting the mesh along the normals of vertices to match the area 
     of the mesh with the reference area.
@@ -2227,7 +2227,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Calculate properties of the tringular mesh.
   
@@ -2375,7 +2375,7 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Export the mesh into povray file.
    
@@ -2655,7 +2655,7 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Calculate radiosity of triangles due to reflection according to 
   Wilson's reflection model using triangles as support of the surface.
@@ -2808,7 +2808,7 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Calculate radiosity of triangles on n convex bodies due to reflection according to 
   Wilson's reflection model using triangles as support of the surface.
@@ -2961,7 +2961,7 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Calculate radiosity of triangles on n convex bodies due to reflection according to 
   Wilson's reflection model using vertices as support of the surface.
@@ -3113,7 +3113,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Calculate radiosity of triangles due to reflection according to 
   Wilson's reflection model using VERTICES as support of the surface. 
@@ -3265,7 +3265,7 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
   Calculate the central points corresponding to the mesh and Roche lobe.
   
@@ -3415,7 +3415,7 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Reprojecting the points into the Roche lobes.
     
@@ -3557,7 +3557,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Calculating the horizon on the Roche lobes.
     
@@ -3662,7 +3662,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Calculating the horizon on the rotating star.
     
@@ -3753,7 +3753,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
 
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Calculating the limb darkening function D(mu) in speherical coordinates
     
@@ -3832,7 +3832,7 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Calculating the gradient fo the limb darkening function D(mu) with respect to parameters
     at constant argument in speherical coordinates
@@ -3922,7 +3922,7 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
   return pya;
 }
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Reading files with expansion coefficients needed for 
     Wilson-Devinney type of atmospheres.
@@ -4011,7 +4011,7 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
 
     Computing Planck central intensity and its logarithm. Works for 
     tempratues in the range [500,500300] K.
@@ -4081,7 +4081,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
 }
 
 /*
-  Python wrapper for C++ code:
+  C++ wrapper for Python code:
     
     Calculation of the light intensity from a star with certain 
     atmosphere model.
@@ -4162,6 +4162,209 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
 }
 
 /*
+  C++ wrapper for python code:
+ 
+    Multi-dimensional linear interpolation of gridded data. Gridded data 
+    means data ordered in a grid.
+  
+  Python:
+  
+    results = interp(req, axes, grid) 
+  
+  with arguments:
+    req: 2-rank numpy array = NxM array (N columns, M rows) where 
+        each column stores the value along the respective axis and 
+        each row corresponds to a single point to be interpolated;
+  
+    axes: tuple of numpy arrays, with each array holding all unique 
+          vertices along its respective axis in ascending order 
+    
+    grid: N+1-rank numpy array =  N1xN2x...xNNxNv numpy array, 
+          where Ni are lengths of individual axes, and the last element
+          is the vertex value of dimension Nv
+
+  Example: we have the following vertices with corresponding values:
+
+    v0 = (0, 2), f(v0) = 5
+    v1 = (0, 3), f(v0) = 6
+    v2 = (1, 3), f(v0) = 7
+    v3 = (1, 2), f(v0) = 8
+
+  We are interested in f(0.5, 2.5) and f(0.75, 2.25). Note that
+  all values need to be floats, thus:
+
+    req = np.array([[0.5, 2.5], [0.75, 2.25]])
+    axes = (np.array([0.0, 1.0]), np.array([2.0, 3.0]))
+    grid = np.array([[[5.0], [6.0]], [[7.0], [8.0]]])
+
+  Return: 
+    2-rank numpy array = MxNv numpy array of interpolated values
+*/
+
+static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"req",
+    (char*)"axes",
+    (char*)"grid",
+    NULL
+  };
+       
+  PyObject *o_axes;
+ 
+  PyArrayObject *o_req, *o_grid;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds, "O!O!O!", kwlist, 
+      &PyArray_Type, &o_req, 
+      &PyTuple_Type, &o_axes, 
+      &PyArray_Type, &o_grid)) {
+      
+    std::cerr 
+      << "interp:: argument type mismatch: req and grid need to be numpy "
+      << "arrays and axes a tuple of numpy arrays.\n";
+    
+    return NULL;
+  }
+  
+  int numAxes = PyTuple_Size(o_axes),
+      numPts = PyArray_DIM(o_req, 0),
+      numVals = PyArray_DIM(o_grid, PyArray_NDIM(o_grid)-1),
+      numFVs = 1 << numAxes;
+  
+  #if 0
+	std::cerr 
+    << "Interpolation geometry:\n"
+	  << "  numAxes = " << numAxes << " # number of axes that span interpolation space.\n"
+	  << "  numPts  = " << numPts <<  " # number of individual points to be interpolated.\n"
+	  << "  numVals = " << numVals << " # number of values per point to be interpolated.\n"
+	  << "  numFVs  = " << numFVs <<  " # number of required function values per interpolation.\n";
+  #endif
+  
+  //
+  // Allocating memory
+  //
+  double 
+    *lo = new double [3*numAxes],
+    *hi = lo + numAxes,
+    *prod = hi + numAxes;
+
+  int
+    *axlen = new int [2*numAxes],
+    *axidx = axlen + numAxes;
+  
+  double 
+    **n = utils::matrix<double>(numFVs, numAxes),   // space to hold all the nodes
+    **fvv = utils::matrix<double>(numFVs, numVals), // function value arrays
+    **ret = utils::matrix<double>(numPts, numVals), // returned values
+
+    *req = (double *) PyArray_DATA(o_req),
+    *grid = (double *) PyArray_DATA(o_grid),
+    
+    **r  = new double* [numPts + numAxes],   // pointers to rows in table of req
+    **ax = r + numPts;                       // pointers to tuples in axes
+  
+  // pointers to rows for more efficient access
+  { 
+    double *p = req;
+    for (int i = 0; i < numPts; ++i, p += numAxes) r[i] = p;
+  }
+  
+  // Unpack the axes
+  {
+    PyArrayObject *p;
+    for (int i = 0; i < numAxes; ++i) {
+      p = (PyArrayObject*)PyTuple_GET_ITEM(o_axes, i); // no checks, borrows reference
+      axlen[i] = (int) PyArray_DIM(p, 0);
+      ax[i] = (double *) PyArray_DATA(p);
+    }
+  }
+  
+	/*
+    The main loop: go through all requested vertices and find the
+    corresponding values:
+  */
+
+  int i, j, k, l, m, o, idx;
+  
+  bool out_of_bounds;
+
+	for (i = 0; i < numPts; ++i) {
+    
+    out_of_bounds = false;
+
+    // Run the axes first to make sure interpolation is possible.
+    for (j = numAxes-1; j >= 0; --j) {
+      axidx[j] = utils::flt(r[i][j], ax[j], axlen[j]);
+      
+      // AN OUT-OF-BOUNDS SITUATION -- both sides handled.
+      if (axidx[j] < 1) out_of_bounds = true;
+    }
+
+    // Must do this here to be able to continue the main loop.
+    if (out_of_bounds) {
+      for (l = 0; l < numVals; ++l) ret[i][l] = std::nan("");
+      continue;
+    }
+        
+		for (j = numAxes-1; j >= 0; --j) {
+			lo[j] = ax[j][axidx[j]-1]; 
+      hi[j] = ax[j][axidx[j]];
+			prod[j] = (j == numAxes - 1) ? 1.0 : prod[j+1]*axlen[j+1];
+		}
+
+		for (k = 0; k < numFVs; ++k) {
+			
+			for (j = idx = 0; j < numAxes; ++j)
+				idx += (axidx[j] - 1 + ((k >> j) & 1) )*prod[j];
+        
+      double *g = grid + idx*numVals;
+			for (l = 0; l < numVals; ++l) fvv[k][l] = g[l];
+		}
+
+		// Populate the nodes:
+		for (k = 0; k < numAxes; ++k)
+      for (j = 0; j < numFVs; ++j)
+				n[j][k] = lo[k] + ((j >> k) & 1)*(hi[k] - lo[k]);
+
+		for (k = 0, o = numAxes - 1, m = numFVs >> 1; k < numAxes; ++k, --o, m >>=1)
+			for (j = 0; j < m; ++j)
+				for (l = 0; l < numVals; ++l)
+          fvv[j][l] += (r[i][o] - n[j][o])*(fvv[j + m][l] - fvv[j][l])/
+                        (n[j + m][o] - n[j][o]);
+      
+		for (l = 0; l < numVals; ++l) ret[i][l] = fvv[0][l];
+	}
+
+    
+  // Free all the arrays we don't need anymore.
+  delete [] lo;    // freeing lo, hi, prod 
+  delete [] axlen; // freeing axlen, axidx
+
+  utils::free_matrix(n);
+  utils::free_matrix(fvv);
+  
+  //
+  // Set the results
+  //
+   
+  npy_intp retdim[2] = {numPts, numVals};
+	PyObject *o_ret = 
+    PyArray_SimpleNewFromData(2, retdim, NPY_DOUBLE, (void *)ret[0]);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_ret, NPY_ARRAY_OWNDATA);
+  
+  // Free only pointers to rows, as the content is borrowed
+  delete [] ret;
+  delete [] r;      // freeing r and ax
+  
+  return o_ret;
+}
+
+/*
   Define functions in module
    
   Some modification in declarations due to use of keywords
@@ -4169,245 +4372,246 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
 */ 
 static PyMethodDef Methods[] = {
-    
-    { "roche_critical_potential", 
-      roche_critical_potential,   
-      METH_VARARGS, 
-      "Determine the critical potentials of Kopal potential for given "
-      "values of q, F, and d."},
-    
-    { "rotstar_critical_potential", 
-      rotstar_critical_potential,   
-      METH_VARARGS, 
-      "Determine the critical potentials of the rotating star potental "
-      "for given values of omega."},
-      
-// --------------------------------------------------------------------
-      
-    { "roche_pole", 
-      (PyCFunction)roche_pole,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the height of the pole of generalized Roche lobes for given "
-      "values of q, F, d and Omega0"},
-   
-    { "rotstar_pole", 
-      (PyCFunction)rotstar_pole,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the height of the pole of rotating star for given a omega."},
-
-// --------------------------------------------------------------------
-    { "rotstar_from_roche", 
-      (PyCFunction)rotstar_from_roche,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine parameters of the rotating stars from parameters Roche "
-      " by matching the poles"},
-
-// --------------------------------------------------------------------
-   
-    { "roche_area_volume", 
-      (PyCFunction)roche_area_volume,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the area and volume of the generalized Roche lobes for given "
-      "values of q, F, d and Omega0."},
-   
-    { "rotstar_area_volume", 
-      (PyCFunction)rotstar_area_volume,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the area and volume of the rotating star for given a omega "
-      "and Omega0"},
-
-// --------------------------------------------------------------------
-   
-    { "roche_Omega_at_vol", 
-      (PyCFunction)roche_Omega_at_vol,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the value of the generalized Kopal potential at "
-      "values of q, F, d and volume."},
-
-
-    { "rotstar_Omega_at_vol", 
-      (PyCFunction)rotstar_Omega_at_vol,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the value of the rotating star potential at "
-      "values of omega and volume."},
-// --------------------------------------------------------------------
   
-    { "roche_gradOmega", 
-      roche_gradOmega,   
-      METH_VARARGS, 
-      "Calculate the gradient and the value of the generalized Kopal potentil"
-      " at given point [x,y,z] for given values of q, F and d."},  
+  { "roche_critical_potential", 
+    roche_critical_potential,   
+    METH_VARARGS, 
+    "Determine the critical potentials of Kopal potential for given "
+    "values of q, F, and d."},
   
-      { "rotstar_gradOmega", 
-      rotstar_gradOmega,   
-      METH_VARARGS, 
-      "Calculate the gradient and the value of the rotating star potential"
-      " at given point [x,y,z] for given values of omega."},  
+  { "rotstar_critical_potential", 
+    rotstar_critical_potential,   
+    METH_VARARGS, 
+    "Determine the critical potentials of the rotating star potental "
+    "for given values of omega."},
+    
+// --------------------------------------------------------------------
+    
+  { "roche_pole", 
+    (PyCFunction)roche_pole,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the height of the pole of generalized Roche lobes for given "
+    "values of q, F, d and Omega0"},
+ 
+  { "rotstar_pole", 
+    (PyCFunction)rotstar_pole,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the height of the pole of rotating star for given a omega."},
+
+// --------------------------------------------------------------------
+  { "rotstar_from_roche", 
+    (PyCFunction)rotstar_from_roche,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine parameters of the rotating stars from parameters Roche "
+    " by matching the poles"},
+
+// --------------------------------------------------------------------
+ 
+  { "roche_area_volume", 
+    (PyCFunction)roche_area_volume,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the area and volume of the generalized Roche lobes for given "
+    "values of q, F, d and Omega0."},
+ 
+  { "rotstar_area_volume", 
+    (PyCFunction)rotstar_area_volume,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the area and volume of the rotating star for given a omega "
+    "and Omega0"},
+
+// --------------------------------------------------------------------
+ 
+  { "roche_Omega_at_vol", 
+    (PyCFunction)roche_Omega_at_vol,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the value of the generalized Kopal potential at "
+    "values of q, F, d and volume."},
+
+
+  { "rotstar_Omega_at_vol", 
+    (PyCFunction)rotstar_Omega_at_vol,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the value of the rotating star potential at "
+    "values of omega and volume."},
+// --------------------------------------------------------------------
+
+  { "roche_gradOmega", 
+    roche_gradOmega,   
+    METH_VARARGS, 
+    "Calculate the gradient and the value of the generalized Kopal potentil"
+    " at given point [x,y,z] for given values of q, F and d."},  
+
+    { "rotstar_gradOmega", 
+    rotstar_gradOmega,   
+    METH_VARARGS, 
+    "Calculate the gradient and the value of the rotating star potential"
+    " at given point [x,y,z] for given values of omega."},  
+
+// --------------------------------------------------------------------
+
+  { "roche_Omega", 
+    roche_Omega,   
+    METH_VARARGS, 
+    "Calculate the value of the generalized Kopal potentil"
+    " at given point [x,y,z] for given values of q, F and d."},  
+
+    { "rotstar_Omega", 
+    rotstar_Omega,   
+    METH_VARARGS, 
+    "Calculate the value of the rotating star potential"
+    " at given point [x,y,z] for given values of omega."},  
  
 // --------------------------------------------------------------------
+    
+  { "roche_gradOmega_only", 
+    roche_gradOmega_only,   
+    METH_VARARGS, 
+    "Calculate the gradient of the generalized Kopal potential"
+    " at given point [x,y,z] for given values of q, F and d."},   
   
-    { "roche_Omega", 
-      roche_Omega,   
-      METH_VARARGS, 
-      "Calculate the value of the generalized Kopal potentil"
-      " at given point [x,y,z] for given values of q, F and d."},  
-  
-      { "rotstar_Omega", 
-      rotstar_Omega,   
-      METH_VARARGS, 
-      "Calculate the value of the rotating star potential"
-      " at given point [x,y,z] for given values of omega."},  
-   
-// --------------------------------------------------------------------
-      
-    { "roche_gradOmega_only", 
-      roche_gradOmega_only,   
-      METH_VARARGS, 
-      "Calculate the gradient of the generalized Kopal potential"
-      " at given point [x,y,z] for given values of q, F and d."},   
-    
-    { "rotstar_gradOmega_only", 
-      rotstar_gradOmega_only,   
-      METH_VARARGS, 
-      "Calculate the gradient of the rotating star potential"
-      " at given point [x,y,z] for given values of omega."},   
+  { "rotstar_gradOmega_only", 
+    rotstar_gradOmega_only,   
+    METH_VARARGS, 
+    "Calculate the gradient of the rotating star potential"
+    " at given point [x,y,z] for given values of omega."},   
 
-// --------------------------------------------------------------------
-    
-    { "roche_marching_mesh", 
-      (PyCFunction)roche_marching_mesh,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the triangular meshing of generalized Roche lobes for "
-      "given values of q, F, d and value of the generalized Kopal potential "
-      "Omega0. The edge of triangles used in the mesh are approximately delta."},
-      
-    { "rotstar_marching_mesh", 
-      (PyCFunction)rotstar_marching_mesh,   
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the triangular meshing of a rotating star for given "
-      "values of omega and value of the star potential Omega. The edge "
-      "of triangles used in the mesh are approximately delta."},
-
-// --------------------------------------------------------------------    
-    
-    { "mesh_visibility",
-      (PyCFunction)mesh_visibility,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determine the ratio of triangle surfaces that are visible in a triangular mesh."},
-    
-    { "mesh_rough_visibility",
-      mesh_rough_visibility,
-      METH_VARARGS,
-      "Classify the visibility of triangles of the mesh into hidden, partially hidden and visible"},
-    
-    { "mesh_offseting",
-      (PyCFunction)mesh_offseting,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Offset the mesh along the normals in vertices to match the area with reference area."},
-      
-    { "mesh_properties", 
-      (PyCFunction)mesh_properties,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculate the properties of the triangular mesh."},
-
-    { "mesh_export_povray",
-      (PyCFunction)mesh_export_povray,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Exporting triangular mesh into a Pov-Ray file."},
-   
-    { "mesh_radiosity_Wilson_triangles",
-      (PyCFunction)mesh_radiosity_Wilson_triangles,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Solving the radiosity problem with limb darkening as defined by Wilson."},
-    
-    { "mesh_radiosity_Wilson_triangles_nbody_convex",
-      (PyCFunction)mesh_radiosity_Wilson_triangles_nbody_convex,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Solving the radiosity problem with limb darkening as defined by Wilson "
-      "for n separate convex bodies using triangles as radiating surfaces."},
-      
-    { "mesh_radiosity_Wilson_vertices_nbody_convex",
-      (PyCFunction)mesh_radiosity_Wilson_vertices_nbody_convex,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Solving the radiosity problem with limb darkening as defined by Wilson "
-      "for n separate convex bodies using surfaces attached to vertices as "
-      "radiating surfaces."},  
-      
-    { "mesh_radiosity_Wilson_vertices",
-      (PyCFunction)mesh_radiosity_Wilson_vertices,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Solving the radiosity problem with limb darkening as defined by Wilson."},
-      
-// --------------------------------------------------------------------    
-
-    { "roche_reprojecting_vertices",
-      (PyCFunction)roche_reprojecting_vertices,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Reprojecting vertices onto the Roche lobe defined by q,F,d, and the value of"
-      " generalized Kopal potential Omega."},
-      
-// --------------------------------------------------------------------    
-
-    { "roche_central_points",
-      (PyCFunction)roche_central_points,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Determining the central points of triangular mesh on the Roche lobe"
-      " defined by q,F,d, and the value of generalized Kopal potential Omega."},
-      
-// --------------------------------------------------------------------    
-    { "roche_horizon",
-      (PyCFunction)roche_horizon,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculating the horizon on the Roche lobe defined by view direction,"
-      "q,F,d, and the value of generalized Kopal potential Omega."},
-
-
-    { "rotstar_horizon",
-      (PyCFunction)rotstar_horizon,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculating the horizon on the rotating star defined by view direction,"
-      "omega, and the value of the potential"},
-
-// --------------------------------------------------------------------
-
-      { "ld_funcD",
-      (PyCFunction)ld_funcD,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculating the value of the limb darkening function."},
-      
-      
-    { "ld_gradparD",
-      (PyCFunction)ld_gradparD,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculating the gradient of the limb darkening function w.r.t. "
-      "parameters."},
-    
 // --------------------------------------------------------------------
   
-      { "wd_readdata",
-      (PyCFunction)wd_readdata,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Reading the file with WD coefficients."},
-      
-      
-    { "wd_planckint",
-      (PyCFunction)wd_planckint,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculating Planck central intensity at given temperatures,"
-      "filter index and array of coefficients"},
+  { "roche_marching_mesh", 
+    (PyCFunction)roche_marching_mesh,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the triangular meshing of generalized Roche lobes for "
+    "given values of q, F, d and value of the generalized Kopal potential "
+    "Omega0. The edge of triangles used in the mesh are approximately delta."},
+    
+  { "rotstar_marching_mesh", 
+    (PyCFunction)rotstar_marching_mesh,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the triangular meshing of a rotating star for given "
+    "values of omega and value of the star potential Omega. The edge "
+    "of triangles used in the mesh are approximately delta."},
 
-    { "wd_atmint",
-      (PyCFunction)wd_atmint,
-      METH_VARARGS|METH_KEYWORDS, 
-      "Calculating intensity for a given atmospheres at given temperatures,"
-      "filter index and array of coefficients"},
+// --------------------------------------------------------------------    
+  
+  { "mesh_visibility",
+    (PyCFunction)mesh_visibility,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the ratio of triangle surfaces that are visible in a triangular mesh."},
+  
+  { "mesh_rough_visibility",
+    mesh_rough_visibility,
+    METH_VARARGS,
+    "Classify the visibility of triangles of the mesh into hidden, partially hidden and visible"},
+  
+  { "mesh_offseting",
+    (PyCFunction)mesh_offseting,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Offset the mesh along the normals in vertices to match the area with reference area."},
+    
+  { "mesh_properties", 
+    (PyCFunction)mesh_properties,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculate the properties of the triangular mesh."},
+
+  { "mesh_export_povray",
+    (PyCFunction)mesh_export_povray,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Exporting triangular mesh into a Pov-Ray file."},
+ 
+  { "mesh_radiosity_Wilson_triangles",
+    (PyCFunction)mesh_radiosity_Wilson_triangles,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Solving the radiosity problem with limb darkening as defined by Wilson."},
+  
+  { "mesh_radiosity_Wilson_triangles_nbody_convex",
+    (PyCFunction)mesh_radiosity_Wilson_triangles_nbody_convex,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Solving the radiosity problem with limb darkening as defined by Wilson "
+    "for n separate convex bodies using triangles as radiating surfaces."},
+    
+  { "mesh_radiosity_Wilson_vertices_nbody_convex",
+    (PyCFunction)mesh_radiosity_Wilson_vertices_nbody_convex,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Solving the radiosity problem with limb darkening as defined by Wilson "
+    "for n separate convex bodies using surfaces attached to vertices as "
+    "radiating surfaces."},  
+    
+  { "mesh_radiosity_Wilson_vertices",
+    (PyCFunction)mesh_radiosity_Wilson_vertices,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Solving the radiosity problem with limb darkening as defined by Wilson."},
+    
+// --------------------------------------------------------------------    
+
+  { "roche_reprojecting_vertices",
+    (PyCFunction)roche_reprojecting_vertices,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Reprojecting vertices onto the Roche lobe defined by q,F,d, and the value of"
+    " generalized Kopal potential Omega."},
+    
+// --------------------------------------------------------------------    
+
+  { "roche_central_points",
+    (PyCFunction)roche_central_points,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determining the central points of triangular mesh on the Roche lobe"
+    " defined by q,F,d, and the value of generalized Kopal potential Omega."},
+    
+// --------------------------------------------------------------------    
+  { "roche_horizon",
+    (PyCFunction)roche_horizon,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the horizon on the Roche lobe defined by view direction,"
+    "q,F,d, and the value of generalized Kopal potential Omega."},
+
+
+  { "rotstar_horizon",
+    (PyCFunction)rotstar_horizon,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the horizon on the rotating star defined by view direction,"
+    "omega, and the value of the potential"},
 
 // --------------------------------------------------------------------
+
+    { "ld_funcD",
+    (PyCFunction)ld_funcD,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the value of the limb darkening function."},
     
     
+  { "ld_gradparD",
+    (PyCFunction)ld_gradparD,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the gradient of the limb darkening function w.r.t. "
+    "parameters."},
+  
+// --------------------------------------------------------------------
+
+    { "wd_readdata",
+    (PyCFunction)wd_readdata,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Reading the file with WD coefficients."},
     
-        
-    {NULL,  NULL, 0, NULL} // terminator record
+    
+  { "wd_planckint",
+    (PyCFunction)wd_planckint,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating Planck central intensity at given temperatures,"
+    "filter index and array of coefficients"},
+
+  { "wd_atmint",
+    (PyCFunction)wd_atmint,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating intensity for a given atmospheres at given temperatures,"
+    "filter index and array of coefficients"},
+
+// --------------------------------------------------------------------
+
+ {"interp", 
+  (PyCFunction)interp, METH_VARARGS|METH_KEYWORDS, 
+  "Multi-dimensional linear interpolation of arrays with gridded data."},  
+  
+  {NULL,  NULL, 0, NULL} // terminator record
 };
 
 static char const *Docstring =
