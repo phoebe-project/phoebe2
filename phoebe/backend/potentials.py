@@ -1,9 +1,10 @@
 import numpy as np
 
 from math import sqrt, sin, cos, acos, atan2, trunc, pi
-from oc_geometry import nekmin
+from oc_geometry import nekmin, wd_mesh_fill, wd_recompute_neck
 import libphoebe
 import os
+from scipy.spatial import KDTree
 
 import logging
 logger = logging.getLogger("POTENTIALS")
@@ -334,21 +335,26 @@ def discretize_wd_style(N, q, F, d, Phi):
     table = np.array(Ts)
     return table
     
-def discretize_wd_style_oc(N, q, F, d, Phi):
-                            
-    DEBUG = False
+def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
 
     Ts = []
+
+    # for testing of where things start to diverge:
+    breaks0, breaks1 = [], []
+    vcs0, vcs1 = [], []
 
     potential = 'BinaryRoche'
     q_1, Phi_1 = q, Phi
     q_2, Phi_2 = 1./q, Phi/q + 0.5*(q-1)/q
     
     xminz1, xminy1, y1, z1 = nekmin(Phi_1,q_1,0.5,0.05,0.05)
-    xminz2 = d - xminz1
+    xmin1 = (xminz1+xminy1)/2.
+    
+    xmin2 = d - xmin1
     #xminz2, xminy2, y2, z2 = nekmin(Phi_2,q_2,0.5,0.05,0.05)
 
-    for obj, q, Phi, xmin in zip([0,1],[q_1,q_2],[Phi_1,Phi_2],[xminz1,xminz2]):
+    # first, find closest neck points to mark them for fractional area computation
+    for obj, q, Phi, xmin in zip([0,1],[q_1,q_2],[Phi_1,Phi_2],[xmin1,xmin2]):
 
         r0 = libphoebe.roche_pole(q, F, d, Phi)
         # The following is a hack that needs to go!
@@ -356,28 +362,6 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
         dpdx = globals()['d%sdx'%(pot_name)]
         dpdy = globals()['d%sdy'%(pot_name)]
         dpdz = globals()['d%sdz'%(pot_name)]
-        
-        if DEBUG:
-            import matplotlib.pyplot as plt
-            from matplotlib.path import Path
-            import matplotlib.patches as patches
-            
-            fig = plt.figure()
-            ax1 = fig.add_subplot(131)
-            ax2 = fig.add_subplot(132)
-            ax3 = fig.add_subplot(133)
-            ax1.set_xlim(-0.3, 0.3) # -1.6 1.6
-            ax1.set_ylim(-0.3, 0.3)
-            ax2.set_xlim(-0.3, 0.3)
-            ax2.set_ylim(-0.3, 0.3)
-            ax3.set_xlim(-0.3, 0.3)
-            ax3.set_ylim(-0.3, 0.3)
-            ax1.set_xlabel('x')
-            ax1.set_ylabel('y')
-            ax2.set_xlabel('x')
-            ax2.set_ylabel('z')
-            ax3.set_xlabel('y')
-            ax3.set_ylabel('z')
         
         # Rectangle centers:
         theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
@@ -391,9 +375,63 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
                 # Project the vertex onto the potential; this will be our center point:
                 rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
                 vc = project_onto_potential(rc, potential, d, q, F, Phi).r
+
+                if (vc[0] < 0. and vc[0] > -1.) or abs(vc[0]) <= xmin:
+                    # do this for separate components cause they may have different diverging strips
+                    if obj==0 and abs(vc[1])>=1e-16:
+                        vcs0.append(np.array([vc[0],vc[1],vc[2],theta[t]]))
+                    elif obj==1 and abs(vc[1])>=1e-16:
+                        vcs1.append(np.array([vc[0],vc[1],vc[2],theta[t]]))
+                else:
+                    if obj==0 and abs(vc[1])>=1e-16:
+                        breaks0.append(theta[t])
+                    elif obj==1 and abs(vc[1])>=1e-16:
+                        breaks1.append(theta[t])
+
+    vcs0,vcs1 = np.array(vcs0), np.array(vcs1)
+    #breaks0, breaks1 = np.array(breaks0), np.array(breaks1)
+    thetas0, thetas1 = set(breaks0), set(breaks1)
+
+    vcs_breaks0 = []
+    vcs_breaks1 = []
+    # go through strips of thetas where things diverge and mark last created center
+
+    for theta in thetas0:
+        vcs_strip = vcs0[vcs0[:,-1]==theta]
+        vcs_breaks0.append([vcs_strip[0][0],vcs_strip[0][1],vcs_strip[0][2]])
+
+    for theta in thetas1:
+        vcs_strip = vcs1[vcs1[:,-1]==theta]
+        vcs_breaks1.append([vcs_strip[0][0],vcs_strip[0][1],vcs_strip[0][2]])
+
+    vcs_breaks0 = np.array(vcs_breaks0)
+    vcs_breaks1 = np.array(vcs_breaks1)
+
+    for obj, q, Phi, xmin, vcs_breaks in zip([0,1],[q_1,q_2],[Phi_1,Phi_2],[xmin1,xmin2],[vcs_breaks0,vcs_breaks1]):
+
+        r0 = libphoebe.roche_pole(q, F, d, Phi)
+        # The following is a hack that needs to go!
+        pot_name = potential
+        dpdx = globals()['d%sdx'%(pot_name)]
+        dpdy = globals()['d%sdy'%(pot_name)]
+        dpdz = globals()['d%sdz'%(pot_name)]
+        
+        # Rectangle centers:
+        theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
+        phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
+
+
+        for t in range(len(theta)-1):
+            dtheta = theta[t+1]-theta[t]
+            for i in range(len(phi[t])):
+                dphi = phi[t][1]-phi[t][0]
+
+                # Project the vertex onto the potential; this will be our center point:
+                rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
+                vc = project_onto_potential(rc, potential, d, q, F, Phi).r
                 
-                if abs(vc[0]) <= xmin:
-                
+                if ((vc[0] < 0. and vc[0] > -1.) or abs(vc[0]) <= xmin) and abs(vc[1])>=1e-16:
+
                     # Next we need to find the tangential plane, which we'll get by finding the normal,
                     # which is the negative of the gradient:
                     nc = np.array((-dpdx(vc, d, q, F), -dpdy(vc, d, q, F), -dpdz(vc, d, q, F)))
@@ -418,55 +456,52 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
                     r3 = np.dot(vc, nc) / np.dot(l3, nc) * l3
                     r4 = np.dot(vc, nc) / np.dot(l4, nc) * l4
                     
-                    if abs(r1[0]) <= xmin and abs(r2[0]) <= xmin and abs(r3[0]) <= xmin and abs(r4[0]) <= xmin:
-                        
-                        print 'yes'
+                    # This sorts out the vertices, now we need to fudge the surface
+                    # area. WD does not take curvature of the equipotential at vc
+                    # into account, so the surface area computed from these vertex-
+                    # delimited surfaces will generally be different from what WD
+                    # computes. Thus, we compute the surface area the same way WD
+                    # does it and assign it to each element even though that isn't
+                    # quite its area:
+                    #
+                    #   dsigma = || r^2 sin(theta)/cos(gamma) dtheta dphi ||,
+                    #
+                    # where gamma is the angle between l and n.
 
-                        # This sorts out the vertices, now we need to fudge the surface
-                        # area. WD does not take curvature of the equipotential at vc
-                        # into account, so the surface area computed from these vertex-
-                        # delimited surfaces will generally be different from what WD
-                        # computes. Thus, we compute the surface area the same way WD
-                        # does it and assign it to each element even though that isn't
-                        # quite its area:
-                        #
-                        #   dsigma = || r^2 sin(theta)/cos(gamma) dtheta dphi ||,
-                        #
-                        # where gamma is the angle between l and n.
+                    cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
+                    dsigma = np.abs(np.dot(vc, vc)*np.sin(theta[t])/cosgamma*dtheta*dphi)
 
-                        cosgamma = np.dot(vc, nc)/np.sqrt(np.dot(vc, vc))/np.sqrt(np.dot(nc, nc))
-                        dsigma = np.abs(np.dot(vc, vc)*np.sin(theta[t])/cosgamma*dtheta*dphi)
+                    # Temporary addition: triangle areas: ######################
+                    side1 = sqrt((r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
+                    side2 = sqrt((r1[0]-r3[0])**2 + (r1[1]-r3[1])**2 + (r1[2]-r3[2])**2)
+                    side3 = sqrt((r2[0]-r3[0])**2 + (r2[1]-r3[1])**2 + (r2[2]-r3[2])**2)
+                    s = 0.5*(side1 + side2 + side3)
 
-                        # Temporary addition: triangle areas: ######################
-                        side1 = sqrt((r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
-                        side2 = sqrt((r1[0]-r3[0])**2 + (r1[1]-r3[1])**2 + (r1[2]-r3[2])**2)
-                        side3 = sqrt((r2[0]-r3[0])**2 + (r2[1]-r3[1])**2 + (r2[2]-r3[2])**2)
-                        s = 0.5*(side1 + side2 + side3)
+                    dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
+                    dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
+                    ############################################################
 
-                        dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
-                        dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
-                        ############################################################
+                    #if abs(r1[0]) <= xmin and abs(r2[0]) <= xmin and abs(r3[0]) <= xmin and abs(r4[0]) <= xmin:
+ 
+                    # check whether the trapezoids cross the neck and if so put them back into their place
+                    # do the same for end traezoids also
 
-                        if DEBUG:
-                            fc = 'orange'
+                    if (np.array([abs(r1[0]),abs(r2[0]),abs(r3[0]),abs(r4[0])])>xmin).any() or vc in vcs_breaks:
+                        r1,r2,r3,r4,dsigma_t_new = wd_mesh_fill(xmin,y1,z1,r1,r2,r3,r4)
+                        if dsigma_t != 0:
+                            frac_area = dsigma_t_new/dsigma_t
+                            dsigma = dsigma*frac_area
+                            dsigma_t = dsigma_t*frac_area
+                        else:
+                            dsigma_t = dsigma_t_new
+                            dsigma = 2*dsigma_t_new
 
-                            verts = [(r1[0], r1[1]), (r2[0], r2[1]), (r3[0], r3[1]), (r4[0], r4[1]), (r1[0], r1[1])]
-                            codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
-                            path = Path(verts, codes)
-                            patch = patches.PathPatch(path, facecolor=fc, lw=2)
-                            ax1.add_patch(patch)
-
-                            verts = [(r1[0], r1[2]), (r2[0], r2[2]), (r3[0], r3[2]), (r4[0], r4[2]), (r1[0], r1[2])]
-                            codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
-                            path = Path(verts, codes)
-                            patch = patches.PathPatch(path, facecolor=fc, lw=2)
-                            ax2.add_patch(patch)
-
-                            verts = [(r1[1], r1[2]), (r2[1], r2[2]), (r3[1], r3[2]), (r4[1], r4[2]), (r1[1], r1[2])]
-                            codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
-                            path = Path(verts, codes)
-                            patch = patches.PathPatch(path, facecolor=fc, lw=2)
-                            ax3.add_patch(patch)
+                        if recompute_neck:
+                            #vc,nc,r1,r2,r3,r4,dsigma,dsigma_t,phi_half,dphi_new=wd_recompute_neck(r0,xmin,y1,z1,r1,r2,r3,r4,theta[t],dtheta,potential,d,q,F,Phi)
+                            disgma = wd_recompute_neck(r0,xmin,y1,z1,r1,r2,r3,r4,theta[t],dtheta,potential,d,q,F,Phi)
+                            #phi[t][i],dphi=phi_half,dphi_new
+   
+                        # If all of the vertices are on one side of the minimum, keep trapezoids as they are
 
                         # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
                         # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
@@ -483,34 +518,33 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
 
                         # FOR TESTING - report theta/phi for each triangle
                         # uncomment the above original version eventually
-                        if obj == 0:
-                            Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
-                            Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+                    if obj == 0:
+                        Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+                        Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
 
-                            # Instead of recomputing all quantities, just reflect over the y- and z-directions.
-                            Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r1[0], -r1[1],  r1[2], r2[0], -r2[1],  r2[2], r3[0], -r3[1],  r3[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
-                            Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r3[0], -r3[1],  r3[2], r4[0], -r4[1],  r4[2], r1[0], -r1[1],  r1[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+                        # Instead of recomputing all quantities, just reflect over the y- and z-directions.
+                        Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r1[0], -r1[1],  r1[2], r2[0], -r2[1],  r2[2], r3[0], -r3[1],  r3[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+                        Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r3[0], -r3[1],  r3[2], r4[0], -r4[1],  r4[2], r1[0], -r1[1],  r1[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
 
-                            Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
-                            Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+                        Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+                        Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
 
-                            Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
-                            Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
-                        else:
-                            Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r1[0]+d, r1[1], r1[2], -r2[0]+d, r2[1], r2[2], -r3[0]+d, r3[1], r3[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
-                            Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r3[0]+d, r3[1], r3[2], -r4[0]+d, r4[1], r4[2], -r1[0]+d, r1[1], r1[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
-    
-                            # Instead of recomputing all quantities, just reflect over the y- and z-directions.
-                            Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r1[0]+d, -r1[1],  r1[2], -r2[0]+d, -r2[1],  r2[2], -r3[0]+d, -r3[1],  r3[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
-                            Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r3[0]+d, -r3[1],  r3[2], -r4[0]+d, -r4[1],  r4[2], -r1[0]+d, -r1[1],  r1[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
-    
-                            Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r1[0]+d,  r1[1], -r1[2], -r2[0]+d,  r2[1], -r2[2], -r3[0]+d,  r3[1], -r3[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
-                            Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r3[0]+d,  r3[1], -r3[2], -r4[0]+d,  r4[1], -r4[2], -r1[0]+d,  r1[1], -r1[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
-    
-                            Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r1[0]+d, -r1[1], -r1[2], -r2[0]+d, -r2[1], -r2[2], -r3[0]+d, -r3[1], -r3[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
-                            Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r3[0]+d, -r3[1], -r3[2], -r4[0]+d, -r4[1], -r4[2], -r1[0]+d, -r1[1], -r1[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
-            if DEBUG:
-                plt.show()
+                        Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                        Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                    else:
+                        Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r1[0]+d, r1[1], r1[2], -r2[0]+d, r2[1], r2[2], -r3[0]+d, r3[1], r3[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+                        Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r3[0]+d, r3[1], r3[2], -r4[0]+d, r4[1], r4[2], -r1[0]+d, r1[1], r1[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+
+                        # Instead of recomputing all quantities, just reflect over the y- and z-directions.
+                        Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r1[0]+d, -r1[1],  r1[2], -r2[0]+d, -r2[1],  r2[2], -r3[0]+d, -r3[1],  r3[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+                        Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r3[0]+d, -r3[1],  r3[2], -r4[0]+d, -r4[1],  r4[2], -r1[0]+d, -r1[1],  r1[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+
+                        Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r1[0]+d,  r1[1], -r1[2], -r2[0]+d,  r2[1], -r2[2], -r3[0]+d,  r3[1], -r3[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+                        Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r3[0]+d,  r3[1], -r3[2], -r4[0]+d,  r4[1], -r4[2], -r1[0]+d,  r1[1], -r1[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+
+                        Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r1[0]+d, -r1[1], -r1[2], -r2[0]+d, -r2[1], -r2[2], -r3[0]+d, -r3[1], -r3[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                        Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r3[0]+d, -r3[1], -r3[2], -r4[0]+d, -r4[1], -r4[2], -r1[0]+d, -r1[1], -r1[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+
 
     # Assemble a mesh table:
     table = np.array(Ts)
