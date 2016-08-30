@@ -181,7 +181,7 @@ def discretize_wd_style(N, q, F, d, Phi):
     New implementation. I'll make this work first, then document.
     """
 
-    DEBUG = True
+    DEBUG = False
 
     Ts = []
     Tstart = [0,]
@@ -290,7 +290,7 @@ def discretize_wd_style(N, q, F, d, Phi):
             n3 = np.array((-dpdx(v3, d, q, F), -dpdy(v3, d, q, F), -dpdz(v3, d, q, F)))
             n4 = np.array((-dpdx(v4, d, q, F), -dpdy(v4, d, q, F), -dpdz(v4, d, q, F)))
             ############################################################
-            
+
             # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
             # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
 
@@ -366,9 +366,9 @@ def discretize_wd_style(N, q, F, d, Phi):
     # Assemble a mesh table:
     table = np.array(Ts)
     return table
-    
+
 def discretize_wd_style_oc(N, q, F, d, Phi):
-                            
+
     DEBUG = False
 
     Ts = []
@@ -376,7 +376,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
     potential = 'BinaryRoche'
     q_1, Phi_1 = q, Phi
     q_2, Phi_2 = 1./q, Phi/q + 0.5*(q-1)/q
-    
+
     xminz1, xminy1, y1, z1 = nekmin(Phi_1,q_1,0.5,0.05,0.05)
     xminz2 = d - xminz1
     #xminz2, xminy2, y2, z2 = nekmin(Phi_2,q_2,0.5,0.05,0.05)
@@ -389,12 +389,12 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
         dpdx = globals()['d%sdx'%(pot_name)]
         dpdy = globals()['d%sdy'%(pot_name)]
         dpdz = globals()['d%sdz'%(pot_name)]
-        
+
         if DEBUG:
             import matplotlib.pyplot as plt
             from matplotlib.path import Path
             import matplotlib.patches as patches
-            
+
             fig = plt.figure()
             ax1 = fig.add_subplot(131)
             ax2 = fig.add_subplot(132)
@@ -411,7 +411,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
             ax2.set_ylabel('z')
             ax3.set_xlabel('y')
             ax3.set_ylabel('z')
-        
+
         # Rectangle centers:
         theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
         phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
@@ -424,9 +424,9 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
                 # Project the vertex onto the potential; this will be our center point:
                 rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
                 vc = project_onto_potential(rc, potential, d, q, F, Phi).r
-                
+
                 if abs(vc[0]) <= xmin:
-                
+
                     # Next we need to find the tangential plane, which we'll get by finding the normal,
                     # which is the negative of the gradient:
                     nc = np.array((-dpdx(vc, d, q, F), -dpdy(vc, d, q, F), -dpdz(vc, d, q, F)))
@@ -450,9 +450,9 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
                     r2 = np.dot(vc, nc) / np.dot(l2, nc) * l2
                     r3 = np.dot(vc, nc) / np.dot(l3, nc) * l3
                     r4 = np.dot(vc, nc) / np.dot(l4, nc) * l4
-                    
+
                     if abs(r1[0]) <= xmin and abs(r2[0]) <= xmin and abs(r3[0]) <= xmin and abs(r4[0]) <= xmin:
-                        
+
                         print 'yes'
 
                         # This sorts out the vertices, now we need to fudge the surface
@@ -532,14 +532,14 @@ def discretize_wd_style_oc(N, q, F, d, Phi):
                         else:
                             Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r1[0]+d, r1[1], r1[2], -r2[0]+d, r2[1], r2[2], -r3[0]+d, r3[1], r3[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
                             Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r3[0]+d, r3[1], r3[2], -r4[0]+d, r4[1], r4[2], -r1[0]+d, r1[1], r1[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
-    
+
                             # Instead of recomputing all quantities, just reflect over the y- and z-directions.
                             Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r1[0]+d, -r1[1],  r1[2], -r2[0]+d, -r2[1],  r2[2], -r3[0]+d, -r3[1],  r3[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
                             Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r3[0]+d, -r3[1],  r3[2], -r4[0]+d, -r4[1],  r4[2], -r1[0]+d, -r1[1],  r1[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
-    
+
                             Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r1[0]+d,  r1[1], -r1[2], -r2[0]+d,  r2[1], -r2[2], -r3[0]+d,  r3[1], -r3[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
                             Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r3[0]+d,  r3[1], -r3[2], -r4[0]+d,  r4[1], -r4[2], -r1[0]+d,  r1[1], -r1[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
-    
+
                             Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r1[0]+d, -r1[1], -r1[2], -r2[0]+d, -r2[1], -r2[2], -r3[0]+d, -r3[1], -r3[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
                             Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r3[0]+d, -r3[1], -r3[2], -r4[0]+d, -r4[1], -r4[2], -r1[0]+d, -r1[1], -r1[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
             if DEBUG:
