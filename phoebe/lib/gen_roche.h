@@ -26,9 +26,13 @@
 // General rotines
 #include "utils.h"                  // Misc routines (sqr, solving poly eq,..)
 
+// Definition of bodies
+#include "bodies.h"
+
 // Roche specific routines and part of gen_roche namespace
 
 // Lagrange fixed points L1, L2, L3
+
 #include "gen_roche_lagrange_L1.h"
 #include "gen_roche_lagrange_L2.h"
 #include "gen_roche_lagrange_L3.h"
@@ -1080,8 +1084,18 @@ namespace gen_roche {
       //std::cout << it << '\t' << dr_max << '\n';
       
     } while (dr_max > eps*r_max + min && ++it < max_iter);
+    /*
+    roche.grad(r, a);
     
+    std::cout.precision(16);
+    std::cout << std::scientific;
+    std::cout << "dOmega=" << a[3] << "\n";
     
+    T sum = 0; 
+    for (int i = 0; i < 3; ++i) sum += a[i]*view[i];
+    
+    std::cout << "dOmega=" << a[3] << " sum=" << sum << "\n";
+    */
     return (it < max_iter);
   }
   

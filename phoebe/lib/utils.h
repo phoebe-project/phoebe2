@@ -749,7 +749,46 @@ namespace utils {
     delete [] m;
   }
  
-  
+ 
+  /*
+    The name 'flt' stands for first larger than:
+    First element in an sorted array in ascending order larger than target value.
+    
+    Input:
+      target: comparison value
+      arr: array to be searched
+      numElems: array length
+      
+    Return:
+      index of the first element larger than target, or -1 if 
+      target is out of bounds. if the lower boundary is
+      breached 0 is returned.
+  */
+
+  int flt(const double & target, double *arr, const int &numElems) {
+    
+    int low = 0, high = numElems, mid;
+
+    /* We only need to test the upper boundary; if the lower boundary is
+     * breached if 0 is returned. The calling functions thus must test
+     * against flt index < 1. */
+    
+    if (target > arr[numElems-1]) return -1;
+    
+    if (target < arr[0]) return 0;
+    
+    while (low != high) {
+      
+      mid = (low + high) >> 1;
+      
+      if (arr[mid] <= target)
+        low = mid + 1;
+      else
+        high = mid;
+    }
+
+    return low;
+  }
   
 } // namespace utils
 

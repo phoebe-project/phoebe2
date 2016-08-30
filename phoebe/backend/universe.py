@@ -254,11 +254,6 @@ class System(object):
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
             # ld_inds = np.zeros(alb_refls_flat.shape)
 
-            # TESTING (also below after the refl call)
-            # intens_intrins_per_body = [i.copy() for i in intens_intrins_per_body]
-            # intens_intrins_sec = intens_intrins_per_body[1].copy()
-            # intens_intrins_per_body[1] *= 0.0
-
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
@@ -277,9 +272,6 @@ class System(object):
             #                                                                            intens_intrins_per_body,
             #                                                                            ld_func_and_coeffs
             #                                                                            )
-
-            # TESTING
-            # intens_intrins_and_refl_per_body[1] += intens_intrins_sec
 
             intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)

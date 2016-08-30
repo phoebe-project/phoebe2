@@ -125,13 +125,13 @@ def legacy(**kwargs):
     params += [BoolParameter(qualifier='store_mesh', value=kwargs.get('store_mesh', False), description='Store meshes computed from phoebe1')]
     params += [ChoiceParameter(copy_for = {'method': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
     params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary'], description='System type constraint')]
-    params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex_switch', False), description='Color index constraint')]
+    params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
 #    params += [IntParameter(relevant_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
     params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
     params += [IntParameter(copy_for={'method': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 40), limits=(10,None), description='Number of meshpoints for WD')]
 
     # TODO: can we get rid of mult_refl and just set the lower limit on refl_num to 1 (or 0 if it can be turned off all-together)?
-    params += [BoolParameter(qualifier='mult_refl', value=kwargs.get('refl', False), description='Allow irradiated bodies to reflect light (for heating only) multiple times')]
+    params += [BoolParameter(qualifier='mult_refl', value=kwargs.get('mult_refl', False), description='Allow irradiated bodies to reflect light (for heating only) multiple times')]
     params += [IntParameter(relevant_if='mult_refl:True', qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(1,None), description='Number of reflections')]
 
 #    params += [BoolParameter(qualifier='msc1', value=kwargs.get('msc1', False), description='Mainsequence Constraint for star 1')]
@@ -139,7 +139,7 @@ def legacy(**kwargs):
 
 
     # TODO: can we come up with a better qualifier for reddening (and be consistent when we enable in phoebe2)
-    params += [BoolParameter(qualifier='ie', value=kwargs.get('ie_switch', False), description='Should data be de-reddened')]
+    params += [BoolParameter(qualifier='ie', value=kwargs.get('ie', False), description='Should data be de-reddened')]
 
     # TODO: can we change this to rv_method = ['flux_weighted', 'dynamical'] to be consistent with phoebe2?
     # TODO: can proximity_rv (rv_method) be copied for each dataset (see how this is done for phoebe2)?  This would probably mean that the wrapper would need to loop and make separate calls since PHOEBE1 can't handle different settings per-RV dataset
