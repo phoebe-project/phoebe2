@@ -632,7 +632,8 @@ def par_value(param, index=None):
 
         if d['qualifier'] == 'refl_num':
 
-            val = [param.get_value()-1]
+        #    val = [param.get_value()-1]
+            val = [param.get_value()]
 
         else:
             val = [param.get_value()]
