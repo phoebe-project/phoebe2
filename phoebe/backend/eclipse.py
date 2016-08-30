@@ -77,6 +77,16 @@ def wd_horizon(meshes, xs, ys, zs):
         f.close()
     # -------------------------------------------------------------------------
 
+    rhos_back = np.sqrt((mesh_back.centers[:,0]-xs[i_front])**2 + (mesh_back.centers[:,1]-ys[i_front])**2)
+    thetas_back = np.arctan2(mesh_back.centers[:,1]-ys[i_front], mesh_back.centers[:,0]-xs[i_front])
+
+    if _EXPORT_HORIZON:
+        f = open('wd_back_elements.txt', 'w')
+        f.write('# ind, rho, theta\n')
+        for ind in range(len(rhos_back)):
+            f.write('%d %f %f\n' % (ind, rhos_back[ind], thetas_back[ind]))
+        f.close()
+
     visibilities, weights = only_horizon(meshes, xs, ys, zs)
     # now edit visibilities based on eclipsing region
     # visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}

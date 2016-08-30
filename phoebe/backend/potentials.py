@@ -181,9 +181,10 @@ def discretize_wd_style(N, q, F, d, Phi):
     New implementation. I'll make this work first, then document.
     """
 
-    DEBUG = False
+    DEBUG = True
 
     Ts = []
+    Tstart = [0,]
 
     potential = 'BinaryRoche'
     r0 = libphoebe.roche_pole(q, F, d, Phi)
@@ -290,27 +291,6 @@ def discretize_wd_style(N, q, F, d, Phi):
             n4 = np.array((-dpdx(v4, d, q, F), -dpdy(v4, d, q, F), -dpdz(v4, d, q, F)))
             ############################################################
             
-            if DEBUG:
-                fc = 'orange'
-
-                verts = [(r1[0], r1[1]), (r2[0], r2[1]), (r3[0], r3[1]), (r4[0], r4[1]), (r1[0], r1[1])]
-                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
-                path = Path(verts, codes)
-                patch = patches.PathPatch(path, facecolor=fc, lw=2)
-                ax1.add_patch(patch)
-
-                verts = [(r1[0], r1[2]), (r2[0], r2[2]), (r3[0], r3[2]), (r4[0], r4[2]), (r1[0], r1[2])]
-                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
-                path = Path(verts, codes)
-                patch = patches.PathPatch(path, facecolor=fc, lw=2)
-                ax2.add_patch(patch)
-
-                verts = [(r1[1], r1[2]), (r2[1], r2[2]), (r3[1], r3[2]), (r4[1], r4[2]), (r1[1], r1[2])]
-                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
-                path = Path(verts, codes)
-                patch = patches.PathPatch(path, facecolor=fc, lw=2)
-                ax3.add_patch(patch)
-
             # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
             # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
 
@@ -326,18 +306,59 @@ def discretize_wd_style(N, q, F, d, Phi):
 
             # FOR TESTING - report theta/phi for each triangle
             # uncomment the above original version eventually
-            Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, n1[0], n1[1], n1[2], n2[0], n2[1], n2[2], n3[0], n3[1], n3[2])))
             Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, n3[0], n3[1], n3[2], n4[0], n4[1], n4[2], n1[0], n1[1], n1[2])))
+            Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, n1[0], n1[1], n1[2], n2[0], n2[1], n2[2], n3[0], n3[1], n3[2])))
 
-            # Instead of recomputing all quantities, just reflect over the y- and z-directions.
-            Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r1[0], -r1[1],  r1[2], r2[0], -r2[1],  r2[2], r3[0], -r3[1],  r3[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t, n1[0], -n1[1],  n1[2], n2[0], -n2[1],  n2[2], n3[0], -n3[1],  n3[2])))
-            Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r3[0], -r3[1],  r3[2], r4[0], -r4[1],  r4[2], r1[0], -r1[1],  r1[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t, n3[0], -n3[1],  n3[2], n4[0], -n4[1],  n4[2], n1[0], -n1[1],  n1[2])))
+        for T in reversed(Ts[Tstart[-1]:]):
+            Ts.append(np.array((T[0], -T[1],  T[2], T[3], T[4], -T[5],  T[6], T[7], -T[8],  T[9], T[10], -T[11],  T[12], T[13], -T[14], T[15], T[16], -T[17], T[18], T[19], -T[20],  T[21], T[22], -T[23],  T[24], T[25], -T[26],  T[27])))
+        Tstart.append(len(Ts))
 
-            Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t, n1[0],  n1[1], -n1[2], n2[0],  n2[1], -n2[2], n3[0],  n3[1], -n3[2])))
-            Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t, n3[0],  n3[1], -n3[2], n4[0],  n4[1], -n4[2], n1[0],  n1[1], -n1[2])))
+    for i in range(len(Tstart)-1):
+        for T in Ts[Tstart[-2]:Tstart[-1]]:
+            Ts.append(np.array((T[0],  T[1], -T[2], T[3], T[4],  T[5], -T[6], T[7],  T[8], -T[9], T[10],  T[11], -T[12], T[13],  T[14], -T[15], np.pi-T[16], T[17], T[18], T[19],  T[20], -T[21], T[22],  T[23], -T[24], T[25],  T[26], -T[27])))
+        Tstart.pop(-1)
 
-            Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t, n1[0], -n1[1], -n1[2], n2[0], -n2[1], -n2[2], n3[0], -n3[1], -n3[2])))
-            Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t, n3[0], -n3[1], -n3[2], n4[0], -n4[1], -n4[2], n1[0], -n1[1], -n1[2])))
+    if DEBUG:
+        for i, T in enumerate(Ts):
+            fc = 'orange'
+
+            if T[15] > 0:
+                verts = [(T[4], T[5]), (T[7], T[8]), (T[10], T[11]), (T[4], T[5])]
+                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+                path = Path(verts, codes)
+                patch = patches.PathPatch(path, facecolor=fc, lw=2)
+                ax1.add_patch(patch)
+                ax1.text((T[4]+T[7]+T[10])/3, (T[5]+T[8]+T[11])/3, '%d' % i, ha='center', va='center', rotation=0, size=10)
+
+            if T[14] < 0:
+                verts = [(T[4], T[6]), (T[7], T[9]), (T[10], T[12]), (T[4], T[6])]
+                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+                path = Path(verts, codes)
+                patch = patches.PathPatch(path, facecolor=fc, lw=2)
+                ax2.add_patch(patch)
+                ax2.text((T[4]+T[7]+T[10])/3, (T[6]+T[9]+T[12])/3, '%d' % i, ha='center', va='center', rotation=0, size=10)
+
+            if T[13] > 0:
+                verts = [(T[5], T[6]), (T[8], T[9]), (T[11], T[12]), (T[5], T[6])]
+                codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+                path = Path(verts, codes)
+                patch = patches.PathPatch(path, facecolor=fc, lw=2)
+                ax3.add_patch(patch)
+                ax3.text((T[5]+T[8]+T[11])/3, (T[6]+T[9]+T[12])/3, '%d' % i, ha='center', va='center', rotation=0, size=10)
+
+        # Instead of recomputing all quantities, just reflect over the y-direction.
+        #~ reflectedTs = []
+        #~ for i, T in enumerate(Ts):
+            #~ print i
+            #~ reflectedTs.append(np.array((T[0], -T[1],  T[2], T[3], T[4], -T[5],  T[6], T[7], -T[8],  T[9], T[10], -T[11],  T[12], T[13], -T[14], T[15], T[16], -T[17], T[18], T[19], -T[20],  T[21], T[22], -T[23],  T[24], T[25], -T[26],  T[27])))
+
+        #~ Ts += reflectedTs
+
+        #~ Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t, n1[0],  n1[1], -n1[2], n2[0],  n2[1], -n2[2], n3[0],  n3[1], -n3[2])))
+        #~ Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t, n3[0],  n3[1], -n3[2], n4[0],  n4[1], -n4[2], n1[0],  n1[1], -n1[2])))
+
+        #~ Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t, n1[0], -n1[1], -n1[2], n2[0], -n2[1], -n2[2], n3[0], -n3[1], -n3[2])))
+        #~ Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t, n3[0], -n3[1], -n3[2], n4[0], -n4[1], -n4[2], n1[0], -n1[1], -n1[2])))
 
     if DEBUG:
         plt.show()
