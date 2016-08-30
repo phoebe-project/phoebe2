@@ -94,100 +94,6 @@ def wd_horizon(meshes, xs, ys, zs):
     return visibilities, None
 
 
-
-def wd_horizon_old(meshes, xs, ys, zs):
-    """
-    """
-
-    nbodies = len(meshes.keys())
-
-    if nbodies != 2:
-        raise ValueError("wd_horizon eclipse method only works on binaries")
-
-    front_to_back_comp_nos = np.argsort(zs)[::-1]
-    i_front = front_to_back_comp_nos[0]
-    i_back = front_to_back_comp_nos[1]
-
-    comp_front = meshes.component_by_no(i_front+1)
-    comp_back = meshes.component_by_no(i_back+1)
-
-    mesh_front = meshes[comp_front]
-    mesh_back = meshes[comp_back]
-
-
-    # polar coordinates need to be wrt the center of the ECLIPSING body
-    rhos = [np.sqrt((mesh.centers[:,0]-xs[i_front])**2 +
-                    (mesh.centers[:,1]-ys[i_front])**2) for mesh in (mesh_front, mesh_back)]
-    # thetas = [np.arcsin((mesh['center'][:,1]-ys[i_front])/rho) for mesh,rho in zip((mesh_front, mesh_back), rhos)]
-    thetas = [np.arctan2(mesh.centers[:,1]-ys[i_front], mesh.centers[:,0]-xs[i_front]) for mesh in (mesh_front, mesh_back)]
-    # mus = [mesh['mu'] for mesh in (mesh_front, mesh_back)]
-
-    # import matplotlib.pyplot as plt
-    # plt.plot(rhos[0], thetas[0], 'b.')
-    # plt.plot(rhos[1], thetas[1], 'r.')
-    # plt.show()
-
-    # To find the horizon we want the first positive mu elements (on right and
-    # left) for each latitude strip.
-
-    horizon_inds = []
-    # we only need the horizon of the ECLIPSING star, so we'll use mesh_front
-    # and mus[i_front], xs[i_front], etc
-    lats = list(set(mesh_front.thetas))
-    for lat in lats:
-        lat_strip_inds = mesh_front.thetas == lat
-
-        # let's get the x-coordinate wrt THIS star so we can do left vs right
-        x_rel = mesh_front.centers[:,0] - xs[i_front]
-
-        print lat, x_rel[lat_strip_inds].min(), x_rel[lat_strip_inds].max()
-
-        # and since we want the first element in the front, let's just get rid of the back
-        front_inds = mesh_front.mus >= 0.0
-        back_inds = mesh_front.mus < 0.0
-
-        left_inds = x_rel < 0.0
-        right_inds = x_rel >= 0.0
-
-        # let's handle "left" vs "right" side of star separately
-        for side_inds, fb_inds, side in zip((left_inds, right_inds), (front_inds, back_inds), ('left', 'right')):
-            no_triangles = len(mesh_front.mus[lat_strip_inds * side_inds * fb_inds])
-            # print "*** no triangles at lat", lat, no_triangles
-
-            if no_triangles > 0:
-                if side=='left':
-                    # then we want the first triangle on the FRONT of the star
-                    first_horizon_mu = mesh_front.mus[lat_strip_inds * side_inds * fb_inds].min()
-                else:
-                    # then we want the first triangle on the BACK of the star
-                    first_horizon_mu = mesh_front.mus[lat_strip_inds * side_inds * fb_inds].max()
-
-                first_horizon_ind = np.where(mesh_front.mus==first_horizon_mu)[0][0]
-                # print "*** horizon index", first_horizon_ind
-
-                horizon_inds.append(first_horizon_ind)
-
-    thetas[0][thetas[0] < 0] = thetas[0][thetas[0] < 0]+2*np.pi
-
-    f = open('bla2', 'w')
-    for ind in horizon_inds:
-        # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
-        f.write("{} {} {}\n".format(ind, rhos[0][ind], thetas[0][ind]))
-    f.close()
-
-    # these are the horizon coordinates for the ECLIPSING star
-    rhos[0][horizon_inds]
-    thetas[0][horizon_inds]
-
-    visibilities, weights = only_horizon(meshes, xs, ys, zs)
-    # now edit visibilities based on eclipsing region
-    # visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}
-    visibilities[comp_back]
-    mesh_back
-
-    return visibilities, None
-
-
 def none(meshes, xs, ys, zs):
     """
     """
@@ -260,14 +166,6 @@ def visible_ratio(meshes, xs, ys, zs):
                 rho = np.sqrt((x-xs[i_front])**2 + (y-ys[i_front])**2)
                 theta = np.arctan2(y-ys[i_front], x-xs[i_front])
                 f.write('{} {} {}\n'.format(-1, rho, theta))
-
-
-        # for ind in horizon_front:
-        #     x = vertices_flat[ind][0]
-        #     y = vertices_flat[ind][1]
-        #     rho = np.sqrt((x-xs[i_front])**2 + (y-ys[i_front])**2)
-        #     theta = np.arctan2(y-ys[i_front], x-xs[i_front])
-        #     f.write('{} {} {}\n'.format(-1, rho, theta))
 
 
         f.close()
