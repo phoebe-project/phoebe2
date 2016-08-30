@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import curve_fit as cfit
 
 from phoebe.algorithms import ceclipse
 import libphoebe
@@ -27,6 +28,31 @@ each function must return a dictionary, with keys being component numbers and va
 def wd_horizon(meshes, xs, ys, zs):
     """
     """
+
+    def fourier(theta, *c):
+        N = len(c)/2
+
+        rho = 0
+        for k in range(N):
+            rho += c[k]*np.cos(k*theta) + c[N+k]*np.sin(k*theta)
+
+        return rho
+
+
+    def correction(rhos_back, thetas_back, ind, *coeffs):
+        dr1 = rhos_back[ind]-fourier(thetas_back[ind], *coeffs)
+        dr2 = rhos_back[ind-1]-fourier(thetas_back[ind-1], *coeffs)
+        rind = ind-1
+        if dr1*dr2 > 0 and ind+1 < len(rhos_back):
+            dr2 = rhos_back[ind+1]-fourier(thetas_back[ind+1], *coeffs)
+            rind = ind+1
+        if dr1*dr2 > 0:
+            print('dammit, you have to do the latitude wrapping.')
+            logger.debug('dr1 = %f, dr2 = %f, index = %d' % (dr1, dr2, ind))
+            return rind, 1.0
+        return (rind, np.abs(dr2)/(np.abs(dr1)+np.abs(dr2))+0.5)
+
+
     nbodies = len(meshes.keys())
 
     if nbodies != 2:
@@ -62,34 +88,49 @@ def wd_horizon(meshes, xs, ys, zs):
                 horizon_inds.append(i)
                 horizon_centers = np.append(horizon_centers, mesh_front.centers[i])
 
-    # -------------------------------------------------------------------------
-    # Now for testing let's compare the rhos and thetas
-    rhos = np.sqrt((mesh_front.centers[:,0]-xs[i_front])**2 + (mesh_front.centers[:,1]-ys[i_front])**2)
-    thetas = np.arctan2(mesh_front.centers[:,1]-ys[i_front], mesh_front.centers[:,0]-xs[i_front])
-    tnormals_zsign = np.sign(mesh_front.tnormals[:,2])
-
-    if _EXPORT_HORIZON:
-        f = open('wd_horizon.horizon', 'w')
-        f.write('#ind rho, theta, nz_sign\n')
-        for ind in horizon_inds:
-            # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
-            f.write("{} {} {} {}\n".format(ind, rhos[ind], thetas[ind], tnormals_zsign[ind]))
-        f.close()
-    # -------------------------------------------------------------------------
-
+    # compute plane-of-sky polar coordinates (rho, theta) for the elements
+    # in the front star
+    rhos_front = np.sqrt((mesh_front.centers[:,0]-xs[i_front])**2 + (mesh_front.centers[:,1]-ys[i_front])**2)
+    thetas_front = np.arctan2(mesh_front.centers[:,1]-ys[i_front], mesh_front.centers[:,0]-xs[i_front])
+    # now get rhos and thetas for the back star but in the polar coordinate frame
+    # of the front star
     rhos_back = np.sqrt((mesh_back.centers[:,0]-xs[i_front])**2 + (mesh_back.centers[:,1]-ys[i_front])**2)
     thetas_back = np.arctan2(mesh_back.centers[:,1]-ys[i_front], mesh_back.centers[:,0]-xs[i_front])
 
     if _EXPORT_HORIZON:
+        tnormals_zsign = np.sign(mesh_front.tnormals[:,2])
+        f = open('wd_horizon.horizon', 'w')
+        f.write('#ind rho, theta, nz_sign\n')
+        for ind in horizon_inds:
+            # note here rhos and thetas need 0 not i_front because of the stupid way we did the list comprehension
+            f.write("{} {} {} {}\n".format(ind, rhos_front[ind], thetas_front[ind], tnormals_zsign[ind]))
+        f.close()
+
         f = open('wd_back_elements.txt', 'w')
         f.write('# ind, rho, theta\n')
         for ind in range(len(rhos_back)):
             f.write('%d %f %f\n' % (ind, rhos_back[ind], thetas_back[ind]))
         f.close()
 
+    # do a fourier fit on the rhos and thetas of the horizon elements of the
+    # front star
+    horizon_fit, _ = cfit(fourier, thetas_front[horizon_inds], rhos_front[horizon_inds], np.ones(12))
+
+    # filter out elements that are eclipsed based on the horizon fourier fit
+    covered_mask = rhos_back < fourier(thetas_back, *horizon_fit)
+    covered_indices = np.where(covered_mask)[0] # these are indices of covered elements
+    covered_boundary_indices = np.sort(np.concatenate((covered_indices[0:1], covered_indices[np.where(covered_indices[1:]-covered_indices[:-1] != 1)], covered_indices[np.where(covered_indices[1:]-covered_indices[:-1] != 1)[0]+1], covered_indices[-1:])))
+
+    # star with visibilities defined by horizon (normals) only
     visibilities, weights = only_horizon(meshes, xs, ys, zs)
-    # now edit visibilities based on eclipsing region
-    # visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}
+
+    visibilities[comp_back][covered_indices] = 0.0
+
+    # for all covered elements, let's compute the correction factor.  For WD
+    # this number CAN be larger than 1.0
+    for cbi in covered_boundary_indices:
+        ind, cor = correction(rhos_back, thetas_back, cbi, *horizon_fit)
+        visibilities[comp_back][ind] = cor
 
     return visibilities, None
 
