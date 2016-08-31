@@ -201,14 +201,14 @@ class System(object):
             body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs)
 
 
-    def populate_observables(self, time, methods, datasets, kwargss):
+    def populate_observables(self, time, methods, datasets, kwargss, ignore_reflection=False):
         """
         TODO: add documentation
         """
 
         bol_pband = 'Bolometric:1760-40000'
 
-        if self.do_reflection:  # and methods includes a method that requires fluxes
+        if self.do_reflection and not ignore_reflection:  # and methods includes a method that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
                 body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
