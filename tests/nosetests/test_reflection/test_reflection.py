@@ -16,9 +16,13 @@ def test_binary(plot=False):
     b.set_value('rpole', component='primary', value=0.5)
     b.set_value('rpole', component='secondary', value=0.5)
 
+    b.set_value('incl', component='binary', value=45.0)
+
     b.add_dataset('LC', time=np.linspace(0,3,101))
+    if plot:
+        b.add_dataset('MESH', time=[0.0])
     b.add_compute('phoebe', compute='phoebe2', refl=True)
-    b.add_compute('legacy', compute='phoebe1', mult_refl=True)
+    b.add_compute('legacy', compute='phoebe1', mult_refl=True, refl_num=5)
 
     # set matching atmospheres
     b.set_value_all('atm@phoebe2', 'extern_planckint')
@@ -40,14 +44,20 @@ def test_binary(plot=False):
         print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
-        if plot:
-            b.plot()
-            plt.legend()
-            plt.title("alb = {}".format(alb))
-            plt.show()
-
         phoebe2_val = b.get_value('flux@phoebe2model')
         phoebe1_val = b.get_value('flux@phoebe1model')
+
+        if plot:
+            # phoebe2_maxintensabs = b.get_value('intens_norm_abs', component='primary').max()
+            # phoebe2_maxintensrel = b.get_value('intens_norm_rel', component='primary').max()
+            # print "alb={} phoebe1.max={} phoebe2.max={}, phoebe2.maxintensabs={} phoebe2.maxintensrel={}".format(alb, phoebe1_val.max(), phoebe2_val.max(), phoebe2_maxintensabs, phoebe2_maxintensrel)
+
+            b.plot(dataset='lc01')
+            plt.legend()
+            plt.title("alb = {}".format(alb))
+            plt.ylim(1.96, 2.02)
+            plt.show()
+
         assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 
     return b

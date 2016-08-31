@@ -531,9 +531,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 #print "***", method, dataset, component, {p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()}
                 kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, method='*dep').to_list()+b.get_compute(compute, component=component).to_list()+b.filter(qualifier='passband', dataset=dataset, method='*dep').to_list()}]
 
+
                 system.populate_observables(t0,
                     [method], [dataset],
-                    kwargss)
+                    kwargss, ignore_reflection=True)
 
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
@@ -555,7 +556,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     # component we're copying from has a chance to compute its scale
                     # first.
                     pbscale_copy[component] = pbscale
-                    
+
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pbscale_copy.items():
