@@ -1922,6 +1922,9 @@ class Star(Body):
                                                       ld_func=ld_func,
                                                       ld_coeffs=ld_coeffs)
 
+            if ld_func=='interp' and np.any(np.isnan(intens_proj_abs)):
+                raise ValueError("interpolation out of bounds - try setting reasonable system parameters or changing ld_func to something other than 'interp'")
+
             # Beaming/boosting
             # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
             if boosting_alg == 'simple':
