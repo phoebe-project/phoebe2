@@ -186,7 +186,7 @@ class System(object):
                 body.initialize_mesh()
 
 
-    def update_positions(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None):
+    def update_positions(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -198,17 +198,19 @@ class System(object):
 
         for starref,body in self.items():
             #logger.debug("updating position of mesh for {}".format(starref))
-            body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs)
+            body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs, ignore_effects=ignore_effects)
 
 
-    def populate_observables(self, time, methods, datasets, kwargss, ignore_reflection=False):
+    def populate_observables(self, time, methods, datasets, kwargss, ignore_effects=False):
         """
         TODO: add documentation
+
+        ignore_effects: whether to ignore reflection and features (useful for computing luminosities)
         """
 
         bol_pband = 'Bolometric:1760-40000'
 
-        if self.do_reflection and not ignore_reflection:  # and methods includes a method that requires fluxes
+        if self.do_reflection and not ignore_effects:  # and methods includes a method that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
                 body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
@@ -754,7 +756,7 @@ class Body(object):
 
         return
 
-    def update_position(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, **kwargs):
+    def update_position(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, ignore_effects=False, **kwargs):
         """
         Update the position of the star into its orbit
 
@@ -871,39 +873,41 @@ class Body(object):
             # TODO: can we avoid an extra copy here?
 
 
-        # First allow features to edit the coords_for_computations (pvertices).
-        # Changes here WILL affect future computations for logg, teff,
-        # intensities, etc.  Note that these WILL NOT affect the
-        # coords_for_observations automatically - those should probably be
-        # perturbed as well, unless there is a good reason not to.
-        for feature in self.features:
-            coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, t=self.time)
-            if scaledprotomesh._compute_at_vertices:
-                scaledprotomesh.update_columns(pvertices=coords_for_observations)
+        if not ignore_effects:
+            # First allow features to edit the coords_for_computations (pvertices).
+            # Changes here WILL affect future computations for logg, teff,
+            # intensities, etc.  Note that these WILL NOT affect the
+            # coords_for_observations automatically - those should probably be
+            # perturbed as well, unless there is a good reason not to.
+            for feature in self.features:
+                # NOTE: these are ALWAYS done on the protomesh
+                coords_for_observations = feature.process_coords_for_computations(scaledprotomesh.coords_for_computations, t=self.time)
+                if scaledprotomesh._compute_at_vertices:
+                    scaledprotomesh.update_columns(pvertices=coords_for_observations)
 
-            else:
-                scaledprotomesh.update_columns(centers=coords_for_observations)
-                raise NotImplementedError("areas are not updated for changed mesh")
+                else:
+                    scaledprotomesh.update_columns(centers=coords_for_observations)
+                    raise NotImplementedError("areas are not updated for changed mesh")
 
 
-        for feature in self.features:
-            coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, t=self.time)
-            if scaledprotomesh._compute_at_vertices:
-                scaledprotomesh.update_columns(vertices=coords_for_observations)
+            for feature in self.features:
+                coords_for_observations = feature.process_coords_for_observations(scaledprotomesh.coords_for_computations, scaledprotomesh.coords_for_observations, t=self.time)
+                if scaledprotomesh._compute_at_vertices:
+                    scaledprotomesh.update_columns(vertices=coords_for_observations)
 
-                # TODO: centers either need to be supported or we need to report
-                # vertices in the frontend as x, y, z instead of centers
+                    # TODO: centers either need to be supported or we need to report
+                    # vertices in the frontend as x, y, z instead of centers
 
-                updated_props = libphoebe.mesh_properties(scaledprotomesh.vertices,
-                                                          scaledprotomesh.triangles,
-                                                          tnormals=True,
-                                                          areas=True)
+                    updated_props = libphoebe.mesh_properties(scaledprotomesh.vertices,
+                                                              scaledprotomesh.triangles,
+                                                              tnormals=True,
+                                                              areas=True)
 
-                scaledprotomesh.update_columns(**updated_props)
+                    scaledprotomesh.update_columns(**updated_props)
 
-            else:
-                scaledprotomesh.update_columns(centers=coords_for_observations)
-                raise NotImplementedError("areas are not updated for changed mesh")
+                else:
+                    scaledprotomesh.update_columns(centers=coords_for_observations)
+                    raise NotImplementedError("areas are not updated for changed mesh")
 
 
         # print "*** scaledprotomesh.vz", scaledprotomesh.velocities.for_computations[:,2].min(), scaledprotomesh.velocities.for_computations[:,2].max(), scaledprotomesh.velocities.for_computations[:,2].mean()
@@ -925,9 +929,9 @@ class Body(object):
             self._compute_instantaneous_quantities(xs, ys, zs)
 
             # Now fill local instantaneous quantities
-            self._fill_loggs()
+            self._fill_loggs(ignore_effects=ignore_effects)
             self._fill_gravs()
-            self._fill_teffs()
+            self._fill_teffs(ignore_effects=ignore_effects)
             self._fill_abuns(abun=self.abun)
             self._fill_albedos(alb_refl=self.alb_refl)
 
@@ -1147,7 +1151,7 @@ class CustomBody(Body):
 
         return new_mesh, sma, mesh_args
 
-    def _fill_teffs(self, **kwargs):
+    def _fill_teffs(self, ignore_effects=False, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1668,7 +1672,7 @@ class Star(Body):
         # TODO NOW: check whether r_pole is in absolute units (scaled/not scaled)
         self._instantaneous_rpole = r_pole
 
-    def _fill_loggs(self, mesh=None):
+    def _fill_loggs(self, mesh=None, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -1684,8 +1688,12 @@ class Star(Body):
 
         loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
 
-        for feature in self.features:
-            loggs = feature.process_loggs(loggs, mesh.coords_for_computations, t=self.time)
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    loggs = feature.process_teffs(loggs, self.get_standard_mesh().coords_for_computations, t=self.time)
+                else:
+                    loggs = feature.process_teffs(loggs, mesh.coords_for_computations, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -1713,7 +1721,7 @@ class Star(Body):
         mesh.update_columns(gravs=gravs)
 
 
-    def _fill_teffs(self, mesh=None, **kwargs):
+    def _fill_teffs(self, mesh=None, ignore_effects=False, **kwargs):
         r"""
 
         requires _fill_loggs and _fill_gravs to have been called
@@ -1806,8 +1814,12 @@ class Star(Body):
         # Now we can compute the local temperatures.
         teffs = (mesh.gravs.for_computations * Tpole**4)**0.25
 
-        for feature in self.features:
-            teffs = feature.process_teffs(teffs, mesh.coords_for_computations, t=self.time)
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    teffs = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations, t=self.time)
+                else:
+                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -2438,7 +2450,7 @@ class Envelope(Body):
         self._instantaneous_rpole1 = r_pole1
         self._instantaneous_rpole2 = r_pole2
 
-    def _fill_loggs(self, mesh=None):
+    def _fill_loggs(self, mesh=None, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -2455,8 +2467,12 @@ class Envelope(Body):
 
         loggs = np.log10(mesh.normgrads.for_computations * g_rel_to_abs)
 
-        for feature in self.features:
-            loggs = feature.process_loggs(loggs, mesh.coords_for_computations, t=self.time)
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    teffs = feature.process_loggs(loggs, self.get_standard_mesh().coords_for_computations, t=self.time)
+                else:
+                    teffs = feature.process_loggs(loggs, mesh.coords_for_computations, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -2486,7 +2502,7 @@ class Envelope(Body):
 
         mesh.update_columns(gravs=gravs)
 
-    def _fill_teffs(self, mesh=None, **kwargs):
+    def _fill_teffs(self, mesh=None, ignore_effects=False, **kwargs):
         r"""
 
         requires _fill_loggs and _fill_gravs to have been called
@@ -2603,9 +2619,14 @@ class Envelope(Body):
         teffs1 = (mesh.gravs.for_computations[mesh.env_comp==0] * Tpole1**4)**0.25
         teffs2 = (mesh.gravs.for_computations[mesh.env_comp==1] * Tpole2**4)**0.25
 
-        for feature in self.features:
-            teffs1 = feature.process_teffs(teffs1, mesh.coords_for_computations[mesh.env_comp==0], t=self.time)
-            teffs2 = feature.process_teffs(teffs2, mesh.coords_for_computations[mesh.env_comp==1], t=self.time)
+        if not ignore_effects:
+            for feature in self.features:
+                if feature.proto_coords:
+                    teffs1 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==0], t=self.time)
+                    teffs2 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==1], t=self.time)
+                else:
+                    teffs1 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==0], t=self.time)
+                    teffs2 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==1], t=self.time)
 
         teffs = np.zeros(len(mesh.env_comp))
         teffs[mesh.env_comp==0]=teffs1
@@ -2819,6 +2840,16 @@ class Feature(object):
     def __init__(self, *args, **kwargs):
         pass
 
+    @property
+    def proto_coords(self):
+        """
+        Override this to True if all methods (except process_coords*... those
+        ALWAYS expect protomesh coordinates) are expecting coordinates
+        in the protomesh (star) frame-of-reference rather than the
+        current in-orbit system frame-of-reference.
+        """
+        return False
+
     def process_coords_for_computations(self, coords_for_computations, t):
         """
         Method for a feature to process the coordinates.  Coordinates are
@@ -2894,6 +2925,12 @@ class Spot(Feature):
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
         return cls(colat, colon, radius, relteff)
 
+    @property
+    def proto_coords(self):
+        """
+        """
+        return True
+
     def process_teffs(self, teffs, coords, t=None):
         """
         Change the local effective temperatures for any values within the
@@ -2943,6 +2980,12 @@ class Pulsation(Feature):
         tanamp = GM/R**3/freq**2
 
         return cls(radamp, freq, l, m, tanamp, teffext)
+
+    @property
+    def proto_coords(self):
+        """
+        """
+        return True
 
     def dYdtheta(self, m, l, theta, phi):
         if abs(m) > l:
