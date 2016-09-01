@@ -509,7 +509,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # TODO: star needs long_an (yaw?)
             etheta0, elongan0, eincl0 = [0.], [0.], [b.get_value('incl', unit=u.rad)]
 
-        system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0)
+        system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         for dataset in b.datasets:
             ds = b.get_dataset(dataset=dataset, method='*dep')
@@ -534,7 +534,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
                 system.populate_observables(t0,
                     [method], [dataset],
-                    kwargss, ignore_reflection=True)
+                    kwargss, ignore_effects=True)
 
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
