@@ -316,10 +316,15 @@ class Passband:
         # flavors: energy-weighted intensities and photon-weighted
         # intensities, based on the detector used.
 
-        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(mu))
+        self._ck2004_intensity_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.append(np.array(0.0,), np.unique(mu)))
         self._ck2004_Imu_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
         self._ck2004_Imu_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1))
 
+        # Set the limb (mu=0) to 0; in log this actually means
+        # flux=1W/m2, but for all practical purposes that is still 0.
+        self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
+        self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
+        
         for i, Imu in enumerate(ImuE):
             self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
@@ -560,7 +565,11 @@ class Passband:
     def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
             if atm == 'ck2004':
-                return 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
+                retval = 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
+                nanmask = np.isnan(retval)
+                if np.any(nanmask):
+                    raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
+                return retval
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
 
