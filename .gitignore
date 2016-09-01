@@ -1,3 +1,4 @@
 /build
 *_tmp*
 *after.phoebe
+*.ipynb_checkpoints*
