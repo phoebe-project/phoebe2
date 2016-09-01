@@ -545,15 +545,15 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if val == 0:
                 d['value'] = 'blackbody'
             if val == 1:
-                d['value'] = 'kurucz'
+                d['value'] = 'ck2004'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
             d['compute'] = 'backend'
             eb.set_value(check_relevant=False, **d)
             d['compute'] = 'detailed'
-            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
-            if d['value'] not in atm_choices:
+#            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
+#            if d['value'] not in atm_choices:
                 #TODO FIND appropriate default
-                d['value'] = 'atmcof'
+#                d['value'] = 'atmcof'
 
         elif pnew == 'finesize':
                     # set gridsize
