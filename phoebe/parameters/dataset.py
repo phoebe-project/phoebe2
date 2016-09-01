@@ -4,6 +4,8 @@ from phoebe.parameters import constraint
 from phoebe.atmospheres import passbands  # need to load pbtable (dictionary of available passbands)
 from phoebe import u
 
+_ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+
 def lc(**kwargs):
     """
     Create parameters for a new light curve dataset.
@@ -52,7 +54,7 @@ def lc_dep(**kwargs):
 
     dep_params = []
 
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Limb darkening model')]
+    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', relevant_if='ld_func:!interp', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
@@ -162,7 +164,7 @@ def etv_dep(**kwargs):
 
     # TODO: only relevent-if rv_method='flux-weighted'
     # TODO: add these back in if we implement an etv_method that actually needs fluxes
-    #dep_params += [ChoiceParameter(qualifier='ld_func', value=kwargs.get('ld_func', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Limb darkening model')]
+    #dep_params += [ChoiceParameter(qualifier='ld_func', value=kwargs.get('ld_func', 'logarithmic'), choices=_ld_func_choices, description='Limb darkening model')]
     #dep_params += [FloatArrayParameter(qualifier='ld_coeffs', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=None, description='Limb darkening coefficients')]
     #passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
     #dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
@@ -245,7 +247,7 @@ def ifm_dep(**kwargs):
 
     dep_params = []
 
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Limb darkening model')]
+    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
 
     return ParameterSet(dep_params)

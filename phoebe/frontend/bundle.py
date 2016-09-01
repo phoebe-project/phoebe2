@@ -1029,6 +1029,35 @@ class Bundle(ParameterSet):
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
 
+        # check length of ld_coeffs vs ld_func
+        def ld_coeffs_len(ld_func, ld_coeffs):
+            # current choices for ld_func are:
+            # ['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
+            if ld_func == 'interp':
+                return True,
+            elif ld_func in ['linear'] and len(ld_coeffs)==1:
+                return True,
+            elif ld_func in ['logarithmic', 'square_root', 'quadratic'] and len(ld_coeffs)==2:
+                return True,
+            elif ld_func in ['power'] and len(ld_coeffs)==4:
+                return True,
+            else:
+                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'".format(ld_coeffs, ld_func)
+
+        for component in self.hierarchy.get_stars():
+            # first check ld_coeffs_bol vs ld_func_bol
+            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component')
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_relevant=False)
+            check = ld_coeffs_len(ld_func, ld_coeffs)
+            if not check[0]:
+                return check
+            for dataset in self.datasets:
+                ld_func = self.get_value(qualifier='ld_func', component=component, context='dataset')
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, context='dataset', check_relevant=False)
+                check = ld_coeffs_len(ld_func, ld_coeffs)
+                if not check[0]:
+                    return check
+
         # TODO: add other checks
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
