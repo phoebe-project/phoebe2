@@ -152,7 +152,7 @@ class Passband:
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid']  = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid']  = self._ck2004_ld_photon_grid
-        if 'atmcof' in self.content:
+        if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
         f = open(archive, 'wb')
@@ -192,7 +192,7 @@ class Passband:
         self.ptf_func = tuple(self.ptf_func)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
-        if 'atmcof' in self.content:
+        if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             if not atmcof.meta.initialized:
                 atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
                 atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
@@ -474,33 +474,7 @@ class Passband:
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
-        self.content.append('atmcof')
-
-    #~ def _log10_Inorm_wd(self, Teff, logg, met):
-        #~ met_nodes  = np.array([-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0, -0.5, -0.3, -0.2, -0.1,  0.0,  0.1,  0.2,  0.3,  0.5, 1.0])
-        #~ logg_nodes = np.array([ 0.0,  0.5,  1.0,  1.5,  2.0,  2.5,  3.0,  3.5,  4.0,  4.5,  5.0])
-        #~
-        #~ # Find the indices of the lower bracket elements:
-        #~ met_idx = np.searchsorted(met_nodes, met)
-        #~ logg_idx = np.searchsorted(logg_nodes, logg)
-#~
-        #~ print met, met_idx
-        #~ print met_nodes[met_idx-1:met_idx+1]
-        #~ print logg, logg_idx
-        #~ print logg_nodes[logg_idx-1:logg_idx+1]
-        #~
-        #~ # Compute intensities for all combinations:
-        #~ for m, l in [(m, l) for l in (logg_idx-1, logg_idx) for m in (met_idx-1, met_idx)]:
-            #~ # Lower temperature interval index:
-            #~ i = np.searchsorted(self.atmcof[m, l, :, 0], Teff)
-            #~ coeffs = self.atmcof[m, l, i, 2:]
-            #~ print self.atmcof[m, l, :, 0]
-#~
-        #~ print met_idx, logg_idx
-        #~ print met_nodes[met_idx:met_idx+2]
-        #~ print logg_nodes[logg_idx:logg_idx+2]
-#~
-        #~ return 10
+        self.content += ['extern_planckint', 'extern_atmx']
 
     def _log10_Inorm_extern_planckint(self, Teff):
         """
@@ -577,8 +551,6 @@ class Passband:
         elif atm == 'extern_atmx':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
             return 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, met)
-        elif atm == 'atmcof':
-            return 10**self._log10_Inorm_wd(Teff, logg, met)
         elif atm == 'ck2004':
             return 10**self._log10_Inorm_ck2004(Teff, logg, met)
         else:
@@ -613,16 +585,13 @@ def init_passbands():
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
     passband names qualified as 'pbset:pbname' and corresponding files
-    and atmosphere content within. Since planckint and atmx are made
-    available via external calls to fortran sources rather than
-    contained in the passband files themselves, we concatenate those
-    options artificially if 'atmcof' is found in passband contents.
+    and atmosphere content within.
     """
 
     path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
     for f in os.listdir(path):
         pb = Passband.load(path+f)
-        _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content + ['extern_planckint', 'extern_atmx'] if 'atmcof' in pb.content else pb.content}
+        _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content}
 
 
 if __name__ == '__main__':
