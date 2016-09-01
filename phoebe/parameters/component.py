@@ -14,6 +14,8 @@ from phoebe import u
 # Note: this means that cross-PS constraints should not be added by default as we do not
 # know the hierarchy here
 
+_ld_func_choices_no_interp = ['linear', 'logarithmic', 'quadratic', 'square_root', 'power']
+
 def orbit(component, **kwargs):
     """
     Create parameters for a new orbit.
@@ -106,7 +108,7 @@ def star(component, **kwargs):
     # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
 
     # TODO: allow for 'interp' as choice, make default, and set relevant_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
-    params += [ChoiceParameter(qualifier='ld_func_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=['uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa'], description='Bolometric limb darkening model')]
+    params += [ChoiceParameter(qualifier='ld_func_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
     params += [FloatArrayParameter(qualifier='ld_coeffs_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
 
