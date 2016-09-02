@@ -754,4 +754,235 @@ bool mesh_offseting_matching_area(
   return it < max_iter;
 }
 
+/*
+  Offseting the mesh to match the reference area by moving vertices 
+  along the normals in vertices so that the total area matches its 
+  reference value. This version takes into account the local 
+  curvature in more accurately predicting the shift of points.
+  
+  Method for estimating curvature tensor:
+  
+  Taubin G, 
+  Estimating the tensor of curvature of a surface from a polyhedral approximation,
+  Conference: Computer Vision, 1995
+  
+  Input:
+    A0 - reference area
+    V - vector of vertices
+    NatV - vector of normals
+    Tr - vector of triangles 
+    max_iter - maximal number of iterator
+    
+  Output:
+    Vnew - vector of new vertices
+  
+  Return:
+    false - If somethings fails
+     
+*/ 
+template <class T>
+bool mesh_offseting_matching_area_curvature(
+  const T &A0,
+  std::vector <T3Dpoint<T>> & V,
+  std::vector <T3Dpoint<T>> & NatV,
+  std::vector <T3Dpoint<int>> & Tr,
+  const int max_iter = 100) {
+ 
+  const T eps = 10*std::numeric_limits<T>::epsilon();
+ 
+  //
+  // Building polygons around the vertex ~ Cp
+  //
+  
+  int Nv = V.size();
+
+  std::vector<std::vector<int>> Cp(Nv);
+  
+  {
+    
+    //
+    // Create connection vertex -> list of triangles  
+    //
+    std::vector<std::vector<int>> Ct(Nv);
+    
+    int i = 0;
+    for (auto && t : Tr) {
+      
+      // check how t[j]-th vertex is connected
+      for (int j = 0; j < 3; ++j) {
+        auto & r = Ct[t[j]];  // reference to row of Ct
+    
+        // check if i-th triangle is already included 
+        bool ok = true;
+        for (auto && k : r) if (i == k) {
+          ok = false;
+          break;
+        }
+        
+        // add i-th triangle as connected to t[j]-th vertex
+        if (ok) r.push_back(i);
+      }
+      
+      ++i;
+    }
+        
+    // 
+    // Transform (vertex, list of triangles) -> (vertex, polygon of vertices)
+    //
+    {
+      int i = 0, n, *pairs, *pe, last;
+      
+      auto 
+        it_poly = Cp.begin(), ite_poly = Cp.end(), 
+        it_triangle = Ct.begin();
+      
+      while (it_poly != ite_poly) {
+        
+        // number of triangles
+        n = it_triangle->size();
+        
+        // gather pairs of connected vertices,
+        // get other two points ! = i
+        pairs = new int [2*n];
+        pe = pairs + 2*n;
+        
+        {
+          int *p = pairs, *t; 
+          for (auto && k: *it_triangle) {
+            t = Tr[k].data;
+            for (int j = 0; j < 3; ++j) if (t[j] != i) *(p++) = t[j];
+          }
+        }
+        
+        // connect the pairs of indices by resorting pairs
+        // and gather points for closed polygon
+        it_poly->reserve(n);
+        
+        {
+          for (int *p = pairs; p != pe; p += 2) {
+            
+            it_poly->push_back(*p);
+            last = p[1];
+            
+            for (int *q = p + 2, *pb = q; q != pe; q += 2)
+              if (last == q[0]){
+                utils::swap_array<int,2>(pb, q);
+                break;
+              } else if (last == q[1]) {
+                std::swap(q[0], q[1]);
+                utils::swap_array<int,2>(pb, q);
+                break;
+              }
+          }
+        }
+        
+        delete [] pairs;
+
+        ++i, ++it_triangle, ++it_poly;
+      }
+    }
+  }
+  
+  //
+  // Calculating weights to shift at vertices
+  //
+  
+  std::vector<T> W(Nv);
+  {
+    for (int i = 0; i < Nv; ++i){
+         
+      // polygon around the vertices
+      auto & poly = Cp[i];
+      auto itb = poly.begin(), ite = poly.end();
+      int n = poly.size(); 
+      
+      // central vertex
+      auto *v = V[i].data;
+            
+      T at = 0,          // total area
+        *w = new T [n];  // starting as areas of triagles in polygon
+        
+      {
+        T *p = w;
+        for (auto it = itb, itp = ite - 1; it != ite; itp = it++)
+          at += (*(p++) = triangle_area(v, V[*it].data, V[*itp].data));
+      }
+      
+      // calculate triangles incident to (i, poly[j]) and using them 
+      // to define the avaraging weights stored in w[]
+      {
+        T t = w[0];
+        for (int j = 0; j < n - 1; ++j) w[j] += w[j + 1];
+        w[n - 1] += t;
+        
+        t = 1/(2*at);
+        for (int j = 0; j < n; ++j) w[j] *= t;
+      }
+      
+        
+      // calculate average curvature as a trace of the Taubin's tensor M
+     
+      T h = 0;
+      
+      {        
+        T *p = w, *n = NatV[i].data, q[3];
+        
+        for (auto it = itb; it != ite; ++p, ++it) {
+          
+          // q = v - u
+          utils::sub3D(v, V[*it].data, q);
+          
+          // estimate of directional curvature k = 2*(n.q)/ |q|^2
+          // and perform the trace
+          h += 2*(*p)*utils::dot3D(n, q)/utils::norm2(q);
+        }
+      }
+     
+      W[i] = at*h; 
+
+      delete [] w;
+    } 
+  }
+  
+  //for ( auto && w : W) std::cerr << w << '\n';
+  
+  //
+  // Match the mesh area to the reference area
+  //
+  
+  int it = 0;
+  
+  T dt1, A[2], dt = 1e-12;
+  
+  A[0] = mesh_area(V, Tr); 
+  
+  do {
+        
+    // shift of the vertices
+    for (int i = 0; i < Nv; ++i) {
+      dt1 = W[i]*dt;
+      for (int j = 0; j < 3; ++j) V[i][j] += dt1*NatV[i][j];
+    }
+    
+    // calculating area
+    A[1] = A[0];
+    A[0] = mesh_area(V, Tr);    
+    
+    
+    // secant step
+    dt *= (A0 - A[0])/(A[0] - A[1]);  
+    
+    /*
+    std::cerr.precision(16);
+    std::cerr <<std::scientific;
+    std::cerr << dt << '\t' << A0 << '\t' << A[0] << '\t' << A[1] << '\n';
+    */
+    
+    if (std::abs(1 - A[0]/A0) < eps) break;
+    
+  } while (++it < max_iter);
+    
+  return it < max_iter;
+}
+
 #endif // #if !defined(__triang_mesh_h)

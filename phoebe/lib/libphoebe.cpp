@@ -2081,7 +2081,10 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     area : boolean, default False
     centers: boolean, default False 
     cnormals: boolean, default False 
-    cnormgrads: boolean, default False 
+    cnormgrads: boolean, default False
+    
+    curvature: boolean, default False
+      Switching on curvature depedent offseting.
   
   Returns: dictionary with keywords
   
@@ -2130,7 +2133,8 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     b_tnormals = false,
     b_areas = false,
     b_volume = false,
-    b_area = false;
+    b_area = false,
+    b_curvature = false;
     
   PyArrayObject *oV, *oNatV, *oT;
   
@@ -2139,10 +2143,11 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     *o_tnormals = 0,
     *o_areas = 0,
     *o_volume = 0,
-    *o_area = 0;
+    *o_area = 0,
+    *o_curvature = 0;
     
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dO!O!O!|iO!O!O!O!O!", kwlist,
+      args, keywds,  "dO!O!O!|iO!O!O!O!O!O!", kwlist,
       &area,
       &PyArray_Type, &oV, 
       &PyArray_Type, &oNatV, 
@@ -2152,7 +2157,8 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
       &PyBool_Type, &o_tnormals,
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_volume,
-      &PyBool_Type, &o_area
+      &PyBool_Type, &o_area,
+      &PyBool_Type, &o_curvature
       )) return NULL;
 
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
@@ -2160,7 +2166,8 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   if (o_areas) b_areas = PyObject_IsTrue(o_areas);
   if (o_volume) b_volume = PyObject_IsTrue(o_volume);
   if (o_area) b_area = PyObject_IsTrue(o_area);
-
+  if (o_curvature) b_curvature = PyObject_IsTrue(o_curvature);
+  
   //
   // Storing input data
   //
@@ -2174,11 +2181,14 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   //
   // Running mesh offseting
   //
-  if (!mesh_offseting_matching_area(area, V, NatV, Tr, max_iter)){
+  if (b_curvature ? 
+       mesh_offseting_matching_area_curvature(area, V, NatV, Tr, max_iter):
+       mesh_offseting_matching_area(area, V, NatV, Tr, max_iter) ){
+         
     std::cerr << "mesh_offseting_matching_area::Offseting failed\n";
     return NULL;
   }
-
+ 
   //
   // Calculate properties of the mesh with new vertices 
   //
@@ -4009,7 +4019,7 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
 
   return results;
 }
-
+#if 0
 /*
   C++ wrapper for Python code:
 
@@ -4079,12 +4089,134 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
   
   return res;
 }
+#else
+/*
+  C++ wrapper for Python code:
 
+    Computing the logarithm of the Planck central intensity. Works for 
+    temperatures in the range [500,500300] K.
+
+  Python:
+   
+    result = wd_planckint(t, ifil, planck_table)
+   
+  Input:
+  
+  positional: necessary
+  
+    t:  float - temperature or
+        1-rank numpy array of float - temperatures
+        
+    ifil: integer - index of the filter 1,2, ... 
+    planck_table: 1-rank numpy array of floats - array of coefficients 
+     
+  Return:
+    
+    result : 
+      ylog: float - log of Planck central intensity or
+      1- rank numpy array of floats - log of Planck central intensities
+    
+    Note:
+      In the case of errors in calculations ylog/entry in numpy array is NaN.
+*/
+static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"t",
+    (char*)"ifil",
+    (char*)"planck_table",
+    NULL
+  };
+  
+  int ifil;
+ 
+  PyObject *ot;
+
+  PyArrayObject *oplanck_table;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "OiO!", kwlist, 
+        &ot, &ifil, &PyArray_Type, &oplanck_table)
+      ) return NULL;
+
+  double *planck_table = (double*) PyArray_DATA(oplanck_table);
+    
+  if (PyFloat_Check(ot)) { // argument if float
+    
+    double ylog, t = PyFloat_AS_DOUBLE(ot);
+    
+    //
+    //  Calculate ylog and return
+    //
+    
+    if (wd_atm::planckint_onlylog(t, ifil, planck_table, ylog))
+      return PyFloat_FromDouble(ylog);
+    else {
+      std::cerr 
+      << "wd_planckint::Failed to calculate Planck central intensity\n";
+      return PyFloat_FromDouble(std::nan(""));
+    }
+  
+  } else if (PyArray_Check(ot)) {  // argument is a numpy array
+    
+    int n = PyArray_DIM((PyArrayObject *)ot, 0);
+     
+    if (n == 0) {
+      std::cerr << "wd_planckint::Arrays of zero length\n";
+      return NULL;
+    }
+    
+    double *t =  (double*) PyArray_DATA((PyArrayObject *)ot),
+            *results = new double [n];
+    
+    //
+    //  Calculate ylog for an array 
+    //
+
+    bool ok = true;
+    
+    for (double *r = results, *r_e = r + n; r != r_e;  ++r, ++t)
+      if (!wd_atm::planckint_onlylog(*t, ifil, planck_table, *r)) { 
+        *r = std::nan("");
+        ok = false;
+      }
+    
+    if (!ok) {
+      std::cerr 
+      << "wd_planckint::Failed to calculate Planck central intensity at least once\n";
+    }
+    
+    //
+    // Return results
+    //
+  
+    npy_intp dims = n;
+    PyObject *oresults = 
+      PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, results);
+      
+    PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+    
+    return oresults;
+  } 
+  
+  std::cerr 
+    << "wd_planckint:: This type of temperature input is not supported\n";
+  return NULL;
+}
+
+
+#endif
+
+#if 0
 /*
   C++ wrapper for Python code:
     
-    Calculation of the light intensity from a star with certain 
-    atmosphere model.
+    Calculation of the light intensity and their logarithm 
+    for a star with a certain atmosphere model.
   
   Python:
   
@@ -4094,7 +4226,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
   
    t:float - temperature
    logg:float - logarithm of surface gravity
-   abunin:float - abundance
+   abunin:float - abundance/metallicity
    ifil: integer - index of the filter 1,2, ... 
    planck_table: 1-rank numpy array of float - planck table
    atm_table: 1-rank numpy array of float - atmospheres table
@@ -4160,7 +4292,233 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
   
   return res;
 }
+#else
+/*
+  C++ wrapper for Python code:
+    
+    Calculation of logarithm the light intensity from a star with a certain 
+    atmosphere model.
+  
+  Python:
+  
+    results = wd_atmint(t, logg, abunin, ifil, planck_table, atm_table, <keywords>=<value>)
+  
+  Input:
+  
+  positional: necessary
+  
+   t:float - temperature or 
+     1-rank numpy array of floats - temperatures
+    
+   logg:float - logarithm of surface gravity or
+        1-rank numpy array of floats - temperatures
+        
+   abunin:float - abundance/metallicity
+          1-rank numpy of floats - abundances
+        
+   ifil: integer - index of the filter 1,2, ... 
+   planck_table: 1-rank numpy array of float - planck table
+   atm_table: 1-rank numpy array of float - atmospheres table
 
+  keywords: optional
+  
+    return_abunin: boolean, default false
+    if allowed value of abunin should be returned 
+    
+  Return:
+    
+    if t is float:
+      if return_abunin == true:
+        result : 1-rank numpy array of floats = [xintlog, abunin]
+      else
+        result: float = xintlog 
+    else
+      if return_abunin == true:
+        result : 2-rank numpy array of float -- array of [xintlog, abunin]
+      else
+        result: 1-rank numpy array of floats -- xintlogs
+    
+  with
+  
+    xintlog - log of intensity
+    abunin -  allowed value nearest to the input value.
+*/
+static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"t",
+    (char*)"logg",
+    (char*)"abunin",
+    (char*)"ifil",
+    (char*)"planck_table",
+    (char*)"atm_table",
+    (char*)"return_abunin",
+    NULL
+  };
+  
+
+  int ifil;
+
+  bool return_abunin = false;
+
+  PyObject *ot, *ologg, *oabunin, *oreturn_abunin = 0;
+  
+  PyArrayObject *oplanck_table, *oatm_table;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "OOOiO!O!|O!", kwlist, 
+        &ot, &ologg, &oabunin, &ifil, 
+        &PyArray_Type, &oplanck_table, 
+        &PyArray_Type, &oatm_table,
+        &PyBool_Type, &oreturn_abunin
+      )) return NULL;
+  
+
+  if (oreturn_abunin) return_abunin = PyBool_Check(oreturn_abunin);
+  
+  //    
+  // Check type of temperature argument and read them
+  //
+  
+  double t, logg, abunin, *pt, *plogg, *pabunin;
+  
+  int n = -2;
+  
+  if (PyFloat_Check(ot)){ 
+    n = -1;
+    // arguments
+    t = PyFloat_AS_DOUBLE(ot),
+    logg = PyFloat_AS_DOUBLE(ologg),
+    abunin = PyFloat_AS_DOUBLE(oabunin);
+  
+  } else if (PyArray_Check(ot)) {
+    
+    n = PyArray_DIM((PyArrayObject *)ot, 0);
+    
+    if (n == 0) {
+      std::cerr << "wd_planckint::Arrays are of zero length\n";
+      return NULL;
+    }
+        
+    // arguments
+    pt = (double*)PyArray_DATA((PyArrayObject *)ot),
+    plogg = (double*)PyArray_DATA((PyArrayObject *)ologg),
+    pabunin = (double*)PyArray_DATA((PyArrayObject *)oabunin);  
+
+  } else {
+    std::cerr 
+      << "wd_planckint:: This type of temperature input is not supported\n";
+    return NULL;
+  }
+  
+  //
+  // Do calculations and storing it in PyObject
+  //
+  
+  PyObject *oresults;
+    
+  double *planck_table = (double*)PyArray_DATA(oplanck_table), 
+         *atm_table = (double*)PyArray_DATA(oatm_table);
+
+  if (return_abunin) {   // returning also abundances
+    
+    //
+    //  Calculate yintlog and abundance
+    //
+    
+    if (n == -1){ // single calculation
+    
+      double *r = new double[2]; // to store results
+
+      r[1] = abunin;
+      
+      // do calculation    
+      if (!wd_atm::atmx_onlylog(t, logg, r[1], ifil, planck_table, atm_table, r[0])) {
+        std::cerr << "wd_atmint::Failed to calculate logarithm of intensity\n";
+        r[0] = std::nan("");
+      }
+      
+      // store results in numpy array
+      npy_intp dims = 2;
+      oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, r);
+      
+    } else {  // calculation whole array
+     
+      double *results = new  double [2*n]; // to store results
+
+             
+      bool ok = true;
+      for (double *r = results, *r_e = r + 2*n; r != r_e; r += 2, ++pt, ++plogg, ++pabunin){
+        
+        r[1] = *pabunin;
+        
+        if (!wd_atm::atmx_onlylog(*pt, *plogg, r[1], ifil, planck_table, atm_table, r[0])) {
+          r[0] = std::nan("");
+          ok = false;
+        }
+      }  
+      
+      if (!ok)
+        std::cerr << "wd_atmint::Failed to calculate logarithm of intensity at least once\n";
+      
+      // store results in numpy array
+      npy_intp dims[2] = {n, 2};
+      oresults = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, results); 
+    }    
+    
+    PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+    
+  } else {                    // returning only logarithm of intensities
+
+    //
+    //  Calculate yintlogs 
+    //
+    
+    if (n == -1){ // single calculation
+        
+      double r; // log of intensity
+        
+      if (wd_atm::atmx_onlylog(t, logg, abunin, ifil, planck_table, atm_table, r))
+        oresults = PyFloat_FromDouble(r);
+      else {
+        std::cerr << "wd_atmint::Failed to calculate logarithm of intensity\n";
+        oresults = PyFloat_FromDouble(std::nan(""));
+      }
+       
+    } else { // calculation whole array
+      
+      double *results = new double [n],  // to store results
+             tmp;
+              
+      bool ok = true;
+      
+      for (double *r = results, *r_e = r + n; r != r_e; ++r, ++pt, ++plogg, ++pabunin){
+        
+        tmp = *pabunin;
+        
+        if (!wd_atm::atmx_onlylog(*pt, *plogg, tmp, ifil, planck_table, atm_table, *r)) {       
+          *r = std::nan("");
+          ok = false;
+        }
+      }  
+      
+      if (!ok)
+        std::cerr 
+        << "wd_atmint::Failed to calculate logarithm of intensity at least once\n";
+      
+      npy_intp dims = n;
+      oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, results);
+      PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+    }  
+  }
+  
+  return oresults;
+}
+
+#endif
 /*
   C++ wrapper for python code:
  

@@ -283,12 +283,12 @@ int binnum(const T *x, const T &y) {
 }
 
 /*
-  Calculation of intensity using the atmospheres models
+  Calculating logarithm of the intensity using the atmospheres models.
   
   Input:
    t - temperature
    g - logarithm of surface gravity
-   abunin - abundance
+   abunin - abundance/metallicity
    ifil - index of the filter 1,2, ... 
    plcof - planck table
    grand - atmospheres table
@@ -296,13 +296,15 @@ int binnum(const T *x, const T &y) {
   Output:
     abunin -  the allowed value nearest to the input value.
     xintlog - log of intensity
-    xint - intensity
+  
+  Return:
+    true -  if everything OK, false - otherwise
 */
 
 template <class T>
-void atmx(
+bool atmx_onlylog(
   const T &t, const T &g, T &abunin, const int &ifil,
-  const T *plcof, const T *grand, T & xintlog, T & xint)
+  const T *plcof, const T *grand, T & xintlog)
 {
     /* Initialized data */
 
@@ -348,27 +350,22 @@ void atmx(
 /* ~       if(dif1.ne.0.d0) write(6,287) abunin,abun(iab) */
     abunin = abun[iab - 1];
     istart = (iab - 1) * 13200 + 1;
+    
 /* *************************************************************** */
     tlog = std::log10(t);
     trec = 1. / t;
     tlow = 3500. - tlowtol;
-    if (t < tlow) {
-      planckint(t, ifil, plcof, xintlog, xint);
-      return;
-    }
+    if (t < tlow) return  planckint_onlylog(t, ifil, plcof, xintlog);
+    
     thigh = thightol + 5e4;
     fractol = thightol / 5e4;
-    glow = 0. - glowtol;
-    if (g < glow) {
-      planckint(t, ifil, plcof, xintlog, xint);
-      return;
-    }
-    ghigh = ghightol + 5.;
-    if (g > ghigh) {
-      planckint(t, ifil, plcof, xintlog, xint);
-      return;
-    }
     
+    glow = 0. - glowtol;
+    if (g < glow) return planckint_onlylog(t, ifil, plcof, xintlog);
+    
+    ghigh = ghightol + 5.;
+    if (g > ghigh) return planckint_onlylog(t, ifil, plcof, xintlog);
+  
     tt = t;
     gg = g;
     
@@ -398,7 +395,10 @@ void atmx(
         for (ibin = 1; ibin <= 4; ++ibin) {
             it = ib + (ibin - 1) * 12;
             it1 = it + 1;
-            if (tt <= grand[it1 - 1]) {ok = false; break;}
+            if (tt <= grand[it1 - 1]) {
+              ok = false; 
+              break;
+            }
         }
         if (ok) --ibin;
 
@@ -472,10 +472,7 @@ void atmx(
         
         thigh = (fractol + 1.) * 6e3;
         
-        if (t > thigh) {
-          planckint(t, ifil, plcof,  xintlog, xint);
-          return;
-        }
+        if (t > thigh) return planckint_onlylog(t, ifil, plcof,  xintlog);
         
         if (pha[0] > 1.) break;
 
@@ -498,18 +495,14 @@ void atmx(
         planckint_onlylog(t, ifil, plcof, yylow);
         slope = (yylow - xintlog) / glow;
         xintlog = yylow + slope * (g - glow);
-        xint = pow10(xintlog);
-        return;
+        return true;
       }
 
 
       if (g > 5.) {
         thigh = (fractol + 1.) * 5e4;
         
-        if (t > thigh) {
-          planckint(t, ifil, plcof,  xintlog, xint);
-          return;
-        }
+        if (t > thigh) return planckint_onlylog(t, ifil, plcof,  xintlog);
         
         if (t > 5e4) {
           j = 10;
@@ -519,14 +512,10 @@ void atmx(
         planckint_onlylog(t, ifil, plcof, yyhigh);
         slope = (yyhigh - xintlog) / (ghigh - 5.);
         xintlog = yyhigh + slope * (g - ghigh);
-        xint = pow10(xintlog);
-        return;
+        return true;
       }
         
-      if (t < 3500. || pha[0] <= 1. || ifreturn == 1) {
-        xint = pow10(xintlog);
-        return;
-      }
+      if (t < 3500. || pha[0] <= 1. || ifreturn == 1)  return true;
         
       if (j == 1 || pha[2] > 1.)  break;
           
@@ -601,8 +590,7 @@ void atmx(
       planckint_onlylog(t, ifil, plcof, yyhigh);
       slope = (yyhigh - xintlog) / (ghigh - 5.);
       xintlog = yyhigh + slope * (g - ghigh);
-      xint = pow10(xintlog);
-      return; 
+      return true;
     }
     
     if (g < 0.) {
@@ -625,8 +613,7 @@ void atmx(
       planckint_onlylog(t, ifil, plcof, yylow);
       slope = (yylow - xintlog) / glow;
       xintlog = yylow + slope * (g - glow);
-      xint = pow10(xintlog);
-      return; 
+      return true;
     }
     
     slope = (yy[1] - yy[0]) * 2.;
@@ -636,11 +623,8 @@ void atmx(
     te = tte[0] + slope * (g - glog[j - 1]);
     thigh = te * (fractol + 1.);
     
-    if (t > thigh) {
-      planckint(t, ifil, plcof,  xintlog, xint);
-      return;
-    }
-    
+    if (t > thigh) return planckint_onlylog(t, ifil, plcof,  xintlog);
+ 
     planckint_onlylog(thigh, ifil, plcof, yyhigh);
     thighmidlog = std::log10(te * thigh) * .5;
     wvlmax = pow10(6.4624 - thighmidlog);
@@ -654,9 +638,37 @@ void atmx(
       slope = (yyhigh - yy[0]) / (thighrec - terec);
       xintlog = yyhigh + slope * (trec - thighrec);
     }
-    xint = pow10(xintlog);
-    return;
+    return true;
   }
+  
+  
+ /*
+  Calculation of intensity using the atmospheres models
+  
+  Input:
+   t - temperature
+   g - logarithm of surface gravity
+   abunin - abundance/metalicity
+   ifil - index of the filter 1,2, ... 
+   plcof - planck table
+   grand - atmospheres table
+
+  Output:
+    abunin -  the allowed value nearest to the input value.
+    xintlog - log of intensity
+    xint - intensity
+  Return:
+    true - if everything OK, false - otherwise
+*/
+
+template <class T>
+bool atmx(
+  const T &t, const T &g, T &abunin, const int &ifil,
+  const T *plcof, const T *grand, T & xintlog, T & xint)
+{
+  atmx_onlylog(t, g, abunin, ifil, plcof, grand, xintlog);
+  xint = pow10(xintlog);
+}
 
 } // namespace wd_atm
 

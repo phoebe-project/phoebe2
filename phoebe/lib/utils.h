@@ -348,6 +348,32 @@ namespace utils {
     x = y;
     y = z;
   }
+  
+  /*
+    Swap elements of vectors
+ 
+    Input:
+    x, y
+    
+    Output
+    x, y = (y,x)
+    
+  */ 
+  template <class T> void swap_array (T *x, T *y, int n) {
+    if (x != y) {
+      T z;
+      for (T *xe = x + n; x != xe; ++x, ++y) z = *x, *x = *y, *y = z;
+    }
+  }
+
+
+  template <class T, int n> inline void swap_array (T *x, T *y) {
+    if (x != y) {
+      T z;
+      for (T *xe = x + n; x != xe; ++x, ++y) z = *x, *x = *y, *y = z;
+    }
+  }
+
 
   /*
   Sort 3D vector in accending order and return the new index order.
@@ -766,9 +792,7 @@ namespace utils {
   */
 
   int flt(const double & target, double *arr, const int &numElems) {
-    
-    int low = 0, high = numElems, mid;
-
+       
     /* We only need to test the upper boundary; if the lower boundary is
      * breached if 0 is returned. The calling functions thus must test
      * against flt index < 1. */
@@ -776,7 +800,9 @@ namespace utils {
     if (target > arr[numElems-1]) return -1;
     
     if (target < arr[0]) return 0;
-    
+   
+    int low = 0, high = numElems, mid;
+ 
     while (low != high) {
       
       mid = (low + high) >> 1;
