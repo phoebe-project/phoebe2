@@ -2084,7 +2084,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
     cnormgrads: boolean, default False
     
     curvature: boolean, default False
-      Switching on curvature depedent offseting.
+      Enabling curvature dependent offseting.
   
   Returns: dictionary with keywords
   
@@ -2121,6 +2121,7 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
     (char*)"areas",
     (char*)"volume",
     (char*)"area",
+    (char*)"curvature",
     NULL
   };
 
