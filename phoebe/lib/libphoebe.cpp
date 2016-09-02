@@ -2183,8 +2183,8 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
   // Running mesh offseting
   //
   if (b_curvature ? 
-       mesh_offseting_matching_area_curvature(area, V, NatV, Tr, max_iter):
-       mesh_offseting_matching_area(area, V, NatV, Tr, max_iter) ){
+       !mesh_offseting_matching_area_curvature(area, V, NatV, Tr, max_iter):
+       !mesh_offseting_matching_area(area, V, NatV, Tr, max_iter) ){
          
     std::cerr << "mesh_offseting_matching_area::Offseting failed\n";
     return NULL;
