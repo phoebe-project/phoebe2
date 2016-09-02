@@ -10,7 +10,7 @@ Dictionaries of parameters for conversion between phoebe1 and phoebe 2
 
 """
 
-_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_refl_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reffect': 'mult_refl', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
+_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_refl_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
 #TODO: add back proximity_rv maybe?
 #TODO: add back 'excess': 'extinction',
 
@@ -140,7 +140,7 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
 #            d.setdefault('compute', comid)
 
         if pnew == 'reflections':
-            d['value'] = int(val)+1
+            d['value'] = int(val)#+1
 
         else:
             d['value'] = val
@@ -545,11 +545,12 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if val == 0:
                 d['value'] = 'blackbody'
             if val == 1:
-                d['value'] = 'ck2004'
+                d['value'] = 'kurucz'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
             d['compute'] = 'backend'
             eb.set_value(check_relevant=False, **d)
             d['compute'] = 'detailed'
+            d['value'] = 'ck2004'
 #            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
 #            if d['value'] not in atm_choices:
                 #TODO FIND appropriate default
@@ -1079,13 +1080,34 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
     for param in comquals.to_list():
 
-        if param.qualifier == 'heating':
-            if param.get_value() == False:
+#        if param.qualifier == 'heating':
+#            if param.get_value() == False:
+#               in1 =  parnames.index('phoebe_alb1.VAL')
+#               in2 =  parnames.index('phoebe_alb2.VAL')
+#               parvals[in1] = 0.0
+#               parvals[in2] = 0.0
+        #TODO add reflection switch
+        if param.qualifier == 'refl_num':
+            if param.get_value() == 0:
                in1 =  parnames.index('phoebe_alb1.VAL')
                in2 =  parnames.index('phoebe_alb2.VAL')
                parvals[in1] = 0.0
                parvals[in2] = 0.0
+            elif  param.get_value() == 1:
+                pname = 'phoebe_reffect_switch'
+                val = '0'
+                ptype='boolean'
+                parnames.append(pname)
+                parvals.append(val)
+                types.append(ptype)
 
+            else:
+                pname = 'phoebe_reffect_switch'
+                val = '1'
+                ptype = 'boolean'
+                parnames.append(pname)
+                parvals.append(val)
+                types.append(ptype)
         try:
             pnew = _2to1par[param.qualifier]
             if param.qualifier in ['ld_func']:
@@ -1174,7 +1196,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     # write to file
     f = open(filename, 'w')
     f.write('# Phoebe 1 file created from phoebe 2 bundle\n')
-    # print "***", len(parnames), len(parvals)
+    print "***", len(parnames), len(parvals)
     for x in range(len(parnames)):
 #        if types[x] == 'float':
 #            value = round(parvals[x],6)
