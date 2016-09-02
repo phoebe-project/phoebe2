@@ -1504,10 +1504,13 @@ class Star(Body):
                     # their normals, vnormals applies to both vertices and
                     # pvertices.
                     new_mesh['pvertices'] = new_mesh.pop('vertices')
+                    # TODO: fall back on curvature=False if we know the body
+                    # is relatively spherical
                     mo = libphoebe.mesh_offseting(av['larea'],
                                                   new_mesh['pvertices'],
                                                   new_mesh['vnormals'],
                                                   new_mesh['triangles'],
+                                                  curvature=True,
                                                   vertices=True,
                                                   tnormals=False,
                                                   areas=True,
