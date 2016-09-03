@@ -869,8 +869,6 @@ namespace gen_roche {
     
     if (choice == 1) {
       
-
-    
       if (enable_checks) {
         
         // omega[0] = Omega(L1), omega[2] = Omega(L3)

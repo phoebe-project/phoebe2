@@ -430,7 +430,7 @@ namespace utils {
       
       int it;
       
-      T dx;
+      long double dx;
       
       for (auto && x : roots) {
         
@@ -440,7 +440,7 @@ namespace utils {
           #if 0
           // Horner algorithm to compute value and derivative
           // http://www.physics.utah.edu/~detar/lessons/c++/array/node4.html
-          T f = a[n], df = 0;
+          long double f = a[n], df = 0;
           for (int i = n - 1; i >= 0; --i) { 
             df = f + x*df;
             f  = a[i] + x*f;
@@ -451,7 +451,7 @@ namespace utils {
           #else
           // Horner algorithm to compute value, derivative and second derivative
           // http://www.ece.rice.edu/dsp/software/FVHDP/horner2.pdf
-          T f = a[n], df = 0, d2f = 0;
+          long double f = a[n], df = 0, d2f = 0;
           for (int i = n - 1; i >= 0; --i) { 
             d2f = df + x*d2f;
             df = f + x*df;

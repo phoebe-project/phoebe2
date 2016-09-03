@@ -746,10 +746,8 @@ bool mesh_offseting_matching_area(
     std::cerr <<std::scientific;
     std::cerr << dt << '\t' << A0 << '\t' << A[0] << '\t' << A[1] << '\n';
     */
-    
-    if (std::abs(1 - A[0]/A0) < eps) break;
-    
-  } while (++it < max_iter);
+        
+  } while (std::abs(1 - A[0]/A0) > eps && ++it < max_iter);
     
   return it < max_iter;
 }
@@ -918,7 +916,6 @@ bool mesh_offseting_matching_area_curvature(
         t = 1/(2*at);
         for (int j = 0; j < n; ++j) w[j] *= t;
       }
-      
         
       // calculate average curvature as a trace of the Taubin's tensor M
      
@@ -957,7 +954,7 @@ bool mesh_offseting_matching_area_curvature(
   A[0] = mesh_area(V, Tr); 
   
   do {
-        
+  
     // shift of the vertices
     for (int i = 0; i < Nv; ++i) {
       dt1 = W[i]*dt;
@@ -978,9 +975,7 @@ bool mesh_offseting_matching_area_curvature(
     std::cerr << dt << '\t' << A0 << '\t' << A[0] << '\t' << A[1] << '\n';
     */
     
-    if (std::abs(1 - A[0]/A0) < eps) break;
-    
-  } while (++it < max_iter);
+  } while (std::abs(1 - A[0]/A0) > eps && ++it < max_iter);
     
   return it < max_iter;
 }
