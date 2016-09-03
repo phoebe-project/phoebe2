@@ -666,8 +666,9 @@ bool atmx(
   const T &t, const T &g, T &abunin, const int &ifil,
   const T *plcof, const T *grand, T & xintlog, T & xint)
 {
-  atmx_onlylog(t, g, abunin, ifil, plcof, grand, xintlog);
+  bool status = atmx_onlylog(t, g, abunin, ifil, plcof, grand, xintlog);
   xint = pow10(xintlog);
+  return status;
 }
 
 } // namespace wd_atm
