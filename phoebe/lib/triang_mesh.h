@@ -952,7 +952,7 @@ bool mesh_offseting_matching_area_curvature(
   
   int it = 0;
   
-  T dt1, A[2], dt = 1e-12;
+  T dt1, A[2], dt = 1e-3;
   
   A[0] = mesh_area(V, Tr); 
   
