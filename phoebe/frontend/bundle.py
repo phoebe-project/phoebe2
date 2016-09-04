@@ -991,12 +991,12 @@ class Bundle(ParameterSet):
                     d = 1 - parent_ps.get_value('ecc')
 
                     # TODO: this needs to be generalized once other potentials are supported
-                    critical_pots = libphoebe.roche_critical_potential(q, F, d)
+                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
-                    if pot < critical_pots[0] or pot < critical_pots[1]:
+                    if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
-                            '{} is overflowing at periastron ({:.02f}, {:.02f}, {:.02f})'.format(component, *critical_pots)
+                            '{} is overflowing at periastron (L1={L1:.02f}, L2={L2:.02f})'.format(component, **critical_pots)
             elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
                 # TODO: implement this check based of fillout factor or crit_pots constrained parameter
@@ -1012,17 +1012,17 @@ class Bundle(ParameterSet):
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
                 d = 1 + parent_ps.get_value('ecc')
-                critical_pots = libphoebe.roche_critical_potential(q, F, d)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True)
 
-                if pot > critical_pots[0]:
+                if pot > critical_pots['L1']:
                     return False,\
                         '{} is not overflowing L1 at apastron'.format(component)
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc')
-                critical_pots = libphoebe.roche_critical_potential(q, F, d)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True)
 
-                if pot < critical_pots[1] or pot < critical_pots[2]:
+                if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
                         '{} is overflowing L2 or L3 at periastron'.format(component)
 
