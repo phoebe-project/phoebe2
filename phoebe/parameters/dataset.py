@@ -48,9 +48,9 @@ def lc_syn(syn=True, **kwargs):
 
     return ParameterSet(syn_params), constraints
 
-def lc_dep(**kwargs):
+def lc_dep(is_lc=True, **kwargs):
     # TODO: take component_methods as argument so that LC can copy_for envelope but RV can skip
-    # TODO: RV doesn't need l3
+    # TODO: RV doesn't need pbscale, l3, or exptime
 
     dep_params = []
 
@@ -63,7 +63,8 @@ def lc_dep(**kwargs):
     dep_params += [FloatParameter(qualifier='l3', value=kwargs.get('l3', 0.), default_unit=u.W/u.m**3, description='Third light')]
     dep_params += [FloatParameter(qualifier='alb', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
 
-    dep_params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
+    if is_lc:
+        dep_params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
 
     return ParameterSet(dep_params)
 
@@ -99,7 +100,6 @@ def rv_syn(syn=True, **kwargs):
     if not syn:
         syn_params += [FloatArrayParameter(qualifier='sigma', copy_for={'method': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigma', []), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
-    #~ syn_params += [FloatArrayParameter(qualifier='exptime', value=kwargs.get('exptime', []), default_unit=u.s, description='Signal exposure time')]
 
     constraints = []
 
@@ -112,7 +112,7 @@ def rv_dep(**kwargs):
     dep_params = []
     # TODO: only relevent-if rv_method='flux-weighted'
 
-    dep_params += lc_dep(**kwargs).to_list()
+    dep_params += lc_dep(is_lc=False, **kwargs).to_list()
 
 
     return ParameterSet(dep_params)
