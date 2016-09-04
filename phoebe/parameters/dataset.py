@@ -63,6 +63,8 @@ def lc_dep(**kwargs):
     dep_params += [FloatParameter(qualifier='l3', value=kwargs.get('l3', 0.), default_unit=u.W/u.m**3, description='Third light')]
     dep_params += [FloatParameter(qualifier='alb', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
 
+    dep_params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
+
     return ParameterSet(dep_params)
 
 def rv(**kwargs):
