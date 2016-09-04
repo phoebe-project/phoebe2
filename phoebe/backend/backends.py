@@ -56,7 +56,7 @@ def _timequalifier_by_method(method):
     else:
         return 'time'
 
-def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None):
+def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_oversample=False, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
     computed at each of those times.  Any backend can then loop through
@@ -115,6 +115,22 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None):
             if len(this_times) and time is not None:
                 # then overrride the dataset times with the passed times
                 this_times = time
+
+            # TODO: also copy this logic for _extract_from_bundle_by_dataset?
+            if allow_oversample and \
+                    obs_ps.method in ['LC'] and \
+                    b.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0 and \
+                    b.get_value(qualifier='exposure_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
+
+                # Then we need to override the times retrieved from the dataset
+                # with the oversampled times.  Later we'll do an average over
+                # the exposure.
+                # NOTE: here we assume that the dataset times are at mid-exposure,
+                # if we want to allow more flexibility, we'll need a parameter
+                # that gives this option and different logic for each case.
+                exptime = b.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                exp_oversample = b.get_value(qualifier='exposure_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
+                this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., exp_oversample) for t in this_times]).flatten()
 
             if len(this_times):
                 if component is None and obs_ps.method in ['MESH']:
@@ -402,7 +418,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
     store_mesh = computeparams.get_value('store_mesh', **kwargs)
 
-    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute, time=time, store_mesh=store_mesh)
+    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute, time=time, store_mesh=store_mesh, allow_oversample=True, **kwargs)
 
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
