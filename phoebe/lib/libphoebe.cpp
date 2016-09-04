@@ -176,39 +176,93 @@ int ReadFloatFromTuple(PyObject *p, int len, int start, double *par, bool checks
   
   Python:
     
-    omega = roche_critical_potential(q, F, d)
+    omega = roche_critical_potential(q, F, d, <keywords>=<value>)
   
   where parameters are
+  
+  positionals:
   
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
   
-  and returns
+  keywords: optional
+    
+    L1: boolean, default true
+      switch calculating value of the potential at L1 
+    L2: boolean, default true
+      switch calculating value of the potential at L2 
+    L3: boolean, default true
+      switch calculating value of the potential at L3 
+    
+  and returns dictionary with keywords:
   
-    omega: 1-rank numpy array of 3 floats
+    L1:
+      float: value of the potential as L1
+    L2:
+      float: value of the potential as L2
+    L3:
+      float: value of the potential as L3
+
 */
 
-static PyObject *roche_critical_potential(PyObject *self, PyObject *args) {
-    
-  // parse input arguments   
+static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"L1",
+    (char*)"L2",
+    (char*)"L3",
+    NULL};
+         
+  bool b_L[3] = {true, true, true};
+     
   double q, F, delta;
   
-  if (!PyArg_ParseTuple(args, "ddd", &q, &F, &delta)) return NULL;
-      
-  // calculate critical potential
-  double *omega = new double[3];
-  gen_roche::critical_potential(omega, q, F, delta);
+  PyObject *o_L[3] = {0,  0, 0};
   
-  // return the results
-  npy_intp dims[1] = {3};
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!", kwlist,
+        &q, &F, &delta, 
+        &PyBool_Type, o_L,
+        &PyBool_Type, o_L + 1,
+        &PyBool_Type, o_L + 2)
+  ) return NULL;
+  
+  // reading selection
+  for (int i = 0; i < 3; ++i)
+    if (o_L[i]) b_L[i] = PyObject_IsTrue(o_L[i]);
+  
+  // create a binary version of selection
+  unsigned choice = 0;
+  for (int i = 0, j = 1; i < 3; ++i, j<<=1) 
+    if (b_L[i]) choice += j;
+  
+  //
+  // Do calculations
+  //
+  double omega[3], L[3];
+  
+  gen_roche::critical_potential(omega, L, choice, q, F, delta);
 
-  PyObject *pya = 
-    PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, omega);
+  PyObject *results = PyDict_New();
+    
+  //
+  // Store results
+  //  
+  const char *labels[] = {"L1","L2", "L3"};
   
-  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  for (int i = 0; i < 3; ++i)
+    if (b_L[i]) 
+      PyDict_SetItemStringStealRef(results, labels[i], PyFloat_FromDouble(omega[i]));
   
-  return pya;
+  return results;
 }
 
 /*
@@ -4733,8 +4787,8 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
 static PyMethodDef Methods[] = {
   
   { "roche_critical_potential", 
-    roche_critical_potential,   
-    METH_VARARGS, 
+    (PyCFunction)roche_critical_potential,   
+    METH_VARARGS|METH_KEYWORDS, 
     "Determine the critical potentials of Kopal potential for given "
     "values of q, F, and d."},
   
