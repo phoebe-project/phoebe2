@@ -1052,8 +1052,8 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
             for dataset in self.datasets:
-                ld_func = self.get_value(qualifier='ld_func', component=component, context='dataset')
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', component=component, context='dataset', check_relevant=False)
+                ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_relevant=False)
                 check = ld_coeffs_len(ld_func, ld_coeffs)
                 if not check[0]:
                     return check
