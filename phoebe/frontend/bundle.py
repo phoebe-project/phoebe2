@@ -980,6 +980,8 @@ class Bundle(ParameterSet):
                     # TODO: only do this if distortion_method == 'roche'
                     q = parent_ps.get_value('q')
                     pot = comp_ps.get_value('pot')
+                    # potentials are DEFINED to be at periastron, so don't need
+                    # to worry about volume conservation here
 
                     # Check if the component is primary or secondary; if the
                     # latter, flip q and transform pot.

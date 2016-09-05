@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
-    b.set_value('ecc', 0.4)
 
     b.add_dataset('LC', time=np.linspace(0,3,101))
     b.add_compute('phoebe', compute='phoebe2')
@@ -27,22 +26,33 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    print "running phoebe2 model..."
-    b.run_compute(compute='phoebe2', model='phoebe2model')
-    print "running phoebe1 model..."
-    b.run_compute(compute='phoebe1', model='phoebe1model')
+    for ecc in [0.3, 0.6]:
+        b.set_value('ecc', ecc)
 
-    phoebe2_val = b.get_value('flux@phoebe2model')
-    phoebe1_val = b.get_value('flux@phoebe1model')
 
-    if plot:
-        b.plot(dataset='lc01')
-        plt.legend()
-        plt.show()
+        print "running phoebe2 model..."
+        b.run_compute(compute='phoebe2', model='phoebe2model')
+        print "running phoebe1 model..."
+        b.run_compute(compute='phoebe1', model='phoebe1model')
 
-        print "max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()
+        phoebe2_val = b.get_value('flux@phoebe2model')
+        phoebe1_val = b.get_value('flux@phoebe1model')
 
-    assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
+        if plot:
+            b.plot(dataset='lc01')
+            plt.legend()
+            plt.show()
+
+            print "max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()
+
+        # ecc: max(rel)
+        # 0.6: 0.00078
+        # 0.65: 0.00125
+        # 0.67: 0.00269
+        # 0.672: 0.002931
+        # 0.675: ERRORS: lobe_x_points::problems with right boundary, roche_area_volume:Determining lobe's boundaries failed (see issue #70)
+        # 0.68: overflowing at periastron (via system checks)
+        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 
     return b
 
