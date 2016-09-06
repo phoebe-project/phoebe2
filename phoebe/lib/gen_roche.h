@@ -1130,10 +1130,35 @@ namespace gen_roche {
     T xrange[2];
   
     if (!lobe_x_points(xrange, choice, Omega0, q, F, delta, true)) return false;
-  
+    
+    #if defined(DEBUG) 
+    std::cerr 
+      << "meshing_start_point: q=" << q 
+      << " F=" << F 
+      << " d=" << delta 
+      << " Omega=" << Omega0 << '\n';
+    
+    std::cerr << "xrange=" << xrange[0] << '\t' << xrange[1] << '\n';
+
+
+    T omega[3], L[3];
+    
+    
+    critical_potential(omega, L,1+2+4, q, F, delta);
+    
+    
+    std::cerr << "L=" << L[0] << '\t' << L[1] << '\t' << L[2] << '\n';
+    #endif 
+    
+    T x;
+    
+    if (choice != 1)
+      x = xrange[1];
+    else 
+      x = xrange[0];
+    
     T b = (1 + q)*F*F,
       f0 = 1/(delta*delta),
-      x = xrange[0],
       x1 = x - delta;
     
     r[0] = x;

@@ -1581,6 +1581,13 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   // https://docs.python.org/2/c-api/dict.html
   //
   PyObject *results = PyDict_New();
+  
+  
+  if (choice < 0 || choice > 2){
+    std::cerr << 
+      "roche_marching_mesh::This choice is not supported\n"; 
+    return NULL;
+  }
     
   //
   // Choosing the meshing initial point 
@@ -1589,7 +1596,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   double r[3], g[3];
   
   if (!gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, d)){
-    std::cerr << "roche_area_volume:Determining initial meshing point failed\n";
+    std::cerr << "roche_marching_mesh:Determining initial meshing point failed\n";
     return NULL;
   }
   
