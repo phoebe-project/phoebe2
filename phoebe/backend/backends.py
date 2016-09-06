@@ -417,6 +417,9 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
 
     store_mesh = computeparams.get_value('store_mesh', **kwargs)
+    if 'store_mesh' in kwargs.keys():
+        # remove store_mesh so that it isn't passed twice in _extract_from_bundle_by_time
+        kwargs.pop('store_mesh')
 
     times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute, time=time, store_mesh=store_mesh, allow_oversample=True, **kwargs)
 
