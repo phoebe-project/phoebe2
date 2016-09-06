@@ -2,12 +2,10 @@
 """
 
 import phoebe
+from phoebe import u
 import numpy as np
-import astropy.units as u
 import matplotlib.pyplot as plt
-import phoebe
 import phoebeBackend as phb
-import phoebe
 
 def _beta_vs_legacy(b):
 

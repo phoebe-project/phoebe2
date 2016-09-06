@@ -2,8 +2,8 @@
 """
 
 import phoebe
+from phoebe import u
 import numpy as np
-import astropy.units as u
 import matplotlib.pyplot as plt
 
 
@@ -14,7 +14,7 @@ def _keplerian_v_nbody(b, plot=False):
 
     # TODO: loop over ltte=True,False (once keplerian dynamics supports the switch)
 
-    b.add_compute()
+    b.add_compute(dynamics_method='bs')
 
     times = np.linspace(0, 100, 10000)
     nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=False)
@@ -22,7 +22,7 @@ def _keplerian_v_nbody(b, plot=False):
 
     assert(np.allclose(nb_ts, k_ts, 1e-8))
     for ci in range(len(b.hierarchy.get_stars())):
-        # TODO: make atol lower (currently 1e-5 AU which is awfully big, but 1e-6 currently fails!)
+        # TODO: make atol lower (currently 1e-5 solRad which is awfully big, but 1e-6 currently fails!)
         assert(np.allclose(nb_xs[ci], k_xs[ci], atol=1e-5))
         assert(np.allclose(nb_ys[ci], k_ys[ci], atol=1e-5))
         assert(np.allclose(nb_zs[ci], k_zs[ci], atol=1e-5))
