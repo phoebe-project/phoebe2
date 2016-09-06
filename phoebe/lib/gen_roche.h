@@ -1140,12 +1140,9 @@ namespace gen_roche {
     
     std::cerr << "xrange=" << xrange[0] << '\t' << xrange[1] << '\n';
 
-
     T omega[3], L[3];
-    
-    
+        
     critical_potential(omega, L,1+2+4, q, F, delta);
-    
     
     std::cerr << "L=" << L[0] << '\t' << L[1] << '\t' << L[2] << '\n';
     #endif 

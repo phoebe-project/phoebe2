@@ -1342,8 +1342,6 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
 }
 
-
-
 /*
   C++ wrapper for Python code:
   
@@ -3957,6 +3955,83 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
 /*
   C++ wrapper for Python code:
 
+    Calculation of the ranges of Roche lobes on x-axix
+    
+  Python:
+
+    xrange = roche_xrange(q, F, d, Omega0, <keywords>=<value>)
+    
+  with arguments
+  
+  positionals: necessary
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    Omega0: float - value of the generalized Kopal potential
+  
+  keywords:
+    choice: interr, default 0:
+      0 - searching a point on left lobe
+      1 - searching a point on right lobe
+      2 - searching a point for overcontact case
+  
+  Return: 
+    xrange: 1-rank numpy array of two numbers p
+*/
+
+static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"choice",
+    NULL
+  };
+  
+  PyArrayObject *oV;
+  
+  double q, F, d, Omega0;   
+    
+  int choice  = 0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!dddd|ii", kwlist,
+      &PyArray_Type, &oV, 
+      &q, &F, &d, &Omega0,
+      &choice)) return NULL;
+
+  
+  if (choice < 0 || choice > 2) {
+    std::cerr 
+      << "roche_xrange::This choice of compulation is not supported\n";
+    return NULL;
+  }
+  
+  double *xrange = new double [2];
+  
+  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, q, true)){
+      std::cerr << "roche_xrange::Determining lobe's boundaries failed\n";
+      return NULL;
+  }
+  
+  npy_intp dims = 2;
+  
+  PyObject *results = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, xrange);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)results, NPY_ARRAY_OWNDATA);
+  
+  return results;
+}
+
+/*
+  C++ wrapper for Python code:
+
     Calculating the limb darkening function D(mu) in speherical coordinates
     
     vec r = r (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
@@ -5121,6 +5196,12 @@ static PyMethodDef Methods[] = {
     "Calculating the horizon on the rotating star defined by view direction,"
     "omega, and the value of the potential"},
 
+// --------------------------------------------------------------------
+  { "roche_xrange",
+    (PyCFunction)roche_xrange,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the range of the Roche lobes on x-axis at given"
+    "q, F, d, and the value of generalized Kopal potential Omega."},
 // --------------------------------------------------------------------
 
     { "ld_funcD",
