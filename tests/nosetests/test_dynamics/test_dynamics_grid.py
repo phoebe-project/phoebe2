@@ -2,8 +2,8 @@
 """
 
 import phoebe
+from phoebe import u
 import numpy as np
-import astropy.units as u
 import matplotlib.pyplot as plt
 
 
@@ -14,22 +14,24 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
 
     # TODO: loop over ltte=True,False (once keplerian dynamics supports the switch)
 
+    b.add_compute(dynamics_method='bs')
+
     times = np.linspace(0, 5*period, 100)
     nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
     k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
 
     assert(np.allclose(nb_ts, k_ts, 1e-8))
     for ci in range(len(b.hierarchy.get_stars())):
-        # TODO: make atol lower (currently 1e-5 AU which is awfully big, but 1e-6 currently fails!)
-        assert(np.allclose(nb_xs[ci].to(u.AU).value, k_xs[ci].to(u.AU).value, rtol=0, atol=1e-05))
-        assert(np.allclose(nb_ys[ci].to(u.AU).value, k_ys[ci].to(u.AU).value, rtol=0, atol=1e-05))
-        assert(np.allclose(nb_zs[ci].to(u.AU).value, k_zs[ci].to(u.AU).value, rtol=0, atol=1e-05))
+        # TODO: make rtol lower if possible
+        assert(np.allclose(nb_xs[ci], k_xs[ci], rtol=1e-5, atol=1e-2))
+        assert(np.allclose(nb_ys[ci], k_ys[ci], rtol=1e-5, atol=1e-2))
+        assert(np.allclose(nb_zs[ci], k_zs[ci], rtol=1e-5, atol=1e-2))
 
         # nbody ltte velocities are wrong so only check velocities if ltte off
         if not ltte:
-	    assert(np.allclose(nb_vxs[ci].to(u.solRad/u.d).value, k_vxs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-05))
-	    assert(np.allclose(nb_vys[ci].to(u.solRad/u.d).value, k_vys[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-05))
-	    assert(np.allclose(nb_vzs[ci].to(u.solRad/u.d).value, k_vzs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-05))
+            assert(np.allclose(nb_vxs[ci], k_vxs[ci], rtol=1e-5, atol=1e-2))
+            assert(np.allclose(nb_vys[ci], k_vys[ci], rtol=1e-5, atol=1e-2))
+            assert(np.allclose(nb_vzs[ci], k_vzs[ci], rtol=1e-5, atol=1e-2))
 
 def _phoebe_v_photodynam(b, period, plot=False):
     """
@@ -84,12 +86,12 @@ def _frontend_v_backend(b, ltte, period, plot=False):
     times = np.linspace(0, 5*period, 100)
     b.add_dataset('orb', time=times, dataset='orb01', components=b.hierarchy.get_stars())
     b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian', ltte=ltte)
-    b.add_compute('phoebe', dynamics_method='nbody', compute='nbody', ltte=ltte)
+    b.add_compute('phoebe', dynamics_method='bs', compute='nbody', ltte=ltte)
 
 
     # NBODY
     # do backend Nbody
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
+    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, compute='nbody', ltte=ltte)
 
     # do frontend Nbody
     b.run_compute('nbody', model='nbodyresults')
@@ -97,21 +99,21 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 
     for ci,comp in enumerate(b.hierarchy.get_stars()):
         # TODO: can we lower tolerance?
-        assert(np.allclose(b.get_value('time', model='nbodyresults', component=comp, unit=u.d), b_ts, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('x', model='nbodyresults', component=comp, unit=u.AU), b_xs[ci].to(u.AU).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('y', model='nbodyresults', component=comp, unit=u.AU), b_ys[ci].to(u.AU).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('z', model='nbodyresults', component=comp, unit=u.AU), b_zs[ci].to(u.AU).value, rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('time', model='nbodyresults', component=comp, unit=u.d), b_ts, rtol=0, atol=1e-6))
+        assert(np.allclose(b.get_value('x', model='nbodyresults', component=comp, unit=u.solRad), b_xs[ci], rtol=1e-7, atol=1e-4))
+        assert(np.allclose(b.get_value('y', model='nbodyresults', component=comp, unit=u.solRad), b_ys[ci], rtol=1e-7, atol=1e-4))
+        assert(np.allclose(b.get_value('z', model='nbodyresults', component=comp, unit=u.solRad), b_zs[ci], rtol=1e-7, atol=1e-4))
         if not ltte:
-	    assert(np.allclose(b.get_value('vx', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vxs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-08))
-	    assert(np.allclose(b.get_value('vy', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vys[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-08))
-	    assert(np.allclose(b.get_value('vz', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vzs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-08))
+            assert(np.allclose(b.get_value('vx', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vxs[ci], rtol=1e-7, atol=1e-4))
+            assert(np.allclose(b.get_value('vy', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vys[ci], rtol=1e-7, atol=1e-4))
+            assert(np.allclose(b.get_value('vz', model='nbodyresults', component=comp, unit=u.solRad/u.d), b_vzs[ci], rtol=1e-7, atol=1e-4))
 
 
 
 
     # KEPLERIAN
     # do backend keplerian
-    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
+    b_ts, b_xs, b_ys, b_zs, b_vxs, b_vys, b_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, compute='keplerian', ltte=ltte)
 
 
     # do frontend keplerian
@@ -122,12 +124,12 @@ def _frontend_v_backend(b, ltte, period, plot=False):
     for ci,comp in enumerate(b.hierarchy.get_stars()):
         # TODO: can we lower tolerance?
         assert(np.allclose(b.get_value('time', model='keplerianresults', component=comp, unit=u.d), b_ts, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('x', model='keplerianresults', component=comp, unit=u.AU), b_xs[ci].to(u.AU).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('y', model='keplerianresults', component=comp, unit=u.AU), b_ys[ci].to(u.AU).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('z', model='keplerianresults', component=comp, unit=u.AU), b_zs[ci].to(u.AU).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('vx', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vxs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('vy', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vys[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-08))
-        assert(np.allclose(b.get_value('vz', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vzs[ci].to(u.solRad/u.d).value, rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('x', model='keplerianresults', component=comp, unit=u.solRad), b_xs[ci], rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('y', model='keplerianresults', component=comp, unit=u.solRad), b_ys[ci], rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('z', model='keplerianresults', component=comp, unit=u.solRad), b_zs[ci], rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('vx', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vxs[ci], rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('vy', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vys[ci], rtol=0, atol=1e-08))
+        assert(np.allclose(b.get_value('vz', model='keplerianresults', component=comp, unit=u.solRad/u.d), b_vzs[ci], rtol=0, atol=1e-08))
 
 
 
@@ -142,41 +144,41 @@ def test_binary(plot=False):
     system3 = [40., 65000.]
 
     for system in [system1,system2,system3]:
-	for q in [0.5,1.]:
-	    for ltte in [True, False]:
+        for q in [0.5,1.]:
+            for ltte in [True, False]:
 
-		b = phoebe.Bundle.default_binary()
-		b.set_default_unit_all('sma', u.AU)
-		b.set_default_unit_all('period', u.d)
+                b = phoebe.Bundle.default_binary()
+                b.set_default_unit_all('sma', u.AU)
+                b.set_default_unit_all('period', u.d)
 
-		b.set_value('sma@binary',system[0])
-		b.set_value('period@binary', system[1])
-		b.set_value('q', q)
-		_keplerian_v_nbody(b, ltte, system[1], plot=plot)
+                b.set_value('sma@binary',system[0])
+                b.set_value('period@binary', system[1])
+                b.set_value('q', q)
+                _keplerian_v_nbody(b, ltte, system[1], plot=plot)
 
-		b = phoebe.Bundle.default_binary()
-		b.set_default_unit_all('sma', u.AU)
-		b.set_default_unit_all('period', u.d)
+                b = phoebe.Bundle.default_binary()
+                b.set_default_unit_all('sma', u.AU)
+                b.set_default_unit_all('period', u.d)
 
-		b.set_value('sma@binary',system[0])
-		b.set_value('period@binary', system[1])
-		b.set_value('q', q)
-		_frontend_v_backend(b, ltte, system[1], plot=plot)
+                b.set_value('sma@binary',system[0])
+                b.set_value('period@binary', system[1])
+                b.set_value('q', q)
+                _frontend_v_backend(b, ltte, system[1], plot=plot)
 
     #for system in [system1,system2,system3]:
-	#for q in [0.5,1.]:
-	    #b = phoebe.Bundle.default_binary()
-	    #b.set_default_unit_all('sma', u.AU)
-	    #b.set_default_unit_all('period', u.d)
+    #for q in [0.5,1.]:
+        #b = phoebe.Bundle.default_binary()
+        #b.set_default_unit_all('sma', u.AU)
+        #b.set_default_unit_all('period', u.d)
 
-	    #b.set_value('sma@binary',system[0])
-	    #b.set_value('period@binary', system[1])
-	    #b.set_value('q', q)
-	    #_phoebe_v_photodynam(b, system[1], plot=plot)
+        #b.set_value('sma@binary',system[0])
+        #b.set_value('period@binary', system[1])
+        #b.set_value('q', q)
+        #_phoebe_v_photodynam(b, system[1], plot=plot)
 
 
 if __name__ == '__main__':
-    logger = phoebe.utils.get_basic_logger()
+    logger = phoebe.logger(clevel='INFO')
 
 
     test_binary(plot=True)

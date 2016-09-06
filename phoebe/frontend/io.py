@@ -157,16 +157,16 @@ def ret_dict(pname, val, dataid=None, rvdep=None, comid=None):
 
     return pnew, d
 
-def load_lc_data(filename, indep, dep, indweight=None, mzero=None):
+def load_lc_data(filename, indep, dep, indweight=None, mzero=None, dir='./'):
 
     """
     load dictionary with lc data
     """
     if '/' in filename:
-        path = os.path.dirname(filename)
-        filename = filename.split('/')[-1]
+        path, filename = os.path.split(filename)
     else:
-        path = './'
+        # TODO: this needs to change to be directory of the .phoebe file
+        path = dir
 
     load_file = os.path.join(path, filename)
     lcdata = np.loadtxt(load_file)
@@ -191,17 +191,16 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None):
 
     return d
 
-def load_rv_data(filename, indep, dep, indweight=None):
+def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
 
     """
     load dictionary with rv data.
     """
 
     if '/' in filename:
-        path = os.path.dirname(filename)
-        filename = filename.split('/')[-1]
+        path, filename = os.path.split(filename)
     else:
-        path = './'
+        path = dir
 
     load_file = os.path.join(path, filename)
     rvdata = np.loadtxt(load_file)
@@ -280,6 +279,8 @@ filename - a .phoebe file (from phoebe 1)
 
 def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
+    legacy_file_dir = os.path.dirname(filename)
+
 # load an empty legacy bundle and initialize obvious parameter sets
     eb = phb.Bundle.default_binary()
     eb.disable_history()
@@ -355,7 +356,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         if mzero != None and lc_dict['phoebe_lc_filename'] != 'Undefined':
 
-            data_dict = load_lc_data(filename = lc_dict['phoebe_lc_filename'],  indep=lc_dict['phoebe_lc_indep'], dep=lc_dict['phoebe_lc_dep'], indweight=indweight, mzero=mzero)
+            data_dict = load_lc_data(filename=lc_dict['phoebe_lc_filename'],  indep=lc_dict['phoebe_lc_indep'], dep=lc_dict['phoebe_lc_dep'], indweight=indweight, mzero=mzero, dir=legacy_file_dir)
 
             lc_dict.update(data_dict)
 
@@ -435,7 +436,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             indweight = None
 
         if rv_dict['phoebe_rv_filename'] != 'Undefined':
-            data_dict = load_rv_data(filename = rv_dict['phoebe_rv_filename'],  indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight)
+            data_dict = load_rv_data(filename=rv_dict['phoebe_rv_filename'], indep=rv_dict['phoebe_rv_indep'], dep=rv_dict['phoebe_rv_dep'], indweight=indweight, dir=legacy_file_dir)
 
             rv_dict.update(data_dict)
             time = rv_dict['phoebe_rv_time']

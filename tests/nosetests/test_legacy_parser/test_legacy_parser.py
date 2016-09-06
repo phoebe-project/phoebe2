@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import os
 
 
-
-def legacy_test(filename='default.phoebe', dir='./test_legacy_parser'):
+def legacy_test(filename='default.phoebe'):
 
     # load phoebe 1 file
+
+    dir = os.path.dirname(os.path.realpath(__file__))
 
     phb1.init()
     phb1.configure()
@@ -119,6 +120,6 @@ if __name__ == '__main__':
 
     logger= phb2.logger()
     filename = 'default.phoebe'
-    legacy_test(filename, dir='./')
+    legacy_test(filename)
 
 
