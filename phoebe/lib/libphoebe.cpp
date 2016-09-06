@@ -3993,16 +3993,13 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
     (char*)"choice",
     NULL
   };
-  
-  PyArrayObject *oV;
-  
+    
   double q, F, d, Omega0;   
     
   int choice  = 0;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!dddd|ii", kwlist,
-      &PyArray_Type, &oV, 
+      args, keywds,  "dddd|ii", kwlist,
       &q, &F, &d, &Omega0,
       &choice)) return NULL;
 
