@@ -178,7 +178,7 @@ def visible_partial(meshes, xs, ys, zs):
                                                    triangles_flat,
                                                    normals_flat)
 
-    visibilities = meshes.unpack_column_flat(visibilities)
+    visibilities = meshes.unpack_column_flat(visibilities, computed_type='triangles')
 
     return visibilities, None
 
