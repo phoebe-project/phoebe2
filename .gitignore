@@ -2,3 +2,4 @@
 *_tmp*
 *after.phoebe
 *.ipynb_checkpoints*
+*.pyc*
