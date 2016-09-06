@@ -4015,7 +4015,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   
   double *xrange = new double [2];
   
-  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, q, true)){
+  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, d, true)){
       std::cerr << "roche_xrange::Determining lobe's boundaries failed\n";
       return NULL;
   }
