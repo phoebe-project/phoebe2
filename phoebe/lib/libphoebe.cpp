@@ -3999,14 +3999,13 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   int choice  = 0;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddd|ii", kwlist,
-      &q, &F, &d, &Omega0,
-      &choice)) return NULL;
+      args, keywds,  "dddd|i", kwlist,
+      &q, &F, &d, &Omega0, &choice)) return NULL;
 
   
   if (choice < 0 || choice > 2) {
     std::cerr 
-      << "roche_xrange::This choice of compulation is not supported\n";
+      << "roche_xrange::This choice of computation is not supported\n";
     return NULL;
   }
   
