@@ -518,6 +518,12 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     lvolume: boolean, default True
     larea: boolean, default True
     
+    epsA : float, default 1e-12
+      relative precision of the area
+
+    epsV : float, default 1e-12
+      relative precision of the volume
+
   Returns:
   
     dictionary
@@ -531,6 +537,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
       float:
 */
 
+//#define DEBUG
 static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
   
   //
@@ -545,43 +552,45 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     (char*)"choice",
     (char*)"larea",
     (char*)"lvolume",
+    (char*)"epsA",
+    (char*)"epsV",
     NULL};
        
   int choice = 0;
+ 
+  double eps[2] = {1e-12, 1e-12};
   
-  bool 
-    b_larea = true,
-    b_lvolume = true;
-        
-  PyObject
-    *o_larea = 0,
-    *o_lvolume = 0;
+  bool b_av[2] = {true, true}; // b_larea, b_lvolume
+  
+  PyObject *o_av[2] = {0,0}; // *o_larea = 0, *o_lvolume = 0;
   
   double q, F, delta, Omega0;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddd|iO!O!", kwlist, 
+      args, keywds,  "dddd|iO!O!dd", kwlist, 
       &q, &F, &delta, &Omega0, 
       &choice,
-      &PyBool_Type, &o_larea,
-      &PyBool_Type, &o_lvolume
+      &PyBool_Type, o_av,
+      &PyBool_Type, o_av + 1,
+      eps, eps + 1
       )
     )
     return NULL;
   
-  if (o_larea) b_larea = PyObject_IsTrue(o_larea);
-  if (o_lvolume) b_lvolume = PyObject_IsTrue(o_lvolume);
-  
-  if (!b_larea && !b_lvolume) return NULL;
- 
-  //
-  // define result-choice
-  //
   unsigned res_choice = 0;
-  
-  if (b_larea) res_choice |= 1u;
-  if (b_lvolume) res_choice |= 2u;
  
+  //
+  // Read boolean variables and define result-choice
+  //   
+  for (int i = 0, j = 1; i < 2; ++i, j <<=1 )
+    if (o_av[i]) { 
+      b_av[i] = PyObject_IsTrue(o_av[i]);
+      res_choice += j;
+    }
+  
+  if (res_choice == 0) return NULL;
+  
+
   //
   // Posibility of using approximation
   //
@@ -591,11 +600,21 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     b = (1 + q)*F*F*delta*delta*delta,
     av[2];            // for results
   
-  if (choice == 0 && w >= 10 && w >= 5*(q + std::cbrt(b*b)/4)){  // approximation
-  
+  if (
+    choice == 0 && 
+    w >= 5*(q + std::cbrt(b*b)/4) + 30 && 
+    std::max(eps[0], eps[1]) >= 1e-12) {
+    
+    // Approximation by using the series
+    // should be preciser than 1e-12
+    
     gen_roche::area_volume_primary_approx_internal(av, res_choice, Omega0, w, q, b);
     
-  } else { // integration 
+  } else { 
+    
+    // Approximation by integration over the surface
+    // relative precision should be better than 1e-12
+    
     //
     // Choosing boundaries on x-axis
     //
@@ -608,27 +627,82 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     }
     
     //
-    // Calculate area and volume
+    // Calculate area and volume:
     //
+
+    const int m_min = 1 << 9;  // minimal number of points along x-axis
     
-    int m = 1 << 14;        // TODO: this should be more precisely stated 
+    int m0 = m_min;            // starting number of points alomg x-axis  
+        
+    bool 
+      polish = false,
+      ret;
+
+    double p[4][2], av2, e;
+        
+    #if defined(DEBUG)
+    std::cerr.precision(16);
+    std::cerr << std::scientific;
+    #endif
     
-    bool polish = false;    // TODO: why does not it work all the time
+    //
+    // adaptive calculation of the area and volume
+    //  
+    do {
+        
+      for (int i = 0, m = m0; i < 4; ++i, m <<= 1) {
+        gen_roche::area_volume_integration
+          (p[i], res_choice, xrange, Omega0, q, F, delta, m, polish);
+        
+        #if defined(DEBUG)
+        std::cerr << "P:" << p[i][0] << '\t' << p[i][0] << '\n';
+        #endif
+      }
       
-    gen_roche::area_volume_integration(av, res_choice, xrange, Omega0, q, F, delta, m, polish);
+      
+      ret = false;
+            
+      // extrapolation based on assumption
+      //   I = I0 + a_1 h^4 + a_2 h^5 + ...
+      // estimating errors
+      
+      int m0_next = m0;
+      
+      for (int i = 0; i < 2; ++i) if (b_av[i]) {
+        
+        av[i] = (-p[0][i] + 112*p[1][i] - 3584*p[2][i] + 32768*p[3][i])/29295;
+        av2 = (p[0][i] - 48*p[1][i] + 512*p[2][i])/465;
+        
+        e = std::abs(av2/av[i] - 1);
+        
+        #if defined(DEBUG)
+        std::cerr << "err=" << e << '\n';
+        #endif
+        
+        if (e > eps[i]) {
+          int k = int(m0*std::pow(e/eps[i], 1./6.5));
+          if (k > m0_next) {
+            m0_next = k;
+            ret = true;
+          }
+        }
+      }
+      
+      if (ret) m0 = m0_next;
+            
+    } while (ret);
   }
    
   PyObject *results = PyDict_New();
-      
-  if (b_larea)
-    PyDict_SetItemStringStealRef(results, "larea", PyFloat_FromDouble(av[0]));
-
-  if (b_lvolume)
-    PyDict_SetItemStringStealRef(results, "lvolume", PyFloat_FromDouble(av[1]));
   
+  const char *str[2] =  {"larea", "lvolume"};
+  
+  for (int i = 0; i < 2; ++i) if (b_av[i])
+    PyDict_SetItemStringStealRef(results, str[i], PyFloat_FromDouble(av[i]));
+
   return results;
 }
-
+//#undef DEBUG
 
 /*
   C++ wrapper for Python code:
@@ -756,9 +830,9 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
             0 for discussing left lobe
             1 for discussing right lobe
             2 for discussing overcontact
-    precision: float, default 1e-10
+    precision: float, default 1e-12
       aka relative precision
-    accuracy: float, default 1e-10
+    accuracy: float, default 1e-12
       aka absolute precision
     max_iter: integer, default 100
       maximal number of iterations in the Newton-Raphson
@@ -796,8 +870,8 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     vol, 
     q, F, delta, 
     Omega0 = nan(""),
-    precision = 1e-10,
-    accuracy = 1e-10;
+    precision = 1e-12,
+    accuracy = 1e-12;
   
   int max_iter = 100;  
   
@@ -818,30 +892,85 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     std::cerr << "Currently not supporting lack of guessed Omega.\n";
     return NULL;
   }
-    
-  int m = 1 << 14, // TODO: this should be more precisely stated 
-      it = 0;
-      
-  double Omega = Omega0, dOmega, V[2] = {0,0}, xrange[2];
   
-  bool polish = false;
+  const int m_min = 1 << 9;  // minimal number of points along x-axis
+    
+  int 
+    m0 = m_min,  // minimal number of points along x-axis
+    it = 0;       // number of iterations
+      
+  double 
+    Omega = Omega0, dOmega, 
+    V[2], xrange[2], p[4][2];
+  
+  bool polish = false, ret;
   
   #if defined(DEBUG)
-  std::cout.precision(16); std::cout << std::scientific;
+  std::cerr.precision(16); 
+  std::cerr << std::scientific;
   #endif
+  
+  // expected precisions of the integrals
+  double eps = precision/10;
+  
   do {
 
-    if (!gen_roche::lobe_x_points(xrange, choice, Omega, q, F, delta)){
+    if (!gen_roche::lobe_x_points(xrange, choice, Omega, q, F, delta, true)){
       std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
       return NULL;
     }
+    
+    // adaptive calculation of the volume and its derivative
+    do {
+    
+      // calculate volume and derivate volume w.r.t to Omega
+      for (int i = 0, m = m0; i < 4; ++i, m <<= 1) {
+        gen_roche::volume(p[i], 3, xrange, Omega, q, F, delta, m, polish);
+        #if defined(DEBUG)
+        std::cerr << "V:" <<  p[i][0] << '\t' << p[i][1] << '\n';
+        #endif
+      }
+      
+      ret = false;
+      
+      // extrapolations based on the expansion
+      // I = I0 + a1 h^4 + a2 h^5 + ...
+      // result should have relative precision better than 1e-12 
+      int m0_next = m0;
+      
+      double e, v;
+      
+      for (int i = 0; i < 2; ++i) {
+      
+        V[i] = (-p[0][i] + 112*p[1][i] - 3584*p[2][i] + 32768*p[3][i])/29295;
+        v = (p[0][i] - 48*p[1][i] + 512*p[2][i])/465;
         
-    gen_roche::volume(V, 3, xrange, Omega, q, F, delta, m, polish);
+        e = std::abs(v/V[i] - 1);
         
+        #if defined(DEBUG)
+        std::cerr << "e=" << e << '\n';
+        #endif
+        
+        if (e > eps) {
+          int k = int(m0*std::pow(e/eps, 1./6.5));
+          if (k > m0_next) {
+            m0_next = k;
+            ret = true;
+          }  
+        }
+      }
+      
+      if (ret) m0 = m0_next;
+      
+      #if defined(DEBUG)
+      std::cerr << "ret=" << ret << '\n';
+      #endif
+    } while (ret); 
+    
     Omega -= (dOmega = (V[0] - vol)/V[1]);
     
     #if defined(DEBUG) 
-    std::cout 
+    std::cerr 
       << "Omega=" << Omega 
       << "\tvol=" << vol 
       << "\tV[0]= " << V[0] 
@@ -859,6 +988,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   
   return PyFloat_FromDouble(Omega);
 }
+//#undef DEBUG
 
 /*
   C++ wrapper for Python code:
@@ -883,9 +1013,9 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     Omega0 - guess for value potential Omega1
   
   keywords: (optional)
-    precision: float, default 1e-10
+    precision: float, default 1e-12
       aka relative precision
-    accuracy: float, default 1e-10
+    accuracy: float, default 1e-12
       aka absolute precision
     max_iter: integer, default 100
       maximal number of iterations in the Newton-Raphson
@@ -916,8 +1046,8 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
   double
     vol, omega, 
     Omega0 = nan(""),
-    precision = 1e-10,
-    accuracy = 1e-10;
+    precision = 1e-12,
+    accuracy = 1e-12;
   
   int max_iter = 100;
   
