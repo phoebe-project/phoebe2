@@ -631,8 +631,10 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     //
 
     const int m_min = 1 << 9;  // minimal number of points along x-axis
+    const int max_it = 10;     // maximal number of permitted changes of n
     
-    int m0 = m_min;            // starting number of points alomg x-axis  
+    int it, 
+        m0 = m_min;            // starting number of points alomg x-axis  
         
     bool 
       polish = false,
@@ -648,6 +650,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     //
     // adaptive calculation of the area and volume
     //  
+    
+    it = 0;
+    
     do {
         
       for (int i = 0, m = m0; i < 4; ++i, m <<= 1) {
@@ -690,7 +695,13 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       
       if (ret) m0 = m0_next;
             
-    } while (ret);
+    } while (ret && ++it < max_it);
+    
+    if (it >= max_it) {
+      std::cerr 
+        << "roche_area_volume::Volume precision did not converge to target precision\n";
+    }
+    
   }
    
   PyObject *results = PyDict_New();
@@ -893,11 +904,13 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
   
+  const int max_itv = 10;
   const int m_min = 1 << 9;  // minimal number of points along x-axis
     
   int 
     m0 = m_min,  // minimal number of points along x-axis
-    it = 0;       // number of iterations
+    it = 0,      // number of iterations
+    itv;
       
   double 
     Omega = Omega0, dOmega, 
@@ -921,6 +934,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     }
     
     // adaptive calculation of the volume and its derivative
+    itv = 0;
     do {
     
       // calculate volume and derivate volume w.r.t to Omega
@@ -965,7 +979,12 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
       #if defined(DEBUG)
       std::cerr << "ret=" << ret << '\n';
       #endif
-    } while (ret); 
+    } while (ret && ++itv <  max_itv); 
+    
+    if (itv >= max_itv) {
+      std::cerr 
+        << "roche_Omega_at_vol:: Volume precision did not converge to target precision\n";
+    }
     
     Omega -= (dOmega = (V[0] - vol)/V[1]);
     
