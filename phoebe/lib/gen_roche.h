@@ -854,7 +854,8 @@ namespace gen_roche {
         if (!(omega[0] < Omega0 && omega[1] < Omega0)) {
           std::cerr 
             << "lobe_x_points::left lobe does not seem to exist\n"
-            << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n';
+            << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n'
+            << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;
         }
       }
@@ -877,7 +878,8 @@ namespace gen_roche {
         if (!(omega[0] < Omega0 && omega[2] < Omega0)) {
           std::cerr 
             << "lobe_x_points::right lobe does not seem to exist\n"
-            << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n';
+            << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n'
+            << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;      
         }
       }
@@ -900,7 +902,8 @@ namespace gen_roche {
         if (!(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
           std::cerr 
             << "lobe_x_points::overcontact lobe does not seem to exist\n"
-            << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n';
+            << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n'
+            << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;
         }
       }

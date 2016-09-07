@@ -560,9 +560,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
  
   double eps[2] = {1e-12, 1e-12};
   
-  bool b_av[2] = {true, true}; // b_larea, b_lvolume
+  bool b_av[2] = {true, true};  // b_larea, b_lvolume
   
-  PyObject *o_av[2] = {0,0}; // *o_larea = 0, *o_lvolume = 0;
+  PyObject *o_av[2] = {0,0};    // *o_larea = 0, *o_lvolume = 0;
   
   double q, F, delta, Omega0;
   
@@ -598,15 +598,13 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   double 
     w = delta*Omega0,
     b = (1 + q)*F*F*delta*delta*delta,
-    av[2];            // for results
-  
-  if (
-    choice == 0 && 
-    w >= 5*(q + std::cbrt(b*b)/4) + 30 && 
-    std::max(eps[0], eps[1]) >= 1e-12) {
+    w0 = 5*(q + std::cbrt(b*b)/4) - 29.554 - 5.26235*std::log(std::min(eps[0], eps[1])),
+    av[2];                          // for results
     
-    // Approximation by using the series
-    // should be preciser than 1e-12
+  if (choice == 0 && w >= std::max(10., w0)) {
+    
+    // Approximation by using the series 
+    // with empirically derived criterion 
     
     gen_roche::area_volume_primary_approx_internal(av, res_choice, Omega0, w, q, b);
     
@@ -630,17 +628,15 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     // Calculate area and volume:
     //
 
-    const int m_min = 1 << 9;  // minimal number of points along x-axis
-    const int max_it = 2;      // maximal number of permitted changes of n
+    const int m_min = 1 << 8;  // minimal number of points along x-axis
     
-    int it, 
-        m0 = m_min;            // starting number of points alomg x-axis  
+    int m0 = m_min;            // starting number of points alomg x-axis  
         
     bool 
       polish = false,
-      ret;
-
-    double p[4][2], av2, e;
+      adjust = true;
+      
+    double p[2][2], e, t;
         
     #if defined(DEBUG)
     std::cerr.precision(16);
@@ -648,59 +644,63 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     #endif
     
     //
-    // adaptive calculation of the area and volume
-    //  
-    
-    it = 0;
+    // one step adjustment of precison for area and volume
+    // calculation
+    //
     
     do {
         
-      for (int i = 0, m = m0; i < 4; ++i, m <<= 1) {
+      for (int i = 0, m = m0; i < 2; ++i, m <<= 1) {
         gen_roche::area_volume_integration
           (p[i], res_choice, xrange, Omega0, q, F, delta, m, polish);
         
         #if defined(DEBUG)
-        std::cerr << "P:" << p[i][0] << '\t' << p[i][0] << '\n';
+        std::cerr << "P:" << p[i][0] << '\t' << p[i][1] << '\n';
         #endif
       }
       
-      
-      ret = false;
-            
-      // extrapolation based on assumption
-      //   I = I0 + a_1 h^4 + a_2 h^5 + ...
-      // estimating errors
-      
-      int m0_next = m0;
-      
-      for (int i = 0; i < 2; ++i) if (b_av[i]) {
+      if (adjust) {
+           
+        // extrapolation based on assumption
+        //   I = I0 + a_1 h^4
+        // estimating errors
         
-        av[i] = (-p[0][i] + 112*p[1][i] - 3584*p[2][i] + 32768*p[3][i])/29295;
-        av2 = (p[0][i] - 48*p[1][i] + 512*p[2][i])/465;
+        int m0_next = m0;
         
-        e = std::abs(av2/av[i] - 1);
+        adjust = false;
         
-        #if defined(DEBUG)
-        std::cerr << "err=" << e << " m0=" << m0 << '\n';
-        #endif
-        
-        if (e > eps[i]) {
-          int k = int(1.1*m0*std::pow(e/eps[i], 1./6));
-          if (k > m0_next) {
-            m0_next = k;
-            ret = true;
+        for (int i = 0; i < 2; ++i) if (b_av[i]) {
+          // best approximation
+          av[i] = t = (16*p[1][i] - p[0][i])/15;
+          
+          // relative error
+          e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
+          
+          #if defined(DEBUG)
+          std::cerr << "err=" << e << " m0=" << m0 << '\n';
+          #endif
+          
+          if (e > eps[i]) {
+            int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
+            if (k > m0_next) {
+              m0_next = k;
+              adjust = true;
+            }
           }
         }
+        
+        if (adjust) m0 = m0_next; else break;
+      
+      } else {
+        // best approximation
+        for (int i = 0; i < 2; ++i) 
+          if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
+        break;
       }
       
-      if (ret) m0 = m0_next;
-            
-    } while (ret && ++it < max_it);
-    
-    if (it >= max_it) {
-      std::cerr 
-        << "roche_area_volume::Volume precision did not converge to target precision\n";
-    }
+      adjust = false;
+      
+    } while (1);
     
   }
    
@@ -903,20 +903,19 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     std::cerr << "Currently not supporting lack of guessed Omega.\n";
     return NULL;
   }
-  
-  const int max_itv = 2;
-  const int m_min = 1 << 9;  // minimal number of points along x-axis
+     
+  const int m_min = 1 << 8;  // minimal number of points along x-axis
     
   int 
     m0 = m_min,  // minimal number of points along x-axis
-    it = 0,      // number of iterations
-    itv;
+    it = 0;      // number of iterations
+
       
   double 
     Omega = Omega0, dOmega, 
-    V[2], xrange[2], p[4][2];
+    V[2], xrange[2], p[2][2];
   
-  bool polish = false, ret;
+  bool polish = false;
   
   #if defined(DEBUG)
   std::cerr.precision(16); 
@@ -924,7 +923,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   #endif
   
   // expected precisions of the integrals
-  double eps = precision/10;
+  double eps = precision/2;
   
   do {
 
@@ -934,58 +933,69 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     }
     
     // adaptive calculation of the volume and its derivative
-    itv = 0;
-    do {
+    bool adjust = true;
     
+    do {
+      
+      #if defined(DEBUG)
+      std::cerr << "it=" << it << '\n';
+      #endif
+       
       // calculate volume and derivate volume w.r.t to Omega
-      for (int i = 0, m = m0; i < 4; ++i, m <<= 1) {
+      for (int i = 0, m = m0; i < 2; ++i, m <<= 1) {
         gen_roche::volume(p[i], 3, xrange, Omega, q, F, delta, m, polish);
+        
         #if defined(DEBUG)
         std::cerr << "V:" <<  p[i][0] << '\t' << p[i][1] << '\n';
         #endif
       }
-      
-      ret = false;
-      
-      // extrapolations based on the expansion
-      // I = I0 + a1 h^4 + a2 h^5 + ...
-      // result should have relative precision better than 1e-12 
-      int m0_next = m0;
-      
-      double e, v;
-      
-      for (int i = 0; i < 2; ++i) {
-      
-        V[i] = (-p[0][i] + 112*p[1][i] - 3584*p[2][i] + 32768*p[3][i])/29295;
-        v = (p[0][i] - 48*p[1][i] + 512*p[2][i])/465;
+     
+      if (adjust) {
         
-        e = std::abs(v/V[i] - 1);
+        // extrapolations based on the expansion
+        // I = I0 + a1 h^4 + a2 h^5 + ...
+        // result should have relative precision better than 1e-12 
         
-        #if defined(DEBUG)
-        std::cerr << "e=" << e << " m0 =" << m0 << '\n';
-        #endif
+        int m0_next = m0;
         
-        if (e > eps) {
-          int k = int(1.1*m0*std::pow(e/eps, 1./6));
-          if (k > m0_next) {
-            m0_next = k;
-            ret = true;
-          }  
+        double e, t;
+        
+        adjust = false;
+        
+        for (int i = 0; i < 2; ++i) {
+          
+          // best estimate
+          V[i] = t = (16*p[1][i] - p[0][i])/15;
+          
+          // relative error
+          e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
+          
+          #if defined(DEBUG)
+          std::cerr << "e=" << e << " m0 =" << m0 << '\n';
+          #endif
+          
+          if (e > eps) {
+            int k = int(1.1*m0*std::pow(e/eps, 0.25));
+            if (k > m0_next) {
+              m0_next = k;
+              adjust = true;
+            }  
+          }
         }
+        
+        if (adjust) m0 = m0_next; else break;
+        
+      } else {
+        // just calculate best estimate, 
+        // as the precision should be adjusted
+        for (int i = 0; i < 2; ++i) V[i] =(16*p[1][i] - p[0][i])/15;
+        break;
       }
       
-      if (ret) m0 = m0_next;
+      adjust = false;
       
-      #if defined(DEBUG)
-      std::cerr << "ret=" << ret << '\n';
-      #endif
-    } while (ret && ++itv <  max_itv); 
-    
-    if (itv >= max_itv) {
-      std::cerr 
-        << "roche_Omega_at_vol:: Volume precision did not converge to target precision\n";
-    }
-    
+    } while (1); 
+        
     Omega -= (dOmega = (V[0] - vol)/V[1]);
     
     #if defined(DEBUG) 
