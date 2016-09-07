@@ -628,7 +628,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     // Calculate area and volume:
     //
 
-    const int m_min = 1 << 8;  // minimal number of points along x-axis
+    const int m_min = 1 << 6;  // minimal number of points along x-axis
     
     int m0 = m_min;            // starting number of points alomg x-axis  
         
@@ -904,13 +904,12 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
      
-  const int m_min = 1 << 8;  // minimal number of points along x-axis
+  const int m_min = 1 << 6;  // minimal number of points along x-axis
     
   int 
     m0 = m_min,  // minimal number of points along x-axis
     it = 0;      // number of iterations
 
-      
   double 
     Omega = Omega0, dOmega, 
     V[2], xrange[2], p[2][2];
