@@ -34,16 +34,31 @@ from .frontend.bundle import Bundle
 from .backend import *
 import utils as utils
 
-# from phoebe.atmospheres.limbdark import download_atm
-
 import dynamics as dynamics
 import distortions as distortions
 import algorithms as algorithms
 import libphoebe
 
-
+# Shortcut to building logger
 def logger(*args, **kwargs):
     """
     shortcut to :func:`utils.get_basic_logger`
     """
     return utils.get_basic_logger(*args, **kwargs)
+
+# Shortcuts to bundle classmethods
+def open(*args, **kwargs):
+    return Bundle.open(*args, **kwargs)
+
+def from_legacy(*args, **kwargs):
+    return Bundle.from_legacy(*args, **kwargs)
+
+def default_star(*args, **kwargs):
+    return Bundle.default_star(*args, **kwargs)
+
+def default_binary(*args, **kwargs):
+    return Bundle.default_binary(*args, **kwargs)
+
+def default_triple(*args, **kwargs):
+    return Bundle.default_triple(*args, **kwargs)
+
