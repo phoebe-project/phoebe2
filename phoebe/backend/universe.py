@@ -712,7 +712,9 @@ class Body(object):
         mesh_peri = mesh.ScaledProtoMesh.from_proto(protomesh, self._scale)
         # NOTE: this mesh is not placed in orbit, but that is fine since we
         # only need to get the volume (scaled)
-        self.volume_at_periastron = mesh_peri.volume
+        # TODO: use new_mesh['volume'] instead
+        self.volume_at_periastron = new_mesh_dict['volume'] #  NOTE: this is the unscaled volume
+        # self.volume_at_periastron = mesh_peri.volume
 
         return
 
@@ -831,7 +833,12 @@ class Body(object):
             # TODO: need to send a better guess for Omega0
             Phi = libphoebe.roche_Omega_at_vol(target_volume,
                                                q, F, d,
-                                               Omega0=Phi)
+                                               Omega0=Phi if Phi>self.Phi else self.Phi)
+            if Phi < self.Phi:
+                # then for some reason we passed the value defined at periastron...
+                # NOTE: this logic may not make sense for dynamical system
+                logger.warning("Pot falling back to value defined at periastron")
+                Phi = self.Phi
 
             # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
             self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
@@ -1422,9 +1429,11 @@ class Star(Body):
         # volumes are stored internally in real units.  So if we want the
         # "protomesh" volume we need to divide by scale^3
         if not scaled:
-            return self.volume_at_periastron/self._scale**3
-        else:
+            # return self.volume_at_periastron/self._scale**3
             return self.volume_at_periastron
+        else:
+            # return self.volume_at_periastron
+            return self.volume_at_periastron*self._scale**3
 
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
