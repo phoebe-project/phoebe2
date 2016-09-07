@@ -123,11 +123,11 @@ namespace gen_roche {
       d3 = d2*delta,
       a = d3*F*F,
       b = a*(1 + q),
-      omega = delta*Omega0,
+      omega = delta*Omega0;
       
-      t = xrange[0]/delta, 
-      dt = (xrange[1] - xrange[0])/(m*delta),
-      y1[dim], y[dim], k[4][dim], w[glq_n];
+    long double 
+      y1[dim], y[dim], k[4][dim], w[glq_n],  
+      t = xrange[0]/delta, dt = (xrange[1] - xrange[0])/(m*delta);
     
     
     //
@@ -792,11 +792,11 @@ template<class T>
       d4 = d2*d2,
       a = d3*F*F,
       b = a*(1 + q),
-      omega = delta*Omega0,
+      omega = delta*Omega0;
       
-      t = xrange[0]/delta, 
-      dt = (xrange[1] - xrange[0])/(m*delta),
-      y1[dim], y[dim], k[4][dim], w[glq_n];
+    long double 
+      y1[dim], y[dim], k[4][dim], w[glq_n],  
+      t = xrange[0]/delta, dt = (xrange[1] - xrange[0])/(m*delta);
     
     
     //

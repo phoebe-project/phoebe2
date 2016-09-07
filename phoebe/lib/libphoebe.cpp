@@ -631,7 +631,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     //
 
     const int m_min = 1 << 9;  // minimal number of points along x-axis
-    const int max_it = 10;     // maximal number of permitted changes of n
+    const int max_it = 2;      // maximal number of permitted changes of n
     
     int it, 
         m0 = m_min;            // starting number of points alomg x-axis  
@@ -681,11 +681,11 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
         e = std::abs(av2/av[i] - 1);
         
         #if defined(DEBUG)
-        std::cerr << "err=" << e << '\n';
+        std::cerr << "err=" << e << " m0=" << m0 << '\n';
         #endif
         
         if (e > eps[i]) {
-          int k = int(m0*std::pow(e/eps[i], 1./6.5));
+          int k = int(1.1*m0*std::pow(e/eps[i], 1./6));
           if (k > m0_next) {
             m0_next = k;
             ret = true;
@@ -904,7 +904,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
   
-  const int max_itv = 10;
+  const int max_itv = 2;
   const int m_min = 1 << 9;  // minimal number of points along x-axis
     
   int 
@@ -962,11 +962,11 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
         e = std::abs(v/V[i] - 1);
         
         #if defined(DEBUG)
-        std::cerr << "e=" << e << '\n';
+        std::cerr << "e=" << e << " m0 =" << m0 << '\n';
         #endif
         
         if (e > eps) {
-          int k = int(m0*std::pow(e/eps, 1./6.5));
+          int k = int(1.1*m0*std::pow(e/eps, 1./6));
           if (k > m0_next) {
             m0_next = k;
             ret = true;
@@ -1007,7 +1007,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   
   return PyFloat_FromDouble(Omega);
 }
-//#undef DEBUG
+#undef DEBUG
 
 /*
   C++ wrapper for Python code:
