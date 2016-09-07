@@ -2,6 +2,7 @@
 from phoebe.parameters import *
 from phoebe.parameters import constraint
 from phoebe import u
+from phoebe import _devel_enabled
 
 # Each of these functions should take component, **kwargs as arguments and
 # return a ParameterSet of parameters to attach to the bundle (meta-data will
@@ -143,6 +144,9 @@ def envelope(component, **kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
+    if not _devel_enabled:
+        raise NotImplementedError("'envelope' component (ie overcontacts) not officially supported for this release.  Enable developer mode to test.")
+
 
     params = []
 

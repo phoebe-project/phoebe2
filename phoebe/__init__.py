@@ -5,6 +5,11 @@ __version__ = '2.0b-devel'
 import os
 import sys
 
+# Check to see whether developer/testing mode is enabled.
+_devel_enabled = os.path.isfile(os.path.expanduser('~/.phoebe_devel_enabled'))
+if _devel_enabled:
+    print("WARNING: developer mode enabled, to disable 'rm ~/.phoebe_devel_enabled' and restart phoebe")
+
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
 if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]))>-1:

@@ -20,6 +20,7 @@ from phoebe.frontend import io
 import libphoebe
 
 from phoebe import u
+from phoebe import _devel_enabled
 
 import logging
 logger = logging.getLogger("BUNDLE")
@@ -188,6 +189,9 @@ class Bundle(ParameterSet):
         :parameter bool as_client: whether to attach in client mode
             (default: True)
         """
+        if not _devel_enabled:
+            raise NotImplementedError("'from_server' not officially supported for this release.  Enable developer mode to test.")
+
         # TODO: run test message on server, if localhost and fails, attempt to
         # launch?
         url = "{}/{}/json".format(server, bundleid)
@@ -316,6 +320,9 @@ class Bundle(ParameterSet):
             the primary component of the outer-orbit
         :return: instantiated :class:`Bundle` object
         """
+        if not _devel_enabled:
+            raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
+
         b = cls()
         b.add_star(component=starA)
         b.add_star(component=starB)
@@ -1060,6 +1067,15 @@ class Bundle(ParameterSet):
                 return False,\
                     'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
+        # check to make sure all stars are aligned (remove this once we support
+        # misaligned roche binaries)
+        for starref in hier.get_meshables():
+            orbitref = hier.get_parent_of(starref)
+            incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
+            incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
+            if incl_star != incl_orbit:
+                return False,\
+                    'misaligned orbits are not currently supported.'
 
         # check length of ld_coeffs vs ld_func
         def ld_coeffs_len(ld_func, ld_coeffs):
