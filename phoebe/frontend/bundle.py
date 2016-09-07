@@ -999,6 +999,7 @@ class Bundle(ParameterSet):
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
                             '{} is overflowing at periastron (L1={L1:.02f}, L2={L2:.02f})'.format(component, **critical_pots)
+
             elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
                 # TODO: implement this check based of fillout factor or crit_pots constrained parameter
@@ -1030,6 +1031,35 @@ class Bundle(ParameterSet):
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
+
+        # we also need to make sure that stars don't overlap each other
+        # so we'll check for each pair of stars (see issue #70 on github)
+        for orbitref in hier.get_orbits():
+            q = self.get_value(qualifier='q', component=orbitref, context='component')
+            ecc = self.get_value(qualifier='ecc', component=orbitref, context='component')
+
+            starrefs = hier.get_children_of(orbitref)
+            comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
+            comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
+            q0 = roche.q_for_component(q, comp0)
+            q1 = roche.q_for_component(q, comp1)
+
+            F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component')
+            F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component')
+
+            pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component')
+            pot0 = roche.pot_for_component(pot0, q0, comp0)
+
+            pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component')
+            pot1 = roche.pot_for_component(pot1, q1, comp1)
+
+            xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0, choice=0)
+            xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1, choice=0)
+
+            if xrange0[1]+xrange1[1] > 1.0-ecc:
+                return False,\
+                    'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
+
 
         # check length of ld_coeffs vs ld_func
         def ld_coeffs_len(ld_func, ld_coeffs):
