@@ -539,7 +539,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             method = ds.method[:-4]
 
             #print "***", dataset, method
-            if method not in ['LC', 'RV']:
+            if method not in ['LC']:
                 continue
 
             for component in ds.components:
