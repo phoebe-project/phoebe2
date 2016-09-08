@@ -285,11 +285,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
-    if add_compute_legacy == True:
-        comid.append('detailed')
-        eb.add_compute('phoebe', compute=comid[0])
     if add_compute_phoebe == True:
-        comid.append('backend')
+        comid.append('phoebe2')
+        eb.add_compute('phoebe', compute=comid[0])
+    if add_compute_legacy == True:
+        comid.append('phoebe1')
         eb.add_compute('legacy', compute=comid[-1])
 
 # load the phoebe file
@@ -548,9 +548,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if val == 1:
                 d['value'] = 'kurucz'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
-            d['compute'] = 'backend'
+            d['compute'] = 'phoebe1'
             eb.set_value(check_relevant=False, **d)
-            d['compute'] = 'detailed'
+            d['compute'] = 'phoebe2'
             d['value'] = 'ck2004'
 #            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
 #            if d['value'] not in atm_choices:
