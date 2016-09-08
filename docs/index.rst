@@ -91,6 +91,10 @@ To download via the [github repository](https://github.com/phoebe-project/phoebe
 Dependencies
 --------------------------------
 
+Note for **mac users**: it is suggested to use homebrew to install a parallel version
+of python (see instructions here: https://joernhees.de/blog/2014/02/25/scientific-python-on-mac-os-x-10-9-with-homebrew/).
+PHOEBE has currently been tested to compile correctly using homebrew on El Capitan.
+
 PHOEBE requires python 2.7+ (not yet fully tested on python 3.x) with the following packages:
 
 * numpy (may need 1.10+)
@@ -106,6 +110,8 @@ And optional packages (used for less commonly used features):
 
 * mpld3 (alternate plotting - devel version only)
 * bokeh (alternate plotting - devel version only)
+
+
 
 Installation
 -------------------------------
