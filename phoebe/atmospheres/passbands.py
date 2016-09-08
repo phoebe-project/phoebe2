@@ -549,45 +549,46 @@ class Passband:
 
     def Inorm(self, Teff=5772., logg=4.43, met=0.0, atm='blackbody'):
         if atm == 'blackbody':
-            return 10**self._log10_Inorm_bb(Teff)
+            retval = 10**self._log10_Inorm_bb(Teff)
         elif atm == 'extern_planckint':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            return 0.1*10**self._log10_Inorm_extern_planckint(Teff)
+            retval = 0.1*10**self._log10_Inorm_extern_planckint(Teff)
         elif atm == 'extern_atmx':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            return 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, met)
+            retval = 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, met)
         elif atm == 'ck2004':
-            return 10**self._log10_Inorm_ck2004(Teff, logg, met)
+            retval = 10**self._log10_Inorm_ck2004(Teff, logg, met)
         else:
-            print('received atm=%s' % atm)
-            raise NotImplementedError
+            raise NotImplementedError('atm={} not supported'.format(atm))
+
+        nanmask = np.isnan(retval)
+        if np.any(nanmask):
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s' % (Teff[nanmask], logg[nanmask], met[nanmask]))
+        return retval
 
     def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
             if atm == 'ck2004':
                 retval = 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
-                nanmask = np.isnan(retval)
-                if np.any(nanmask):
-                    raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
-                return retval
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
+        elif ld_func == 'linear':
+            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_lin(mu, *ld_coeffs)
+        elif ld_func == 'logarithmic':
+            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_log(mu, *ld_coeffs)
+        elif ld_func == 'square_root':
+            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_sqrt(mu, *ld_coeffs)
+        elif ld_func == 'quadratic':
+            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_quad(mu, *ld_coeffs)
+        elif ld_func == 'power':
+            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
+        else:
+            raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
-        #~ if atm == 'ck2004' and ld_coeffs == None:
-            # This means we have to interpolate the tables.
-
-        if ld_func == 'linear':
-            return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_lin(mu, *ld_coeffs)
-        if ld_func == 'logarithmic':
-            return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_log(mu, *ld_coeffs)
-        if ld_func == 'square_root':
-            return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_sqrt(mu, *ld_coeffs)
-        if ld_func == 'quadratic':
-            return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_quad(mu, *ld_coeffs)
-        if ld_func == 'power':
-            return self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
-
-        raise NotImplementedError('ld_func={} not supported'.format(ld_func))
+        nanmask = np.isnan(retval)
+        if np.any(nanmask):
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
+        return retval
 
 def init_passbands():
     """
