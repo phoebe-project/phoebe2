@@ -902,6 +902,99 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
         return d
 
 
+    def fill_mesh(mesh, type, time=None):
+        """
+        Fill phoebe2 mesh with values from phoebe1
+
+        Args:
+            key: Phoebe1 mesh for all time points
+            type: mesh type "protomesh" or "automesh"
+            time: array of times (only applicable for automesh)
+        Returns:
+            None
+
+        Raises:
+            ValueError if the anything other than automesh or protomesh is given for type.
+        """
+        keys = mesh.keys()
+
+        if type == 'protomesh':
+            grx1 = np.array(mesh['grx1'])
+            gry1 = np.array(mesh['gry1'])
+            grz1 = np.array(mesh['grz1'])
+            # TODO: rewrite this to use np.linalg.norm
+            grtot1 = grx1**2+gry1**2+grz1**2
+            grx2 = np.array(mesh['grx2'])
+            gry2 = np.array(mesh['gry2'])
+            grz2 = np.array(mesh['grz2'])
+            grtot2 = grx2**2+gry2**2+grz2**2
+            grtot = [np.sqrt(grtot1),np.sqrt(grtot2)]
+
+        for key in keys:
+            d = ret_dict(key)
+     #       key_values =  np.array_split(mesh[key],n)
+            if type == 'protomesh':
+                # take care of the protomesh
+                prot_val = np.array(mesh[key])#key_values[-1]
+                
+                d['dataset'] = 'protomesh'
+                if 'vcy' or 'gry' in key:
+                    key_val = np.array(zip(prot_val, prot_val, -prot_val, -prot_val, prot_val, prot_val, -prot_val, -prot_val)).flatten()
+                if 'vcz' or 'grz' in key:
+                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, -prot_val, -prot_val, -prot_val, -prot_val)).flatten()
+                else:  
+                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
+                 
+                if key[:2] =='gr':
+                    grtotn = grtot[int(key[-1])-1]
+
+                    grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
+
+                    # normals should be normalized
+                    d['value'] = -key_val /grtotn
+                else:
+                    d['value'] = key_val
+                         #TODO fill the normals column it is just (nx, ny, nz)
+
+                try:
+                    new_syns.set_value(**d)
+                except:
+                    logger.warning('{} has no corresponding value in phoebe 2 protomesh'.format(key))
+
+            elif type == 'automesh':
+                n = len(time)
+                key_values =  np.array_split(mesh[key],n)
+                #TODO change time inserted to time = time[:-1]
+                for t in range(len(time)):
+                # d = ret_dict(key)
+                    d['dataset'] = 'automesh'
+                    if key in ['Inorm1', 'Inorm2']:
+                        d['dataset'] = dataset
+
+                        d['time'] = time[t]
+                        #prepare data
+                        if key[:2] in ['vc', 'gr']:
+                            # I need to change coordinates but not yet done
+                            pass
+
+                            #TODO Change these values so that they are placed in orbit
+
+                        else:
+                            key_val= np.array(key_values[t])
+                            key_val = np.array(zip(key_val, key_val, key_val, key_val, key_val, key_val, key_val, key_val)).flatten()
+
+                            param = new_syns.filter(**d)
+                            if param:
+                                d['value'] = key_val
+                                new_syns.set_value(**d)
+                            else:
+                                logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
+            else:
+                raise ValueError("Only 'automesh' and 'protomesh' are acceptable mesh types.")
+
+
+        return
+
     # check whether phoebe legacy is installed
     if not _use_phb1:
         raise ImportError("phoebeBackend for phoebe legacy not found")
@@ -941,11 +1034,19 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 #    print "info 2-1",  infos[0][1]
 #    print "info 3-1",  infos[0][2]
 #    quit()
+    if store_mesh:
+        time = [perpass]
+        print 'TIME', time
+        phb1.setpar('phoebe_lcno', 1)
+        flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)  
+        fill_mesh(mesh, 'protomesh')
+
     for info in infos:
         info = info[0]
         this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'])
         time = info['time']
         dataset=info['dataset']
+
         if info['method'] == 'LC':
             if not store_mesh:
             # print "*********************", this_syn.qualifiers
@@ -955,80 +1056,82 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                 this_syn['flux'] = flux
 
             else:
-                time = np.append(time, perpass)
+            #    time = np.append(time, perpass)
+            #    print "TIME", time, perpass
                 flux, mesh = phb1.lc(tuple(time.tolist()), 0, lcnum+1)
                 flux = np.array(flux)
             # take care of the lc first
-                this_syn['flux'] = flux[:-1]
+                this_syn['flux'] = flux
 
-
+                fill_mesh(mesh, 'automesh', time=time)
             # now deal with parameters
-                keys = mesh.keys()
-                n = len(time)
+    #            keys = mesh.keys()
+    #            n = len(time)
+
 
             # calculate the normal 'magnitude' for normalizing vectors
-                grx1 = np.array_split(mesh['grx1'],n)[-1]
-                gry1 = np.array_split(mesh['gry1'],n)[-1]
-                grz1 = np.array_split(mesh['grz1'],n)[-1]
-                # TODO: rewrite this to use np.linalg.norm
-                grtot1 = grx1**2+gry1**2+grz1**2
-                grx2 = np.array_split(mesh['grx1'],n)[-1]
-                gry2 = np.array_split(mesh['gry1'],n)[-1]
-                grz2 = np.array_split(mesh['grz1'],n)[-1]
-                grtot2 = grx2**2+gry2**2+grz2**2
-                grtot = [np.sqrt(grtot1),np.sqrt(grtot2)]
-                for key in keys:
-                    key_values =  np.array_split(mesh[key],n)
-                    # take care of the protomesh
-                    prot_val = key_values[-1]
-                    d = ret_dict(key)
-                    d['dataset'] = 'protomesh'
-                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
-                    if key[:2] =='gr':
-                        grtotn = grtot[int(key[-1])-1]
+#                 grx1 = np.array_split(mesh['grx1'],n)[-1]
+#                 gry1 = np.array_split(mesh['gry1'],n)[-1]
+#                 grz1 = np.array_split(mesh['grz1'],n)[-1]
+#                 # TODO: rewrite this to use np.linalg.norm
+#                 grtot1 = grx1**2+gry1**2+grz1**2
+#                 grx2 = np.array_split(mesh['grx1'],n)[-1]
+#                 gry2 = np.array_split(mesh['gry1'],n)[-1]
+#                 grz2 = np.array_split(mesh['grz1'],n)[-1]
+#                 grtot2 = grx2**2+gry2**2+grz2**2
+#                 grtot = [np.sqrt(grtot1),np.sqrt(grtot2)]
+#                 for key in keys:
+#                     key_values =  np.array_split(mesh[key],n)
+#                     # take care of the protomesh
+#                     prot_val = key_values[-1]
+#                     d = ret_dict(key)
+#                     d['dataset'] = 'protomesh'
+#                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
+#                     if key[:2] =='gr':
+#                         grtotn = grtot[int(key[-1])-1]
 
-                        grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
+#                         grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
 
-                        # normals should be normalized
-                        d['value'] = -key_val /grtotn
-                    else:
-                        d['value'] = key_val
-                    #TODO fill the normals column it is just (nx, ny, nz)
+#                         # normals should be normalized
+#                         d['value'] = -key_val /grtotn
+#                     else:
+#                         d['value'] = key_val
+#                     #TODO fill the normals column it is just (nx, ny, nz)
 
-                    try:
-                        new_syns.set_value(**d)
-                    except:
-                        logger.warning('{} has no corresponding value in phoebe 2 protomesh'.format(key))
+#                     try:
+#                         new_syns.set_value(**d)
+#                     except:
+#                         logger.warning('{} has no corresponding value in phoebe 2 protomesh'.format(key))
 
-                    #Normalize the normals that have been put in protomesh
+#                     #Normalize the normals that have been put in protomesh
 
-                    # now take care of automesh time point by time point
-                    for t in range(len(time[:-1])):
-#                        d = ret_dict(key)
-                        d['dataset'] = 'automesh'
-                        if key in ['Inorm1', 'Inorm2']:
-                            d['dataset'] = dataset
+#                     # now take care of automesh time point by time point
+#                     for t in range(len(time[:-1])):
+# #                        d = ret_dict(key)
+#                         d['dataset'] = 'automesh'
+#                         if key in ['Inorm1', 'Inorm2']:
+#                             d['dataset'] = dataset
 
-                        d['time'] = time[t]
-                    #prepare data
-                        if key[:2] in ['vc', 'gr']:
-                            # I need to change coordinates but not yet done
-                            pass
+#                         d['time'] = time[t]
+#                     #prepare data
+#                         if key[:2] in ['vc', 'gr']:
+#                             # I need to change coordinates but not yet done
+#                             pass
 
-                            #TODO Change these values so that they are placed in orbit
+#                             #TODO Change these values so that they are placed in orbit
 
-                        else:
-                            key_val= key_values[t]
-                            key_val = np.array(zip(key_val, key_val, key_val, key_val, key_val, key_val, key_val, key_val)).flatten()
+#                         else:
+#                             key_val= key_values[t]
+#                             key_val = np.array(zip(key_val, key_val, key_val, key_val, key_val, key_val, key_val, key_val)).flatten()
 
-                            param = new_syns.filter(**d)
-                            if param:
-                                d['value'] = key_val
-                                new_syns.set_value(**d)
-                            else:
-                                logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
+#                             param = new_syns.filter(**d)
+#                             if param:
+#                                 d['value'] = key_val
+#                                 new_syns.set_value(**d)
+#                             else:
+#                                 logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
 
-                time = time[:-1]
+#                 time = time[:-1]
 
         elif info['method'] == 'RV':
 #            print "SYN", this_syn
