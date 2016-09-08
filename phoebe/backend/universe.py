@@ -828,17 +828,17 @@ class Body(object):
             logger.info("volume conservation: target_volume={}".format(target_volume))
 
 
-            # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi
+            # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi, self.Phi
 
             # TODO: need to send a better guess for Omega0
             Phi = libphoebe.roche_Omega_at_vol(target_volume,
                                                q, F, d,
                                                Omega0=Phi if Phi>self.Phi else self.Phi)
-            if Phi < self.Phi:
+            # if Phi < self.Phi:
                 # then for some reason we passed the value defined at periastron...
                 # NOTE: this logic may not make sense for dynamical system
-                logger.warning("Pot falling back to value defined at periastron")
-                Phi = self.Phi
+                # logger.warning("Pot falling back to value defined at periastron")
+                # Phi = self.Phi
 
             # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
             self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
