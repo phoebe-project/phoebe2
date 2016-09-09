@@ -1230,6 +1230,7 @@ class ParameterSet(object):
 
         """
         kwargs['check_visible'] = check_visible
+        kwargs['check_default'] = check_default
         # print "***", kwargs
         ps = self.filter(twig=twig, **kwargs)
         if not len(ps):
