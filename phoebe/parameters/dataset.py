@@ -50,9 +50,6 @@ def lc_syn(syn=True, **kwargs):
     return ParameterSet(syn_params), constraints
 
 def lc_dep(is_lc=True, **kwargs):
-    # TODO: take component_methods as argument so that LC can copy_for envelope but RV can skip
-    # TODO: RV doesn't need pbscale, l3, or exptime
-
     dep_params = []
 
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
@@ -60,8 +57,8 @@ def lc_dep(is_lc=True, **kwargs):
     passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
     if is_lc:
-        dep_params += [ChoiceParameter(qualifier='pbscale', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pbscale', ''), choices=['pblum', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or the scaling from another component in the system')]
-        dep_params += [FloatParameter(relevant_if='pbscale:pblum', qualifier='pblum', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
+        dep_params += [FloatParameter(qualifier='pblum', relevant_if='pblum_ref:self', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
         dep_params += [FloatParameter(qualifier='l3', value=kwargs.get('l3', 0.), default_unit=u.W/u.m**3, description='Third light')]
 
     # dep_params += [FloatParameter(qualifier='alb', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]

@@ -793,15 +793,15 @@ class Bundle(ParameterSet):
 
         # Handle choice parameters that need components as choices
         meshablerefs = hier_param.get_meshables()  # TODO: consider for overcontacts
-        for param in self.filter(qualifier='pbscale',
+        for param in self.filter(qualifier='pblum_ref',
                                  context='dataset').to_list():
-            param._choices = ['pblum'] + meshablerefs
+            param._choices = ['self'] + meshablerefs
             if param.value == '':
                 # then this was the default from the parameter itself, so we
                 # want to set it to be pblum if its the "primary" star, and
                 # otherwise point to the primary star
                 if param.component == meshablerefs[0]:
-                    param.set_value('pblum')
+                    param.set_value('self')
                 else:
                     param.set_value(meshablerefs[0])
 
@@ -1633,7 +1633,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('time', [0.])
 
 
-        # pbscale/pblum defaults depend on the hierarchy, calling set_hierarchy
+        # pblum_ref/pblum defaults depend on the hierarchy, calling set_hierarchy
         # will handle these
         # TODO: should this happen before kwargs?
         # TODO: can we avoid rebuilding ALL the constraints when we call this?

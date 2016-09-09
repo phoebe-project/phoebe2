@@ -557,13 +557,12 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
-            pbscale_copy = {}
+            pblum_copy = {}
             for component in meshablerefs:
                 if component=='_default':
                     continue
-                #print "*** pbscale", component, dataset
-                pbscale = b.get_value(qualifier='pbscale', component=component, dataset=dataset, context='dataset')
-                if pbscale=='pblum':
+                pblum_ref = b.get_value(qualifier='pblum_ref', component=component, dataset=dataset, context='dataset')
+                if pblum_ref=='self':
                     pblum = b.get_value(qualifier='pblum', component=component, dataset=dataset, context='dataset')
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_relevant=False)
@@ -574,11 +573,11 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                     # in the system.  We'll just store this now so that we make sure the
                     # component we're copying from has a chance to compute its scale
                     # first.
-                    pbscale_copy[component] = pbscale
+                    pblum_copy[component] = pblum_ref
 
 
             # now let's copy all the scales for those that are just referencing another component
-            for comp, comp_copy in pbscale_copy.items():
+            for comp, comp_copy in pblum_copy.items():
                 system.get_body(comp)._pblum_scale[dataset] = system.get_body(comp_copy).get_pblum_scale(dataset)
 
 
@@ -936,15 +935,15 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
             if type == 'protomesh':
                 # take care of the protomesh
                 prot_val = np.array(mesh[key])#key_values[-1]
-                
+
                 d['dataset'] = 'protomesh'
                 if 'vcy' or 'gry' in key:
                     key_val = np.array(zip(prot_val, prot_val, -prot_val, -prot_val, prot_val, prot_val, -prot_val, -prot_val)).flatten()
                 if 'vcz' or 'grz' in key:
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, -prot_val, -prot_val, -prot_val, -prot_val)).flatten()
-                else:  
+                else:
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
-                 
+
                 if key[:2] =='gr':
                     grtotn = grtot[int(key[-1])-1]
 
@@ -1038,7 +1037,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
         time = [perpass]
         print 'TIME', time
         phb1.setpar('phoebe_lcno', 1)
-        flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)  
+        flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)
         fill_mesh(mesh, 'protomesh')
 
     for info in infos:
@@ -1532,7 +1531,7 @@ def jktebop(b, compute, time=[], **kwargs):
         try:
             pblum = sum([b.get_value('pblum', dataset=info['dataset'], component=starref, context='dataset') for starref in starrefs])  # TODO: supposed to be in mags?
         except:
-            raise ValueError("jktebop backend currently only supports decoupled pblums (b.set_value_all('pbscale', 'pblum'))")
+            raise ValueError("jktebop backend currently only supports decoupled pblums (b.set_value_all('pblum_ref', 'self'))")
 
         logger.warning("pblum in jktebop is sum of pblums (per-component): {}".format(pblum))
         pblum = -2.5 * np.log10(pblum) + 0.0
