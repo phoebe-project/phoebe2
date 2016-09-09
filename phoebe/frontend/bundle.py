@@ -2363,10 +2363,10 @@ class Bundle(ParameterSet):
                     # Once they do, this ugly if statement can be removed
                     if len(self.filter(dataset=dataset, qualifier='exptime')):
                         if self.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0:
-                            if self.get_value(qualifier='exposure_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
+                            if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
                                 times_ds = self.get_value(qualifier='time', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                                exp_oversample = self.get_value(qualifier='exposure_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
+                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
                                 # NOTE: this is hardcoded for LCs which is the
                                 # only dataset that currently supports oversampling,
                                 # but this will need to be generalized if/when
@@ -2374,7 +2374,7 @@ class Bundle(ParameterSet):
                                 fluxes = np.zeros(times_ds.shape)
                                 fluxes_oversampled = params.get_value('flux', dataset=dataset)
                                 for i,t in enumerate(times_ds):
-                                    sample_inds = np.arange(i*exp_oversample, (i+1)*exp_oversample, 1)
+                                    sample_inds = np.arange(i*fti_oversample, (i+1)*fti_oversample, 1)
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
                                 params.set_value(qualifier='time', dataset=dataset, value=times_ds)
                                 params.set_value(qualifier='flux', dataset=dataset, value=fluxes)

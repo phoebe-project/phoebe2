@@ -120,7 +120,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
             if allow_oversample and \
                     obs_ps.method in ['LC'] and \
                     b.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0 and \
-                    b.get_value(qualifier='exposure_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
+                    b.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset
                 # with the oversampled times.  Later we'll do an average over
@@ -129,7 +129,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
                 # if we want to allow more flexibility, we'll need a parameter
                 # that gives this option and different logic for each case.
                 exptime = b.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                exp_oversample = b.get_value(qualifier='exposure_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
+                exp_oversample = b.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., exp_oversample) for t in this_times]).flatten()
 
             if len(this_times):
