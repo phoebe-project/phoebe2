@@ -105,7 +105,7 @@ _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
-                      'unit', 'timederiv', 'relevant_if', 'description']
+                      'unit', 'timederiv', 'visible_if', 'description']
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'automesh']
 _forbidden_labels += ['component']
@@ -675,7 +675,7 @@ class ParameterSet(object):
         :return: the unique twig
         :rtype: str
         """
-        for_this_param = self.filter(twig, check_relevant=False)
+        for_this_param = self.filter(twig, check_visible=False)
 
         metawargs = {}
 
@@ -696,7 +696,7 @@ class ParameterSet(object):
             if getattr(for_this_param, k) is None:
                 continue
 
-            ps_for_this_search = self.filter(check_relevant=False, **metawargs)
+            ps_for_this_search = self.filter(check_visible=False, **metawargs)
 
             if len(ps_for_this_search) < prev_count and k not in force_levels:
                 prev_count = len(ps_for_this_search)
@@ -715,7 +715,7 @@ class ParameterSet(object):
             if metawargs[k] is None or k in force_levels:
                 continue
 
-            ps_for_this_search = self.filter(check_relevant=False,
+            ps_for_this_search = self.filter(check_visible=False,
                                              **{ki: metawargs[k]
                                                 for ki in _meta_fields_twig
                                                 if ki != k})
@@ -778,7 +778,7 @@ class ParameterSet(object):
                 # attrs is a list of the attributes for which we need a copy of
                 # this parameter for any pair
 
-                ps = self._bundle.filter(check_relevant=False, force_ps=True, **param.copy_for)
+                ps = self._bundle.filter(check_visible=False, force_ps=True, **param.copy_for)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
                     if k not in ['twig', 'uniquetwig'] and k not in attrs:
@@ -799,7 +799,7 @@ class ParameterSet(object):
                         #    continue
                         metawargs[attr] = attrvalue
 
-                    if not len(self._bundle.filter(check_relevant=False, **metawargs)):
+                    if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
                         logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
@@ -809,8 +809,8 @@ class ParameterSet(object):
                             setattr(newparam, '_{}'.format(attr), attrvalue)
 
                         newparam._copy_for = False
-                        if newparam._relevant_if and newparam._relevant_if.lower() == 'false':
-                            newparam._relevant_if = None
+                        if newparam._visible_if and newparam._visible_if.lower() == 'false':
+                            newparam._visible_if = None
                         newparam._bundle = self._bundle
 
                         self._params.append(newparam)
@@ -823,7 +823,7 @@ class ParameterSet(object):
 
                         param_constraint = param.is_constraint
 
-                        copied_param = self._bundle.get_parameter(check_relevant=False, **metawargs)
+                        copied_param = self._bundle.get_parameter(check_visible=False, **metawargs)
 
                         if not copied_param.is_constraint:
                             constraint_kwargs = param_constraint.constraint_kwargs.copy()
@@ -847,7 +847,7 @@ class ParameterSet(object):
                              .format(label))
         if not re.match("^[a-z,A-Z,0-9,_]*$", label):
             raise ValueError("label '{}' is forbidden - only alphabetic, numeric, and '_' characters are allowed in labels".format(label))
-        if len(self.filter(twig=label, check_relevant=False)):
+        if len(self.filter(twig=label, check_visible=False)):
             raise ValueError("label '{}' is already in use".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
@@ -1004,7 +1004,7 @@ class ParameterSet(object):
             keys_for_this_field = set([getattr(p, field)
                                        for p in self.to_list()
                                        if getattr(p, field) is not None])
-            return {k: self.filter(check_relevant=False, **{field: k}) for k in keys_for_this_field}
+            return {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
 
         # we want to find the first level (from the bottom) in which filtering
         # further would shorten the list (ie there are more than one unique
@@ -1022,7 +1022,7 @@ class ParameterSet(object):
             # those keys and the ParameterSet of the matching items
             if len(keys_for_this_field) > 1:
                 self._next_field = field
-                return {k: self.filter(check_relevant=False, **{field: k})
+                return {k: self.filter(check_visible=False, **{field: k})
                         for k in keys_for_this_field}
 
         # if we've survived, then we're at the bottom and only have times or
@@ -1161,11 +1161,11 @@ class ParameterSet(object):
         for context in _contexts:
             lst += [v.to_json(incl_uniqueid=incl_uniqueid)
                     for v in self.filter(context=context,
-                                         check_relevant=False).to_list()]
+                                         check_visible=False).to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
-    def filter(self, twig=None, check_relevant=True, check_default=True, **kwargs):
+    def filter(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
         Filter the ParameterSet based on the meta-tags of the Parameters
         and return another ParameterSet.
@@ -1180,7 +1180,7 @@ class ParameterSet(object):
                 into any of the meta-tags.  Example: instead of
                 b.filter(context='component', component='starA'), you
                 could do b.filter('starA@component').
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
@@ -1193,12 +1193,12 @@ class ParameterSet(object):
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`ParameterSet`
         """
-        kwargs['check_relevant'] = check_relevant
+        kwargs['check_visible'] = check_visible
         kwargs['check_default'] = check_default
         kwargs['force_ps'] = True
         return self.filter_or_get(twig=twig, **kwargs)
 
-    def get(self, twig=None, check_relevant=True, check_default=True, **kwargs):
+    def get(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
         Get a single parameter from this ParameterSet.  This works exactly the
         same as filter except there must be only a single result, and the Parameter
@@ -1211,7 +1211,7 @@ class ParameterSet(object):
                 into any of the meta-tags.  Example: instead of
                 b.filter(context='component', component='starA'), you
                 could do b.filter('starA@component').
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
@@ -1227,7 +1227,7 @@ class ParameterSet(object):
                 matching the search.
 
         """
-        kwargs['check_relevant'] = check_relevant
+        kwargs['check_visible'] = check_visible
         # print "***", kwargs
         ps = self.filter(twig=twig, **kwargs)
         if not len(ps):
@@ -1241,7 +1241,7 @@ class ParameterSet(object):
             return ps._params[0]
 
     def filter_or_get(self, twig=None, autocomplete=False, force_ps=False,
-                      check_relevant=True, check_default=True, **kwargs):
+                      check_visible=True, check_default=True, **kwargs):
         """
 
         Filter the :class:`ParameterSet` based on the meta-tags of its
@@ -1265,7 +1265,7 @@ class ParameterSet(object):
                 This is helpful if you want to write generic code
                 that chains filter calls (since Parameter does not have
                 a filter method).
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
@@ -1288,7 +1288,7 @@ class ParameterSet(object):
             kwargs['twig'] = twig
             kwargs['autocomplete'] = autocomplete
             kwargs['force_ps'] = force_ps
-            kwargs['check_relevant'] = check_relevant
+            kwargs['check_visible'] = check_visible
             kwargs['check_default'] = check_default
             return_ = ParameterSet()
             for t in time:
@@ -1317,9 +1317,9 @@ class ParameterSet(object):
                     (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
-        # handle relevant_if
-        if check_relevant:
-            params = [pi for pi in params if pi.is_relevant]
+        # handle visible_if
+        if check_visible:
+            params = [pi for pi in params if pi.is_visible]
 
         # handle hiding _default
         if check_default:
@@ -1419,14 +1419,14 @@ class ParameterSet(object):
                     ps._filter[attr] = tag
         return ps
 
-    def exclude(self, twig=None, check_relevant=True, **kwargs):
+    def exclude(self, twig=None, check_visible=True, **kwargs):
         """
         Exclude the results from this filter from the current ParameterSet.
 
         See :meth:`filter` for options.
         """
         return self - self.filter(twig=twig,
-                                  check_relevant=check_relevant,
+                                  check_visible=check_visible,
                                   **kwargs)
 
     def get_parameter(self, twig=None, **kwargs):
@@ -1438,7 +1438,7 @@ class ParameterSet(object):
                 into any of the meta-tags.  Example: instead of
                 b.filter(context='component', component='starA'), you
                 could do b.filter('starA@component').
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
@@ -2705,10 +2705,10 @@ class Parameter(object):
         :parameter copy_for: (optional) dictionary of filter arguments for which this
             parameter must be copied (use with caution)
         :type copy_for: dict or False
-        :parameter str relevant_if: (optional) string to check the value of another
+        :parameter str visible_if: (optional) string to check the value of another
             parameter holding the same meta-tags (except qualifier) to determine
-            whether this parameter is relevant and therefore shown in filters
-            (example: relevant_if='otherqualifier:True')
+            whether this parameter is visible and therefore shown in filters
+            (example: visible_if='otherqualifier:True')
         """
 
         uniqueid = kwargs.get('uniqueid', _uniqueid())
@@ -2740,9 +2740,9 @@ class Parameter(object):
         # the bundle.
         self._copy_for = kwargs.get('copy_for', False)
 
-        self._relevant_if = kwargs.get('relevant_if', None)
+        self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -2794,8 +2794,8 @@ class Parameter(object):
             str_ += "{:>32}: {}\n".format("Constrains", ", ".join([p.uniquetwig for p in self.constrains]) if len(self.constrains) else 'None')
         if hasattr(self, 'related_to'):
             str_ += "{:>32}: {}\n".format("Related to", ", ".join([p.uniquetwig for p in self.related_to]) if len(self.related_to) else 'None')
-        if self.relevant_if is not None:
-            str_ += "{:>32}: {}\n".format("Only relevant if", self.relevant_if)
+        if self.visible_if is not None:
+            str_ += "{:>32}: {}\n".format("Only visible if", self.visible_if)
 
         return str_
 
@@ -2868,7 +2868,7 @@ class Parameter(object):
     def __setitem__(self, key, value):
         """
         """
-        # TODO: don't allow changing things like relevant_if or description here?
+        # TODO: don't allow changing things like visible_if or description here?
         raise NotImplementedError
 
     def to_json(self, incl_uniqueid=False):
@@ -3080,27 +3080,27 @@ class Parameter(object):
         return "@".join([getattr(self, k) for k in _meta_fields_twig if getattr(self, k) is not None])
 
     @property
-    def relevant_if(self):
+    def visible_if(self):
         """
-        :return: the relevant_if expression for this Parameter
+        :return: the visible_if expression for this Parameter
         """
-        return self._relevant_if
+        return self._visible_if
 
     @property
-    def is_relevant(self):
+    def is_visible(self):
         """
-        see also :meth:`relevant_if`
+        see also :meth:`visible_if`
 
-        :return: whether this parameter is currently relevant (and
+        :return: whether this parameter is currently visible (and
             therefore shown in ParameterSets and visible to :meth:`ParameterSet.filter`)
         :rtype: bool
         """
-        def is_relevant_single(relevant_if):
-            if relevant_if.lower() == 'false':
+        def is_visible_single(visible_if):
+            if visible_if.lower() == 'false':
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
-            qualifier, value = relevant_if.split(':')
+            qualifier, value = visible_if.split(':')
 
             if 'hierarchy.' in qualifier:
                 # TODO: set specific syntax (hierarchy.get_meshables:2)
@@ -3133,12 +3133,12 @@ class Parameter(object):
                     # metawargs['component'] = None
 
                 try:
-                    param = self._bundle.get_parameter(check_relevant=False, **metawargs)
+                    param = self._bundle.get_parameter(check_visible=False, **metawargs)
                 except ValueError:
                     # let's not let this hold us up - sometimes this can happen when copying
-                    # parameters (from copy_for) in order that the relevant_if parameter
+                    # parameters (from copy_for) in order that the visible_if parameter
                     # happens later
-                    logger.debug("parameter not found when trying to determine if relevant, {}".format(metawargs))
+                    logger.debug("parameter not found when trying to determine if visible, {}".format(metawargs))
                     return True
 
                 #~ print "***", qualifier, param.qualifier, param.get_value(), value
@@ -3156,14 +3156,14 @@ class Parameter(object):
                     return param.get_value() == value
 
 
-        if self.relevant_if is None:
+        if self.visible_if is None:
             return True
 
         if not self._bundle:
             # then we may not be able to do the check, for now let's just return True
             return True
 
-        return np.all([is_relevant_single(relevant_if_i) for relevant_if_i in self.relevant_if.split(',')])
+        return np.all([is_visible_single(visible_if_i) for visible_if_i in self.visible_if.split(',')])
 
 
 
@@ -3431,7 +3431,7 @@ class StringParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if']
+        self._dict_fields_other = ['description', 'value', 'visible_if']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3476,7 +3476,7 @@ class TwigParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -3535,7 +3535,7 @@ class ChoiceParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -3580,7 +3580,7 @@ class BoolParameter(Parameter):
 
         self.set_value(kwargs.get('value', True))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3620,7 +3620,7 @@ class DictParameter(Parameter):
 
         self.set_value(kwargs.get('value', {}))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3659,7 +3659,7 @@ class IntParameter(Parameter):
 
         self.set_value(kwargs.get('value', 1))
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -3751,7 +3751,7 @@ class FloatParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), unit)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'relevant_if', 'copy_for', 'timederiv'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'timederiv'] # TODO: add adjust?  or is that a different subclass?
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -4111,7 +4111,7 @@ class FloatArrayParameter(FloatParameter):
 
         self.set_value(kwargs.get('value', []), unit)
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -4265,7 +4265,7 @@ class ArrayParameter(Parameter):
 
         self.set_value(kwargs.get('value', []))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -4434,7 +4434,7 @@ class HierarchyParameter(StringParameter):
     def _get_structure_and_trace(self, component):
         """
         """
-        obj = self._bundle.filter(component=component, context='component', check_relevant=False)
+        obj = self._bundle.filter(component=component, context='component', check_visible=False)
         our_item = '{}:{}'.format(obj.method, component)
 
 
@@ -4724,8 +4724,8 @@ class ConstraintParameter(Parameter):
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
-    def is_relevant(self):
-        return self.constrained_parameter.is_relevant
+    def is_visible(self):
+        return self.constrained_parameter.is_visible
 
     @property
     def constraint_func(self):
@@ -4783,9 +4783,9 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, method=self.method, model=self.model, check_relevant=False) - self._bundle.filter(context='constraint', check_relevant=False)
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, method=self.method, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter(check_relevant=False)
+                constrained_parameter = ps.get_parameter(check_visible=False)
             else:
                 raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
 
@@ -4809,7 +4809,7 @@ class ConstraintParameter(Parameter):
     def get_constrained_parameter(self):
         """
         """
-        return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_relevant=False)
+        return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_visible=False)
 
     def get_parameter(self, twig=None, **kwargs):
         """
@@ -4818,7 +4818,7 @@ class ConstraintParameter(Parameter):
         kwargs['twig'] = twig
         ps = self.vars.filter(**kwargs)
         if len(ps)==1:
-            return ps.get(check_relevant=False)
+            return ps.get(check_visible=False)
         elif len(ps) > 1:
             # TODO: is this safe?  Some constraints may have a parameter listed
             # twice, so we can do this then, but maybe should check to make sure

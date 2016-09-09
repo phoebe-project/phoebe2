@@ -1304,8 +1304,8 @@ class Star(Body):
         # F we can get now
         # Phi we can get now
 
-        self_ps = b.filter(component=component, context='component', check_relevant=False)
-        F = self_ps.get_value('syncpar', check_relevant=False) # not relevant for single stars... but doesn't hurt to load
+        self_ps = b.filter(component=component, context='component', check_visible=False)
+        F = self_ps.get_value('syncpar', check_visible=False) # not relevant for single stars... but doesn't hurt to load
         Phi = self_ps.get_value('pot')
         freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
         # NOTE: we need F for roche geometry (marching, reprojection), but freq_rot for ctrans.place_in_orbit and rotstar.marching
@@ -1333,7 +1333,7 @@ class Star(Body):
         # frac_scatt = b.get_value('frac_scatt_bol', component=component, context='component')
 
         try:
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_relevant=False, **kwargs) if compute is not None else False
+            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
@@ -2173,7 +2173,7 @@ class Envelope(Body):
 
         try:
             # TODO: will the rv_grav parameter ever be copied for the envelope?
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_relevant=False, **kwargs) if compute is not None else False
+            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False

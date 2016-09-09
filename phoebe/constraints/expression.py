@@ -87,7 +87,7 @@ class ConstraintVar(object):
         if not self.is_param:
             raise ValueError("this var does not point to a parameter")
 
-        return self._bundle.get_parameter(uniqueid=self.unique_label, check_relevant=False)
+        return self._bundle.get_parameter(uniqueid=self.unique_label, check_visible=False)
 
     def get_quantity(self, units=None, t=None):
         """

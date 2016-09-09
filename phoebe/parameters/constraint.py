@@ -19,7 +19,7 @@ def _get_system_ps(b, item):
     if isinstance(item, ParameterSet):
         return item
     elif isinstance(item, str):
-        return b.filter(item, context='component', check_relevant=False)
+        return b.filter(item, context='component', check_visible=False)
     else:
         raise NotImplementedError
 

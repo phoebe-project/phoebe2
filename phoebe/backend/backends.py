@@ -407,7 +407,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     :return: a list of new synthetic :class:`phoebe.parameters.parameters.ParameterSet`s
     """
 
-    computeparams = b.get_compute(compute, force_ps=True, check_relevant=False)
+    computeparams = b.get_compute(compute, force_ps=True, check_visible=False)
     hier = b.get_hierarchy()
 
     starrefs  = hier.get_stars()
@@ -565,7 +565,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 if pblum_ref=='self':
                     pblum = b.get_value(qualifier='pblum', component=component, dataset=dataset, context='dataset')
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
-                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_relevant=False)
+                    ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
                     system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs)
                 else:

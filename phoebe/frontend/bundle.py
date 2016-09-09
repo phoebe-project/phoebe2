@@ -547,7 +547,7 @@ class Bundle(ParameterSet):
         """
 
         kwargs['context'] = context
-        params = len(getattr(self.filter(check_relevant=False,**kwargs), '{}s'.format(context)))
+        params = len(getattr(self.filter(check_visible=False,**kwargs), '{}s'.format(context)))
 
         return "{}{:02d}".format(base, params+1)
 
@@ -1095,7 +1095,7 @@ class Bundle(ParameterSet):
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
             ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component')
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_relevant=False)
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
@@ -1103,7 +1103,7 @@ class Bundle(ParameterSet):
                 if dataset=='_default' or self.get_dataset(dataset=dataset).method not in ['LC', 'RV']:
                     continue
                 ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_relevant=False)
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
                 check = ld_coeffs_len(ld_func, ld_coeffs)
                 if not check[0]:
                     return check
@@ -1646,7 +1646,7 @@ class Bundle(ParameterSet):
                                        dataset=kwargs['dataset'],
                                        component=component,
                                        value=value,
-                                       check_relevant=False,
+                                       check_visible=False,
                                        ignore_none=True)
             else:
                 if components == [None]:
@@ -1660,7 +1660,7 @@ class Bundle(ParameterSet):
                                    dataset=kwargs['dataset'],
                                    component=components_,
                                    value=v,
-                                   check_relevant=False,
+                                   check_visible=False,
                                    ignore_none=True)
 
 

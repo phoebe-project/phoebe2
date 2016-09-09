@@ -187,7 +187,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, dir='./'):
 
 
 
-#    dataset.set_value(check_relevant=False, **d)
+#    dataset.set_value(check_visible=False, **d)
 
     return d
 
@@ -390,7 +390,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         del lc_dict['phoebe_lc_active']
 
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
-        eb.set_value_all(check_relevant= False, **d)
+        eb.set_value_all(check_visible= False, **d)
 
     #get available passbands
 
@@ -407,7 +407,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
-                eb.set_value_all(check_relevant=False, **d)
+                eb.set_value_all(check_visible=False, **d)
 
 #Now RVs
     for x in range(1,rvno+1):
@@ -449,7 +449,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         del rv_dict['phoebe_rv_active']
 
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
-        eb.set_value_all(check_relevant= False, **d)
+        eb.set_value_all(check_visible= False, **d)
 
     #get available passbands and set
 
@@ -457,14 +457,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         pnew, d = ret_dict('phoebe_rv_filter', rv_dict['phoebe_rv_filter'], dataid=dataid)
         if d['qualifier'] == 'passband' and d['value'] not in choices:
                 d['value'] = 'Johnson:V'
-        eb.set_value_all(check_relevant= False, **d)
+        eb.set_value_all(check_visible= False, **d)
         del rv_dict['phoebe_rv_filter']
 # now go through parameters and input the results into phoebe2
         for k  in rv_dict:
 
             pnew, d = ret_dict(k, rv_dict[k], rvdep = comp, dataid=dataid)
             if len(d) > 0:
-                eb.set_value_all(check_relevant= False, **d)
+                eb.set_value_all(check_visible= False, **d)
 
 # And finally spots
 
@@ -501,7 +501,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 if d['qualifier'] != 'relteff':
                     d['unit'] = spot_unit
                 # print "dictionary", d
-                eb.set_value_all(check_relevant= False, **d)
+                eb.set_value_all(check_visible= False, **d)
 
 
 
@@ -516,7 +516,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['value'] = val[0].lower()+val[1::]
             # since ld_coeffs is dataset specific make sure there is at least one dataset
             if lcno != 0 or rvno != 0:
-                eb.set_value_all(check_relevant=False, **d)
+                eb.set_value_all(check_visible=False, **d)
             #now change to take care of bolometric values
             d['qualifier'] = d['qualifier']+'_bol'
         if pnew == 'pot':
@@ -549,7 +549,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 d['value'] = 'kurucz'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
             d['compute'] = 'phoebe1'
-            eb.set_value(check_relevant=False, **d)
+            eb.set_value(check_visible=False, **d)
             d['compute'] = 'phoebe2'
             d['value'] = 'ck2004'
 #            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
@@ -560,14 +560,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         elif pnew == 'finesize':
                     # set gridsize
             d['value'] = val
-            eb.set_value_all(check_relevant=False, **d)
+            eb.set_value_all(check_visible=False, **d)
             # change parameter and value to delta
             val = 10**(-0.98359345*np.log10(np.float(val))+0.4713824)
             d['qualifier'] = 'delta'
             d['value'] = val
         if len(d) > 0:
             # print d
-            eb.set_value_all(check_relevant=False, **d)
+            eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
 
@@ -1077,7 +1077,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
 #loop through LEGACY compute parameter set
 
-    comquals = eb.get_compute(method='legacy', check_relevant=False)-eb.get_compute(method='legacy', component='_default')
+    comquals = eb.get_compute(method='legacy', check_visible=False)-eb.get_compute(method='legacy', component='_default')
 
     for param in comquals.to_list():
 

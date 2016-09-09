@@ -36,8 +36,8 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
     """
 
-    computeps = b.get_compute(compute, check_relevant=False, force_ps=True)
-    ltte = computeps.get_value('ltte', check_relevant=False, **kwargs)
+    computeps = b.get_compute(compute, check_visible=False, force_ps=True)
+    ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
 
     # make sure times is an array and not a list
     times = np.array(times)
