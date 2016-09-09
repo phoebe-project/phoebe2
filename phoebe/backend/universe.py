@@ -1324,7 +1324,7 @@ class Star(Body):
             is_single = True
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        gravb_law = b.get_value('gravblaw', component=component, context='component')
+        gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
         gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         abun = b.get_value('abun', component=component, context='component')
@@ -2152,7 +2152,7 @@ class Envelope(Body):
         ecc = b.get_value('ecc', component=label_orbit, context='component')
 
         #teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        #gravb_law = b.get_value('gravblaw', component=component, context='component')
+        #gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
         #gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         teff1 = b.get_value('teff', component=starrefs[0], context='component', unit=u.K)
@@ -2164,8 +2164,8 @@ class Envelope(Body):
         gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
         gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
 
-        gravb_law = b.get_value('gravblaw', component=starrefs[0], context='component')
-        #gravb_law2 = b.get_value('gravblaw', component=starrefs[0], context='component')
+        gravb_law = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
+        #gravb_law2 = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
 
         abun = b.get_value('abun', component=component, context='component')
         #alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
