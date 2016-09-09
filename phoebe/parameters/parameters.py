@@ -2907,6 +2907,17 @@ class Parameter(object):
         return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity'] and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
 
     @property
+    def attributes(self):
+        """
+        """
+        return self._dict_fields_other
+
+    def get_attributes(self):
+        """
+        """
+        return self.attributes
+
+    @property
     def meta(self):
         """
         See all the meta-tag properties for this Parameter
