@@ -4056,7 +4056,8 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
 /*
   C++ wrapper for Python code:
 
-  Determining the square 3D grid for Roche lobe:
+  Rastering of Roche lobes -- determining a square 3D grid inside a
+  Roche lobe with points/vertices determined by formula
       
     vec{r}(i_1,i_2,i_3) = vec{r}_0 + (L_1 i_1, L_2 i_2, L_3 i_3)
     
@@ -4090,13 +4091,13 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
       
   Return: a dictionary with keyword
   
-    bmask: binary mask
-      b_0, .., b_{size-1}         size = N_0, N_1, N_2
+    bmask: 3-rank numpy array of uint8, representing binary mask
+      b[i1,i2,i3] in {0,1}  
+        b == 1: point means that a point is in Roche lobe
+        b == 0: othewise
+      and indices are
+        i_k in [0, N_k -1]
       
-      b_index in {0,1}
-      
-      index(i_1, i_2, i_3)  = i_1*N2*N3 + i2*N3 + i3
-    
     bbox:
       2-rank numpy array of float = [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
   
