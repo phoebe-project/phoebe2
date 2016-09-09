@@ -17,10 +17,11 @@
 
 namespace utils {
   
-  const double M_2PI = 6.2831853071795864769252867665590083999;  // 2 pi
-  const double M_4PI = 12.5663706143591729538505735331180167998; // 4 pi
-  const double M_PI3 = 1.04719755119659774615421446109316806665; // pi/3
-  
+  const double m_pi = 3.14159265358979323846264338327950419984;  // pi
+  const double m_2pi = 6.2831853071795864769252867665590083999;  // 2 pi
+  const double m_4pi = 12.5663706143591729538505735331180167998; // 4 pi
+  const double m_pi3 = 1.04719755119659774615421446109316806665; // pi/3
+
   /*
     Return square of the value.
     
@@ -603,10 +604,10 @@ namespace utils {
       
           for (int i = 2; i >= 0; --i) {
             /*T t;
-            roots.push_back(t = A*std::cos((phi - M_2PI*i)/3) - b/3);
+            roots.push_back(t = A*std::cos((phi - m_2pi*i)/3) - b/3);
             std::cerr << "cubic::x=" << t << '\n';
             */
-           roots.push_back(A*std::cos((phi - M_2PI*i)/3) - b/3);
+           roots.push_back(A*std::cos((phi - m_2pi*i)/3) - b/3);
           }
         }
       } else {

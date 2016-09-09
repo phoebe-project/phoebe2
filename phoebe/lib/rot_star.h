@@ -276,8 +276,8 @@ namespace rot_star {
       
     if (omega == 0) {
       
-      if (b_area) av[0] = utils::M_4PI/Omega2;
-      if (b_volume) av[1] = utils::M_4PI/(3*Omega3); 
+      if (b_area) av[0] = utils::m_4pi/Omega2;
+      if (b_volume) av[1] = utils::m_4pi/(3*Omega3); 
         
       return;
     }  
@@ -299,7 +299,7 @@ namespace rot_star {
     
     if (t < 0.1) {
       
-      T f = utils::M_4PI/Omega2;
+      T f = utils::m_4pi/Omega2;
       
       if (b_area) {
         
@@ -417,8 +417,8 @@ namespace rot_star {
       v -= dv;
     }
     
-    if (b_area) av[0] = utils::M_4PI*A/Omega2;
-    if (b_volume) av[1] = utils::M_2PI*V/Omega3;
+    if (b_area) av[0] = utils::m_4pi*A/Omega2;
+    if (b_volume) av[1] = utils::m_2pi*V/Omega3;
   }
   
   /*
@@ -473,7 +473,7 @@ namespace rot_star {
       
     if (omega == 0) {
       
-      T Vol =  utils::M_4PI/(3*Omega3);
+      T Vol =  utils::m_4pi/(3*Omega3);
       
       if (b_Vol) res[0] = Vol;
       if (b_dVoldOmega) res[1] = -3*Vol/Omega0; 
@@ -502,7 +502,7 @@ namespace rot_star {
       T Vol = 
           a[0] + t*(a[1] + t*(a[2] + t*(a[3] + t*(a[4] + t*(a[5] + 
           t*(a[6] + t*(a[7] + t*(a[8] + t*(a[9] + t*a[10]))))))))),
-        f = utils::M_4PI/(3*Omega3);
+        f = utils::m_4pi/(3*Omega3);
       
       if (b_Vol) res[0] = f*Vol;
       
@@ -604,7 +604,7 @@ namespace rot_star {
       v -= dv;
     }
     
-    f = utils::M_2PI/Omega3;
+    f = utils::m_2pi/Omega3;
     
     if (b_Vol) res[0] = f*Vol;
     if (b_dVoldOmega) res[1] = -3*f*dVoldOmega/Omega0;  

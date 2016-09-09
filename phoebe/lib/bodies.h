@@ -262,7 +262,7 @@ struct Tgen_roche {
   }
   
   /*
-    Definition of the potential minus the reference.
+    Definition of the reference minus potential.
     
     Input:
       r[3] = {x, y, z}

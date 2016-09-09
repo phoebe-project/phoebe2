@@ -311,7 +311,7 @@ struct Tmarching: public Tbody {
     
     T s, c, st, ct, sa[6], ca[6];
     
-    utils::sincos_array(5, utils::M_PI3, sa, ca, delta);
+    utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
       
     for (int k = 0; k < 6; ++k){
       
@@ -365,7 +365,7 @@ struct Tmarching: public Tbody {
       if (n > 1) ++it_next;
       it_last = P.end(); it_prev = --it_last; 
       
-      omega_min = utils::M_2PI; 
+      omega_min = utils::m_2pi; 
       
       while (--n >= 0) { 
         
@@ -387,7 +387,7 @@ struct Tmarching: public Tbody {
           omega = std::atan2(c*st - s*ct, c*ct + s*st);
           
           // omega = omega mod 2 Pi (offset 0)        
-          if (omega < 0) omega += utils::M_2PI;
+          if (omega < 0) omega += utils::m_2pi;
 
           it -> omega = omega; 
           it -> omega_changed = false;
@@ -415,7 +415,7 @@ struct Tmarching: public Tbody {
       //std::cerr << "omega_min=" << omega_min << std::endl;
       
       // number of triangles to be generated
-      nt = int(omega_min/utils::M_PI3) + 1;   
+      nt = int(omega_min/utils::m_pi3) + 1;   
       domega = omega_min/nt;
       
       if (domega < 0.8 && nt > 1) domega = omega_min/(--nt);

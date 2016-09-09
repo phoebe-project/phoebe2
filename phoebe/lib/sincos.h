@@ -26,7 +26,10 @@
 // TODO: How to test is architecture has sincos as part of assembly language
 // Tested using g++ 5.4 and Intel icpc (ICC) 16.0.2 20160204 on 
 // Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
-#define TARGET_HAS_SINCOS 1 
+
+#if !defined(TARGET_HAS_SINCOS)
+#define TARGET_HAS_SINCOS 1             // default behavior
+#endif
 
 namespace utils {
   

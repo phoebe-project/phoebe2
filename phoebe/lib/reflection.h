@@ -945,7 +945,7 @@ void triangle_mesh_radiosity_wilson_vertices(
   // Divide areas associated to vertices by pi do get effective r^2
   //
   {
-    T fac = 1/M_PI;
+    T fac = 1/utils::m_pi;
     for (auto && a : AatV) a *= fac;
   }
   //
@@ -1247,7 +1247,7 @@ void triangle_mesh_radiosity_wilson_vertices_nbody_convex(
   //
   
   {
-    T fac = 1/M_PI;
+    T fac = 1/utils::m_pi;
     
     for (auto && B : AatV) for (auto && q : B) q *= fac;
   }

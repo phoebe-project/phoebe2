@@ -1,7 +1,6 @@
 #if !defined(__ld_models_h)
 #define __ld_models_h
 
-
 /* 
   Limb darkening models. Structures provide
    
@@ -28,8 +27,11 @@
   * Kallrath, Josef, Milone, Eugene F., Eclipsing Binary Stars: Modeling and Analysis (Spinger Verlag, 2009)
 */
 
+
 #include <cmath>
 #include "hash.h"
+
+#include "utils.h"
 
 // Enumeration of supported types
 enum TLDmodel_type {
@@ -73,7 +75,7 @@ struct TLDuniform: TLDmodel<T> {
   TLDuniform(){setup();}
 
   void setup(){
-    this->D0 = M_PI; 
+    this->D0 = utils::m_pi; 
     this->type = UNIFORM;
     this->nr_par = 0;
   }
@@ -94,7 +96,7 @@ struct TLDlinear : TLDmodel<T> {
   TLDlinear(const T &x) : x(x) {setup();}
   
   void setup(){
-    this->D0 = M_PI*(1 - x/3);
+    this->D0 = utils::m_pi*(1 - x/3);
     this->type = LINEAR;
     this->nr_par = 1; 
   }
@@ -125,7 +127,7 @@ struct TLDquadratic: TLDmodel<T> {
   }
   
   void setup(){
-    this->D0 = M_PI*(1 - x/3 - y/6);
+    this->D0 = utils::m_pi*(1 - x/3 - y/6);
     this->type = QUADRATIC;
     this->nr_par = 2;  
   }
@@ -155,7 +157,7 @@ struct TLDnonlinear: TLDmodel<T> {
   }
   
   void setup(){
-    this->D0 = M_PI*(1 - x/3 - y/(1 + p*(3 + p)/2));
+    this->D0 = utils::m_pi*(1 - x/3 - y/(1 + p*(3 + p)/2));
     this->type = NONLINEAR;
     this->nr_par = 3;
   }
@@ -186,7 +188,7 @@ struct TLDlogarithmic: TLDmodel<T> {
   }
   
   void setup(){
-    this->D0 = M_PI*(1 - x/3  + 2*y/9);
+    this->D0 = utils::m_pi*(1 - x/3  + 2*y/9);
     this->type = LOGARITHMIC;
     this->nr_par = 2;
   }
@@ -217,7 +219,7 @@ struct TLDsquare_root: TLDmodel<T> {
   }
   
   void setup(){
-    this->D0 = M_PI*(1 - x/3 - y/5);
+    this->D0 = utils::m_pi*(1 - x/3 - y/5);
     this->type = SQUARE_ROOT;
     this->nr_par = 2;   
   }
@@ -290,12 +292,12 @@ namespace LD{
   T D0(TLDmodel_type choice, T *p) {
     
     switch (choice){
-      case UNIFORM: return M_PI;
-      case LINEAR:  return M_PI*(1 - p[0]/3);
-      case QUADRATIC: return M_PI*(1 - p[0]/3 - p[1]/6);
-      case NONLINEAR: return M_PI*(1 - p[0]/3 - p[1]/(1 + p[2]*(3 + p[2])/2));
-      case LOGARITHMIC: return M_PI*(1 - p[0]/3  + 2*p[1]/9);
-      case SQUARE_ROOT: return  M_PI*(1 - p[0]/3 - p[1]/5);
+      case UNIFORM: return utils::m_pi;
+      case LINEAR:  return utils::m_pi*(1 - p[0]/3);
+      case QUADRATIC: return utils::m_pi*(1 - p[0]/3 - p[1]/6);
+      case NONLINEAR: return utils::m_pi*(1 - p[0]/3 - p[1]/(1 + p[2]*(3 + p[2])/2));
+      case LOGARITHMIC: return utils::m_pi*(1 - p[0]/3  + 2*p[1]/9);
+      case SQUARE_ROOT: return  utils::m_pi*(1 - p[0]/3 - p[1]/5);
       default:
         std::cerr << "LD::D0::This model is not supported\n";
         return std::nan("");

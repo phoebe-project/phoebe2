@@ -284,7 +284,6 @@ namespace gen_roche {
     return delta*poleLR(nu, p);
   }
 
-   
   /*
     Based on the critical omegas determine the type of system we can 
     have at that potential.
@@ -804,7 +803,7 @@ namespace gen_roche {
   
 
   /*
-    Calculate the upper and lowe limit of Roche lobes on x-axis
+    Calculate the upper and lower limit of Roche lobes on x-axis
     satisfying
     
       Omega(x,0,0) = Omega_0
@@ -823,7 +822,7 @@ namespace gen_roche {
       p - x-values of the points on x-axis
   */
   template<class T> 
-  bool lobe_x_points(
+  bool lobe_xrange(
     T xrange[2],
     int choice,
     const T & Omega0, 
@@ -853,7 +852,7 @@ namespace gen_roche {
         
         if (!(omega[0] < Omega0 && omega[1] < Omega0)) {
           std::cerr 
-            << "lobe_x_points::left lobe does not seem to exist\n"
+            << "lobe_xrange::left lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;
@@ -877,7 +876,7 @@ namespace gen_roche {
         
         if (!(omega[0] < Omega0 && omega[2] < Omega0)) {
           std::cerr 
-            << "lobe_x_points::right lobe does not seem to exist\n"
+            << "lobe_xrange::right lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;      
@@ -901,7 +900,7 @@ namespace gen_roche {
          
         if (!(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
           std::cerr 
-            << "lobe_x_points::overcontact lobe does not seem to exist\n"
+            << "lobe_xrange::overcontact lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;
@@ -914,12 +913,12 @@ namespace gen_roche {
 
 
     if (std::isnan(xrange[0])) {
-      std::cerr << "lobe_x_points::problems with left boundary\n";
+      std::cerr << "lobe_xrange::problems with left boundary\n";
       return false;
     }  
 
     if (std::isnan(xrange[1])) {
-      std::cerr << "lobe_x_points::problems with right boundary\n";
+      std::cerr << "lobe_xrange::problems with right boundary\n";
       return false;
     }
 
@@ -1133,7 +1132,7 @@ namespace gen_roche {
     
     T xrange[2];
   
-    if (!lobe_x_points(xrange, choice, Omega0, q, F, delta, true)) return false;
+    if (!lobe_xrange(xrange, choice, Omega0, q, F, delta, true)) return false;
     
     #if defined(DEBUG) 
     std::cerr 
@@ -1174,7 +1173,173 @@ namespace gen_roche {
     
     return true;
   } 
+  
+  /*
+    Solving 2x2 system of nonlinear equations
+    
+      delta Omega(delta x,delta y, 0) = w
+      d/dx Omega(delta x,delta y, 0) = 0
+    
+    via Newton-Raphson iteration.
+      
+    Input:
+      u - initial estimate (starting position)
+      w = Omega0*delta - rescaled value of the potential
+      q - mass ratio M2/M1
+      b = F^2 delta^3(1+q) - synchronicity parameter
+      epsA - absolute precision aka accuracy
+      epsR - relative precison aka precision
+      max_iter - maximal number of iterations
+      
+    Output:
+      u - solution
+  */ 
+  template <class T>
+  bool lobe_ymax_internal(
+    T u[2],
+    const T & w, 
+    const T & q, 
+    const T & b,
+    const T & epsA = 1e-12,
+    const T & epsR = 1e-12,
+    const int max_iter = 100
+  ){
+    
+    int it = 0;
+   
+    T du_max = 0, u_max = 0;
+   
+    do { 
+       
+      T x = u[0], x1 = x - 1, y = u[1], y2 = y*y,
+        
+        r12 = x*x + y*y, r1 = std::sqrt(r12), 
+        f1 = 1/r1, f12 = f1*f1, f13 = f12*f1, f15 = f13*f12,
+        
+        r22 = x1*x1 + y*y, r2 = std::sqrt(r22), 
+        f2 = 1/r2, f22 = f2*f2, f23 = f22*f2, f25 = f23*f22,
+      
+        // F - both equations that need to be solved (F=0)
+        F[2] = {
+          b*r12/2 + f1 + (f2 - x)*q - w, 
+          (b - f13)*x - q*(1 + f23*x1)
+        },
+        
+        // derivative of F: M = [ [F1,x, F1,y],  [F2,x, F2,y]]
+        M[2][2] = {
+          {
+            (b - f13)*x - q*(1 + f23*x1), 
+            (b - f13 - f23*q)*y
+          }, 
+          {
+            b + 2*f13 - 3*f15*y2 + f23*q*(2 - 3*f22*y2),
+            3*(f15*x + f25*q*x1)*y
+          }
+        },
+        
+        // inverse of M
+        det = M[0][0]*M[1][1] - M[0][1]*M[1][0],
+        N[2][2] = {{M[1][1], -M[0][1]}, {-M[1][0], M[0][0]}};
+           
+      // calculate the step in x and y
+      T t;
+      du_max = u_max = 0;
+      for (int i = 0; i < 2; ++i) {
+        u[i] += (t = -(N[i][0]*F[0] + N[i][1]*F[1])/det);
+        
+        t = std::abs(t);
+        if (t > du_max) du_max = t;
+        
+        t = std::abs(u[i]);
+        if (t > u_max) u_max = t;
+      }
+      
+    } while (du_max > epsA + epsR*u_max && ++it < max_iter);
+    
+    
+    return it < max_iter;   
+  }
+  
+  /*
+    The point with the largest y components of the primary star:
+    
+      Omega(x,y,0) = Omega0
+    
+    Input:
+      Omega0 - value of potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      
+    Output: (optionaly)
+      r = {x, y}
+        
+    Return:
+      y: if the point is not found return -1
+  */
+  template <class T>
+  T lobe_ybound_L(
+    const T & Omega0,
+    const T & q,
+    const T & F = 1,
+    const T & delta = 1,
+    T *r = 0
+  ) {
+    
+    T w = Omega0*delta,
+      b = (1 + q)*F*F*delta*delta*delta,
+      u[2] = {0, 0.5*poleL(Omega0, q, F, delta)/delta};
+    
+    
+    if (!lobe_ymax_internal(u, w, q, b)) {
+      std::cerr << "lobe_ybound_L::Newton-Raphson did not converge\n";
+      return -1;
+    }
+    
+    if (r) for (int i = 0; i < 2; ++i) r[i] = delta*u[i];
+   
+    return delta*u[1];
+  }
 
+  /*
+    The point with the largest y components of the secondary star:
+  
+      Omega(delta,y,x) = Omega0
+    
+    Input:
+      Omega0 - value of potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+    
+    Output: (optionaly)
+      r = {x, y}
+        
+    Return:
+      y: if the point is not found return -1
+  */
+  template <class T>
+  T lobe_ybound_R(
+    const T & Omega0,
+    const T & q,
+    const T & F = 1,
+    const T & delta = 1,
+    T *r = 0
+  ) {
+    
+    T w = Omega0*delta,
+      b = (1 + q)*F*F*delta*delta*delta,
+      u[2] = {1, 0.5*poleR(Omega0, q, F, delta)/delta};
+    
+    if (!lobe_ymax_internal(u, w, q, b)) {
+      std::cerr << "lobe_ybound_R::Newton-Raphson did not converge.\n";
+      return -1;
+    }
+    
+    if (r) for (int i = 0; i < 2; ++i) r[i] = delta*u[i];
+   
+    return delta*u[1];
+  }
 } // namespace gen_roche
 
 #endif

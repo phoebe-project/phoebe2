@@ -28,7 +28,8 @@
 #include <vector>
 #include <typeinfo>
 #include <algorithm>
-
+#include <cstring>
+#include <cstdint>
 
 #include "utils.h"                // General routines
 
@@ -619,7 +620,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     
     double xrange[2];
       
-    if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, delta, true)){
+    if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
       std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
       return NULL;
     }
@@ -926,7 +927,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   
   do {
 
-    if (!gen_roche::lobe_x_points(xrange, choice, Omega, q, F, delta, true)){
+    if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta, true)){
       std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
       return NULL;
     }
@@ -3868,9 +3869,9 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   double dt = 0; 
   
   if (choice == 0 || choice == 1)
-    dt = utils::M_2PI*utils::hypot3(p)/length;
+    dt = utils::m_2pi*utils::hypot3(p)/length;
   else
-    dt = 2*utils::M_2PI*utils::hypot3(p)/length;
+    dt = 2*utils::m_2pi*utils::hypot3(p)/length;
   
   //
   //  Find the horizon
@@ -3924,7 +3925,6 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     (char*)"omega",
     (char*)"Omega0",
     (char*)"length",
-    (char*)"choice",
     NULL
   };
   
@@ -3936,7 +3936,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     length = 1000;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!dd|ii", kwlist,
+      args, keywds,  "O!dd|i", kwlist,
       &PyArray_Type, &oV, 
       &omega, &Omega0,
       &length)) return NULL;
@@ -3960,7 +3960,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
   // Estimate the step
   //
   
-  double dt = utils::M_2PI*utils::hypot3(p)/length;
+  double dt = utils::m_2pi*utils::hypot3(p)/length;
   
   //
   //  Find the horizon
@@ -3998,7 +3998,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     Omega0: float - value of the generalized Kopal potential
   
   keywords:
-    choice: interr, default 0:
+    choice: integer, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
       2 - searching a point for overcontact case
@@ -4039,7 +4039,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   
   double *xrange = new double [2];
   
-  if (!gen_roche::lobe_x_points(xrange, choice, Omega0, q, F, d, true)){
+  if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, d, true)){
       std::cerr << "roche_xrange::Determining lobe's boundaries failed\n";
       return NULL;
   }
@@ -4052,6 +4052,225 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   
   return results;
 }
+
+/*
+  C++ wrapper for Python code:
+
+  Determining the square 3D grid for Roche lobe:
+      
+    vec{r}(i_1,i_2,i_3) = vec{r}_0 + (L_1 i_1, L_2 i_2, L_3 i_3)
+    
+  with indices
+      
+    i_k in [0, N_k - 1] : k = 1,2,3 
+    
+  and step sizes
+    
+    L_k : k = 1,2,3 
+      
+  Python:
+
+    dict = roche_square_grid(q, F, d, dims, <keywords>=<value> )
+    
+  with arguments
+  
+  positionals: necessary
+  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    Omega0: float - value of the generalized Kopal potential  
+    dims: 1-rank numpy arrays of 3 integers = [N_0, N_1, N_2]
+  
+  keywords: optional
+    choice: integer, default 0:
+      0 - searching a point on left lobe
+      1 - searching a point on right lobe
+      2 - searching a point for overcontact case
+      
+  Return: a dictionary with keyword
+  
+    bmask: binary mask
+      b_0, .., b_{size-1}         size = N_0, N_1, N_2
+      
+      b_index in {0,1}
+      
+      index(i_1, i_2, i_3)  = i_1*N2*N3 + i2*N3 + i3
+    
+    bbox:
+      2-rank numpy array of float = [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
+  
+    origin: origin of grid r0 = [x, y, z]
+      1-rank numpy of 3 floats
+      
+    steps: step sizes/cell dimensions [L_1, L_2, L_3]
+      1-rank numpy of 3 floats
+*/
+
+
+static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *keywds) {
+
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"Omega0",
+    (char*)"dims",
+    (char*)"choice",
+    NULL
+  };
+  
+  double q, F, d, Omega0;   
+    
+  int choice  = 0;
+  
+  PyArrayObject *o_dims;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddddO!|i", kwlist,
+      &q, &F, &d, &Omega0,    // necessary
+      &PyArray_Type, &o_dims, 
+      &choice)                // optional
+      ) return NULL;
+
+
+  if (choice < 0 || choice > 2) {
+    std::cerr << "roche_square_grid::This choice is not supported\n";
+    return NULL;
+  }
+  
+  long *dims = (long*) PyArray_DATA(o_dims);
+   
+  //
+  // Determining the ranges
+  //
+  
+  double ranges[3][2];
+  
+  bool checks = true;
+  // x - range
+  if (!gen_roche::lobe_xrange(ranges[0], choice, Omega0, q, F, d, checks)) {
+    std::cerr << "roche_square_grid::Failed to obtain xrange\n";
+    return NULL;
+  }
+  
+  switch (choice) {
+    
+    case 0: // left lobe 
+      // y - range
+      ranges[1][0] = -(ranges[1][1] = gen_roche::lobe_ybound_L(Omega0, q, F, d));
+      // z - range
+      ranges[2][0] = -(ranges[2][1] = gen_roche::poleL(Omega0, q, F, d));
+      break;
+      
+    case 1: // right lobe
+      // y - range
+      ranges[1][0] = -(ranges[1][1] = gen_roche::lobe_ybound_R(Omega0, q, F, d));
+      // z -range
+      ranges[2][0] = -(ranges[2][1] = gen_roche::poleR(Omega0, q, F, d));
+      break;
+      
+    default:
+      // y - range    
+      ranges[1][0] = -(ranges[1][1] = 
+        std::max(
+          gen_roche::lobe_ybound_L(Omega0, q, F, d), 
+          gen_roche::lobe_ybound_R(Omega0, q, F, d)
+        ));
+        
+      // z -range      
+      ranges[2][0] = -(ranges[2][1] = 
+        std::max(
+          gen_roche::poleL(Omega0, q, F, d), 
+          gen_roche::poleR(Omega0, q, F, d)
+        ));      
+  }
+  
+  //
+  // Determining characteristics of the grid
+  //
+  double r0[3], L[3];
+  for (int i = 0; i < 3; ++i){
+    r0[i] = ranges[i][0];
+    L[i] = (ranges[i][1] - ranges[i][0])/(dims[i]-1);
+  }
+
+  
+  //
+  // Scan over the Roche lobe
+  //
+  int size = dims[0]*dims[1]*dims[2];
+  
+  std::uint8_t *mask = new std::uint8_t [size];
+  
+  {
+    double params[4] = {q, F, d, Omega0}, r[3]; 
+    
+    Tgen_roche<double> roche(params);
+  
+    std::uint8_t *m = mask;
+    
+    std::memset(m, 0, size);
+    
+    int u[3];
+    
+    for (u[0] = 0; u[0] < dims[0]; ++u[0])
+      for (u[1] = 0; u[1] < dims[1]; ++u[1])
+        for (u[2] = 0; u[2] < dims[2]; ++u[2], ++m) {
+          
+          for (int i = 0; i < 3; ++i) r[i] = r0[i] + u[i]*L[i];
+          
+          if (roche.constrain(r) <= 0) *m = 1;
+        }  
+    
+  }
+   
+  //
+  // Returning results
+  //
+  
+  double 
+    *origin = new double [3],
+    *steps = new double [3],
+    *bbox = new double [6];
+
+
+  for (int i = 0; i < 3; ++i){
+    origin[i] = r0[i];
+    steps[i] = L[i];
+    bbox[2*i] = ranges[i][0];
+    bbox[2*i + 1] = ranges[i][1];
+  }
+  
+  npy_intp nd[3] = {3, 2, 0};
+    
+  PyObject 
+    *o_origin = PyArray_SimpleNewFromData(1, nd, NPY_DOUBLE, origin),
+    *o_steps = PyArray_SimpleNewFromData(1, nd, NPY_DOUBLE, steps),
+    *o_bbox = PyArray_SimpleNewFromData(2, nd, NPY_DOUBLE, bbox);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_origin, NPY_ARRAY_OWNDATA);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_steps, NPY_ARRAY_OWNDATA);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_bbox, NPY_ARRAY_OWNDATA);
+  
+  // storing the mask
+  for (int i = 0; i < 3; ++i) nd[i] = dims[i];
+  PyObject *o_mask = PyArray_SimpleNewFromData(3, nd, NPY_UINT8, mask);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_mask, NPY_ARRAY_OWNDATA);
+  
+  PyObject *results = PyDict_New();
+  PyDict_SetItemStringStealRef(results, "origin", o_origin);
+  PyDict_SetItemStringStealRef(results, "steps", o_steps);
+  PyDict_SetItemStringStealRef(results, "bbox", o_bbox);
+  PyDict_SetItemStringStealRef(results, "mask", o_mask);
+      
+  return results;
+}
+
 
 /*
   C++ wrapper for Python code:
@@ -4214,9 +4433,9 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
   LD::gradparD(type, mu, par, g);
     
   // return the results
-  npy_intp dims[1] = {nr_par};
+  npy_intp dims = nr_par;
 
-  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  PyObject *pya = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, g);
   
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
 
@@ -5225,6 +5444,13 @@ static PyMethodDef Methods[] = {
     (PyCFunction)roche_xrange,
     METH_VARARGS|METH_KEYWORDS, 
     "Calculating the range of the Roche lobes on x-axis at given"
+    "q, F, d, and the value of generalized Kopal potential Omega."},
+
+// --------------------------------------------------------------------
+  { "roche_square_grid",
+    (PyCFunction)roche_square_grid,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the square grid of the interior of the Roche lobes at given"
     "q, F, d, and the value of generalized Kopal potential Omega."},
 // --------------------------------------------------------------------
 

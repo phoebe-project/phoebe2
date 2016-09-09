@@ -66,7 +66,7 @@ template <class T> T solve_cubic1(const T & s, const T & z){
   
   
   if (D <= 0){ // 3 real roots
-    phi = std::acos(3*q/(A*p)) - 4*M_PI; // smallest 
+    phi = std::acos(3*q/(A*p)) - 4*utils::m_pi; // smallest 
     return A*std::cos(phi/3) - b/3;
   } 
   

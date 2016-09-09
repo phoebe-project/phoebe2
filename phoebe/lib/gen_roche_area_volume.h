@@ -708,7 +708,7 @@ template<class T>
         },
         sum = a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*(a[7] + s*(a[8] + s*a[9]))))))));
       
-      av[0] = utils::M_4PI/(Omega0*Omega0)*sum;
+      av[0] = utils::m_4pi/(Omega0*Omega0)*sum;
     }
     
     
@@ -723,7 +723,7 @@ template<class T>
         },
         sum = a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*(a[7] + s*(a[8] + s*a[9]))))))));
 
-      av[1] = utils::M_4PI/(3*Omega0*Omega0*Omega0)*sum;
+      av[1] = utils::m_4pi/(3*Omega0*Omega0*Omega0)*sum;
     }
   }
   
