@@ -632,7 +632,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             # (ie teff, logg) that should be used in computing observables (ie intensity)
 
             # TODO: for testing only
-            # if computeparams.get_value('eclipse_alg') == 'wd_horizon':
+            # if computeparams.get_value('eclipse_method') == 'wd_horizon':
             #     io.pass_to_legacy(b, filename='_tmp_legacy_inp')
 
             system.handle_eclipses()

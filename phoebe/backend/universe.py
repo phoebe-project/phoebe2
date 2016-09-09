@@ -41,12 +41,12 @@ def _value(obj):
 
 
 class System(object):
-    def __init__(self, bodies_dict, eclipse_alg='graham', dynamics_method='keplerian', do_reflection=True):
+    def __init__(self, bodies_dict, eclipse_method='graham', dynamics_method='keplerian', do_reflection=True):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
         self._bodies = bodies_dict
-        self.eclipse_alg = eclipse_alg
+        self.eclipse_method = eclipse_method
         # self.subdiv_alg = subdiv_alg
         # self.subdiv_num = subdiv_num
         self.dynamics_method = dynamics_method
@@ -87,13 +87,13 @@ class System(object):
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
-            eclipse_alg = compute_ps.get_value(qualifier='eclipse_alg', **kwargs)
+            eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             do_reflection = compute_ps.get_value(qualifier='refl', **kwargs)
         else:
-            eclipse_alg = 'graham'
+            eclipse_method = 'graham'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
@@ -112,7 +112,7 @@ class System(object):
         meshables = hier.get_meshables()
         bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
-        return cls(bodies_dict, eclipse_alg=eclipse_alg,
+        return cls(bodies_dict, eclipse_method=eclipse_method,
                    dynamics_method=dynamics_method,
                    do_reflection=do_reflection)
 
@@ -334,7 +334,7 @@ class System(object):
         Detect the triangles at the horizon and the eclipsed triangles, handling
         any necessary subdivision.
 
-        :parameter str eclipse_alg: name of the algorithm to use to detect
+        :parameter str eclipse_method: name of the algorithm to use to detect
             the horizon or eclipses (defaults to the value set by computeoptions)
         :parameter str subdiv_alg: name of the algorithm to use for subdivision
             (defaults to the value set by computeoptions)
@@ -342,7 +342,7 @@ class System(object):
             the value set by computeoptions)
         """
 
-        eclipse_alg = kwargs.get('eclipse_alg', self.eclipse_alg)
+        eclipse_method = kwargs.get('eclipse_method', self.eclipse_method)
         # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
         # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
@@ -371,7 +371,7 @@ class System(object):
                         break
 
         if not possible_eclipse:
-            eclipse_alg = 'only_horizon'
+            eclipse_method = 'only_horizon'
 
         # meshes is an object which allows us to easily access and update columns
         # in the meshes *in memory*.  That is meshes.update_columns will propogate
@@ -381,23 +381,7 @@ class System(object):
         # Reset all visibilities to be fully visible to start
         meshes.update_columns('visiblities', 1.0)
 
-        ecl_func = getattr(eclipse, eclipse_alg)
-
-        # TODO: FOR TESTING ONLY - EITHER REMOVE THIS OR MAKE IT LESS HACKY!!!
-        # if eclipse_alg == 'wd_horizon':
-        #     import phoebeBackend as phb1
-        #     from phoebe import io
-
-        #     if not hasattr(self, '_phb1_init'):
-        #         phb1.init()
-        #         try:
-        #             phb1.configure()
-        #         except SystemError:
-        #             raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-        #         self._phb1_init = True
-
-        #     phb1.open('_tmp_legacy_inp')
-        #     stuff = phb1.lc((self.time,), 0, 1)
+        ecl_func = getattr(eclipse, eclipse_method)
 
         # We need to run eclipse detection first to get the partial triangles
         # to send to subdivision
