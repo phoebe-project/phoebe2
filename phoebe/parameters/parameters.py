@@ -4418,6 +4418,12 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
+    def get_components(self):
+        """
+        """
+        l = re.findall(r"[\w']+", self.get_value())
+        return l[1::2]
+
     def get_top(self):
         """
         """
@@ -4632,6 +4638,11 @@ class HierarchyParameter(StringParameter):
         if 'envelope' not in self.get_value():
             return False
 
+        if component not in self.get_components():
+            # TODO: this can probably at least check to see if is itself
+            # an envelope?
+            return False
+
         return self.get_kind_of(component)=='envelope' or (self.get_sibling_of(component, kind='envelope') is not None)
 
     def is_binary(self, component):
@@ -4641,6 +4652,10 @@ class HierarchyParameter(StringParameter):
         tells whether any component (star, envelope) is part of a binary
         by checking its parent
         """
+        if component not in self.get_components():
+            # TODO: is this the best fallback?
+            return True
+
         return self.get_kind_of(self.get_parent_of(component))=='orbit'
 
 

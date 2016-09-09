@@ -3,3 +3,5 @@
 *after.phoebe
 *.ipynb_checkpoints*
 *.pyc*
+/docs/tutorials/*.phoebe
+/docs/tutorials/*.bundle
