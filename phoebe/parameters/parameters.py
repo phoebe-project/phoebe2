@@ -1165,7 +1165,7 @@ class ParameterSet(object):
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
-    def filter(self, twig=None, check_relevant=True, **kwargs):
+    def filter(self, twig=None, check_relevant=True, check_default=True, **kwargs):
         """
         Filter the ParameterSet based on the meta-tags of the Parameters
         and return another ParameterSet.
@@ -1184,15 +1184,21 @@ class ParameterSet(object):
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
+        :parameter bool check_default: whether to exclude parameters which
+                have a _default tag (these are parameters which solely exist
+                to provide defaults for when new parameters or datasets are
+                added and the parameter needs to be copied appropriately).
+                Defaults to True.
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`ParameterSet`
         """
         kwargs['check_relevant'] = check_relevant
+        kwargs['check_default'] = check_default
         kwargs['force_ps'] = True
         return self.filter_or_get(twig=twig, **kwargs)
 
-    def get(self, twig=None, check_relevant=True, **kwargs):
+    def get(self, twig=None, check_relevant=True, check_default=True, **kwargs):
         """
         Get a single parameter from this ParameterSet.  This works exactly the
         same as filter except there must be only a single result, and the Parameter
@@ -1209,6 +1215,11 @@ class ParameterSet(object):
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
+        :parameter bool check_default: whether to exclude parameters which
+                have a _default tag (these are parameters which solely exist
+                to provide defaults for when new parameters or datasets are
+                added and the parameter needs to be copied appropriately).
+                Defaults to True.
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`Parameter`
@@ -1230,7 +1241,7 @@ class ParameterSet(object):
             return ps._params[0]
 
     def filter_or_get(self, twig=None, autocomplete=False, force_ps=False,
-                      check_relevant=True, **kwargs):
+                      check_relevant=True, check_default=True, **kwargs):
         """
 
         Filter the :class:`ParameterSet` based on the meta-tags of its
@@ -1258,6 +1269,11 @@ class ParameterSet(object):
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
+        :parameter bool check_default: whether to exclude parameters which
+                have a _default tag (these are parameters which solely exist
+                to provide defaults for when new parameters or datasets are
+                added and the parameter needs to be copied appropriately).
+                Defaults to True.
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: :class:`Parameter` if length of results is exactly 1 and
@@ -1273,6 +1289,7 @@ class ParameterSet(object):
             kwargs['autocomplete'] = autocomplete
             kwargs['force_ps'] = force_ps
             kwargs['check_relevant'] = check_relevant
+            kwargs['check_default'] = check_default
             return_ = ParameterSet()
             for t in time:
                 kwargs['time'] = t
@@ -1303,6 +1320,10 @@ class ParameterSet(object):
         # handle relevant_if
         if check_relevant:
             params = [pi for pi in params if pi.is_relevant]
+
+        # handle hiding _default
+        if check_default:
+            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
 
         if isinstance(twig, int):
             # then act as a list index
@@ -1614,7 +1635,7 @@ class ParameterSet(object):
                                   **kwargs).set_value(value=value,
                                                       **kwargs)
 
-    def set_value_all(self, twig=None, value=None, **kwargs):
+    def set_value_all(self, twig=None, value=None, check_default=False, **kwargs):
         """
         Set the value of all returned :class:`Parameter`s in this ParameterSet.
 
@@ -1629,10 +1650,16 @@ class ParameterSet(object):
         :parameter str twig: the twig to search for the parameter
         :parameter value: the value to set.  Provide units, if necessary, by
                 sending a Quantity object (ie 2.4*u.rad)
+        :parameter bool check_default: whether to exclude any default values.
+                Defaults to False (unlike all filtering).  Note that this
+                acts on the current ParameterSet so any filtering done before
+                this call will EXCLUDE defaults by default.
         :parameter **kwargs: meta-tags to search
         """
         # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
-        params = self.filter(twig=twig, **kwargs).to_list()
+        params = self.filter(twig=twig,
+                             check_default=check_default,
+                             **kwargs).to_list()
 
         if not kwargs.pop('ignore_none', False) and not len(params):
             raise ValueError("no parameters found")
