@@ -2135,8 +2135,8 @@ class Bundle(ParameterSet):
             exist, then this will use default options and create and attach
             a new set of compute options with a default label.
         :parameter str model: (optional) name of the resulting model.  If not
-            provided this will default to 'tmpmodel'.  NOTE: existing models
-            with the same name will be overwritten - including 'tmpmodel'
+            provided this will default to 'latest'.  NOTE: existing models
+            with the same name will be overwritten - including 'latest'
         :parameter bool datach: [EXPERIMENTAL] whether to detach from the computation run,
             or wait for computations to complete.  If detach is True, see
             :meth:`get_model` and :meth:`phoebe.parameters.parameters.JobParameter`
@@ -2179,7 +2179,7 @@ class Bundle(ParameterSet):
             return self.get_model(model)
 
         if model is None:
-            model = 'tmpmodel'
+            model = 'latest'
 
         passed, msg = self.run_checks()
         if not passed and not kwargs.get('skip_checks', False):
