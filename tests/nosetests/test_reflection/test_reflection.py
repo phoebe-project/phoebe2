@@ -37,7 +37,7 @@ def test_binary(plot=False):
 
     for alb in np.linspace(0, 1.0, 4):
         print "alb = {}".format(alb)
-        b.set_value_all('alb_refl_bol', alb)
+        b.set_value_all('frac_refl_bol', alb)
 
         print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', delta=0.1, model='phoebe2model')

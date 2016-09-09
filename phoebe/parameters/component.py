@@ -99,11 +99,11 @@ def star(component, **kwargs):
 
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, description='Bolometric gravity brightening')]
 
-    # params += [FloatParameter(qualifier='alb_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
-    params += [FloatParameter(qualifier='alb_refl_bol', value=kwargs.get('alb_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    # params += [FloatParameter(qualifier='alb_heat_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
-    # params += [FloatParameter(qualifier='alb_scatt_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
-    params += [FloatParameter(qualifier='alb_lost_bol', value=kwargs.get('alb_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
+    # params += [FloatParameter(qualifier='frac_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
+    params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    # params += [FloatParameter(qualifier='frac_heat_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
+    # params += [FloatParameter(qualifier='frac_scatt_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
+    params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
     # params += [FloatParameter(qualifier='redist', value=kwargs.get('redist', 0.0), unit=u.dimensionless_unscaled, description='Global redist par (1-redist) local heating, redist global heating')]
     # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
@@ -152,10 +152,10 @@ def envelope(component, **kwargs):
 
     params += [FloatParameter(qualifier='abun', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    # params += [FloatParameter(qualifier='alb_refl_bol', value=kwargs.get('alb_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    # params += [FloatParameter(qualifier='alb_heat_bol', value=kwargs.get('alb_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
-    # params += [FloatParameter(qualifier='alb_scatt_bol', value=kwargs.get('alb_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
-    # params += [FloatParameter(qualifier='alb_lost_bol', value=kwargs.get('alb_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
+    # params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    # params += [FloatParameter(qualifier='frac_heat_bol', value=kwargs.get('frac_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
+    # params += [FloatParameter(qualifier='frac_scatt_bol', value=kwargs.get('frac_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
+    # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
     params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron (in the primary component\'s reference frame')]   # TODO: correct units???

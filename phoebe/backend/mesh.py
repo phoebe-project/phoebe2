@@ -391,9 +391,9 @@ class ProtoMesh(object):
         self._gravs             = ComputedColumn(mesh=self)
         self._teffs             = ComputedColumn(mesh=self)
         self._abuns             = ComputedColumn(mesh=self)
-        self._alb_refls          = ComputedColumn(mesh=self)
-        # self._alb_heats          = ComputedColumn(mesh=self)
-        # self._alb_scatts          = ComputedColumn(mesh=self)
+        self._frac_refls          = ComputedColumn(mesh=self)
+        # self._frac_heats          = ComputedColumn(mesh=self)
+        # self._frac_scatts          = ComputedColumn(mesh=self)
 
 
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
@@ -412,7 +412,7 @@ class ProtoMesh(object):
                   'normgrads', 'volume',
                   'phis', 'thetas', 'env_comp','env_comp3',
                   'compute_at_vertices',
-                  'loggs', 'gravs', 'teffs', 'abuns', 'alb_refls'] # alb_heats, alb_scatts
+                  'loggs', 'gravs', 'teffs', 'abuns', 'frac_refls'] # frac_heats, frac_scatts
         self._keys = keys + kwargs.pop('keys', [])
 
         self.update_columns(**kwargs)
@@ -823,7 +823,7 @@ class ProtoMesh(object):
         TODO: add documentation
         """
         return self._env_comp3
-        
+
     @property
     def loggs(self):
         """
@@ -867,31 +867,31 @@ class ProtoMesh(object):
         return self._abuns
 
     @property
-    def alb_refls(self):
+    def frac_refls(self):
         """
-        Return the array of alb_refls, where each item is a scalar/float
+        Return the array of frac_refls, where each item is a scalar/float
 
         (ComputedColumn)
         """
-        return self._alb_refls
+        return self._frac_refls
 
     # @property
-    # def alb_heats(self):
+    # def frac_heats(self):
     #     """
-    #     Return the array of alb_heats, where each item is a scalar/float
+    #     Return the array of frac_heats, where each item is a scalar/float
 
     #     (ComputedColumn)
     #     """
-    #     return self._alb_heats
+    #     return self._frac_heats
 
     # @property
-    # def alb_scatts(self):
+    # def frac_scatts(self):
     #     """
-    #     Return the array of alb_scatts, where each item is a scalar/float
+    #     Return the array of frac_scatts, where each item is a scalar/float
 
     #     (ComputedColumn)
     #     """
-    #     return self._alb_scatts
+    #     return self._frac_scatts
 
 
 

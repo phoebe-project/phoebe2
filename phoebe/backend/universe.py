@@ -246,7 +246,7 @@ class System(object):
             triangles_per_body = meshes.get_column('triangles').values()
             normals_per_body = meshes.get_column('vnormals').values()
             areas_per_body = meshes.get_column('areas').values()
-            alb_refls_per_body = meshes.get_column('alb_refl', computed_type='for_computations').values()
+            frac_refls_per_body = meshes.get_column('frac_refl', computed_type='for_computations').values()
             teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
 
             intens_intrins_per_body = meshes.get_column('intens_norm_abs:bol', computed_type='for_computations').values()
@@ -254,13 +254,13 @@ class System(object):
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
-            # ld_inds = np.zeros(alb_refls_flat.shape)
+            # ld_inds = np.zeros(frac_refls_flat.shape)
 
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
-                                                                                       alb_refls_per_body,
+                                                                                       frac_refls_per_body,
                                                                                        intens_intrins_per_body,
                                                                                        ld_func_and_coeffs
                                                                                        )
@@ -270,7 +270,7 @@ class System(object):
             #                                                                            triangles_per_body,
             #                                                                            normals_per_body,
             #                                                                            areas_per_body,
-            #                                                                            alb_refls_per_body,
+            #                                                                            frac_refls_per_body,
             #                                                                            intens_intrins_per_body,
             #                                                                            ld_func_and_coeffs
             #                                                                            )
@@ -286,21 +286,21 @@ class System(object):
             triangles_flat = meshes.get_column_flat('triangles')
             normals_flat = meshes.get_column_flat('vnormals')
             areas_flat = meshes.get_column_flat('areas')
-            alb_refls_flat = meshes.get_column_flat('alb_refl', computed_type='for_computations')
+            frac_refls_flat = meshes.get_column_flat('frac_refl', computed_type='for_computations')
 
             intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
 
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
-            ld_inds = np.zeros(alb_refls_flat.shape)
+            ld_inds = np.zeros(frac_refls_flat.shape)
 
             # TODO: this will fail for WD meshes - use triangles instead?
             intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
                                                                                     triangles_flat,
                                                                                     normals_flat,
                                                                                     areas_flat,
-                                                                                    alb_refls_flat,
+                                                                                    frac_refls_flat,
                                                                                     intens_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds)
@@ -310,7 +310,7 @@ class System(object):
                                                                                     # triangles_flat,
                                                                                     # normals_flat,
                                                                                     # areas_flat,
-                                                                                    # alb_refls_flat,
+                                                                                    # frac_refls_flat,
                                                                                     # intens_intrins_flat,
                                                                                     # ld_func_and_coeffs,
                                                                                     # ld_inds)
@@ -924,7 +924,7 @@ class Body(object):
             self._fill_gravs()
             self._fill_teffs(ignore_effects=ignore_effects)
             self._fill_abuns(abun=self.abun)
-            self._fill_albedos(alb_refl=self.alb_refl)
+            self._fill_albedos(frac_refl=self.frac_refl)
 
         return
 
@@ -939,14 +939,14 @@ class Body(object):
 
         mesh.update_columns(abuns=abun)
 
-    def _fill_albedos(self, mesh=None, alb_refl=0.0):
+    def _fill_albedos(self, mesh=None, frac_refl=0.0):
         """
         TODO: add documentation
         """
         if mesh is None:
             mesh = self.mesh
 
-        mesh.update_columns(alb_refl=alb_refl)
+        mesh.update_columns(frac_refl=frac_refl)
 
 
     def compute_luminosity(self, dataset, **kwargs):
@@ -1195,7 +1195,7 @@ class CustomBody(Body):
 
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                 gravb_law, abun, alb_refl, mesh_method='marching',
+                 gravb_law, abun, frac_refl, mesh_method='marching',
                  dynamics_method='keplerian', ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False, datasets=[], do_rv_grav=False,
                  features=[], do_mesh_offset=True, **kwargs):
@@ -1246,9 +1246,9 @@ class Star(Body):
         self.gravb_bol = gravb_bol
         self.gravb_law = gravb_law
         self.abun = abun
-        self.alb_refl = alb_refl
-        # self.alb_heat = alb_heat
-        # self.alb_scatt = alb_scatt
+        self.frac_refl = frac_refl
+        # self.frac_heat = frac_heat
+        # self.frac_scatt = frac_scatt
 
         self.features = features
 
@@ -1328,9 +1328,9 @@ class Star(Body):
         gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         abun = b.get_value('abun', component=component, context='component')
-        alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
-        # alb_heat = b.get_value('alb_heat_bol', component=component, context='component')
-        # alb_scatt = b.get_value('alb_scatt_bol', component=component, context='component')
+        frac_refl = b.get_value('frac_refl_bol', component=component, context='component')
+        # frac_heat = b.get_value('frac_heat_bol', component=component, context='component')
+        # frac_scatt = b.get_value('frac_scatt_bol', component=component, context='component')
 
         try:
             do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_relevant=False, **kwargs) if compute is not None else False
@@ -1362,7 +1362,7 @@ class Star(Body):
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
-                abun, alb_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 is_single=is_single, datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
@@ -2020,7 +2020,7 @@ class Star(Body):
 
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
-            abun, alb_refl1, alb_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
+            abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
             datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
@@ -2066,21 +2066,21 @@ class Envelope(Body):
         self.teff1 = teff1
         self.teff2 = teff2
 
-        self.alb_refl1 = alb_refl1
-        self.alb_refl2 = alb_refl2
+        self.frac_refl1 = frac_refl1
+        self.frac_refl2 = frac_refl2
         self.gravb_bol1 = gravb_bol1
         self.gravb_bol2 = gravb_bol2
         self.gravb_law = gravb_law
 
         # only putting this here so update_position doesn't complain
-        self.alb_refl = 0.
+        self.frac_refl = 0.
         # self.gravb_law2 = gravb_law2
 
 
         # self.gravb_bol = gravb_bol
         # self.gravb_law = gravb_law
         self.abun = abun
-        # self.alb_refl = alb_refl
+        # self.frac_refl = frac_refl
 
         self.features = features  # TODO: move this to Body
 
@@ -2158,8 +2158,8 @@ class Envelope(Body):
         teff1 = b.get_value('teff', component=starrefs[0], context='component', unit=u.K)
         teff2 = b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 
-        alb_refl1 = b.get_value('alb_refl_bol', component=starrefs[0], context='component')
-        alb_refl2 = b.get_value('alb_refl_bol', component=starrefs[1], context='component')
+        frac_refl1 = b.get_value('frac_refl_bol', component=starrefs[0], context='component')
+        frac_refl2 = b.get_value('frac_refl_bol', component=starrefs[1], context='component')
 
         gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
         gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
@@ -2168,7 +2168,7 @@ class Envelope(Body):
         #gravb_law2 = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
 
         abun = b.get_value('abun', component=component, context='component')
-        #alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
+        #frac_refl = b.get_value('frac_refl_bol', component=component, context='component')
 
 
         try:
@@ -2202,7 +2202,7 @@ class Envelope(Body):
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
-        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, alb_refl1, alb_refl2,
+        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
                 gravb_bol1, gravb_bol2, gravb_law, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
@@ -2627,20 +2627,20 @@ class Envelope(Body):
 
         mesh.update_columns(teffs=teffs)
 
-    def _fill_albedos(self, mesh=None, alb_refl=0.0):
+    def _fill_albedos(self, mesh=None, frac_refl=0.0):
         """
         TODO: add documentation
         """
         if mesh is None:
             mesh = self.mesh
-            alb_refl1 = self.alb_refl1
-            alb_refl2 = self.alb_refl2
+            frac_refl1 = self.frac_refl1
+            frac_refl2 = self.frac_refl2
 
-        alb_refl = np.zeros(len(mesh.env_comp))
-        alb_refl[mesh.env_comp==0] = alb_refl1
-        alb_refl[mesh.env_comp==1] = alb_refl2
+        frac_refl = np.zeros(len(mesh.env_comp))
+        frac_refl[mesh.env_comp==0] = frac_refl1
+        frac_refl[mesh.env_comp==1] = frac_refl2
 
-        mesh.update_columns(alb_refl=alb_refl)
+        mesh.update_columns(frac_refl=frac_refl)
 
     def _populate_ifm(self, dataset, **kwargs):
         """

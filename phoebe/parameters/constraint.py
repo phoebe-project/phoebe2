@@ -586,17 +586,17 @@ def refl(b, component, solve_for=None, **kwargs):
 
     comp_ps = b.get_component(component=component)
 
-    alb_refl_bol = comp_ps.get_parameter(qualifier='alb_refl_bol')
-    # alb_heat_bol = comp_ps.get_parameter(qualifier='alb_heat_bol')
-    # alb_scatt_bol = comp_ps.get_parameter(qualifier='alb_scatt_bol')
-    alb_lost_bol = comp_ps.get_parameter(qualifier='alb_lost_bol')
+    frac_refl_bol = comp_ps.get_parameter(qualifier='frac_refl_bol')
+    # frac_heat_bol = comp_ps.get_parameter(qualifier='frac_heat_bol')
+    # frac_scatt_bol = comp_ps.get_parameter(qualifier='frac_scatt_bol')
+    frac_lost_bol = comp_ps.get_parameter(qualifier='frac_lost_bol')
 
-    if solve_for in [alb_lost_bol, None]:
-        lhs = alb_lost_bol
-        rhs = 1.0 - alb_refl_bol  #- heating_bol - scattering_bol
-    elif solve_for in [alb_refl_bol]:
-        lhs = alb_refl_bol
-        rhs = 1.0 - alb_lost_bol
+    if solve_for in [frac_lost_bol, None]:
+        lhs = frac_lost_bol
+        rhs = 1.0 - frac_refl_bol  #- heating_bol - scattering_bol
+    elif solve_for in [frac_refl_bol]:
+        lhs = frac_refl_bol
+        rhs = 1.0 - frac_lost_bol
     else:
         raise NotImplementedError
 

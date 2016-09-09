@@ -10,7 +10,7 @@ Dictionaries of parameters for conversion between phoebe1 and phoebe 2
 
 """
 
-_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'alb_refl_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
+_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'frac_refl_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
 #TODO: add back proximity_rv maybe?
 #TODO: add back 'excess': 'extinction',
 
@@ -813,7 +813,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             param=None
         if param != None:
             val, ptype = par_value(param)
-            # if param.qualifier == 'alb_refl_bol':
+            # if param.qualifier == 'frac_refl_bol':
                 # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
             if pname[0] not in parnames:
@@ -842,7 +842,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
         if param != None:
 
             val, ptype = par_value(param)
-            # if param.qualifier == 'alb_refl_bol':
+            # if param.qualifier == 'frac_refl_bol':
                 # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
             if pname[0] not in parnames:
