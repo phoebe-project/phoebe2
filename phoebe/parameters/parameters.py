@@ -779,6 +779,7 @@ class ParameterSet(object):
                 # this parameter for any pair
 
                 ps = self._bundle.filter(check_visible=False, force_ps=True, **param.copy_for)
+                ps = self._bundle.filter(check_visible=False, check_default=False, force_ps=True, **param.copy_for)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
                     if k not in ['twig', 'uniquetwig'] and k not in attrs:
@@ -824,6 +825,7 @@ class ParameterSet(object):
                         param_constraint = param.is_constraint
 
                         copied_param = self._bundle.get_parameter(check_visible=False, **metawargs)
+                        copied_param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
 
                         if not copied_param.is_constraint:
                             constraint_kwargs = param_constraint.constraint_kwargs.copy()
