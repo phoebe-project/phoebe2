@@ -52,7 +52,7 @@ logger.addHandler(logging.NullHandler())
 # TODO: this is redundant with parameters.py - figure out a way to import without circular imports (perhaps put these in their own module)
 _meta_fields_twig = ['time', 'qualifier', 'history', 'component',
                 'dataset', 'constraint', 'compute', 'model', 'fitting',
-                'feedback', 'plugin', 'method',
+                'feedback', 'plugin', 'kind',
                 'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -201,19 +201,19 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
     ax = kwargs.pop('ax', None)
     if ax is None:
         ax = plt.gca()
-        if hasattr(ax, '_phoebe_method') and ps.method != ax._phoebe_method:
-            if ps.method in ['ORB', 'MESH'] and xunit==yunit:
+        if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
+            if ps.kind in ['ORB', 'MESH'] and xunit==yunit:
                 ax = _mpl_append_axes(plt.gcf(), aspect='equal')
             else:
                 ax = _mpl_append_axes(plt.gcf())
         else:
             # not sure if we want this - the user may have set the aspect ratio already
-            if ps.method in ['ORB', 'MESH'] and xunit==yunit:
+            if ps.kind in ['ORB', 'MESH'] and xunit==yunit:
                 # TODO: for aspect ratio (here and above) can we be smarter and
                 # check for same units?
                 ax.set_aspect('equal')
 
-    ax._phoebe_method = ps.method
+    ax._phoebe_method = ps.kind
 
     # let's check to see if we're dealing with a 3d axes or not
     axes_3d = isinstance(ax, Axes3D)
@@ -230,7 +230,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             'highlight_marker', 'highlight_color', 'uncover',
             'facecolor', 'edgecolor', 'facecmap', 'edgecmap', 'correct', 'plotting_backend']}
 
-    if ps.method in ['MESH', 'MESH_syn'] and kwargs.get('polycollection', False):
+    if ps.kind in ['MESH', 'MESH_syn'] and kwargs.get('polycollection', False):
         # here plot_inds is used to sort in the z-direction
         pckwargs = {}
         pckwargs['facecolors'] = kwargs.get('facecolor', 'w')  # note change from singular -> plural
@@ -772,7 +772,7 @@ def _template_plotting_function(ps, data, plot_inds, **kwargs):
     ylabel = kwargs.pop('ylabel', '')
     zlabel = kwargs.pop('zlabel', '')
 
-    ps.method
+    ps.kind
 
     plot(xarray[plot_inds], yarray[plot_inds])
 

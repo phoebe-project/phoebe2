@@ -21,7 +21,7 @@ def orbit(component, **kwargs):
     """
     Create parameters for a new orbit.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -70,7 +70,7 @@ def star(component, **kwargs):
     """
     Create parameters for a new star.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -137,7 +137,7 @@ def envelope(component, **kwargs):
     Create parameters for an envelope (usually will be attached to two stars solRad
         that they can share a common-envelope)
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
 
     :parameter **kwargs: defaults for the values of any of the parameters

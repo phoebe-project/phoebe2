@@ -763,17 +763,17 @@ class Bundle(ParameterSet):
 
         if len(args) == 1 and isinstance(args[0], str):
             repr_ = args[0]
-            method = None
+            kind = None
 
         elif len(args) == 0:
             if 'value' in kwargs.keys():
                 repr_ = kwargs['value']
-                method = None
+                kind = None
             else:
                 # TODO: raise warning?
                 # return self.remove_parameter(context='hierarchy')
                 repr_ = self.get_hierarchy().get_value()
-                method = None
+                kind = None
 
         else:
             func = _get_add_func(hierarchy, args[0])
@@ -781,7 +781,7 @@ class Bundle(ParameterSet):
 
             repr_ = func(*func_args)
 
-            method = func.func_name
+            kind = func.func_name
 
         hier_param = HierarchyParameter(value=repr_,
                                         description='Hierarchy representation')
@@ -1100,7 +1100,7 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
             for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset).method not in ['LC', 'RV']:
+                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['LC', 'RV']:
                     continue
                 ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
@@ -1115,7 +1115,7 @@ class Bundle(ParameterSet):
         # we've survived all tests
         return True, ''
 
-    def add_feature(self, method, component, **kwargs):
+    def add_feature(self, kind, component, **kwargs):
         """
         Add a new feature (spot, etc) to a component in the system.  If not
         provided, 'feature' (the name of the new feature) will be created
@@ -1128,15 +1128,15 @@ class Bundle(ParameterSet):
 
         >>> b.add_feature('spot', 'mystar', colat=90)
 
-        Available methods include:
+        Available kinds include:
             * :func:`phoebe.parameters.feature.spot`
 
-        :parameter method: function to call that returns a
+        :parameter kind: function to call that returns a
             ParameterSet or list of parameters.  This must either be
             a callable function that accepts nothing but default values,
             or the name of a function (as a string) that can be found in the
             :mod:`phoebe.parameters.feature` module (ie. 'spot')
-        :type method: str or callable
+        :type kind: str or callable
         :parameter str component: name of the component to attach the feature
         :parameter str feature: (optional) name of the newly-created feature
         :parameter **kwargs: default value for any of the newly-created
@@ -1145,12 +1145,12 @@ class Bundle(ParameterSet):
             all parameters that have been added
         :raises NotImplementedError: if required constraint is not implemented
         """
-        func = _get_add_func(_feature, method)
+        func = _get_add_func(_feature, kind)
 
         kwargs.setdefault('feature',
                           self._default_label(func.func_name,
                                               **{'context': 'feature',
-                                                 'method': func.func_name}))
+                                                 'kind': func.func_name}))
 
         self._check_label(kwargs['feature'])
 
@@ -1162,7 +1162,7 @@ class Bundle(ParameterSet):
         metawargs = {'context': 'feature',
                      'component': component,
                      'feature': kwargs['feature'],
-                     'method': func.func_name}
+                     'kind': func.func_name}
 
         self._attach_params(params, **metawargs)
 
@@ -1208,7 +1208,7 @@ class Bundle(ParameterSet):
 
     def add_spot(self, component, feature=None, **kwargs):
         """
-        Shortcut to :meth:`add_feature` but with method='spot'
+        Shortcut to :meth:`add_feature` but with kind='spot'
         """
         kwargs.setdefault('component', component)
         kwargs.setdefault('feature', feature)
@@ -1216,21 +1216,21 @@ class Bundle(ParameterSet):
 
     def get_spot(self, feature=None, **kwargs):
         """
-        Shortcut to :meth:`get_feature` but with method='spot'
+        Shortcut to :meth:`get_feature` but with kind='spot'
         """
-        kwargs.setdefault('method', 'spot')
+        kwargs.setdefault('kind', 'spot')
         return self.get_feature(feature, **kwargs)
 
     def remove_spot(self, feature=None, **kwargs):
         """
         [NOT IMPLEMENTED]
 
-        Shortcut to :meth:`remove_feature` but with method='spot'
+        Shortcut to :meth:`remove_feature` but with kind='spot'
         """
-        kwargs.setdefault('method', 'spot')
+        kwargs.setdefault('kind', 'spot')
         return self.remove_feature(feature, **kwargs)
 
-    def add_component(self, method, **kwargs):
+    def add_component(self, kind, **kwargs):
         """
         Add a new component (star or orbit) to the system.  If not provided,
         'component' (the name of the new star or orbit) will be created for
@@ -1243,17 +1243,17 @@ class Bundle(ParameterSet):
 
         >>> b.add_component('orbit', period=2.5)
 
-        Available methods include:
+        Available kinds include:
             * :func:`phoebe.parameters.component.star`
             * :func:`phoebe.parameters.component.orbit`
 
-        :parameter method: function to call that returns a
+        :parameter kind: function to call that returns a
             ParameterSet or list of parameters.  This must either be
             a callable function that accepts nothing but default
             values, or the name of a function (as a string) that can
             be found in the :mod:`phoebe.parameters.component` module
             (ie. 'star', 'orbit')
-        :type method: str or callable
+        :type kind: str or callable
         :parameter str component: (optional) name of the newly-created
             component
         :parameter **kwargs: default values for any of the newly-created
@@ -1263,12 +1263,12 @@ class Bundle(ParameterSet):
         :raises NotImplementedError: if required constraint is not implemented
         """
 
-        func = _get_add_func(component, method)
+        func = _get_add_func(component, kind)
 
         kwargs.setdefault('component',
                           self._default_label(func.func_name,
                                               **{'context': 'component',
-                                                 'method': func.func_name}))
+                                                 'kind': func.func_name}))
 
         self._check_label(kwargs['component'])
 
@@ -1276,7 +1276,7 @@ class Bundle(ParameterSet):
 
         metawargs = {'context': 'component',
                      'component': kwargs['component'],
-                     'method': func.func_name}
+                     'kind': func.func_name}
 
         self._attach_params(params, **metawargs)
 
@@ -1321,55 +1321,55 @@ class Bundle(ParameterSet):
 
     def add_orbit(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`add_component` but with method='orbit'
+        Shortcut to :meth:`add_component` but with kind='orbit'
         """
         kwargs.setdefault('component', component)
         return self.add_component('orbit', **kwargs)
 
     def get_orbit(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`get_component` but with method='star'
+        Shortcut to :meth:`get_component` but with kind='star'
         """
-        kwargs.setdefault('method', 'orbit')
+        kwargs.setdefault('kind', 'orbit')
         return self.get_component(component, **kwargs)
 
     def remove_orbit(self, component=None, **kwargs):
         """
         [NOT IMPLEMENTED]
 
-        Shortcut to :meth:`remove_component` but with method='star'
+        Shortcut to :meth:`remove_component` but with kind='star'
         """
-        kwargs.setdefault('method', 'orbit')
+        kwargs.setdefault('kind', 'orbit')
         return self.remove_component(component, **kwargs)
 
     def add_star(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`add_component` but with method='star'
+        Shortcut to :meth:`add_component` but with kind='star'
         """
         kwargs.setdefault('component', component)
         return self.add_component('star', **kwargs)
 
     def get_star(self, component=None, **kwargs):
         """
-        Shortcut to :meth:`get_component` but with method='star'
+        Shortcut to :meth:`get_component` but with kind='star'
         """
-        kwargs.setdefault('method', 'star')
+        kwargs.setdefault('kind', 'star')
         return self.get_component(component, **kwargs)
 
     def remove_star(self, component=None, **kwargs):
         """
         [NOT IMPLEMENTED]
 
-        Shortcut to :meth:`remove_component` but with method='star'
+        Shortcut to :meth:`remove_component` but with kind='star'
         """
-        kwargs.setdefault('method', 'star')
+        kwargs.setdefault('kind', 'star')
         return self.remove_component(component, **kwargs)
 
     def add_envelope(self, component=None, **kwargs):
         """
         [NOT SUPPORTED]
 
-        Shortcut to :meth:`add_component` but with method='envelope'
+        Shortcut to :meth:`add_component` but with kind='envelope'
         """
         kwargs.setdefault('component', component)
         return self.add_component('envelope', **kwargs)
@@ -1378,9 +1378,9 @@ class Bundle(ParameterSet):
         """
         [NOT SUPPORTED]
 
-        Shortcut to :meth:`get_component` but with method='envelope'
+        Shortcut to :meth:`get_component` but with kind='envelope'
         """
-        kwargs.setdefault('method', 'envelope')
+        kwargs.setdefault('kind', 'envelope')
         return self.get_component(component, **kwargs)
 
     def remove_envelope(self, component=None, **kwargs):
@@ -1388,9 +1388,9 @@ class Bundle(ParameterSet):
         [NOT SUPPORTED]
         [NOT IMPLEMENTED]
 
-        Shortcut to :meth:`remove_component` but with method='envelope'
+        Shortcut to :meth:`remove_component` but with kind='envelope'
         """
-        kwargs.setdefault('method', 'envelope')
+        kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
     def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
@@ -1415,12 +1415,12 @@ class Bundle(ParameterSet):
 
         ps = self.filter(component=component, context='component')
 
-        if ps.method in ['orbit']:
+        if ps.kind in ['orbit']:
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
             ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
             ret['phshift'] = ps.get_value(qualifier='phshift')
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
-        elif ps.method in ['star']:
+        elif ps.kind in ['star']:
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
         else:
             raise NotImplementedError
@@ -1494,7 +1494,7 @@ class Bundle(ParameterSet):
         # if changing this, also see parameters.constraint.time_ephem
         return t0 + ((phase - phshift) * period) / (1 - (phase - phshift) * dpdt)
 
-    def add_dataset(self, method, component=None, **kwargs):
+    def add_dataset(self, kind, component=None, **kwargs):
         """
         Add a new dataset to the bundle.  If not provided,
         'dataset' (the name of the new dataset) will be created for
@@ -1507,19 +1507,19 @@ class Bundle(ParameterSet):
         For radial velocities, you need to provide a list of components
         for which values should be computed.
 
-        Available methods include:
+        Available kinds include:
             * :func:`phoebe.parameters.dataset.lc`
             * :func:`phoebe.parameters.dataset.rv`
             * :func:`phoebe.parameters.dataset.etv`
             * :func:`phoebe.parameters.dataset.orb`
             * :func:`phoebe.parameters.dataset.mesh`
 
-        :parameter method: function to call that returns a
+        :parameter kind: function to call that returns a
             ParameterSet or list of parameters.  This must either be
             a callable function that accepts nothing but default
             values, or the name of a function (as a string) that can
             be found in the :mod:`phoebe.parameters.dataset` module
-        :type method: str or callable
+        :type kind: str or callable
         :parameter component: a list of
             components for which to compute the observables.  For
             light curves this should be left at None to always compute
@@ -1533,33 +1533,33 @@ class Bundle(ParameterSet):
             all parameters that have been added
         :raises NotImplementedError: if required constraint is not implemented
         """
-        func = _get_add_func(_dataset, method.lower()
-                             if isinstance(method, str)
-                             else method)
+        func = _get_add_func(_dataset, kind.lower()
+                             if isinstance(kind, str)
+                             else kind)
 
         kwargs.setdefault('dataset',
                           self._default_label(func.func_name,
                                               **{'context': 'dataset',
-                                                 'method': func.func_name.upper()}))
+                                                 'kind': func.func_name.upper()}))
 
         self._check_label(kwargs['dataset'])
 
-        method = func.func_name.upper()
+        kind = func.func_name.upper()
 
         # Let's remember if the user passed components or if they were automatically assigned
         user_provided_components = component or kwargs.get('components', False)
 
-        if method == 'LC':
+        if kind == 'LC':
             allowed_components = [None]
-        elif method in ['RV', 'ORB']:
+        elif kind in ['RV', 'ORB']:
             allowed_components = self.hierarchy.get_stars()
             # TODO: how are we going to handle overcontacts dynamical vs flux-weighted
-        elif method in ['MESH']:
+        elif kind in ['MESH']:
             # allowed_components = self.hierarchy.get_meshables()
             allowed_components = [None]
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
-        elif method in ['ETV']:
+        elif kind in ['ETV']:
             hier = self.hierarchy
             stars = hier.get_stars()
             # only include components in which the sibling is also a star that
@@ -1597,7 +1597,7 @@ class Bundle(ParameterSet):
             raise ValueError("'{}' not a recognized component".format(component))
 
         obs_metawargs = {'context': 'dataset',
-                         'method': method,
+                         'kind': kind,
                          'dataset': kwargs['dataset']}
         obs_params, constraints = func()
         self._attach_params(obs_params, **obs_metawargs)
@@ -1606,9 +1606,9 @@ class Bundle(ParameterSet):
             # TODO: tricky thing here will be copying the constraints
             self.add_constraint(*constraint)
 
-        dep_func = _get_add_func(_dataset, "{}_dep".format(method.lower()))
+        dep_func = _get_add_func(_dataset, "{}_dep".format(kind.lower()))
         dep_metawargs = {'context': 'dataset',
-                         'method': '{}_dep'.format(method.upper()),
+                         'kind': '{}_dep'.format(kind.upper()),
                          'dataset': kwargs['dataset']}
         dep_params = dep_func()
         self._attach_params(dep_params, **dep_metawargs)
@@ -1617,7 +1617,7 @@ class Bundle(ParameterSet):
         # scenarios (and each kwargs could fall into different ones):
         # time = [0,1,2]
         #    in this case, we want to apply time across all of the components that
-        #    are applicable for this dataset method AND to _default so that any
+        #    are applicable for this dataset kind AND to _default so that any
         #    future components added to the system are copied appropriately
         # time = [0,1,2], components=['primary', 'secondary']
         #    in this case, we want to apply the value for time across components
@@ -1687,10 +1687,10 @@ class Bundle(ParameterSet):
             kwargs['dataset'] = dataset
 
         kwargs['context'] = 'dataset'
-        if 'method' in kwargs.keys():
-            # since we deal with dataset methods differently (always uppercase)
+        if 'kind' in kwargs.keys():
+            # since we deal with dataset kinds differently (always uppercase)
             # let's just give the user a break if they provided lowercase
-            kwargs['method'] = kwargs['method'].upper().replace('DEP', 'dep')
+            kwargs['kind'] = kwargs['kind'].upper().replace('DEP', 'dep')
         return self.filter(**kwargs)
 
     def remove_dataset(self, dataset=None, **kwargs):
@@ -1717,19 +1717,19 @@ class Bundle(ParameterSet):
         # Let's also avoid the possibility of accidentally deleting system
         # parameters, etc
         kwargs.setdefault('context', ['dataset', 'model', 'constraint'])
-        # and lastly, let's handle deps if method was passed
-        method = kwargs.get('method', None)
+        # and lastly, let's handle deps if kind was passed
+        kind = kwargs.get('kind', None)
 
-        if method is not None:
-            if isinstance(method, str):
-                method = [method]
-            method_deps = []
-            for meth in method:
+        if kind is not None:
+            if isinstance(kind, str):
+                kind = [kind]
+            kind_deps = []
+            for meth in kind:
                 dep = '{}_dep'.format(meth)
-                if dep not in method:
-                    method_deps.append(dep)
-            method = method + method_deps
-        kwargs['method'] = method
+                if dep not in kind:
+                    kind_deps.append(dep)
+            kind = kind + kind_deps
+        kwargs['kind'] = kind
 
         # ps = self.filter(**kwargs)
         # logger.info('removing {} parameters (this is not undoable)'.\
@@ -1817,7 +1817,7 @@ class Bundle(ParameterSet):
         func and strings to pass to function
         """
         # TODO: be smart enough to take kwargs (especially for undoing a
-        # remove_constraint) for method, value (expression),
+        # remove_constraint) for kind, value (expression),
 
         redo_kwargs = deepcopy(kwargs)
 
@@ -1841,8 +1841,8 @@ class Bundle(ParameterSet):
 
         elif len(args) == 0:
             # then everything is passed through kwargs
-            if 'method' in kwargs.keys():
-                func = _get_add_func(_constraint, kwargs['method'])
+            if 'kind' in kwargs.keys():
+                func = _get_add_func(_constraint, kwargs['kind'])
             elif 'func' in kwargs.keys():
                 func = _get_add_func(_constraint, kwargs['func'])
             elif 'constraint_func' in kwargs.keys():
@@ -1873,7 +1873,7 @@ class Bundle(ParameterSet):
                                                qualifier=lhs.qualifier,
                                                component=lhs.component,
                                                dataset=lhs.dataset,
-                                               method=lhs.method,
+                                               kind=lhs.kind,
                                                model=lhs.model,
                                                constraint_func=func.__name__,
                                                constraint_kwargs=constraint_kwargs,
@@ -1882,7 +1882,7 @@ class Bundle(ParameterSet):
                                                description='expression that determines the constraint')
 
         metawargs = {'context': 'constraint',
-                     'method': func.func_name}
+                     'kind': func.func_name}
 
         params = ParameterSet([constraint_param])
         constraint_param._update_bookkeeping()
@@ -2022,7 +2022,7 @@ class Bundle(ParameterSet):
 
         return result
 
-    def add_compute(self, method=compute.phoebe, **kwargs):
+    def add_compute(self, kind=compute.phoebe, **kwargs):
         """
         Add a set of computeoptions for a given backend to the bundle.
         The label ('compute') can then be sent to :meth:`run_compute`.
@@ -2031,18 +2031,18 @@ class Bundle(ParameterSet):
         accessed by the 'compute' attribute of the returned
         ParameterSet.
 
-        Available methods include:
+        Available kinds include:
             * :func:`phoebe.parameters.compute.phoebe`
             * :func:`phoebe.parameters.compute.legacy`
             * :func:`phoebe.parameters.compute.photodynam`
             * :func:`phoebe.parameters.compute.jktebop`
 
-        :parameter method: function to call that returns a
+        :parameter kind: function to call that returns a
             ParameterSet or list of parameters.  This must either be
             a callable function that accepts nothing but default
             values, or the name of a function (as a string) that can
             be found in the :mod:`phoebe.parameters.compute` module
-        :type method: str or callable
+        :type kind: str or callable
         :parameter str compute: (optional) name of the newly-created
             compute optins
         :parameter **kwargs: default values for any of the newly-created
@@ -2051,12 +2051,12 @@ class Bundle(ParameterSet):
             all parameters that have been added
         :raises NotImplementedError: if required constraint is not implemented
         """
-        func = _get_add_func(_compute, method)
+        func = _get_add_func(_compute, kind)
 
         kwargs.setdefault('compute',
                           self._default_label(func.func_name,
                                               **{'context': 'compute',
-                                                 'method': func.func_name}))
+                                                 'kind': func.func_name}))
 
         self._check_label(kwargs['compute'])
 
@@ -2066,10 +2066,10 @@ class Bundle(ParameterSet):
         # allowing to also pass to different datasets
 
         metawargs = {'context': 'compute',
-                     'method': func.func_name,
+                     'kind': func.func_name,
                      'compute': kwargs['compute']}
 
-        logger.info("adding {} '{}' compute to bundle".format(metawargs['method'], metawargs['compute']))
+        logger.info("adding {} '{}' compute to bundle".format(metawargs['kind'], metawargs['compute']))
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
@@ -2288,11 +2288,11 @@ class Bundle(ParameterSet):
 
             computeparams = self.get_compute(compute=compute)
 
-            if not computeparams.method:
+            if not computeparams.kind:
                 raise KeyError("could not recognize backend from compute: {}".format(compute))
 
-            logger.info("running {} backend to create '{}' model".format(computeparams.method, model))
-            compute_func = getattr(backends, computeparams.method)
+            logger.info("running {} backend to create '{}' model".format(computeparams.kind, model))
+            compute_func = getattr(backends, computeparams.kind)
 
             metawargs = {'compute': compute, 'model': model, 'context': 'model'}  # dataset, component, etc will be set by the compute_func
 
@@ -2350,7 +2350,7 @@ class Bundle(ParameterSet):
 
 
             # average over any exposure times before attaching parameters
-            if computeparams.method == 'phoebe':
+            if computeparams.kind == 'phoebe':
                 # TODO: we could eventually do this for all backends - we would
                 # just need to copy the computeoption parameters into each backend's
                 # compute PS, and include similar logic for oversampling that is
@@ -2370,7 +2370,7 @@ class Bundle(ParameterSet):
                                 # NOTE: this is hardcoded for LCs which is the
                                 # only dataset that currently supports oversampling,
                                 # but this will need to be generalized if/when
-                                # we expand that support to other dataset methods
+                                # we expand that support to other dataset kinds
                                 fluxes = np.zeros(times_ds.shape)
                                 fluxes_oversampled = params.get_value('flux', dataset=dataset)
                                 for i,t in enumerate(times_ds):

@@ -201,7 +201,7 @@ class System(object):
             body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs, ignore_effects=ignore_effects)
 
 
-    def populate_observables(self, time, methods, datasets, kwargss, ignore_effects=False):
+    def populate_observables(self, time, kinds, datasets, kwargss, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -210,7 +210,7 @@ class System(object):
 
         bol_pband = 'Bolometric:1760-40000'
 
-        if self.do_reflection and not ignore_effects:  # and methods includes a method that requires fluxes
+        if self.do_reflection and not ignore_effects:  # and kinds includes a kind that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
                 body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
@@ -219,9 +219,9 @@ class System(object):
             self.handle_reflection()
 
 
-        for method, dataset, kwargs in zip(methods, datasets, kwargss):
+        for kind, dataset, kwargs in zip(kinds, datasets, kwargss):
             for starref, body in self.items():
-                body.populate_observable(time, method, dataset, **kwargs)
+                body.populate_observable(time, kind, dataset, **kwargs)
 
     def handle_reflection(self,  **kwargs):
         """
@@ -318,7 +318,7 @@ class System(object):
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
-        # TODO: set to triangles if WD method
+        # TODO: set to triangles if WD mesh_method
         meshes.set_column_flat('intens_norm_abs:bol', intens_intrins_and_refl_flat)
 
         # update the effective temperatures to gives this same bolometric
@@ -326,7 +326,7 @@ class System(object):
         # then be used for all passband intensities
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (intens_intrins_and_refl_flat / intens_intrins_flat) ** (1./4)
 
-        # TODO: set to triangles if WD method
+        # TODO: set to triangles if WD mesh_method
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
     def handle_eclipses(self, **kwargs):
@@ -396,7 +396,7 @@ class System(object):
         return
 
 
-    def observe(self, dataset, method, components=None, distance=1.0, l3=0.0):
+    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0):
         """
         TODO: add documentation
 
@@ -406,7 +406,7 @@ class System(object):
         """
 
         meshes = self.meshes
-        if method=='RV':
+        if kind=='RV':
             visibilities = meshes.get_column_flat('visibilities', components)
 
             if np.all(visibilities==0):
@@ -425,7 +425,7 @@ class System(object):
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
             return {'rv': np.average(rvs, weights=intens_proj_abs*areas*mus*visibilities)}
 
-        elif method=='LC':
+        elif kind=='LC':
             visibilities = meshes.get_column_flat('visibilities')
 
             if np.all(visibilities==0):
@@ -450,7 +450,7 @@ class System(object):
             return {'flux': np.sum(intens_proj_rel*areas*mus*visibilities)/(distance**2)+l3}
 
 
-        elif method == 'IFM':
+        elif kind == 'IFM':
             # so far the function is kinda hollow
             vis2 = []
             vphase = []
@@ -465,7 +465,7 @@ class System(object):
                      vphase_2=vphase_2, vis2_3=vis2_3, vphase_3=vphase_3,
                      t3_ampl=t3_ampl, t3_phase=t3_phase)
         else:
-            raise NotImplementedError("observe for dataset with method '{}' not implemented".format(method))
+            raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 
 
 
@@ -1001,21 +1001,21 @@ class Body(object):
             return 1.0
 
 
-    def populate_observable(self, time, method, dataset, **kwargs):
+    def populate_observable(self, time, kind, dataset, **kwargs):
         """
         TODO: add documentation
         """
 
-        if method in ['MESH']:
+        if kind in ['MESH']:
             return
 
-        if time==self.time and dataset in self.populated_at_time and 'pblum' not in method:
+        if time==self.time and dataset in self.populated_at_time and 'pblum' not in kind:
             # then we've already computed the needed columns
 
             # TODO: handle the case of intensities already computed by /different/ dataset (ie RVs computed first and filling intensities and then LC requesting intensities with SAME passband/atm)
             return
 
-        new_mesh_cols = getattr(self, '_populate_{}'.format(method.lower()))(dataset, **kwargs)
+        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
 
         for key, col in new_mesh_cols.items():
 
@@ -1356,7 +1356,7 @@ class Star(Body):
         for feature in b.filter(component=component).features:
             # print "*** creating features", star, feature
             feature_ps = b.filter(feature=feature, component=component)
-            feature_cls = globals()[feature_ps.method.title()]
+            feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
@@ -1629,10 +1629,10 @@ class Star(Body):
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'sphere' distortion method not yet supported - try roche")
+                raise NotImplementedError("'sphere' distortion_method not yet supported - try roche")
             elif self.distortion_method == 'nbody':
                 # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'nbody' distortion method not yet supported - try roche")
+                raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
             else:
                 raise NotImplementedError
 
@@ -1645,7 +1645,7 @@ class Star(Body):
             scale = sma
 
         else:
-            raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
         return new_mesh, scale, mesh_args
 
@@ -2197,7 +2197,7 @@ class Envelope(Body):
         for feature in b.filter(component=component).features:
             # print "*** creating features", star, feature
             feature_ps = b.filter(feature=feature, component=component)
-            feature_cls = globals()[feature_ps.method.title()]
+            feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
@@ -2378,7 +2378,7 @@ class Envelope(Body):
 
             elif self.distortion_method == 'nbody':
                 # TODO: implement this? - can OCs be done in NBody mode?
-                raise NotImplementedError("'nbody' distortion method not yet supported - try roche")
+                raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
             else:
                 raise NotImplementedError
 
@@ -2406,7 +2406,7 @@ class Envelope(Body):
             new_mesh['env_comp3']=env_comp
 
         else:
-            raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
         return new_mesh, sma, mesh_args
 

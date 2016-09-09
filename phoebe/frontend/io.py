@@ -221,7 +221,7 @@ def det_dataset(eb, passband, dataid, comp, time):
     rvpt - relevant phoebe 1 parameters
 
     """
-    rvs = eb.get_dataset(method='RV').datasets
+    rvs = eb.get_dataset(kind='RV').datasets
     #first check to see if there are currently in RV datasets
     if dataid == 'Undefined':
         dataid = None
@@ -240,7 +240,7 @@ def det_dataset(eb, passband, dataid, comp, time):
 
     else:
     #now we have to determine if we add to an existing dataset or make a new one
-        rvs = eb.get_dataset(method='RV').datasets
+        rvs = eb.get_dataset(kind='RV').datasets
         found = False
         #set the component of the companion
         if comp == 'primary':
@@ -411,7 +411,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 #Now RVs
     for x in range(1,rvno+1):
-        rvs = eb.get_dataset(method='RV').datasets
+        rvs = eb.get_dataset(kind='RV').datasets
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
         rvpt = rvpars[rvint]
@@ -521,14 +521,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['qualifier'] = d['qualifier']+'_bol'
         if pnew == 'pot':
             #print "dict", d
-            d['method'] = 'star'
+            d['kind'] = 'star'
             d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
             eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
             #print "val", val
             d['value'] = val
             d['qualifier'] = 'pot'
-            d['method'] = None
+            d['kind'] = None
             d['context'] = 'component'
             #print "d end", d
     #        elif pnew == 'filter':
@@ -595,7 +595,7 @@ def par_value(param, index=None):
     d['component'] = param.component
     d['dataset'] = param.dataset
     d['compute'] = param.compute
-    d['method'] = param.method
+    d['kind'] = param.kind
 # Determine what type of parameter you have and find it's value
     if isinstance(param, phb.parameters.FloatParameter) and not isinstance(param, phb.parameters.FloatArrayParameter):
         ptype = 'float'
@@ -770,8 +770,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     if len(set(ldlaws)) > 1:
         raise ValueError("Phoebe 1 takes only one limb darkening law.")
 
-    lcs = eb.get_dataset(method='LC').datasets
-    rvs = eb.get_dataset(method='RV').datasets
+    lcs = eb.get_dataset(kind='LC').datasets
+    rvs = eb.get_dataset(kind='RV').datasets
     spots = eb.features
     if len(ldlaws) == 0:
         pass
@@ -856,8 +856,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
 #  catch all the datasets
 
-#    lcs = eb.get_dataset(method='LC').datasets
-#    rvs = eb.get_dataset(method='RV').datasets
+#    lcs = eb.get_dataset(kind='LC').datasets
+#    rvs = eb.get_dataset(kind='RV').datasets
 #    spots = eb.features
 
 # add all important parameters that must go at the top of the file
@@ -1077,7 +1077,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
 #loop through LEGACY compute parameter set
 
-    comquals = eb.get_compute(method='legacy', check_visible=False)-eb.get_compute(method='legacy', component='_default')
+    comquals = eb.get_compute(kind='legacy', check_visible=False)-eb.get_compute(kind='legacy', component='_default')
 
     for param in comquals.to_list():
 

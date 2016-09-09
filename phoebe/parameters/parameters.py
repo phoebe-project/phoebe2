@@ -79,7 +79,7 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'compute', 'model', 'fitting',
-                     'feedback', 'plugin', 'method',
+                     'feedback', 'plugin', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -262,7 +262,7 @@ class ParameterSet(object):
         self._fitting = None
         self._feedback = None
         self._plugin = None
-        self._method = None
+        self._kind = None
         self._context = None
 
         # just as a dummy, this'll be filled and handled by to_dict()
@@ -609,23 +609,23 @@ class ParameterSet(object):
         return self.to_dict(field='plugin').keys()
 
     @property
-    def method(self):
-        """Return the value for method if shared by ALL Parameters.
+    def kind(self):
+        """Return the value for kind if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the methods of all parameters, see :func:`methods`.
+        all the kinds of all parameters, see :func:`kinds`.
 
         :return: str or None
         """
-        return self._method
+        return self._kind
 
     @property
-    def methods(self):
-        """Return a list of all the methods of the Parameters.
+    def kinds(self):
+        """Return a list of all the kinds of the Parameters.
 
         :return: list of strings
         """
-        return self.to_dict(field='method').keys()
+        return self.to_dict(field='kind').keys()
 
     @property
     def context(self):
@@ -766,19 +766,18 @@ class ParameterSet(object):
                 # copy_for tells us how to filter and what set of attributes
                 # needs a copy of this parameter
                 #
-                # copy_for = {'method': ['star', 'disk', 'custombody'], 'component': '*'}
+                # copy_for = {'kind': ['star', 'disk', 'custombody'], 'component': '*'}
                 # means that this should exist for each component (since that has a wildcard) which
-                # has a method in [star, disk, custombody]
+                # has a kind in [star, disk, custombody]
                 #
-                # copy_for = {'method': ['RV_dep'], 'component': '*', 'dataset': '*'}
+                # copy_for = {'kind': ['RV_dep'], 'component': '*', 'dataset': '*'}
                 # means that this should exist for each component/dataset pair with the
-                # RV_dep method
+                # RV_dep kind
 
                 attrs = [k for k,v in param.copy_for.items() if '*' in v]
                 # attrs is a list of the attributes for which we need a copy of
                 # this parameter for any pair
 
-                ps = self._bundle.filter(check_visible=False, force_ps=True, **param.copy_for)
                 ps = self._bundle.filter(check_visible=False, check_default=False, force_ps=True, **param.copy_for)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
@@ -824,7 +823,6 @@ class ParameterSet(object):
 
                         param_constraint = param.is_constraint
 
-                        copied_param = self._bundle.get_parameter(check_visible=False, **metawargs)
                         copied_param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
 
                         if not copied_param.is_constraint:
@@ -1315,8 +1313,8 @@ class ParameterSet(object):
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
-                    (key=='method' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
-                    (key=='method' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
+                    (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
+                    (key=='kind' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
                     (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
@@ -1830,7 +1828,7 @@ class ParameterSet(object):
 
         ps = self.filter(twig=twig,
                          **{k: v for k, v in kwargs.items() if k != 'time'})
-        if 'time' in kwargs.keys() and ps.method in ['MESH', 'MESH_syn']:
+        if 'time' in kwargs.keys() and ps.kind in ['MESH', 'MESH_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -1845,7 +1843,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.datasets)>1 and ps.method not in ['MESH']:
+        if len(ps.datasets)>1 and ps.kind not in ['MESH']:
             return_ = []
             for dataset in ps.datasets:
                 if dataset in ['protomesh']:
@@ -1856,26 +1854,26 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # For methods, we want to ignore the deps - those won't have arrays
-        methods = [m for m in ps.methods if m[-3:] != 'dep']
+        # For kinds, we want to ignore the deps - those won't have arrays
+        kinds = [m for m in ps.kinds if m[-3:] != 'dep']
         # ax = kwargs.pop('ax', None)
 
         # If we are asking to plot a dataset that also shows up in columns in
-        # the mesh, then remove the mesh method.  In other words: mesh stuff
-        # will only be plotted if mesh is the only method in the filter.
-        psmethods = ps.methods
-        if len(psmethods) > 1 and 'MESH' in psmethods:
-            psmethods.remove('MESH')
+        # the mesh, then remove the mesh kind.  In other words: mesh stuff
+        # will only be plotted if mesh is the only kind in the filter.
+        pskinds = ps.kinds
+        if len(pskinds) > 1 and 'MESH' in pskinds:
+            pskinds.remove('MESH')
 
-        if len(methods) == 1 and len(psmethods) > 1:
+        if len(kinds) == 1 and len(pskinds) > 1:
             # then we need to filter to exclude the dep
-            ps = ps.filter(method=methods[0])
-            psmethods = [methods[0]]
+            ps = ps.filter(kind=kinds[0])
+            pskinds = [kinds[0]]
 
-        if len(ps.methods) > 1:
+        if len(ps.kinds) > 1:
             return_ = []
-            for method in [m for m in psmethods if m[-3:]!='dep']:
-                this_return = ps.filter(method=method).get_plotting_info(**kwargs)
+            for kind in [m for m in pskinds if m[-3:]!='dep']:
+                this_return = ps.filter(kind=kind).get_plotting_info(**kwargs)
                 return_ += this_return
             return return_
 
@@ -1895,7 +1893,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if ps.method in ['MESH', 'MESH_syn', 'ORB', 'ORB_syn'] and \
+        if ps.kind in ['MESH', 'MESH_syn', 'ORB', 'ORB_syn'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
@@ -1911,7 +1909,7 @@ class ParameterSet(object):
         # and z are all the coordinates (then we'll plot the triangles).
         # Otherwise, we will continue and can use the generic x, y plotting (ie
         # for flux vs r_proj)
-        if ps.method in ['MESH', 'MESH_syn'] and \
+        if ps.kind in ['MESH', 'MESH_syn'] and \
                 kwargs.get('x', 'x') in ['x', 'y', 'z'] and \
                 kwargs.get('y', 'y') in ['x', 'y', 'z'] and \
                 kwargs.get('z', 'z') in ['x', 'y', 'z']:
@@ -2037,8 +2035,8 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # now we can use ps.method to guess what columns need plotting
-        if ps.method in ['ORB', 'ORB_syn']:
+        # now we can use ps.kind to guess what columns need plotting
+        if ps.kind in ['ORB', 'ORB_syn']:
             if axes_3d:
                 xqualifier = kwargs.get('x', 'x')
                 yqualifier = kwargs.get('y', 'y')
@@ -2048,32 +2046,32 @@ class ParameterSet(object):
                 yqualifier = kwargs.get('y', 'z')
                 zqualifier = kwargs.get('z', 'y')
             timequalifier = 'time'
-        elif ps.method in ['MESH', 'MESH_syn']:
+        elif ps.kind in ['MESH', 'MESH_syn']:
             xqualifier = kwargs.get('x', 'r_proj')
             yqualifier = kwargs.get('y', 'teff')
             zqualifier = kwargs.get('z', 'logg')
             timequalifier = 'time'
-        elif ps.method in ['LC', 'LC_syn']:
+        elif ps.kind in ['LC', 'LC_syn']:
             xqualifier = kwargs.get('x', 'time')
             yqualifier = kwargs.get('y', 'flux')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'time'
-        elif ps.method in ['RV', 'RV_syn']:
+        elif ps.kind in ['RV', 'RV_syn']:
             xqualifier = kwargs.get('x', 'time')
             yqualifier = kwargs.get('y', 'rv')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'time'
-        elif ps.method in ['ETV', 'ETV_syn']:
+        elif ps.kind in ['ETV', 'ETV_syn']:
             xqualifier = kwargs.get('x', 'time_ecl')
             yqualifier = kwargs.get('y', 'etv')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'time_ecl'
         else:
-            raise NotImplementedError("plotting for dataset '{}' with method '{}' is not yet implemented".format(ps.dataset, ps.method))
+            raise NotImplementedError("plotting for dataset '{}' with kind '{}' is not yet implemented".format(ps.dataset, ps.kind))
 
         # We'll set these as kwarg defaults so that they can easily be passed
         # through any other call to plot (when looping over models, components,
-        # methods below)
+        # kinds below)
         # color = kwargs.get('color', None)
         # kwargs.setdefault('linecolor', color)
         # kwargs.setdefault('markercolor', color)
@@ -2088,7 +2086,7 @@ class ParameterSet(object):
         # Now let's get the parameters
 
         # TODO: these are currently warnings that
-        # are ignored because some methods might not include the defaults (ie
+        # are ignored because some kinds might not include the defaults (ie
         # no positions in orb but are in orb_syn)... perhaps this should be
         # silently handled earlier and should raise an error if we make it this
         # far (ie the user gave a non-existant qualifier)
@@ -2120,7 +2118,7 @@ class ParameterSet(object):
         # If the user provides unit(s), they can either give the unit object or
         # the string representation, so long as get_value(unit) succeeds
         # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.method in ['MESH', 'MESH_syn']:  # TODO: add sp and sp_syn
+        if ps.kind in ['MESH', 'MESH_syn']:  # TODO: add sp and sp_syn
             # then we're plotting at a single time so the time array doesn't
             # really make sense (we won't be able to plot anything vs phase or
             # color by time/phase)
@@ -2137,7 +2135,7 @@ class ParameterSet(object):
                 if len(xqualifier.split(':')) > 1 \
                 else None
             # TODO: check to make sure we have access to tparam._bundle
-            if ps.method.split('_')[-1] == 'syn':
+            if ps.kind.split('_')[-1] == 'syn':
                 xarray = tparam._bundle.to_phase(tarray,
                                                  component=component)
             else:
@@ -2262,7 +2260,7 @@ class ParameterSet(object):
         # try to interpret these
         if ps.context=='model':
             plottype = 'line'
-            if ps.method in ['MESH'] and \
+            if ps.kind in ['MESH'] and \
                     isinstance(xparam, FloatArrayParameter) and \
                     isinstance(yparam, FloatArrayParameter) and \
                     (zparam is None or
@@ -2336,7 +2334,7 @@ class ParameterSet(object):
         :parameter ax: axes to plot on (defaults to plt.gca())
         :type ax: mpl.axes
         :parameter str x: qualifier or twig of the array to plot on the x-axis (will
-            default based on the method if not provided).  Must be a valid
+            default based on the kind if not provided).  Must be a valid
             qualifier with the exception of phase.  To plot phase along the
             x-axis set x to 'phase' or 'phase:[component]'.  This will use
             the ephemeris from :meth:`phoebe.frontend.bundle.Bundle.get_ephemeris` if possible.
@@ -2482,7 +2480,7 @@ class ParameterSet(object):
         Save the plot.  This is really just a very generic wrapper based on the
         chosen plotting backend.  For matplotlib it is probably just as, if not
         even more, convenient to simply import matplotlib yourself and call the
-        shavefig method.
+        savefig method.
 
         :parameter str filename: filename to save to.  Be careful of extensions here...
                 matplotlib accepts many different image formats while other
@@ -2602,20 +2600,20 @@ class ParameterSet(object):
                     # TODO: this logic is also in plotting.mpl - should probably be its own function
                     if ax is None:
                         ax = plt.gca()
-                        if hasattr(ax, '_phoebe_method') and ps.method != ax._phoebe_method:
-                            if ps.method in ['ORB', 'MESH']:  # TODO: and xunit==yunit
+                        if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
+                            if ps.kind in ['ORB', 'MESH']:  # TODO: and xunit==yunit
                                 ax = plotting._mpl_append_axes(plt.gcf(), aspect='equal')
                             else:
                                 ax = plotting._mpl_append_axes(plt.gcf())
                         else:
                             # not sure if we want this - the user may have set the aspect ratio already
-                            if ps.method in ['ORB', 'MESH']:  # TODO: and xunit==yunit
+                            if ps.kind in ['ORB', 'MESH']:  # TODO: and xunit==yunit
                                 # TODO: for aspect ratio (here and above) can we be smarter and
                                 # check for same units?
                                 ax.set_aspect('equal')
 
                     ax = mpl_animate.reset_limits(ax, reset=False)  # this just ensures the attributes exist
-                    ax._phoebe_method = ps.method
+                    ax._phoebe_kind = ps.kind
                     this_plot_args['ax'] = ax
 
                     if this_kwargs.get('polycollection', False):
@@ -2702,7 +2700,7 @@ class Parameter(object):
         :parameter str fitting: (optional) label for the fitting tag
         :parameter str feedback: (optional) label for the feedback tag
         :parameter str plugin: (optional) label for the plugin tag
-        :parameter str method: (optional) label for the method tag
+        :parameter str kind: (optional) label for the kind tag
         :parameter str context: (optional) which context this parameter belongs in
 
         :parameter copy_for: (optional) dictionary of filter arguments for which this
@@ -2735,7 +2733,7 @@ class Parameter(object):
         self._fitting = kwargs.get('fitting', None)
         self._feedback = kwargs.get('feedback', None)
         self._plugin = kwargs.get('plugin', None)
-        self._method = kwargs.get('method', None)
+        self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
 
         # set whether new 'copies' of this parameter need to be created when
@@ -3014,11 +3012,11 @@ class Parameter(object):
         return self._plugin
 
     @property
-    def method(self):
+    def kind(self):
         """
-        :return: method tag of this Parameter
+        :return: kind tag of this Parameter
         """
-        return self._method
+        return self._kind
 
     @property
     def context(self):
@@ -4438,7 +4436,7 @@ class HierarchyParameter(StringParameter):
         """
         """
         obj = self._bundle.filter(component=component, context='component', check_visible=False)
-        our_item = '{}:{}'.format(obj.method, component)
+        our_item = '{}:{}'.format(obj.kind, component)
 
 
         repr_ = self.get_value()
@@ -4786,7 +4784,7 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, method=self.method, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
                 constrained_parameter = ps.get_parameter(check_visible=False)
             else:
@@ -5110,8 +5108,6 @@ class ConstraintParameter(Parameter):
                 # TODO: this is not nearly general enough, each method takes different arguments
                 # and getting solve_for as newly_constrained_param.qualifier
 
-                #~ print "*** trying flip by recalling method", self.method, self._method_args
-
                 lhs, rhs, constraint_kwargs = getattr(constraint, self.constraint_func)(self._bundle, solve_for=newly_constrained_param, **self.constraint_kwargs)
             # except NotImplementedError:
             #     pass
@@ -5139,7 +5135,7 @@ class ConstraintParameter(Parameter):
 
         else:
             # TODO: ability for built-in constraints to flip themselves
-            # we could access self.method and re-call that with a new solve_for option?
+            # we could access self.kind and re-call that with a new solve_for option?
             raise ValueError("must either have sympy installed or provide a new expression")
 
         self._qualifier = newly_constrained_param.qualifier

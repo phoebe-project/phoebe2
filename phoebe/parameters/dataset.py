@@ -11,7 +11,7 @@ def lc(**kwargs):
     """
     Create parameters for a new light curve dataset.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -52,16 +52,16 @@ def lc_syn(syn=True, **kwargs):
 def lc_dep(is_lc=True, **kwargs):
     dep_params = []
 
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
+    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
+    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
     if is_lc:
-        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
-        dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
+        dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
         dep_params += [FloatParameter(qualifier='l3', value=kwargs.get('l3', 0.), default_unit=u.W/u.m**3, description='Third light')]
 
-    # dep_params += [FloatParameter(qualifier='alb', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
+    # dep_params += [FloatParameter(qualifier='alb', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
 
     if is_lc:
         dep_params += [FloatParameter(qualifier='exptime', value=kwargs.get('exptime', 0.0), default_unit=u.s, description='Exposure time (time is defined as mid-exposure)')]
@@ -72,7 +72,7 @@ def rv(**kwargs):
     """
     Create parameters for a new radial velocity dataset.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -95,10 +95,10 @@ def rv_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    syn_params += [FloatArrayParameter(qualifier='time', copy_for={'method': ['star'], 'component': '*'}, component='_default', value=kwargs.get('time', []), default_unit=u.d, description='Observed times')]
-    syn_params += [FloatArrayParameter(qualifier='rv', copy_for={'method': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv', []), default_unit=u.km/u.s, description='Observed radial velocity')]
+    syn_params += [FloatArrayParameter(qualifier='time', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('time', []), default_unit=u.d, description='Observed times')]
+    syn_params += [FloatArrayParameter(qualifier='rv', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv', []), default_unit=u.km/u.s, description='Observed radial velocity')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigma', copy_for={'method': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigma', []), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
+        syn_params += [FloatArrayParameter(qualifier='sigma', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigma', []), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
 
     constraints = []
@@ -122,7 +122,7 @@ def etv(**kwargs):
     """
     Create parameters for a new eclipse timing variations dataset.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
 
     :parameter **kwargs: default for the values of any of the ParameterSet
@@ -147,10 +147,10 @@ def etv_syn(syn=True, **kwargs):
     syn_params = []
 
     #syn_params += [IntArrayParameter(qualifier='N', value=kwargs.get('N', []), description='Epoch since t0')]
-    syn_params += [FloatArrayParameter(qualifier='N', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('N', []), default_unit=u.dimensionless_unscaled, description='Epoch since t0')]
-    syn_params += [FloatArrayParameter(qualifier='time_ecl', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('time_ecl', []), default_unit=u.d, description='Time of eclipse')]
-    syn_params += [FloatArrayParameter(qualifier='time_ephem', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('time_ephem', []), default_unit=u.d, description='Expected time of eclipse from the current ephemeris')]
-    syn_params += [FloatArrayParameter(qualifier='etv', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('etv', []), default_unit=u.d, description='Eclipse timing variation (time_obs - time_ephem)')]
+    syn_params += [FloatArrayParameter(qualifier='N', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('N', []), default_unit=u.dimensionless_unscaled, description='Epoch since t0')]
+    syn_params += [FloatArrayParameter(qualifier='time_ecl', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('time_ecl', []), default_unit=u.d, description='Time of eclipse')]
+    syn_params += [FloatArrayParameter(qualifier='time_ephem', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('time_ephem', []), default_unit=u.d, description='Expected time of eclipse from the current ephemeris')]
+    syn_params += [FloatArrayParameter(qualifier='etv', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('etv', []), default_unit=u.d, description='Eclipse timing variation (time_obs - time_ephem)')]
     if not syn:
         syn_params += [FloatArrayParameter(qualifier='sigma', value=kwargs.get('sigma', []), default_unit=u.d, description='Observed uncertainty on time_obs')]
 
@@ -181,7 +181,7 @@ def ifm(**kwargs):
     """
     Create new parameters for a new interferometry dataset.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -254,8 +254,8 @@ def ifm_dep(**kwargs):
 
     dep_params = []
 
-    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
-    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', copy_for={'method': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
+    dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
+    dep_params += [FloatArrayParameter(qualifier='ld_coeffs', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
 
     return ParameterSet(dep_params)
 
@@ -263,7 +263,7 @@ def orb(**kwargs):
     """
     Create parameters for a new orbit dataset.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -290,7 +290,7 @@ def orb_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    syn_params += [FloatArrayParameter(qualifier='time', copy_for={'method': ['star'], 'component': '*'}, component='_default', value=kwargs.get('time', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    syn_params += [FloatArrayParameter(qualifier='time', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('time', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
     if syn:
         # syns ignore copy_for anyways
@@ -317,7 +317,7 @@ def mesh(**kwargs):
     """
     Create parameters for a new mesh dataset.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_dataset`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -390,18 +390,18 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='visibility', time=t, value=kwargs.get('visibility', []), default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
 
 
-                for dataset, method in kwargs.get('dataset_fields', {}).items():
+                for dataset, kind in kwargs.get('dataset_fields', {}).items():
                     # TODO: descriptions for each column
-                    if method=='RV':
+                    if kind=='RV':
                         indeps = {'rv': u.solRad/u.d, 'intens_norm_abs': u.W/u.m**3, 'intens_norm_rel': u.W/u.m**3, 'intens_proj_abs': u.W/u.m**3, 'intens_proj_rel': u.W/u.m**3, 'ampl_boost': u.dimensionless_unscaled}
-                    elif method=='LC':
+                    elif kind=='LC':
                         indeps = {'intens_norm_abs': u.W/u.m**3, 'intens_norm_rel': u.W/u.m**3, 'intens_proj_abs': u.W/u.m**3, 'intens_proj_rel': u.W/u.m**3, 'ampl_boost': u.dimensionless_unscaled}
-                    elif method=='MESH':
+                    elif kind=='MESH':
                         continue
                     else:
                         raise NotImplementedError
 
-                    if method in ['LC', 'RV']:
+                    if kind in ['LC', 'RV']:
                         syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
 
 
