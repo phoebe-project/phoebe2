@@ -144,6 +144,10 @@ class Bundle(ParameterSet):
             # set a blank hierarchy to start
             self.set_hierarchy(_hierarchy.blank)
 
+        else:
+            for param in self._params:
+                param._bundle = self
+
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
         for constraint in self.filter(context='constraint').to_list():
