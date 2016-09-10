@@ -213,7 +213,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 # check for same units?
                 ax.set_aspect('equal')
 
-    ax._phoebe_method = ps.kind
+    ax._phoebe_kind = ps.kind
 
     # let's check to see if we're dealing with a 3d axes or not
     axes_3d = isinstance(ax, Axes3D)
