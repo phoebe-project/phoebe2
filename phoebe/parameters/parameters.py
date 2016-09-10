@@ -3443,7 +3443,7 @@ class StringParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'visible_if']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
