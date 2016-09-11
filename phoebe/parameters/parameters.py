@@ -3145,7 +3145,7 @@ class Parameter(object):
                     # metawargs['component'] = None
 
                 try:
-                    param = self._bundle.get_parameter(check_visible=False, **metawargs)
+                    param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
                 except ValueError:
                     # let's not let this hold us up - sometimes this can happen when copying
                     # parameters (from copy_for) in order that the visible_if parameter
