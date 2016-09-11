@@ -1073,13 +1073,14 @@ class Bundle(ParameterSet):
 
         # check to make sure all stars are aligned (remove this once we support
         # misaligned roche binaries)
-        for starref in hier.get_meshables():
-            orbitref = hier.get_parent_of(starref)
-            incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
-            incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
-            if incl_star != incl_orbit:
-                return False,\
-                    'misaligned orbits are not currently supported.'
+        if len(hier.get_stars()) > 1:
+            for starref in hier.get_meshables():
+                orbitref = hier.get_parent_of(starref)
+                incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
+                incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
+                if incl_star != incl_orbit:
+                    return False,\
+                        'misaligned orbits are not currently supported.'
 
         # check length of ld_coeffs vs ld_func
         def ld_coeffs_len(ld_func, ld_coeffs):
