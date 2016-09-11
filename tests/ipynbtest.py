@@ -58,9 +58,12 @@ def test_notebook(filename):
     return len(failed)==0, failed, r.nb
 
 
-def test_all_in_dir(dir, interactive=True):
+def test_all_in_dir(dir, interactive=True, skip=[]):
     os.chdir(dir)
-    for fname in glob('*ipynb'):
+    for fname in sorted(glob('*ipynb')):
+        if os.path.basename(fname) in skip:
+            print "SKIPPING", fname
+            continue
         print "TESTING IPYTHON NOTEBOOK", fname
         passed, failures, actual_nb = test_notebook(fname)
         if not passed:
@@ -68,7 +71,7 @@ def test_all_in_dir(dir, interactive=True):
             for failure in failures:
                 print "\tLine: {}\n\tInput:\n\t\t{}".format(failure['prompt_number'], failure['input'].replace('\n', '\n\t\t'))
                 print "\tExpected Output:\n\t\t{}\n\tActual Output:\n\t\t{}".format(failure['expected_output'][0], failure['actual_output'][0])
-            print 
+            print
             if interactive:
                 print "Options ({}):\n\ti: (ignore) discrepancy is acceptable".format(fname)
                 # print "\ta: (accept) revise ipynb file to match actual output
@@ -94,7 +97,7 @@ if __name__ == '__main__':
 
     if not len(sys.argv) == 1:
         print "usage: ipynbtest.py notebook.ipynb"
-    
+
     passed, failures = test_notebook(sys.argv[0])
     print "PASSED: ", passed
     for f in failures:
