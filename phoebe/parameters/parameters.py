@@ -1531,7 +1531,7 @@ class ParameterSet(object):
         :parameter str twig: the twig to search for the parameter
         :parameter **kwargs: meta-tags to search
         """
-        params = self.filter(twig=twig, **kwargs)
+        params = self.filter(twig=twig, check_visible=False, check_default=False, **kwargs)
 
         for param in params.to_list():
             self._remove_parameter(param)

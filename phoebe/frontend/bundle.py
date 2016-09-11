@@ -1728,8 +1728,8 @@ class Bundle(ParameterSet):
             if isinstance(kind, str):
                 kind = [kind]
             kind_deps = []
-            for meth in kind:
-                dep = '{}_dep'.format(meth)
+            for kind_i in kind:
+                dep = '{}_dep'.format(kind_i)
                 if dep not in kind:
                     kind_deps.append(dep)
             kind = kind + kind_deps
