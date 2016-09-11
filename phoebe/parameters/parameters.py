@@ -1282,6 +1282,14 @@ class ParameterSet(object):
             returned.
         """
 
+        if kwargs.get('component', None) == '_default' or\
+                kwargs.get('dataset', None) == '_default' or\
+                kwargs.get('uniqueid', None) is not None or\
+                kwargs.get('uniquetwig', None) is not None:
+            # then override the default for check_default and make sure to
+            # return a result
+            check_default = False
+
         time = kwargs.get('time', None)
         if hasattr(time, '__iter__') and not isinstance(time, str):
             # then we should loop here rather than forcing complicated logic
@@ -4797,7 +4805,7 @@ class ConstraintParameter(Parameter):
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
             ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter(check_visible=False)
+                constrained_parameter = ps.get_parameter(check_visible=False, check_default=False)
             else:
                 raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
 
@@ -4828,9 +4836,11 @@ class ConstraintParameter(Parameter):
         get a parameter from those that are variables
         """
         kwargs['twig'] = twig
+        kwargs['check_default'] = False
+        kwargs['check_visible'] = False
         ps = self.vars.filter(**kwargs)
         if len(ps)==1:
-            return ps.get(check_visible=False)
+            return ps.get(check_visible=False, check_default=False)
         elif len(ps) > 1:
             # TODO: is this safe?  Some constraints may have a parameter listed
             # twice, so we can do this then, but maybe should check to make sure
