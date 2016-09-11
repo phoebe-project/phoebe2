@@ -26,9 +26,9 @@ def legacy_test(filename='default.phoebe'):
 #    time_lc = np.linspace(0, per, 100)
 
 
-    lcs = b.get_dataset(method='LC').datasets
+    lcs = b.get_dataset(kind='LC').datasets
     lcs = lcs[::-1]
-    rvs = b.get_dataset(method='RV').datasets
+    rvs = b.get_dataset(kind='RV').datasets
     rvs = rvs[::-1]
 
     # phb2 compute
@@ -42,6 +42,7 @@ def legacy_test(filename='default.phoebe'):
         # load file
         datafile = phb1.getpar('phoebe_lc_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
+
         time = b.filter(dataset=lcs[x], qualifier='time').get_value()
         print "checking time in "+lcs[x]
         assert(np.all(time==data[:,0]))
@@ -67,7 +68,7 @@ def legacy_test(filename='default.phoebe'):
         print "checking time in "+rvs[a]
         assert(np.all(time==data[:,0]))
         rv = b.filter(dataset=rvs[a], qualifier='rv', component=component).get_value()
-        print "checking flux in "+rvs[a]
+        print "checking rv in "+rvs[a]
         assert(np.all(rv==data[:,1]))
         sigma = b.filter(dataset=rvs[a], qualifier='sigma', component=component).get_value()
         print "checking sigma in "+rvs[a]
@@ -83,7 +84,8 @@ def legacy_test(filename='default.phoebe'):
             rv2 = np.array(phb1.rv2(tuple(data[:,0].tolist()), sec))
             vels2.append(rv2)
             sec = sec+1
-    b.run_compute('backend')
+
+    b.run_compute(kind='legacy')
     for x in range(len(lcs)):
         lc2 = b.filter('flux', context='model', dataset=lcs[x]).get_value()
         time = b.filter('time', context='model', dataset=lcs[x]).get_value()
