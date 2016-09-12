@@ -19,7 +19,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.add_compute('phoebe', compute='phoebe2', subdiv_num=0)
 
     b.set_value_all('mesh_method', 'wd')
-    b.set_value_all('eclipse_alg', 'graham')
+    b.set_value_all('eclipse_method', 'graham')
     b.set_value_all('gridsize', gridsize)
 
     # TODO: make these options and test over various values for the intensity
