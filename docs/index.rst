@@ -228,11 +228,11 @@ expect a comfortable understanding of using PHOEBE and python
    :titlesonly:
 
    How does PHOEBE compute observables<tutorials/phoebe_logic>
-   Orbits (ORB)<tutorials/ORB>
-   Meshes (MESH)<tutorials/MESH>
-   Light Curves (LC)<tutorials/LC>
-   Radial Velocities (RV)<tutorials/RV>
-   Eclipse Timing Variations (ETV)<tutorials/ETV>
+   Orbits (orb)<tutorials/ORB>
+   Meshes (mesh)<tutorials/MESH>
+   Light Curves (lc)<tutorials/LC>
+   Radial Velocities (rv)<tutorials/RV>
+   Eclipse Timing Variations (etv)<tutorials/ETV>
 
 
 Explanations of Individual Parameters
@@ -249,7 +249,7 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
 
 
    Potentials<tutorials/pot>
-   Eccentricity (Volume Conservation) (not yet full-implemented)<tutorials/ecc>
+   Eccentricity (Volume Conservation)<tutorials/ecc>
    Apsidal Motion<tutorials/apsidal_motion>
    Systemic Velocity<tutorials/vgamma>
    Passband Luminosity<tutorials/pblum>
@@ -258,7 +258,7 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    Limb Darkening (not yet fully-implemented)<tutorials/limb_darkening>
    Gravitational Redshift (RVs)<tutorials/grav_redshift>
    Reddening and Extinction (not yet implemented)<tutorials/reddening_extinction>
-   Reflection and Heating (not yet implemented)<tutorials/reflection_heating>
+   Reflection and Heating<tutorials/reflection_heating>
    Beaming and Boosting (not yet implemented)<tutorials/beaming_boosting>
    Eclipse Detection<tutorials/eclipse>
 
