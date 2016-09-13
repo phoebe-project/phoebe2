@@ -583,11 +583,10 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   //
   // Read boolean variables and define result-choice
   //   
-  for (int i = 0, j = 1; i < 2; ++i, j <<=1 )
-    if (o_av[i]) { 
-      b_av[i] = PyObject_IsTrue(o_av[i]);
-      res_choice += j;
-    }
+  for (int i = 0, j = 1; i < 2; ++i, j <<=1) {
+    if (o_av[i]) b_av[i] = PyObject_IsTrue(o_av[i]);
+    if (b_av[i]) res_choice += j;
+  }
   
   if (res_choice == 0) return NULL;
   
