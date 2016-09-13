@@ -12,7 +12,7 @@ def test_binary(plot=False):
 
     b.add_spot(component='primary', relteff=0.9, radius=20, colat=45, colon=90, feature='spot01')
 
-    b.add_dataset('LC', time=np.linspace(0,3,101))
+    b.add_dataset('lc', times=np.linspace(0,3,101))
     b.add_compute('phoebe', compute='phoebe2')
     b.add_compute('legacy', compute='phoebe1')
 
@@ -32,8 +32,8 @@ def test_binary(plot=False):
     print "running phoebe1 model..."
     b.run_compute(compute='phoebe1', model='phoebe1model')
 
-    phoebe2_val = b.get_value('flux@phoebe2model')
-    phoebe1_val = b.get_value('flux@phoebe1model')
+    phoebe2_val = b.get_value('fluxes@phoebe2model')
+    phoebe1_val = b.get_value('fluxes@phoebe1model')
 
     if plot:
         b.plot(dataset='lc01')

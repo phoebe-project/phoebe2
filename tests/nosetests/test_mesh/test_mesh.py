@@ -13,7 +13,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
     b = phoebe.Bundle.default_binary()
 
-    b.add_dataset('LC', time=[0], dataset='lc01')
+    b.add_dataset('lc', times=[0], dataset='lc01')
 
     b.add_compute('legacy', compute='phoebe1')
     b.add_compute('phoebe', compute='phoebe2', subdiv_num=0)
@@ -34,19 +34,19 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
 
     compares = []
-    # compares += [{'qualifier': 'x', 'dataset': 'protomesh', 'atol': 1e-10}]
-    # compares += [{'qualifier': 'y', 'dataset': 'protomesh', 'atol': 1e-12}]
-    # compares += [{'qualifier': 'z', 'dataset': 'protomesh', 'atol': 1e-11}]
-    # compares += [{'qualifier': 'r', 'dataset': 'protomesh', 'atol': 1e-10}]
-    # compares += [{'qualifier': 'nx', 'dataset': 'protomesh', 'atol': 1e-7}]
-    # compares += [{'qualifier': 'ny', 'dataset': 'protomesh', 'atol': 1e-9}]
-    # compares += [{'qualifier': 'nz', 'dataset': 'protomesh', 'atol': 1e-8}]
-    # compares += [{'qualifier': 'cosbeta', 'dataset': 'protomesh', 'atol': 1e-14}]
+    # compares += [{'qualifier': 'xs', 'dataset': 'protomesh', 'atol': 1e-10}]
+    # compares += [{'qualifier': 'ys', 'dataset': 'protomesh', 'atol': 1e-12}]
+    # compares += [{'qualifier': 'zs', 'dataset': 'protomesh', 'atol': 1e-11}]
+    # compares += [{'qualifier': 'rs', 'dataset': 'protomesh', 'atol': 1e-10}]
+    # compares += [{'qualifier': 'nxs', 'dataset': 'protomesh', 'atol': 1e-7}]
+    # compares += [{'qualifier': 'nys', 'dataset': 'protomesh', 'atol': 1e-9}]
+    # compares += [{'qualifier': 'nzs', 'dataset': 'protomesh', 'atol': 1e-8}]
+    # compares += [{'qualifier': 'cosbetas', 'dataset': 'protomesh', 'atol': 1e-14}]
 
-    compares += [{'qualifier': 'logg', 'dataset': 'protomesh', 'atol': 2e-4}]
-    compares += [{'qualifier': 'teff', 'dataset': 'protomesh', 'atol': 1e-6}]
+    compares += [{'qualifier': 'loggs', 'dataset': 'protomesh', 'atol': 2e-4}]
+    compares += [{'qualifier': 'teffs', 'dataset': 'protomesh', 'atol': 1e-6}]
 
-    compares += [{'qualifier': 'intens_norm_abs', 'dataset': 'lc01', 'atol': 1e5}] # NOTE: these values are of order 1E14
+    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 1e5}] # NOTE: these values are of order 1E14
 
 
     for c in compares:
@@ -61,10 +61,10 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
             if component=='secondary':
                 # TODO: this logic should /REALLY/ be moved into the legacy backend wrapper
-                if qualifier in ['x']:
+                if qualifier in ['xs']:
                     # the secondary star from phoebe 1 is at (d=a=1, 0, 0)
                     phoebe2_val -= 1
-                if qualifier in ['x', 'y', 'nx', 'ny']:
+                if qualifier in ['xs', 'ys', 'nxs', 'nys']:
                     # the secondary star from phoebe1 is rotated about the z-axis
                     phoebe2_val *= -1
 
@@ -78,7 +78,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
             print "{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val)))
 
             if plot:
-                x = b.get_value(section='model', model='phoebe2model', component=component, dataset='protomesh', qualifier='x')
+                x = b.get_value(section='model', model='phoebe2model', component=component, dataset='protomesh', qualifier='xs')
 
                 if dataset=='protomesh':
                     x = x[::8]

@@ -80,10 +80,10 @@ def draw_syncpar():
 def chi2(b, dataset, model1='phoebe1model', model2='phoebe2model'):
 
     ds = b.get_dataset(dataset) - b.get_dataset(dataset, method='*dep')
-    if ds.method=='LC':
-        depvar = 'flux'
-    elif ds.method=='RV':
-        depvar = 'rv'
+    if ds.method=='lc':
+        depvar = 'fluxes'
+    elif ds.method=='rv':
+        depvar = 'rvs'
     else:
         raise NotImplementedError("chi2 doesn't support dataset method: '{}'".format(ds.method))
 
