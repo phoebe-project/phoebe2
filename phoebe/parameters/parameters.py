@@ -115,6 +115,16 @@ _forbidden_labels += ['bol']
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
 
+_singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
+                       'rv': 'rvs', 'time_ecl': 'time_ecls',
+                       'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
+                       'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
+                       'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
+                       'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
+                       'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
+                       'visibility': 'visibilities'}
+_plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
+
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
     @functools.wraps(fctn)
@@ -770,9 +780,9 @@ class ParameterSet(object):
                 # means that this should exist for each component (since that has a wildcard) which
                 # has a kind in [star, disk, custombody]
                 #
-                # copy_for = {'kind': ['RV_dep'], 'component': '*', 'dataset': '*'}
+                # copy_for = {'kind': ['rv_dep'], 'component': '*', 'dataset': '*'}
                 # means that this should exist for each component/dataset pair with the
-                # RV_dep kind
+                # rv_dep kind
 
                 attrs = [k for k,v in param.copy_for.items() if '*' in v]
                 # attrs is a list of the attributes for which we need a copy of
@@ -1802,6 +1812,9 @@ class ParameterSet(object):
             else:
                 return unit.to_string()
 
+        def _qualifier_to_label(qualifier):
+            return _plural_to_singular.get(qualifier, qualifier)
+
         def _get_param_array(ps, qualifier, unit):
             if len(ps.filter(qualifier=qualifier).times):
                 times = ps.filter(qualifier=qualifier).times
@@ -1836,7 +1849,7 @@ class ParameterSet(object):
 
         ps = self.filter(twig=twig,
                          **{k: v for k, v in kwargs.items() if k != 'time'})
-        if 'time' in kwargs.keys() and ps.kind in ['MESH', 'MESH_syn']:
+        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -1851,7 +1864,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.datasets)>1 and ps.kind not in ['MESH']:
+        if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             return_ = []
             for dataset in ps.datasets:
                 if dataset in ['protomesh']:
@@ -1870,8 +1883,8 @@ class ParameterSet(object):
         # the mesh, then remove the mesh kind.  In other words: mesh stuff
         # will only be plotted if mesh is the only kind in the filter.
         pskinds = ps.kinds
-        if len(pskinds) > 1 and 'MESH' in pskinds:
-            pskinds.remove('MESH')
+        if len(pskinds) > 1 and 'mesh' in pskinds:
+            pskinds.remove('mesh')
 
         if len(kinds) == 1 and len(pskinds) > 1:
             # then we need to filter to exclude the dep
@@ -1901,7 +1914,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if ps.kind in ['MESH', 'MESH_syn', 'ORB', 'ORB_syn'] and \
+        if ps.kind in ['mesh', 'mesh_syn', 'orb', 'orb_syn'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
@@ -1917,10 +1930,10 @@ class ParameterSet(object):
         # and z are all the coordinates (then we'll plot the triangles).
         # Otherwise, we will continue and can use the generic x, y plotting (ie
         # for flux vs r_proj)
-        if ps.kind in ['MESH', 'MESH_syn'] and \
-                kwargs.get('x', 'x') in ['x', 'y', 'z'] and \
-                kwargs.get('y', 'y') in ['x', 'y', 'z'] and \
-                kwargs.get('z', 'z') in ['x', 'y', 'z']:
+        if ps.kind in ['mesh', 'mesh_syn'] and \
+                kwargs.get('x', 'xs') in ['xs', 'ys', 'zs'] and \
+                kwargs.get('y', 'ys') in ['xs', 'ys', 'zs'] and \
+                kwargs.get('z', 'zs') in ['xs', 'ys', 'zs']:
 
             # TODO: here we want to call a different plotting function - note
             # that meshes don't need to iterate over components like everything
@@ -1930,10 +1943,10 @@ class ParameterSet(object):
 
             # NOTE: even though we are calling these x, y, z - we really mean
             # to get those components from the triangles array
-            xqualifier = kwargs.get('x', 'x')
-            yqualifier = kwargs.get('y', 'y')
+            xqualifier = kwargs.get('x', 'xs')
+            yqualifier = kwargs.get('y', 'ys')
             if axes_3d:
-                zqualifier = kwargs.get('z', 'z')
+                zqualifier = kwargs.get('z', 'zs')
 
 
             # All our arrays will need to be sorted front to back, so we need
@@ -1944,7 +1957,7 @@ class ParameterSet(object):
             # units.
 
             # TODO: should we skip this for axes_3d?
-            sortqualifier = ['x', 'y', 'z']
+            sortqualifier = ['xs', 'ys', 'zs']
             sortqualifier.remove(xqualifier)
             sortqualifier.remove(yqualifier)
             sortqualifier = sortqualifier[0]
@@ -1953,13 +1966,13 @@ class ParameterSet(object):
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=c,
                                                            unit=u.solRad)
-                                              for c in ps.components])
+                                              for c in ps.components if c != '_default'])
             else:
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=c,
                                                            time=t,
                                                            unit=u.solRad)
-                                              for c in ps.components
+                                              for c in ps.components if c != '_default'
                                               for t in ps.times])
 
             plot_inds = np.argsort(center_sort)
@@ -2009,10 +2022,10 @@ class ParameterSet(object):
             # TODO: make this handle 3d by just iterating over zqualifier as
             # well (but only if 3d)
             if axes_3d:
-                coordinate_inds = [['x', 'y', 'z'].index(q)
+                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
                                    for q in [xqualifier, yqualifier, zqualifier]]
             else:
-                coordinate_inds = [['x', 'y', 'z'].index(q)
+                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
                                    for q in [xqualifier, yqualifier]]
 
             data = vertices_xyz[:, :, coordinate_inds]
@@ -2044,36 +2057,36 @@ class ParameterSet(object):
             return return_
 
         # now we can use ps.kind to guess what columns need plotting
-        if ps.kind in ['ORB', 'ORB_syn']:
+        if ps.kind in ['orb', 'orb_syn']:
             if axes_3d:
-                xqualifier = kwargs.get('x', 'x')
-                yqualifier = kwargs.get('y', 'y')
-                zqualifier = kwargs.get('z', 'z')
+                xqualifier = kwargs.get('x', 'xs')
+                yqualifier = kwargs.get('y', 'ys')
+                zqualifier = kwargs.get('z', 'zs')
             else:
-                xqualifier = kwargs.get('x', 'x')
-                yqualifier = kwargs.get('y', 'z')
-                zqualifier = kwargs.get('z', 'y')
-            timequalifier = 'time'
-        elif ps.kind in ['MESH', 'MESH_syn']:
-            xqualifier = kwargs.get('x', 'r_proj')
-            yqualifier = kwargs.get('y', 'teff')
-            zqualifier = kwargs.get('z', 'logg')
-            timequalifier = 'time'
-        elif ps.kind in ['LC', 'LC_syn']:
-            xqualifier = kwargs.get('x', 'time')
-            yqualifier = kwargs.get('y', 'flux')
+                xqualifier = kwargs.get('x', 'xs')
+                yqualifier = kwargs.get('y', 'zs')
+                zqualifier = kwargs.get('z', 'ys')
+            timequalifier = 'times'
+        elif ps.kind in ['mesh', 'mesh_syn']:
+            xqualifier = kwargs.get('x', 'r_projs')
+            yqualifier = kwargs.get('y', 'teffs')
+            zqualifier = kwargs.get('z', 'loggs')
+            timequalifier = 'times'
+        elif ps.kind in ['lc', 'lc_syn']:
+            xqualifier = kwargs.get('x', 'times')
+            yqualifier = kwargs.get('y', 'fluxes')
             zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time'
-        elif ps.kind in ['RV', 'RV_syn']:
-            xqualifier = kwargs.get('x', 'time')
-            yqualifier = kwargs.get('y', 'rv')
+            timequalifier = 'times'
+        elif ps.kind in ['rv', 'rv_syn']:
+            xqualifier = kwargs.get('x', 'times')
+            yqualifier = kwargs.get('y', 'rvs')
             zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time'
-        elif ps.kind in ['ETV', 'ETV_syn']:
-            xqualifier = kwargs.get('x', 'time_ecl')
-            yqualifier = kwargs.get('y', 'etv')
+            timequalifier = 'times'
+        elif ps.kind in ['etv', 'etv_syn']:
+            xqualifier = kwargs.get('x', 'time_ecls')
+            yqualifier = kwargs.get('y', 'etvs')
             zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time_ecl'
+            timequalifier = 'time_ecls'
         else:
             raise NotImplementedError("plotting for dataset '{}' with kind '{}' is not yet implemented".format(ps.dataset, ps.kind))
 
@@ -2100,7 +2113,7 @@ class ParameterSet(object):
         # far (ie the user gave a non-existant qualifier)
 
         if xqualifier not in ps.qualifiers and \
-                xqualifier.split(':')[0] != 'phase' and \
+                xqualifier.split(':')[0] not in ['phase', 'phases'] and \
                 not (isinstance(xqualifier, float) or
                      isinstance(xqualifier, int)):
             logger.warning("attempting to plot but could not find parameter {} - skipping".format(xqualifier))
@@ -2126,7 +2139,7 @@ class ParameterSet(object):
         # If the user provides unit(s), they can either give the unit object or
         # the string representation, so long as get_value(unit) succeeds
         # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.kind in ['MESH', 'MESH_syn']:  # TODO: add sp and sp_syn
+        if ps.kind in ['mesh', 'mesh_syn']:  # TODO: add sp and sp_syn
             # then we're plotting at a single time so the time array doesn't
             # really make sense (we won't be able to plot anything vs phase or
             # color by time/phase)
@@ -2136,7 +2149,7 @@ class ParameterSet(object):
             tparam = ps.get_parameter(qualifier=timequalifier)
             tarray = tparam.get_value(unit='d')
 
-        if xqualifier.split(':')[0] == 'phase':
+        if xqualifier.split(':')[0] in ['phase', 'phases']:
             # then we need to do things slightly different
             phased = True
             component = xqualifier.split(':')[1] \
@@ -2208,10 +2221,10 @@ class ParameterSet(object):
             zarray = None
 
         # and finally, build the label (if it hasn't been already)
-        kwargs.setdefault('xlabel', r"{} ({})".format(xqualifier, _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
-        kwargs.setdefault('ylabel', r"{} ({})".format(yqualifier, _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
+        kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
+        kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
         if axes_3d:
-            kwargs.setdefault('zlabel', r"{} ({})".format(zqualifier, _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
+            kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
 
 
 
@@ -2268,7 +2281,7 @@ class ParameterSet(object):
         # try to interpret these
         if ps.context=='model':
             plottype = 'line'
-            if ps.kind in ['MESH'] and \
+            if ps.kind in ['mesh'] and \
                     isinstance(xparam, FloatArrayParameter) and \
                     isinstance(yparam, FloatArrayParameter) and \
                     (zparam is None or
@@ -2344,7 +2357,7 @@ class ParameterSet(object):
         :parameter str x: qualifier or twig of the array to plot on the x-axis (will
             default based on the kind if not provided).  Must be a valid
             qualifier with the exception of phase.  To plot phase along the
-            x-axis set x to 'phase' or 'phase:[component]'.  This will use
+            x-axis set x to 'phases' or 'phases:[component]'.  This will use
             the ephemeris from :meth:`phoebe.frontend.bundle.Bundle.get_ephemeris` if possible.
         :parameter str y: qualifier or twig of the array to plot on the y-axis
             (see details for x above)
@@ -2609,13 +2622,13 @@ class ParameterSet(object):
                     if ax is None:
                         ax = plt.gca()
                         if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
-                            if ps.kind in ['ORB', 'MESH']:  # TODO: and xunit==yunit
+                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
                                 ax = plotting._mpl_append_axes(plt.gcf(), aspect='equal')
                             else:
                                 ax = plotting._mpl_append_axes(plt.gcf())
                         else:
                             # not sure if we want this - the user may have set the aspect ratio already
-                            if ps.kind in ['ORB', 'MESH']:  # TODO: and xunit==yunit
+                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
                                 # TODO: for aspect ratio (here and above) can we be smarter and
                                 # check for same units?
                                 ax.set_aspect('equal')

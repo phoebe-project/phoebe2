@@ -1105,7 +1105,7 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
             for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['LC', 'RV']:
+                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['lc', 'rv']:
                     continue
                 ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
@@ -1545,26 +1545,26 @@ class Bundle(ParameterSet):
         kwargs.setdefault('dataset',
                           self._default_label(func.func_name,
                                               **{'context': 'dataset',
-                                                 'kind': func.func_name.upper()}))
+                                                 'kind': func.func_name}))
 
         self._check_label(kwargs['dataset'])
 
-        kind = func.func_name.upper()
+        kind = func.func_name
 
         # Let's remember if the user passed components or if they were automatically assigned
         user_provided_components = component or kwargs.get('components', False)
 
-        if kind == 'LC':
+        if kind == 'lc':
             allowed_components = [None]
-        elif kind in ['RV', 'ORB']:
+        elif kind in ['rv', 'orb']:
             allowed_components = self.hierarchy.get_stars()
             # TODO: how are we going to handle overcontacts dynamical vs flux-weighted
-        elif kind in ['MESH']:
+        elif kind in ['mesh']:
             # allowed_components = self.hierarchy.get_meshables()
             allowed_components = [None]
             # allowed_components = self.hierarchy.get_stars()
             # TODO: how will this work when changing hierarchy to add/remove the common envelope?
-        elif kind in ['ETV']:
+        elif kind in ['etv']:
             hier = self.hierarchy
             stars = hier.get_stars()
             # only include components in which the sibling is also a star that
@@ -1591,11 +1591,18 @@ class Bundle(ParameterSet):
         else:
             raise NotImplementedError
 
-        # Let's handle the case where the user accidentally sends times instead
-        # of time
-        if kwargs.get('times', None) and not kwargs.get('time', None):
-            logger.warning("assuming you meant 'time' instead of 'times'")
-            kwargs['time'] = kwargs.pop('times')
+        # Let's handle the case where the user accidentally sends singular
+        # instead of plural (since we used to have this)
+        # TODO: use parameter._singular_to_plural?
+        sing_plural = {}
+        sing_plural['time'] = 'times'
+        sing_plural['flux'] = 'fluxes'
+        sing_plural['sigma'] = 'sigmas'
+        sing_plural['rv'] = 'rvs'
+        for singular, plural in sing_plural.items():
+            if kwargs.get(singular, None) is not None and kwargs.get(plural, None) is None:
+                logger.warning("assuming you meant '{}' instead of '{}'".format(plural, singular))
+                kwargs[plural] = kwargs.pop(singular)
 
         if not np.all([component in allowed_components
                        for component in components]):
@@ -1611,9 +1618,9 @@ class Bundle(ParameterSet):
             # TODO: tricky thing here will be copying the constraints
             self.add_constraint(*constraint)
 
-        dep_func = _get_add_func(_dataset, "{}_dep".format(kind.lower()))
+        dep_func = _get_add_func(_dataset, "{}_dep".format(kind))
         dep_metawargs = {'context': 'dataset',
-                         'kind': '{}_dep'.format(kind.upper()),
+                         'kind': '{}_dep'.format(kind),
                          'dataset': kwargs['dataset']}
         dep_params = dep_func()
         self._attach_params(dep_params, **dep_metawargs)
@@ -1633,9 +1640,9 @@ class Bundle(ParameterSet):
         #    individually requested parameters.  We won't touch _default unless
         #    its included in the dictionary
 
-        # set default for times - this way the time array for "attached"
+        # set default for times - this way the times array for "attached"
         # components will not be empty
-        kwargs.setdefault('time', [0.])
+        kwargs.setdefault('times', [0.])
 
 
         # pblum_ref/pblum defaults depend on the hierarchy, calling set_hierarchy
@@ -1693,9 +1700,9 @@ class Bundle(ParameterSet):
 
         kwargs['context'] = 'dataset'
         if 'kind' in kwargs.keys():
-            # since we deal with dataset kinds differently (always uppercase)
-            # let's just give the user a break if they provided lowercase
-            kwargs['kind'] = kwargs['kind'].upper().replace('DEP', 'dep')
+            # since we switched how dataset kinds are named, let's just
+            # automatically handle switching to lowercase
+            kwargs['kind'] = kwargs['kind'].lower()
         return self.filter(**kwargs)
 
     def remove_dataset(self, dataset=None, **kwargs):
@@ -2116,7 +2123,7 @@ class Bundle(ParameterSet):
 
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
-                    animate=False, time=None, **kwargs):
+                    animate=False, times=None, **kwargs):
         """
         Run a forward model of the system on the enabled dataset using
         a specified set of compute options.
@@ -2164,10 +2171,10 @@ class Bundle(ParameterSet):
             isn't magic.  NOTE: fixed_limits are not supported from run_compute,
             axes limits will be updated each frame, but all colorlimits will
             be determined per-frame and will not be constant across the animation.
-        :parameter list time: [EXPERIMENTAL] override the times at which to compute the model.
+        :parameter list times: [EXPERIMENTAL] override the times at which to compute the model.
             NOTE: this only (temporarily) replaces the time array for datasets
             with times provided (ie empty time arrays are still ignored).  So if
-            you attach a RV to a single component, the model will still only
+            you attach a rv to a single component, the model will still only
             compute for that single component.  ALSO NOTE: this option is ignored
             if detach=True (at least for now).
         :parameter **kwargs: any values in the compute options to temporarily
@@ -2196,8 +2203,8 @@ class Bundle(ParameterSet):
 
         self._check_label(model)
 
-        if isinstance(time, float) or isinstance(time, int):
-            time = [time]
+        if isinstance(times, float) or isinstance(times, int):
+            times = [times]
 
         # handle case where compute is not provided
         if compute is None:
@@ -2242,7 +2249,7 @@ class Bundle(ParameterSet):
         if detach:
             logger.warning("detach support is EXPERIMENTAL")
 
-            if time is not None:
+            if times is not None:
                 # TODO: support overriding times with detached - issue here is
                 # that it isn't necessarilly trivially to send this array
                 # through the script.  May need to convert to list first to
@@ -2303,7 +2310,7 @@ class Bundle(ParameterSet):
 
             if animate:
                 # handle setting defaults from kwargs to each plotting call
-                compute_generator = compute_func(self, compute, as_generator=True, time=time, **kwargs)
+                compute_generator = compute_func(self, compute, as_generator=True, times=times, **kwargs)
 
                 # In order to build the first frame and initialize the animation,
                 # we'll iterate the generator once (ie compute the first time-step)
@@ -2351,7 +2358,7 @@ class Bundle(ParameterSet):
             else:
                 # comma in the following line is necessary because compute_func
                 # is /technically/ a generator (it yields instead of returns)
-                params, = compute_func(self, compute, time=time, **kwargs)
+                params, = compute_func(self, compute, times=times, **kwargs)
 
 
             # average over any exposure times before attaching parameters
@@ -2369,7 +2376,7 @@ class Bundle(ParameterSet):
                     if len(self.filter(dataset=dataset, qualifier='exptime')):
                         if self.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0:
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
-                                times_ds = self.get_value(qualifier='time', dataset=dataset, context='dataset')
+                                times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
                                 fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
                                 # NOTE: this is hardcoded for LCs which is the
@@ -2377,12 +2384,12 @@ class Bundle(ParameterSet):
                                 # but this will need to be generalized if/when
                                 # we expand that support to other dataset kinds
                                 fluxes = np.zeros(times_ds.shape)
-                                fluxes_oversampled = params.get_value('flux', dataset=dataset)
+                                fluxes_oversampled = params.get_value('fluxes', dataset=dataset)
                                 for i,t in enumerate(times_ds):
                                     sample_inds = np.arange(i*fti_oversample, (i+1)*fti_oversample, 1)
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
-                                params.set_value(qualifier='time', dataset=dataset, value=times_ds)
-                                params.set_value(qualifier='flux', dataset=dataset, value=fluxes)
+                                params.set_value(qualifier='times', dataset=dataset, value=times_ds)
+                                params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
 
 
             self._attach_params(params, **metawargs)

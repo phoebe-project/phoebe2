@@ -213,6 +213,7 @@ class System(object):
         if self.do_reflection and not ignore_effects:  # and kinds includes a kind that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
+                # TODO: this needs to take ld_func_bol, ld_coeffs_bol
                 body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
 
             # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
@@ -249,7 +250,7 @@ class System(object):
             frac_refls_per_body = meshes.get_column('frac_refl', computed_type='for_computations').values()
             teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
 
-            intens_intrins_per_body = meshes.get_column('intens_norm_abs:bol', computed_type='for_computations').values()
+            intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
 
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
@@ -275,7 +276,7 @@ class System(object):
             #                                                                            ld_func_and_coeffs
             #                                                                            )
 
-            intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
+            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
 
 
@@ -288,7 +289,7 @@ class System(object):
             areas_flat = meshes.get_column_flat('areas')
             frac_refls_flat = meshes.get_column_flat('frac_refl', computed_type='for_computations')
 
-            intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
+            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
 
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
@@ -319,7 +320,7 @@ class System(object):
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
         # TODO: set to triangles if WD mesh_method
-        meshes.set_column_flat('intens_norm_abs:bol', intens_intrins_and_refl_flat)
+        meshes.set_column_flat('abs_normal_intensities:bol', intens_intrins_and_refl_flat)
 
         # update the effective temperatures to gives this same bolometric
         # intensity under stefan-boltzmann these effective temperatures will
@@ -406,7 +407,7 @@ class System(object):
         """
 
         meshes = self.meshes
-        if kind=='RV':
+        if kind=='rv':
             visibilities = meshes.get_column_flat('visibilities', components)
 
             if np.all(visibilities==0):
@@ -414,8 +415,8 @@ class System(object):
                 #print "NO VISIBLE TRIANGLES!!!"
                 return {'rv': np.nan}
 
-            rvs = meshes.get_column_flat("rv:{}".format(dataset), components)
-            intens_proj_abs = meshes.get_column_flat('intens_proj_abs:{}'.format(dataset), components)
+            rvs = meshes.get_column_flat("rvs:{}".format(dataset), components)
+            abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
             # mus here will be from the tnormals of the triangle and will not
             # be weighted by the visibility of the triangle
             mus = meshes.get_column_flat('mus', components)
@@ -423,16 +424,16 @@ class System(object):
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
-            return {'rv': np.average(rvs, weights=intens_proj_abs*areas*mus*visibilities)}
+            return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*visibilities)}
 
-        elif kind=='LC':
+        elif kind=='lc':
             visibilities = meshes.get_column_flat('visibilities')
 
             if np.all(visibilities==0):
                 # then no triangles are visible, so we should return nan - probably shouldn't ever happen for lcs
                 return {'flux': np.nan}
 
-            intens_proj_rel = meshes.get_column_flat("intens_proj_rel:{}".format(dataset), components)
+            intensities = meshes.get_column_flat("intensities:{}".format(dataset), components)
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
 
@@ -447,10 +448,10 @@ class System(object):
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
-            return {'flux': np.sum(intens_proj_rel*areas*mus*visibilities)/(distance**2)+l3}
+            return {'flux': np.sum(intensities*areas*mus*visibilities)/(distance**2)+l3}
 
 
-        elif kind == 'IFM':
+        elif kind == 'ifm':
             # so far the function is kinda hollow
             vis2 = []
             vphase = []
@@ -957,9 +958,9 @@ class Body(object):
         # multiplying by mu to get projected areas.
         areas = self.mesh.areas_si
 
-        # intens_norm_abs are directly out of the passbands module and are
+        # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)].centers
+        abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         # TODO: do we need to worry about any limb-darkening functions darkening/brightening at mu=0?
         ld = 1.0
@@ -968,7 +969,7 @@ class Body(object):
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=0, and multiplied by their respective areas
-        total_integrated_intensity = np.sum(intens_norm_abs*ld*areas) * np.pi
+        total_integrated_intensity = np.sum(abs_normal_intensities*ld*areas) * np.pi
 
         # NOTE: when this is computed the first time (for the sake of determing
         # pblum_scale), get_pblum_scale will return 1.0
@@ -1006,13 +1007,13 @@ class Body(object):
         TODO: add documentation
         """
 
-        if kind in ['MESH']:
+        if kind in ['mesh']:
             return
 
         if time==self.time and dataset in self.populated_at_time and 'pblum' not in kind:
             # then we've already computed the needed columns
 
-            # TODO: handle the case of intensities already computed by /different/ dataset (ie RVs computed first and filling intensities and then LC requesting intensities with SAME passband/atm)
+            # TODO: handle the case of intensities already computed by /different/ dataset (ie RVs computed first and filling intensities and then lc requesting intensities with SAME passband/atm)
             return
 
         new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
@@ -1025,14 +1026,14 @@ class Body(object):
 
     # def _populate_lc_pblum(self, dataset, passband, **kwargs):
 
-    #     intens_norm_abs = self.mesh.observables['intens_norm_abs:{}'.format(dataset)].for_computations
-    #     intens_proj_abs = self.mesh.observables['intens_proj_abs:{}'.format(dataset)].for_computations
+    #     abs_normal_intensities = self.mesh.observables['abs_normal_intensities:{}'.format(dataset)].for_computations
+    #     abs_intensities = self.mesh.observables['abs_intensities:{}'.format(dataset)].for_computations
 
 
-    #     intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
+    #     intensities = abs_intensities * self.get_pblum_scale(dataset)
 
-    #     return {'intens_norm_rel': intens_norm_rel,
-    #             'intens_proj_rel': intens_proj_rel}
+    #     return {'normal_intensities': normal_intensities,
+    #             'intensities': intensities}
 
 class CustomBody(Body):
     def __init__(self, masses, sma, ecc, freq_rot, teff, abun, dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], **kwargs):
@@ -1189,8 +1190,8 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities}
 
 
 class Star(Body):
@@ -1841,7 +1842,7 @@ class Star(Body):
 
         lc_cols = self._populate_lc(dataset, **kwargs)
 
-        # LC cols should do for interferometry - at least for continuum
+        # lc cols should do for interferometry - at least for continuum
         cols = lc_cols
 
         return cols
@@ -1861,11 +1862,11 @@ class Star(Body):
         # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         # We need to fill all the flux-related columns so that we can weigh each
-        # triangle's RV by its flux in the requested passband.
+        # triangle's rv by its flux in the requested passband.
         lc_cols = self._populate_lc(dataset, passband, **kwargs)
 
-        # RV per element is just the z-component of the velocity vectory.  Note
-        # the change in sign from our right-handed system to RV conventions.
+        # rv per element is just the z-component of the velocity vectory.  Note
+        # the change in sign from our right-handed system to rv conventions.
         # These will be weighted by the fluxes when integrating
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
@@ -1880,7 +1881,7 @@ class Star(Body):
             rvs += rv_grav
 
         cols = lc_cols
-        cols['rv'] = rvs
+        cols['rvs'] = rvs
         return cols
 
 
@@ -1913,16 +1914,16 @@ class Star(Body):
 
                 self._pbs[passband] = pb
 
-            # intens_norm_abs are the normal emergent passband intensities:
-            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
+            # abs_normal_intensities are the normal emergent passband intensities:
+            abs_normal_intensities = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
                                                         logg=self.mesh.loggs.for_computations,
                                                         met=self.mesh.abuns.for_computations,
                                                         atm=atm)
 
 
-            # intens_proj_abs are the projected (limb-darkened) passband intensities
+            # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
-            intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
+            abs_intensities = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
                                                       logg=self.mesh.loggs.for_computations,
                                                       met=self.mesh.abuns.for_computations,
                                                       mu=abs(self.mesh.mus_for_computations),
@@ -1958,16 +1959,16 @@ class Star(Body):
 
             # light speed in Rsol/d
             # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            ampl_boosts = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
             # TODO: does this make sense to boost proj but not norm?
-            intens_proj_abs *= ampl_boost
+            abs_intensities *= ampl_boosts
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
-            # we need to scale each triangle so that the summed intens_norm_rel over the
+            # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
-            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
-            intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
+            normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
+            intensities = abs_intensities * self.get_pblum_scale(dataset)
 
 
 
@@ -2011,9 +2012,9 @@ class Star(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities,
+            'ampl_boosts': ampl_boosts}
 
 
 
@@ -2666,11 +2667,11 @@ class Envelope(Body):
         # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         # We need to fill all the flux-related columns so that we can weigh each
-        # triangle's RV by its flux in the requested passband.
+        # triangle's rv by its flux in the requested passband.
         lc_cols = self._populate_lc(dataset, passband, **kwargs)
 
-        # RV per element is just the z-component of the velocity vectory.  Note
-        # the change in sign from our right-handed system to RV conventions.
+        # rv per element is just the z-component of the velocity vectory.  Note
+        # the change in sign from our right-handed system to rv conventions.
         # These will be weighted by the fluxes when integrating
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
@@ -2685,7 +2686,7 @@ class Envelope(Body):
             rvs += rv_grav
 
         cols = lc_cols
-        cols['rv'] = rvs
+        cols['rvs'] = rvs
         return cols
 
     def _populate_lc(self, dataset, passband, **kwargs):
@@ -2717,16 +2718,16 @@ class Envelope(Body):
 
                 self._pbs[passband] = pb
 
-            # intens_norm_abs are the normal emergent passband intensities:
-            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
+            # abs_normal_intensities are the normal emergent passband intensities:
+            abs_normal_intensities = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
                                                         logg=self.mesh.loggs.for_computations,
                                                         met=self.mesh.abuns.for_computations,
                                                         atm=atm)
 
 
-            # intens_proj_abs are the projected (limb-darkened) passband intensities
+            # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
-            intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
+            abs_intensities = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
                                                       logg=self.mesh.loggs.for_computations,
                                                       met=self.mesh.abuns.for_computations,
                                                       mu=abs(self.mesh.mus_for_computations),
@@ -2762,16 +2763,16 @@ class Envelope(Body):
 
             # light speed in Rsol/d
             # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            ampl_boosts = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
             # TODO: does this make sense to boost proj but not norm?
-            intens_proj_abs *= ampl_boost
+            abs_intensities *= ampl_boosts
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
-            # we need to scale each triangle so that the summed intens_norm_rel over the
+            # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
-            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
-            intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
+            normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
+            intensities = abs_intensities * self.get_pblum_scale(dataset)
 
 
 
@@ -2815,9 +2816,9 @@ class Envelope(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities,
+            'ampl_boosts': ampl_boosts}
 
 
 class Feature(object):

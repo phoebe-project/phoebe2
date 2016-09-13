@@ -95,7 +95,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         # color from mplkwargs, make the plotting call without it, and then
         # overplot a scatter call
 
-        _symmetric_colorkeys = ['rv', 'vx', 'vy', 'vz']
+        _symmetric_colorkeys = ['rvs', 'vxs', 'vys', 'vzs', 'nxs', 'nys', 'nzs']
 
         try:
             float(kwargs[colorkey])
@@ -169,15 +169,15 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         # TODO: add support for plt.blackbody_cmap()
 
-        if colorkey in ['rv']:
+        if colorkey in ['rvs']:
             cmap = 'RdBu_r'
-        elif colorkey in ['vx', 'vy', 'vz']:
+        elif colorkey in ['vxs', 'vys', 'vzs']:
             cmap = 'RdBu'
-        elif colorkey in ['teff']:
+        elif colorkey in ['teffs']:
             cmap = 'afmhot'
-        elif colorkey in ['logg']:
+        elif colorkey in ['loggs']:
             cmap = 'gnuplot'
-        elif colorkey in ['visibility']:
+        elif colorkey in ['visibilities']:
             cmap = 'RdYlGn'
         elif len(colorkey)<=1 or colorkey in _mplcolors:
             # then we don't need a cmap, this is a single color
@@ -202,13 +202,13 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
     if ax is None:
         ax = plt.gca()
         if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
-            if ps.kind in ['ORB', 'MESH'] and xunit==yunit:
+            if ps.kind in ['orb', 'mesh'] and xunit==yunit:
                 ax = _mpl_append_axes(plt.gcf(), aspect='equal')
             else:
                 ax = _mpl_append_axes(plt.gcf())
         else:
             # not sure if we want this - the user may have set the aspect ratio already
-            if ps.kind in ['ORB', 'MESH'] and xunit==yunit:
+            if ps.kind in ['orb', 'mesh'] and xunit==yunit:
                 # TODO: for aspect ratio (here and above) can we be smarter and
                 # check for same units?
                 ax.set_aspect('equal')
@@ -230,7 +230,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             'highlight_marker', 'highlight_color', 'uncover',
             'facecolor', 'edgecolor', 'facecmap', 'edgecmap', 'correct', 'plotting_backend']}
 
-    if ps.kind in ['MESH', 'MESH_syn'] and kwargs.get('polycollection', False):
+    if ps.kind in ['mesh', 'mesh_syn'] and kwargs.get('polycollection', False):
         # here plot_inds is used to sort in the z-direction
         pckwargs = {}
         pckwargs['facecolors'] = kwargs.get('facecolor', 'w')  # note change from singular -> plural

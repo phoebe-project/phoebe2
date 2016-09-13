@@ -37,10 +37,10 @@ def lc_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    syn_params += [FloatArrayParameter(qualifier='time', value=kwargs.get('time', []), default_unit=u.d, description='Observed times')]
-    syn_params += [FloatArrayParameter(qualifier='flux', value=kwargs.get('flux', []), default_unit=u.W/u.m**2, description='Observed flux')]
+    syn_params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
+    syn_params += [FloatArrayParameter(qualifier='fluxes', value=kwargs.get('fluxes', []), default_unit=u.W/u.m**2, description='Observed flux')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigma', value=kwargs.get('sigma', []), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
+        syn_params += [FloatArrayParameter(qualifier='sigmas', value=kwargs.get('sigmas', []), default_unit=u.W/u.m**2, description='Observed uncertainty on flux')]
 
 
     #~ syn_params += [FloatArrayParameter(qualifier='exptime', value=kwargs.get('exptime', []), default_unit=u.s, description='Signal exposure time')]
@@ -95,10 +95,10 @@ def rv_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    syn_params += [FloatArrayParameter(qualifier='time', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('time', []), default_unit=u.d, description='Observed times')]
-    syn_params += [FloatArrayParameter(qualifier='rv', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rv', []), default_unit=u.km/u.s, description='Observed radial velocity')]
+    syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
+    syn_params += [FloatArrayParameter(qualifier='rvs', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('rvs', []), default_unit=u.km/u.s, description='Observed radial velocity')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigma', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigma', []), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
+        syn_params += [FloatArrayParameter(qualifier='sigmas', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('sigmas', []), default_unit=u.km/u.s, description='Observed uncertainty on rv')]
 
 
     constraints = []
@@ -130,7 +130,7 @@ def etv(**kwargs):
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
     if not _devel_enabled:
-        raise NotImplementedError("'ETV' dataset not officially supported for this release.  Enable developer mode to test.")
+        raise NotImplementedError("'etv' dataset not officially supported for this release.  Enable developer mode to test.")
 
     obs_params = []
 
@@ -147,12 +147,12 @@ def etv_syn(syn=True, **kwargs):
     syn_params = []
 
     #syn_params += [IntArrayParameter(qualifier='N', value=kwargs.get('N', []), description='Epoch since t0')]
-    syn_params += [FloatArrayParameter(qualifier='N', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('N', []), default_unit=u.dimensionless_unscaled, description='Epoch since t0')]
-    syn_params += [FloatArrayParameter(qualifier='time_ecl', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('time_ecl', []), default_unit=u.d, description='Time of eclipse')]
-    syn_params += [FloatArrayParameter(qualifier='time_ephem', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('time_ephem', []), default_unit=u.d, description='Expected time of eclipse from the current ephemeris')]
-    syn_params += [FloatArrayParameter(qualifier='etv', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('etv', []), default_unit=u.d, description='Eclipse timing variation (time_obs - time_ephem)')]
+    syn_params += [FloatArrayParameter(qualifier='Ns', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('Ns', []), default_unit=u.dimensionless_unscaled, description='Epoch since t0')]
+    syn_params += [FloatArrayParameter(qualifier='time_ecls', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('times_ecl', []), default_unit=u.d, description='Time of eclipse')]
+    syn_params += [FloatArrayParameter(qualifier='time_ephems', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('times_ephem', []), default_unit=u.d, description='Expected time of eclipse from the current ephemeris')]
+    syn_params += [FloatArrayParameter(qualifier='etvs', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('etvs', []), default_unit=u.d, description='Eclipse timing variation (time_obs - time_ephem)')]
     if not syn:
-        syn_params += [FloatArrayParameter(qualifier='sigma', value=kwargs.get('sigma', []), default_unit=u.d, description='Observed uncertainty on time_obs')]
+        syn_params += [FloatArrayParameter(qualifier='sigmas', value=kwargs.get('sigmas', []), default_unit=u.d, description='Observed uncertainty on time_obs')]
 
     constraints = []
     constraints += [(constraint.time_ephem, kwargs.get('component', '_default'), kwargs.get('dataset', None))]
@@ -208,8 +208,10 @@ def ifm_syn(syn=True, **kwargs):
 
     syn_params = []
 
+    # TODO: pluralize all FloatArrayParameter qualifiers
+
     # independent parameters
-    syn_params += [FloatArrayParameter(qualifier='time', value=kwargs.get('time', []), default_unit=u.d, description='Observed times')]
+    syn_params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='Observed times')]
     syn_params += [FloatArrayParameter(qualifier='ucoord', value=kwargs.get('ucoord', []), default_unit=u.m, description='Projection of the baseline in the North-South direction.')]
     syn_params += [FloatArrayParameter(qualifier='vcoord', value=kwargs.get('vcoord', []), default_unit=u.m, description='Projection of the baseline in the East-West direction.')]
     syn_params += [FloatArrayParameter(qualifier='eff_wave', value=kwargs.get('eff_wave', []), default_unit=u.m, description='Effective wavelength of the repsective passband.')]
@@ -290,16 +292,16 @@ def orb_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    syn_params += [FloatArrayParameter(qualifier='time', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('time', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    syn_params += [FloatArrayParameter(qualifier='times', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
     if syn:
         # syns ignore copy_for anyways
-        syn_params += [FloatArrayParameter(qualifier='x', value=kwargs.get('x', []), default_unit=u.solRad, description='X position')]
-        syn_params += [FloatArrayParameter(qualifier='y', value=kwargs.get('y', []), default_unit=u.solRad, description='Y position')]
-        syn_params += [FloatArrayParameter(qualifier='z', value=kwargs.get('z', []), default_unit=u.solRad, description='Z position')]
-        syn_params += [FloatArrayParameter(qualifier='vx', value=kwargs.get('vx', []), default_unit=u.solRad/u.d, description='X velocity')]
-        syn_params += [FloatArrayParameter(qualifier='vy', value=kwargs.get('vy', []), default_unit=u.solRad/u.d, description='Y velocity')]
-        syn_params += [FloatArrayParameter(qualifier='vz', value=kwargs.get('vz', []), default_unit=u.solRad/u.d, description='Z velocity')]
+        syn_params += [FloatArrayParameter(qualifier='xs', value=kwargs.get('xs', []), default_unit=u.solRad, description='X position')]
+        syn_params += [FloatArrayParameter(qualifier='ys', value=kwargs.get('ys', []), default_unit=u.solRad, description='Y position')]
+        syn_params += [FloatArrayParameter(qualifier='zs', value=kwargs.get('zs', []), default_unit=u.solRad, description='Z position')]
+        syn_params += [FloatArrayParameter(qualifier='vxs', value=kwargs.get('vxs', []), default_unit=u.solRad/u.d, description='X velocity')]
+        syn_params += [FloatArrayParameter(qualifier='vys', value=kwargs.get('vys', []), default_unit=u.solRad/u.d, description='Y velocity')]
+        syn_params += [FloatArrayParameter(qualifier='vzs', value=kwargs.get('vzs', []), default_unit=u.solRad/u.d, description='Z velocity')]
 
     constraints = []
 
@@ -337,21 +339,21 @@ def mesh_syn(syn=True, **kwargs):
 
     syn_params = []
 
-    time = kwargs.get('time', [])
+    times = kwargs.get('times', [])
     # for protomeshes time will be [None] as it is defined to be at periastron.
     # In that case we don't want the time array parameter
-    if not len(time) or time[0] is not None:
-        syn_params += [FloatArrayParameter(qualifier='time', value=kwargs.get('time', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
+    if not len(times) or times[0] is not None:
+        syn_params += [FloatArrayParameter(qualifier='times', value=kwargs.get('times', []), default_unit=u.d, description='{} times'.format('Synthetic' if syn else 'Observed'))]
 
     # the following will all be arrays (value per triangle) per time
     # TODO: we really probably only want this in the syn, not obs - but do want time in both
     # TODO: I guess since time probably won't be passed when creating the obs these won't be there - we just have to make sure to pass times in compute
     if syn:
         # syns ignore copy_for anyways
-        for t in kwargs.get('time', []):
-            syn_params += [FloatArrayParameter(qualifier='x', time=t, value=kwargs.get('x', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='X coordinate of center of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='y', time=t, value=kwargs.get('y', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Y coordinate of center of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='z', time=t, value=kwargs.get('z', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Z coordinate of center of triangles')]
+        for t in kwargs.get('times', []):
+            syn_params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='X coordinate of center of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Y coordinate of center of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Z coordinate of center of triangles')]
             if t is not None:
                 # skip these for protomeshes
                 syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
@@ -359,49 +361,55 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
 
 
-                syn_params += [FloatArrayParameter(qualifier='vx', time=t, value=kwargs.get('vx', []), default_unit=u.solRad/u.d, description='X velocity of center of triangles')]
-                syn_params += [FloatArrayParameter(qualifier='vy', time=t, value=kwargs.get('vy', []), default_unit=u.solRad/u.d, description='Y velocity of center of triangles')]
-                syn_params += [FloatArrayParameter(qualifier='vz', time=t, value=kwargs.get('vz', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.solRad/u.d, description='X velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.solRad/u.d, description='Y velocity of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
             syn_params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of triangles')]
             syn_params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of WD triangles')]
             # syn_params += [FloatArrayParameter(qualifier='volumes', time=t, value=kwargs.get('volumes', []), default_unit=u.solRad**3, description='Volume of triangles')]
             syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Vertices of triangles')]
             syn_params += [FloatArrayParameter(qualifier='visible_centroids', time=t, value=kwargs.get('visible_centroids', []), default_unit=u.solRad  if t is not None else u.dimensionless_unscaled, description='Center of the visible portion of each triangle')]
             syn_params += [FloatArrayParameter(qualifier='normals', time=t, value=kwargs.get('normals', []), default_unit=u.dimensionless_unscaled, description='Normals of triangles')]
-            syn_params += [FloatArrayParameter(qualifier='nx', time=t, value=kwargs.get('nx', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
-            syn_params += [FloatArrayParameter(qualifier='ny', time=t, value=kwargs.get('ny', []), default_unit=u.dimensionless_unscaled, description='Y component of normals')]
-            syn_params += [FloatArrayParameter(qualifier='nz', time=t, value=kwargs.get('nz', []), default_unit=u.dimensionless_unscaled, description='Z component of normals')]
+            syn_params += [FloatArrayParameter(qualifier='nxs', time=t, value=kwargs.get('nxs', []), default_unit=u.dimensionless_unscaled, description='X component of normals')]
+            syn_params += [FloatArrayParameter(qualifier='nys', time=t, value=kwargs.get('nys', []), default_unit=u.dimensionless_unscaled, description='Y component of normals')]
+            syn_params += [FloatArrayParameter(qualifier='nzs', time=t, value=kwargs.get('nzs', []), default_unit=u.dimensionless_unscaled, description='Z component of normals')]
 
 
-            syn_params += [FloatArrayParameter(qualifier='cosbeta', time=t, value=kwargs.get('cosbeta', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='')]
+            syn_params += [FloatArrayParameter(qualifier='cosbetas', time=t, value=kwargs.get('cosbetas', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='')]
 
-            syn_params += [FloatArrayParameter(qualifier='logg', time=t, value=kwargs.get('logg', []), default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
-            syn_params += [FloatArrayParameter(qualifier='teff', time=t, value=kwargs.get('teff', []), default_unit=u.K, description='Local effective temperature')]
+            syn_params += [FloatArrayParameter(qualifier='loggs', time=t, value=kwargs.get('loggs', []), default_unit=u.dimensionless_unscaled, description='Local surface gravity')]
+            syn_params += [FloatArrayParameter(qualifier='teffs', time=t, value=kwargs.get('teffs', []), default_unit=u.K, description='Local effective temperature')]
 
-            syn_params += [FloatArrayParameter(qualifier='r', time=t, value=kwargs.get('r', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Distance of each triangle from center of mass')]
+            syn_params += [FloatArrayParameter(qualifier='rs', time=t, value=kwargs.get('rs', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Distance of each triangle from center of mass')]
 
 
             if t is not None:
                 # skip these for protomeshes
-                syn_params += [FloatArrayParameter(qualifier='r_proj', time=t, value=kwargs.get('r_proj', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass')]
+                syn_params += [FloatArrayParameter(qualifier='r_projs', time=t, value=kwargs.get('r_projs', []), default_unit=u.solRad, description='Projected distance (on plane of sky) of each triangle from center of mass')]
 
-                syn_params += [FloatArrayParameter(qualifier='mu', time=t, value=kwargs.get('mu', []), default_unit=u.dimensionless_unscaled, description='Mu')]
+                syn_params += [FloatArrayParameter(qualifier='mus', time=t, value=kwargs.get('mus', []), default_unit=u.dimensionless_unscaled, description='Mu')]
 
-                syn_params += [FloatArrayParameter(qualifier='visibility', time=t, value=kwargs.get('visibility', []), default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
+                syn_params += [FloatArrayParameter(qualifier='visibilities', time=t, value=kwargs.get('visibilities', []), default_unit=u.dimensionless_unscaled, description='Visiblity of triangles (1=visible, 0.5=partial, 0=hidden)')]
 
 
                 for dataset, kind in kwargs.get('dataset_fields', {}).items():
                     # TODO: descriptions for each column
-                    if kind=='RV':
-                        indeps = {'rv': u.solRad/u.d, 'intens_norm_abs': u.W/u.m**3, 'intens_norm_rel': u.W/u.m**3, 'intens_proj_abs': u.W/u.m**3, 'intens_proj_rel': u.W/u.m**3, 'ampl_boost': u.dimensionless_unscaled}
-                    elif kind=='LC':
-                        indeps = {'intens_norm_abs': u.W/u.m**3, 'intens_norm_rel': u.W/u.m**3, 'intens_proj_abs': u.W/u.m**3, 'intens_proj_rel': u.W/u.m**3, 'ampl_boost': u.dimensionless_unscaled}
-                    elif kind=='MESH':
+                    if kind=='rv':
+                        indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'ampl_boosts': u.dimensionless_unscaled}
+                        if _devel_enabled:
+                            indeps['abs_intensities'] = u.W/u.m**3
+                            indeps['abs_normal_intensities'] = u.W/u.m**3
+                    elif kind=='lc':
+                        indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'ampl_boosts': u.dimensionless_unscaled}
+                        if _devel_enabled:
+                            indeps['abs_intensities'] = u.W/u.m**3
+                            indeps['abs_normal_intensities'] = u.W/u.m**3
+                    elif kind=='mesh':
                         continue
                     else:
                         raise NotImplementedError
 
-                    if kind in ['LC', 'RV']:
+                    if kind in ['lc', 'rv']:
                         syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
 
 

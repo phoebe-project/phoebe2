@@ -971,14 +971,14 @@ def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     if dataset is not None:
         filterwargs['dataset'] = dataset
 
-    time_ephem = b.get_parameter(qualifier='time_ephem', **filterwargs)
+    time_ephem = b.get_parameter(qualifier='time_ephems', **filterwargs)
     t0 = parentorbit_ps.get_parameter(qualifier='t0_supconj')  # TODO: make sure t0_supconj makes sense here
     period = parentorbit_ps.get_parameter(qualifier='period')
     phshift = parentorbit_ps.get_parameter(qualifier='phshift')
     dpdt = parentorbit_ps.get_parameter(qualifier='dpdt')
     esinw_ = parentorbit_ps.get_parameter(qualifier='esinw')
 
-    N = b.get_parameter(qualifier='N', **filterwargs)
+    N = b.get_parameter(qualifier='Ns', **filterwargs)
 
     if solve_for in [None, time_ephem]:
 
@@ -1006,9 +1006,9 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
         ETV dataset)
     """
 
-    time_ephem = b.get_parameter(qualifier='time_ephem', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
-    time_ecl = b.get_parameter(qualifier='time_ecl', component=component, dataset=dataset)
-    etv = b.get_parameter(qualifier='etv', component=component, dataset=dataset)
+    time_ephem = b.get_parameter(qualifier='time_ephems', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
+    time_ecl = b.get_parameter(qualifier='time_ecls', component=component, dataset=dataset)
+    etv = b.get_parameter(qualifier='etvs', component=component, dataset=dataset)
 
     if solve_for in [None, etv]:
         lhs = etv

@@ -9,6 +9,7 @@ from phoebe.backend import universe, etvs
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 from phoebe import u, c
+from phoebe import _devel_enabled
 
 try:
     import phoebeBackend as phb1
@@ -38,25 +39,25 @@ def _needs_mesh(b, dataset, kind, component, compute):
         # then we don't have meshes for this backend, so all should be False
         return False
 
-    if kind not in ['MESH', 'LC', 'RV']:
+    if kind not in ['mesh', 'lc', 'rv']:
         return False
 
-    if kind == 'LC' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
+    if kind == 'lc' and compute_kind=='phoebe' and b.get_value(qualifier='lc_method', compute=compute, dataset=dataset, context='compute')=='analytical':
         return False
 
-    if kind == 'RV' and (compute_kind == 'legacy' or b.get_value(qualifier='rv_method', compute=compute, component=component, dataset=dataset, context='compute')=='dynamical'):
+    if kind == 'rv' and (compute_kind == 'legacy' or b.get_value(qualifier='rv_method', compute=compute, component=component, dataset=dataset, context='compute')=='dynamical'):
         return False
 
     return True
 
 
 def _timequalifier_by_kind(kind):
-    if kind=='ETV':
-        return 'time_ephem'
+    if kind=='etv':
+        return 'time_ephems'
     else:
-        return 'time'
+        return 'times'
 
-def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_oversample=False, **kwargs):
+def _extract_from_bundle_by_time(b, compute, store_mesh=False, times=None, allow_oversample=False, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
     computed at each of those times.  Any backend can then loop through
@@ -74,6 +75,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
         a unique match to a dataset (shouldn't ever happen unless
         the user overrides a label)
     """
+    provided_times = times
     times = []
     infos = []
     needed_syns = []
@@ -97,7 +99,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
         for component in b.hierarchy.get_stars()+[None]:
             obs_ps = b.filter(context='dataset', dataset=dataset, component=component).exclude(kind='*_dep')
             # only certain kinds accept a component of None
-            if component is None and obs_ps.kind not in ['LC', 'MESH']:
+            if component is None and obs_ps.kind not in ['lc', 'mesh']:
                 # TODO: should we change things like lightcurves to be tagged with the component label of the orbit instead of None?
                 # anything that can accept observations on the "system" level should accept component is None
                 continue
@@ -112,13 +114,13 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
             #if not len(this_times):
             #    # then override with passed times if available
             #    this_times = time
-            if len(this_times) and time is not None:
+            if len(this_times) and provided_times is not None:
                 # then overrride the dataset times with the passed times
-                this_times = time
+                this_times = provided_times
 
             # TODO: also copy this logic for _extract_from_bundle_by_dataset?
             if allow_oversample and \
-                    obs_ps.kind in ['LC'] and \
+                    obs_ps.kind in ['lc'] and \
                     b.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0 and \
                     b.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
 
@@ -133,7 +135,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., exp_oversample) for t in this_times]).flatten()
 
             if len(this_times):
-                if component is None and obs_ps.kind in ['MESH']:
+                if component is None and obs_ps.kind in ['mesh']:
                     components = b.hierarchy.get_meshables()
                 else:
                     components = [component]
@@ -144,7 +146,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
                             'component': component,
                             'kind': obs_ps.kind,
                             'needs_mesh': _needs_mesh(b, dataset, obs_ps.kind, component, compute),
-                            'time': this_times}
+                            'times': this_times}
 
                     needed_syns.append(this_info)
 
@@ -172,7 +174,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, time=None, allow_
 
     return np.array(times), infos, _create_syns(b, needed_syns)
 
-def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, time=[]):
+def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, times=[]):
     """
     Extract a list of enabled dataset from the bundle.
 
@@ -193,6 +195,7 @@ def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, time=[]):
         a unique match to a dataset (shouldn't ever happen unless
         the user overrides a label)
     """
+    provided_times = times
     times = []
     infos = []
     needed_syns = []
@@ -215,7 +218,7 @@ def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, time=[]):
         for component in b.hierarchy.get_stars()+[None]:
             obs_ps = b.filter(context='dataset', dataset=dataset, component=component).exclude(kind='*_dep')
             # only certain kinds accept a component of None
-            if component is None and obs_ps.kind not in ['LC', 'MESH']:
+            if component is None and obs_ps.kind not in ['lc', 'mesh']:
                 # TODO: should we change things like lightcurves to be tagged with the component label of the orbit instead of None?
                 # anything that can accept observations on the "system" level should accept component is None
                 continue
@@ -226,13 +229,16 @@ def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, time=[]):
             except ValueError: #TODO: custom exception for no parameter
                 continue
 
-            if not len(this_times):
+            # if not len(this_times):
                 # then override with passed times if available
-                this_times = time
+                # this_times = times_provided
+            if len(this_times) and provided_times is not None:
+                # then overrride the dataset times with the passed times
+                this_times = provided_times
 
             if len(this_times):
 
-                if component is None and obs_ps.kind in ['MESH']:
+                if component is None and obs_ps.kind in ['mesh']:
                     components = b.hierarchy.get_meshables()
                 else:
                     components = [component]
@@ -243,7 +249,7 @@ def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, time=[]):
                             'component': component,
                             'kind': obs_ps.kind,
                             'needs_mesh': _needs_mesh(b, dataset, obs_ps.kind, component, compute),
-                            'time': this_times
+                            'times': this_times
                             }
                     needed_syns.append(this_info)
 
@@ -270,9 +276,9 @@ def _handle_protomesh(b, compute, needed_syns, infos):
             # then we need the prototype synthetics
             this_info = {'dataset': 'protomesh',
                     'component': component,
-                    'kind': 'MESH',
+                    'kind': 'mesh',
                     'needs_mesh': False,
-                    'time': [None]}
+                    'times': [None]}
             needed_syns.append(this_info)
 
     return needed_syns, infos
@@ -293,7 +299,7 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
         # the times.  We'll do this by first building a dictionary, to avoid duplicates
         # that could occur for datasets with multiple components
 
-        needs_mesh_infos = {info['dataset']: info for info in needed_syns if info['needs_mesh'] and info['kind'] not in ['MESH']}.values()
+        needs_mesh_infos = {info['dataset']: info for info in needed_syns if info['needs_mesh'] and info['kind'] not in ['mesh']}.values()
 
         # now let's loop over ALL components first... even if a single component
         # is used in the dataset (ie RVs attached to a single component), we'll
@@ -306,7 +312,7 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
             # the use of a mesh, avoiding duplicates, and maintaining sort order
             this_times = np.array([])
             for info in needs_mesh_infos:
-                this_times = np.append(this_times, info['time'])
+                this_times = np.append(this_times, info['times'])
 
             # TODO: there must be a better way to do this
             this_times = np.array(list(set(this_times.tolist())))
@@ -315,9 +321,9 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
 
             this_info = {'dataset': 'automesh',
                 'component': component,
-                'kind': 'MESH',
+                'kind': 'mesh',
                 'needs_mesh': True,
-                'time': this_times}
+                'times': this_times}
 
             if times:
                 for time in this_times:
@@ -345,7 +351,7 @@ def _create_syns(b, needed_syns, store_mesh=False):
     for needed_syn in needed_syns:
         # used to be {}_syn
         syn_kind = '{}'.format(needed_syn['kind'])
-        if needed_syn['kind']=='MESH':
+        if needed_syn['kind']=='mesh':
             # parameters.dataset.mesh will handle creating the necessary columns
             needed_syn['dataset_fields'] = needs_mesh
 
@@ -364,7 +370,7 @@ def _create_syns(b, needed_syns, store_mesh=False):
 
     return ParameterSet(params)
 
-def phoebe(b, compute, time=[], as_generator=False, **kwargs):
+def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     """
     Run the PHOEBE 2.0 backend.  This is the default built-in backend
     so no other pre-requisites are required.
@@ -389,11 +395,11 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     Values that are filled by this backend:
 
     * lc:
-        * time
-        * flux
+        * times
+        * fluxes
     * rv (dynamical only):
-        * time
-        * rv
+        * times
+        * rvs
 
     This function will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -421,7 +427,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         # remove store_mesh so that it isn't passed twice in _extract_from_bundle_by_time
         kwargs.pop('store_mesh')
 
-    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute, time=time, store_mesh=store_mesh, allow_oversample=True, **kwargs)
+    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute, times=times, store_mesh=store_mesh, allow_oversample=True, **kwargs)
 
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
@@ -486,29 +492,29 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
 
             # protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
 
-            this_syn['x'] = protomesh.centers[:,0]# * u.solRad
-            this_syn['y'] = protomesh.centers[:,1]# * u.solRad
-            this_syn['z'] = protomesh.centers[:,2]# * u.solRad
+            this_syn['xs'] = protomesh.centers[:,0]# * u.solRad
+            this_syn['ys'] = protomesh.centers[:,1]# * u.solRad
+            this_syn['zs'] = protomesh.centers[:,2]# * u.solRad
             this_syn['vertices'] = protomesh.vertices_per_triangle
             this_syn['areas'] = protomesh.areas # * u.solRad**2
             this_syn['tareas'] = protomesh.tareas # * u.solRad**2
             this_syn['normals'] = protomesh.tnormals
-            this_syn['nx'] = protomesh.tnormals[:,0]
-            this_syn['ny'] = protomesh.tnormals[:,1]
-            this_syn['nz'] = protomesh.tnormals[:,2]
+            this_syn['nxs'] = protomesh.tnormals[:,0]
+            this_syn['nys'] = protomesh.tnormals[:,1]
+            this_syn['nzs'] = protomesh.tnormals[:,2]
 
-            this_syn['logg'] = protomesh.loggs.centers
-            this_syn['teff'] = protomesh.teffs.centers
+            this_syn['loggs'] = protomesh.loggs.centers
+            this_syn['teffs'] = protomesh.teffs.centers
             # this_syn['mu'] = protomesh.mus  # mus aren't filled until placed in orbit
 
             # NOTE: this is a computed column, meaning the 'r' is not the radius to centers, but rather the
             # radius at which computables have been determined.  This way r should not suffer from a course
             # grid (so much).  Same goes for cosbeta below.
-            this_syn['r'] = protomesh.rs.centers
+            this_syn['rs'] = protomesh.rs.centers
             # NOTE: no r_proj for protomeshs since we don't have LOS information
 
             # TODO: need to test the new (ComputedColumn) version of this
-            this_syn['cosbeta'] = protomesh.cosbetas.centers
+            this_syn['cosbetas'] = protomesh.cosbetas.centers
             # this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(protomesh.centers, protomesh.tnormals)]
 
 
@@ -517,7 +523,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
     # TODO: move as much of this pblum logic into mesh.py as possible
 
     kinds = b.get_dataset().kinds
-    if 'LC' in kinds or 'RV' in kinds:  # TODO this needs to be WAY more general
+    if 'lc' in kinds or 'rv' in kinds:  # TODO this needs to be WAY more general
         # we only need to handle pblum_scale if we have a dataset kind which requires
         # intensities
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
@@ -531,6 +537,9 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
         for dataset in b.datasets:
+            if dataset == '_default':
+                continue
+
             ds = b.get_dataset(dataset=dataset, kind='*dep')
 
             if ds.kind is None:
@@ -539,7 +548,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             kind = ds.kind[:-4]
 
             #print "***", dataset, kind
-            if kind not in ['LC']:
+            if kind not in ['lc']:
                 continue
 
             for component in ds.components:
@@ -657,7 +666,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
             kind = info['kind']
 
 
-            if kind in ['MESH', 'SP']:
+            if kind in ['mesh', 'sp']:
                 # print "*** new_syns", new_syns.twigs
                 # print "*** filtering new_syns", info['component'], info['dataset'], kind, time
                 # print "*** this_syn.twigs", new_syns.filter(kind=kind, time=time).twigs
@@ -669,54 +678,54 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
             # now check the kind to see what we need to fill
-            if kind=='RV':
-                ### this_syn['time'].append(time) # time array was set when initializing the syns
+            if kind=='rv':
+                ### this_syn['times'].append(time) # time array was set when initializing the syns
                 if info['needs_mesh']:
                     # TODO: we have to call get here because twig access will trigger on kind=rv and qualifier=rv
                     # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').kinds, this_syn.filter(qualifier='rv').components
                     # if len(this_syn.filter(qualifier='rv').twigs)>1:
                         # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
                     rv = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)['rv']
-                    this_syn['rv'].append(rv*u.solRad/u.d)
+                    this_syn['rvs'].append(rv*u.solRad/u.d)
                 else:
                     # then rv_method == 'dynamical'
-                    this_syn['rv'].append(-1*vzi[cind]*u.solRad/u.d)
+                    this_syn['rvs'].append(-1*vzi[cind]*u.solRad/u.d)
 
-            elif kind=='LC':
+            elif kind=='lc':
 
                 # print "***", info['component']
                 # print "***", system.observe(info['dataset'], kind=kind, components=info['component'])
                 l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-                this_syn['flux'].append(system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux'])
+                this_syn['fluxes'].append(system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux'])
 
-            elif kind=='ETV':
+            elif kind=='etv':
 
-                # TODO: add support for other ETV kinds (barycentric, robust, others?)
+                # TODO: add support for other etv kinds (barycentric, robust, others?)
                 time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value('etv_tol', u.d, dataset=info['dataset'], component=info['component']))
 
                 this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
-                this_syn['N'].append(this_obs.get_parameter(qualifier='N').interp_value(time_ephem=time))  # TODO: there must be a better/cleaner way to do this
-                this_syn['time_ephem'].append(time)  # NOTE: no longer under constraint control
-                this_syn['time_ecl'].append(time_ecl)
-                this_syn['etv'].append(time_ecl-time)  # NOTE: no longer under constraint control
+                this_syn['Ns'].append(this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time))  # TODO: there must be a better/cleaner way to do this
+                this_syn['time_ephems'].append(time)  # NOTE: no longer under constraint control
+                this_syn['time_ecls'].append(time_ecl)
+                this_syn['etvs'].append(time_ecl-time)  # NOTE: no longer under constraint control
 
-            elif kind=='IFM':
+            elif kind=='ifm':
                 observables_ifm = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)
                 for key in observables_ifm.keys():
                     this_syn[key] = observables_ifm[key]
 
-            elif kind=='ORB':
+            elif kind=='orb':
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
 
-                ### this_syn['time'].append(ts[i])  # time array was set when initializing the syns
-                this_syn['x'].append(xi[cind])
-                this_syn['y'].append(yi[cind])
-                this_syn['z'].append(zi[cind])
-                this_syn['vx'].append(vxi[cind])
-                this_syn['vy'].append(vyi[cind])
-                this_syn['vz'].append(vzi[cind])
+                ### this_syn['times'].append(ts[i])  # time array was set when initializing the syns
+                this_syn['xs'].append(xi[cind])
+                this_syn['ys'].append(yi[cind])
+                this_syn['zs'].append(zi[cind])
+                this_syn['vxs'].append(vxi[cind])
+                this_syn['vys'].append(vyi[cind])
+                this_syn['vzs'].append(vzi[cind])
 
-            elif kind=='MESH':
+            elif kind=='mesh':
                 # print "*** info['component']", info['component'], " info['dataset']", info['dataset']
                 # print "*** this_syn.twigs", this_syn.twigs
                 body = system.get_body(info['component'])
@@ -729,33 +738,33 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                 # could easily have a read-only property at the ProtoMesh level
                 # that returns a ComputedColumn for xs, ys, zs (like rs)
                 # (also do same for protomesh)
-                this_syn['x'] = body.mesh.centers[:,0]# * u.solRad
-                this_syn['y'] = body.mesh.centers[:,1]# * u.solRad
-                this_syn['z'] = body.mesh.centers[:,2]# * u.solRad
-                this_syn['vx'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
-                this_syn['vy'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
-                this_syn['vz'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
+                this_syn['xs'] = body.mesh.centers[:,0]# * u.solRad
+                this_syn['ys'] = body.mesh.centers[:,1]# * u.solRad
+                this_syn['zs'] = body.mesh.centers[:,2]# * u.solRad
+                this_syn['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
+                this_syn['vys'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
+                this_syn['vzs'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
                 this_syn['vertices'] = body.mesh.vertices_per_triangle
                 this_syn['areas'] = body.mesh.areas # * u.solRad**2
                 # TODO remove this 'normals' vector now that we have nx,ny,nz?
                 this_syn['normals'] = body.mesh.tnormals
-                this_syn['nx'] = body.mesh.tnormals[:,0]
-                this_syn['ny'] = body.mesh.tnormals[:,1]
-                this_syn['nz'] = body.mesh.tnormals[:,2]
-                this_syn['mu'] = body.mesh.mus
+                this_syn['nxs'] = body.mesh.tnormals[:,0]
+                this_syn['nys'] = body.mesh.tnormals[:,1]
+                this_syn['nzs'] = body.mesh.tnormals[:,2]
+                this_syn['mus'] = body.mesh.mus
 
-                this_syn['logg'] = body.mesh.loggs.centers
-                this_syn['teff'] = body.mesh.teffs.centers
+                this_syn['loggs'] = body.mesh.loggs.centers
+                this_syn['teffs'] = body.mesh.teffs.centers
                 # TODO: include abun? (body.mesh.abuns.centers)
 
                 # NOTE: these are computed columns, so are not based on the
                 # "center" coordinates provided by x, y, z, etc, but rather are
                 # the average value across each triangle.  For this reason,
                 # they are less susceptible to a coarse grid.
-                this_syn['r'] = body.mesh.rs.centers
-                this_syn['r_proj'] = body.mesh.rprojs.centers
+                this_syn['rs'] = body.mesh.rs.centers
+                this_syn['r_projs'] = body.mesh.rprojs.centers
 
-                this_syn['visibility'] = body.mesh.visibilities
+                this_syn['visibilities'] = body.mesh.visibilities
 
                 vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
                 for i,vc in enumerate(vcs):
@@ -763,19 +772,23 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                         vcs[i] = np.full(3, np.nan)
                 this_syn['visible_centroids'] = vcs
 
-                indeps = {'RV': ['rv', 'intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost'], 'LC': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost'], 'IFM': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel']}
+                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'ampl_boosts'], 'lc': ['intensities', 'normal_intensities', 'ampl_boosts'], 'ifm': []}
+                if _devel_enabled:
+                    indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
+                    indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']
                 for infomesh in infolist:
-                    if infomesh['needs_mesh'] and infomesh['kind'] != 'MESH':
-                        new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='MESH', value=body.compute_luminosity(infomesh['dataset']))
+                    if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
+                        new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
 
                         for indep in indeps[infomesh['kind']]:
                             key = "{}:{}".format(indep, infomesh['dataset'])
                             # print "***", key, indep, new_syns.qualifiers
                             # print "***", indep, time, infomesh['dataset'], info['component'], 'mesh', new_syns.filter(time=time, kind='mesh').twigs
                             try:
-                                new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='MESH', value=body.mesh[key].centers)
+                                new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.mesh[key].centers)
                             except ValueError:
-                                raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='MESH').twigs)))
+                                print "***", key, indep, info['component'], infomesh['dataset'], new_syns.filter(time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs
+                                raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs)))
 
 
             else:
@@ -789,7 +802,7 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
         yield new_syns
 
 
-def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
+def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
     """
     Use PHOEBE 1.0 (legacy) which is based on the Wilson-Devinney code
@@ -818,11 +831,11 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
     Values that are filled by this backend:
 
     * lc:
-        * time
-        * flux
+        * times
+        * fluxes
     * rv (dynamical only):
-        * time
-        * rv
+        * times
+        * rvs
 
     This function will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -852,7 +865,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
     Returns:
         new key(s) which are component specific and vector direction
-        specific (x, y, z) for phoebe1 and phoebe2.
+        specific (xs, ys, zs) for phoebe1 and phoebe2.
 
     Raises:
         ImportError if the python 'phoebeBackend' interface to PHOEBE
@@ -861,7 +874,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
 
     """
-    p2to1 = {'tloc':'teff', 'glog':'logg', 'vcx':'x', 'vcy':'y', 'vcz':'z', 'grx':'nx', 'gry':'ny', 'grz':'nz', 'csbt':'cosbeta', 'rad':'r','Inorm':'intens_norm_abs'}
+    p2to1 = {'tloc':'teffs', 'glog':'loggs', 'vcx':'xs', 'vcy':'ys', 'vcz':'zs', 'grx':'nxs', 'gry':'nys', 'grz':'nzs', 'csbt':'cosbetas', 'rad':'rs','Inorm':'abs_normal_intensities'}
 
     def ret_dict(key):
         """
@@ -970,7 +983,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                     if key in ['Inorm1', 'Inorm2']:
                         d['dataset'] = dataset
 
-                        d['time'] = time[t]
+                        d['times'] = time[t]
                         #prepare data
                         if key[:2] in ['vc', 'gr']:
                             # I need to change coordinates but not yet done
@@ -1025,7 +1038,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
     phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
-    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, time=time, store_mesh=store_mesh)
+    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, store_mesh=store_mesh)
 
 
 #    print "INFOS", len(infos)
@@ -1043,16 +1056,16 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
     for info in infos:
         info = info[0]
         this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'])
-        time = info['time']
+        time = info['times']
         dataset=info['dataset']
 
-        if info['kind'] == 'LC':
+        if info['kind'] == 'lc':
             if not store_mesh:
             # print "*********************", this_syn.qualifiers
                 flux= np.array(phb1.lc(tuple(time.tolist()), lcnum))
                 lcnum = lcnum+1
                 #get rid of the extra periastron passage
-                this_syn['flux'] = flux
+                this_syn['fluxes'] = flux
 
             else:
             #    time = np.append(time, perpass)
@@ -1060,7 +1073,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
                 flux, mesh = phb1.lc(tuple(time.tolist()), 0, lcnum+1)
                 flux = np.array(flux)
             # take care of the lc first
-                this_syn['flux'] = flux
+                this_syn['fluxes'] = flux
 
                 fill_mesh(mesh, 'automesh', time=time)
             # now deal with parameters
@@ -1111,7 +1124,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 #                         if key in ['Inorm1', 'Inorm2']:
 #                             d['dataset'] = dataset
 
-#                         d['time'] = time[t]
+#                         d['times'] = time[t]
 #                     #prepare data
 #                         if key[:2] in ['vc', 'gr']:
 #                             # I need to change coordinates but not yet done
@@ -1132,7 +1145,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
 #                 time = time[:-1]
 
-        elif info['kind'] == 'RV':
+        elif info['kind'] == 'rv':
 #            print "SYN", this_syn
             rvid = info['dataset']
             #print "rvid", info
@@ -1181,16 +1194,16 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
 
             #print "***", u.solRad.to(u.km)
-            this_syn.set_value(qualifier='rv', value=rv*u.km/u.s)
+            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)
 #            print "INFO", info
 #            print "SYN", this_syn
 
             #print 'THIS SYN', this_syn
 
-        elif info['kind']=='MESH':
+        elif info['kind']=='mesh':
             pass
 #            print "I made it HERE"
-#        if info['kind'] == 'MESH':
+#        if info['kind'] == 'mesh':
 #            meshcol = {'tloc':'teff', 'glog':'logg','gr':'_o_normal_', 'vc':'_o_center' }
 
 #            keys = ['tloc', 'glog']#, 'gr', 'vc']
@@ -1229,7 +1242,7 @@ def legacy(b, compute, time=[], **kwargs): #, **kwargs):#(b, compute, **kwargs):
 
     yield new_syns
 
-def photodynam(b, compute, time=[], **kwargs):
+def photodynam(b, compute, times=[], **kwargs):
     """
     Use Josh Carter's photodynamical code (photodynam) to compute
     velocities (dynamical only), orbital positions and velocities
@@ -1272,12 +1285,12 @@ def photodynam(b, compute, time=[], **kwargs):
     Values that are filled by this backend:
 
     * lc:
-        - time
-        - flux
+        - times
+        - fluxes
 
     * rv (dynamical only):
-        - time
-        - rv
+        - times
+        - rvs
 
     This function will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -1303,7 +1316,7 @@ def photodynam(b, compute, time=[], **kwargs):
     starrefs  = hier.get_stars()
     orbitrefs = hier.get_orbits()
 
-    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, time=time)
+    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times)
 
     step_size = computeparams.get_value('stepsize', **kwargs)
     orbit_error = computeparams.get_value('orbiterror', **kwargs)
@@ -1325,7 +1338,7 @@ def photodynam(b, compute, time=[], **kwargs):
                 context='component', unit=u.AU))
                 for star in starrefs])+'\n')
 
-        if info['kind'] == 'LC':
+        if info['kind'] == 'lc':
             pblums = [b.get_value(qualifier='pblum', component=star,
                     context='dataset', dataset=info['dataset'])
                     for star in starrefs]  # TODO: units or unitless?
@@ -1388,7 +1401,7 @@ def photodynam(b, compute, time=[], **kwargs):
         # v light-time corrected velocities
         fr.write('t F x v \n')   # TODO: don't always get all?
 
-        for t in b.get_value('time', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d):
+        for t in b.get_value('times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d):
             fr.write('{}\n'.format(t))
         fr.close()
 
@@ -1402,28 +1415,28 @@ def photodynam(b, compute, time=[], **kwargs):
         this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'])
 
         nbodies = len(starrefs)
-        if info['kind']=='LC':
-            this_syn['time'] = stuff[0] * u.d
-            this_syn['flux'] = stuff[1] # + 1  # TODO: figure out why and actually fix the problem instead of fudging it!?!!?
-        elif info['kind']=='ORB':
+        if info['kind']=='lc':
+            this_syn['times'] = stuff[0] * u.d
+            this_syn['fluxes'] = stuff[1] # + 1  # TODO: figure out why and actually fix the problem instead of fudging it!?!!?
+        elif info['kind']=='orb':
             cind = starrefs.index(info['component'])
-            this_syn['time'] = stuff[0] * u.d
-            this_syn['x'] = -1*stuff[2+(cind*3)] * u.AU
-            this_syn['y'] = -1*stuff[3+(cind*3)] * u.AU
-            this_syn['z'] = stuff[4+(cind*3)] * u.AU
-            this_syn['vx'] = -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d
-            this_syn['vy'] = -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d
-            this_syn['vz'] = stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
-        elif info['kind']=='RV':
+            this_syn['times'] = stuff[0] * u.d
+            this_syn['xs'] = -1*stuff[2+(cind*3)] * u.AU
+            this_syn['ys'] = -1*stuff[3+(cind*3)] * u.AU
+            this_syn['zs'] = stuff[4+(cind*3)] * u.AU
+            this_syn['vxs'] = -1*stuff[3*nbodies+2+(cind*3)] * u.AU/u.d
+            this_syn['vys'] = -1*stuff[3*nbodies+3+(cind*3)] * u.AU/u.d
+            this_syn['vzs'] = stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
+        elif info['kind']=='rv':
             cind = starrefs.index(info['component'])
-            this_syn['time'] = stuff[0] * u.d
-            this_syn['rv'] = -stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
+            this_syn['times'] = stuff[0] * u.d
+            this_syn['rvs'] = -stuff[3*nbodies+4+(cind*3)] * u.AU/u.d
         else:
             raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
     yield new_syns
 
-def jktebop(b, compute, time=[], **kwargs):
+def jktebop(b, compute, times=[], **kwargs):
     """
     Use John Southworth's code (jktebop) to compute radial velocities
     and light curves.  The code is available here:
@@ -1463,12 +1476,12 @@ def jktebop(b, compute, time=[], **kwargs):
     Values that are filled by this backend:
 
     * lc:
-        - time
-        - flux
+        - times
+        - fluxes
 
     * rv (dynamical only):
-        - time
-        - rv
+        - times
+        - rvs
 
     This function will almost always be called through the bundle, using
         * :meth:`phoebe.frontend.bundle.Bundle.add_compute`
@@ -1502,7 +1515,7 @@ def jktebop(b, compute, time=[], **kwargs):
 
     orbitref = orbitrefs[0]
 
-    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, time=time)  # TODO: add rv support (see commented context below)
+    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times)  # TODO: add rv support (see commented context below)
 
     ringsize = computeparams.get_value('ringsize', unit=u.deg, **kwargs)
 
@@ -1549,8 +1562,8 @@ def jktebop(b, compute, time=[], **kwargs):
             logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
             ldcoeffsB = (0.5,0.5)
 
-        albA = b.get_value('alb', component=starrefs[0], dataset=info['dataset'], context='dataset')
-        albB = b.get_value('alb', component=starrefs[1], dataset=info['dataset'], context='dataset')
+        albA = b.get_value('frac_refl_bol', component=starrefs[0], context='component')
+        albB = b.get_value('frac_refl_bol', component=starrefs[1], context='component')
 
         tratio = b.get_value('teff', component=starrefs[0], context='component', unit=u.K) / b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 
@@ -1623,7 +1636,7 @@ def jktebop(b, compute, time=[], **kwargs):
         # According to jktebop's readme.txt:
         # FITTING FOR RADIAL VELOCITIES:    the observed RVs should be in separate files
         # for the two stars and the data should be in the same format as the light curve
-        # data. Then add a line below the main input parameters for each RV file:
+        # data. Then add a line below the main input parameters for each rv file:
         #   RV1  [infile]  [outfile]  [K]  [Vsys]  [vary(K)]  [vary(Vsys)]
         #   RV2  [infile]  [outfile]  [K]  [Vsys]  [vary(K)]  [vary(Vsys)]
         # where RV1 is for primary star velocities, RV2 is for secondary star velocities
@@ -1649,7 +1662,7 @@ def jktebop(b, compute, time=[], **kwargs):
 
         # TODO: create_tmp_jktebop_lc_in - probably with times and dummy fluxes if none are in the obs
         #~ flc = open('_tmp_jktebop_lc_in', 'w')
-        #~ times = b.get_value('time', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
+        #~ times = b.get_value('times', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
         #~ fluxes = b.get_value('flux', component=info['component'], dataset=info['dataset'], context='dataset', unit=u.d)
 
         #~ if len(fluxes) < len(times):
@@ -1674,11 +1687,11 @@ def jktebop(b, compute, time=[], **kwargs):
         # phases_all, mags_all are 10001 evenly-spaced phases, so we need to interpolate
         # to get at the desired times
         times_all = b.to_time(phases_all)  # in days
-        mags_interp = np.interp(info['time'], times_all, mags_all)
+        mags_interp = np.interp(info['times'], times_all, mags_all)
 
-        this_syn['time'] = info['time'] * u.d # (period was requested in days)
+        this_syn['times'] = info['times'] * u.d # (period was requested in days)
         logger.warning("converting from mags from JKTEBOP to flux")
         ref_mag = 0  # TODO: what should we do with this?? - option in jktebop compute?
-        this_syn['flux'] = 10**((mags_interp-ref_mag)/-2.5) * 2  # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
+        this_syn['fluxes'] = 10**((mags_interp-ref_mag)/-2.5) * 2  # 2 seems to be necessary - probably from a difference in pblum conventions (or just normalization???)
 
     yield new_syns
