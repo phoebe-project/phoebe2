@@ -10,15 +10,88 @@ Dictionaries of parameters for conversion between phoebe1 and phoebe 2
 
 """
 
-_1to2par = { 'ld_model':'ld_func', 'bol':'ld_coeffs_bol','rvcoff': 'ld_coeffs', 'lccoff':'ld_coeffs','active': 'enabled', 'model': 'morphology', 'filter': 'passband', 'hjd0': 't0_supconj', 'period':'period', 'dpdt': 'dpdt', 'pshift':'phshift', 'sma':'sma', 'rm': 'q', 'incl': 'incl', 'pot':'pot', 'met':'abun', 'f': 'syncpar', 'alb': 'frac_refl_bol', 'grb':'gravb_bol', 'ecc': 'ecc', 'perr0':'per0', 'dperdt': 'dperdt', 'hla': 'pblum', 'cla': 'pblum', 'el3': 'l3', 'reflections':'refl_num', 'finesize': 'gridsize', 'vga': 'vgamma', 'teff':'teff', 'msc1':'msc1', 'msc2':'msc2', 'ie':'ie','atm': 'atm','flux':'flux', 'vel':'rv', 'sigmarv':'sigma', 'sigmalc':'sigma', 'time':'time', 'longitude':'colon', 'radius': 'radius', 'tempfactor':'relteff', 'colatitude':'colat'}
+_1to2par = {'ld_model':'ld_func',
+            'bol':'ld_coeffs_bol',
+            'rvcoff': 'ld_coeffs',
+            'lccoff':'ld_coeffs',
+            'active': 'enabled',
+            'model': 'morphology',
+            'filter': 'passband',
+            'hjd0': 't0_supconj',
+            'period': 'period',
+            'dpdt': 'dpdt',
+            'pshift':'phshift',
+            'sma':'sma',
+            'rm': 'q',
+            'incl': 'incl',
+            'pot':'pot',
+            'met':'abun',
+            'f': 'syncpar',
+            'alb': 'frac_refl_bol',
+            'grb':'gravb_bol',
+            'ecc': 'ecc',
+            'perr0':'per0',
+            'dperdt': 'dperdt',
+            'hla': 'pblum',
+            'cla': 'pblum',
+            'el3': 'l3',
+            'reflections':'refl_num',
+            'finesize': 'gridsize',
+            'vga': 'vgamma',
+            'teff':'teff',
+            'msc1':'msc1',
+            'msc2':'msc2',
+            'ie':'ie',
+            'atm': 'atm',
+            'flux':'fluxes',
+            'vel':'rvs',
+            'sigmarv':'sigmas',
+            'sigmalc':'sigmas',
+            'time':'times',
+            'longitude':'colon',
+            'radius': 'radius',
+            'tempfactor':'relteff',
+            'colatitude':'colat'}
 #TODO: add back proximity_rv maybe?
 #TODO: add back 'excess': 'extinction',
 
 _2to1par = {v:k for k,v in _1to2par.items()}
 
-_units1 = {'incl': 'deg', 'period': 'd', 'dpdt': 'd/d', 'sma': 'Rsun', 'vga':'km/s', 'teff': 'K', 'perr0': 'rad', 'dperdt': 'rad/d', 'flux':'W/m2', 'sigmalc': 'W/m2', 'sigmarv': 'km/s', 'vel':'km/s', 'time':'d'}
+_units1 = {'incl': 'deg',
+           'period': 'd',
+           'dpdt': 'd/d',
+           'sma': 'Rsun',
+           'vga':'km/s',
+           'teff': 'K',
+           'perr0': 'rad',
+           'dperdt': 'rad/d',
+           'flux':'W/m2',
+           'sigmalc': 'W/m2',
+           'sigmarv': 'km/s',
+           'vel':'km/s',
+           'time':'d'}
 
-_parsect = {'t0':'component',  'period':'component', 'dpdt':'component', 'pshift':'component', 'sma':'component', 'rm': 'component', 'incl':'component', 'perr0':'component', 'dperdt':'component', 'hla': 'component', 'cla':'component', 'el3':'component', 'reffect':'compute', 'reflections':'compute', 'finegrid':'mesh', 'vga':'system', 'msc1_switch': 'compute', 'msc2_switch': 'compute', 'ie_switch':'compute', 'proximity_rv1':'compute', 'proximity_rv2': 'compute'}
+_parsect = {'t0':'component',
+            'period':'component',
+            'dpdt':'component',
+            'pshift':'component',
+            'sma':'component',
+            'rm': 'component',
+            'incl':'component',
+            'perr0':'component',
+            'dperdt':'component',
+            'hla': 'component',
+            'cla':'component',
+            'el3':'component',
+            'reffect':'compute',
+            'reflections':'compute',
+            'finegrid':'mesh',
+            'vga':'system',
+            'msc1_switch': 'compute',
+            'msc2_switch': 'compute',
+            'ie_switch':'compute',
+            'proximity_rv1':'compute',
+            'proximity_rv2': 'compute'}
 
 
 #_bool1to2 = {1:True, 0:False}
@@ -221,7 +294,7 @@ def det_dataset(eb, passband, dataid, comp, time):
     rvpt - relevant phoebe 1 parameters
 
     """
-    rvs = eb.get_dataset(kind='RV').datasets
+    rvs = eb.get_dataset(kind='rv').datasets
     #first check to see if there are currently in RV datasets
     if dataid == 'Undefined':
         dataid = None
@@ -231,16 +304,16 @@ def det_dataset(eb, passband, dataid, comp, time):
         try:
             eb._check_label(dataid)
 
-            rv_dataset = eb.add_dataset('rv', dataset=dataid, time = [])
+            rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
 
         except ValueError:
 
             logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-            rv_dataset = eb.add_dataset('rv', time =[])
+            rv_dataset = eb.add_dataset('rv', times=[])
 
     else:
     #now we have to determine if we add to an existing dataset or make a new one
-        rvs = eb.get_dataset(kind='RV').datasets
+        rvs = eb.get_dataset(kind='rv').datasets
         found = False
         #set the component of the companion
         if comp == 'primary':
@@ -249,8 +322,8 @@ def det_dataset(eb, passband, dataid, comp, time):
             comp_o = 'primary'
         for x in rvs:
             test_dataset = eb.get_dataset(x)
-            if len(test_dataset.get_value(qualifier='rv', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length
-                time_o = test_dataset.get_value('time', component=comp_o)
+            if len(test_dataset.get_value(qualifier='rvs', component=comp)) == 0:                #so at least it has an empty spot now check against filter and length
+                time_o = test_dataset.get_value('times', component=comp_o)
                 passband_o = test_dataset.get_value('passband')
                 if np.all(time_o == time) and (passband == passband_o):
                     rv_dataset = test_dataset
@@ -260,12 +333,12 @@ def det_dataset(eb, passband, dataid, comp, time):
             try:
                 eb._check_label(dataid)
 
-                rv_dataset = eb.add_dataset('rv', dataset=dataid, time = [])
+                rv_dataset = eb.add_dataset('rv', dataset=dataid, times=[])
 
             except ValueError:
 
                 logger.warning("The name picked for the lightcurve is forbidden. Applying default name instead")
-                rv_dataset = eb.add_dataset('rv', time =[])
+                rv_dataset = eb.add_dataset('rv', times=[])
 
     return rv_dataset
 
@@ -407,11 +480,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
-                eb.set_value_all(check_visible=False, **d)
+                try:
+                    eb.set_value_all(check_visible=False, **d)
+                except ValueError, msg:
+                    raise ValueError(msg.message + " ({})".format(d))
 
 #Now RVs
     for x in range(1,rvno+1):
-        rvs = eb.get_dataset(kind='RV').datasets
+        rvs = eb.get_dataset(kind='rv').datasets
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
         rvpt = rvpars[rvint]
@@ -770,8 +846,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     if len(set(ldlaws)) > 1:
         raise ValueError("Phoebe 1 takes only one limb darkening law.")
 
-    lcs = eb.get_dataset(kind='LC').datasets
-    rvs = eb.get_dataset(kind='RV').datasets
+    lcs = eb.get_dataset(kind='lc').datasets
+    rvs = eb.get_dataset(kind='rv').datasets
     spots = eb.features
     if len(ldlaws) == 0:
         pass
@@ -887,7 +963,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
             try:
                 pnew = _2to1par[param.qualifier]
-                if param.qualifier in [ 'alb', 'l3', 'ld_func', 'flux', 'sigma', 'time'] or param.component == '_default':
+                if param.qualifier in [ 'alb', 'l3', 'ld_func', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
 
                     param = None
             except:
@@ -943,7 +1019,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
         #if there is more than 1 rv try this
         try:
-            comp = eb.get_parameter(qualifier='time', dataset=rvs[y]).component
+            comp = eb.get_parameter(qualifier='times', dataset=rvs[y]).component
             parnames.append('phoebe_rv_indep['+str(y+1)+']')
             parvals.append('Time (HJD)')
             types.append('choice')
@@ -959,7 +1035,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
                 try:
                     pnew = _2to1par[param.qualifier]
-                    if param.qualifier in ['ld_func', 'rv', 'time', 'sigma'] or param.component == '_default':
+                    if param.qualifier in ['ld_func', 'rvs', 'times', 'sigmas'] or param.component == '_default':
                         param = None
 
                 except:
@@ -1000,7 +1076,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
                     try:
                         pnew = _2to1par[param.qualifier]
-                        if param.qualifier in ['ld_func', 'time', 'rv', 'sigma']or param.component == '_default':
+                        if param.qualifier in ['ld_func', 'times', 'rvs', 'sigmas'] or param.component == '_default':
 
                             param = None
 
