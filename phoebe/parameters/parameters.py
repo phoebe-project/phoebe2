@@ -79,7 +79,7 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'compute', 'model', 'fitting',
-                     'feedback', 'plugin', 'method',
+                     'feedback', 'plugin', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -105,7 +105,7 @@ _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
-                      'unit', 'timederiv', 'relevant_if', 'description']
+                      'unit', 'timederiv', 'visible_if', 'description']
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'automesh']
 _forbidden_labels += ['component']
@@ -114,6 +114,16 @@ _forbidden_labels += ['bol']
 # ? and * used for wildcards in twigs
 _twig_delims = ' \t\n`~!#$%^&)-=+]{}\\|;,<>/:'
 
+
+_singular_to_plural = {'time': 'times', 'flux': 'fluxes', 'sigma': 'sigmas',
+                       'rv': 'rvs', 'time_ecl': 'time_ecls',
+                       'time_ephem': 'time_ephems', 'N': 'Ns', 'x': 'xs',
+                       'y': 'ys', 'z': 'zs', 'vx': 'vxs', 'vy': 'vys',
+                       'vz': 'vzs', 'nx': 'nxs', 'ny': 'nys', 'nz': 'nzs',
+                       'cosbeta': 'cosbetas', 'logg': 'loggs', 'teff': 'teffs',
+                       'r': 'rs', 'r_proj': 'r_projs', 'mu': 'mus',
+                       'visibility': 'visibilities'}
+_plural_to_singular = {v:k for k,v in _singular_to_plural.items()}
 
 def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
@@ -262,7 +272,7 @@ class ParameterSet(object):
         self._fitting = None
         self._feedback = None
         self._plugin = None
-        self._method = None
+        self._kind = None
         self._context = None
 
         # just as a dummy, this'll be filled and handled by to_dict()
@@ -609,23 +619,23 @@ class ParameterSet(object):
         return self.to_dict(field='plugin').keys()
 
     @property
-    def method(self):
-        """Return the value for method if shared by ALL Parameters.
+    def kind(self):
+        """Return the value for kind if shared by ALL Parameters.
 
         If the value is not shared by ALL, then None will be returned.  To see
-        all the methods of all parameters, see :func:`methods`.
+        all the kinds of all parameters, see :func:`kinds`.
 
         :return: str or None
         """
-        return self._method
+        return self._kind
 
     @property
-    def methods(self):
-        """Return a list of all the methods of the Parameters.
+    def kinds(self):
+        """Return a list of all the kinds of the Parameters.
 
         :return: list of strings
         """
-        return self.to_dict(field='method').keys()
+        return self.to_dict(field='kind').keys()
 
     @property
     def context(self):
@@ -675,7 +685,7 @@ class ParameterSet(object):
         :return: the unique twig
         :rtype: str
         """
-        for_this_param = self.filter(twig, check_relevant=False)
+        for_this_param = self.filter(twig, check_visible=False)
 
         metawargs = {}
 
@@ -696,7 +706,7 @@ class ParameterSet(object):
             if getattr(for_this_param, k) is None:
                 continue
 
-            ps_for_this_search = self.filter(check_relevant=False, **metawargs)
+            ps_for_this_search = self.filter(check_visible=False, **metawargs)
 
             if len(ps_for_this_search) < prev_count and k not in force_levels:
                 prev_count = len(ps_for_this_search)
@@ -715,7 +725,7 @@ class ParameterSet(object):
             if metawargs[k] is None or k in force_levels:
                 continue
 
-            ps_for_this_search = self.filter(check_relevant=False,
+            ps_for_this_search = self.filter(check_visible=False,
                                              **{ki: metawargs[k]
                                                 for ki in _meta_fields_twig
                                                 if ki != k})
@@ -766,19 +776,19 @@ class ParameterSet(object):
                 # copy_for tells us how to filter and what set of attributes
                 # needs a copy of this parameter
                 #
-                # copy_for = {'method': ['star', 'disk', 'custombody'], 'component': '*'}
+                # copy_for = {'kind': ['star', 'disk', 'custombody'], 'component': '*'}
                 # means that this should exist for each component (since that has a wildcard) which
-                # has a method in [star, disk, custombody]
+                # has a kind in [star, disk, custombody]
                 #
-                # copy_for = {'method': ['RV_dep'], 'component': '*', 'dataset': '*'}
+                # copy_for = {'kind': ['rv_dep'], 'component': '*', 'dataset': '*'}
                 # means that this should exist for each component/dataset pair with the
-                # RV_dep method
+                # rv_dep kind
 
                 attrs = [k for k,v in param.copy_for.items() if '*' in v]
                 # attrs is a list of the attributes for which we need a copy of
                 # this parameter for any pair
 
-                ps = self._bundle.filter(check_relevant=False, force_ps=True, **param.copy_for)
+                ps = self._bundle.filter(check_visible=False, check_default=False, force_ps=True, **param.copy_for)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
                     if k not in ['twig', 'uniquetwig'] and k not in attrs:
@@ -799,7 +809,7 @@ class ParameterSet(object):
                         #    continue
                         metawargs[attr] = attrvalue
 
-                    if not len(self._bundle.filter(check_relevant=False, **metawargs)):
+                    if not len(self._bundle.filter(check_visible=False, **metawargs)):
                         # then we need to make a new copy
                         logger.info("copying '{}' parameter for {}".format(param.qualifier, {attr: attrvalue for attr, attrvalue in zip(attrs, attrvalues)}))
 
@@ -809,8 +819,8 @@ class ParameterSet(object):
                             setattr(newparam, '_{}'.format(attr), attrvalue)
 
                         newparam._copy_for = False
-                        if newparam._relevant_if and newparam._relevant_if.lower() == 'false':
-                            newparam._relevant_if = None
+                        if newparam._visible_if and newparam._visible_if.lower() == 'false':
+                            newparam._visible_if = None
                         newparam._bundle = self._bundle
 
                         self._params.append(newparam)
@@ -823,7 +833,7 @@ class ParameterSet(object):
 
                         param_constraint = param.is_constraint
 
-                        copied_param = self._bundle.get_parameter(check_relevant=False, **metawargs)
+                        copied_param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
 
                         if not copied_param.is_constraint:
                             constraint_kwargs = param_constraint.constraint_kwargs.copy()
@@ -847,7 +857,7 @@ class ParameterSet(object):
                              .format(label))
         if not re.match("^[a-z,A-Z,0-9,_]*$", label):
             raise ValueError("label '{}' is forbidden - only alphabetic, numeric, and '_' characters are allowed in labels".format(label))
-        if len(self.filter(twig=label, check_relevant=False)):
+        if len(self.filter(twig=label, check_visible=False)):
             raise ValueError("label '{}' is already in use".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
@@ -1004,7 +1014,7 @@ class ParameterSet(object):
             keys_for_this_field = set([getattr(p, field)
                                        for p in self.to_list()
                                        if getattr(p, field) is not None])
-            return {k: self.filter(check_relevant=False, **{field: k}) for k in keys_for_this_field}
+            return {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
 
         # we want to find the first level (from the bottom) in which filtering
         # further would shorten the list (ie there are more than one unique
@@ -1022,7 +1032,7 @@ class ParameterSet(object):
             # those keys and the ParameterSet of the matching items
             if len(keys_for_this_field) > 1:
                 self._next_field = field
-                return {k: self.filter(check_relevant=False, **{field: k})
+                return {k: self.filter(check_visible=False, **{field: k})
                         for k in keys_for_this_field}
 
         # if we've survived, then we're at the bottom and only have times or
@@ -1161,11 +1171,11 @@ class ParameterSet(object):
         for context in _contexts:
             lst += [v.to_json(incl_uniqueid=incl_uniqueid)
                     for v in self.filter(context=context,
-                                         check_relevant=False).to_list()]
+                                         check_visible=False).to_list()]
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
-    def filter(self, twig=None, check_relevant=True, **kwargs):
+    def filter(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
         Filter the ParameterSet based on the meta-tags of the Parameters
         and return another ParameterSet.
@@ -1180,19 +1190,25 @@ class ParameterSet(object):
                 into any of the meta-tags.  Example: instead of
                 b.filter(context='component', component='starA'), you
                 could do b.filter('starA@component').
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
+        :parameter bool check_default: whether to exclude parameters which
+                have a _default tag (these are parameters which solely exist
+                to provide defaults for when new parameters or datasets are
+                added and the parameter needs to be copied appropriately).
+                Defaults to True.
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`ParameterSet`
         """
-        kwargs['check_relevant'] = check_relevant
+        kwargs['check_visible'] = check_visible
+        kwargs['check_default'] = check_default
         kwargs['force_ps'] = True
         return self.filter_or_get(twig=twig, **kwargs)
 
-    def get(self, twig=None, check_relevant=True, **kwargs):
+    def get(self, twig=None, check_visible=True, check_default=True, **kwargs):
         """
         Get a single parameter from this ParameterSet.  This works exactly the
         same as filter except there must be only a single result, and the Parameter
@@ -1205,10 +1221,15 @@ class ParameterSet(object):
                 into any of the meta-tags.  Example: instead of
                 b.filter(context='component', component='starA'), you
                 could do b.filter('starA@component').
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
+        :parameter bool check_default: whether to exclude parameters which
+                have a _default tag (these are parameters which solely exist
+                to provide defaults for when new parameters or datasets are
+                added and the parameter needs to be copied appropriately).
+                Defaults to True.
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`Parameter`
@@ -1216,7 +1237,8 @@ class ParameterSet(object):
                 matching the search.
 
         """
-        kwargs['check_relevant'] = check_relevant
+        kwargs['check_visible'] = check_visible
+        kwargs['check_default'] = check_default
         # print "***", kwargs
         ps = self.filter(twig=twig, **kwargs)
         if not len(ps):
@@ -1230,7 +1252,7 @@ class ParameterSet(object):
             return ps._params[0]
 
     def filter_or_get(self, twig=None, autocomplete=False, force_ps=False,
-                      check_relevant=True, **kwargs):
+                      check_visible=True, check_default=True, **kwargs):
         """
 
         Filter the :class:`ParameterSet` based on the meta-tags of its
@@ -1254,16 +1276,29 @@ class ParameterSet(object):
                 This is helpful if you want to write generic code
                 that chains filter calls (since Parameter does not have
                 a filter method).
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
+        :parameter bool check_default: whether to exclude parameters which
+                have a _default tag (these are parameters which solely exist
+                to provide defaults for when new parameters or datasets are
+                added and the parameter needs to be copied appropriately).
+                Defaults to True.
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: :class:`Parameter` if length of results is exactly 1 and
             force_ps==False. Otherwise another :class:`ParameterSet` will be
             returned.
         """
+
+        if kwargs.get('component', None) == '_default' or\
+                kwargs.get('dataset', None) == '_default' or\
+                kwargs.get('uniqueid', None) is not None or\
+                kwargs.get('uniquetwig', None) is not None:
+            # then override the default for check_default and make sure to
+            # return a result
+            check_default = False
 
         time = kwargs.get('time', None)
         if hasattr(time, '__iter__') and not isinstance(time, str):
@@ -1272,7 +1307,8 @@ class ParameterSet(object):
             kwargs['twig'] = twig
             kwargs['autocomplete'] = autocomplete
             kwargs['force_ps'] = force_ps
-            kwargs['check_relevant'] = check_relevant
+            kwargs['check_visible'] = check_visible
+            kwargs['check_default'] = check_default
             return_ = ParameterSet()
             for t in time:
                 kwargs['time'] = t
@@ -1295,14 +1331,18 @@ class ParameterSet(object):
                     (getattr(pi,key)==kwargs[key] or
                     (isinstance(kwargs[key],list) and getattr(pi,key) in kwargs[key]) or
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
-                    (key=='method' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
-                    (key=='method' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
+                    (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
+                    (key=='kind' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
                     (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
-        # handle relevant_if
-        if check_relevant:
-            params = [pi for pi in params if pi.is_relevant]
+        # handle visible_if
+        if check_visible:
+            params = [pi for pi in params if pi.is_visible]
+
+        # handle hiding _default
+        if check_default:
+            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
 
         if isinstance(twig, int):
             # then act as a list index
@@ -1398,14 +1438,14 @@ class ParameterSet(object):
                     ps._filter[attr] = tag
         return ps
 
-    def exclude(self, twig=None, check_relevant=True, **kwargs):
+    def exclude(self, twig=None, check_visible=True, **kwargs):
         """
         Exclude the results from this filter from the current ParameterSet.
 
         See :meth:`filter` for options.
         """
         return self - self.filter(twig=twig,
-                                  check_relevant=check_relevant,
+                                  check_visible=check_visible,
                                   **kwargs)
 
     def get_parameter(self, twig=None, **kwargs):
@@ -1417,7 +1457,7 @@ class ParameterSet(object):
                 into any of the meta-tags.  Example: instead of
                 b.filter(context='component', component='starA'), you
                 could do b.filter('starA@component').
-        :parameter bool check_relevant: whether to hide irrelevant
+        :parameter bool check_visible: whether to hide invisible
                 parameters.  These are usually parameters that do not
                 play a role unless the value of another parameter meets
                 some condition.
@@ -1509,7 +1549,7 @@ class ParameterSet(object):
         :parameter str twig: the twig to search for the parameter
         :parameter **kwargs: meta-tags to search
         """
-        params = self.filter(twig=twig, **kwargs)
+        params = self.filter(twig=twig, check_visible=False, check_default=False, **kwargs)
 
         for param in params.to_list():
             self._remove_parameter(param)
@@ -1614,7 +1654,7 @@ class ParameterSet(object):
                                   **kwargs).set_value(value=value,
                                                       **kwargs)
 
-    def set_value_all(self, twig=None, value=None, **kwargs):
+    def set_value_all(self, twig=None, value=None, check_default=False, **kwargs):
         """
         Set the value of all returned :class:`Parameter`s in this ParameterSet.
 
@@ -1629,10 +1669,16 @@ class ParameterSet(object):
         :parameter str twig: the twig to search for the parameter
         :parameter value: the value to set.  Provide units, if necessary, by
                 sending a Quantity object (ie 2.4*u.rad)
+        :parameter bool check_default: whether to exclude any default values.
+                Defaults to False (unlike all filtering).  Note that this
+                acts on the current ParameterSet so any filtering done before
+                this call will EXCLUDE defaults by default.
         :parameter **kwargs: meta-tags to search
         """
         # TODO support the ability to do PS.set_value_all(value) (no twig - or do we throw warning and request value=value?)
-        params = self.filter(twig=twig, **kwargs).to_list()
+        params = self.filter(twig=twig,
+                             check_default=check_default,
+                             **kwargs).to_list()
 
         if not kwargs.pop('ignore_none', False) and not len(params):
             raise ValueError("no parameters found")
@@ -1766,6 +1812,9 @@ class ParameterSet(object):
             else:
                 return unit.to_string()
 
+        def _qualifier_to_label(qualifier):
+            return _plural_to_singular.get(qualifier, qualifier)
+
         def _get_param_array(ps, qualifier, unit):
             if len(ps.filter(qualifier=qualifier).times):
                 times = ps.filter(qualifier=qualifier).times
@@ -1800,7 +1849,7 @@ class ParameterSet(object):
 
         ps = self.filter(twig=twig,
                          **{k: v for k, v in kwargs.items() if k != 'time'})
-        if 'time' in kwargs.keys() and ps.method in ['MESH', 'MESH_syn']:
+        if 'time' in kwargs.keys() and ps.kind in ['mesh', 'mesh_syn']:
             ps = ps.filter(time=kwargs.get('time'))
 
         # If ps returns more than one dataset/model/component, then we need to
@@ -1815,7 +1864,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if len(ps.datasets)>1 and ps.method not in ['MESH']:
+        if len(ps.datasets)>1 and ps.kind not in ['mesh']:
             return_ = []
             for dataset in ps.datasets:
                 if dataset in ['protomesh']:
@@ -1826,26 +1875,26 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # For methods, we want to ignore the deps - those won't have arrays
-        methods = [m for m in ps.methods if m[-3:] != 'dep']
+        # For kinds, we want to ignore the deps - those won't have arrays
+        kinds = [m for m in ps.kinds if m[-3:] != 'dep']
         # ax = kwargs.pop('ax', None)
 
         # If we are asking to plot a dataset that also shows up in columns in
-        # the mesh, then remove the mesh method.  In other words: mesh stuff
-        # will only be plotted if mesh is the only method in the filter.
-        psmethods = ps.methods
-        if len(psmethods) > 1 and 'MESH' in psmethods:
-            psmethods.remove('MESH')
+        # the mesh, then remove the mesh kind.  In other words: mesh stuff
+        # will only be plotted if mesh is the only kind in the filter.
+        pskinds = ps.kinds
+        if len(pskinds) > 1 and 'mesh' in pskinds:
+            pskinds.remove('mesh')
 
-        if len(methods) == 1 and len(psmethods) > 1:
+        if len(kinds) == 1 and len(pskinds) > 1:
             # then we need to filter to exclude the dep
-            ps = ps.filter(method=methods[0])
-            psmethods = [methods[0]]
+            ps = ps.filter(kind=kinds[0])
+            pskinds = [kinds[0]]
 
-        if len(ps.methods) > 1:
+        if len(ps.kinds) > 1:
             return_ = []
-            for method in [m for m in psmethods if m[-3:]!='dep']:
-                this_return = ps.filter(method=method).get_plotting_info(**kwargs)
+            for kind in [m for m in pskinds if m[-3:]!='dep']:
+                this_return = ps.filter(kind=kind).get_plotting_info(**kwargs)
                 return_ += this_return
             return return_
 
@@ -1865,7 +1914,7 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        if ps.method in ['MESH', 'MESH_syn', 'ORB', 'ORB_syn'] and \
+        if ps.kind in ['mesh', 'mesh_syn', 'orb', 'orb_syn'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
@@ -1881,10 +1930,10 @@ class ParameterSet(object):
         # and z are all the coordinates (then we'll plot the triangles).
         # Otherwise, we will continue and can use the generic x, y plotting (ie
         # for flux vs r_proj)
-        if ps.method in ['MESH', 'MESH_syn'] and \
-                kwargs.get('x', 'x') in ['x', 'y', 'z'] and \
-                kwargs.get('y', 'y') in ['x', 'y', 'z'] and \
-                kwargs.get('z', 'z') in ['x', 'y', 'z']:
+        if ps.kind in ['mesh', 'mesh_syn'] and \
+                kwargs.get('x', 'xs') in ['xs', 'ys', 'zs'] and \
+                kwargs.get('y', 'ys') in ['xs', 'ys', 'zs'] and \
+                kwargs.get('z', 'zs') in ['xs', 'ys', 'zs']:
 
             # TODO: here we want to call a different plotting function - note
             # that meshes don't need to iterate over components like everything
@@ -1894,10 +1943,10 @@ class ParameterSet(object):
 
             # NOTE: even though we are calling these x, y, z - we really mean
             # to get those components from the triangles array
-            xqualifier = kwargs.get('x', 'x')
-            yqualifier = kwargs.get('y', 'y')
+            xqualifier = kwargs.get('x', 'xs')
+            yqualifier = kwargs.get('y', 'ys')
             if axes_3d:
-                zqualifier = kwargs.get('z', 'z')
+                zqualifier = kwargs.get('z', 'zs')
 
 
             # All our arrays will need to be sorted front to back, so we need
@@ -1908,7 +1957,7 @@ class ParameterSet(object):
             # units.
 
             # TODO: should we skip this for axes_3d?
-            sortqualifier = ['x', 'y', 'z']
+            sortqualifier = ['xs', 'ys', 'zs']
             sortqualifier.remove(xqualifier)
             sortqualifier.remove(yqualifier)
             sortqualifier = sortqualifier[0]
@@ -1917,13 +1966,13 @@ class ParameterSet(object):
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=c,
                                                            unit=u.solRad)
-                                              for c in ps.components])
+                                              for c in ps.components if c != '_default'])
             else:
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=c,
                                                            time=t,
                                                            unit=u.solRad)
-                                              for c in ps.components
+                                              for c in ps.components if c != '_default'
                                               for t in ps.times])
 
             plot_inds = np.argsort(center_sort)
@@ -1973,10 +2022,10 @@ class ParameterSet(object):
             # TODO: make this handle 3d by just iterating over zqualifier as
             # well (but only if 3d)
             if axes_3d:
-                coordinate_inds = [['x', 'y', 'z'].index(q)
+                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
                                    for q in [xqualifier, yqualifier, zqualifier]]
             else:
-                coordinate_inds = [['x', 'y', 'z'].index(q)
+                coordinate_inds = [['xs', 'ys', 'zs'].index(q)
                                    for q in [xqualifier, yqualifier]]
 
             data = vertices_xyz[:, :, coordinate_inds]
@@ -2007,43 +2056,43 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
-        # now we can use ps.method to guess what columns need plotting
-        if ps.method in ['ORB', 'ORB_syn']:
+        # now we can use ps.kind to guess what columns need plotting
+        if ps.kind in ['orb', 'orb_syn']:
             if axes_3d:
-                xqualifier = kwargs.get('x', 'x')
-                yqualifier = kwargs.get('y', 'y')
-                zqualifier = kwargs.get('z', 'z')
+                xqualifier = kwargs.get('x', 'xs')
+                yqualifier = kwargs.get('y', 'ys')
+                zqualifier = kwargs.get('z', 'zs')
             else:
-                xqualifier = kwargs.get('x', 'x')
-                yqualifier = kwargs.get('y', 'z')
-                zqualifier = kwargs.get('z', 'y')
-            timequalifier = 'time'
-        elif ps.method in ['MESH', 'MESH_syn']:
-            xqualifier = kwargs.get('x', 'r_proj')
-            yqualifier = kwargs.get('y', 'teff')
-            zqualifier = kwargs.get('z', 'logg')
-            timequalifier = 'time'
-        elif ps.method in ['LC', 'LC_syn']:
-            xqualifier = kwargs.get('x', 'time')
-            yqualifier = kwargs.get('y', 'flux')
+                xqualifier = kwargs.get('x', 'xs')
+                yqualifier = kwargs.get('y', 'zs')
+                zqualifier = kwargs.get('z', 'ys')
+            timequalifier = 'times'
+        elif ps.kind in ['mesh', 'mesh_syn']:
+            xqualifier = kwargs.get('x', 'r_projs')
+            yqualifier = kwargs.get('y', 'teffs')
+            zqualifier = kwargs.get('z', 'loggs')
+            timequalifier = 'times'
+        elif ps.kind in ['lc', 'lc_syn']:
+            xqualifier = kwargs.get('x', 'times')
+            yqualifier = kwargs.get('y', 'fluxes')
             zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time'
-        elif ps.method in ['RV', 'RV_syn']:
-            xqualifier = kwargs.get('x', 'time')
-            yqualifier = kwargs.get('y', 'rv')
+            timequalifier = 'times'
+        elif ps.kind in ['rv', 'rv_syn']:
+            xqualifier = kwargs.get('x', 'times')
+            yqualifier = kwargs.get('y', 'rvs')
             zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time'
-        elif ps.method in ['ETV', 'ETV_syn']:
-            xqualifier = kwargs.get('x', 'time_ecl')
-            yqualifier = kwargs.get('y', 'etv')
+            timequalifier = 'times'
+        elif ps.kind in ['etv', 'etv_syn']:
+            xqualifier = kwargs.get('x', 'time_ecls')
+            yqualifier = kwargs.get('y', 'etvs')
             zqualifier = kwargs.get('z', 0)
-            timequalifier = 'time_ecl'
+            timequalifier = 'time_ecls'
         else:
-            raise NotImplementedError("plotting for dataset '{}' with method '{}' is not yet implemented".format(ps.dataset, ps.method))
+            raise NotImplementedError("plotting for dataset '{}' with kind '{}' is not yet implemented".format(ps.dataset, ps.kind))
 
         # We'll set these as kwarg defaults so that they can easily be passed
         # through any other call to plot (when looping over models, components,
-        # methods below)
+        # kinds below)
         # color = kwargs.get('color', None)
         # kwargs.setdefault('linecolor', color)
         # kwargs.setdefault('markercolor', color)
@@ -2058,13 +2107,13 @@ class ParameterSet(object):
         # Now let's get the parameters
 
         # TODO: these are currently warnings that
-        # are ignored because some methods might not include the defaults (ie
+        # are ignored because some kinds might not include the defaults (ie
         # no positions in orb but are in orb_syn)... perhaps this should be
         # silently handled earlier and should raise an error if we make it this
         # far (ie the user gave a non-existant qualifier)
 
         if xqualifier not in ps.qualifiers and \
-                xqualifier.split(':')[0] != 'phase' and \
+                xqualifier.split(':')[0] not in ['phase', 'phases'] and \
                 not (isinstance(xqualifier, float) or
                      isinstance(xqualifier, int)):
             logger.warning("attempting to plot but could not find parameter {} - skipping".format(xqualifier))
@@ -2090,7 +2139,7 @@ class ParameterSet(object):
         # If the user provides unit(s), they can either give the unit object or
         # the string representation, so long as get_value(unit) succeeds
         # xunit = kwargs.get('xunit', xparam.default_unit)
-        if ps.method in ['MESH', 'MESH_syn']:  # TODO: add sp and sp_syn
+        if ps.kind in ['mesh', 'mesh_syn']:  # TODO: add sp and sp_syn
             # then we're plotting at a single time so the time array doesn't
             # really make sense (we won't be able to plot anything vs phase or
             # color by time/phase)
@@ -2100,14 +2149,14 @@ class ParameterSet(object):
             tparam = ps.get_parameter(qualifier=timequalifier)
             tarray = tparam.get_value(unit='d')
 
-        if xqualifier.split(':')[0] == 'phase':
+        if xqualifier.split(':')[0] in ['phase', 'phases']:
             # then we need to do things slightly different
             phased = True
             component = xqualifier.split(':')[1] \
                 if len(xqualifier.split(':')) > 1 \
                 else None
             # TODO: check to make sure we have access to tparam._bundle
-            if ps.method.split('_')[-1] == 'syn':
+            if ps.kind.split('_')[-1] == 'syn':
                 xarray = tparam._bundle.to_phase(tarray,
                                                  component=component)
             else:
@@ -2172,10 +2221,10 @@ class ParameterSet(object):
             zarray = None
 
         # and finally, build the label (if it hasn't been already)
-        kwargs.setdefault('xlabel', r"{} ({})".format(xqualifier, _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
-        kwargs.setdefault('ylabel', r"{} ({})".format(yqualifier, _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
+        kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
+        kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
         if axes_3d:
-            kwargs.setdefault('zlabel', r"{} ({})".format(zqualifier, _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
+            kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
 
 
 
@@ -2232,7 +2281,7 @@ class ParameterSet(object):
         # try to interpret these
         if ps.context=='model':
             plottype = 'line'
-            if ps.method in ['MESH'] and \
+            if ps.kind in ['mesh'] and \
                     isinstance(xparam, FloatArrayParameter) and \
                     isinstance(yparam, FloatArrayParameter) and \
                     (zparam is None or
@@ -2306,9 +2355,9 @@ class ParameterSet(object):
         :parameter ax: axes to plot on (defaults to plt.gca())
         :type ax: mpl.axes
         :parameter str x: qualifier or twig of the array to plot on the x-axis (will
-            default based on the method if not provided).  Must be a valid
+            default based on the kind if not provided).  Must be a valid
             qualifier with the exception of phase.  To plot phase along the
-            x-axis set x to 'phase' or 'phase:[component]'.  This will use
+            x-axis set x to 'phases' or 'phases:[component]'.  This will use
             the ephemeris from :meth:`phoebe.frontend.bundle.Bundle.get_ephemeris` if possible.
         :parameter str y: qualifier or twig of the array to plot on the y-axis
             (see details for x above)
@@ -2452,7 +2501,7 @@ class ParameterSet(object):
         Save the plot.  This is really just a very generic wrapper based on the
         chosen plotting backend.  For matplotlib it is probably just as, if not
         even more, convenient to simply import matplotlib yourself and call the
-        shavefig method.
+        savefig method.
 
         :parameter str filename: filename to save to.  Be careful of extensions here...
                 matplotlib accepts many different image formats while other
@@ -2572,20 +2621,20 @@ class ParameterSet(object):
                     # TODO: this logic is also in plotting.mpl - should probably be its own function
                     if ax is None:
                         ax = plt.gca()
-                        if hasattr(ax, '_phoebe_method') and ps.method != ax._phoebe_method:
-                            if ps.method in ['ORB', 'MESH']:  # TODO: and xunit==yunit
+                        if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
+                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
                                 ax = plotting._mpl_append_axes(plt.gcf(), aspect='equal')
                             else:
                                 ax = plotting._mpl_append_axes(plt.gcf())
                         else:
                             # not sure if we want this - the user may have set the aspect ratio already
-                            if ps.method in ['ORB', 'MESH']:  # TODO: and xunit==yunit
+                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
                                 # TODO: for aspect ratio (here and above) can we be smarter and
                                 # check for same units?
                                 ax.set_aspect('equal')
 
                     ax = mpl_animate.reset_limits(ax, reset=False)  # this just ensures the attributes exist
-                    ax._phoebe_method = ps.method
+                    ax._phoebe_kind = ps.kind
                     this_plot_args['ax'] = ax
 
                     if this_kwargs.get('polycollection', False):
@@ -2672,16 +2721,16 @@ class Parameter(object):
         :parameter str fitting: (optional) label for the fitting tag
         :parameter str feedback: (optional) label for the feedback tag
         :parameter str plugin: (optional) label for the plugin tag
-        :parameter str method: (optional) label for the method tag
+        :parameter str kind: (optional) label for the kind tag
         :parameter str context: (optional) which context this parameter belongs in
 
         :parameter copy_for: (optional) dictionary of filter arguments for which this
             parameter must be copied (use with caution)
         :type copy_for: dict or False
-        :parameter str relevant_if: (optional) string to check the value of another
+        :parameter str visible_if: (optional) string to check the value of another
             parameter holding the same meta-tags (except qualifier) to determine
-            whether this parameter is relevant and therefore shown in filters
-            (example: relevant_if='otherqualifier:True')
+            whether this parameter is visible and therefore shown in filters
+            (example: visible_if='otherqualifier:True')
         """
 
         uniqueid = kwargs.get('uniqueid', _uniqueid())
@@ -2705,7 +2754,7 @@ class Parameter(object):
         self._fitting = kwargs.get('fitting', None)
         self._feedback = kwargs.get('feedback', None)
         self._plugin = kwargs.get('plugin', None)
-        self._method = kwargs.get('method', None)
+        self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
 
         # set whether new 'copies' of this parameter need to be created when
@@ -2713,9 +2762,9 @@ class Parameter(object):
         # the bundle.
         self._copy_for = kwargs.get('copy_for', False)
 
-        self._relevant_if = kwargs.get('relevant_if', None)
+        self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -2767,8 +2816,8 @@ class Parameter(object):
             str_ += "{:>32}: {}\n".format("Constrains", ", ".join([p.uniquetwig for p in self.constrains]) if len(self.constrains) else 'None')
         if hasattr(self, 'related_to'):
             str_ += "{:>32}: {}\n".format("Related to", ", ".join([p.uniquetwig for p in self.related_to]) if len(self.related_to) else 'None')
-        if self.relevant_if is not None:
-            str_ += "{:>32}: {}\n".format("Only relevant if", self.relevant_if)
+        if self.visible_if is not None:
+            str_ += "{:>32}: {}\n".format("Only visible if", self.visible_if)
 
         return str_
 
@@ -2841,7 +2890,7 @@ class Parameter(object):
     def __setitem__(self, key, value):
         """
         """
-        # TODO: don't allow changing things like relevant_if or description here?
+        # TODO: don't allow changing things like visible_if or description here?
         raise NotImplementedError
 
     def to_json(self, incl_uniqueid=False):
@@ -2877,6 +2926,17 @@ class Parameter(object):
                     raise NotImplementedError("could not parse {} of '{}' to json".format(k, self.uniquetwig))
 
         return {k: _parse(k, v) for k,v in self.to_dict().items() if (v is not None and k not in ['twig', 'uniquetwig', 'quantity'] and (k!='uniqueid' or incl_uniqueid or self.qualifier=='detached_job'))}
+
+    @property
+    def attributes(self):
+        """
+        """
+        return self._dict_fields_other
+
+    def get_attributes(self):
+        """
+        """
+        return self.attributes
 
     @property
     def meta(self):
@@ -2984,11 +3044,11 @@ class Parameter(object):
         return self._plugin
 
     @property
-    def method(self):
+    def kind(self):
         """
-        :return: method tag of this Parameter
+        :return: kind tag of this Parameter
         """
-        return self._method
+        return self._kind
 
     @property
     def context(self):
@@ -3053,27 +3113,27 @@ class Parameter(object):
         return "@".join([getattr(self, k) for k in _meta_fields_twig if getattr(self, k) is not None])
 
     @property
-    def relevant_if(self):
+    def visible_if(self):
         """
-        :return: the relevant_if expression for this Parameter
+        :return: the visible_if expression for this Parameter
         """
-        return self._relevant_if
+        return self._visible_if
 
     @property
-    def is_relevant(self):
+    def is_visible(self):
         """
-        see also :meth:`relevant_if`
+        see also :meth:`visible_if`
 
-        :return: whether this parameter is currently relevant (and
+        :return: whether this parameter is currently visible (and
             therefore shown in ParameterSets and visible to :meth:`ParameterSet.filter`)
         :rtype: bool
         """
-        def is_relevant_single(relevant_if):
-            if relevant_if.lower() == 'false':
+        def is_visible_single(visible_if):
+            if visible_if.lower() == 'false':
                 return False
 
             # otherwise we need to find the parameter we're referencing and check its value
-            qualifier, value = relevant_if.split(':')
+            qualifier, value = visible_if.split(':')
 
             if 'hierarchy.' in qualifier:
                 # TODO: set specific syntax (hierarchy.get_meshables:2)
@@ -3106,12 +3166,12 @@ class Parameter(object):
                     # metawargs['component'] = None
 
                 try:
-                    param = self._bundle.get_parameter(check_relevant=False, **metawargs)
+                    param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
                 except ValueError:
                     # let's not let this hold us up - sometimes this can happen when copying
-                    # parameters (from copy_for) in order that the relevant_if parameter
+                    # parameters (from copy_for) in order that the visible_if parameter
                     # happens later
-                    logger.debug("parameter not found when trying to determine if relevant, {}".format(metawargs))
+                    logger.debug("parameter not found when trying to determine if visible, {}".format(metawargs))
                     return True
 
                 #~ print "***", qualifier, param.qualifier, param.get_value(), value
@@ -3129,14 +3189,14 @@ class Parameter(object):
                     return param.get_value() == value
 
 
-        if self.relevant_if is None:
+        if self.visible_if is None:
             return True
 
         if not self._bundle:
             # then we may not be able to do the check, for now let's just return True
             return True
 
-        return np.all([is_relevant_single(relevant_if_i) for relevant_if_i in self.relevant_if.split(',')])
+        return np.all([is_visible_single(visible_if_i) for visible_if_i in self.visible_if.split(',')])
 
 
 
@@ -3404,7 +3464,7 @@ class StringParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3449,7 +3509,7 @@ class TwigParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -3508,7 +3568,7 @@ class ChoiceParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -3553,7 +3613,7 @@ class BoolParameter(Parameter):
 
         self.set_value(kwargs.get('value', True))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3593,7 +3653,7 @@ class DictParameter(Parameter):
 
         self.set_value(kwargs.get('value', {}))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3632,7 +3692,7 @@ class IntParameter(Parameter):
 
         self.set_value(kwargs.get('value', 1))
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -3724,7 +3784,7 @@ class FloatParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), unit)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'relevant_if', 'copy_for', 'timederiv'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'timederiv'] # TODO: add adjust?  or is that a different subclass?
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -4084,7 +4144,7 @@ class FloatArrayParameter(FloatParameter):
 
         self.set_value(kwargs.get('value', []), unit)
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -4238,7 +4298,7 @@ class ArrayParameter(Parameter):
 
         self.set_value(kwargs.get('value', []))
 
-        self._dict_fields_other = ['description', 'value', 'relevant_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -4407,8 +4467,8 @@ class HierarchyParameter(StringParameter):
     def _get_structure_and_trace(self, component):
         """
         """
-        obj = self._bundle.filter(component=component, context='component', check_relevant=False)
-        our_item = '{}:{}'.format(obj.method, component)
+        obj = self._bundle.filter(component=component, context='component', check_visible=False)
+        our_item = '{}:{}'.format(obj.kind, component)
 
 
         repr_ = self.get_value()
@@ -4697,8 +4757,8 @@ class ConstraintParameter(Parameter):
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
-    def is_relevant(self):
-        return self.constrained_parameter.is_relevant
+    def is_visible(self):
+        return self.constrained_parameter.is_visible
 
     @property
     def constraint_func(self):
@@ -4756,9 +4816,9 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, method=self.method, model=self.model, check_relevant=False) - self._bundle.filter(context='constraint', check_relevant=False)
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter(check_relevant=False)
+                constrained_parameter = ps.get_parameter(check_visible=False, check_default=False)
             else:
                 raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
 
@@ -4782,16 +4842,18 @@ class ConstraintParameter(Parameter):
     def get_constrained_parameter(self):
         """
         """
-        return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_relevant=False)
+        return self.get_parameter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, check_visible=False)
 
     def get_parameter(self, twig=None, **kwargs):
         """
         get a parameter from those that are variables
         """
         kwargs['twig'] = twig
+        kwargs['check_default'] = False
+        kwargs['check_visible'] = False
         ps = self.vars.filter(**kwargs)
         if len(ps)==1:
-            return ps.get(check_relevant=False)
+            return ps.get(check_visible=False, check_default=False)
         elif len(ps) > 1:
             # TODO: is this safe?  Some constraints may have a parameter listed
             # twice, so we can do this then, but maybe should check to make sure
@@ -5080,8 +5142,6 @@ class ConstraintParameter(Parameter):
                 # TODO: this is not nearly general enough, each method takes different arguments
                 # and getting solve_for as newly_constrained_param.qualifier
 
-                #~ print "*** trying flip by recalling method", self.method, self._method_args
-
                 lhs, rhs, constraint_kwargs = getattr(constraint, self.constraint_func)(self._bundle, solve_for=newly_constrained_param, **self.constraint_kwargs)
             # except NotImplementedError:
             #     pass
@@ -5109,7 +5169,7 @@ class ConstraintParameter(Parameter):
 
         else:
             # TODO: ability for built-in constraints to flip themselves
-            # we could access self.method and re-call that with a new solve_for option?
+            # we could access self.kind and re-call that with a new solve_for option?
             raise ValueError("must either have sympy installed or provide a new expression")
 
         self._qualifier = newly_constrained_param.qualifier

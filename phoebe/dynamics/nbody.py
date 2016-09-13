@@ -87,11 +87,11 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
 
     hier = b.hierarchy
 
-    computeps = b.get_compute(compute, check_relevant=False, force_ps=True)
-    stepsize = computeps.get_value('stepsize', check_relevant=False, **kwargs)
-    ltte = computeps.get_value('ltte', check_relevant=False, **kwargs)
-    gr = computeps.get_value('gr', check_relevant=False, **kwargs)
-    integrator = computeps.get_value('integrator', check_relevant=False, **kwargs)
+    computeps = b.get_compute(compute, check_visible=False, force_ps=True)
+    stepsize = computeps.get_value('stepsize', check_visible=False, **kwargs)
+    ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
+    gr = computeps.get_value('gr', check_visible=False, **kwargs)
+    integrator = computeps.get_value('integrator', check_visible=False, **kwargs)
 
     starrefs = hier.get_stars()
     orbitrefs = hier.get_orbits() if use_kepcart else [hier.get_parent_of(star) for star in starrefs]
@@ -344,8 +344,8 @@ def dynamics_from_bundle_bs(b, times, compute=None, return_roche_euler=False, **
 
     stepsize = 0.01
     orbiterror = 1e-16
-    computeps = b.get_compute(compute, check_relevant=False, force_ps=True)
-    ltte = computeps.get_value('ltte', check_relevant=False, **kwargs)
+    computeps = b.get_compute(compute, check_visible=False, force_ps=True)
+    ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
 
 
     hier = b.hierarchy

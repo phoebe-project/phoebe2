@@ -18,9 +18,9 @@ def test_binary(plot=False):
 
     b.set_value('incl', component='binary', value=45.0)
 
-    b.add_dataset('LC', time=np.linspace(0,3,101))
+    b.add_dataset('lc', times=np.linspace(0,3,101))
     if plot:
-        b.add_dataset('MESH', time=[0.0])
+        b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', refl=True)
     b.add_compute('legacy', compute='phoebe1', mult_refl=True, refl_num=5)
 
@@ -37,15 +37,15 @@ def test_binary(plot=False):
 
     for alb in np.linspace(0, 1.0, 4):
         print "alb = {}".format(alb)
-        b.set_value_all('alb_refl_bol', alb)
+        b.set_value_all('frac_refl_bol', alb)
 
         print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', delta=0.1, model='phoebe2model')
         print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
-        phoebe2_val = b.get_value('flux@phoebe2model')
-        phoebe1_val = b.get_value('flux@phoebe1model')
+        phoebe2_val = b.get_value('fluxes@phoebe2model')
+        phoebe1_val = b.get_value('fluxes@phoebe1model')
 
         if plot:
             # phoebe2_maxintensabs = b.get_value('intens_norm_abs', component='primary').max()

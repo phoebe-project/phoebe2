@@ -324,7 +324,7 @@ class Passband:
         # flux=1W/m2, but for all practical purposes that is still 0.
         self._ck2004_Imu_energy_grid[:,:,:,0,:] = 0.0
         self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
-        
+
         for i, Imu in enumerate(ImuE):
             self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
@@ -563,7 +563,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s' % (Teff[nanmask], logg[nanmask], met[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: atm=%s, Teff=%s, logg=%s, met=%s' % (atm, Teff[nanmask], logg[nanmask], met[nanmask]))
         return retval
 
     def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):

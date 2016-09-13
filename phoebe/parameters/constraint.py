@@ -19,7 +19,7 @@ def _get_system_ps(b, item):
     if isinstance(item, ParameterSet):
         return item
     elif isinstance(item, str):
-        return b.filter(item, context='component', check_relevant=False)
+        return b.filter(item, context='component', check_visible=False)
     else:
         raise NotImplementedError
 
@@ -586,17 +586,17 @@ def refl(b, component, solve_for=None, **kwargs):
 
     comp_ps = b.get_component(component=component)
 
-    alb_refl_bol = comp_ps.get_parameter(qualifier='alb_refl_bol')
-    # alb_heat_bol = comp_ps.get_parameter(qualifier='alb_heat_bol')
-    # alb_scatt_bol = comp_ps.get_parameter(qualifier='alb_scatt_bol')
-    alb_lost_bol = comp_ps.get_parameter(qualifier='alb_lost_bol')
+    frac_refl_bol = comp_ps.get_parameter(qualifier='frac_refl_bol')
+    # frac_heat_bol = comp_ps.get_parameter(qualifier='frac_heat_bol')
+    # frac_scatt_bol = comp_ps.get_parameter(qualifier='frac_scatt_bol')
+    frac_lost_bol = comp_ps.get_parameter(qualifier='frac_lost_bol')
 
-    if solve_for in [alb_lost_bol, None]:
-        lhs = alb_lost_bol
-        rhs = 1.0 - alb_refl_bol  #- heating_bol - scattering_bol
-    elif solve_for in [alb_refl_bol]:
-        lhs = alb_refl_bol
-        rhs = 1.0 - alb_lost_bol
+    if solve_for in [frac_lost_bol, None]:
+        lhs = frac_lost_bol
+        rhs = 1.0 - frac_refl_bol  #- heating_bol - scattering_bol
+    elif solve_for in [frac_refl_bol]:
+        lhs = frac_refl_bol
+        rhs = 1.0 - frac_lost_bol
     else:
         raise NotImplementedError
 
@@ -971,14 +971,14 @@ def time_ephem(b, component, dataset, solve_for=None, **kwargs):
     if dataset is not None:
         filterwargs['dataset'] = dataset
 
-    time_ephem = b.get_parameter(qualifier='time_ephem', **filterwargs)
+    time_ephem = b.get_parameter(qualifier='time_ephems', **filterwargs)
     t0 = parentorbit_ps.get_parameter(qualifier='t0_supconj')  # TODO: make sure t0_supconj makes sense here
     period = parentorbit_ps.get_parameter(qualifier='period')
     phshift = parentorbit_ps.get_parameter(qualifier='phshift')
     dpdt = parentorbit_ps.get_parameter(qualifier='dpdt')
     esinw_ = parentorbit_ps.get_parameter(qualifier='esinw')
 
-    N = b.get_parameter(qualifier='N', **filterwargs)
+    N = b.get_parameter(qualifier='Ns', **filterwargs)
 
     if solve_for in [None, time_ephem]:
 
@@ -1006,9 +1006,9 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
         ETV dataset)
     """
 
-    time_ephem = b.get_parameter(qualifier='time_ephem', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
-    time_ecl = b.get_parameter(qualifier='time_ecl', component=component, dataset=dataset)
-    etv = b.get_parameter(qualifier='etv', component=component, dataset=dataset)
+    time_ephem = b.get_parameter(qualifier='time_ephems', component=component, dataset=dataset, context=['dataset', 'model'])  # need to provide context to avoid getting the constraint
+    time_ecl = b.get_parameter(qualifier='time_ecls', component=component, dataset=dataset)
+    etv = b.get_parameter(qualifier='etvs', component=component, dataset=dataset)
 
     if solve_for in [None, etv]:
         lhs = etv

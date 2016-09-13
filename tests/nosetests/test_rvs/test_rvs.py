@@ -12,8 +12,8 @@ def _beta_vs_legacy(b):
     period = b.get_value('period@orbit')
     times = np.linspace(-0.2,1.2*period,200)
 
-    b.add_dataset('lc', time=times, dataset='lc01', atm='blackbody', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
-    b.add_dataset('rv', time=times, dataset='rv01', atm='blackbody', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
+    b.add_dataset('lc', times=times, dataset='lc01', atm='blackbody', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
+    b.add_dataset('rv', times=times, dataset='rv01', atm='blackbody', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 
     b.add_compute('phoebe', compute='phnum', ltte=False, rv_method='flux-weighted')
     b.add_compute('legacy', compute='legnum', ltte=False, rv_method='flux-weighted')
@@ -23,13 +23,13 @@ def _beta_vs_legacy(b):
 
     print "sma: {}, period: {}, q: {}".format(b.get_value('sma@binary'), b.get_value('period@binary'), b.get_value('q'))
 
-    phoebe2_val = b.get_value('rv@primary@phnumresults@phnum')
-    phoebe1_val = b.get_value('rv@primary@legnumresults@legnum')
+    phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
+    phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')
     print "rv@primary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
-    phoebe2_val = b.get_value('rv@secondary@phnumresults@phnum')
-    phoebe1_val = b.get_value('rv@secondary@legnumresults@legnum')
+    phoebe2_val = b.get_value('rvs@secondary@phnumresults@phnum')
+    phoebe1_val = b.get_value('rvs@secondary@legnumresults@legnum')
     print "rv@secondary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 

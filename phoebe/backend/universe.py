@@ -41,12 +41,12 @@ def _value(obj):
 
 
 class System(object):
-    def __init__(self, bodies_dict, eclipse_alg='graham', dynamics_method='keplerian', do_reflection=True):
+    def __init__(self, bodies_dict, eclipse_method='graham', dynamics_method='keplerian', do_reflection=True):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
         self._bodies = bodies_dict
-        self.eclipse_alg = eclipse_alg
+        self.eclipse_method = eclipse_method
         # self.subdiv_alg = subdiv_alg
         # self.subdiv_num = subdiv_num
         self.dynamics_method = dynamics_method
@@ -87,13 +87,13 @@ class System(object):
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
-            eclipse_alg = compute_ps.get_value(qualifier='eclipse_alg', **kwargs)
+            eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             do_reflection = compute_ps.get_value(qualifier='refl', **kwargs)
         else:
-            eclipse_alg = 'graham'
+            eclipse_method = 'graham'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
@@ -112,7 +112,7 @@ class System(object):
         meshables = hier.get_meshables()
         bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
-        return cls(bodies_dict, eclipse_alg=eclipse_alg,
+        return cls(bodies_dict, eclipse_method=eclipse_method,
                    dynamics_method=dynamics_method,
                    do_reflection=do_reflection)
 
@@ -201,7 +201,7 @@ class System(object):
             body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs, ignore_effects=ignore_effects)
 
 
-    def populate_observables(self, time, methods, datasets, kwargss, ignore_effects=False):
+    def populate_observables(self, time, kinds, datasets, kwargss, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -210,18 +210,19 @@ class System(object):
 
         bol_pband = 'Bolometric:1760-40000'
 
-        if self.do_reflection and not ignore_effects:  # and methods includes a method that requires fluxes
+        if self.do_reflection and not ignore_effects:  # and kinds includes a kind that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
+                # TODO: this needs to take ld_func_bol, ld_coeffs_bol
                 body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
 
             # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
 
 
-        for method, dataset, kwargs in zip(methods, datasets, kwargss):
+        for kind, dataset, kwargs in zip(kinds, datasets, kwargss):
             for starref, body in self.items():
-                body.populate_observable(time, method, dataset, **kwargs)
+                body.populate_observable(time, kind, dataset, **kwargs)
 
     def handle_reflection(self,  **kwargs):
         """
@@ -246,21 +247,21 @@ class System(object):
             triangles_per_body = meshes.get_column('triangles').values()
             normals_per_body = meshes.get_column('vnormals').values()
             areas_per_body = meshes.get_column('areas').values()
-            alb_refls_per_body = meshes.get_column('alb_refl', computed_type='for_computations').values()
+            frac_refls_per_body = meshes.get_column('frac_refl', computed_type='for_computations').values()
             teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
 
-            intens_intrins_per_body = meshes.get_column('intens_norm_abs:bol', computed_type='for_computations').values()
+            intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
 
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
-            # ld_inds = np.zeros(alb_refls_flat.shape)
+            # ld_inds = np.zeros(frac_refls_flat.shape)
 
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
-                                                                                       alb_refls_per_body,
+                                                                                       frac_refls_per_body,
                                                                                        intens_intrins_per_body,
                                                                                        ld_func_and_coeffs
                                                                                        )
@@ -270,12 +271,12 @@ class System(object):
             #                                                                            triangles_per_body,
             #                                                                            normals_per_body,
             #                                                                            areas_per_body,
-            #                                                                            alb_refls_per_body,
+            #                                                                            frac_refls_per_body,
             #                                                                            intens_intrins_per_body,
             #                                                                            ld_func_and_coeffs
             #                                                                            )
 
-            intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
+            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
 
 
@@ -286,21 +287,21 @@ class System(object):
             triangles_flat = meshes.get_column_flat('triangles')
             normals_flat = meshes.get_column_flat('vnormals')
             areas_flat = meshes.get_column_flat('areas')
-            alb_refls_flat = meshes.get_column_flat('alb_refl', computed_type='for_computations')
+            frac_refls_flat = meshes.get_column_flat('frac_refl', computed_type='for_computations')
 
-            intens_intrins_flat = meshes.get_column_flat('intens_norm_abs:bol', computed_type='for_computations')
+            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
 
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
-            ld_inds = np.zeros(alb_refls_flat.shape)
+            ld_inds = np.zeros(frac_refls_flat.shape)
 
             # TODO: this will fail for WD meshes - use triangles instead?
             intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
                                                                                     triangles_flat,
                                                                                     normals_flat,
                                                                                     areas_flat,
-                                                                                    alb_refls_flat,
+                                                                                    frac_refls_flat,
                                                                                     intens_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds)
@@ -310,7 +311,7 @@ class System(object):
                                                                                     # triangles_flat,
                                                                                     # normals_flat,
                                                                                     # areas_flat,
-                                                                                    # alb_refls_flat,
+                                                                                    # frac_refls_flat,
                                                                                     # intens_intrins_flat,
                                                                                     # ld_func_and_coeffs,
                                                                                     # ld_inds)
@@ -318,15 +319,15 @@ class System(object):
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
-        # TODO: set to triangles if WD method
-        meshes.set_column_flat('intens_norm_abs:bol', intens_intrins_and_refl_flat)
+        # TODO: set to triangles if WD mesh_method
+        meshes.set_column_flat('abs_normal_intensities:bol', intens_intrins_and_refl_flat)
 
         # update the effective temperatures to gives this same bolometric
         # intensity under stefan-boltzmann these effective temperatures will
         # then be used for all passband intensities
         teffs_intrins_and_refl_flat = teffs_intrins_flat * (intens_intrins_and_refl_flat / intens_intrins_flat) ** (1./4)
 
-        # TODO: set to triangles if WD method
+        # TODO: set to triangles if WD mesh_method
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
     def handle_eclipses(self, **kwargs):
@@ -334,7 +335,7 @@ class System(object):
         Detect the triangles at the horizon and the eclipsed triangles, handling
         any necessary subdivision.
 
-        :parameter str eclipse_alg: name of the algorithm to use to detect
+        :parameter str eclipse_method: name of the algorithm to use to detect
             the horizon or eclipses (defaults to the value set by computeoptions)
         :parameter str subdiv_alg: name of the algorithm to use for subdivision
             (defaults to the value set by computeoptions)
@@ -342,7 +343,7 @@ class System(object):
             the value set by computeoptions)
         """
 
-        eclipse_alg = kwargs.get('eclipse_alg', self.eclipse_alg)
+        eclipse_method = kwargs.get('eclipse_method', self.eclipse_method)
         # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
         # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
@@ -371,7 +372,7 @@ class System(object):
                         break
 
         if not possible_eclipse:
-            eclipse_alg = 'only_horizon'
+            eclipse_method = 'only_horizon'
 
         # meshes is an object which allows us to easily access and update columns
         # in the meshes *in memory*.  That is meshes.update_columns will propogate
@@ -381,23 +382,7 @@ class System(object):
         # Reset all visibilities to be fully visible to start
         meshes.update_columns('visiblities', 1.0)
 
-        ecl_func = getattr(eclipse, eclipse_alg)
-
-        # TODO: FOR TESTING ONLY - EITHER REMOVE THIS OR MAKE IT LESS HACKY!!!
-        # if eclipse_alg == 'wd_horizon':
-        #     import phoebeBackend as phb1
-        #     from phoebe import io
-
-        #     if not hasattr(self, '_phb1_init'):
-        #         phb1.init()
-        #         try:
-        #             phb1.configure()
-        #         except SystemError:
-        #             raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-        #         self._phb1_init = True
-
-        #     phb1.open('_tmp_legacy_inp')
-        #     stuff = phb1.lc((self.time,), 0, 1)
+        ecl_func = getattr(eclipse, eclipse_method)
 
         # We need to run eclipse detection first to get the partial triangles
         # to send to subdivision
@@ -412,7 +397,7 @@ class System(object):
         return
 
 
-    def observe(self, dataset, method, components=None, distance=1.0, l3=0.0):
+    def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0):
         """
         TODO: add documentation
 
@@ -422,7 +407,7 @@ class System(object):
         """
 
         meshes = self.meshes
-        if method=='RV':
+        if kind=='rv':
             visibilities = meshes.get_column_flat('visibilities', components)
 
             if np.all(visibilities==0):
@@ -430,8 +415,8 @@ class System(object):
                 #print "NO VISIBLE TRIANGLES!!!"
                 return {'rv': np.nan}
 
-            rvs = meshes.get_column_flat("rv:{}".format(dataset), components)
-            intens_proj_abs = meshes.get_column_flat('intens_proj_abs:{}'.format(dataset), components)
+            rvs = meshes.get_column_flat("rvs:{}".format(dataset), components)
+            abs_intensities = meshes.get_column_flat('abs_intensities:{}'.format(dataset), components)
             # mus here will be from the tnormals of the triangle and will not
             # be weighted by the visibility of the triangle
             mus = meshes.get_column_flat('mus', components)
@@ -439,16 +424,16 @@ class System(object):
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
-            return {'rv': np.average(rvs, weights=intens_proj_abs*areas*mus*visibilities)}
+            return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*visibilities)}
 
-        elif method=='LC':
+        elif kind=='lc':
             visibilities = meshes.get_column_flat('visibilities')
 
             if np.all(visibilities==0):
                 # then no triangles are visible, so we should return nan - probably shouldn't ever happen for lcs
                 return {'flux': np.nan}
 
-            intens_proj_rel = meshes.get_column_flat("intens_proj_rel:{}".format(dataset), components)
+            intensities = meshes.get_column_flat("intensities:{}".format(dataset), components)
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
 
@@ -463,10 +448,10 @@ class System(object):
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
-            return {'flux': np.sum(intens_proj_rel*areas*mus*visibilities)/(distance**2)+l3}
+            return {'flux': np.sum(intensities*areas*mus*visibilities)/(distance**2)+l3}
 
 
-        elif method == 'IFM':
+        elif kind == 'ifm':
             # so far the function is kinda hollow
             vis2 = []
             vphase = []
@@ -481,7 +466,7 @@ class System(object):
                      vphase_2=vphase_2, vis2_3=vis2_3, vphase_3=vphase_3,
                      t3_ampl=t3_ampl, t3_phase=t3_phase)
         else:
-            raise NotImplementedError("observe for dataset with method '{}' not implemented".format(method))
+            raise NotImplementedError("observe for dataset with kind '{}' not implemented".format(kind))
 
 
 
@@ -940,7 +925,7 @@ class Body(object):
             self._fill_gravs()
             self._fill_teffs(ignore_effects=ignore_effects)
             self._fill_abuns(abun=self.abun)
-            self._fill_albedos(alb_refl=self.alb_refl)
+            self._fill_albedos(frac_refl=self.frac_refl)
 
         return
 
@@ -955,14 +940,14 @@ class Body(object):
 
         mesh.update_columns(abuns=abun)
 
-    def _fill_albedos(self, mesh=None, alb_refl=0.0):
+    def _fill_albedos(self, mesh=None, frac_refl=0.0):
         """
         TODO: add documentation
         """
         if mesh is None:
             mesh = self.mesh
 
-        mesh.update_columns(alb_refl=alb_refl)
+        mesh.update_columns(frac_refl=frac_refl)
 
 
     def compute_luminosity(self, dataset, **kwargs):
@@ -973,9 +958,9 @@ class Body(object):
         # multiplying by mu to get projected areas.
         areas = self.mesh.areas_si
 
-        # intens_norm_abs are directly out of the passbands module and are
+        # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        intens_norm_abs = self.mesh['intens_norm_abs:{}'.format(dataset)].centers
+        abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         # TODO: do we need to worry about any limb-darkening functions darkening/brightening at mu=0?
         ld = 1.0
@@ -984,7 +969,7 @@ class Body(object):
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=0, and multiplied by their respective areas
-        total_integrated_intensity = np.sum(intens_norm_abs*ld*areas) * np.pi
+        total_integrated_intensity = np.sum(abs_normal_intensities*ld*areas) * np.pi
 
         # NOTE: when this is computed the first time (for the sake of determing
         # pblum_scale), get_pblum_scale will return 1.0
@@ -1017,21 +1002,21 @@ class Body(object):
             return 1.0
 
 
-    def populate_observable(self, time, method, dataset, **kwargs):
+    def populate_observable(self, time, kind, dataset, **kwargs):
         """
         TODO: add documentation
         """
 
-        if method in ['MESH']:
+        if kind in ['mesh']:
             return
 
-        if time==self.time and dataset in self.populated_at_time and 'pblum' not in method:
+        if time==self.time and dataset in self.populated_at_time and 'pblum' not in kind:
             # then we've already computed the needed columns
 
-            # TODO: handle the case of intensities already computed by /different/ dataset (ie RVs computed first and filling intensities and then LC requesting intensities with SAME passband/atm)
+            # TODO: handle the case of intensities already computed by /different/ dataset (ie RVs computed first and filling intensities and then lc requesting intensities with SAME passband/atm)
             return
 
-        new_mesh_cols = getattr(self, '_populate_{}'.format(method.lower()))(dataset, **kwargs)
+        new_mesh_cols = getattr(self, '_populate_{}'.format(kind.lower()))(dataset, **kwargs)
 
         for key, col in new_mesh_cols.items():
 
@@ -1041,14 +1026,14 @@ class Body(object):
 
     # def _populate_lc_pblum(self, dataset, passband, **kwargs):
 
-    #     intens_norm_abs = self.mesh.observables['intens_norm_abs:{}'.format(dataset)].for_computations
-    #     intens_proj_abs = self.mesh.observables['intens_proj_abs:{}'.format(dataset)].for_computations
+    #     abs_normal_intensities = self.mesh.observables['abs_normal_intensities:{}'.format(dataset)].for_computations
+    #     abs_intensities = self.mesh.observables['abs_intensities:{}'.format(dataset)].for_computations
 
 
-    #     intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
+    #     intensities = abs_intensities * self.get_pblum_scale(dataset)
 
-    #     return {'intens_norm_rel': intens_norm_rel,
-    #             'intens_proj_rel': intens_proj_rel}
+    #     return {'normal_intensities': normal_intensities,
+    #             'intensities': intensities}
 
 class CustomBody(Body):
     def __init__(self, masses, sma, ecc, freq_rot, teff, abun, dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], **kwargs):
@@ -1205,13 +1190,13 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities}
 
 
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                 gravb_law, abun, alb_refl, mesh_method='marching',
+                 gravb_law, abun, frac_refl, mesh_method='marching',
                  dynamics_method='keplerian', ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False, datasets=[], do_rv_grav=False,
                  features=[], do_mesh_offset=True, **kwargs):
@@ -1262,9 +1247,9 @@ class Star(Body):
         self.gravb_bol = gravb_bol
         self.gravb_law = gravb_law
         self.abun = abun
-        self.alb_refl = alb_refl
-        # self.alb_heat = alb_heat
-        # self.alb_scatt = alb_scatt
+        self.frac_refl = frac_refl
+        # self.frac_heat = frac_heat
+        # self.frac_scatt = frac_scatt
 
         self.features = features
 
@@ -1320,8 +1305,8 @@ class Star(Body):
         # F we can get now
         # Phi we can get now
 
-        self_ps = b.filter(component=component, context='component', check_relevant=False)
-        F = self_ps.get_value('syncpar', check_relevant=False) # not relevant for single stars... but doesn't hurt to load
+        self_ps = b.filter(component=component, context='component', check_visible=False)
+        F = self_ps.get_value('syncpar', check_visible=False) # not relevant for single stars... but doesn't hurt to load
         Phi = self_ps.get_value('pot')
         freq_rot = self_ps.get_value('freq', unit=u.rad/u.d)
         # NOTE: we need F for roche geometry (marching, reprojection), but freq_rot for ctrans.place_in_orbit and rotstar.marching
@@ -1340,16 +1325,16 @@ class Star(Body):
             is_single = True
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        gravb_law = b.get_value('gravblaw', component=component, context='component')
+        gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
         gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         abun = b.get_value('abun', component=component, context='component')
-        alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
-        # alb_heat = b.get_value('alb_heat_bol', component=component, context='component')
-        # alb_scatt = b.get_value('alb_scatt_bol', component=component, context='component')
+        frac_refl = b.get_value('frac_refl_bol', component=component, context='component')
+        # frac_heat = b.get_value('frac_heat_bol', component=component, context='component')
+        # frac_scatt = b.get_value('frac_scatt_bol', component=component, context='component')
 
         try:
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_relevant=False, **kwargs) if compute is not None else False
+            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
@@ -1372,13 +1357,13 @@ class Star(Body):
         for feature in b.filter(component=component).features:
             # print "*** creating features", star, feature
             feature_ps = b.filter(feature=feature, component=component)
-            feature_cls = globals()[feature_ps.method.title()]
+            feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
-                abun, alb_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 is_single=is_single, datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
@@ -1645,10 +1630,10 @@ class Star(Body):
 
             elif self.distortion_method == 'sphere':
                 # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'sphere' distortion method not yet supported - try roche")
+                raise NotImplementedError("'sphere' distortion_method not yet supported - try roche")
             elif self.distortion_method == 'nbody':
                 # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'nbody' distortion method not yet supported - try roche")
+                raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
             else:
                 raise NotImplementedError
 
@@ -1661,7 +1646,7 @@ class Star(Body):
             scale = sma
 
         else:
-            raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
         return new_mesh, scale, mesh_args
 
@@ -1857,7 +1842,7 @@ class Star(Body):
 
         lc_cols = self._populate_lc(dataset, **kwargs)
 
-        # LC cols should do for interferometry - at least for continuum
+        # lc cols should do for interferometry - at least for continuum
         cols = lc_cols
 
         return cols
@@ -1877,11 +1862,11 @@ class Star(Body):
         # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         # We need to fill all the flux-related columns so that we can weigh each
-        # triangle's RV by its flux in the requested passband.
+        # triangle's rv by its flux in the requested passband.
         lc_cols = self._populate_lc(dataset, passband, **kwargs)
 
-        # RV per element is just the z-component of the velocity vectory.  Note
-        # the change in sign from our right-handed system to RV conventions.
+        # rv per element is just the z-component of the velocity vectory.  Note
+        # the change in sign from our right-handed system to rv conventions.
         # These will be weighted by the fluxes when integrating
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
@@ -1896,7 +1881,7 @@ class Star(Body):
             rvs += rv_grav
 
         cols = lc_cols
-        cols['rv'] = rvs
+        cols['rvs'] = rvs
         return cols
 
 
@@ -1929,16 +1914,16 @@ class Star(Body):
 
                 self._pbs[passband] = pb
 
-            # intens_norm_abs are the normal emergent passband intensities:
-            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
+            # abs_normal_intensities are the normal emergent passband intensities:
+            abs_normal_intensities = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
                                                         logg=self.mesh.loggs.for_computations,
                                                         met=self.mesh.abuns.for_computations,
                                                         atm=atm)
 
 
-            # intens_proj_abs are the projected (limb-darkened) passband intensities
+            # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
-            intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
+            abs_intensities = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
                                                       logg=self.mesh.loggs.for_computations,
                                                       met=self.mesh.abuns.for_computations,
                                                       mu=abs(self.mesh.mus_for_computations),
@@ -1974,16 +1959,16 @@ class Star(Body):
 
             # light speed in Rsol/d
             # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            ampl_boosts = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
             # TODO: does this make sense to boost proj but not norm?
-            intens_proj_abs *= ampl_boost
+            abs_intensities *= ampl_boosts
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
-            # we need to scale each triangle so that the summed intens_norm_rel over the
+            # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
-            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
-            intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
+            normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
+            intensities = abs_intensities * self.get_pblum_scale(dataset)
 
 
 
@@ -2027,16 +2012,16 @@ class Star(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities,
+            'ampl_boosts': ampl_boosts}
 
 
 
 
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
-            abun, alb_refl1, alb_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
+            abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
             datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
@@ -2082,21 +2067,21 @@ class Envelope(Body):
         self.teff1 = teff1
         self.teff2 = teff2
 
-        self.alb_refl1 = alb_refl1
-        self.alb_refl2 = alb_refl2
+        self.frac_refl1 = frac_refl1
+        self.frac_refl2 = frac_refl2
         self.gravb_bol1 = gravb_bol1
         self.gravb_bol2 = gravb_bol2
         self.gravb_law = gravb_law
 
         # only putting this here so update_position doesn't complain
-        self.alb_refl = 0.
+        self.frac_refl = 0.
         # self.gravb_law2 = gravb_law2
 
 
         # self.gravb_bol = gravb_bol
         # self.gravb_law = gravb_law
         self.abun = abun
-        # self.alb_refl = alb_refl
+        # self.frac_refl = frac_refl
 
         self.features = features  # TODO: move this to Body
 
@@ -2168,28 +2153,28 @@ class Envelope(Body):
         ecc = b.get_value('ecc', component=label_orbit, context='component')
 
         #teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        #gravb_law = b.get_value('gravblaw', component=component, context='component')
+        #gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
         #gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         teff1 = b.get_value('teff', component=starrefs[0], context='component', unit=u.K)
         teff2 = b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 
-        alb_refl1 = b.get_value('alb_refl_bol', component=starrefs[0], context='component')
-        alb_refl2 = b.get_value('alb_refl_bol', component=starrefs[1], context='component')
+        frac_refl1 = b.get_value('frac_refl_bol', component=starrefs[0], context='component')
+        frac_refl2 = b.get_value('frac_refl_bol', component=starrefs[1], context='component')
 
         gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
         gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
 
-        gravb_law = b.get_value('gravblaw', component=starrefs[0], context='component')
-        #gravb_law2 = b.get_value('gravblaw', component=starrefs[0], context='component')
+        gravb_law = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
+        #gravb_law2 = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
 
         abun = b.get_value('abun', component=component, context='component')
-        #alb_refl = b.get_value('alb_refl_bol', component=component, context='component')
+        #frac_refl = b.get_value('frac_refl_bol', component=component, context='component')
 
 
         try:
             # TODO: will the rv_grav parameter ever be copied for the envelope?
-            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_relevant=False, **kwargs) if compute is not None else False
+            do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
         except ValueError:
             # rv_grav may not have been copied to this component if no rvs are attached
             do_rv_grav = False
@@ -2213,12 +2198,12 @@ class Envelope(Body):
         for feature in b.filter(component=component).features:
             # print "*** creating features", star, feature
             feature_ps = b.filter(feature=feature, component=component)
-            feature_cls = globals()[feature_ps.method.title()]
+            feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
-        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, alb_refl1, alb_refl2,
+        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
                 gravb_bol1, gravb_bol2, gravb_law, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 datasets=datasets, do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
@@ -2394,7 +2379,7 @@ class Envelope(Body):
 
             elif self.distortion_method == 'nbody':
                 # TODO: implement this? - can OCs be done in NBody mode?
-                raise NotImplementedError("'nbody' distortion method not yet supported - try roche")
+                raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
             else:
                 raise NotImplementedError
 
@@ -2422,7 +2407,7 @@ class Envelope(Body):
             new_mesh['env_comp3']=env_comp
 
         else:
-            raise NotImplementedError("mesh method '{}' is not supported".format(mesh_method))
+            raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
         return new_mesh, sma, mesh_args
 
@@ -2643,20 +2628,20 @@ class Envelope(Body):
 
         mesh.update_columns(teffs=teffs)
 
-    def _fill_albedos(self, mesh=None, alb_refl=0.0):
+    def _fill_albedos(self, mesh=None, frac_refl=0.0):
         """
         TODO: add documentation
         """
         if mesh is None:
             mesh = self.mesh
-            alb_refl1 = self.alb_refl1
-            alb_refl2 = self.alb_refl2
+            frac_refl1 = self.frac_refl1
+            frac_refl2 = self.frac_refl2
 
-        alb_refl = np.zeros(len(mesh.env_comp))
-        alb_refl[mesh.env_comp==0] = alb_refl1
-        alb_refl[mesh.env_comp==1] = alb_refl2
+        frac_refl = np.zeros(len(mesh.env_comp))
+        frac_refl[mesh.env_comp==0] = frac_refl1
+        frac_refl[mesh.env_comp==1] = frac_refl2
 
-        mesh.update_columns(alb_refl=alb_refl)
+        mesh.update_columns(frac_refl=frac_refl)
 
     def _populate_ifm(self, dataset, **kwargs):
         """
@@ -2682,11 +2667,11 @@ class Envelope(Body):
         # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         # We need to fill all the flux-related columns so that we can weigh each
-        # triangle's RV by its flux in the requested passband.
+        # triangle's rv by its flux in the requested passband.
         lc_cols = self._populate_lc(dataset, passband, **kwargs)
 
-        # RV per element is just the z-component of the velocity vectory.  Note
-        # the change in sign from our right-handed system to RV conventions.
+        # rv per element is just the z-component of the velocity vectory.  Note
+        # the change in sign from our right-handed system to rv conventions.
         # These will be weighted by the fluxes when integrating
 
         rvs = -1*self.mesh.velocities.for_computations[:,2]
@@ -2701,7 +2686,7 @@ class Envelope(Body):
             rvs += rv_grav
 
         cols = lc_cols
-        cols['rv'] = rvs
+        cols['rvs'] = rvs
         return cols
 
     def _populate_lc(self, dataset, passband, **kwargs):
@@ -2733,16 +2718,16 @@ class Envelope(Body):
 
                 self._pbs[passband] = pb
 
-            # intens_norm_abs are the normal emergent passband intensities:
-            intens_norm_abs = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
+            # abs_normal_intensities are the normal emergent passband intensities:
+            abs_normal_intensities = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
                                                         logg=self.mesh.loggs.for_computations,
                                                         met=self.mesh.abuns.for_computations,
                                                         atm=atm)
 
 
-            # intens_proj_abs are the projected (limb-darkened) passband intensities
+            # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
-            intens_proj_abs = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
+            abs_intensities = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
                                                       logg=self.mesh.loggs.for_computations,
                                                       met=self.mesh.abuns.for_computations,
                                                       mu=abs(self.mesh.mus_for_computations),
@@ -2778,16 +2763,16 @@ class Envelope(Body):
 
             # light speed in Rsol/d
             # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            ampl_boosts = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
 
             # TODO: does this make sense to boost proj but not norm?
-            intens_proj_abs *= ampl_boost
+            abs_intensities *= ampl_boosts
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
-            # we need to scale each triangle so that the summed intens_norm_rel over the
+            # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
-            intens_norm_rel = intens_norm_abs * self.get_pblum_scale(dataset)
-            intens_proj_rel = intens_proj_abs * self.get_pblum_scale(dataset)
+            normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
+            intensities = abs_intensities * self.get_pblum_scale(dataset)
 
 
 
@@ -2831,9 +2816,9 @@ class Envelope(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities,
+            'ampl_boosts': ampl_boosts}
 
 
 class Feature(object):

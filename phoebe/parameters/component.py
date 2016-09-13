@@ -21,7 +21,7 @@ def orbit(component, **kwargs):
     """
     Create parameters for a new orbit.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -70,7 +70,7 @@ def star(component, **kwargs):
     """
     Create parameters for a new star.
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -81,36 +81,36 @@ def star(component, **kwargs):
     params = []
 
     #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='rpole', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('rpole', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Polar radius at periastron')]
-    params += [FloatParameter(qualifier='pot', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron')]   # TODO: correct units???
+    params += [FloatParameter(qualifier='rpole', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('rpole', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Polar radius at periastron')]
+    params += [FloatParameter(qualifier='pot', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron')]   # TODO: correct units???
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 10000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
-    params += [FloatParameter(qualifier='abun', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    params += [FloatParameter(qualifier='syncpar', relevant_if='hierarchy.is_overcontact:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
-    params += [FloatParameter(qualifier='period', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
-    params += [FloatParameter(qualifier='freq', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
+    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_overcontact:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
+    params += [FloatParameter(qualifier='period', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
+    params += [FloatParameter(qualifier='freq', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
 
-    params += [FloatParameter(qualifier='incl', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
+    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
     # params += [FloatParameter(qualifier='pitch', value=kwargs.get('pitch', 90), default_unit=u.deg, description='Pitch of the stellar rotation axis')]
     # params += [FloatParameter(qualifier='yaw', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis')]
     # params += [FloatParameter(qualifier='vsini', value=kwargs.get('vsini', 1), default_unit=u.km/u.s, description='Projected maximum rotational velocity')]
 
-    params += [ChoiceParameter(qualifier='gravblaw', value=kwargs.get('gravblaw', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
+    params += [ChoiceParameter(qualifier='gravblaw_bol', value=kwargs.get('gravblaw_bol', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, description='Bolometric gravity brightening')]
 
-    # params += [FloatParameter(qualifier='alb_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
-    params += [FloatParameter(qualifier='alb_refl_bol', value=kwargs.get('alb_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    # params += [FloatParameter(qualifier='alb_heat_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
-    # params += [FloatParameter(qualifier='alb_scatt_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('alb_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
-    params += [FloatParameter(qualifier='alb_lost_bol', value=kwargs.get('alb_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
+    # params += [FloatParameter(qualifier='frac_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
+    params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    # params += [FloatParameter(qualifier='frac_heat_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
+    # params += [FloatParameter(qualifier='frac_scatt_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
+    params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
     # params += [FloatParameter(qualifier='redist', value=kwargs.get('redist', 0.0), unit=u.dimensionless_unscaled, description='Global redist par (1-redist) local heating, redist global heating')]
     # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
 
-    # TODO: allow for 'interp' as choice, make default, and set relevant_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
-    params += [ChoiceParameter(qualifier='ld_func_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
-    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', relevant_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
+    # TODO: allow for 'interp' as choice, make default, and set visible_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
+    params += [ChoiceParameter(qualifier='ld_func_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
+    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
 
     params += [FloatParameter(qualifier='mass', value=kwargs.get('mass', 1.0), default_unit=u.solMass, description='Mass')]
@@ -137,7 +137,7 @@ def envelope(component, **kwargs):
     Create parameters for an envelope (usually will be attached to two stars solRad
         that they can share a common-envelope)
 
-    Generally, this will be used as an input to the method argument in
+    Generally, this will be used as an input to the kind argument in
     :meth:`phoebe.frontend.bundle.Bundle.add_component`
 
     :parameter **kwargs: defaults for the values of any of the parameters
@@ -152,10 +152,10 @@ def envelope(component, **kwargs):
 
     params += [FloatParameter(qualifier='abun', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    # params += [FloatParameter(qualifier='alb_refl_bol', value=kwargs.get('alb_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    # params += [FloatParameter(qualifier='alb_heat_bol', value=kwargs.get('alb_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
-    # params += [FloatParameter(qualifier='alb_scatt_bol', value=kwargs.get('alb_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
-    # params += [FloatParameter(qualifier='alb_lost_bol', value=kwargs.get('alb_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
+    # params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    # params += [FloatParameter(qualifier='frac_heat_bol', value=kwargs.get('frac_heat_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for heating')]
+    # params += [FloatParameter(qualifier='frac_scatt_bol', value=kwargs.get('frac_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
+    # params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
 
 
     params += [FloatParameter(qualifier='pot', value=kwargs.get('pot', 3.5), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron (in the primary component\'s reference frame')]   # TODO: correct units???

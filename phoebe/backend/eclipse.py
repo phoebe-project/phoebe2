@@ -134,7 +134,7 @@ def only_horizon(meshes, xs, ys, zs):
 
     return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None
 
-def visible_ratio(meshes, xs, ys, zs):
+def native(meshes, xs, ys, zs):
     """
     TODO: add documentation
 
