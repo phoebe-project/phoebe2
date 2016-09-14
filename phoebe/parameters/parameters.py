@@ -1292,6 +1292,12 @@ class ParameterSet(object):
             returned.
         """
 
+        if self._bundle is None:
+            # then override check_default to False - its annoying when building
+            # a ParameterSet say by calling datasets.lc() and having half
+            # of the Parameters hidden by this switch
+            check_default = False
+
         if kwargs.get('component', None) == '_default' or\
                 kwargs.get('dataset', None) == '_default' or\
                 kwargs.get('uniqueid', None) is not None or\
