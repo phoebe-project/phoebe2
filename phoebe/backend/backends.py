@@ -57,7 +57,7 @@ def _timequalifier_by_kind(kind):
     else:
         return 'times'
 
-def _extract_from_bundle_by_time(b, compute, store_mesh=False, times=None, allow_oversample=False, **kwargs):
+def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, times=None, allow_oversample=False, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
     computed at each of those times.  Any backend can then loop through
@@ -161,10 +161,10 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, times=None, allow
                             infos.append([this_info])
 
 
-    if store_mesh:
+    if protomesh:
         needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
 
-    if store_mesh:
+    if pbmesh:
         needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=times)
 
     if len(times):
@@ -174,7 +174,7 @@ def _extract_from_bundle_by_time(b, compute, store_mesh=False, times=None, allow
 
     return np.array(times), infos, _create_syns(b, needed_syns)
 
-def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, times=[]):
+def _extract_from_bundle_by_dataset(b, compute, protomesh=False, pbmesh=False, times=[]):
     """
     Extract a list of enabled dataset from the bundle.
 
@@ -255,10 +255,10 @@ def _extract_from_bundle_by_dataset(b, compute, store_mesh=False, times=[]):
 
                     infos.append([this_info])
 
-    if store_mesh:
+    if protomesh:
         needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
 
-    if store_mesh:
+    if pbmesh:
         needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=False)
 
 
@@ -288,7 +288,7 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
     helper function for functionality needed in both _extract_from_bundle_by_dataset
     and _extract_from_bundle_by_times
     """
-    # now add "datasets" for each timepoint at which needs_mesh is True, if store_mesh
+    # now add "datasets" for each timepoint at which needs_mesh is True, if pbmesh
     if b.get_compute(compute).kind in _backends_that_support_automesh:
 
         # building synthetics for the automesh is a little different.  Here we
@@ -319,7 +319,7 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
             this_times.sort()
 
 
-            this_info = {'dataset': 'automesh',
+            this_info = {'dataset': 'pbmesh',
                 'component': component,
                 'kind': 'mesh',
                 'needs_mesh': True,
@@ -335,7 +335,7 @@ def _handle_automesh(b, compute, needed_syns, infos, times=None):
     return needed_syns, infos
 
 
-def _create_syns(b, needed_syns, store_mesh=False):
+def _create_syns(b, needed_syns, protomesh=False, pbmesh=False):
     """
     Create empty synthetics
 
@@ -422,12 +422,21 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     # orbitrefs = hier.get_orbits()
 
 
-    store_mesh = computeparams.get_value('store_mesh', **kwargs)
-    if 'store_mesh' in kwargs.keys():
-        # remove store_mesh so that it isn't passed twice in _extract_from_bundle_by_time
-        kwargs.pop('store_mesh')
+    protomesh = computeparams.get_value('protomesh', **kwargs)
+    pbmesh = computeparams.get_value('pbmesh', **kwargs)
+    if 'protomesh' in kwargs.keys():
+        # remove protomesh so that it isn't passed twice in _extract_from_bundle_by_time
+        kwargs.pop('protomesh')
+    if 'pbmesh' in kwargs.keys():
+        # remove protomesh so that it isn't passed twice in _extract_from_bundle_by_time
+        kwargs.pop('pbmesh')
 
-    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute, times=times, store_mesh=store_mesh, allow_oversample=True, **kwargs)
+    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute,
+                                                          times=times,
+                                                          protomesh=protomesh,
+                                                          pbmesh=pbmesh,
+                                                          allow_oversample=True,
+                                                          **kwargs)
 
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
@@ -478,44 +487,42 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     system.initialize_meshes()
 
     # Now we should store the protomesh
-    if store_mesh:
+    if protomesh:
         for component in meshablerefs:
             body = system.get_body(component)
 
-            protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
+            pmesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
             body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
-            body._fill_loggs(mesh=protomesh)
-            body._fill_gravs(mesh=protomesh)
-            body._fill_teffs(mesh=protomesh)
+            body._fill_loggs(mesh=pmesh)
+            body._fill_gravs(mesh=pmesh)
+            body._fill_teffs(mesh=pmesh)
 
             this_syn = new_syns.filter(component=component, dataset='protomesh')
 
-            # protomesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
+            this_syn['xs'] = pmesh.centers[:,0]# * u.solRad
+            this_syn['ys'] = pmesh.centers[:,1]# * u.solRad
+            this_syn['zs'] = pmesh.centers[:,2]# * u.solRad
+            this_syn['vertices'] = pmesh.vertices_per_triangle
+            this_syn['areas'] = pmesh.areas # * u.solRad**2
+            this_syn['tareas'] = pmesh.tareas # * u.solRad**2
+            this_syn['normals'] = pmesh.tnormals
+            this_syn['nxs'] = pmesh.tnormals[:,0]
+            this_syn['nys'] = pmesh.tnormals[:,1]
+            this_syn['nzs'] = pmesh.tnormals[:,2]
 
-            this_syn['xs'] = protomesh.centers[:,0]# * u.solRad
-            this_syn['ys'] = protomesh.centers[:,1]# * u.solRad
-            this_syn['zs'] = protomesh.centers[:,2]# * u.solRad
-            this_syn['vertices'] = protomesh.vertices_per_triangle
-            this_syn['areas'] = protomesh.areas # * u.solRad**2
-            this_syn['tareas'] = protomesh.tareas # * u.solRad**2
-            this_syn['normals'] = protomesh.tnormals
-            this_syn['nxs'] = protomesh.tnormals[:,0]
-            this_syn['nys'] = protomesh.tnormals[:,1]
-            this_syn['nzs'] = protomesh.tnormals[:,2]
-
-            this_syn['loggs'] = protomesh.loggs.centers
-            this_syn['teffs'] = protomesh.teffs.centers
-            # this_syn['mu'] = protomesh.mus  # mus aren't filled until placed in orbit
+            this_syn['loggs'] = pmesh.loggs.centers
+            this_syn['teffs'] = pmesh.teffs.centers
+            # this_syn['mu'] = pmesh.mus  # mus aren't filled until placed in orbit
 
             # NOTE: this is a computed column, meaning the 'r' is not the radius to centers, but rather the
             # radius at which computables have been determined.  This way r should not suffer from a course
             # grid (so much).  Same goes for cosbeta below.
-            this_syn['rs'] = protomesh.rs.centers
+            this_syn['rs'] = pmesh.rs.centers
             # NOTE: no r_proj for protomeshs since we don't have LOS information
 
             # TODO: need to test the new (ComputedColumn) version of this
-            this_syn['cosbetas'] = protomesh.cosbetas.centers
-            # this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(protomesh.centers, protomesh.tnormals)]
+            this_syn['cosbetas'] = pmesh.cosbetas.centers
+            # this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(pmesh.centers, pmesh.tnormals)]
 
 
     # Now we need to compute intensities at t0 in order to scale pblums for all future times
@@ -787,7 +794,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                             try:
                                 new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.mesh[key].centers)
                             except ValueError:
-                                print "***", key, indep, info['component'], infomesh['dataset'], new_syns.filter(time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs
+                                # print "***", key, indep, info['component'], infomesh['dataset'], new_syns.filter(time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs
                                 raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs)))
 
 
@@ -973,13 +980,13 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                 except:
                     logger.warning('{} has no corresponding value in phoebe 2 protomesh'.format(key))
 
-            elif type == 'automesh':
+            elif type == 'pbmesh':
                 n = len(time)
                 key_values =  np.array_split(mesh[key],n)
                 #TODO change time inserted to time = time[:-1]
                 for t in range(len(time)):
                 # d = ret_dict(key)
-                    d['dataset'] = 'automesh'
+                    d['dataset'] = 'pbmesh'
                     if key in ['Inorm1', 'Inorm2']:
                         d['dataset'] = dataset
 
@@ -1002,7 +1009,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                             else:
                                 logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
             else:
-                raise ValueError("Only 'automesh' and 'protomesh' are acceptable mesh types.")
+                raise ValueError("Only 'pbmesh' and 'protomesh' are acceptable mesh types.")
 
 
         return
@@ -1012,7 +1019,8 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         raise ImportError("phoebeBackend for phoebe legacy not found")
 
     computeparams = b.get_compute(compute, force_ps=True)
-    store_mesh = computeparams.get_value('store_mesh', **kwargs)
+    protomesh = computeparams.get_value('protomesh', **kwargs)
+    pbmesh = computeparams.get_value('pbmesh', **kwargs)
 #    computeparams = b.get_compute(compute, force_ps=True)
 #    hier = b.get_hierarchy()
 
@@ -1038,7 +1046,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
-    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, store_mesh=store_mesh)
+    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, protomesh=protomesh, pbmesh=pbmesh)
 
 
 #    print "INFOS", len(infos)
@@ -1046,7 +1054,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    print "info 2-1",  infos[0][1]
 #    print "info 3-1",  infos[0][2]
 #    quit()
-    if store_mesh:
+    if protomesh:
         time = [perpass]
         print 'TIME', time
         phb1.setpar('phoebe_lcno', 1)
@@ -1060,7 +1068,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         dataset=info['dataset']
 
         if info['kind'] == 'lc':
-            if not store_mesh:
+            if not pbmesh:
             # print "*********************", this_syn.qualifiers
                 flux= np.array(phb1.lc(tuple(time.tolist()), lcnum))
                 lcnum = lcnum+1
@@ -1075,7 +1083,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             # take care of the lc first
                 this_syn['fluxes'] = flux
 
-                fill_mesh(mesh, 'automesh', time=time)
+                fill_mesh(mesh, 'pbmesh', time=time)
             # now deal with parameters
     #            keys = mesh.keys()
     #            n = len(time)
@@ -1120,7 +1128,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #                     # now take care of automesh time point by time point
 #                     for t in range(len(time[:-1])):
 # #                        d = ret_dict(key)
-#                         d['dataset'] = 'automesh'
+#                         d['dataset'] = 'pbmesh'
 #                         if key in ['Inorm1', 'Inorm2']:
 #                             d['dataset'] = dataset
 

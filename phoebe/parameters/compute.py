@@ -27,7 +27,7 @@ def phoebe(**kwargs):
     """
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     # DYNAMICS
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian', 'nbody', 'rebound', 'bs'] if _devel_enabled else ['keplerian'], description='Which method to use to determine the dynamics of components')]
@@ -59,7 +59,8 @@ def phoebe(**kwargs):
     # copy_for = {'kind': ['star', 'disk', 'custombody'], 'component': '*'}
     # means that this should exist for each component (since that has a wildcard) which
     # has a kind in [star, disk, custombody]
-    params += [BoolParameter(qualifier='store_mesh', value=kwargs.get('store_mesh', False), description='Store a protomesh (reference frame of stars) and filled meshes at each timepoint and which a mesh is computed')]
+    params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
+    params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
     params += [ChoiceParameter(copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_method', value=kwargs.get('mesh_method', 'marching'), choices=['marching', 'wd'], descriptio='Which method to use for discretizing the surface')]
     params += [FloatParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='delta', value=kwargs.get('delta', 0.1), limits=(1e-9,None), default_unit=u.dimensionless_unscaled, description='Stepsize for mesh generation via marching method')]
     params += [IntParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='maxpoints', value=kwargs.get('maxpoints', 100000), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Maximum number of triangles for marching method')]
@@ -123,11 +124,12 @@ def legacy(**kwargs):
     """
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'kind': ['LC', 'RV'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['LC', 'RV'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     # TODO: the kwargs need to match the qualifier names!
     # TODO: include MORE meshing options
-    params += [BoolParameter(qualifier='store_mesh', value=kwargs.get('store_mesh', False), description='Store meshes computed from phoebe1')]
+    params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
+    params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
     params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary'], description='System type constraint')]
     params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
@@ -173,7 +175,7 @@ def photodynam(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'kind': ['LC', 'RV', 'ORB'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['LC', 'RV', 'ORB'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     params += [FloatParameter(qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='blah')]
     params += [FloatParameter(qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='blah')]
@@ -203,7 +205,7 @@ def jktebop(**kwargs):
 
     params = []
 
-    params += [BoolParameter(qualifier='enabled', copy_for={'kind': ['LC'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
+    params += [BoolParameter(qualifier='enabled', copy_for={'context': 'dataset', 'kind': ['LC'], 'dataset': '*'}, visible_if='False', dataset='_default', value=kwargs.get('enabled', True), description='Whether to create synthetics in compute/fitting run')]
 
     params += [FloatParameter(qualifier='ringsize', value=kwargs.get('ringsize', 5), default_unit=u.deg, description='Integ Ring Size')]
 
