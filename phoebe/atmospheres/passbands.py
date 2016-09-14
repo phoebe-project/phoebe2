@@ -149,6 +149,8 @@ class Passband:
             struct['_ck2004_intensity_axes']  = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
             struct['_ck2004_Imu_photon_grid'] = self._ck2004_Imu_photon_grid
+            struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
+            struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid']  = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid']  = self._ck2004_ld_photon_grid
@@ -214,6 +216,10 @@ class Passband:
             self._ck2004_Imu_energy_grid = self._ck2004_Imu_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
             self._ck2004_Imu_photon_grid = np.fromstring(struct['_ck2004_Imu_photon_grid'], dtype='float64')
             self._ck2004_Imu_photon_grid = self._ck2004_Imu_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            self._ck2004_boosting_energy_grid = np.fromstring(struct['_ck2004_boosting_energy_grid'], dtype='float64')
+            self._ck2004_boosting_energy_grid = self._ck2004_boosting_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
+            self._ck2004_boosting_photon_grid = np.fromstring(struct['_ck2004_boosting_photon_grid'], dtype='float64')
+            self._ck2004_boosting_photon_grid = self._ck2004_boosting_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), len(self._ck2004_intensity_axes[3]), 1)
 
         if 'ck2004_ld' in self.content:
             self._ck2004_ld_energy_grid = np.fromstring(struct['_ck2004_ld_energy_grid'], dtype='float64')
@@ -279,7 +285,10 @@ class Passband:
 
     def compute_ck2004_intensities(self, path, verbose=False):
         models = os.listdir(path)
+        Nmodels = len(models)
+        
         Teff, logg, met, mu, ImuE, ImuP = [], [], [], [], [], []
+        boostingE, boostingP = np.ones(Nmodels), np.ones(Nmodels)
 
         if verbose:
             print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
@@ -293,12 +302,32 @@ class Passband:
             mu.append(float(model[-14:-9]))
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
-            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            
+            keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
+            wl = spc[0][keep]
+            fl = spc[1][keep]
+            
             flE = self.ptf(wl)*fl
             flP = wl*flE
-            ImuE.append(np.log10(flE.sum())-10)  # energy-weighted flux; -10 because of the 1AA dispersion
-            ImuP.append(np.log10(flP.sum()/1.9864458e-5)) # photon-weighted flux; the constant is 1e10*1e10*h*c
+            flEint = flE.sum()
+            flPint = flP.sum()
+            
+            lnwl, lnfl = np.log(wl), np.log(fl)
+            
+            # compute the differences while extrapolating on the lower boundary to preserve array length
+            dlnwl = np.roll(lnwl,1)-lnwl
+            dlnfl = np.roll(lnfl,1)-lnfl
+            dlnwl[0] = dlnwl[1]
+            dlnfl[0] = dlnfl[1]
+            
+            Blambda = (dlnfl+7*lnwl)/dlnwl
+            boostE = (flE*Blambda).sum()/flEint
+            boostP = (flP*Blambda).sum()/flPint
+            
+            ImuE.append(np.log10(flEint)-10)  # energy-weighted flux; -10 because of the 1AA dispersion
+            ImuP.append(np.log10(flPint/1.9864458e-5)) # photon-weighted flux; the constant is 1e10*1e10*h*c
+            boostingE[i] = boostE
+            boostingP[i] = boostP
 
             if verbose:
                 if 100*i % (len(models)) == 0:
@@ -333,6 +362,10 @@ class Passband:
             self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
             self._ck2004_Imu_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
+        for i, Bavg in enumerate(boostingE):
+            self._ck2004_boosting_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
+        for i, Bavg in enumerate(boostingP):
+            self._ck2004_boosting_photon_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Bavg
 
         self.content.append('ck2004_all')
 
