@@ -484,7 +484,8 @@ class System(object):
 class Body(object):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc,
                  atm='blackbody',
-                 datasets=[], passband = {}, ld_func={}, ld_coeffs={},
+                 datasets=[], passband = {}, intensities_weighted='energy',
+                 ld_func={}, ld_coeffs={},
                  dynamics_method='keplerian'):
         """
         TODO: add documentation
@@ -535,6 +536,7 @@ class Body(object):
 
         # DATSET-DEPENDENT DICTS
         self.passband = passband
+        self.intensities_weighted = intensities_weighted
         self.ld_coeffs = ld_coeffs
         self.ld_func = ld_func
 
@@ -1059,7 +1061,8 @@ class CustomBody(Body):
     def __init__(self, masses, sma, ecc, freq_rot, teff, abun,
                  dynamics_method='keplerian',
                  ind_self=0, ind_sibling=1, comp_no=1,
-                 atm='blackbody', datasets=[], passband={}, ld_func={}, ld_coeffs={}, **kwargs):
+                 atm='blackbody', datasets=[], passband={},
+                 intensities_weighted={}, ld_func={}, ld_coeffs={}, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1077,6 +1080,7 @@ class CustomBody(Body):
         super(CustomBody, self).__init__(comp_no, ind_self, ind_sibling,
                                          masses, ecc,
                                          atm, datasets, passband,
+                                         intensities_weighted,
                                          ld_func, ld_coeffs,
                                          dynamics_method=dynamics_method)
 
@@ -1134,10 +1138,11 @@ class CustomBody(Body):
         ld_func = {}
         ld_coeffs = {}
         passband = {}
+        intensities_weighted = {}
 
         return cls(masses, sma, ecc, freq_rot, teff, abun, dynamics_method,
                    ind_self, ind_sibling, comp_no,
-                   atm, datasets, passband, ld_func, ld_coeffs)
+                   atm, datasets, passband, intensities_weighted, ld_func, ld_coeffs)
 
 
     @property
@@ -1237,7 +1242,8 @@ class Star(Body):
                  gravb_law, abun, frac_refl, mesh_method='marching',
                  dynamics_method='keplerian', ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False,
-                 atm='blackbody', datasets=[], passband={}, ld_func={}, ld_coeffs={},
+                 atm='blackbody', datasets=[], passband={},
+                 intensities_weighted={}, ld_func={}, ld_coeffs={},
                  do_rv_grav=False,
                  features=[], do_mesh_offset=True, **kwargs):
         """
@@ -1255,7 +1261,8 @@ class Star(Body):
         :return: instantiated :class:`Star` object
         """
         super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
-                                   atm, datasets, passband, ld_func, ld_coeffs,
+                                   atm, datasets, passband,
+                                   intensities_weighted, ld_func, ld_coeffs,
                                    dynamics_method=dynamics_method)
 
         self._is_convex = True
@@ -1407,13 +1414,15 @@ class Star(Body):
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
+        intensities_weighted = {ds: b.get_value('intensities_weighted', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
                 abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
-                passband=passband, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                passband=passband, intensities_weighted=intensities_weighted,
+                ld_func=ld_func, ld_coeffs=ld_coeffs,
                 do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
@@ -1886,6 +1895,7 @@ class Star(Body):
         # eff_wave = kwargs.get('eff_wave', 6562e-7)
         # passband = kwargs.get('passband', eff_wave)
         passband = kwargs.get('passband', self.passband[dataset])
+        intensities_weighted = kwargs.get('intensities_weighted', self.intensities_weighted.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func[dataset])
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs[dataset]) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -1943,6 +1953,7 @@ class Star(Body):
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
+        intensities_weighted = kwargs.get('intensities_weighted', self.intensities_weighted.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -1974,7 +1985,8 @@ class Star(Body):
                                                       mu=abs(self.mesh.mus_for_computations),
                                                       atm=atm,
                                                       ld_func=ld_func,
-                                                      ld_coeffs=ld_coeffs)
+                                                      ld_coeffs=ld_coeffs,
+                                                      photon_weighted=intensities_weighted=='photon')
 
             # Beaming/boosting
             alpha_b = 0.0
@@ -2045,7 +2057,8 @@ class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
             abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
-            atm='blackbody', datasets=[], ld_func={}, ld_coeffs={},
+            atm='blackbody', datasets=[], passband={}, intensities_weighted={},
+            ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
         [NOT IMPLEMENTED]
@@ -2061,7 +2074,9 @@ class Envelope(Body):
         :return: instantiated :class:`Envelope` object
         """
         super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
-                                       ecc, atm, datasets, ld_func, ld_coeffs,
+                                       ecc, atm, datasets, passband,
+                                       intensities_weighted,
+                                       ld_func, ld_coeffs,
                                        dynamics_method=dynamics_method)
 
         # Remember how to compute the mesh
@@ -2231,13 +2246,16 @@ class Envelope(Body):
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
+        intensities_weighted = {ds: b.get_value('intensities_weighted', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
                 gravb_bol1, gravb_bol2, gravb_law, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 atm=atm,
-                datasets=datasets, passband=passband, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                datasets=datasets, passband=passband,
+                intensities_weighted=intensities_weighted,
+                ld_func=ld_func, ld_coeffs=ld_coeffs,
                 do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
@@ -2729,6 +2747,7 @@ class Envelope(Body):
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
+        intensities_weighted = kwargs.get('intensities_weighted', self.intensities_weighted.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -2760,7 +2779,8 @@ class Envelope(Body):
                                                       mu=abs(self.mesh.mus_for_computations),
                                                       atm=atm,
                                                       ld_func=ld_func,
-                                                      ld_coeffs=ld_coeffs)
+                                                      ld_coeffs=ld_coeffs,
+                                                      photon_weighted=intensities_weighted=='photon')
 
             # Beaming/boosting
             # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
