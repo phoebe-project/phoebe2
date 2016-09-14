@@ -33,7 +33,6 @@ def legacy_test(filename='default.phoebe'):
 
     # phb2 compute
 
-#    b.run_compute(compute='backend',store_mesh=True)
     fluxes = []
     vels = []
     vels2 = []

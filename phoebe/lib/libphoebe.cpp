@@ -4179,11 +4179,18 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
       0 - searching a point on left lobe
       1 - searching a point on right lobe
       2 - searching a point for overcontact case
-      
+    
+    boundary_list: boolean, default false
+      return the list of boundary points
+  
+    boundary_mark: boolean, default false
+      mark boundary point by 2 in the mask
+  
   Return: a dictionary with keyword
   
     bmask: 3-rank numpy array of uint8, representing binary mask
-      b[i1,i2,i3] in {0,1}  
+      b[i1,i2,i3] in {0,1,2} 
+        b == 2: boundary point (if marking enabled)
         b == 1: point means that a point is in Roche lobe
         b == 0: othewise
       and indices are
@@ -4197,6 +4204,9 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
       
     steps: step sizes/cell dimensions [L_1, L_2, L_3]
       1-rank numpy of 3 floats
+
+    boundary:
+      2-rank numpy array of int: vector of triples of indices
 */
 
 
@@ -4213,6 +4223,8 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     (char*)"Omega0",
     (char*)"dims",
     (char*)"choice",
+    (char*)"boundary_list",
+    (char*)"boundary_mark",
     NULL
   };
   
@@ -4220,14 +4232,24 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     
   int choice  = 0;
   
+  bool 
+    b_boundary_list = false,
+    b_boundary_mark = false;
+    
   PyArrayObject *o_dims;
   
+  PyObject 
+    *o_boundary_list = 0,
+    *o_boundary_mark = 0;
+  
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddO!|i", kwlist,
+      args, keywds,  "ddddO!|iO!O!", kwlist,
       &q, &F, &d, &Omega0,    // necessary
       &PyArray_Type, &o_dims, 
-      &choice)                // optional
-      ){
+      &choice,                // optional
+      &PyBool_Type, &o_boundary_list,
+      &PyBool_Type, &o_boundary_mark
+      )){
     std::cerr << "roche_square_grid::Problem reading arguments\n";
     return NULL;
   }
@@ -4237,8 +4259,31 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     return NULL;
   }
   
-  long *dims = (long*) PyArray_DATA(o_dims);
-   
+  int dims[3];
+  {
+    void *p = PyArray_DATA(o_dims);
+    
+    switch (PyArray_ITEMSIZE(o_dims)) {
+      
+      case sizeof(int):
+        for (int i = 0; i < 3; ++i) dims[i] = ((int*)p)[i];
+      break;
+     
+      case sizeof(long):
+        for (int i = 0; i < 3; ++i) dims[i] = ((long*)p)[i];
+     
+        break;
+        
+      default:
+        std::cerr 
+          << "roche_square_grid::This type of dims is not supported\n";
+        return NULL;
+    }
+  }
+  
+  if (o_boundary_list) b_boundary_list = PyObject_IsTrue(o_boundary_list);
+  if (o_boundary_mark) b_boundary_mark = PyObject_IsTrue(o_boundary_mark);
+  
   //
   // Determining the ranges
   //
@@ -4322,6 +4367,86 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
         }  
     
   }
+  
+  //
+  // Mark boundary points
+  //
+  
+  std::vector<int> bpoints;
+   
+  if (b_boundary_list || b_boundary_mark) {
+    
+    int index, u[3];
+    
+    std::uint8_t b, *m_prev, *m = mask;
+    
+
+    // scan along z direction
+    for (u[0] = 0; u[0] < dims[0]; ++u[0])
+      for (u[1] = 0; u[1] < dims[1]; ++u[1]) {
+        b = 0;
+        for (u[2] = 0; u[2] < dims[2]; ++u[2], ++m) {
+          
+          if (b == 0 && *m != 0) {
+            if (b_boundary_mark) *m = 2;
+            if (b_boundary_list)
+              bpoints.push_back(u[2] + dims[2]*(u[1] + u[0]*dims[1]));
+            b = 1;
+          } else if (b == 1 && *m == 0) {
+            if (b_boundary_mark) *m_prev = 2;
+            if (b_boundary_list)
+              bpoints.push_back(u[2] + dims[2]*(u[1] + u[0]*dims[1]));
+            b = 0;
+          }
+          
+          m_prev = m;
+        }
+      }
+      
+    // scan along y direction
+    for (u[0] = 0; u[0] < dims[0]; ++u[0])
+      for (u[2] = 0; u[2] < dims[2]; ++u[2]) {
+        b = 0;
+        for (u[1] = 0; u[1] < dims[1]; ++u[1]) {
+          
+          m = mask + (index = u[2] + dims[2]*(u[1] + u[0]*dims[1]));
+
+          if (b == 0 && *m != 0) {
+            if (b_boundary_mark) *m = 2;
+            if (b_boundary_list) bpoints.push_back(index); 
+            b = 1;
+          } else if (b == 1 && *m == 0) {
+            if (b_boundary_mark) *m_prev = 2;
+            if (b_boundary_list) bpoints.push_back(index);
+            b = 0;
+          }
+          
+          m_prev = m;
+        }
+      }
+      
+    // scan along x direction
+    for (u[1] = 0; u[1] < dims[1]; ++u[1])
+      for (u[2] = 0; u[2] < dims[2]; ++u[2]) {
+        b = 0;
+        for (u[0] = 0; u[0] < dims[0]; ++u[0]) {
+          
+          m = mask + (index = u[2] + dims[2]*(u[1] + u[0]*dims[1]));
+
+          if (b == 0 && *m != 0) {
+            if (b_boundary_mark) *m = 2;
+            if (b_boundary_list) bpoints.push_back(index); 
+            b = 1;
+          } else if (b == 1 && *m == 0) {
+            if (b_boundary_mark) *m_prev = 2;
+            if (b_boundary_list) bpoints.push_back(index); 
+            b = 0;
+          }
+          
+          m_prev = m;
+        }
+      }
+  }
    
   //
   // Returning results
@@ -4361,6 +4486,61 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
   PyDict_SetItemStringStealRef(results, "steps", o_steps);
   PyDict_SetItemStringStealRef(results, "bbox", o_bbox);
   PyDict_SetItemStringStealRef(results, "mask", o_mask);
+  
+  
+  if (b_boundary_list) {
+    nd[0] = bpoints.size();
+    nd[1] = 3;
+    
+    PyObject *o_blist = PyArray_SimpleNew(2, nd, NPY_INT);
+    
+    void *p = PyArray_DATA((PyArrayObject*)o_blist);
+    
+    int l[2] = {dims[1]*dims[2], dims[2]};
+        
+    // index = u[2] + dims[2]*(u[1] + u[0]*dims[1]));
+    
+    switch (PyArray_ITEMSIZE((PyArrayObject*)o_blist)) {
+      case sizeof(int):
+      {
+        int *q = (int*)p;
+        
+        for (auto && b : bpoints) {
+          q[0] = b/l[0]; 
+          
+          b -= q[0]*l[0];
+          
+          q[1] = b/l[1];
+          
+          q[2] = b - q[1]*l[1];
+          
+          q += 3;
+        } 
+      }
+      break;
+      
+      case sizeof(long):
+      {
+        long *q = (long*)p;
+        
+        for (auto && b : bpoints) {
+          q[0] = b/l[0]; 
+          
+          b -= q[0]*l[0];
+          
+          q[1] = b/l[1];
+          
+          q[2] = b - q[1]*l[1];
+          
+          q += 3;
+        } 
+      }
+      
+      break;
+    }
+    
+    PyDict_SetItemStringStealRef(results, "boundary", o_blist);
+  }
       
   return results;
 }
