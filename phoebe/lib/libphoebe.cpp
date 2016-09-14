@@ -1804,6 +1804,10 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
             maximal number of triangles
             if number of triangles exceeds max_triangles it returns NULL  
   
+      full: boolean, default False
+        using full version of marching method as given in the paper 
+        by (Hartmann, 1998)
+
       vertices: boolean, default False
       vnormals: boolean, default False
       vnormgrads:boolean, default False
@@ -1884,6 +1888,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (char*)"Omega0",
     (char*)"delta",
     (char*)"max_triangles",
+    (char*)"full",
     (char*)"vertices", 
     (char*)"vnormals",
     (char*)"vnormgrads",
@@ -1902,6 +1907,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   int max_triangles = 10000000; // 10^7
       
   bool 
+    b_full = false,
     b_vertices = false, 
     b_vnormals = false, 
     b_vnormgrads = false,
@@ -1916,6 +1922,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   
   // http://wingware.com/psupport/python-manual/2.3/api/boolObjects.html
   PyObject
+    *o_full = 0,
     *o_vertices = 0, 
     *o_vnormals = 0, 
     *o_vnormgrads = 0,
@@ -1929,9 +1936,10 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     *o_volume = 0; 
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!", kwlist,
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!", kwlist,
       &omega, &Omega0, &delta, // neccesary 
       &max_triangles,
+      &PyBool_Type, &o_full,       
       &PyBool_Type, &o_vertices, 
       &PyBool_Type, &o_vnormals,
       &PyBool_Type, &o_vnormgrads,
@@ -1948,7 +1956,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     return NULL;
   }
   
-  
+  if (o_full) b_full = PyObject_IsTrue(o_full); 
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
   if (o_vnormgrads) b_vnormgrads = PyObject_IsTrue(o_vnormgrads);
@@ -1988,7 +1996,10 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   if (b_vnormgrads) GatV = new std::vector<double>;
  
   
-  if (!march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)){
+  if ((b_full ? 
+      !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV):
+      !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)
+      )){
     std::cerr << "There is too much triangles\n";
     return NULL;
   }
