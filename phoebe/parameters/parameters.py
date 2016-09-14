@@ -3586,7 +3586,7 @@ class ChoiceParameter(Parameter):
         return str(self._value)
 
     @send_if_client
-    def set_value(self, value, **kwargs):
+    def set_value(self, value, run_checks=True, **kwargs):
         """
 
         """
@@ -3601,6 +3601,12 @@ class ChoiceParameter(Parameter):
                 raise ValueError("value must be one of {}".format(self.choices))
 
             self._value = value
+
+            # run_checks if requested (default)
+            if run_checks and self._bundle:
+                passed, msg = self._bundle.run_checks()
+                if not passed:
+                    logger.warning(msg)
 
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 

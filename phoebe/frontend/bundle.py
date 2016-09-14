@@ -1082,7 +1082,7 @@ class Bundle(ParameterSet):
                     return False,\
                         'misaligned orbits are not currently supported.'
 
-        # check length of ld_coeffs vs ld_func
+        # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
             # current choices for ld_func are:
             # ['interp', 'uniform', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power', 'claret', 'hillen', 'prsa']
@@ -1105,13 +1105,19 @@ class Bundle(ParameterSet):
             if not check[0]:
                 return check
             for dataset in self.datasets:
-                if dataset=='_default' or self.get_dataset(dataset=dataset).kind not in ['lc', 'rv']:
+                if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
                 ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
                 check = ld_coeffs_len(ld_func, ld_coeffs)
                 if not check[0]:
                     return check
+
+                if ld_func=='interp':
+                    for compute in self.computes:
+                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute')
+                        if atm != 'ck2004':
+                            return False, "ld_func='interp' only supported by atm='ck2004'"
 
         # TODO: add other checks
         # - make sure all ETV components are legal
