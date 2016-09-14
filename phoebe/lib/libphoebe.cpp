@@ -234,7 +234,10 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
         &PyBool_Type, o_L,
         &PyBool_Type, o_L + 1,
         &PyBool_Type, o_L + 2)
-  ) return NULL;
+  ){
+    std::cerr << "roche_critical_potential:Problem reading arguments\n";
+    return NULL;
+  }
   
   // reading selection
   for (int i = 0; i < 3; ++i)
@@ -289,7 +292,10 @@ static PyObject *rotstar_critical_potential(PyObject *self, PyObject *args) {
   // parse input arguments   
   double omega;
   
-  if (!PyArg_ParseTuple(args, "d", &omega)) return NULL;
+  if (!PyArg_ParseTuple(args, "d", &omega)){
+    std::cerr << "rotstar_critical_potential:Problem reading arguments\n";
+    return NULL;
+  }
   
   if (omega == 0) return NULL; // there is no critical value
 
@@ -349,8 +355,10 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   double q, F, delta, Omega0;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddd|i", kwlist, &q, &F, &delta, &Omega0, &choice))
-      return NULL;
+      args, keywds,  "dddd|i", kwlist, &q, &F, &delta, &Omega0, &choice)){
+    std::cerr << "roche_pole:Problem reading arguments\n";
+    return NULL;
+  }
   
   //
   // Compute the poles
@@ -404,8 +412,10 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
   double omega, Omega0;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dd", kwlist, &omega, &Omega0))
-      return NULL;
+      args, keywds,  "dd", kwlist, &omega, &Omega0)){
+    std::cerr << "rotstar_pole:Problem reading arguments\n";
+    return NULL;
+  }
   
   return PyFloat_FromDouble(1/Omega0);
 }
@@ -465,8 +475,10 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
       args, keywds,  "dddd|i", kwlist, 
       &q, &F, &delta, &Omega0, 
       &choice)
-    )
+    ) {
+    std::cerr << "rotstar_from_roche:Problem reading arguments\n";
     return NULL;
+  }
   
   if (choice != 0) {
     std::cerr 
@@ -563,7 +575,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   
   bool b_av[2] = {true, true};  // b_larea, b_lvolume
   
-  PyObject *o_av[2] = {0,0};    // *o_larea = 0, *o_lvolume = 0;
+  PyObject *o_av[2] = {0, 0};    // *o_larea = 0, *o_lvolume = 0;
   
   double q, F, delta, Omega0;
   
@@ -575,8 +587,10 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       &PyBool_Type, o_av + 1,
       eps, eps + 1
       )
-    )
+    ) {
+    std::cerr << "roche_area_volume:Problem reading arguments\n";
     return NULL;
+  }
   
   unsigned res_choice = 0;
  
@@ -780,8 +794,10 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
       &PyBool_Type, &o_larea,
       &PyBool_Type, &o_lvolume
       )
-    )
+    ) {
+    std::cerr << "rotstar_area_volume:Problem reading arguments\n";
     return NULL;
+  }
   
   if (o_larea) b_larea = PyObject_IsTrue(o_larea);
   if (o_lvolume) b_lvolume = PyObject_IsTrue(o_lvolume);
@@ -894,8 +910,10 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
       &accuracy,
       &max_iter
       )
-    )
+    ) {
+    std::cerr << "roche_Omega_at_vol:Problem reading arguments\n";
     return NULL;
+  }
     
   bool b_Omega0 = !std::isnan(Omega0);
   
@@ -1086,8 +1104,10 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
       &accuracy,
       &max_iter
       )
-    )
+    ) {
+    std::cerr << "rotstar_Omega_at_vol:Problem reading arguments\n";
     return NULL;
+  }
     
   bool b_Omega0 = !std::isnan(Omega0);
   
@@ -1164,8 +1184,10 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 
   PyArrayObject *X;
 
-  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X)) {
+    std::cerr << "roche_gradOmega:Problem reading arguments\n";
     return NULL;
+  }
 
   p[3] = 0;
   
@@ -1216,8 +1238,10 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
 
   PyArrayObject *X;
 
-  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
+    std::cerr << "rotstar_gradOmega:Problem reading arguments\n";
     return NULL;
+  }
 
   p[1] = 0;
   
@@ -1266,8 +1290,10 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
   PyArrayObject *X;  
   
-  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X)) {
+    std::cerr << "roche_gradOmega_only:Problem reading arguments\n";
     return NULL;
+  }
 
   Tgen_roche<double> b(p);
   
@@ -1312,8 +1338,11 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
 
   PyArrayObject *X;  
   
-  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) return NULL;
-
+  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
+    std::cerr << "rotstar_gradOmega_only:Problem reading arguments\n";
+    return NULL;
+  }
+  
   Trot_star<double> b(p);
   
   double *g = new double [3];
@@ -1360,8 +1389,10 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
 
   PyArrayObject *X;  
   
-  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dddO!", p, p + 1, p + 2, &PyArray_Type, &X)){
+    std::cerr << "roche_Omega:Problem reading arguments\n";
     return NULL;
+  }
   
   p[3] = 0; // Omega
   
@@ -1399,8 +1430,10 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
 
   PyArrayObject *X;  
   
-  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X))
+  if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
+    std::cerr << "rotstar_Omega:Problem reading arguments\n";
     return NULL;
+  }
 
   p[1] = 0; // Omega
   
@@ -1441,7 +1474,11 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
       max_triangles:integer, default 10^7 
         maximal number of triangles
         if number of triangles exceeds max_triangles it returns NULL  
-  
+      
+      full: boolean, default False
+        using full version of marching method as given in the paper 
+        by (Hartmann, 1998)
+        
       vertices: boolean, default False
       vnormals: boolean, default False
       vnormgrads:boolean, default False
@@ -1525,6 +1562,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"delta",
     (char*)"choice",
     (char*)"max_triangles",
+    (char*)"full",
     (char*)"vertices", 
     (char*)"vnormals",
     (char*)"vnormgrads",
@@ -1543,7 +1581,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   int choice = 0,               
       max_triangles = 10000000; // 10^7
       
-  bool 
+  bool
+    b_full = false,
     b_vertices = false, 
     b_vnormals = false, 
     b_vnormgrads = false,
@@ -1558,6 +1597,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   // http://wingware.com/psupport/python-manual/2.3/api/boolObjects.html
   PyObject
+    *o_full = 0,
     *o_vertices = 0, 
     *o_vnormals = 0, 
     *o_vnormgrads = 0,
@@ -1571,10 +1611,11 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     *o_volume = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|iiO!O!O!O!O!O!O!O!O!O!O!", kwlist,
+      args, keywds,  "ddddd|iiO!O!O!O!O!O!O!O!O!O!O!O!", kwlist,
       &q, &F, &d, &Omega0, &delta, // neccesary 
       &choice,                     // optional ...
       &max_triangles,
+      &PyBool_Type, &o_full,
       &PyBool_Type, &o_vertices, 
       &PyBool_Type, &o_vnormals,
       &PyBool_Type, &o_vnormgrads,
@@ -1586,10 +1627,12 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume 
-      ))
+      )) {
+    std::cerr << "roche_marching_mesh:Problem reading arguments\n";
     return NULL;
+  }
   
-  
+  if (o_full) b_full = PyObject_IsTrue(o_full);
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
   if (o_vnormgrads) b_vnormgrads = PyObject_IsTrue(o_vnormgrads);
@@ -1640,7 +1683,11 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
      
   if (b_vnormgrads) GatV = new std::vector<double>;
   
-  if (!march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)){
+  
+  if ((b_full ? 
+       !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV) :
+       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)
+      )){
     std::cerr << "roche_marching_mesh::There are too many triangles\n";
     return NULL;
   }
@@ -1896,8 +1943,10 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume 
-      ))
+      )){
+    std::cerr << "rotstar_marching_mesh:Problem reading arguments\n";
     return NULL;
+  }
   
   
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
@@ -2117,8 +2166,10 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
         &PyBool_Type, &o_taweights,
         &PyBool_Type, &o_horizon    
         )
-      )
+      ){
+    std::cerr << "mesh_visibility:Problem reading arguments\n";
     return NULL;
+  }
   
   if (o_tvisibilities) b_tvisibilities = PyObject_IsTrue(o_tvisibilities);
   if (o_taweights) b_taweights = PyObject_IsTrue(o_taweights);
@@ -2231,7 +2282,8 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
         &PyArray_Type, &ov,
         &PyArray_Type, &oV, 
         &PyArray_Type, &oT,
-        &PyArray_Type, &oN)) {
+        &PyArray_Type, &oN)){
+    std::cerr << "mesh_rough_visibility:Problem reading arguments\n";
     return NULL;
   }
   
@@ -2377,8 +2429,11 @@ static PyObject *mesh_offseting(PyObject *self, PyObject *args,  PyObject *keywd
       &PyBool_Type, &o_volume,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_curvature
-      )) return NULL;
-
+      )){
+    std::cerr << "*mesh_offseting:Problem reading arguments\n";
+    return NULL;
+  }
+  
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_tnormals) b_tnormals = PyObject_IsTrue(o_tnormals);
   if (o_areas) b_areas = PyObject_IsTrue(o_areas);
@@ -2532,8 +2587,10 @@ static PyObject *mesh_properties(PyObject *self, PyObject *args, PyObject *keywd
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume 
-      ))
+      )){
+    std::cerr << "mesh_properties:Problem reading arguments\n";
     return NULL;
+  }
   
   
   if (o_tnormals) b_tnormals = PyObject_IsTrue(o_tnormals);
@@ -2684,8 +2741,10 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
       &PyArray_Type, &o_light_source,
       &PyString_Type, &o_body_color,   // optional
       &PyBool_Type, &o_plane_enable,
-      &PyFloat_Type, &o_plane_height))
+      &PyFloat_Type, &o_plane_height)){
+    std::cerr << "mesh_export_povray:Problem reading arguments\n";
     return NULL;
+  }
     
   //
   // Storing input data
@@ -2973,8 +3032,10 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
       &PyArray_Type, &oLDidx,
       &epsC,                      // optional
       &epsM,
-      &max_iter))
+      &max_iter)){
+    std::cerr << "mesh_radiosity_Wilson_triangles:Problem reading arguments\n";
     return NULL;
+  }
   
     
   //
@@ -3127,8 +3188,10 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
       &PyList_Type, &oLDmod,
       &epsC,                     // optional
       &epsM,
-      &max_iter))
+      &max_iter)){
+    std::cerr << "mesh_radiosity_Wilson_triangles_nbody_convex::Problem reading arguments\n";
     return NULL;
+  }
   
     
   //
@@ -3138,7 +3201,7 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
   std::vector<TLDmodel<double>*> LDmod;
   
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_triangles::Not able to read LD models\n"; 
+    std::cerr << "mesh_radiosity_Wilson_triangles_nbody_convex::Not able to read LD models\n"; 
     return NULL;
   }
  
@@ -3176,7 +3239,7 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
   //
     
   if (!solve_radiosity_equation_nbody(Fmat, R, Mint, Mtot))
-    std::cerr << "mesh_reflection_Wilson::slow convergence\n";
+    std::cerr << "mesh_radiosity_Wilson_triangles_nbody_convex::slow convergence\n";
   
   PyObject *results = PyList_New(n);
   
@@ -3281,8 +3344,11 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
       &PyList_Type, &oLDmod,
       &epsC,                     // optional
       &epsM,
-      &max_iter))
+      &max_iter)){
+    std::cerr << "mesh_radiosity_Wilson_vertices_nbody_convex::Problem reading arguments\n";
     return NULL;
+  }
+  
   
   //
   // Storing input data
@@ -3291,7 +3357,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
   std::vector<TLDmodel<double>*> LDmod;
   
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_vertices::Not able to read LD models\n"; 
+    std::cerr << "mesh_radiosity_Wilson_vertices_nbody_convex::Not able to read LD models\n"; 
     return NULL;
   }
  
@@ -3329,7 +3395,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
   //
     
   if (!solve_radiosity_equation_nbody(Fmat, R, Mint, Mtot))
-    std::cerr << "mesh_reflection_Wilson::slow convergence\n";
+    std::cerr << "mesh_radiosity_Wilson_vertices_nbody_convex::slow convergence\n";
   
   PyObject *results = PyList_New(n);
   
@@ -3433,8 +3499,10 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
       &PyArray_Type, &oLDidx,
       &epsC,                      // optional
       &epsM,
-      &max_iter))
+      &max_iter)){
+    std::cerr << "mesh_radiosity_Wilson_vertices::Problem reading arguments\n";
     return NULL;
+  }
   
     
   //
@@ -3444,7 +3512,7 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
   std::vector<TLDmodel<double>*> LDmod;
     
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_vecrtices::Not able to read LD models\n"; 
+    std::cerr << "mesh_radiosity_Wilson_vertices::Not able to read LD models\n"; 
     return NULL;
   }
   
@@ -3487,7 +3555,7 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
   PyArray_ToVector(oM0, M0);
   
   if (!solve_radiosity_equation(Fmat, R, M0, M))
-    std::cerr << "mesh_reflection_Wilson::slow convergence\n";
+    std::cerr << "mesh_radiosity_Wilson_vertices::slow convergence\n";
    
   return PyArray_FromVector(M);
 }
@@ -3573,8 +3641,10 @@ static PyObject *roche_central_points(PyObject *self, PyObject *args,  PyObject 
       &PyBool_Type, &o_centers,    // optional
       &PyBool_Type, &o_cnormals,
       &PyBool_Type, &o_cnormgrads
-      ))
+      )){
+    std::cerr << "roche_central_points::Problem reading arguments\n";
     return NULL;
+  }
   
   if (o_centers) b_centers = PyObject_IsTrue(o_centers);
   if (o_cnormals) b_cnormals = PyObject_IsTrue(o_cnormals);
@@ -3726,7 +3796,10 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
       &PyBool_Type, &o_vertices, 
       &PyBool_Type, &o_vnormals,
       &PyBool_Type, &o_vnormgrads,
-      &max_iter)) return NULL;
+      &max_iter)){
+    std::cerr << "roche_reprojecting_vertices::Problem reading arguments\n";
+    return NULL;
+  }
   
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
@@ -3845,8 +3918,11 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
       &PyArray_Type, &oV, 
       &q, &F, &d, &Omega0,
       &length,
-      &choice)) return NULL;
-
+      &choice)){
+    std::cerr << "roche_horizon::Problem reading arguments\n";
+    return NULL;
+  }
+  
   double 
     params[] = {q, F, d, Omega0},
     *view = (double*) PyArray_DATA(oV);
@@ -3938,7 +4014,10 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
       args, keywds,  "O!dd|i", kwlist,
       &PyArray_Type, &oV, 
       &omega, &Omega0,
-      &length)) return NULL;
+      &length)){
+    std::cerr << "rotstar_horizon::Problem reading arguments\n";
+    return NULL;
+  }
 
   double 
     params[] = {omega, Omega0},
@@ -3971,7 +4050,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
  
   if (!horizon.calc(H, view, p, dt)) {
    std::cerr 
-    << "roche_horizon::Convergence to the point on horizon failed\n";
+    << "rotstar_horizon::Convergence to the point on horizon failed\n";
     return NULL;
   }
 
@@ -4027,8 +4106,10 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dddd|i", kwlist,
-      &q, &F, &d, &Omega0, &choice)) return NULL;
-
+      &q, &F, &d, &Omega0, &choice)){
+    std::cerr << "roche_xrange::Problem reading arguments\n";
+    return NULL;
+  }
   
   if (choice < 0 || choice > 2) {
     std::cerr 
@@ -4135,8 +4216,10 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
       &q, &F, &d, &Omega0,    // necessary
       &PyArray_Type, &o_dims, 
       &choice)                // optional
-      ) return NULL;
-
+      ){
+    std::cerr << "roche_square_grid::Problem reading arguments\n";
+    return NULL;
+  }
 
   if (choice < 0 || choice > 2) {
     std::cerr << "roche_square_grid::This choice is not supported\n";
@@ -4318,8 +4401,11 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *t;
   
   if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!", kwlist, 
-      &mu, &PyTuple_Type, &t)) return NULL;
-
+      &mu, &PyTuple_Type, &t)){
+    std::cerr << "ld_funcD::Problem reading arguments\n";
+    return NULL;
+  }
+  
   // NO CHECKING
   int nr_par;
   
@@ -4399,7 +4485,10 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *t;
   
   if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!", kwlist, 
-      &mu, &PyTuple_Type, &t)) return NULL;
+      &mu, &PyTuple_Type, &t)) {
+    std::cerr << "ld_gradparD::Problem reading arguments\n";
+    return NULL;
+  }
 
   // NO CHECKING
   
@@ -4481,8 +4570,10 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
       args, keywds,  "O!O!", kwlist,
       &PyString_Type, &ofilename_planck, 
       &PyString_Type, &ofilename_atm)
-      ) return NULL;
-  
+      ) {
+    std::cerr << "wd_readdata::Problem reading arguments\n";
+    return NULL;
+  }
   
   double 
     *planck_table = new double[wd_atm::N_planck],
@@ -4577,8 +4668,10 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
   if (!PyArg_ParseTupleAndKeywords(
         args, keywds, "diO!", kwlist, 
         &t, &ifil, &PyArray_Type, &oplanck_table
-      )) return NULL;
-
+      )) {
+    std::cerr << "wd_planckint::Problem reading arguments\n";
+    return NULL;
+  }
   //
   // Calculate without checks
   //
@@ -4651,8 +4744,11 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
   if (!PyArg_ParseTupleAndKeywords(
         args, keywds, "OiO!", kwlist, 
         &ot, &ifil, &PyArray_Type, &oplanck_table)
-      ) return NULL;
-
+      ) {
+    std::cerr << "wd_planckint::Problem reading arguments\n";
+    return NULL;
+  }
+  
   double *planck_table = (double*) PyArray_DATA(oplanck_table);
     
   if (PyFloat_Check(ot)) { // argument if float
@@ -4777,8 +4873,10 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         &t, &logg, &abunin, &ifil, 
         &PyArray_Type, &oplanck_table, 
         &PyArray_Type, &oatm_table
-      )) return NULL;
-
+      )) {
+    std::cerr << "wd_atmint::Problem reading arguments\n";
+    return NULL;
+  }
   //
   // Calculate without checks
   //
@@ -4884,8 +4982,10 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyArray_Type, &oplanck_table, 
         &PyArray_Type, &oatm_table,
         &PyBool_Type, &oreturn_abunin
-      )) return NULL;
-  
+      )) {
+    std::cerr << "wd_atmint::Problem reading arguments\n";
+    return NULL;
+  }
 
   if (oreturn_abunin) return_abunin = PyBool_Check(oreturn_abunin);
   

@@ -195,6 +195,12 @@ namespace utils {
     z[2] = x[0]*y[1] - x[1]*y[0];
   }
   
+    // z = x cross y  
+  template <class T> T cross2D(T x[2], T y[2]) {
+    return x[1]*y[2] - x[2]*y[1];
+  }
+  
+  
   // solve for x: A x = b
   template <class T> bool solve2D(T A[2][2], T b[2], T x[2]){
     T det = A[0][0]*A[1][1] - A[1][0]*A[0][1];
@@ -286,7 +292,7 @@ namespace utils {
     return a[0]*std::sqrt(1 + t);
   }
   
-  
+
   /*
     Calculate L2 norm of 3D vector
     
