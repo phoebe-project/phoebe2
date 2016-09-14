@@ -3889,10 +3889,9 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   keywords:
     length: integer, default 1000, 
       approximate number of points on a horizon
-    choice: interr, default 0:
+    choice: integer, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
   Return: 
     H: 2-rank numpy array of 3D point on a horizon
 */
