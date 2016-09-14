@@ -562,14 +562,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 if component=='_default':
                     continue
 
-                # let's populate the intensities for THIS dataset at t0
-                #print "***", kind, dataset, component, {p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, kind='*dep').to_list()+b.get_compute(compute, component=component).to_list()}
-                kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(dataset, component=component, kind='*dep').to_list()+b.get_compute(compute, component=component).to_list()+b.filter(qualifier='passband', dataset=dataset, kind='*dep').to_list()}]
-
-
-                system.populate_observables(t0,
-                    [kind], [dataset],
-                    kwargss, ignore_effects=True)
+                system.populate_observables(t0, [kind], [dataset],
+                                            ignore_effects=True)
 
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
@@ -655,13 +649,11 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
             # print "*** system.populate_observables", [info['kind'] for info in infolist if info['needs_mesh']], [info['dataset'] for info in infolist if info['needs_mesh']]
-            kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], kind='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()+b.filter(qualifier='passband', dataset=info['dataset'], kind='*dep').to_list()} for info in infolist if info['needs_mesh']]
+            # kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], kind='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()+b.filter(qualifier='passband', dataset=info['dataset'], kind='*dep').to_list()} for info in infolist if info['needs_mesh']]
 
             system.populate_observables(time,
                     [info['kind'] for info in infolist if info['needs_mesh']],
-                    [info['dataset'] for info in infolist if info['needs_mesh']],
-                    kwargss
-                    )
+                    [info['dataset'] for info in infolist if info['needs_mesh']])
 
 
         # now let's loop through and fill any synthetics at this time step

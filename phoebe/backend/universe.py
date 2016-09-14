@@ -41,7 +41,8 @@ def _value(obj):
 
 
 class System(object):
-    def __init__(self, bodies_dict, eclipse_method='graham', dynamics_method='keplerian', do_reflection=True):
+    def __init__(self, bodies_dict, eclipse_method='graham',
+                 dynamics_method='keplerian', do_reflection=True):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
@@ -186,7 +187,9 @@ class System(object):
                 body.initialize_mesh()
 
 
-    def update_positions(self, time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=None, Fs=None, ignore_effects=False):
+    def update_positions(self, time, xs, ys, zs, vxs, vys, vzs,
+                         ethetas, elongans, eincls,
+                         ds=None, Fs=None, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -198,10 +201,12 @@ class System(object):
 
         for starref,body in self.items():
             #logger.debug("updating position of mesh for {}".format(starref))
-            body.update_position(time, xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, ds=ds, Fs=Fs, ignore_effects=ignore_effects)
+            body.update_position(time, xs, ys, zs, vxs, vys, vzs,
+                                 ethetas, elongans, eincls,
+                                 ds=ds, Fs=Fs, ignore_effects=ignore_effects)
 
 
-    def populate_observables(self, time, kinds, datasets, kwargss, ignore_effects=False):
+    def populate_observables(self, time, kinds, datasets, ignore_effects=False):
         """
         TODO: add documentation
 
@@ -214,15 +219,20 @@ class System(object):
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
                 # TODO: this needs to take ld_func_bol, ld_coeffs_bol
-                body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
+                body.populate_observable(time, 'lc', 'bol',
+                                         passband=bol_pband,
+                                         ld_func='linear',
+                                         ld_coeffs=[0.],
+                                         atm='blackbody',
+                                         boosting_alg='none')
 
             # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
 
 
-        for kind, dataset, kwargs in zip(kinds, datasets, kwargss):
+        for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
-                body.populate_observable(time, kind, dataset, **kwargs)
+                body.populate_observable(time, kind, dataset)
 
     def handle_reflection(self,  **kwargs):
         """
@@ -472,7 +482,10 @@ class System(object):
 
 
 class Body(object):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, datasets=[], dynamics_method='keplerian'):
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc,
+                 atm='blackbody',
+                 datasets=[], passband = {}, ld_func={}, ld_coeffs={},
+                 dynamics_method='keplerian'):
         """
         TODO: add documentation
         """
@@ -517,6 +530,13 @@ class Body(object):
         # for reprojection for volume conservation in eccentric orbits.
         # Storing meshes should only be done through self.save_as_standard_mesh(theta)
         self._standard_meshes = {}
+
+        self.atm = atm
+
+        # DATSET-DEPENDENT DICTS
+        self.passband = passband
+        self.ld_coeffs = ld_coeffs
+        self.ld_func = ld_func
 
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
@@ -1024,7 +1044,7 @@ class Body(object):
 
         self.populated_at_time.append(dataset)
 
-    # def _populate_lc_pblum(self, dataset, passband, **kwargs):
+    # def _populate_lc_pblum(self, dataset, **kwargs):
 
     #     abs_normal_intensities = self.mesh.observables['abs_normal_intensities:{}'.format(dataset)].for_computations
     #     abs_intensities = self.mesh.observables['abs_intensities:{}'.format(dataset)].for_computations
@@ -1036,7 +1056,10 @@ class Body(object):
     #             'intensities': intensities}
 
 class CustomBody(Body):
-    def __init__(self, masses, sma, ecc, freq_rot, teff, abun, dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1, datasets=[], **kwargs):
+    def __init__(self, masses, sma, ecc, freq_rot, teff, abun,
+                 dynamics_method='keplerian',
+                 ind_self=0, ind_sibling=1, comp_no=1,
+                 atm='blackbody', datasets=[], passband={}, ld_func={}, ld_coeffs={}, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1051,7 +1074,11 @@ class CustomBody(Body):
         :return: instantiated :class:`CustomBody` object
         :raises NotImplementedError: because it isn't
         """
-        super(CustomBody, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, datasets, dynamics_method=dynamics_method)
+        super(CustomBody, self).__init__(comp_no, ind_self, ind_sibling,
+                                         masses, ecc,
+                                         atm, datasets, passband,
+                                         ld_func, ld_coeffs,
+                                         dynamics_method=dynamics_method)
 
 
         self.teff = teff
@@ -1065,7 +1092,8 @@ class CustomBody(Body):
 
 
     @classmethod
-    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian', datasets=[], **kwargs):
+    def from_bundle(cls, b, component, compute=None,
+                    dynamics_method='keplerian', datasets=[], **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1101,7 +1129,15 @@ class CustomBody(Body):
         sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
         ecc = b.get_value('ecc', component=label_orbit, context='component')
 
-        return cls(masses, sma, ecc, freq_rot, teff, abun, dynamics_method, ind_self, ind_sibling, comp_no, datasets=datasets)
+        # TODO: retrieve atm, ld_func, ld_coeffs
+        atm = 'blackbody'
+        ld_func = {}
+        ld_coeffs = {}
+        passband = {}
+
+        return cls(masses, sma, ecc, freq_rot, teff, abun, dynamics_method,
+                   ind_self, ind_sibling, comp_no,
+                   atm, datasets, passband, ld_func, ld_coeffs)
 
 
     @property
@@ -1152,7 +1188,7 @@ class CustomBody(Body):
 
         self.mesh.update_columns(teffs=self.teff)
 
-    def _populate_ifm(self, dataset, passband, **kwargs):
+    def _populate_ifm(self, dataset, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1164,7 +1200,7 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
-    def _populate_rv(self, dataset, passband, **kwargs):
+    def _populate_rv(self, dataset, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1178,7 +1214,7 @@ class CustomBody(Body):
         raise NotImplementedError
 
 
-    def _populate_lc(self, dataset, passband, **kwargs):
+    def _populate_lc(self, dataset, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1190,15 +1226,19 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
-        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
-            'abs_intensities': abs_intensities, 'intensities': intensities}
+        return {'abs_normal_intensities': abs_normal_intensities,
+                'normal_intensities': normal_intensities,
+                'abs_intensities': abs_intensities,
+                'intensities': intensities}
 
 
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
                  gravb_law, abun, frac_refl, mesh_method='marching',
                  dynamics_method='keplerian', ind_self=0, ind_sibling=1,
-                 comp_no=1, is_single=False, datasets=[], do_rv_grav=False,
+                 comp_no=1, is_single=False,
+                 atm='blackbody', datasets=[], passband={}, ld_func={}, ld_coeffs={},
+                 do_rv_grav=False,
                  features=[], do_mesh_offset=True, **kwargs):
         """
 
@@ -1214,7 +1254,9 @@ class Star(Body):
             for the sibling of this object
         :return: instantiated :class:`Star` object
         """
-        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, datasets, dynamics_method=dynamics_method)
+        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
+                                   atm, datasets, passband, ld_func, ld_coeffs,
+                                   dynamics_method=dynamics_method)
 
         self._is_convex = True
 
@@ -1362,9 +1404,17 @@ class Star(Body):
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
+        atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
+        passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
+        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
+
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
                 abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
-                is_single=is_single, datasets=datasets, do_rv_grav=do_rv_grav,
+                is_single=is_single, atm=atm, datasets=datasets,
+                passband=passband, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
     @property
@@ -1822,7 +1872,7 @@ class Star(Body):
 
         # logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(teffs.min(), teffs.max(), Tpole))
 
-    def _populate_ifm(self, dataset, passband, **kwargs):
+    def _populate_ifm(self, dataset, **kwargs):
         """
         TODO: add documentation
 
@@ -1835,10 +1885,11 @@ class Star(Body):
         # given effective wavelength, i.e
         # eff_wave = kwargs.get('eff_wave', 6562e-7)
         # passband = kwargs.get('passband', eff_wave)
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'kurucz')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        passband = kwargs.get('passband', self.passband[dataset])
+        ld_func = kwargs.get('ld_func', self.ld_func[dataset])
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs[dataset]) if ld_func != 'interp' else None
+        atm = kwargs.get('atm', self.atm)
+        # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         lc_cols = self._populate_lc(dataset, **kwargs)
 
@@ -1847,7 +1898,7 @@ class Star(Body):
 
         return cols
 
-    def _populate_rv(self, dataset, passband, **kwargs):
+    def _populate_rv(self, dataset, **kwargs):
         """
         TODO: add documentation
 
@@ -1855,15 +1906,9 @@ class Star(Body):
         or :meth:`System.populate_observables`
         """
 
-        # print "*** Star._populate_rv"
-        # ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        # ld_func = kwargs.get('ld_func', 'logarithmic')
-        # atm = kwargs.get('atm', 'kurucz')
-        # boosting_alg = kwargs.get('boosting_alg', 'none')
-
         # We need to fill all the flux-related columns so that we can weigh each
         # triangle's rv by its flux in the requested passband.
-        lc_cols = self._populate_lc(dataset, passband, **kwargs)
+        lc_cols = self._populate_lc(dataset, **kwargs)
 
         # rv per element is just the z-component of the velocity vectory.  Note
         # the change in sign from our right-handed system to rv conventions.
@@ -1885,7 +1930,7 @@ class Star(Body):
         return cols
 
 
-    def _populate_lc(self, dataset, passband, **kwargs):
+    def _populate_lc(self, dataset, **kwargs):
         """
         TODO: add documentation
 
@@ -1897,13 +1942,13 @@ class Star(Body):
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'blackbody')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        passband = kwargs.get('passband', self.passband.get(dataset, None))
+        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
+        atm = kwargs.get('atm', self.atm)
+        # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         pblum = kwargs.get('pblum', 4*np.pi)
-
 
         if lc_method=='numerical':
 
@@ -1932,30 +1977,7 @@ class Star(Body):
                                                       ld_coeffs=ld_coeffs)
 
             # Beaming/boosting
-            # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
-            if boosting_alg == 'simple':
-                raise NotImplementedError("'simple' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma,
-                                              interp_all=False)
-
-
-            elif boosting_alg == 'local':
-                raise NotImplementedError("'local' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-
-            elif boosting_alg == 'global':
-                raise NotImplementedError("'global' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-            else:
-                alpha_b = 0.0
+            alpha_b = 0.0
 
             # light speed in Rsol/d
             # TODO: should we mutliply velocities by -1 (z convention)?
@@ -2023,7 +2045,8 @@ class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
             abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
-            datasets=[], do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
+            atm='blackbody', datasets=[], ld_func={}, ld_coeffs={},
+            do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -2037,7 +2060,9 @@ class Envelope(Body):
             for the secondary star in this overcontact envelope
         :return: instantiated :class:`Envelope` object
         """
-        super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, datasets, dynamics_method=dynamics_method)
+        super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
+                                       ecc, atm, datasets, ld_func, ld_coeffs,
+                                       dynamics_method=dynamics_method)
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
@@ -2203,9 +2228,17 @@ class Envelope(Body):
 
         do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
 
+        datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
+        atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
+        passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
+        ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
+        ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
+
         return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
                 gravb_bol1, gravb_bol2, gravb_law, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
-                datasets=datasets, do_rv_grav=do_rv_grav,
+                atm=atm,
+                datasets=datasets, passband=passband, ld_func=ld_func, ld_coeffs=ld_coeffs,
+                do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
 
     @property
@@ -2652,7 +2685,7 @@ class Envelope(Body):
         """
         raise NotImplementedError
 
-    def _populate_rv(self, dataset, passband, **kwargs):
+    def _populate_rv(self, dataset, **kwargs):
         """
         TODO: add documentation
 
@@ -2660,15 +2693,9 @@ class Envelope(Body):
         or :meth:`System.populate_observables`
         """
 
-        # print "*** Star._populate_rv"
-        # ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        # ld_func = kwargs.get('ld_func', 'logarithmic')
-        # atm = kwargs.get('atm', 'kurucz')
-        # boosting_alg = kwargs.get('boosting_alg', 'none')
-
         # We need to fill all the flux-related columns so that we can weigh each
         # triangle's rv by its flux in the requested passband.
-        lc_cols = self._populate_lc(dataset, passband, **kwargs)
+        lc_cols = self._populate_lc(dataset, **kwargs)
 
         # rv per element is just the z-component of the velocity vectory.  Note
         # the change in sign from our right-handed system to rv conventions.
@@ -2689,7 +2716,7 @@ class Envelope(Body):
         cols['rvs'] = rvs
         return cols
 
-    def _populate_lc(self, dataset, passband, **kwargs):
+    def _populate_lc(self, dataset,  **kwargs):
         """
         TODO: add documentation
 
@@ -2701,10 +2728,10 @@ class Envelope(Body):
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'blackbody')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        passband = kwargs.get('passband', self.passband.get(dataset, None))
+        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
+        atm = kwargs.get('atm', self.atm)
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -2737,29 +2764,7 @@ class Envelope(Body):
 
             # Beaming/boosting
             # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
-            if boosting_alg == 'simple':
-                raise NotImplementedError("'simple' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma,
-                                              interp_all=False)
-
-
-            elif boosting_alg == 'local':
-                raise NotImplementedError("'local' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-
-            elif boosting_alg == 'global':
-                raise NotImplementedError("'global' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-            else:
-                alpha_b = 0.0
+            alpha_b = 0.0
 
             # light speed in Rsol/d
             # TODO: should we mutliply velocities by -1 (z convention)?
