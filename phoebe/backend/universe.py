@@ -1325,9 +1325,6 @@ class Star(Body):
         # Volume "conservation"
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
 
-        self._pbs = {}
-
-
 
     @classmethod
     def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian', datasets=[], **kwargs):
@@ -1978,30 +1975,25 @@ class Star(Body):
 
         if lc_method=='numerical':
 
-            if passband not in self._pbs.keys():
-                passband_fname = passbands._pbtable[passband]['fname']
-                logger.info("using ptf file: {}".format(passband_fname))
-                pb = passbands.Passband.load(passband_fname)
-
-                self._pbs[passband] = pb
+            pb = passbands.get_passband(passband)
 
             # abs_normal_intensities are the normal emergent passband intensities:
-            abs_normal_intensities = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
-                                                        logg=self.mesh.loggs.for_computations,
-                                                        met=self.mesh.abuns.for_computations,
-                                                        atm=atm)
+            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
+                                              logg=self.mesh.loggs.for_computations,
+                                              met=self.mesh.abuns.for_computations,
+                                              atm=atm)
 
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
-            abs_intensities = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
-                                                      logg=self.mesh.loggs.for_computations,
-                                                      met=self.mesh.abuns.for_computations,
-                                                      mu=abs(self.mesh.mus_for_computations),
-                                                      atm=atm,
-                                                      ld_func=ld_func,
-                                                      ld_coeffs=ld_coeffs,
-                                                      photon_weighted=intens_weighing=='photon')
+            abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
+                                     logg=self.mesh.loggs.for_computations,
+                                     met=self.mesh.abuns.for_computations,
+                                     mu=abs(self.mesh.mus_for_computations),
+                                     atm=atm,
+                                     ld_func=ld_func,
+                                     ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighing=='photon')
 
             # Beaming/boosting
             if self.boosting_method == 'none':
@@ -2145,8 +2137,6 @@ class Envelope(Body):
 
         # Volume "conservation"
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
-
-        self._pbs = {}
 
         self._do_mesh_offset = do_mesh_offset
 
@@ -2775,30 +2765,25 @@ class Envelope(Body):
 
         if lc_method=='numerical':
 
-            if passband not in self._pbs.keys():
-                passband_fname = passbands._pbtable[passband]['fname']
-                logger.info("using ptf file: {}".format(passband_fname))
-                pb = passbands.Passband.load(passband_fname)
-
-                self._pbs[passband] = pb
+            pb = passbands.get_passband(passband)
 
             # abs_normal_intensities are the normal emergent passband intensities:
-            abs_normal_intensities = self._pbs[passband].Inorm(Teff=self.mesh.teffs.for_computations,
-                                                        logg=self.mesh.loggs.for_computations,
-                                                        met=self.mesh.abuns.for_computations,
-                                                        atm=atm)
+            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
+                                              logg=self.mesh.loggs.for_computations,
+                                              met=self.mesh.abuns.for_computations,
+                                              atm=atm)
 
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
-            abs_intensities = self._pbs[passband].Imu(Teff=self.mesh.teffs.for_computations,
-                                                      logg=self.mesh.loggs.for_computations,
-                                                      met=self.mesh.abuns.for_computations,
-                                                      mu=abs(self.mesh.mus_for_computations),
-                                                      atm=atm,
-                                                      ld_func=ld_func,
-                                                      ld_coeffs=ld_coeffs,
-                                                      photon_weighted=intens_weighing=='photon')
+            abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
+                                     logg=self.mesh.loggs.for_computations,
+                                     met=self.mesh.abuns.for_computations,
+                                     mu=abs(self.mesh.mus_for_computations),
+                                     atm=atm,
+                                     ld_func=ld_func,
+                                     ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighing=='photon')
 
             # Beaming/boosting
             if self.boosting_method == 'none':

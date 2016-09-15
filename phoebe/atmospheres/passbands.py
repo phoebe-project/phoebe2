@@ -601,7 +601,19 @@ def init_passbands():
     path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
     for f in os.listdir(path):
         pb = Passband.load(path+f)
-        _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content}
+        _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+
+def get_passband(passband):
+
+    if passband not in _pbtable.keys():
+        raise ValueError("passband: {} not found. Try one of: {}".format(passband, _pbtable.keys()))
+
+    if _pbtable[passband]['pb'] is None:
+        logger.info("loading {} passband".format(passband))
+        pb = Passband.load(_pbtable[passband]['fname'])
+        _pbtable[passband]['pb'] = pb
+
+    return _pbtable[passband]['pb']
 
 
 if __name__ == '__main__':
