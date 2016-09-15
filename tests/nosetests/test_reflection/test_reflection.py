@@ -21,7 +21,7 @@ def test_binary(plot=False):
     b.add_dataset('lc', times=np.linspace(0,3,101))
     if plot:
         b.add_dataset('mesh', times=[0.0])
-    b.add_compute('phoebe', compute='phoebe2', refl=True)
+    b.add_compute('phoebe', compute='phoebe2', reflection_method='wilson')
     b.add_compute('legacy', compute='phoebe1', mult_refl=True, refl_num=5)
 
     # set matching atmospheres

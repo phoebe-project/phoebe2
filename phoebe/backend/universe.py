@@ -42,7 +42,7 @@ def _value(obj):
 
 class System(object):
     def __init__(self, bodies_dict, eclipse_method='graham',
-                 dynamics_method='keplerian', do_reflection=True):
+                 dynamics_method='keplerian', reflection_method='wilson'):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
@@ -51,7 +51,7 @@ class System(object):
         # self.subdiv_alg = subdiv_alg
         # self.subdiv_num = subdiv_num
         self.dynamics_method = dynamics_method
-        self.do_reflection = do_reflection
+        self.reflection_method = reflection_method
 
         return
 
@@ -92,13 +92,13 @@ class System(object):
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
-            do_reflection = compute_ps.get_value(qualifier='refl', **kwargs)
+            reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
         else:
             eclipse_method = 'graham'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
-            do_reflection = True
+            reflection_method = 'wilson'
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -115,7 +115,7 @@ class System(object):
 
         return cls(bodies_dict, eclipse_method=eclipse_method,
                    dynamics_method=dynamics_method,
-                   do_reflection=do_reflection)
+                   reflection_method=reflection_method)
 
     def items(self):
         """
@@ -215,7 +215,7 @@ class System(object):
 
         bol_pband = 'Bolometric:1760-40000'
 
-        if self.do_reflection and not ignore_effects:  # and kinds includes a kind that requires fluxes
+        if self.reflection_method is not 'none' and not ignore_effects:  # and kinds includes a kind that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
                 # TODO: this needs to take ld_func_bol, ld_coeffs_bol
@@ -237,7 +237,7 @@ class System(object):
     def handle_reflection(self,  **kwargs):
         """
         """
-        if not self.do_reflection:
+        if not self.reflection_method:
             return
 
 
@@ -265,17 +265,17 @@ class System(object):
             ld_func = kwargs.get('ld_func_bol', 'logarithmic')
             ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
-            # ld_inds = np.zeros(frac_refls_flat.shape)
+            # ld_inds = np.zeros(frac_refls_f
 
-            intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
-                                                                                       triangles_per_body,
-                                                                                       normals_per_body,
-                                                                                       areas_per_body,
-                                                                                       frac_refls_per_body,
-                                                                                       intens_intrins_per_body,
-                                                                                       ld_func_and_coeffs
-                                                                                       )
-
+            if self.reflection_method == 'wilson':
+                intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
+                                                                                           triangles_per_body,
+                                                                                           normals_per_body,
+                                                                                           areas_per_body,
+                                                                                           frac_refls_per_body,
+                                                                                           intens_intrins_per_body,
+                                                                                           ld_func_and_coeffs
+                                                                                           )
 
             # intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_triangles_nbody_convex(vertices_per_body,
             #                                                                            triangles_per_body,
@@ -285,6 +285,13 @@ class System(object):
             #                                                                            intens_intrins_per_body,
             #                                                                            ld_func_and_coeffs
             #                                                                            )
+
+
+            else:
+                raise NotImplementedError("reflection_method='{}' is not supported".format(self.reflection_method))
+
+
+
 
             intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
@@ -306,25 +313,30 @@ class System(object):
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
             ld_inds = np.zeros(frac_refls_flat.shape)
 
-            # TODO: this will fail for WD meshes - use triangles instead?
-            intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
-                                                                                    triangles_flat,
-                                                                                    normals_flat,
-                                                                                    areas_flat,
-                                                                                    frac_refls_flat,
-                                                                                    intens_intrins_flat,
-                                                                                    ld_func_and_coeffs,
-                                                                                    ld_inds)
+            if self.reflection_method == 'wilson':
+                # TODO: this will fail for WD meshes - use triangles instead?
+                intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
+                                                                                        triangles_flat,
+                                                                                        normals_flat,
+                                                                                        areas_flat,
+                                                                                        frac_refls_flat,
+                                                                                        intens_intrins_flat,
+                                                                                        ld_func_and_coeffs,
+                                                                                        ld_inds)
 
 
-            # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
-                                                                                    # triangles_flat,
-                                                                                    # normals_flat,
-                                                                                    # areas_flat,
-                                                                                    # frac_refls_flat,
-                                                                                    # intens_intrins_flat,
-                                                                                    # ld_func_and_coeffs,
-                                                                                    # ld_inds)
+                # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
+                                                                                        # triangles_flat,
+                                                                                        # normals_flat,
+                                                                                        # areas_flat,
+                                                                                        # frac_refls_flat,
+                                                                                        # intens_intrins_flat,
+                                                                                        # ld_func_and_coeffs,
+                                                                                        # ld_inds)
+
+            else:
+                raise NotImplementedError("reflection_method='{}' is not supported".format(self.reflection_method))
+
 
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
