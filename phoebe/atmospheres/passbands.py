@@ -303,24 +303,38 @@ class Passband:
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             
+            # trim the spectrum at passband limits
+
             keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             wl = spc[0][keep]
             fl = spc[1][keep]
+
+            # make a log-scale copy for boosting and compute the diffs
+            # for the spectral index (alpha = dln(flux)/dln(lambda);
+            # extrapolate on the upper boundary to preserve array
+            # length.
+            
+            lnwl = np.log(wl)
+            lnfl = np.log(fl)
+            
+            dlnwl = np.roll(lnwl,-1)-lnwl
+            dlnfl = np.roll(lnfl,-1)-lnfl
+            dlnwl[-1] = dlnwl[-2]
+            dlnfl[-1] = dlnfl[-2]
+
+            # calculate energy (E) and photon (P) weighted fluxes and
+            # their integrals.
             
             flE = self.ptf(wl)*fl
             flP = wl*flE
             flEint = flE.sum()
             flPint = flP.sum()
             
-            lnwl, lnfl = np.log(wl), np.log(fl)
+            # calculate mean boosting coefficient and use it to get
+            # boosting factors for energy (E) and photon (P) weighted
+            # fluxes.
             
-            # compute the differences while extrapolating on the lower boundary to preserve array length
-            dlnwl = np.roll(lnwl,1)-lnwl
-            dlnfl = np.roll(lnfl,1)-lnfl
-            dlnwl[0] = dlnwl[1]
-            dlnfl[0] = dlnfl[1]
-            
-            Blambda = (dlnfl+7*lnwl)/dlnwl
+            Blambda = (dlnfl+5*lnwl)/dlnwl
             boostE = (flE*Blambda).sum()/flEint
             boostP = (flP*Blambda).sum()/flPint
             
@@ -625,6 +639,28 @@ class Passband:
         nanmask = np.isnan(retval)
         if np.any(nanmask):
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
+        return retval
+
+    def _bfactor_ck2004(self, Teff, logg, met, rv, mu, atm, photon_weighted=False):
+        grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, met, mu),))
+            bfactor = interp.interp(req, self._ck2004_intensity_axes, grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, met, mu)).T
+            bfactor = interp.interp(req, self._ck2004_intensity_axes, grid).T[0]
+
+        return bfactor
+
+    def bfactor(self, Teff=5772., logg=4.43, met=0.0, rv=5.0, mu=1.0, atm='blackbody', photon_weighted=False):
+        if atm == 'ck2004':
+            retval = self._bfactor_ck2004(Teff, logg, met, rv, mu, atm, photon_weighted)
+        else:
+            raise NotImplementedError('atm={} not supported'.format(atm))
+
+        nanmask = np.isnan(retval)
+        if np.any(nanmask):
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s' % (Teff[nanmask], logg[nanmask], met[nanmask]))
         return retval
 
 def init_passbands():
