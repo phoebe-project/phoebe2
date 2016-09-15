@@ -771,7 +771,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                         vcs[i] = np.full(3, np.nan)
                 this_syn['visible_centroids'] = vcs
 
-                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'ampl_boosts'], 'lc': ['intensities', 'normal_intensities', 'ampl_boosts'], 'ifm': []}
+                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
                 if _devel_enabled:
                     indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
                     indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']

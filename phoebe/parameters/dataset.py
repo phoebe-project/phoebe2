@@ -396,12 +396,12 @@ def mesh_syn(syn=True, **kwargs):
                 for dataset, kind in kwargs.get('dataset_fields', {}).items():
                     # TODO: descriptions for each column
                     if kind=='rv':
-                        indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'ampl_boosts': u.dimensionless_unscaled}
+                        indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
                         if _devel_enabled:
                             indeps['abs_intensities'] = u.W/u.m**3
                             indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='lc':
-                        indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'ampl_boosts': u.dimensionless_unscaled}
+                        indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
                         if _devel_enabled:
                             indeps['abs_intensities'] = u.W/u.m**3
                             indeps['abs_normal_intensities'] = u.W/u.m**3

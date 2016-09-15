@@ -42,16 +42,18 @@ def _value(obj):
 
 class System(object):
     def __init__(self, bodies_dict, eclipse_method='graham',
-                 dynamics_method='keplerian', reflection_method='wilson'):
+                 dynamics_method='keplerian',
+                 reflection_method='none',
+                 boosting_method='none'):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
         self._bodies = bodies_dict
         self.eclipse_method = eclipse_method
-        # self.subdiv_alg = subdiv_alg
-        # self.subdiv_num = subdiv_num
         self.dynamics_method = dynamics_method
         self.reflection_method = reflection_method
+        for body in self._bodies.values():
+            body.boosting_method = boosting_method
 
         return
 
@@ -93,12 +95,14 @@ class System(object):
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
+            boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
         else:
             eclipse_method = 'graham'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
-            reflection_method = 'wilson'
+            reflection_method = 'none'
+            boosting_method = 'none'
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -115,7 +119,8 @@ class System(object):
 
         return cls(bodies_dict, eclipse_method=eclipse_method,
                    dynamics_method=dynamics_method,
-                   reflection_method=reflection_method)
+                   reflection_method=reflection_method,
+                   boosting_method=boosting_method)
 
     def items(self):
         """
@@ -224,7 +229,7 @@ class System(object):
                                          ld_func='linear',
                                          ld_coeffs=[0.],
                                          atm='blackbody',
-                                         boosting_alg='none')
+                                         boosting_method='none')
 
             # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
@@ -1911,7 +1916,6 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func[dataset])
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs[dataset]) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
-        # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         lc_cols = self._populate_lc(dataset, **kwargs)
 
@@ -1969,7 +1973,6 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
-        # boosting_alg = kwargs.get('boosting_alg', 'none')
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -2001,14 +2004,17 @@ class Star(Body):
                                                       photon_weighted=intens_weighing=='photon')
 
             # Beaming/boosting
-            alpha_b = 0.0
+            if self.boosting_method == 'none':
+                alpha_b = 0.0
 
-            # light speed in Rsol/d
-            # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boosts = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+                # light speed in Rsol/d
+                # TODO: should we mutliply velocities by -1 (z convention)?
+                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            else:
+                raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
             # TODO: does this make sense to boost proj but not norm?
-            abs_intensities *= ampl_boosts
+            abs_intensities *= boost_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
@@ -2060,7 +2066,7 @@ class Star(Body):
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
-            'ampl_boosts': ampl_boosts}
+            'boost_factors': boost_factors}
 
 
 
@@ -2795,15 +2801,17 @@ class Envelope(Body):
                                                       photon_weighted=intens_weighing=='photon')
 
             # Beaming/boosting
-            # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
-            alpha_b = 0.0
+            if self.boosting_method == 'none':
+                alpha_b = 0.0
 
-            # light speed in Rsol/d
-            # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boosts = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+                # light speed in Rsol/d
+                # TODO: should we mutliply velocities by -1 (z convention)?
+                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            else:
+                raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
             # TODO: does this make sense to boost proj but not norm?
-            abs_intensities *= ampl_boosts
+            abs_intensities *= boost_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
@@ -2855,7 +2863,7 @@ class Envelope(Body):
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
-            'ampl_boosts': ampl_boosts}
+            'boost_factors': boost_factors}
 
 
 class Feature(object):
