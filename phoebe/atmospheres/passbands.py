@@ -301,25 +301,28 @@ class Passband:
         models = os.listdir(path)
         Nmodels = len(models)
         
-        Teff, logg, met, mu, ImuE, ImuP = [], [], [], [], [], []
-        boostingE, boostingP = np.ones(Nmodels), np.ones(Nmodels)
+        Teff, logg, met = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        mu, ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
             print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
-            #spc = np.loadtxt(path+'/'+model).T
             if _have_pandas:
                 spc = pd.read_csv(path+'/'+model, delim_whitespace=True).values.T
             else:
+                #spc = np.loadtxt(path+'/'+model).T -- waaay slower
                 spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
-            Teff.append(float(model[-26:-21]))
-            logg.append(float(model[-20:-18]))
-            sign = 1. if model[-18]=='P' else -1.
-            met.append(sign*float(model[-17:-15]))
-            mu.append(float(model[-14:-9]))
+
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+
+            Teff[i] = float(model[-26:-21])
+            logg[i] = float(model[-20:-18])
+            sign = 1. if model[-18]=='P' else -1.
+            met[i] = sign*float(model[-17:-15])
+            mu[i] = float(model[-14:-9])
             
             # trim the spectrum at passband limits
 
