@@ -21,6 +21,15 @@ import logging
 logger = logging.getLogger("PASSBANDS")
 logger.addHandler(logging.NullHandler())
 
+# pandas is much faster for reading in files from the disk. If available,
+# use that instead of numpy's fromfile() or, heaven-forbid, loadtxt().
+try:
+    import pandas as pd
+except:
+    _have_pandas = False
+else:
+    _have_pandas = True
+
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
 # at some point.
@@ -254,7 +263,10 @@ class Passband:
 
         for i, model in enumerate(models):
             #~ spc = np.loadtxt(model).T
-            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
+            if _have_pandas:
+                spc = pd.read_csv(model, delim_whitespace=True).values.T
+            else:
+                spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
             Teff.append(float(model[-26:-21]))
             logg.append(float(model[-20:-18]))
@@ -297,7 +309,10 @@ class Passband:
 
         for i, model in enumerate(models):
             #spc = np.loadtxt(path+'/'+model).T
-            spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
+            if _have_pandas:
+                spc = pd.read_csv(path+'/'+model, delim_whitespace=True).values.T
+            else:
+                spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
             Teff.append(float(model[-26:-21]))
             logg.append(float(model[-20:-18]))
             sign = 1. if model[-18]=='P' else -1.
