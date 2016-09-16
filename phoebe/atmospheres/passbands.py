@@ -301,8 +301,8 @@ class Passband:
         models = os.listdir(path)
         Nmodels = len(models)
         
-        Teff, logg, met = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-        mu, ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        Teff, logg, met, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
@@ -359,8 +359,8 @@ class Passband:
             boostE = (flE*Blambda).sum()/flEint
             boostP = (flP*Blambda).sum()/flPint
             
-            ImuE.append(np.log10(flEint)-10)  # energy-weighted flux; -10 because of the 1AA dispersion
-            ImuP.append(np.log10(flPint/1.9864458e-5)) # photon-weighted flux; the constant is 1e10*1e10*h*c
+            ImuE[i] = np.log10(flEint)-10  # energy-weighted flux; -10 because of the 1AA dispersion
+            ImuP[i] = np.log10(flPint/1.9864458e-5) # photon-weighted flux; the constant is 1e10*1e10*h*c
             boostingE[i] = boostE
             boostingP[i] = boostP
 
@@ -368,12 +368,8 @@ class Passband:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
 
-        Teff = np.array(Teff)
-        logg = np.array(logg)/10
-        abun = np.array(met)/10
-        mu = np.array(mu)
-        ImuE = np.array(ImuE)
-        ImuP = np.array(ImuP)
+        logg /= 10
+        abun /= 10
 
         # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
         # with nans where the grid isn't complete. Imu-s come in two
