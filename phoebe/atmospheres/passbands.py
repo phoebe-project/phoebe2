@@ -302,7 +302,7 @@ class Passband:
         Nmodels = len(models)
         
         Teff, logg, met, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-        ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
         boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
