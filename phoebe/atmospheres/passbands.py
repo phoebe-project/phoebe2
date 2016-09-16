@@ -253,7 +253,9 @@ class Passband:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
-            spc = np.loadtxt(model).T
+            #~ spc = np.loadtxt(model).T
+            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
+
             Teff.append(float(model[-26:-21]))
             logg.append(float(model[-20:-18]))
             sign = 1. if model[-18]=='P' else -1.
@@ -294,7 +296,8 @@ class Passband:
             print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
-            spc = np.loadtxt(path+'/'+model).T
+            #spc = np.loadtxt(path+'/'+model).T
+            spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
             Teff.append(float(model[-26:-21]))
             logg.append(float(model[-20:-18]))
             sign = 1. if model[-18]=='P' else -1.
