@@ -1256,7 +1256,7 @@ class CustomBody(Body):
 
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                 gravb_law, abun, frac_refl, mesh_method='marching',
+                 abun, frac_refl, mesh_method='marching',
                  dynamics_method='keplerian', ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False,
                  atm='blackbody', datasets=[], passband={},
@@ -1311,7 +1311,7 @@ class Star(Body):
 
         self.teff = teff
         self.gravb_bol = gravb_bol
-        self.gravb_law = gravb_law
+        # self.gravb_law = gravb_law
         self.abun = abun
         self.frac_refl = frac_refl
         # self.frac_heat = frac_heat
@@ -1388,7 +1388,7 @@ class Star(Body):
             is_single = True
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
-        gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
+        # gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
         gravb_bol= b.get_value('gravb_bol', component=component, context='component')
 
         abun = b.get_value('abun', component=component, context='component')
@@ -1432,7 +1432,7 @@ class Star(Body):
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
-        return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol, gravb_law,
+        return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
                 abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
                 passband=passband, intens_weighing=intens_weighing,
@@ -1992,7 +1992,7 @@ class Star(Body):
 
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
-            abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, gravb_law, mesh_method='marching',
+            abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighing={},
             ld_func={}, ld_coeffs={},
@@ -2048,7 +2048,7 @@ class Envelope(Body):
         self.frac_refl2 = frac_refl2
         self.gravb_bol1 = gravb_bol1
         self.gravb_bol2 = gravb_bol2
-        self.gravb_law = gravb_law
+        # self.gravb_law = gravb_law
 
         # only putting this here so update_position doesn't complain
         self.frac_refl = 0.
@@ -2140,7 +2140,7 @@ class Envelope(Body):
         gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
         gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
 
-        gravb_law = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
+        # gravb_law = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
         #gravb_law2 = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
 
         abun = b.get_value('abun', component=component, context='component')
@@ -2186,7 +2186,7 @@ class Envelope(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
-                gravb_bol1, gravb_bol2, gravb_law, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                gravb_bol1, gravb_bol2, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
                 atm=atm,
                 datasets=datasets, passband=passband,
                 intens_weighing=intens_weighing,
