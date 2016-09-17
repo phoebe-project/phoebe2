@@ -17,7 +17,7 @@ def test_checks():
     # test overflow
     passed, msg = b.run_checks()
     if not passed:
-        raise AssertionError
+        raise AssertionError(msg)
 
     b.set_value('rpole', component='primary', value=8)
     passed, msg = b.run_checks()
@@ -32,7 +32,7 @@ def test_checks():
     # test ld_func vs ld_coeffs
     passed, msg = b.run_checks()
     if not passed:
-        raise AssertionError
+        raise AssertionError(msg)
 
     b.set_value('ld_coeffs_bol', component='primary', value=[0.])
     passed, msg = b.run_checks()
@@ -51,11 +51,20 @@ def test_checks():
     # test ld_func vs atm
     passed, msg = b.run_checks()
     if not passed:
-        raise AssertionError
+        raise AssertionError(msg)
 
     b.set_value('atm', component='primary', value='blackbody')
     passed, msg = b.run_checks()
     if passed:
+        raise AssertionError
+    b.set_value('atm', component='primary', value='ck2004')
+
+
+    # test gravb vs teff warning
+    b.set_value('teff', component='primary', value=6000)
+    b.set_value('gravb_bol', component='primary', value=1.0)
+    passed, msg = b.run_checks()
+    if passed is not None:
         raise AssertionError
 
     return b
