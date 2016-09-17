@@ -97,7 +97,7 @@ def star(component, **kwargs):
 
     # params += [ChoiceParameter(qualifier='gravblaw_bol', value=kwargs.get('gravblaw_bol', 'zeipel'), choices=['zeipel', 'espinosa', 'claret'], description='Gravity brightening law')]
 
-    params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 0.32), default_unit=u.dimensionless_unscaled, description='Bolometric gravity brightening')]
+    params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 1.0), default_unit=u.dimensionless_unscaled, description='Bolometric gravity brightening')]
 
     # params += [FloatParameter(qualifier='frac_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
     params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
