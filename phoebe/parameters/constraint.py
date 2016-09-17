@@ -602,6 +602,25 @@ def refl(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
+def reflredist(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint to ensure that all reflected light is considered under
+    the available redistribution schemes
+    """
+    comp_ps = b.get_component(component=component)
+
+    frac_refl_noredist_bol = comp_ps.get_parameter('frac_refl_noredist_bol')
+    frac_refl_localredist_bol = comp_ps.get_parameter('frac_refl_localredist_bol')
+    frac_refl_horizredist_bol = comp_ps.get_parameter('frac_refl_horizredist_bol')
+    frac_refl_globalredist_bol = comp_ps.get_parameter('frac_refl_globalredist_bol')
+
+    if solve_for in [frac_refl_noredist_bol, None]:
+        lhs = frac_refl_noredist_bol
+        rhs = 1.0 - frac_refl_localredist_bol - frac_refl_horizredist_bol - frac_refl_globalredist_bol
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
 
 
 #}
