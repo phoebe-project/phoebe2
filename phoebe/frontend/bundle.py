@@ -1119,6 +1119,17 @@ class Bundle(ParameterSet):
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
 
+            # while we're looping through stars, let's check teff vs gravb_bol
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.k)
+            gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
+
+            if teff >= 8000. and gravb_bol < 0.9:
+                return None, 'Object probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}'.format(teff, gravb_bol)
+            elif teff <= 6600. and gravb_bol >= 0.9:
+                return None, 'Object probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}'.format(teff, gravb_bol)
+            elif gravb_bol < 0.32 or gravb_bol > 1.00:
+                return None, 'Object has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}'.format(teff, gravb_bol)
+
         # TODO: add other checks
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
@@ -2199,9 +2210,14 @@ class Bundle(ParameterSet):
         if model is None:
             model = 'latest'
 
-        passed, msg = self.run_checks()
-        if not passed and not kwargs.get('skip_checks', False):
-            raise ValueError("system failed to pass checks: {}".format(msg))
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks()
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         if model in self.models:
             logger.warning("overwriting model: {}".format(model))
