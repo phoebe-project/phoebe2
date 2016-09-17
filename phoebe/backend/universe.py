@@ -256,7 +256,7 @@ class System(object):
             raise NotImplementedError("reflection not yet supported for WD-style meshing")
 
         if np.all([body.is_convex for body in self.bodies]):
-            logger.info("handling reflection (convex case)")
+            logger.info("handling reflection (convex case), method='{}'".format(self.reflection_method))
 
             vertices_per_body = meshes.get_column('vertices').values()
             triangles_per_body = meshes.get_column('triangles').values()
@@ -272,30 +272,25 @@ class System(object):
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
             # ld_inds = np.zeros(frac_refls_f
 
-            if self.reflection_method == 'wilson':
-                intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_vertices_nbody_convex(vertices_per_body,
-                                                                                           triangles_per_body,
-                                                                                           normals_per_body,
-                                                                                           areas_per_body,
-                                                                                           frac_refls_per_body,
-                                                                                           intens_intrins_per_body,
-                                                                                           ld_func_and_coeffs
-                                                                                           )
+            intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
+                                                                                       triangles_per_body,
+                                                                                       normals_per_body,
+                                                                                       areas_per_body,
+                                                                                       frac_refls_per_body,
+                                                                                       intens_intrins_per_body,
+                                                                                       ld_func_and_coeffs,
+                                                                                       self.reflection_method.title()
+                                                                                       )
 
-            # intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_Wilson_triangles_nbody_convex(vertices_per_body,
+            # intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
             #                                                                            triangles_per_body,
             #                                                                            normals_per_body,
             #                                                                            areas_per_body,
             #                                                                            frac_refls_per_body,
             #                                                                            intens_intrins_per_body,
-            #                                                                            ld_func_and_coeffs
+            #                                                                            ld_func_and_coeffs,
+            #                                                                            self.reflection_method.title()
             #                                                                            )
-
-
-            else:
-                raise NotImplementedError("reflection_method='{}' is not supported".format(self.reflection_method))
-
-
 
 
             intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
@@ -303,7 +298,7 @@ class System(object):
 
 
         else:
-            logger.info("handling reflection (general case)")
+            logger.info("handling reflection (general case), method='{}'".format(self.reflection_method))
 
             vertices_flat = meshes.get_column_flat('vertices')
             triangles_flat = meshes.get_column_flat('triangles')
@@ -318,31 +313,29 @@ class System(object):
             ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
             ld_inds = np.zeros(frac_refls_flat.shape)
 
-            if self.reflection_method == 'wilson':
-                # TODO: this will fail for WD meshes - use triangles instead?
-                intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_vertices(vertices_flat,
-                                                                                        triangles_flat,
-                                                                                        normals_flat,
-                                                                                        areas_flat,
-                                                                                        frac_refls_flat,
-                                                                                        intens_intrins_flat,
-                                                                                        ld_func_and_coeffs,
-                                                                                        ld_inds)
+            # TODO: this will fail for WD meshes - use triangles instead?
+            intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
+                                                                                    triangles_flat,
+                                                                                    normals_flat,
+                                                                                    areas_flat,
+                                                                                    frac_refls_flat,
+                                                                                    intens_intrins_flat,
+                                                                                    ld_func_and_coeffs,
+                                                                                    ld_inds,
+                                                                                    self.refelction_method.title()
+                                                                                    )
 
 
-                # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_Wilson_triangles(vertices_flat,
-                                                                                        # triangles_flat,
-                                                                                        # normals_flat,
-                                                                                        # areas_flat,
-                                                                                        # frac_refls_flat,
-                                                                                        # intens_intrins_flat,
-                                                                                        # ld_func_and_coeffs,
-                                                                                        # ld_inds)
-
-            else:
-                raise NotImplementedError("reflection_method='{}' is not supported".format(self.reflection_method))
-
-
+            # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_triangles(vertices_flat,
+                                                                                    # triangles_flat,
+                                                                                    # normals_flat,
+                                                                                    # areas_flat,
+                                                                                    # frac_refls_flat,
+                                                                                    # intens_intrins_flat,
+                                                                                    # ld_func_and_coeffs,
+                                                                                    # ld_inds,
+                                                                                    # self.reflection_method.title()
+                                                                                    # )
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
