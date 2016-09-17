@@ -242,7 +242,7 @@ class System(object):
     def handle_reflection(self,  **kwargs):
         """
         """
-        if not self.reflection_method:
+        if self.reflection_method == 'none':
             return
 
 
