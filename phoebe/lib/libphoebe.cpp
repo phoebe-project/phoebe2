@@ -2886,6 +2886,10 @@ TLDmodel<double> *LDmodelFromTuple(PyObject *p) {
       e = ReadFloatFromTuple(p, 2, 1, par);
       if (e == 0) return new TLDsquare_root<double>(par);
     break;
+   
+    case "interp"_hash32:
+      return 0;
+    break;
     
     default:
       std::cerr << "LDmodelFromTuple::Don't know to handle this LD model.\n";
@@ -2951,16 +2955,15 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
   return true;
 }
 
-
 /*
   C++ wrapper for Python code:
 
-  Calculate radiosity of triangles due to reflection according to 
-  Wilson's reflection model using triangles as support of the surface.
+  Calculate radiosity of triangles due to reflection according to a 
+  chosen reflection model using triangles as support of the surface.
   
   Python:
 
-    M = mesh_radiosity_Wilson_triangles(V, Tr, NatT, A, R, M0, LDmod, LDidx, <keyword>=<value>, ... )
+    F = mesh_radiosity_problem_triangles(V, Tr, NatT, A, R, F0, LDmod, LDidx, model, <keyword>=<value>, ... )
     
   where positional parameters:
   
@@ -2970,7 +2973,7 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
     NatT[][3]: 2-rank numpy array of normals of face triangles
     A[]: 1-rank numpy array of areas of triangles
     R[]: 1-rank numpy array of albedo/reflection of triangles
-    M0[]: 1-rank numpy array of intrisic radiant exitance of triangles
+    F0[]: 1-rank numpy array of intrisic radiant exitance/flux of triangles
 
     LDmod: list of tuples of the format 
             ("name", sequence of parameters)
@@ -2981,8 +2984,13 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
+              "interp"      interpolation data TODO !!!!
+              
     LDidx[]: 1-rank numpy array of indices of LD models used on each of triangles
- 
+    
+    model : string - name of the reflection model in use 
+             method in {"Wilson", "Horvat"}
+             
   optionally:
 
     epsC: float, default 0.00872654 = cos(89.5deg) 
@@ -2993,14 +3001,17 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
           maximal number of iterations in the solver of the radiosity eq.
  
   Returns:
-    M[]: 1-rank numpy array of radiosities (intrinsic and reflection) of triangles
+    F[]: 1-rank numpy array of radiosities (intrinsic and reflection) of triangles
   
   Ref:
   * Wilson, R. E.  Accuracy and efficiency in the binary star reflection effect, 
     Astrophysical Journal,  356, 613-622, 1990 June
 */
 
-static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *mesh_radiosity_problem_triangles(
+  PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "mesh_radiosity_problem_triangles";
   
   //
   // Reading arguments
@@ -3012,9 +3023,10 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
     (char*)"NatT", 
     (char*)"A",
     (char*)"R",
-    (char*)"M0",
+    (char*)"F0",
     (char*)"LDmod",
     (char*)"LDidx",
+    (char*)"model",
     (char*)"epsC",
     (char*)"epsM",
     (char*)"max_iter",
@@ -3027,24 +3039,25 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
     epsC = 0.00872654,        // default value
     epsM = 1e-12;             // default value
   
-  PyArrayObject *oV, *oT, *oNatT, *oA, *oR, *oM0, *oLDidx;
+  PyArrayObject *oV, *oT, *oNatT, *oA, *oR, *oF0, *oLDidx;
      
-  PyObject *oLDmod;
+  PyObject *oLDmod, *omodel;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!O!O!O!O!O!O!O!|ddi", kwlist,
+      args, keywds,  "O!O!O!O!O!O!O!O!O!|ddi", kwlist,
       &PyArray_Type, &oV,         // neccesary 
       &PyArray_Type, &oT,
       &PyArray_Type, &oNatT,
       &PyArray_Type, &oA,
       &PyArray_Type, &oR,
-      &PyArray_Type, &oM0,
+      &PyArray_Type, &oF0,
       &PyList_Type, &oLDmod,
       &PyArray_Type, &oLDidx,
+      &PyString_Type, &omodel,
       &epsC,                      // optional
       &epsM,
       &max_iter)){
-    std::cerr << "mesh_radiosity_Wilson_triangles:Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
@@ -3056,10 +3069,21 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
   std::vector<TLDmodel<double>*> LDmod;
   
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_triangles::Not able to read LD models\n"; 
+    std::cerr << fname << "::Not able to read LD models\n"; 
     return NULL;
   }
- 
+  
+  //
+  // Check is there is interpolation is used
+  //
+  
+  bool st_interp = false;
+  
+  for (auto && pld : LDmod) if (pld == 0) {
+    st_interp = true;
+    break;
+  }
+  
   std::vector<int> LDidx;
   PyArray_ToVector(oLDidx, LDidx);
  
@@ -3073,14 +3097,13 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
   PyArray_To3DPointVector(oT, Tr);
   PyArray_To3DPointVector(oNatT, NatT);
  
-    
   //
   // Determine the LD view-factor matrix
   //
 
   std::vector<Tmat_elem<double>> Fmat;
     
-  triangle_mesh_radiosity_wilson_triangles(V, Tr, NatT, A, LDmod, LDidx,  Fmat);
+  triangle_mesh_radiosity_matrix_triangles(V, Tr, NatT, A, LDmod, LDidx, Fmat);
   
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
@@ -3095,28 +3118,83 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
   // Solving the radiosity equation
   //
   
-  std::vector<double> M0, M, R;
+  std::vector<double> F0, F, R;
   
   PyArray_ToVector(oR, R);
-  PyArray_ToVector(oM0, M0);
+  PyArray_ToVector(oF0, F0);
   
-  if (!solve_radiosity_equation(Fmat, R, M0, M))
-    std::cerr << "mesh_reflection_Wilson::slow convergence\n";
+  {
+    bool success = false;
+    
+    char *s = PyString_AsString(omodel);
+      
+    switch (fnv1a_32::hash(s)) {
+      
+      case "Wilson"_hash32:
+        
+        if (st_interp) {
+          std::cerr  
+            << fname 
+            << "::Interpolation isn't supported with Wilson's reflection model\n";
+          return NULL; 
+        }
+        
+        success = solve_radiosity_equation_Wilson(Fmat, R, F0, F);
+      break;
+      
+      case "Horvat"_hash32:
+        if (st_interp) {
+          #if 0
+          int N = Tr.size();
+          
+      
+          
+          // calculate F0 
+          for (int i = 0; i < N; ++i) 
+            if (LDmod[LDidx[i]] == 0) F0[i] = Interp("F", LDidx[i], params[i]);
+        
+          // calculate and S0
+          std::vector<double> S0(N, 0);
+          
+          for (auto && f : Fmat)
+            if (LDmod[LDidx[f.j]] == 0)
+              S0[f.i] += utils::m_pi*f.F0*Interp("I", LDidx[i], params[i], f.F);
+            else 
+              S0[f.i] += f.F*F0[j];
+            
+          success = solve_radiosity_equation_Horvat(Fmat, R, F0, S0, F);
+          #endif
+        } else
+          success = solve_radiosity_equation_Horvat(Fmat, R, F0, F);
+      break;
+      
+      default:
+        std::cerr 
+          << fname << "::This radiosity model ="
+          << s << " does not exist\n";
+        return NULL;
+    }
+    
+    if (!success)
+      std::cerr << fname << "::slow convergence\n";
+  }
+  
    
-  return PyArray_FromVector(M);
+  return PyArray_FromVector(F);
 }
 
 
 /*
   C++ wrapper for Python code:
 
-  Calculate radiosity of triangles on n convex bodies due to reflection according to 
-  Wilson's reflection model using triangles as support of the surface.
+  Calculate radiosity of triangles on n convex bodies due to reflection 
+  according to a chosen reflection model using triangles as support of 
+  the surface.
   
   Python:
 
-    M = mesh_radiosity_Wilson_triangles_nbody_convex(
-        V, Tr, NatT, A, R, M, LDmod, <keyword> = <value>, ... )
+    F = mesh_radiosity_problem_triangles_nbody_convex(
+        V, Tr, NatT, A, R, F0, LDmod, model, <keyword> = <value>, ... )
     
   where positional parameters:
   
@@ -3130,7 +3208,7 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
     NatT = {NatT1, NatT2, ...} : list of 2-rank numpy array of normals of face triangles NatT[][3]
     A = {A1, A2, ...} : list of 1-rank numpy array of areas of triangles A[]
     R = {R1, R2, ...} : list of 1-rank numpy array of albedo/reflection of triangles R[]
-    Mint = {M0, M1, ...} : list of 1-rank numpy array of intrisic radiant exitance of triangles M[]
+    F0 = {F0_0, F0_1, ...} : list of 1-rank numpy array of intrisic radiant exitance of triangles F0[]
 
     LDmod = {LDmod1, LDmod2,..}: list of tuples of the format
     
@@ -3142,7 +3220,11 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-            
+              "interp"      interpolation data  TODO !!!!
+              
+               
+     model : string - name of the reflection model in use 
+             method in {"Wilson", "Horvat"}        
   optionally:
 
     epsC: float, default 0.00872654 = cos(89.5deg) 
@@ -3153,7 +3235,7 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
           maximal number of iterations in the solver of the radiosity eq.
  
   Returns:
-    Mtotal = {Mt0, Mt1, ...} : list of 1-rank numpy array of total radiosities 
+    F = {F_0, F_1, ...} : list of 1-rank numpy array of total radiosities 
                       (intrinsic and reflection) of triangles
   
   Ref:
@@ -3161,7 +3243,11 @@ static PyObject *mesh_radiosity_Wilson_triangles(PyObject *self, PyObject *args,
     Astrophysical Journal,  356, 613-622, 1990 June
 */
 
-static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *mesh_radiosity_problem_triangles_nbody_convex(
+  PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "mesh_radiosity_problem_triangles_nbody_convex";
+  
   //
   // Reading arguments
   //
@@ -3172,8 +3258,9 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
     (char*)"NatT", 
     (char*)"A",
     (char*)"R",
-    (char*)"Mint",
+    (char*)"F0",
     (char*)"LDmod",
+    (char*)"model",
     (char*)"epsC",
     (char*)"epsM",
     (char*)"max_iter",
@@ -3186,7 +3273,7 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
     epsC = 0.00872654,        // default value
     epsM = 1e-12;             // default value
   
-  PyObject *oLDmod, *oV, *oTr, *oNatT, *oA, *oR, *oMint;
+  PyObject *oLDmod, *omodel, *oV, *oTr, *oNatT, *oA, *oR, *oF0;
 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "O!O!O!O!O!O!O!|ddi", kwlist,
@@ -3195,16 +3282,16 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
       &PyList_Type, &oNatT,
       &PyList_Type, &oA,
       &PyList_Type, &oR,
-      &PyList_Type, &oMint,
+      &PyList_Type, &oF0,
       &PyList_Type, &oLDmod,
+      &PyString_Type, &omodel,
       &epsC,                     // optional
       &epsM,
       &max_iter)){
-    std::cerr << "mesh_radiosity_Wilson_triangles_nbody_convex::Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
-    
   //
   // Storing input data
   //  
@@ -3212,8 +3299,19 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
   std::vector<TLDmodel<double>*> LDmod;
   
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_triangles_nbody_convex::Not able to read LD models\n"; 
+    std::cerr << fname << "::Not able to read LD models\n"; 
     return NULL;
+  }
+ 
+  //
+  // Check is there is interpolation is used
+  //
+  
+  bool st_interp = false;
+  
+  for (auto && pld : LDmod) if (pld == 0) {
+    st_interp = true;
+    break;
   }
  
   // getting data from list of PyArrays
@@ -3221,7 +3319,7 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
    
   std::vector<std::vector<T3Dpoint<double>>> V(n), NatT(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
-  std::vector<std::vector<double>> A(n), R(n), Mint(n), Mtot;
+  std::vector<std::vector<double>> A(n), R(n), F0(n), F;
  
   for (int i = 0; i < n; ++i){
 
@@ -3231,7 +3329,7 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
  
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oA, i), A[i]);
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oR, i), R[i]);
-    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oMint, i), Mint[i]);
+    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oF0, i), F0[i]);
   }
  
   //
@@ -3240,22 +3338,63 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
 
   std::vector<Tmat_elem_nbody<double>> Fmat;
     
-  triangle_mesh_radiosity_wilson_triangles_nbody_convex(V, Tr, NatT, A, LDmod, Fmat);
+  triangle_mesh_radiosity_matrix_triangles_nbody_convex(V, Tr, NatT, A, LDmod, Fmat);
 
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
     
+
   //
-  // Solving the radiosity equation
+  // Solving the radiosity equation depending on the model
   //
+  {
+    bool success = false;
     
-  if (!solve_radiosity_equation_nbody(Fmat, R, Mint, Mtot))
-    std::cerr << "mesh_radiosity_Wilson_triangles_nbody_convex::slow convergence\n";
+    char *s = PyString_AsString(omodel);
+      
+    switch (fnv1a_32::hash(s)) {
+      
+      case "Wilson"_hash32:
+        if (st_interp) {
+          std::cerr  << fname 
+            << "::Interpolation isn't supported with Wilson's reflection model\n";
+          return NULL; 
+        }
+        success = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, F);
+      break;
+      
+      case "Horvat"_hash32:
+       if (st_interp) {
+          #if 0
+          std::vector<std::vector<double>> S0;
+          
+          // calculating F0, S0
+          
+          success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, S0, F);
+          #endif
+          std::cerr << fname << "::This is not yet implemented\n";
+          return NULL;
+        } else {
+          success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, F);
+        }
+      break;
+      
+      default:
+        std::cerr 
+        << fname << "::This radiosity model ="
+        << s << " does not exist\n";
+        return NULL;
+    }
+    
+    if (!success)
+      std::cerr << fname << "::slow convergence\n";
+  }
+  
   
   PyObject *results = PyList_New(n);
   
   for (int i = 0; i < n; ++i)
-    PyList_SetItem(results, i, PyArray_FromVector(Mtot[i]));
+    PyList_SetItem(results, i, PyArray_FromVector(F[i]));
 
   // TODO: check the reference count ????
   return results;
@@ -3265,13 +3404,14 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
 /*
   C++ wrapper for Python code:
 
-  Calculate radiosity of triangles on n convex bodies due to reflection according to 
-  Wilson's reflection model using vertices as support of the surface.
+  Calculate radiosity of triangles on n convex bodies due to reflection 
+  according to a chosen reflection model using vertices as support of 
+  the surface.
   
   Python:
 
-    M = mesh_radiosity_Wilson_vertices_nbody_convex(
-        V, Tr, NatT, A, R, M, LDmod, <keyword> = <value>, ... )
+    F = mesh_radiosity_problem_vertices_nbody_convex(
+        V, Tr, NatT, A, R, F0, LDmod, <keyword> = <value>, ... )
     
   where positional parameters:
   
@@ -3286,8 +3426,11 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
      
     A = {A1, A2, ...} : list of 1-rank numpy array of areas at vertices A[]
     R = {R1, R2, ...} : list of 1-rank numpy array of albedo/reflection at vertices R[]
-    Mint = {M0, M1, ...} : list of 1-rank numpy array of intrisic radiant exitance at vertices M[]
-
+    F0 = {F0_0, F0_1, ...} : list of 1-rank numpy array of intrisic radiant exitance at vertices F0[]
+    
+    model : string - name of the reflection model in use 
+             method in {"Wilson", "Horvat"}
+    
     LDmod = {LDmod1, LDmod2,..}: list of tuples of the format
     
             ("name", sequence of parameters)
@@ -3298,18 +3441,18 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-            
+              "interp"      interpolation data  TODO !!!!
   optionally:
 
     epsC: float, default 0.00872654 = cos(89.5deg) 
           threshold for permitted cos(view-angle)
-    epsM: float, default 1e-12
+    epsF: float, default 1e-12
           relative precision of radiosity vector in sense of L_infty norm
     max_iter: integer, default 100
           maximal number of iterations in the solver of the radiosity eq.
  
   Returns:
-    Mtotal = {Mt0, Mt1, ...} : list of 1-rank numpy array of total radiosities 
+    F = {F_0, F_1, ...} : list of 1-rank numpy array of total radiosities 
                       (intrinsic and reflection) at vertices
   
   Ref:
@@ -3317,7 +3460,11 @@ static PyObject *mesh_radiosity_Wilson_triangles_nbody_convex(PyObject *self, Py
     Astrophysical Journal,  356, 613-622, 1990 June
 */
 
-static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
+  PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "mesh_radiosity_problem_vertices_nbody_convex";
+  
   //
   // Reading arguments
   //
@@ -3328,10 +3475,11 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
     (char*)"NatV", 
     (char*)"A",
     (char*)"R",
-    (char*)"Mint",
+    (char*)"F0",
     (char*)"LDmod",
+    (char*)"model",
     (char*)"epsC",
-    (char*)"epsM",
+    (char*)"epsF",
     (char*)"max_iter",
     NULL
   };
@@ -3340,23 +3488,24 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
   
   double 
     epsC = 0.00872654,        // default value
-    epsM = 1e-12;             // default value
+    epsF = 1e-12;             // default value
   
-  PyObject *oLDmod, *oV, *oTr, *oNatV, *oA, *oR, *oMint;
+  PyObject *oLDmod, *omodel, *oV, *oTr, *oNatV, *oA, *oR, *oF0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!O!O!O!O!O!O!|ddi", kwlist,
+      args, keywds,  "O!O!O!O!O!O!O!O!|ddi", kwlist,
       &PyList_Type, &oV,         // neccesary 
       &PyList_Type, &oTr,
       &PyList_Type, &oNatV,
       &PyList_Type, &oA,
       &PyList_Type, &oR,
-      &PyList_Type, &oMint,
+      &PyList_Type, &oF0,
       &PyList_Type, &oLDmod,
+      &PyString_Type, &omodel,
       &epsC,                     // optional
-      &epsM,
+      &epsF,
       &max_iter)){
-    std::cerr << "mesh_radiosity_Wilson_vertices_nbody_convex::Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
@@ -3368,8 +3517,19 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
   std::vector<TLDmodel<double>*> LDmod;
   
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_vertices_nbody_convex::Not able to read LD models\n"; 
+    std::cerr << fname << "::Not able to read LD models\n"; 
     return NULL;
+  }
+ 
+  //
+  // Check is there is interpolation is used
+  //
+  
+  bool st_interp = false;
+  
+  for (auto && pld : LDmod) if (pld == 0) {
+    st_interp = true;
+    break;
   }
  
   // getting data from list of PyArrays
@@ -3377,7 +3537,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
    
   std::vector<std::vector<T3Dpoint<double>>> V(n), NatV(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
-  std::vector<std::vector<double>> A(n), R(n), Mint(n), Mtot;
+  std::vector<std::vector<double>> A(n), R(n), F0(n), F;
  
   for (int i = 0; i < n; ++i){
 
@@ -3387,7 +3547,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
  
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oA, i), A[i]);
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oR, i), R[i]);
-    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oMint, i), Mint[i]);
+    PyArray_ToVector((PyArrayObject *)PyList_GetItem(oF0, i), F0[i]);
   }
  
   //
@@ -3396,22 +3556,63 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
 
   std::vector<Tmat_elem_nbody<double>> Fmat;
     
-  triangle_mesh_radiosity_wilson_vertices_nbody_convex(V, Tr, NatV, A, LDmod, Fmat);
+  triangle_mesh_radiosity_matrix_vertices_nbody_convex(V, Tr, NatV, A, LDmod, Fmat);
 
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
     
   //
-  // Solving the radiosity equation
+  // Solving the radiosity equation depending on the model
   //
+  {
+    bool success = false;
     
-  if (!solve_radiosity_equation_nbody(Fmat, R, Mint, Mtot))
-    std::cerr << "mesh_radiosity_Wilson_vertices_nbody_convex::slow convergence\n";
+    char *s = PyString_AsString(omodel);
+      
+    switch (fnv1a_32::hash(s)) {
+      
+      case "Wilson"_hash32:
+        
+        if (st_interp) {
+          std::cerr  << fname 
+            << "::Interpolation isn't supported with Wilson's reflection model\n";
+          return NULL; 
+        }
+        
+        success = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, F);
+      break;
+      
+      case "Horvat"_hash32:
+        if (st_interp) {
+          #if 0
+          std::vector<std::vector<double>> S0;
+          
+          // ???? calculate F0, S0
+          
+          success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, S0, F);
+          #endif
+          std::cerr << fname << "::This is not yet implemented\n";
+          return NULL;
+        } else {
+          success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, F);
+        }
+      break;
+      
+      default:
+        std::cerr 
+        << fname << "::This radiosity model ="
+        << s << " does not exist\n";
+        return NULL;
+    }
+    
+    if (!success)
+      std::cerr << fname << "::slow convergence\n";
+  }
   
   PyObject *results = PyList_New(n);
   
   for (int i = 0; i < n; ++i)
-    PyList_SetItem(results, i, PyArray_FromVector(Mtot[i]));
+    PyList_SetItem(results, i, PyArray_FromVector(F[i]));
 
   // TODO: check the reference count ????
   return results;
@@ -3420,13 +3621,13 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
 /*
   C++ wrapper for Python code:
 
-  Calculate radiosity of triangles due to reflection according to 
-  Wilson's reflection model using VERTICES as support of the surface. 
+  Calculate radiosity of triangles due to reflection according to a 
+  choosen reflection model using VERTICES as support of the surface. 
   We image a disk in the tangent space associated to the vertices.
   
   Python:
 
-    M = mesh_radiosity_Wilson_vertices(V, Tr, NatT, A, R, M0, LDmod, LDidx, <keyword>=<value>, ... )
+    F = mesh_radiosity_problem_vertices(V, Tr, NatT, A, R, F0, LDmod, LDidx, model, <keyword>=<value>, ... )
     
   where positional parameters:
   
@@ -3436,7 +3637,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
     NatV[][3]: 2-rank numpy array of normals at vertices
     A[]: 1-rank numpy array of areas of triangles
     R[]: 1-rank numpy array of albedo/reflection at vertices
-    M0[]: 1-rank numpy array of intrisic radiant exitance at vertices
+    F0[]: 1-rank numpy array of intrisic radiant exitance at vertices
 
     LDmod: list of tuples of the format 
             ("name", sequence of parameters)
@@ -3447,8 +3648,13 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
+              "interp"      interpolation data  TODO !!!!
+              
     LDidx[]: 1-rank numpy array of indices of LD models used on each vertex
- 
+
+    model : string - name of the reflection model in use 
+             method in {"Wilson", "Horvat"}
+    
   optionally:
 
     epsC: float, default 0.00872654 = cos(89.5deg) 
@@ -3459,7 +3665,7 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
           maximal number of iterations in the solver of the radiosity eq.
  
   Returns:
-    M[]: 1-rank numpy array of radiosities (intrinsic and reflection) at 
+    F[]: 1-rank numpy array of radiosities (intrinsic and reflection) at 
           vertices
   
   Ref:
@@ -3467,7 +3673,10 @@ static PyObject *mesh_radiosity_Wilson_vertices_nbody_convex(PyObject *self, PyO
     Astrophysical Journal,  356, 613-622, 1990 June
 */
 
-static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *mesh_radiosity_problem_vertices(
+  PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "mesh_radiosity_problem_vertices";
   
   //
   // Reading arguments
@@ -3479,9 +3688,10 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
     (char*)"NatV", 
     (char*)"A",
     (char*)"R",
-    (char*)"M0",
+    (char*)"F0",
     (char*)"LDmod",
     (char*)"LDidx",
+    (char*)"model",
     (char*)"epsC",
     (char*)"epsM",
     (char*)"max_iter",
@@ -3494,28 +3704,29 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
     epsC = 0.00872654,        // default value
     epsM = 1e-12;             // default value
   
-  PyArrayObject *oV, *oT, *oNatV, *oA, *oR, *oM0, *oLDidx;
+  PyArrayObject *oV, *oT, *oNatV, *oA, *oR, *oF0, *oLDidx;
      
-  PyObject *oLDmod;
+  PyObject *oLDmod, *omodel;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!O!O!O!O!O!O!O!|ddi", kwlist,
+      args, keywds,  "O!O!O!O!O!O!O!O!O!|ddi", kwlist,
       &PyArray_Type, &oV,         // neccesary 
       &PyArray_Type, &oT,
       &PyArray_Type, &oNatV,
       &PyArray_Type, &oA,
       &PyArray_Type, &oR,
-      &PyArray_Type, &oM0,
+      &PyArray_Type, &oF0,
       &PyList_Type, &oLDmod,
       &PyArray_Type, &oLDidx,
+      &PyString_Type, &omodel,
       &epsC,                      // optional
       &epsM,
       &max_iter)){
-    std::cerr << "mesh_radiosity_Wilson_vertices::Problem reading arguments\n";
+        
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
-    
   //
   // Storing input data
   //  
@@ -3523,8 +3734,19 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
   std::vector<TLDmodel<double>*> LDmod;
     
   if (!LDmodelFromListOfTuples(oLDmod, LDmod)){
-    std::cerr << "mesh_radiosity_Wilson_vertices::Not able to read LD models\n"; 
+    std::cerr << fname << "::Not able to read LD models\n"; 
     return NULL;
+  }
+  
+  //
+  // Check is there is interpolation is used
+  //
+  
+  bool st_interp = false;
+  
+  for (auto && pld : LDmod) if (pld == 0) {
+    st_interp = true;
+    break;
   }
   
   std::vector<int> LDidx;
@@ -3547,7 +3769,7 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
 
   std::vector<Tmat_elem<double>> Fmat;
     
-  triangle_mesh_radiosity_wilson_vertices(V, Tr, NatV, A, LDmod, LDidx,  Fmat);
+  triangle_mesh_radiosity_matrix_vertices(V, Tr, NatV, A, LDmod, LDidx,  Fmat);
   
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
@@ -3557,18 +3779,65 @@ static PyObject *mesh_radiosity_Wilson_vertices(PyObject *self, PyObject *args, 
   NatV.clear();  A.clear();
   
   //
-  // Solving the radiosity equation
+  // Solving the radiosity equation depending on the model
   //
   
-  std::vector<double> M0, M, R;
+  std::vector<double> F0, F, R;
   
   PyArray_ToVector(oR, R);
-  PyArray_ToVector(oM0, M0);
+  PyArray_ToVector(oF0, F0);
   
-  if (!solve_radiosity_equation(Fmat, R, M0, M))
-    std::cerr << "mesh_radiosity_Wilson_vertices::slow convergence\n";
-   
-  return PyArray_FromVector(M);
+  {
+    bool success = false;
+    
+    char *s = PyString_AsString(omodel);
+      
+    switch (fnv1a_32::hash(s)) {
+      
+      case "Wilson"_hash32:
+      
+        if (st_interp) {
+          std::cerr  << fname 
+            << "::Interpolation isn't supported with Wilson's reflection model\n";
+          return NULL; 
+        }
+      
+        success = solve_radiosity_equation_Wilson(Fmat, R, F0, F);
+      
+      break;
+      
+      case "Horvat"_hash32:
+      
+        if (st_interp) {
+          #if 0
+          std::vector<double> S0;
+          
+          // calculate F0, S0 ?????
+          
+          success = solve_radiosity_equation_Horvat(Fmat, R, F0, S0, F);
+          #endif
+          
+          std::cerr << fname << "::This is not yet implemented\n";
+          return NULL;
+        } else {
+          success = solve_radiosity_equation_Horvat(Fmat, R, F0, F);
+        }
+      
+      break;
+      
+      default:
+        std::cerr 
+        << fname << "::This radiosity model ="
+        << s << " does not exist\n";
+        return NULL;
+    }
+    
+    if (!success)
+      std::cerr << fname << "::slow convergence\n";
+  }
+  
+
+  return PyArray_FromVector(F);
 }
 
 /*
@@ -3889,9 +4158,10 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
   keywords:
     length: integer, default 1000, 
       approximate number of points on a horizon
-    choice: integer, default 0:
+    choice: interr, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
+      2 - searching a point for overcontact case
   Return: 
     H: 2-rank numpy array of 3D point on a horizon
 */
@@ -5319,6 +5589,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
 }
 
 #endif
+
 /*
   C++ wrapper for python code:
  
@@ -5676,28 +5947,29 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Exporting triangular mesh into a Pov-Ray file."},
  
-  { "mesh_radiosity_Wilson_triangles",
-    (PyCFunction)mesh_radiosity_Wilson_triangles,
+  { "mesh_radiosity_problem_triangles",
+    (PyCFunction)mesh_radiosity_problem_triangles,
     METH_VARARGS|METH_KEYWORDS, 
-    "Solving the radiosity problem with limb darkening as defined by Wilson."},
+    "Solving the radiosity problem with limb darkening as defined by a chosen reflection model."},
   
-  { "mesh_radiosity_Wilson_triangles_nbody_convex",
-    (PyCFunction)mesh_radiosity_Wilson_triangles_nbody_convex,
+  { "mesh_radiosity_problem_triangles_nbody_convex",
+    (PyCFunction)mesh_radiosity_problem_triangles_nbody_convex,
     METH_VARARGS|METH_KEYWORDS, 
-    "Solving the radiosity problem with limb darkening as defined by Wilson "
+    "Solving the radiosity problem with limb darkening as defined a chosen reflection model "
     "for n separate convex bodies using triangles as radiating surfaces."},
     
-  { "mesh_radiosity_Wilson_vertices_nbody_convex",
-    (PyCFunction)mesh_radiosity_Wilson_vertices_nbody_convex,
+  { "mesh_radiosity_problem_vertices_nbody_convex",
+    (PyCFunction)mesh_radiosity_problem_vertices_nbody_convex,
     METH_VARARGS|METH_KEYWORDS, 
-    "Solving the radiosity problem with limb darkening as defined by Wilson "
-    "for n separate convex bodies using surfaces attached to vertices as "
+    "Solving the radiosity problem with limb darkening as defined a chosen reflection model "
+    "for n separate convex bodies using disks attached to vertices as "
     "radiating surfaces."},  
     
-  { "mesh_radiosity_Wilson_vertices",
-    (PyCFunction)mesh_radiosity_Wilson_vertices,
+  { "mesh_radiosity_problem_vertices",
+    (PyCFunction)mesh_radiosity_problem_vertices,
     METH_VARARGS|METH_KEYWORDS, 
-    "Solving the radiosity problem with limb darkening as defined by Wilson."},
+    "Solving the radiosity problem with limb darkening as defined a chosen reflection model "
+    "using disks attached to vertices as radiating surfaces."},
     
 // --------------------------------------------------------------------    
 
