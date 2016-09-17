@@ -3612,6 +3612,7 @@ class ChoiceParameter(Parameter):
             if run_checks and self._bundle:
                 passed, msg = self._bundle.run_checks()
                 if not passed:
+                    # passed is either False (failed) or None (raise Warning)
                     logger.warning(msg)
 
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
@@ -4044,9 +4045,10 @@ class FloatParameter(Parameter):
             self._bundle.run_constraint(uniqueid=constraint_id)
 
         # run_checks if requested (default)
-        if run_checks and not force and self._bundle:
+        if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:
+                # passed is either False (failed) or None (raise Warning)
                 logger.warning(msg)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})

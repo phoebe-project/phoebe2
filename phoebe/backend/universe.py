@@ -1796,93 +1796,22 @@ class Star(Body):
 
         requires _fill_loggs and _fill_gravs to have been called
 
-        Calculate local temperatureof a BinaryRocheStar.
-
-        If the law of [Espinosa2012]_ is used, some approximations are made:
-
-            - Since the law itself is too complicated too solve during the
-              computations, the table with approximate von Zeipel exponents from
-              [Espinosa2012]_ is used.
-            - The two parameters in the table are mass ratio :math:`q` and
-              filling factor :math:`\rho`. The latter is defined as the ratio
-              between the radius at the tip, and the first Lagrangian point.
-              As the Langrangian points can be badly defined for weird
-              configurations, we approximate the Lagrangian point as 3/2 of the
-              polar radius (inspired by break up radius in fast rotating stars).
-              This is subject to improvement!
-
+        Calculate local temperature of a Star.
         """
         if mesh is None:
             mesh = self.mesh
 
-        if self.gravb_law == 'espinosa':
-            # TODO: check whether we want the automatically inverted q or not
-            q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-            F = self.syncpar
-            sma = self.sma
+        # get the user-defined mean effective temperatures
+        Teff = kwargs.get('teff', self.teff)
 
-            # TODO NOW: rewrite this to work in unscaled units
-
-            # To compute the filling factor, we're gonna cheat a little bit: we
-            # should compute the ratio of the tip radius to the first Lagrangian
-            # point. However, L1 might be poorly defined for weird geometries
-            # so we approximate it as 1.5 times the polar radius.
-            # TODO NOW: rp doesn't seem to be used anywhere...
-            rp = self._instantaneous_rpole  # should be in Rsol
-
-            # TODO NOW: is this supposed to be the scaled or unscaled rs???
-            maxr = self.get_standard_mesh(scaled=True).rs.for_computations.max()
-
-            L1 = roche.exact_lagrangian_points(q, F=F, d=1.0, sma=sma)[0]
-            rho = maxr / L1
-
-            gravb = roche.zeipel_gravb_binary()(np.log10(q), rho)[0][0]
-
-            logger.info("gravb(Espinosa): F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
-            if gravb>1.0 or gravb<0:
-                raise ValueError('Invalid gravity darkening parameter beta={}'.format(gravb))
-
-        elif self.gravb_law == 'claret':
-            logteff = np.log10(self.teff)
-            logg = np.log10(self._instantaneous_gpole)
-            abun = self.abun
-            axv, pix = roche.claret_gravb()
-            gravb = interp_nDgrid.interpolate([[logteff], [logg], [abun]], axv, pix)[0][0]
-
-            logger.info('gravb(Claret): teff = {:.3f}, logg = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**logteff, logg, abun, gravb))
-
-        # TODO: ditch support for polar teff as input param
-
-        # Now use the Zeipel law:
-        if 'teffpolar' in kwargs.keys():
-            Teff = kwargs['teffpolar']
-            typ = 'polar'
-        else:
-            Teff = kwargs.get('teff', self.teff)
-            typ = 'mean'
-
-        # Consistency check for gravity brightening
-        if Teff >= 8000. and self.gravb_bol < 0.9:
-            logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 might be a better approx than gravb={:.2f}'.format(Teff,self.gravb_bol))
-        elif Teff <= 6600. and self.gravb_bol >= 0.9:
-            logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff,self.gravb_bol))
-        elif self.gravb_bol < 0.32 or self.gravb_bol > 1.00:
-            logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
-
-        # Compute G and Tpole
-        if typ == 'mean':
-            # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
-            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
-            Tpole = Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
-        elif typ == 'polar':
-            Tpole = Teff
-        else:
-            raise ValueError("Cannot interpret temperature type '{}' (needs to be one of ['mean','polar'])".format(typ))
-
+        # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+        # see PHOEBE Legacy scientific reference eq 5.20
+        Tpole = Teff*(np.sum(mesh.areas) / np.sum(mesh.gravs.centers*mesh.areas))**(0.25)
         self._instantaneous_teffpole = Tpole
 
         # Now we can compute the local temperatures.
-        teffs = (mesh.gravs.for_computations * Tpole**4)**0.25
+        # see PHOEBE Legacy scientific reference eq 5.23
+        teffs = Tpole*mesh.gravs.for_computations**0.25
 
         if not ignore_effects:
             for feature in self.features:
@@ -1892,8 +1821,6 @@ class Star(Body):
                     teffs = feature.process_teffs(teffs, mesh.coords_for_computations, t=self.time)
 
         mesh.update_columns(teffs=teffs)
-
-        # logger.info("derived effective temperature (Zeipel) (%.3f <= teff <= %.3f, Tp=%.3f)"%(teffs.min(), teffs.max(), Tpole))
 
     def _populate_ifm(self, dataset, **kwargs):
         """
@@ -2579,91 +2506,12 @@ class Envelope(Body):
         if mesh is None:
             mesh = self.mesh
 
-        if self.gravb_law == 'espinosa':
-            # TODO: check whether we want the automatically inverted q or not
-            q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
-            F = self.syncpar
-            sma = self.sma
+        Teff1 = kwargs.get('teff1', self.teff1)
+        Teff2 = kwargs.get('teff2', self.teff2)
 
-            # TODO NOW: rewrite this to work in unscaled units
-
-            # To compute the filling factor, we're gonna cheat a little bit: we
-            # should compute the ratio of the tip radius to the first Lagrangian
-            # point. However, L1 might be poorly defined for weird geometries
-            # so we approximate it as 1.5 times the polar radius.
-            # TODO NOW: rp doesn't seem to be used anywhere...
-            rp1 = self._instantaneous_rpole1  # should be in Rsol
-            rp2 = self._instantaneous_rpole2
-
-            # TODO NOW: is this supposed to be the scaled or unscaled rs???
-            maxr1 = self.get_standard_mesh(scaled=True).rs.for_computations[self.env_comp==0].max()
-            maxr2 = self.get_standard_mesh(scaled=True).rs.for_computations[self.env_comp==1].max()
-
-            L1 = roche.exact_lagrangian_points(q, F=F, d=1.0, sma=sma)[0]
-            rho1 = maxr1 / L1
-            rho2 = maxr2 / L1
-
-            gravb1 = roche.zeipel_gravb_binary()(np.log10(q), rho1)[0][0]
-            gravb2 = roche.zeipel_gravb_binary()(np.log10(q), rho2)[0][0]
-
-            logger.info("gravb(Espinosa): F = {}, q = {}, filling factor = {} --> gravb = {}".format(F, q, rho, gravb))
-            if gravb>1.0 or gravb<0:
-                raise ValueError('Invalid gravity darkening parameter beta={}'.format(gravb))
-
-        elif self.gravb_law == 'claret':
-            logteff1 = np.log10(self.teff1)
-            logteff2 = np.log10(self.teff2)
-
-            logg1 = np.log10(self._instantaneous_gpole1)
-            logg2 = np.log10(self._instantaneous_gpole2)
-
-            abun = self.abun
-            axv, pix = roche.claret_gravb()
-
-            gravb1 = interp_nDgrid.interpolate([[logteff1], [logg1], [abun]], axv, pix)[0][0]
-            gravb2 = interp_nDgrid.interpolate([[logteff2], [logg2], [abun]], axv, pix)[0][0]
-
-            logger.info('gravb(Claret): teff1 = {:.3f}, teff2 = {:.3f}, logg1 = {:.6f}, logg2 = {:.6f}, abun = {:.3f} ---> gravb = {:.3f}'.format(10**logteff1, 10**logteff2, logg1, logg2, abun, gravb))
-
-        # TODO: ditch support for polar teff as input param
-
-        # Now use the Zeipel law:
-        if 'teffpolar' in kwargs.keys():
-            Teff1 = kwargs['teffpolar1']
-            Teff2 = kwargs['teffpolar2']
-            typ = 'polar'
-        else:
-            Teff1 = kwargs.get('teff1', self.teff1)
-            Teff2 = kwargs.get('teff2', self.teff2)
-            typ = 'mean'
-
-        # Consistency check for gravity brightening
-        if Teff1 >= 8000. and self.gravb_bol1 < 0.9:
-            logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 might be a better approx than gravb={:.2f}'.format(Teff1,self.gravb_bol1))
-        elif Teff1 <= 6600. and self.gravb_bol1 >= 0.9:
-            logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff1,self.gravb_bol1))
-        elif self.gravb_bol1 < 0.32 or self.gravb_bol1 > 1.00:
-            logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
-
-        if Teff2 >= 8000. and self.gravb_bol2 < 0.9:
-            logger.info('Object probably has a radiative atm (Teff={:.0f}K>8000K), for which gravb=1.00 might be a better approx than gravb={:.2f}'.format(Teff2,self.gravb_bol2))
-        elif Teff2 <= 6600. and self.gravb_bol2 >= 0.9:
-            logger.info('Object probably has a convective atm (Teff={:.0f}K<6600K), for which gravb=0.32 might be a better approx than gravb={:.2f}'.format(Teff2,self.gravb_bol2))
-        elif self.gravb_bol2 < 0.32 or self.gravb_bol2 > 1.00:
-            logger.info('Object has intermittent temperature, gravb should be between 0.32-1.00')
-
-        # from here on, need to handle areas
-        # Compute G and Tpole
-        if typ == 'mean':
-            # TODO NOW: can this be done on an unscaled mesh? (ie can we fill teffs in the protomesh or do areas need to be scaled to real units)
-            # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
-            Tpole1 = Teff1*(np.sum(mesh.areas[mesh.env_comp3==0]) / np.sum(mesh.gravs.centers[mesh.env_comp3==0]*mesh.areas[mesh.env_comp3==0]))**(0.25)
-            Tpole2 = Teff2*(np.sum(mesh.areas[mesh.env_comp3==1]) / np.sum(mesh.gravs.centers[mesh.env_comp3==1]*mesh.areas[mesh.env_comp3==1]))**(0.25)
-        elif typ == 'polar':
-            Tpole1 = Teff1
-            Tpole2 = Teff2
-        else:
-            raise ValueError("Cannot interpret temperature type '{}' (needs to be one of ['mean','polar'])".format(typ))
+        # Convert from mean to polar by dividing total flux by gravity darkened flux (Ls drop out)
+        Tpole1 = Teff1*(np.sum(mesh.areas[mesh.env_comp3==0]) / np.sum(mesh.gravs.centers[mesh.env_comp3==0]*mesh.areas[mesh.env_comp3==0]))**(0.25)
+        Tpole2 = Teff2*(np.sum(mesh.areas[mesh.env_comp3==1]) / np.sum(mesh.gravs.centers[mesh.env_comp3==1]*mesh.areas[mesh.env_comp3==1]))**(0.25)
 
         self._instantaneous_teffpole1 = Tpole1
         self._instantaneous_teffpole2 = Tpole2
