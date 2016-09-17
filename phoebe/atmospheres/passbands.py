@@ -21,15 +21,6 @@ import logging
 logger = logging.getLogger("PASSBANDS")
 logger.addHandler(logging.NullHandler())
 
-# pandas is much faster for reading in files from the disk. If available,
-# use that instead of numpy's fromfile() or, heaven-forbid, loadtxt().
-try:
-    import pandas as pd
-except:
-    _have_pandas = False
-else:
-    _have_pandas = True
-
 # Global passband table. This dict should never be tinkered with outside
 # of the functions in this module; it might be nice to make it read-only
 # at some point.
@@ -262,11 +253,8 @@ class Passband:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
-            #~ spc = np.loadtxt(model).T
-            if _have_pandas:
-                spc = pd.read_csv(model, delim_whitespace=True).values.T
-            else:
-                spc = np.fromfile(model, sep=' ').reshape(-1,2).T
+            #~ spc = np.loadtxt(model).T -- waaay slower
+            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
             Teff.append(float(model[-26:-21]))
             logg.append(float(model[-20:-18]))
@@ -301,7 +289,7 @@ class Passband:
         models = os.listdir(path)
         Nmodels = len(models)
         
-        Teff, logg, met, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        Teff, logg, abun, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
         boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
 
@@ -309,19 +297,15 @@ class Passband:
             print('Computing Castelli-Kurucz intensities for %s:%s. This will take a long while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
-            if _have_pandas:
-                spc = pd.read_csv(path+'/'+model, delim_whitespace=True).values.T
-            else:
-                #spc = np.loadtxt(path+'/'+model).T -- waaay slower
-                spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
-
+            #spc = np.loadtxt(path+'/'+model).T -- waaay slower
+            spc = np.fromfile(path+'/'+model, sep=' ').reshape(-1,2).T
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
 
             Teff[i] = float(model[-26:-21])
-            logg[i] = float(model[-20:-18])
+            logg[i] = float(model[-20:-18])/10
             sign = 1. if model[-18]=='P' else -1.
-            met[i] = sign*float(model[-17:-15])
+            abun[i] = sign*float(model[-17:-15])/10
             mu[i] = float(model[-14:-9])
             
             # trim the spectrum at passband limits
@@ -329,6 +313,9 @@ class Passband:
             keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             wl = spc[0][keep]
             fl = spc[1][keep]
+
+            if np.any(fl == 0):
+                print model
 
             # make a log-scale copy for boosting and compute the diffs
             # for the spectral index (alpha = dln(flux)/dln(lambda);
@@ -367,9 +354,6 @@ class Passband:
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
-
-        logg /= 10
-        abun /= 10
 
         # Store axes (Teff, logg, abun, mu) and the full grid of Imu,
         # with nans where the grid isn't complete. Imu-s come in two
