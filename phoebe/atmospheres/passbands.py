@@ -666,7 +666,7 @@ class Passband:
 
     def bindex(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='blackbody', photon_weighted=False):
         if atm == 'ck2004':
-            retval = self._bindex_ck2004(Teff, logg, met, rv, mu, atm, photon_weighted)
+            retval = self._bindex_ck2004(Teff, logg, met, mu, atm, photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
