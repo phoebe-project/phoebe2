@@ -966,6 +966,23 @@ class Bundle(ParameterSet):
         except ValueError:
             return None
 
+    def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
+                       warning_only=False):
+        """
+        """
+        allowed_keys = self.qualifiers +\
+                        parameters._meta_fields_filter +\
+                        ['skip_checks', 'check_default', 'check_visible'] +\
+                        additional_allowed_keys
+
+        for key in kwargs.keys():
+            if key not in allowed_keys:
+                msg = "'{}' not a recognized kwarg".format(key)
+                if warning_only:
+                    logger.warning(msg)
+                else:
+                    raise KeyError(msg)
+
     def run_checks(self):
         """
         Check to see whether the system is expected to be computable.
@@ -1312,6 +1329,10 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs, warning_only=True)
+
         # return params
         return self.get_component(**metawargs)
 
@@ -1555,6 +1576,13 @@ class Bundle(ParameterSet):
             all parameters that have been added
         :raises NotImplementedError: if required constraint is not implemented
         """
+
+        sing_plural = {}
+        sing_plural['time'] = 'times'
+        sing_plural['flux'] = 'fluxes'
+        sing_plural['sigma'] = 'sigmas'
+        sing_plural['rv'] = 'rvs'
+
         func = _get_add_func(_dataset, kind.lower()
                              if isinstance(kind, str)
                              else kind)
@@ -1611,11 +1639,6 @@ class Bundle(ParameterSet):
         # Let's handle the case where the user accidentally sends singular
         # instead of plural (since we used to have this)
         # TODO: use parameter._singular_to_plural?
-        sing_plural = {}
-        sing_plural['time'] = 'times'
-        sing_plural['flux'] = 'fluxes'
-        sing_plural['sigma'] = 'sigmas'
-        sing_plural['rv'] = 'rvs'
         for singular, plural in sing_plural.items():
             if kwargs.get(singular, None) is not None and kwargs.get(plural, None) is None:
                 logger.warning("assuming you meant '{}' instead of '{}'".format(plural, singular))
@@ -1701,6 +1724,10 @@ class Bundle(ParameterSet):
                           undo_func='remove_dataset',
                           undo_kwargs={'dataset': kwargs['dataset']})
 
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs, warning_only=True)
+
         return self.filter(dataset=kwargs['dataset'])
 
     def get_dataset(self, dataset=None, **kwargs):
@@ -1736,6 +1763,9 @@ class Bundle(ParameterSet):
             and dataset)
         :raises ValueError: if no filter is provided
         """
+
+        self._kwargs_checks(kwargs)
+
         # Let's avoid deleting ALL parameters from the matching contexts
         if dataset is None and not len(kwargs.items()):
             raise ValueError("must provide some value to filter for datasets")
@@ -1990,6 +2020,8 @@ class Bundle(ParameterSet):
             (except twig or context)
 
         """
+        self._kwargs_checks(kwargs)
+
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
@@ -2029,6 +2061,8 @@ class Bundle(ParameterSet):
         :return: the resulting value of the constraint
         :rtype: float or units.Quantity
         """
+        self._kwargs_checks(kwargs)
+
         kwargs['twig'] = twig
         kwargs['context'] = 'constraint'
         # kwargs['qualifier'] = 'expression'
@@ -2108,7 +2142,11 @@ class Bundle(ParameterSet):
                           undo_func='remove_compute',
                           undo_kwargs={'compute': kwargs['compute']})
 
-        # return params
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs, warning_only=True)
+
         return self.get_compute(**metawargs)
 
     def get_compute(self, compute=None, **kwargs):
@@ -2206,6 +2244,8 @@ class Bundle(ParameterSet):
             self.run_compute(compute=compute, model=model, time=time, **kwargs)
             self.as_client(False)
             return self.get_model(model)
+
+        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
 
         if model is None:
             model = 'latest'
