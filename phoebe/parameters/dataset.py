@@ -395,11 +395,17 @@ def mesh_syn(syn=True, **kwargs):
 
                 for dataset, method in kwargs.get('dataset_fields', {}).items():
                     # TODO: descriptions for each column
-                    if method=='RV':
-                        indeps = {'rv': u.solRad/u.d, 'intens_norm_abs': u.W/u.m**3, 'intens_norm_rel': u.W/u.m**3, 'intens_proj_abs': u.W/u.m**3, 'intens_proj_rel': u.W/u.m**3, 'ampl_boost': u.dimensionless_unscaled}
-                    elif method=='LC':
-                        indeps = {'intens_norm_abs': u.W/u.m**3, 'intens_norm_rel': u.W/u.m**3, 'intens_proj_abs': u.W/u.m**3, 'intens_proj_rel': u.W/u.m**3, 'ampl_boost': u.dimensionless_unscaled}
-                    elif method=='MESH':
+                    if kind=='rv':
+                        indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
+                        if _devel_enabled:
+                            indeps['abs_intensities'] = u.W/u.m**3
+                            indeps['abs_normal_intensities'] = u.W/u.m**3
+                    elif kind=='lc':
+                        indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
+                        if _devel_enabled:
+                            indeps['abs_intensities'] = u.W/u.m**3
+                            indeps['abs_normal_intensities'] = u.W/u.m**3
+                    elif kind=='mesh':
                         continue
                     else:
                         raise NotImplementedError

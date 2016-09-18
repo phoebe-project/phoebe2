@@ -41,16 +41,19 @@ def _value(obj):
 
 
 class System(object):
-    def __init__(self, bodies_dict, eclipse_alg='graham', dynamics_method='keplerian', do_reflection=True):
+    def __init__(self, bodies_dict, eclipse_method='graham',
+                 dynamics_method='keplerian',
+                 reflection_method='none',
+                 boosting_method='none'):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
         self._bodies = bodies_dict
-        self.eclipse_alg = eclipse_alg
-        # self.subdiv_alg = subdiv_alg
-        # self.subdiv_num = subdiv_num
+        self.eclipse_method = eclipse_method
         self.dynamics_method = dynamics_method
-        self.do_reflection = do_reflection
+        self.reflection_method = reflection_method
+        for body in self._bodies.values():
+            body.boosting_method = boosting_method
 
         return
 
@@ -91,13 +94,15 @@ class System(object):
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
-            do_reflection = compute_ps.get_value(qualifier='refl', **kwargs)
+            reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
+            boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
         else:
             eclipse_alg = 'graham'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
-            do_reflection = True
+            reflection_method = 'none'
+            boosting_method = 'none'
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -114,7 +119,8 @@ class System(object):
 
         return cls(bodies_dict, eclipse_alg=eclipse_alg,
                    dynamics_method=dynamics_method,
-                   do_reflection=do_reflection)
+                   reflection_method=reflection_method,
+                   boosting_method=boosting_method)
 
     def items(self):
         """
@@ -213,7 +219,13 @@ class System(object):
         if self.do_reflection and not ignore_effects:  # and methods includes a method that requires fluxes
             for starref, body in self.items():
                 # TODO: no limb-darkening (ie mu=1)
-                body.populate_observable(time, 'lc', 'bol', passband=bol_pband, ld_func='linear', ld_coeffs=[0.], atm='blackbody', boosting_alg='none')
+                # TODO: this needs to take ld_func_bol, ld_coeffs_bol
+                body.populate_observable(time, 'lc', 'bol',
+                                         passband=bol_pband,
+                                         ld_func='linear',
+                                         ld_coeffs=[0.],
+                                         atm='blackbody',
+                                         boosting_method='none')
 
             # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
@@ -1850,10 +1862,11 @@ class Star(Body):
         # given effective wavelength, i.e
         # eff_wave = kwargs.get('eff_wave', 6562e-7)
         # passband = kwargs.get('passband', eff_wave)
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'kurucz')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        passband = kwargs.get('passband', self.passband[dataset])
+        intens_weighing = kwargs.get('intens_weighing', self.intens_weighing.get(dataset, None))
+        ld_func = kwargs.get('ld_func', self.ld_func[dataset])
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs[dataset]) if ld_func != 'interp' else None
+        atm = kwargs.get('atm', self.atm)
 
         lc_cols = self._populate_lc(dataset, **kwargs)
 
@@ -1912,10 +1925,11 @@ class Star(Body):
 
         lc_method = kwargs.get('lc_method', 'numerical')  # TODO: make sure this is actually passed
 
-        ld_coeffs = kwargs.get('ld_coeffs', [0.5,0.5])
-        ld_func = kwargs.get('ld_func', 'logarithmic')
-        atm = kwargs.get('atm', 'blackbody')
-        boosting_alg = kwargs.get('boosting_alg', 'none')
+        passband = kwargs.get('passband', self.passband.get(dataset, None))
+        intens_weighing = kwargs.get('intens_weighing', self.intens_weighing.get(dataset, None))
+        ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
+        ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
+        atm = kwargs.get('atm', self.atm)
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -1947,37 +1961,17 @@ class Star(Body):
                                                       ld_coeffs=ld_coeffs)
 
             # Beaming/boosting
-            # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
-            if boosting_alg == 'simple':
-                raise NotImplementedError("'simple' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma,
-                                              interp_all=False)
-
-
-            elif boosting_alg == 'local':
-                raise NotImplementedError("'local' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-
-            elif boosting_alg == 'global':
-                raise NotImplementedError("'global' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-            else:
+            if self.boosting_method == 'none':
                 alpha_b = 0.0
 
-            # light speed in Rsol/d
-            # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+                # light speed in Rsol/d
+                # TODO: should we mutliply velocities by -1 (z convention)?
+                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            else:
+                raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
             # TODO: does this make sense to boost proj but not norm?
-            intens_proj_abs *= ampl_boost
+            abs_intensities *= boost_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed intens_norm_rel over the
@@ -2027,9 +2021,9 @@ class Star(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities,
+            'boost_factors': boost_factors}
 
 
 
@@ -2751,37 +2745,17 @@ class Envelope(Body):
                                                       ld_coeffs=ld_coeffs)
 
             # Beaming/boosting
-            # TODO: beaming/boosting will likely be included in the Inorm/Imu calls in the future?
-            if boosting_alg == 'simple':
-                raise NotImplementedError("'simple' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma,
-                                              interp_all=False)
-
-
-            elif boosting_alg == 'local':
-                raise NotImplementedError("'local' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-
-            elif boosting_alg == 'global':
-                raise NotImplementedError("'global' boosting_alg not yet supported")
-                # TODO: need to get alpha_b from the passband/atmosphere tables
-                alpha_b = interp_boosting(atm_file, passband, atm_kwargs=atm_kwargs,
-                                              red_kwargs=red_kwargs, vgamma=vgamma)
-
-            else:
+            if self.boosting_method == 'none':
                 alpha_b = 0.0
 
-            # light speed in Rsol/d
-            # TODO: should we mutliply velocities by -1 (z convention)?
-            ampl_boost = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+                # light speed in Rsol/d
+                # TODO: should we mutliply velocities by -1 (z convention)?
+                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            else:
+                raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
             # TODO: does this make sense to boost proj but not norm?
-            intens_proj_abs *= ampl_boost
+            abs_intensities *= boost_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed intens_norm_rel over the
@@ -2831,9 +2805,9 @@ class Envelope(Body):
 
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
-        return {'intens_norm_abs': intens_norm_abs, 'intens_norm_rel': intens_norm_rel,
-            'intens_proj_abs': intens_proj_abs, 'intens_proj_rel': intens_proj_rel,
-            'ampl_boost': ampl_boost}
+        return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
+            'abs_intensities': abs_intensities, 'intensities': intensities,
+            'boost_factors': boost_factors}
 
 
 class Feature(object):

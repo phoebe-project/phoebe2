@@ -764,7 +764,10 @@ def phoebe(b, compute, time=[], as_generator=False, **kwargs):
                         vcs[i] = np.full(3, np.nan)
                 this_syn['visible_centroids'] = vcs
 
-                indeps = {'RV': ['rv', 'intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost'], 'LC': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel', 'ampl_boost'], 'IFM': ['intens_norm_abs', 'intens_norm_rel', 'intens_proj_abs', 'intens_proj_rel']}
+                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
+                if _devel_enabled:
+                    indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
+                    indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']
                 for infomesh in infolist:
                     if infomesh['needs_mesh'] and infomesh['method'] != 'MESH':
                         new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], method='MESH', value=body.compute_luminosity(infomesh['dataset']))
