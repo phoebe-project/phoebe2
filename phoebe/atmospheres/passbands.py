@@ -653,20 +653,20 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
         return retval
 
-    def _bfactor_ck2004(self, Teff, logg, met, rv, mu, atm, photon_weighted=False):
+    def _bindex_ck2004(self, Teff, logg, met, mu, atm, photon_weighted=False):
         grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, met, mu),))
-            bfactor = interp.interp(req, self._ck2004_intensity_axes, grid)[0][0]
+            bindex = interp.interp(req, self._ck2004_intensity_axes, grid)[0][0]
         else:
             req = np.vstack((Teff, logg, met, mu)).T
-            bfactor = interp.interp(req, self._ck2004_intensity_axes, grid).T[0]
+            bindex = interp.interp(req, self._ck2004_intensity_axes, grid).T[0]
 
-        return bfactor
+        return bindex
 
-    def bfactor(self, Teff=5772., logg=4.43, met=0.0, rv=5.0, mu=1.0, atm='blackbody', photon_weighted=False):
+    def bindex(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='blackbody', photon_weighted=False):
         if atm == 'ck2004':
-            retval = self._bfactor_ck2004(Teff, logg, met, rv, mu, atm, photon_weighted)
+            retval = self._bindex_ck2004(Teff, logg, met, rv, mu, atm, photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 

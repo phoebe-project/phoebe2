@@ -1967,6 +1967,16 @@ class Star(Body):
                 # light speed in Rsol/d
                 # TODO: should we mutliply velocities by -1 (z convention)?
                 boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+            elif self.boosting_method == 'linear':
+                # TODO: how do we pass photon/energy weighted setting?
+                bindex = self._pbs[passband].bindex(Teff=self.mesh.teffs.for_computations,
+                                                    logg=self.mesh.loggs.for_computations,
+                                                    met=self.mesh.abuns.for_computations,
+                                                    mu=abs(self.mesh.mus_for_computations),
+                                                    atm=atm,
+                                                    photon_weighted=True)
+                
+                boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
