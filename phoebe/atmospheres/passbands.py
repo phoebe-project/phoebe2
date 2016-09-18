@@ -314,21 +314,33 @@ class Passband:
             wl = spc[0][keep]
             fl = spc[1][keep]
 
-            if np.any(fl == 0):
-                print model
-
-            # make a log-scale copy for boosting and compute the diffs
-            # for the spectral index (alpha = dln(flux)/dln(lambda);
-            # extrapolate on the upper boundary to preserve array
-            # length.
+            # make a log-scale copy for boosting and fit a Legendre
+            # polynomial to the Imu envelope by way of sigma clipping;
+            # then compute a Legendre series derivative to get the
+            # boosting index.
             
             lnwl = np.log(wl)
-            lnfl = np.log(fl)
+            lnfl = np.log(fl) + 5*lnwl
             
-            dlnwl = np.roll(lnwl,-1)-lnwl
-            dlnfl = np.roll(lnfl,-1)-lnfl
-            dlnwl[-1] = dlnwl[-2]
-            dlnfl[-1] = dlnfl[-2]
+            # First Legendre fit to the data:
+            envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
+            continuum = np.polynomial.legendre.legval(lnwl, envelope)
+            diff = lnfl-continuum
+            sigma = np.std(diff)
+            clipped = (diff > -sigma)
+
+            # Sigma clip to get the continuum:
+            while True:
+                Npts = clipped.sum()
+                envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
+                continuum = np.polynomial.legendre.legval(lnwl, envelope)
+                diff = lnfl-continuum
+                clipped = (diff > -sigma)
+                if clipped.sum() == Npts:
+                    break
+
+            derivative = np.polynomial.legendre.legder(envelope, 1)
+            boosting_index = np.polynomial.legendre.legval(lnwl, derivative)
 
             # calculate energy (E) and photon (P) weighted fluxes and
             # their integrals.
@@ -342,9 +354,8 @@ class Passband:
             # boosting factors for energy (E) and photon (P) weighted
             # fluxes.
             
-            Blambda = (dlnfl+5*lnwl)/dlnwl
-            boostE = (flE*Blambda).sum()/flEint
-            boostP = (flP*Blambda).sum()/flPint
+            boostE = (flE*boosting_index).sum()/flEint
+            boostP = (flP*boosting_index).sum()/flPint
             
             ImuE[i] = np.log10(flEint)-10  # energy-weighted flux; -10 because of the 1AA dispersion
             ImuP[i] = np.log10(flPint/1.9864458e-5) # photon-weighted flux; the constant is 1e10*1e10*h*c
