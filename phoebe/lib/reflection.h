@@ -1555,14 +1555,14 @@ Solving the radiosity model proposed by M. Horvat for Phoebe 2b.
   The equations are
     S0 =  L_{LD} F_0
      
-    F_{in} = S0 + diag(R) F_{in}
+    F_{in} = S0 + L_0 diag(R) F_{in}
     
     F_{out} = F_0 + diag(R) F_{in}
 
   Method: 
     Simple iteration 
   
-      F_{in, k+1} =  S0 + diag(R) L_0 F_{in, k}   k = 0, 1, ..., 
+      F_{in, k+1} =  S0 + L_0  diag(R) F_{in, k}   k = 0, 1, ..., 
   
     with initial condition
     
@@ -1605,7 +1605,7 @@ bool solve_radiosity_equation_Horvat(
     
   //
   // do iteration: 
-  //   F_{in, k+1} =  S0 + diag(R) L_0 F_{in, k}
+  //   F_{in, k+1} =  S0 + L_0 diag(R) F_{in, k}
   // with S0 = L_{LD} F0
   
   // initial condition
@@ -1616,9 +1616,9 @@ bool solve_radiosity_equation_Horvat(
   do {
     
     // iteration step: Lambert reflection
-    // S[1] =  S0 + diag(R) L_0 S[0]
+    // S[1] =  S0 + L_0 diag(R) S[0]
     memcpy(S[1], pS0, size);
-    for (auto && f: Fmat) S[1][f.i] += R[f.i]*f.F0*S[0][f.j];
+    for (auto && f: Fmat) S[1][f.i] += f.F0*R[f.j]*S[0][f.j];
   
     // check convergence
     dS = Smax = 0;
@@ -1816,7 +1816,7 @@ bool solve_radiosity_equation_Wilson_nbody(
   The equations are
     S0 =  L_{LD} F_0
      
-    F_{in} = S0 + diag(R) F_{in}
+    F_{in} = S0 + L_0 diag(R) F_{in}
     
     F_{out} = F_0 + diag(R) F_{in}
 
@@ -1863,7 +1863,7 @@ bool solve_radiosity_equation_Horvat_nbody(
     
   //
   // do iteration: 
-  //   F_{in, k+1} =  S0 + diag(R) L_0 F_{in, k}
+  //   F_{in, k+1} =  S0 + L_0 diag(R) F_{in, k}
   // with S0 = L_{LD} F0
   
   // initial condition
@@ -1881,7 +1881,7 @@ bool solve_radiosity_equation_Horvat_nbody(
     // iteration step
     Fin = S0;
     for (auto && f: Fmat) 
-      Fin[f.b1][f.i1] += R[f.b1][f.i1]*f.F*Ftmp[f.b2][f.i2];
+      Fin[f.b1][f.i1] += f.F0*R[f.b2][f.i2]*Ftmp[f.b2][f.i2];
  
     // check convergence, compute L1 norms
     dF = Fmax = 0;
@@ -1922,7 +1922,7 @@ bool solve_radiosity_equation_Horvat_nbody(
   The equations are
     S0 =  L_{LD} F_0
      
-    F_{in} = S0 + diag(R) F_{in}
+    F_{in} = S0 + L_0 diag(R) F_{in}
     
     F_{out} = F_0 + diag(R) F_{in}
 
