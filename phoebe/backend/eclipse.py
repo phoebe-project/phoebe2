@@ -5,6 +5,8 @@ import libphoebe
 
 import logging
 
+_EXPORT_HORIZON = False
+
 logger = logging.getLogger("ECLIPSE")
 
 def _graham_scan_inside_hull(front, back):

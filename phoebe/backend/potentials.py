@@ -338,6 +338,7 @@ def discretize_wd_style(N, q, F, d, Phi):
 def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
 
     Ts = []
+    Tstart = [0,]
 
     # for testing of where things start to diverge:
     breaks0, breaks1 = [], []
@@ -427,6 +428,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
                 dphi = phi[t][1]-phi[t][0]
 
                 # Project the vertex onto the potential; this will be our center point:
+                # print "projecting center"
                 rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
                 vc = project_onto_potential(rc, potential, d, q, F, Phi).r
                 
@@ -518,32 +520,80 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
 
                         # FOR TESTING - report theta/phi for each triangle
                         # uncomment the above original version eventually
-                    if obj == 0:
-                        Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
-                        Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
 
-                        # Instead of recomputing all quantities, just reflect over the y- and z-directions.
-                        Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r1[0], -r1[1],  r1[2], r2[0], -r2[1],  r2[2], r3[0], -r3[1],  r3[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
-                        Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r3[0], -r3[1],  r3[2], r4[0], -r4[1],  r4[2], r1[0], -r1[1],  r1[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
 
-                        Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
-                        Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+                    # Temporary addition: vertex normals: ######################
+                    # print "projecting vertices "
+                    v1 = project_onto_potential(r1, potential, d, q, F, Phi).r
+                    v2 = project_onto_potential(r2, potential, d, q, F, Phi).r
+                    v3 = project_onto_potential(r3, potential, d, q, F, Phi).r
+                    v4 = project_onto_potential(r4, potential, d, q, F, Phi).r
 
-                        Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
-                        Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                    n1 = np.array((-dpdx(v1, d, q, F), -dpdy(v1, d, q, F), -dpdz(v1, d, q, F)))
+                    n2 = np.array((-dpdx(v2, d, q, F), -dpdy(v2, d, q, F), -dpdz(v2, d, q, F)))
+                    n3 = np.array((-dpdx(v3, d, q, F), -dpdy(v3, d, q, F), -dpdz(v3, d, q, F)))
+                    n4 = np.array((-dpdx(v4, d, q, F), -dpdy(v4, d, q, F), -dpdz(v4, d, q, F)))
+                    
+                    ############################################################
+
+                    # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
+                    # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2])))
+
+                    # # Instead of recomputing all quantities, just reflect over the y- and z-directions.
+                    # Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r1[0], -r1[1],  r1[2], r2[0], -r2[1],  r2[2], r3[0], -r3[1],  r3[2], nc[0], -nc[1], nc[2])))
+                    # Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r3[0], -r3[1],  r3[2], r4[0], -r4[1],  r4[2], r1[0], -r1[1],  r1[2], nc[0], -nc[1], nc[2])))
+
+                    # Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2])))
+                    # Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2])))
+
+                    # Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2])))
+                    # Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2])))
+
+                    # FOR TESTING - report theta/phi for each triangle
+                    # uncomment the above original version eventually
+                    if obj==0:
+                        Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, n3[0], n3[1], n3[2], n4[0], n4[1], n4[2], n1[0], n1[1], n1[2])))
+                        Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, n1[0], n1[1], n1[2], n2[0], n2[1], n2[2], n3[0], n3[1], n3[2])))
+
                     else:
-                        Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r1[0]+d, r1[1], r1[2], -r2[0]+d, r2[1], r2[2], -r3[0]+d, r3[1], r3[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
-                        Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r3[0]+d, r3[1], r3[2], -r4[0]+d, r4[1], r4[2], -r1[0]+d, r1[1], r1[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+                        Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r3[0]+d, r3[1], r3[2], -r4[0]+d, r4[1], r4[2], -r1[0]+d, r1[1], r1[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, -n3[0], n3[1], n3[2], -n4[0], n4[1], n4[2], -n1[0], n1[1], n1[2])))
+                        Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r1[0]+d, r1[1], r1[2], -r2[0]+d, r2[1], r2[2], -r3[0]+d, r3[1], r3[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t, -n1[0], n1[1], n1[2], -n2[0], n2[1], n2[2], -n3[0], n3[1], n3[2])))
 
-                        # Instead of recomputing all quantities, just reflect over the y- and z-directions.
-                        Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r1[0]+d, -r1[1],  r1[2], -r2[0]+d, -r2[1],  r2[2], -r3[0]+d, -r3[1],  r3[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
-                        Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r3[0]+d, -r3[1],  r3[2], -r4[0]+d, -r4[1],  r4[2], -r1[0]+d, -r1[1],  r1[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+        for T in reversed(Ts[Tstart[-1]:]):
+            Ts.append(np.array((T[0], -T[1],  T[2], T[3], T[4], -T[5],  T[6], T[7], -T[8],  T[9], T[10], -T[11],  T[12], T[13], -T[14], T[15], T[16], -T[17], T[18], T[19], -T[20],  T[21], T[22], -T[23],  T[24], T[25], -T[26],  T[27])))
+        Tstart.append(len(Ts))
 
-                        Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r1[0]+d,  r1[1], -r1[2], -r2[0]+d,  r2[1], -r2[2], -r3[0]+d,  r3[1], -r3[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
-                        Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r3[0]+d,  r3[1], -r3[2], -r4[0]+d,  r4[1], -r4[2], -r1[0]+d,  r1[1], -r1[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+    for i in range(len(Tstart)-1):
+        for T in Ts[Tstart[-2]:Tstart[-1]]:
+            Ts.append(np.array((T[0],  T[1], -T[2], T[3], T[4],  T[5], -T[6], T[7],  T[8], -T[9], T[10],  T[11], -T[12], T[13],  T[14], -T[15], np.pi-T[16], T[17], T[18], T[19],  T[20], -T[21], T[22],  T[23], -T[24], T[25],  T[26], -T[27])))
+        Tstart.pop(-1)
+                    
+                    # if obj == 0:
+                    #     Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
 
-                        Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r1[0]+d, -r1[1], -r1[2], -r2[0]+d, -r2[1], -r2[2], -r3[0]+d, -r3[1], -r3[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
-                        Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r3[0]+d, -r3[1], -r3[2], -r4[0]+d, -r4[1], -r4[2], -r1[0]+d, -r1[1], -r1[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                    #     # Instead of recomputing all quantities, just reflect over the y- and z-directions.
+                    #     Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r1[0], -r1[1],  r1[2], r2[0], -r2[1],  r2[2], r3[0], -r3[1],  r3[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((vc[0], -vc[1],  vc[2], dsigma/2, r3[0], -r3[1],  r3[2], r4[0], -r4[1],  r4[2], r1[0], -r1[1],  r1[2], nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+
+                    #     Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r1[0],  r1[1], -r1[2], r2[0],  r2[1], -r2[2], r3[0],  r3[1], -r3[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((vc[0],  vc[1], -vc[2], dsigma/2, r3[0],  r3[1], -r3[2], r4[0],  r4[1], -r4[2], r1[0],  r1[1], -r1[2], nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+
+                    #     Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r1[0], -r1[1], -r1[2], r2[0], -r2[1], -r2[2], r3[0], -r3[1], -r3[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((vc[0], -vc[1], -vc[2], dsigma/2, r3[0], -r3[1], -r3[2], r4[0], -r4[1], -r4[2], r1[0], -r1[1], -r1[2], nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                    # else:
+                    #     Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r1[0]+d, r1[1], r1[2], -r2[0]+d, r2[1], r2[2], -r3[0]+d, r3[1], r3[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((-vc[0]+d, vc[1], vc[2], dsigma/2, -r3[0]+d, r3[1], r3[2], -r4[0]+d, r4[1], r4[2], -r1[0]+d, r1[1], r1[2], -nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
+
+                    #     # Instead of recomputing all quantities, just reflect over the y- and z-directions.
+                    #     Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r1[0]+d, -r1[1],  r1[2], -r2[0]+d, -r2[1],  r2[2], -r3[0]+d, -r3[1],  r3[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((-vc[0]+d, -vc[1],  vc[2], dsigma/2, -r3[0]+d, -r3[1],  r3[2], -r4[0]+d, -r4[1],  r4[2], -r1[0]+d, -r1[1],  r1[2], -nc[0], -nc[1], nc[2], theta[t], -phi[t][0], dsigma_t)))
+
+                    #     Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r1[0]+d,  r1[1], -r1[2], -r2[0]+d,  r2[1], -r2[2], -r3[0]+d,  r3[1], -r3[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((-vc[0]+d,  vc[1], -vc[2], dsigma/2, -r3[0]+d,  r3[1], -r3[2], -r4[0]+d,  r4[1], -r4[2], -r1[0]+d,  r1[1], -r1[2], -nc[0],  nc[1], -nc[2], np.pi-theta[t], phi[t][0], dsigma_t)))
+
+                    #     Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r1[0]+d, -r1[1], -r1[2], -r2[0]+d, -r2[1], -r2[2], -r3[0]+d, -r3[1], -r3[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
+                    #     Ts.append(np.array((-vc[0]+d, -vc[1], -vc[2], dsigma/2, -r3[0]+d, -r3[1], -r3[2], -r4[0]+d, -r4[1], -r4[2], -r1[0]+d, -r1[1], -r1[2], -nc[0], -nc[1], -nc[2], np.pi-theta[t], -phi[t][0], dsigma_t)))
 
 
     # Assemble a mesh table:
