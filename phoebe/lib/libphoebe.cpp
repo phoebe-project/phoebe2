@@ -45,6 +45,7 @@
 #include "rot_star.h"              // support for rotating stars
 
 #include "wd_atm.h"                // Wilson-Devinney atmospheres
+#include "interpolation.h"         // Nulti-dimensional linear interpolation
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
  
@@ -3146,9 +3147,7 @@ static PyObject *mesh_radiosity_problem_triangles(
         if (st_interp) {
           #if 0
           int N = Tr.size();
-          
-      
-          
+        
           // calculate F0 
           for (int i = 0; i < N; ++i) 
             if (LDmod[LDidx[i]] == 0) F0[i] = Interp("F", LDidx[i], params[i]);
@@ -3164,6 +3163,9 @@ static PyObject *mesh_radiosity_problem_triangles(
             
           success = solve_radiosity_equation_Horvat(Fmat, R, F0, S0, F);
           #endif
+          
+          std::cerr << fname  << "::Not yet implemented\n";
+          return NULL;
         } else
           success = solve_radiosity_equation_Horvat(Fmat, R, F0, F);
       break;
@@ -3315,7 +3317,12 @@ static PyObject *mesh_radiosity_problem_triangles_nbody_convex(
   }
  
   // getting data from list of PyArrays
-  int n = LDmod.size();
+  int n = LDmod.size();   // number of bodies
+  
+  if (n <= 1){
+    std::cerr << fname << "::There seem to just n=" << n << " bodies.\n";
+    return NULL;
+  }
    
   std::vector<std::vector<T3Dpoint<double>>> V(n), NatT(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
@@ -3533,7 +3540,12 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
   }
  
   // getting data from list of PyArrays
-  int n = LDmod.size();
+  int n = LDmod.size(); // number of bodies
+  
+  if (n <= 1){
+    std::cerr << fname << "::There seem to just n=" << n << " bodies.\n";
+    return NULL;
+  }
    
   std::vector<std::vector<T3Dpoint<double>>> V(n), NatV(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
@@ -5590,14 +5602,14 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     results = interp(req, axes, grid) 
   
   with arguments:
-    req: 2-rank numpy array = NxM array (N columns, M rows) where 
+    req: 2-rank numpy array = MxN array (M rows, N columns) where 
         each column stores the value along the respective axis and 
         each row corresponds to a single point to be interpolated;
   
-    axes: tuple of numpy arrays, with each array holding all unique 
+    axes: tuple of N numpy arrays, with each array holding all unique 
           vertices along its respective axis in ascending order 
     
-    grid: N+1-rank numpy array =  N1xN2x...xNNxNv numpy array, 
+    grid: N+1-rank numpy array =  N1xN2x...xNNxNv array, 
           where Ni are lengths of individual axes, and the last element
           is the vertex value of dimension Nv
 
@@ -5616,7 +5628,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     grid = np.array([[[5.0], [6.0]], [[7.0], [8.0]]])
 
   Return: 
-    2-rank numpy array = MxNv numpy array of interpolated values
+    2-rank numpy array = MxNv array of interpolated values
 */
 
 static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
@@ -5649,136 +5661,52 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
     return NULL;
   }
   
-  int numAxes = PyTuple_Size(o_axes),
-      numPts = PyArray_DIM(o_req, 0),
-      numVals = PyArray_DIM(o_grid, PyArray_NDIM(o_grid)-1),
-      numFVs = 1 << numAxes;
+  int Na = PyTuple_Size(o_axes),      // number of axes
+      Np = PyArray_DIM(o_req, 0),     // number of points
+      Nv = PyArray_DIM(o_grid, Na),   // number of values interpolated
+      Nr = Np*Nv;                     // number of returned values
   
-  #if 0
-	std::cerr 
-    << "Interpolation geometry:\n"
-	  << "  numAxes = " << numAxes << " # number of axes that span interpolation space.\n"
-	  << "  numPts  = " << numPts <<  " # number of individual points to be interpolated.\n"
-	  << "  numVals = " << numVals << " # number of values per point to be interpolated.\n"
-	  << "  numFVs  = " << numFVs <<  " # number of required function values per interpolation.\n";
-  #endif
-  
-  //
-  // Allocating memory
-  //
-  double 
-    *lo = new double [3*numAxes],
-    *hi = lo + numAxes,
-    *prod = hi + numAxes;
-
-  int
-    *axlen = new int [2*numAxes],
-    *axidx = axlen + numAxes;
-  
-  double 
-    **n = utils::matrix<double>(numFVs, numAxes),   // space to hold all the nodes
-    **fvv = utils::matrix<double>(numFVs, numVals), // function value arrays
-    **ret = utils::matrix<double>(numPts, numVals), // returned values
-
-    *req = (double *) PyArray_DATA(o_req),
-    *grid = (double *) PyArray_DATA(o_grid),
+  double
+    *R = new double [Nr],                 // returned values
+    *Q = (double *) PyArray_DATA(o_req),  // requested values
+    *G = (double *) PyArray_DATA(o_grid); // grid of values
     
-    **r  = new double* [numPts + numAxes],   // pointers to rows in table of req
-    **ax = r + numPts;                       // pointers to tuples in axes
-  
-  // pointers to rows for more efficient access
-  { 
-    double *p = req;
-    for (int i = 0; i < numPts; ++i, p += numAxes) r[i] = p;
-  }
-  
+
   // Unpack the axes
+  int *L = new int [Na];      // number of values in axes
+  double **A = new double* [Na]; // pointers to tuples in axes
+  
   {
     PyArrayObject *p;
-    for (int i = 0; i < numAxes; ++i) {
+    for (int i = 0; i < Na; ++i) {
       p = (PyArrayObject*)PyTuple_GET_ITEM(o_axes, i); // no checks, borrows reference
-      axlen[i] = (int) PyArray_DIM(p, 0);
-      ax[i] = (double *) PyArray_DATA(p);
+      L[i] = (int) PyArray_DIM(p, 0);
+      A[i] = (double *) PyArray_DATA(p);
     }
   }
   
-	/*
-    The main loop: go through all requested vertices and find the
-    corresponding values:
-  */
-
-  int i, j, k, l, m, o, idx;
-  
-  bool out_of_bounds;
-
-	for (i = 0; i < numPts; ++i) {
-    
-    out_of_bounds = false;
-
-    // Run the axes first to make sure interpolation is possible.
-    for (j = numAxes-1; j >= 0; --j) {
-      axidx[j] = utils::flt(r[i][j], ax[j], axlen[j]);
-      
-      // AN OUT-OF-BOUNDS SITUATION -- both sides handled.
-      if (axidx[j] < 1) out_of_bounds = true;
-    }
-
-    // Must do this here to be able to continue the main loop.
-    if (out_of_bounds) {
-      for (l = 0; l < numVals; ++l) ret[i][l] = std::nan("");
-      continue;
-    }
-        
-		for (j = numAxes-1; j >= 0; --j) {
-			lo[j] = ax[j][axidx[j]-1]; 
-      hi[j] = ax[j][axidx[j]];
-			prod[j] = (j == numAxes - 1) ? 1.0 : prod[j+1]*axlen[j+1];
-		}
-
-		for (k = 0; k < numFVs; ++k) {
-			
-			for (j = idx = 0; j < numAxes; ++j)
-				idx += (axidx[j] - 1 + ((k >> j) & 1) )*prod[j];
-        
-      double *g = grid + idx*numVals;
-			for (l = 0; l < numVals; ++l) fvv[k][l] = g[l];
-		}
-
-		// Populate the nodes:
-		for (k = 0; k < numAxes; ++k)
-      for (j = 0; j < numFVs; ++j)
-				n[j][k] = lo[k] + ((j >> k) & 1)*(hi[k] - lo[k]);
-
-		for (k = 0, o = numAxes - 1, m = numFVs >> 1; k < numAxes; ++k, --o, m >>=1)
-			for (j = 0; j < m; ++j)
-				for (l = 0; l < numVals; ++l)
-          fvv[j][l] += (r[i][o] - n[j][o])*(fvv[j + m][l] - fvv[j][l])/
-                        (n[j + m][o] - n[j][o]);
-      
-		for (l = 0; l < numVals; ++l) ret[i][l] = fvv[0][l];
-	}
-
-    
-  // Free all the arrays we don't need anymore.
-  delete [] lo;    // freeing lo, hi, prod 
-  delete [] axlen; // freeing axlen, axidx
-
-  utils::free_matrix(n);
-  utils::free_matrix(fvv);
-  
   //
-  // Set the results
+  // Do interpolation
+  //
+  
+  Tlinear_interpolation<double> lin_iterp(Na, Nv, L, A, G);
+  
+  for (double *q = Q, *r = R, *re = r + Nr; r != re; q += Na, r += Nv) 
+    lin_iterp.get(q, r);
+  
+  
+  // Clean data about axes
+  delete [] L;  
+  delete [] A;
+
+  //
+  // Return results
   //
    
-  npy_intp retdim[2] = {numPts, numVals};
-	PyObject *o_ret = 
-    PyArray_SimpleNewFromData(2, retdim, NPY_DOUBLE, (void *)ret[0]);
+  npy_intp dims[2] = {Np, Nv};
+	PyObject *o_ret = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, R);
   PyArray_ENABLEFLAGS((PyArrayObject *)o_ret, NPY_ARRAY_OWNDATA);
-  
-  // Free only pointers to rows, as the content is borrowed
-  delete [] ret;
-  delete [] r;      // freeing r and ax
-  
+    
   return o_ret;
 }
 
@@ -6047,7 +5975,7 @@ static PyMethodDef Methods[] = {
 };
 
 static char const *Docstring =
-  "Module wraps routines dealing with models of the stars and "
+  "Module wraps routines dealing with models of stars and "
   "triangular mesh generation and their manipulation.";
 
 /* module initialization */
