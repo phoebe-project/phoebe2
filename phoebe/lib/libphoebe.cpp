@@ -4532,21 +4532,16 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
   {
     void *p = PyArray_DATA(o_dims);
     
-    switch (PyArray_ITEMSIZE(o_dims)) {
-      
-      case sizeof(int):
-        for (int i = 0; i < 3; ++i) dims[i] = ((int*)p)[i];
-      break;
-     
-      case sizeof(long):
-        for (int i = 0; i < 3; ++i) dims[i] = ((long*)p)[i];
-     
-        break;
-        
-      default:
-        std::cerr 
-          << "roche_square_grid::This type of dims is not supported\n";
-        return NULL;
+    int size = PyArray_ITEMSIZE(o_dims);
+    
+    if (size == sizeof(int))
+      for (int i = 0; i < 3; ++i) dims[i] = ((int*)p)[i];
+    else if (size == sizeof(long)) 
+      for (int i = 0; i < 3; ++i) dims[i] = ((long*)p)[i];
+    else  {
+      std::cerr 
+        << "roche_square_grid::This type of dims is not supported\n";
+      return NULL;
     }
   }
   
@@ -4765,47 +4760,41 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     
     void *p = PyArray_DATA((PyArrayObject*)o_blist);
     
-    int l[2] = {dims[1]*dims[2], dims[2]};
+    int l[2] = {dims[1]*dims[2], dims[2]},
+        size = PyArray_ITEMSIZE((PyArrayObject*)o_blist);
         
     // index = u[2] + dims[2]*(u[1] + u[0]*dims[1]));
+  
+    if (size == sizeof(int)) {
+
+      int *q = (int*)p;
+      
+      for (auto && b : bpoints) {
+        q[0] = b/l[0]; 
+        
+        b -= q[0]*l[0];
+        
+        q[1] = b/l[1];
+        
+        q[2] = b - q[1]*l[1];
+        
+        q += 3;
+      } 
     
-    switch (PyArray_ITEMSIZE((PyArrayObject*)o_blist)) {
-      case sizeof(int):
-      {
-        int *q = (int*)p;
-        
-        for (auto && b : bpoints) {
-          q[0] = b/l[0]; 
-          
-          b -= q[0]*l[0];
-          
-          q[1] = b/l[1];
-          
-          q[2] = b - q[1]*l[1];
-          
-          q += 3;
-        } 
-      }
-      break;
+    } else if (size == sizeof(long)) {
+      long *q = (long*)p;
       
-      case sizeof(long):
-      {
-        long *q = (long*)p;
+      for (auto && b : bpoints) {
+        q[0] = b/l[0]; 
         
-        for (auto && b : bpoints) {
-          q[0] = b/l[0]; 
-          
-          b -= q[0]*l[0];
-          
-          q[1] = b/l[1];
-          
-          q[2] = b - q[1]*l[1];
-          
-          q += 3;
-        } 
-      }
-      
-      break;
+        b -= q[0]*l[0];
+        
+        q[1] = b/l[1];
+        
+        q[2] = b - q[1]*l[1];
+        
+        q += 3;
+      } 
     }
     
     PyDict_SetItemStringStealRef(results, "boundary", o_blist);
