@@ -282,6 +282,7 @@ class System(object):
                                                                                        self.reflection_method.title()
                                                                                        )
 
+
             # intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
             #                                                                            triangles_per_body,
             #                                                                            normals_per_body,
@@ -322,7 +323,7 @@ class System(object):
                                                                                     intens_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds,
-                                                                                    self.refelction_method.title()
+                                                                                    self.reflection_method.title()
                                                                                     )
 
 
@@ -1929,7 +1930,7 @@ class Star(Body):
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
                                    photon_weighted=intens_weighting=='photon')
-                
+
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
