@@ -5,7 +5,7 @@ import commands
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
 from phoebe import dynamics
-from phoebe.backend import universe, etvs
+from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 from phoebe import u, c
@@ -771,6 +771,24 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                         vcs[i] = np.full(3, np.nan)
                 this_syn['visible_centroids'] = vcs
 
+                # Analytic horizon
+                if body.mesh_method == 'marching':
+                    q, F, d, Phi = body._mesh_args
+                    scale = body._scale
+                    euler = [ethetai[cind], elongani[cind], eincli[cind]]
+                    pos = [xi[cind], yi[cind], zi[cind]]
+                    ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
+                elif body.mesh_method == 'wd':
+                    ha = None
+                else:
+                    raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
+
+                this_syn['horizon_analytic_xs'] = ha['xs']
+                this_syn['horizon_analytic_ys'] = ha['ys']
+                this_syn['horizon_analytic_zs'] = ha['zs']
+
+
+                # Dataset-dependent quantities
                 indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
                 if _devel_enabled:
                     indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
