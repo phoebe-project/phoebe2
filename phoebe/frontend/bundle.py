@@ -1063,41 +1063,43 @@ class Bundle(ParameterSet):
         # we also need to make sure that stars don't overlap each other
         # so we'll check for each pair of stars (see issue #70 on github)
         for orbitref in hier.get_orbits():
-            q = self.get_value(qualifier='q', component=orbitref, context='component')
-            ecc = self.get_value(qualifier='ecc', component=orbitref, context='component')
+            if len(hier.get_children_of(orbitref)) == 2:
+                q = self.get_value(qualifier='q', component=orbitref, context='component')
+                ecc = self.get_value(qualifier='ecc', component=orbitref, context='component')
 
-            starrefs = hier.get_children_of(orbitref)
-            comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
-            comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
-            q0 = roche.q_for_component(q, comp0)
-            q1 = roche.q_for_component(q, comp1)
+                starrefs = hier.get_children_of(orbitref)
+                comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
+                comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
+                q0 = roche.q_for_component(q, comp0)
+                q1 = roche.q_for_component(q, comp1)
 
-            F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component')
-            F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component')
+                F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component')
+                F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component')
 
-            pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component')
-            pot0 = roche.pot_for_component(pot0, q0, comp0)
+                pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component')
+                pot0 = roche.pot_for_component(pot0, q0, comp0)
 
-            pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component')
-            pot1 = roche.pot_for_component(pot1, q1, comp1)
+                pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component')
+                pot1 = roche.pot_for_component(pot1, q1, comp1)
 
-            xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0, choice=0)
-            xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1, choice=0)
+                xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0, choice=0)
+                xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1, choice=0)
 
-            if xrange0[1]+xrange1[1] > 1.0-ecc:
-                return False,\
-                    'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
+                if xrange0[1]+xrange1[1] > 1.0-ecc:
+                    return False,\
+                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
         # check to make sure all stars are aligned (remove this once we support
         # misaligned roche binaries)
         if len(hier.get_stars()) > 1:
             for starref in hier.get_meshables():
                 orbitref = hier.get_parent_of(starref)
-                incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
-                incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
-                if incl_star != incl_orbit:
-                    return False,\
-                        'misaligned orbits are not currently supported.'
+                if len(hier.get_children_of(orbitref)) == 2:
+                    incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
+                    incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
+                    if incl_star != incl_orbit:
+                        return False,\
+                            'misaligned orbits are not currently supported.'
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1116,7 +1118,7 @@ class Bundle(ParameterSet):
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
-            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component')
+            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False)
             ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
