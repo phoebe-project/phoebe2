@@ -1894,6 +1894,7 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
+        boosting_method = kwargs.get('boosting_method', self.boosting_method)
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -1920,13 +1921,9 @@ class Star(Body):
                                      photon_weighted=intens_weighting=='photon')
 
             # Beaming/boosting
-            if self.boosting_method == 'none':
-                alpha_b = 0.0
-
-                # light speed in Rsol/d
-                # TODO: should we mutliply velocities by -1 (z convention)?
-                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
-            elif self.boosting_method == 'linear':
+            if boosting_method == 'none':
+                boost_factors = 1.0
+            elif boosting_method == 'linear':
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
                                    met=self.mesh.abuns.for_computations,
@@ -2613,6 +2610,7 @@ class Envelope(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
+        boosting_method = kwargs.get('boosting_method', self.boosting_method)
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -2640,20 +2638,16 @@ class Envelope(Body):
                                      photon_weighted=intens_weighting=='photon')
 
             # Beaming/boosting
-            if self.boosting_method == 'none':
-                alpha_b = 0.0
-
-                # light speed in Rsol/d
-                # TODO: should we mutliply velocities by -1 (z convention)?
-                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
-            elif self.boosting_method == 'linear':
+            if boosting_method == 'none':
+                boost_factors = 1.0
+            elif boosting_method == 'linear':
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
                                    met=self.mesh.abuns.for_computations,
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
                                    photon_weighted=intens_weighting=='photon')
-                
+
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
