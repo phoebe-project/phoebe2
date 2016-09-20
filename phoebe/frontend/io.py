@@ -363,7 +363,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-        overcontact= True   
+        overcontact= True
         eb = phb.Bundle.default_binary(overcontact=True)
     else:
         eb = phb.Bundle.default_binary()
@@ -872,8 +872,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     spots = eb.features
     if len(ldlaws) == 0:
         pass
-    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square root']:
-        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square root'")
+    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
+        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
 
     #make lists to put results with important things already added
 
