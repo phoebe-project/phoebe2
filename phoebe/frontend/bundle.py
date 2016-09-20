@@ -1525,7 +1525,7 @@ class Bundle(ParameterSet):
             phase = phshift + np.mod((time-t0)/period, 1.0)
 
         phase[phase > 0.5] -= 1
-        
+
         return phase
 
     def to_time(self, phase, shift, component=None, t0='t0_supconj', **kwargs):
@@ -2280,8 +2280,6 @@ class Bundle(ParameterSet):
             self.as_client(False)
             return self.get_model(model)
 
-        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
-
         if model is None:
             model = 'latest'
 
@@ -2319,6 +2317,10 @@ class Bundle(ParameterSet):
                 compute = computes[0]
             elif len(computes)>1:
                 raise ValueError("must provide label of compute options since more than one are attached")
+
+        # we'll wait to here to run kwargs checks so that add_compute is already
+        # called if necessary
+        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options

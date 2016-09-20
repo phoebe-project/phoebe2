@@ -354,8 +354,19 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     legacy_file_dir = os.path.dirname(filename)
 
+# load the phoebe file
+
+    params = np.loadtxt(filename, dtype='str', delimiter = ' = ')
+
+    morphology = params[:,1][list(params[:,0]).index('phoebe_model')]
+
+
 # load an empty legacy bundle and initialize obvious parameter sets
-    eb = phb.Bundle.default_binary()
+    if 'Overcontact' in morphology:
+        overcontact= True   
+        eb = phb.Bundle.default_binary(overcontact=True)
+    else:
+        eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
     if add_compute_phoebe == True:
@@ -365,9 +376,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     #    comid.append('lega1')
         eb.add_compute('legacy')#, compute=comid[-1])
 
-# load the phoebe file
-
-    params = np.loadtxt(filename, dtype='str', delimiter = ' = ')
 
 #basic filter on parameters that make no sense in phoebe 2
     ind = [list(params[:,0]).index(s) for s in params[:,0] if not ".ADJ" in s and not ".MIN" in s and not ".MAX" in s and not ".STEP" in s and not "gui_" in s]
@@ -381,6 +389,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 # delete parameters that have already been accounted for and find lc and rv parameters
 
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
+
+    if 'Overcontact' in morphology:
+        np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
+        if 'UMa'in morphology:
+            params[:,1][list(params[:,0]).index('phoebe_teff2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_teff1.VAL')]
+            params[:,1][list(params[:,0]).index('phoebe_grb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_grb1.VAL')]
+            params[:,1][list(params[:,0]).index('phoebe_alb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_alb1.VAL')]
 # create mzero and grab it if it exists
     mzero = None
     if 'phoebe_mnorm' in params:
@@ -600,8 +615,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['kind'] = 'star'
             d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
-            eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
+            if not overcontact:
+                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
             #print "val", val
+            else:
+                d['component'] = 'common_envelope'
             d['value'] = val
             d['qualifier'] = 'pot'
             d['kind'] = None
@@ -646,9 +664,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
-
-    eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
-    eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
+    if not overcontact:
+        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
+        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
@@ -838,8 +856,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     stars = eb['hierarchy'].get_stars()
     orbits = eb['hierarchy'].get_orbits()
 
+
     if len(stars) != 2 or len(orbits) != 1:
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
+# check for overcontact
+    overcontact = eb.hierarchy.is_overcontact('primary')
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -868,7 +889,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
-
+    if overcontact:
+#        cepars = eb.filter(component='common_envelope', context='component')
+        val = [eb.get_value(qualifier='pot')]
+        ptype = 'float'
+        pname = ret_parname('pot', component='primary', ptype=ptype)
+        parnames.extend(pname)
+        parvals.extend(val)
     # get primary parameters and convert
 
     for param in prpars.to_list():
