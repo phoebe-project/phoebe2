@@ -2107,20 +2107,23 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     
   Python:
 
-    dict = mesh_visibility(v, V, T, N, <keyword> = <value>)
+    dict = mesh_visibility(v, V, T, N, method, <keyword> = <value>)
     
   with arguments
   
     viewdir[3] - 1-rank numpy array floats = 3 coordinates representing 3D point
     V[][3] - 2-rank numpy array of vertices  
     T[][3] - 2-rank numpy array of indices of vertices composing triangles
-    N[][3] - 2-rank numpy array of normals of triangles
- 
+    N[][3] - 2-rank numpy array of normals of triangles (if using boolean method)
+             2-rank numpy array of normals of vertices (if using boolean method)
+    
+    method = ["boolean", "linear"]
+    
     (optional)   
     tvisibilities: boolean, default True
     taweights: boolean, default False 
     horizon: boolean, default False
-          
+    
   Returns: dictionary with keywords
    
   keywords:
@@ -2153,6 +2156,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
     (char*)"V",
     (char*)"T",
     (char*)"N",
+    (char*)"method",
     (char*)"tvisibilities",
     (char*)"taweights",
     (char*)"horizon",
@@ -2160,8 +2164,12 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
        
   PyArrayObject *ov = 0, *oV = 0, *oT = 0, *oN = 0;
   
-  PyObject *o_tvisibilities = 0, *o_taweights = 0, *o_horizon = 0;
-  
+  PyObject 
+    *o_method, 
+    *o_tvisibilities = 0, 
+    *o_taweights = 0, 
+    *o_horizon = 0;
+
   bool 
     b_tvisibilities = true,
     b_taweights = false,
@@ -2169,11 +2177,12 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   
   // parse arguments
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds, "O!O!O!O!|O!O!O!", kwlist,
+        args, keywds, "O!O!O!O!O!|O!O!O!", kwlist,
         &PyArray_Type, &ov,
         &PyArray_Type, &oV, 
         &PyArray_Type, &oT,
         &PyArray_Type, &oN,
+        &PyString_Type, &o_method,
         &PyBool_Type, &o_tvisibilities,
         &PyBool_Type, &o_taweights,
         &PyBool_Type, &o_horizon    
@@ -2182,7 +2191,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
     std::cerr << "mesh_visibility:Problem reading arguments\n";
     return NULL;
   }
-  
+    
   if (o_tvisibilities) b_tvisibilities = PyObject_IsTrue(o_tvisibilities);
   if (o_taweights) b_taweights = PyObject_IsTrue(o_taweights);
   if (o_horizon) b_horizon = PyObject_IsTrue(o_horizon);
@@ -2221,8 +2230,22 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   //
   //  Calculate visibility
   //
-  triangle_mesh_visibility(view, V, T, N, M, W, H);
-  
+  {
+    char *s = PyString_AsString(o_method);
+        
+    switch (fnv1a_32::hash(s)) {
+      
+      case "boolean"_hash32:
+        // N - normal of traingles
+        triangle_mesh_visibility_boolean(view, V, T, N, M, W, H);
+        break;
+        
+      case "linear"_hash32:
+        // N - normals at vertices
+        triangle_mesh_visibility_linear(view, V, T, N, M, W, H);
+        break;
+    }
+  }
   //
   // Storing results in dictionary
   // https://docs.python.org/2/c-api/dict.html
