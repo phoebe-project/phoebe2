@@ -42,6 +42,7 @@ def _value(obj):
 
 class System(object):
     def __init__(self, bodies_dict, eclipse_method='graham',
+                 horizon_method='boolean',
                  dynamics_method='keplerian',
                  reflection_method='none',
                  boosting_method='none'):
@@ -50,6 +51,7 @@ class System(object):
         """
         self._bodies = bodies_dict
         self.eclipse_method = eclipse_method
+        self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.reflection_method = reflection_method
         for body in self._bodies.values():
@@ -91,13 +93,15 @@ class System(object):
                 # then hopefully compute is the parameterset
                 compute_ps = compute
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
+            horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
         else:
-            eclipse_method = 'graham'
+            eclipse_method = 'native'
+            horizon_method = 'boolean'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
@@ -118,6 +122,7 @@ class System(object):
         bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
 
         return cls(bodies_dict, eclipse_method=eclipse_method,
+                   horizon_method=horizon_method,
                    dynamics_method=dynamics_method,
                    reflection_method=reflection_method,
                    boosting_method=boosting_method)
@@ -365,6 +370,7 @@ class System(object):
         """
 
         eclipse_method = kwargs.get('eclipse_method', self.eclipse_method)
+        horizon_method = kwargs.get('horizon_method', self.horizon_method)
         # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
         # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
@@ -392,7 +398,7 @@ class System(object):
                         possible_eclipse = True
                         break
 
-        if not possible_eclipse and not expose_horizon:
+        if not possible_eclipse and not expose_horizon and horizon_method=='boolean':
             eclipse_method = 'only_horizon'
 
         # meshes is an object which allows us to easily access and update columns
@@ -405,7 +411,15 @@ class System(object):
 
         ecl_func = getattr(eclipse, eclipse_method)
 
-        visibilities, weights, horizon = ecl_func(meshes, self.xs, self.ys, self.zs, expose_horizon=expose_horizon)
+        if eclipse_method=='native':
+            ecl_kwargs = {'horizon_method': horizon_method}
+        else:
+            ecl_kwargs = {}
+
+        visibilities, weights, horizon = ecl_func(meshes,
+                                                  self.xs, self.ys, self.zs,
+                                                  expose_horizon=expose_horizon,
+                                                  **ecl_kwargs)
 
         # NOTE: analytic horizons are called in backends.py since they don't
         # actually depend on the mesh at all.

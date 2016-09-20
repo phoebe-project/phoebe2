@@ -136,7 +136,7 @@ def only_horizon(meshes, xs, ys, zs, expose_horizon=False):
 
     return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None, None
 
-def native(meshes, xs, ys, zs, expose_horizon=False):
+def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
     """
     TODO: add documentation
 
@@ -146,11 +146,18 @@ def native(meshes, xs, ys, zs, expose_horizon=False):
     centers_flat = meshes.get_column_flat('centers')
     vertices_flat = meshes.get_column_flat('vertices')
     triangles_flat = meshes.get_column_flat('triangles')  # should handle offset automatically
-    normals_flat = meshes.get_column_flat('tnormals')
+
+    if horizon_method=='boolean':
+        normals_flat = meshes.get_column_flat('tnormals')
+    elif horizon_method=='linear':
+        normals_flat = meshes.get_column_flat('vnormals')
+    else:
+        raise NotImplementedError
 
     # viewing_vector is defined as star -> earth
     # NOTE: this will need to flip if we change the convention on the z-direction
     viewing_vector = np.array([0., 0., 1.])
+
 
     # we need to send in ALL vertices but only the visible triangle information
     info = libphoebe.mesh_visibility(viewing_vector,
@@ -159,6 +166,7 @@ def native(meshes, xs, ys, zs, expose_horizon=False):
                                      normals_flat,
                                      tvisibilities=True,
                                      taweights=True,
+                                     method=horizon_method,
                                      horizon=expose_horizon)
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
