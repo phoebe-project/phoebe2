@@ -88,7 +88,7 @@ class System(object):
         # now pull general compute options
         if compute is not None:
             if isinstance(compute, str):
-                compute_ps = b.get_compute(compute)
+                compute_ps = b.get_compute(compute, check_visible=False)
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
