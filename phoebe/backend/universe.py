@@ -7,7 +7,7 @@ import copy
 
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
-from phoebe.backend import eclipse, potentials, mesh, horizon_analytic
+from phoebe.backend import eclipse, potentials, mesh
 import libphoebe
 
 from phoebe import u

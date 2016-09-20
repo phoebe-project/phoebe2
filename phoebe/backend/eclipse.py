@@ -108,7 +108,7 @@ def wd_horizon(meshes, xs, ys, zs, expose_horizon=False):
     rhos[0][horizon_inds]
     thetas[0][horizon_inds]
 
-    visibilities, weights = only_horizon(meshes, xs, ys, zs)
+    visibilities, weights, horizon = only_horizon(meshes, xs, ys, zs)
     # now edit visibilities based on eclipsing region
     # visibilities = {comp_no: np.ones(len(mesh)) for comp_no, mesh in meshes.items()}
     visibilities[comp_back]
@@ -205,7 +205,7 @@ def graham(meshes, xs, ys, zs, expose_horizon=False):
     distance_factor = 1.0  # TODO: make this an option (what does it even do)?
 
     # first lets handle the horizon
-    visibilities, weights = only_horizon(meshes, xs, ys, zs)
+    visibilities, weights, horizon = only_horizon(meshes, xs, ys, zs)
 
     # Order the bodies from front to back.  We can do this through zs (which are
     # the z-coordinate positions of each body in the system.
