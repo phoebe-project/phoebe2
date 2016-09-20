@@ -154,6 +154,9 @@ class Passband:
         if 'ck2004_ld' in self.content:
             struct['_ck2004_ld_energy_grid']  = self._ck2004_ld_energy_grid
             struct['_ck2004_ld_photon_grid']  = self._ck2004_ld_photon_grid
+        if 'ck2004_ldint' in self.content:
+            struct['_ck2004_ldint_energy_grid']  = self._ck2004_ldint_energy_grid
+            struct['_ck2004_ldint_photon_grid']  = self._ck2004_ldint_photon_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -226,6 +229,12 @@ class Passband:
             self._ck2004_ld_energy_grid = self._ck2004_ld_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
             self._ck2004_ld_photon_grid = np.fromstring(struct['_ck2004_ld_photon_grid'], dtype='float64')
             self._ck2004_ld_photon_grid = self._ck2004_ld_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11)
+
+        if 'ck2004_ldint' in self.content:
+            self._ck2004_ldint_energy_grid = np.fromstring(struct['_ck2004_ldint_energy_grid'], dtype='float64')
+            self._ck2004_ldint_energy_grid = self._ck2004_ldint_energy_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
+            self._ck2004_ldint_photon_grid = np.fromstring(struct['_ck2004_ldint_photon_grid'], dtype='float64')
+            self._ck2004_ldint_photon_grid = self._ck2004_ldint_photon_grid.reshape(len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 1)
 
         return self
 
@@ -463,6 +472,44 @@ class Passband:
 
         self.content.append('ck2004_ld')
 
+    def compute_ck2004_ldints(self):
+        if 'ck2004_all' not in self.content:
+            print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
+            return None
+
+        ldaxes = self._ck2004_intensity_axes
+        ldtable = self._ck2004_Imu_energy_grid
+        pldtable = self._ck2004_Imu_photon_grid
+
+        self._ck2004_ldint_energy_grid = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+        self._ck2004_ldint_photon_grid = np.nan*np.ones((len(ldaxes[0]), len(ldaxes[1]), len(ldaxes[2]), 1))
+
+        mu = ldaxes[3]
+        Imu = 10**ldtable[:,:,:,:]/10**ldtable[:,:,:,-1:]
+        pImu = 10**pldtable[:,:,:,:]/10**pldtable[:,:,:,-1:]
+
+        # To compute the fluxes, we need to evaluate \int_0^1 2pi Imu mu dmu.
+
+        for a in range(len(ldaxes[0])):
+            for b in range(len(ldaxes[1])):
+                for c in range(len(ldaxes[2])):
+
+                    ldint = 0.0
+                    pldint = 0.0
+                    for i in range(len(mu)-1):
+                        ki = (Imu[a,b,c,i+1]-Imu[a,b,c,i])/(mu[i+1]-mu[i])
+                        ni = Imu[a,b,c,i]-ki*mu[i]
+                        ldint += ki/3*(mu[i+1]**3-mu[i]**3) + ni/2*(mu[i+1]**2-mu[i]**2)
+
+                        pki = (pImu[a,b,c,i+1]-pImu[a,b,c,i])/(mu[i+1]-mu[i])
+                        pni = pImu[a,b,c,i]-pki*mu[i]
+                        pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
+
+                    self._ck2004_ldint_energy_grid[a,b,c] = 2*np.pi*ldint
+                    self._ck2004_ldint_photon_grid[a,b,c] = 2*np.pi*pldint
+
+        self.content.append('ck2004_ldint')
+
     def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
@@ -653,16 +700,22 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
         return retval
 
-    def _Dint_ck2004(self, Teff, logg, abun, photon_weighted):
-        pass
+    def _ldint_ck2004(self, Teff, logg, abun, photon_weighted):
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, abun),))
+            ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, abun)).T
+            ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
 
-    def Dint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        return ldint
+
+    def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
-            #~ if atm == 'ck2004':
-                #~ retval = 10**self._Dint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
-            #~ else:
-                #~ raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
-            raise NotImplementedError('ld_func={} not supported'.format(ld_func))
+            if atm == 'ck2004':
+                retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+            else:
+                raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
         elif ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
         elif ld_func == 'logarithmic':
