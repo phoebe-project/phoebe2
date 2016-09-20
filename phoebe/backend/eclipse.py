@@ -24,7 +24,7 @@ each function must return a dictionary, with keys being component numbers and va
 
 """
 
-def wd_horizon(meshes, xs, ys, zs):
+def wd_horizon(meshes, xs, ys, zs, expose_horizon=False):
     """
     """
 
@@ -114,15 +114,15 @@ def wd_horizon(meshes, xs, ys, zs):
     visibilities[comp_back]
     mesh_back
 
-    return visibilities, None
+    return visibilities, None, None
 
 
-def none(meshes, xs, ys, zs):
+def none(meshes, xs, ys, zs, expose_horizon=False):
     """
     """
-    return {comp_no: mesh.visibilities for comp_no, mesh in meshes.items()}, None
+    return {comp_no: mesh.visibilities for comp_no, mesh in meshes.items()}, None, None
 
-def only_horizon(meshes, xs, ys, zs):
+def only_horizon(meshes, xs, ys, zs, expose_horizon=False):
     """
     Check all visible or partial triangles to see if they're behind the horizon,
     by checking the direction of the z-component of the normals (ie hidden if mu<0)
@@ -134,9 +134,9 @@ def only_horizon(meshes, xs, ys, zs):
 
     # this can all by easily done by multiplying by int(mu>0) (1 if visible, 0 if hidden)
 
-    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None
+    return {comp_no: mesh.visibilities * (mesh.mus > 0).astype(int) for comp_no, mesh in meshes.items()}, None, None
 
-def native(meshes, xs, ys, zs):
+def native(meshes, xs, ys, zs, expose_horizon=False):
     """
     TODO: add documentation
 
@@ -158,14 +158,25 @@ def native(meshes, xs, ys, zs):
                                      triangles_flat,
                                      normals_flat,
                                      tvisibilities=True,
-                                     taweights=True)
+                                     taweights=True,
+                                     horizon=expose_horizon)
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
     weights = meshes.unpack_column_flat(info['taweights'], computed_type='triangles')
 
-    return visibilities, weights
+    if expose_horizon:
+        horizons = info['horizon']
 
-def visible_partial(meshes, xs, ys, zs):
+        # TODO: we need to do this per component and somehow return them in
+        # a predictable order or as a dictionary a la the other returned quantities
+        horizons = [vertices_flat[horizon_i] for horizon_i in horizons]
+
+    else:
+        horizons = None
+
+    return visibilities, weights, horizons
+
+def visible_partial(meshes, xs, ys, zs, expose_horizon=False):
     centers_flat = meshes.get_column_flat('centers')
     vertices_flat = meshes.get_column_flat('vertices')
     triangles_flat = meshes.get_column_flat('triangles')  # should handle offset automatically
@@ -182,11 +193,11 @@ def visible_partial(meshes, xs, ys, zs):
 
     visibilities = meshes.unpack_column_flat(visibilities, computed_type='triangles')
 
-    return visibilities, None
+    return visibilities, None, None
 
 
 
-def graham(meshes, xs, ys, zs):
+def graham(meshes, xs, ys, zs, expose_horizon=False):
     """
     convex_graham
     """
@@ -280,4 +291,4 @@ def graham(meshes, xs, ys, zs):
             #star1.mesh['partial'][arg] = True
 
 
-    return visibilities, None
+    return visibilities, None, None
