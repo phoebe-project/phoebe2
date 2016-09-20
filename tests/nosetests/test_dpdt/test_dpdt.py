@@ -24,10 +24,11 @@ def test_binary(plot=False):
 
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
-    b.set_value_all('ecc', 0.2)
+    # b.set_value_all('ecc', 0.2)
 
-    for dperdt in [-0.5, -0.25, 0.25, 0.5]:
-        b.set_value('dperdt', dperdt)
+    for dpdt in [-0.5, -0.25, 0.25, 0.5]:
+        b.set_value('dpdt', dpdt)
+
 
         print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', model='phoebe2model')
