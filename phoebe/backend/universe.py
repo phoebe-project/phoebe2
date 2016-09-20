@@ -7,7 +7,7 @@ import copy
 
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
-from phoebe.backend import eclipse, potentials, mesh, horizon_analytic
+from phoebe.backend import eclipse, potentials, mesh
 import libphoebe
 
 from phoebe import u
@@ -2653,7 +2653,7 @@ class Envelope(Body):
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
                                    photon_weighted=intens_weighting=='photon')
-                
+
                 boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))

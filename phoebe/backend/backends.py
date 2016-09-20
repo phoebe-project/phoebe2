@@ -782,7 +782,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     pos = [xi[cind], yi[cind], zi[cind]]
                     ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
                 elif body.mesh_method == 'wd':
-                    ha = None
+                    scale = body._scale
+                    pos = [xi[cind], yi[cind], zi[cind]]
+                    ha = horizon_analytic.wd(b, time, scale, pos)
                 else:
                     raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
 
