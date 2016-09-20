@@ -399,7 +399,7 @@ class Passband:
         return 1.0-xl*(1-mu)
 
     def _ldlaw_log(self, mu, xl, yl):
-        return 1.0-xl*(1-mu)-yl*mu*np.log10(mu+1e-6)
+        return 1.0-xl*(1-mu)-yl*mu*np.log(mu+1e-6)
 
     def _ldlaw_sqrt(self, mu, xl, yl):
         return 1.0-xl*(1-mu)-yl*(1.0-np.sqrt(mu))
@@ -653,6 +653,35 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
         return retval
 
+    def _Dint_ck2004(self, Teff, logg, abun, photon_weighted):
+        pass
+
+    def Dint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        if ld_func == 'interp':
+            #~ if atm == 'ck2004':
+                #~ retval = 10**self._Dint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+            #~ else:
+                #~ raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
+            raise NotImplementedError('ld_func={} not supported'.format(ld_func))
+        elif ld_func == 'linear':
+            retval = 1-ld_coeffs[0]/3
+        elif ld_func == 'logarithmic':
+            retval = 1-ld_coeffs[0]/3+2.*ld_coeffs[1]/9
+        elif ld_func == 'square_root':
+            retval = 1-ld_coeffs[0]/3-ld_coeffs[1]/5
+        elif ld_func == 'quadratic':
+            retval = 1-ld_coeffs[0]/3-ld_coeffs[1]/6
+        elif ld_func == 'power':
+            retval = 1-ld_coeffs[0]/5-ld_coeffs[1]/3-3.*ld_coeffs[2]/7-ld_coeffs[3]/2
+
+        else:
+            raise NotImplementedError('ld_func={} not supported'.format(ld_func))
+
+        nanmask = np.isnan(retval)
+        if np.any(nanmask):
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
+        return retval
+
     def _bindex_ck2004(self, Teff, logg, met, mu, atm, photon_weighted=False):
         grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
         if not hasattr(Teff, '__iter__'):
@@ -664,7 +693,7 @@ class Passband:
 
         return bindex
 
-    def bindex(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='blackbody', photon_weighted=False):
+    def bindex(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, met, mu, atm, photon_weighted)
         else:

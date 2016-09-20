@@ -56,7 +56,7 @@ def euler_trans_matrix(etheta, elongan, eincl):
                         [s1*s3, s1*c3, c1]
                     ])
 
-def transform_position_array(array, pos, euler, is_normal):
+def transform_position_array(array, pos, euler, is_normal, reverse=False):
     """
     Transform any Nx3 position array by translating to a center-of-mass 'pos'
     and applying an euler transformation
@@ -73,14 +73,17 @@ def transform_position_array(array, pos, euler, is_normal):
     """
     trans_matrix = euler_trans_matrix(*euler)
 
+    if not reverse:
+        trans_matrix = trans_matrix.T
+
     if isinstance(array, ComputedColumn):
         array = array.for_computations
 
     if is_normal:
         # then we don't do an offset by the position
-        return np.dot(np.asarray(array), trans_matrix.T)
+        return np.dot(np.asarray(array), trans_matrix)
     else:
-        return np.dot(np.asarray(array), trans_matrix.T) + np.asarray(pos)
+        return np.dot(np.asarray(array), trans_matrix) + np.asarray(pos)
 
 def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0)):
     """
