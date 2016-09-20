@@ -49,8 +49,6 @@ def marching(q, F, d, Phi, scale, euler, pos):
                                              is_normal=False,
                                              reverse=False)
 
-    # horizon_orbit *= scale
-
     horizon_rhos, horizon_thetas = cartesian_to_polar(horizon_orbit[:,0], horizon_orbit[:,1], pos[0], pos[1])
 
     return {'xs': horizon_orbit[:,0], 'ys': horizon_orbit[:,1], 'zs': horizon_orbit[:,2],

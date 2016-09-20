@@ -640,11 +640,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
 
-            # TODO: for testing only
-            # if computeparams.get_value('eclipse_method') == 'wd_horizon':
-            #     io.pass_to_legacy(b, filename='_tmp_legacy_inp')
-
-            system.handle_eclipses()
+            expose_horizon =  'orb' in [info['kind'] for info in infolist]
+            horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
@@ -770,6 +767,12 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     if np.all(vc==np.array([0,0,0])):
                         vcs[i] = np.full(3, np.nan)
                 this_syn['visible_centroids'] = vcs
+
+                # Eclipse horizon
+                if horizons is not None:
+                    this_syn['horizon_xs'] = horizons[cind][:,0]
+                    this_syn['horizon_ys'] = horizons[cind][:,1]
+                    this_syn['horizon_zs'] = horizons[cind][:,2]
 
                 # Analytic horizon
                 if body.mesh_method == 'marching':
