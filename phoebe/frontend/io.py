@@ -391,7 +391,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
 
     if 'Overcontact' in morphology:
-        np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
+        params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
         if 'UMa'in morphology:
             params[:,1][list(params[:,0]).index('phoebe_teff2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_teff1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_grb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_grb1.VAL')]
@@ -406,6 +406,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
         params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
+        if overcontact:
+            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
 #and split into lc and rv and spot parameters
 
@@ -495,6 +497,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
+            
+                if d['qualifier'] == 'pblum' and overcontact:
+                    print d
+                    d['component'] = 'common_envelope'
+                    
                 try:
                     eb.set_value_all(check_visible=False, **d)
                 except ValueError, msg:
@@ -891,9 +898,16 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     secpars = eb.filter(component=secondary, context='component')
     if overcontact:
 #        cepars = eb.filter(component='common_envelope', context='component')
+#   potential
         val = [eb.get_value(qualifier='pot')]
         ptype = 'float'
         pname = ret_parname('pot', component='primary', ptype=ptype)
+        parnames.extend(pname)
+        parvals.extend(val)
+#   pblum
+        val = [eb.get_value(qualifier='pblum')]
+        ptype = 'float'
+        pname = ret_parname('pblum', component='primary', ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
     # get primary parameters and convert
