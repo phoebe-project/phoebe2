@@ -21,7 +21,7 @@ logger = logging.getLogger("HORIZON_ANALYTIC")
 
 def cartesian_to_polar(x, y, x0=0.0, y0=0.0):
 
-    rhos = np.sqrt((x-x0)**2, (y-y0)**2)
+    rhos = np.sqrt((x-x0)**2 + (y-y0)**2)
     thetas = np.arctan2(y-y0, x-x0)
 
     return rhos, thetas
