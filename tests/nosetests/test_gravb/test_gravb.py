@@ -31,9 +31,9 @@ def test_binary(plot=False):
 
 
         print "running phoebe2 model..."
-        b.run_compute(compute='phoebe2', model='phoebe2model')
+        b.run_compute(compute='phoebe2', reflection_method='none', model='phoebe2model')
         print "running phoebe1 model..."
-        b.run_compute(compute='phoebe1', model='phoebe1model')
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
