@@ -1491,7 +1491,8 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
-      
+      init_phi: float, default 0
+
   Returns:
   
     dictionary
@@ -1575,12 +1576,14 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"areas",
     (char*)"area",
     (char*)"volume",
+    (char*)"init_phi",
     NULL};
   
   double q, F, d, Omega0, delta;   
   
   int choice = 0,               
-      max_triangles = 10000000; // 10^7
+      max_triangles = 10000000, // 10^7
+      init_phi = 0;
       
   bool
     b_full = false,
@@ -1612,7 +1615,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     *o_volume = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|iiO!O!O!O!O!O!O!O!O!O!O!O!", kwlist,
+      args, keywds,  "ddddd|iiO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
       &q, &F, &d, &Omega0, &delta, // neccesary 
       &choice,                     // optional ...
       &max_triangles,
@@ -1627,7 +1630,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       &PyBool_Type, &o_cnormgrads,
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
-      &PyBool_Type, &o_volume 
+      &PyBool_Type, &o_volume,
+      &init_phi
       )) {
     std::cerr << "roche_marching_mesh:Problem reading arguments\n";
     return NULL;
@@ -1686,8 +1690,8 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   
   if ((b_full ? 
-       !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV) :
-       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)
+       !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
       )){
     std::cerr << "roche_marching_mesh::There are too many triangles\n";
     return NULL;
