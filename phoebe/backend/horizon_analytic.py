@@ -11,8 +11,7 @@ except ImportError:
     _can_phb = False
 else:
     _can_phb = True
-    phb.init()
-    phb.configure()
+    _phb_init = False
 
 import logging
 
@@ -85,12 +84,16 @@ def wd(b, time, scale, pos):
         return {'xs': [], 'ys': [], 'zs': [],
                 'rhos': [], 'zs': []}
 
+    if not _phb_init:
+        phb.init()
+        phb.configure()
 
     # TODO: move this outside the loop into backends.py?
     io.pass_to_legacy(b, 'change_to_tmpfile')
 
     phb.open('change_to_tmpfile')
     # phb.open('default.phoebe')
+    phb.setpar('phoebe_indep', 'Time (HJD)')
     combo = phb.lc((time,), 0, 0, 1)
     # phb.quit()
 
