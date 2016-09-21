@@ -1693,7 +1693,8 @@ class Star(Body):
                                                vnormgrads=True,
                                                cnormgrads=False,
                                                areas=True,
-                                               volume=True)
+                                               volume=True,
+                                               init_phi=self.mesh_init_phi)
 
                 av = libphoebe.rotstar_area_volume(*mesh_args,
                                                    larea=True,
