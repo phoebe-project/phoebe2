@@ -1059,7 +1059,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     phb1.open('_tmp_legacy_inp')
  #   phb1.updateLD()
     # TODO BERT: why are we saving here?
-    phb1.save('after.phoebe')
+    # phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
     infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, protomesh=protomesh, pbmesh=pbmesh)

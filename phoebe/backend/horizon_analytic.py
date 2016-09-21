@@ -90,6 +90,7 @@ def wd(b, time, scale, pos):
 
 
     # TODO: move this outside the loop into backends.py?
+    # TODO: make this work without the need to add an LC dataset
     io.pass_to_legacy(b, 'change_to_tmpfile')
 
     phb.open('change_to_tmpfile')

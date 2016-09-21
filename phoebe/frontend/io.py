@@ -503,11 +503,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
-            
+
                 if d['qualifier'] == 'pblum' and overcontact:
-                    
+
                     d['component'] = 'common_envelope'
-                    
+
                 try:
                     eb.set_value_all(check_visible=False, **d)
                 except ValueError, msg:
@@ -720,7 +720,7 @@ def par_value(param, index=None):
     d['dataset'] = param.dataset
     d['compute'] = param.compute
     d['kind'] = param.kind
-    
+
 # Determine what type of parameter you have and find it's value
     if isinstance(param, phb.parameters.FloatParameter) and not isinstance(param, phb.parameters.FloatArrayParameter):
         ptype = 'float'
@@ -745,9 +745,9 @@ def par_value(param, index=None):
         # in phoebe one this is a boolean parameter because you have the choice of either kurucz or blackbody
 
             ptype='boolean'
-        
+
         if d['qualifier'] == 'ld_func':
-            
+
             ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
             val = ldlaws_2to1[val[0]]
             val = ['"'+str(val)+'"']
@@ -775,7 +775,7 @@ def par_value(param, index=None):
         # val = [val1, val2]
 
         val = param.get_value().tolist()
-        
+
         ptype='array'
         if len(val) == 1:
             val.append(0.0)
@@ -912,7 +912,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
     spots = eb.features
-    
+
     if len(ldlaws) == 0:
         pass
     elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
@@ -970,7 +970,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             # if param.qualifier == 'frac_refl_bol':
                 # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
-            print val, ptype, pname
+            # print val, ptype, pname
             if pname[0] not in parnames:
 
                 parnames.extend(pname)

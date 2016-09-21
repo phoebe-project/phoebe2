@@ -12,8 +12,8 @@ def test_binary(plot=False):
 
 
     b.add_dataset('lc', times=np.linspace(0,3,101))
-    b.add_compute('phoebe', compute='phoebe2')
-    b.add_compute('legacy', compute='phoebe1')
+    b.add_compute('phoebe', reflection_method='none', compute='phoebe2')
+    b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
     # set matching atmospheres
     b.set_value_all('atm@phoebe2', 'extern_planckint')

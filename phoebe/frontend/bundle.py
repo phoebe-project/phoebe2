@@ -2314,25 +2314,25 @@ class Bundle(ParameterSet):
             elif len(computes)>1:
                 raise ValueError("must provide label of compute options since more than one are attached")
 
-        # we'll wait to here to run kwargs and system checks so that
-        # add_compute is already called if necessary
-        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
-
-        if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(computes=[compute])
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
-
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options
         if isinstance(compute, str):
             computes = [compute]
         else:
             computes = compute
+
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
+        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(computes=computes)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []

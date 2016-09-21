@@ -65,21 +65,10 @@ def test_binary(plot=False):
 
             # some ld_funcs aren't supported by legacy.  So let's fall back
             # on logarthmic at least to make sure there isn't a large offset
-            if ld_func in ['logarithmic', 'square_root']:
+            if ld_func in ['logarithmic', 'linear', 'square_root']:
                 # TODO: add linear and square_root once bugs 111 and 112 are fixed
                 ld_func_ph1 = ld_func
                 ld_coeffs_ph1 = ld_coeffs
-                exact_comparison = exact_comparison
-            elif ld_func in ['linear']:
-                # TODO: this elif block should be removed once issue #111 is closed
-
-                # then we can fudge this by just sending the first coefficient
-                # to a different ld_func
-                ld_func_ph1 = 'logarithmic'
-                if ld_coeffs is None:
-                    ld_coeffs_ph1 = [0.0, 0.0]
-                else:
-                    ld_coeffs_ph1 = [ld_coeff, 0.0]
                 exact_comparison = exact_comparison
             else:
                 ld_func_ph1 = 'logarithmic'
