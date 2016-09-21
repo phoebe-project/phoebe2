@@ -80,7 +80,7 @@ def test_binary(plot=False):
                     ld_coeffs_ph1 = [0.0, 0.0]
                 else:
                     ld_coeffs_ph1 = [ld_coeff, 0.0]
-                exact_comparison = exact_comparison
+                exact_comparison = False
             else:
                 ld_func_ph1 = 'logarithmic'
                 if ld_coeffs is None:
