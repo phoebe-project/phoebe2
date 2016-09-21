@@ -103,7 +103,7 @@ ld_legacy -
 
 """
 
-def ld_to_phoebe(pn, d, rvdep=None, dataid=None):
+def ld_to_phoebe(pn, d, rvdep=None, dataid=None, law=None):
     if 'bol' in pn:
         d['context'] = 'component'
         pnew = 'bol'
@@ -119,7 +119,7 @@ def ld_to_phoebe(pn, d, rvdep=None, dataid=None):
         pnew = 'ld_model'
     if 'x' in pn:
         d['index'] = 0
-    elif 'y' in pn:
+    elif 'y' in pn and law != 'Linear cosine law':
         d['index'] = 1
 
     return [pnew, d]
@@ -387,6 +387,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
 # and spots
     spotno = np.int(params[:,1][list(params[:,0]).index('phoebe_spots_no')])
+
 # delete parameters that have already been accounted for and find lc and rv parameters
 
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
@@ -401,6 +402,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     mzero = None
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+
+#Determin LD law
+
+    ldlaw = params[:,1][list(params[:,0]).index('phoebe_ld_model')]
 # FORCE hla and cla to follow conventions so the parser doesn't freak out.
     for x in range(1,lcno+1):
         hlain = list(params[:,0]).index('phoebe_hla['+str(x)+'].VAL')
@@ -612,7 +617,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         pnew, d = ret_dict(pname, val)
         if pnew == 'ld_model':
             ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic law': 'logarithmic', 'Square root law': 'square_root'}
-
+            if val == 'Linear cosine law':
+                logger.warning('Linear cosine law is not currently supported. Converting to linear instead')
             d['value'] = ldlaws_1to2[val]#val[0].lower()+val[1::]
 
             # since ld_coeffs is dataset specific make sure there is at least one dataset
@@ -677,6 +683,20 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     if not overcontact:
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
+    # get rid of seconddary coefficient if ldlaw  is linear
+    
+    if 'Linear' in ldlaw:
+
+        ldcos = eb.filter('ld_coeffs')
+        ldcosbol = eb.filter('ld_coeffs_bol')
+        for x in range(len(ldcos)):
+            val = ldcos[x].value[0]
+            ldcos[x].set_value(np.array([val]))
+
+        for x in range(len(ldcosbol)):
+            
+            val = ldcosbol[x].value[0]
+            ldcosbol[x].set_value(np.array([val]))
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
@@ -789,10 +809,10 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
         else:
             return ['phoebe_ld_model']
 
-    if component == 'primary' and pnew[0] != 'model':
+    if component == 'primary':
         pnew = [x + '1' for x in pnew]
 
-    elif component == 'secondary' and pnew[0] != 'model':
+    elif component == 'secondary':
         pnew = [x + '2' for x in pnew]
 
     if dnum != None:
