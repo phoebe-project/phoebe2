@@ -143,7 +143,9 @@ Testing
 --------------------------------
 
 To run all tests locally on your machine, run the following in the 'tests'
-directory in the source.
+directory in the source.  Note that you may need to enabled development
+mode to run all the tests (currently detected by the presence of a file
+in ~/.phoebe_devel_enabled)
 
 ::
 
@@ -184,7 +186,6 @@ and making alterations to see how they change the output.
    Computing Observables<tutorials/compute>
    Plotting<tutorials/plotting>
    Accessing and Plotting Meshes<tutorials/meshes>
-   Fitting<tutorials/fitting>
 
 
 Advanced Tutorials
@@ -202,14 +203,8 @@ be read in any particular order.
 
    Advanced: Settings<tutorials/settings>
    Advanced: Animations<tutorials/animations>
-   Advanced: Alternate Plotting Backends<tutorials/alternate_plotting>
    Advanced: Alternate Backends<tutorials/alternate_backends>
-   Advanced: Detaching from Run Compute<tutorials/detach>
    Advanced: Digging into the Backend<tutorials/backend>
-   Advanced (coming soon): Creating Custom Parameters<tutorials/custom_parameters>
-   Advanced (coming soon): Creating Custom Constraints<tutorials/constraint_create>
-   Advanced (coming soon): Time Derivatives<tutorials/time_derivatives>
-   Advanced (coming soon): Undo/Redo<tutorials/undo_redo>
 
 
 
@@ -232,7 +227,6 @@ expect a comfortable understanding of using PHOEBE and python
    Meshes (mesh)<tutorials/MESH>
    Light Curves (lc)<tutorials/LC>
    Radial Velocities (rv)<tutorials/RV>
-   Eclipse Timing Variations (etv)<tutorials/ETV>
 
 
 Explanations of Individual Parameters
@@ -257,13 +251,10 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    Distance<tutorials/distance>
    Limb Darkening (not yet fully-implemented)<tutorials/limb_darkening>
    Gravitational Redshift (RVs)<tutorials/grav_redshift>
-   Reddening and Extinction (not yet implemented)<tutorials/reddening_extinction>
    Reflection and Heating<tutorials/reflection_heating>
-   Beaming and Boosting (not yet implemented)<tutorials/beaming_boosting>
+   Beaming and Boosting<tutorials/beaming_boosting>
    Eclipse Detection<tutorials/eclipse>
    Intensity Weighing<tutorials/intens_weighing>
-
-COMING SOON (differences between various t0s and phasing)
 
 
 Example Scripts
@@ -283,8 +274,7 @@ Single Stars (NOT YET SUPPORTED)
    :maxdepth: 1
    :titlesonly:
 
-   Sun (rotating single star) (TESTING - not yet supported)<examples/sun>
-   Single Star with Pulsations (TESTING - not yet supported)<examples/rotstar_pulsations>
+   Sun (rotating single star)<examples/sun>
 
 
 
@@ -300,90 +290,20 @@ Detached Binary Stars
    Complete Binary Animation<examples/animation_binary_complete>
    Rossiter-McLaughlin Effect (RVs)<examples/rossiter_mclaughlin>
    Wilson-Devinney Style Meshing<examples/mesh_wd>
-   Detached Binary: Roche vs Rotstar (TESTING - not yet supported)<examples/detached_rotstar>
-   Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
-   Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
+   Detached Binary: Roche vs Rotstar<examples/detached_rotstar>
+   Binary with Spots<examples/binary_spots>
 
 
 
-Overcontact Binary Stars (NOT YET SUPPORTED)
-----------------------------------------------------------
-
-
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-
-   Minimal Overcontact System (TESTING - not yet supported)<examples/minimal_overcontact>
-   Comparing Overcontact System PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_overcontact>
-
-
-
-Triple Stars (NOT YET SUPPORTED)
--------------------------------
-
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-
-   Minimal Hierarchical Triple (TESTING - not yet supported)<examples/hierarchical_triple>
-   Minimal Dynamical Triple (TESTING - not yet supported)<examples/dynamical_triple>
-   Hierarchical Triple vs Photodynam (TESTING - not yet supported) <examples/hierarchical_triple_pd>
-   LTTE ETVs in a Hierarchical Triple (TESTING - not yet supported) <examples/hierarchical_triple_etvs>
-   KOI 126 (TESTING - not yet supported)<examples/koi126>
-
-
-
-Planetary System (NOT YET SUPPORTED)
--------------------------------
-
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-
-   Sun-Earth (TESTING - not yet supported)<examples/sun_earth>
-
-
-
-Circumbinary Planets (NOT YET SUPPORTED)
-------------------------------------------------------
-
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-
-   Kepler 16 (TESTING - not yet supported)<examples/kepler16>
-
-
-
-Spots (NOT YET SUPPORTED)
+Spots
 ------------------------------------
 
 .. toctree::
    :maxdepth: 1
    :titlesonly:
 
-   Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
-   Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_spots>
-
-
-
-Pulsations (NOT YET SUPPORTED)
-------------------------------------------
-
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-
-   Single Star with Pulsations (TESTING - not yet supported)<examples/rotstar_pulsations>
-   Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
-
-
-
-Advanced Constraints (NOT YET SUPPORTED)
-------------------------------
-
-COMING SOON (creating custom constraints, main-sequence, etc)
+   Binary with Spots<examples/binary_spots>
+   Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy_spots>
 
 
 
@@ -406,11 +326,7 @@ Alternate Backends
    :titlesonly:
 
    Comparing PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy>
-   Comparing Overcontact System PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_overcontact>
-   Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_spots>
-   Comparing PHOEBE 2.0 vs Photodynam (Binary)<examples/photodynam>
-   Comparing PHOEBE 2.0 vs Photodynam (Hierarchical Triple)<examples/hierarchical_triple_pd>
-   Comparing PHOEBE 2.0 vs JKTEBOP <examples/jktebop>
+   Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy_spots>
 
 
 Frontend API Docs
@@ -436,27 +352,12 @@ Backend (Advanced) API Docs
    Distortions <api/phoebe.distortions>
 
 
-Development Information
-================================
-
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-
-   Style Guidelines (coming soon)<development/style>
-   Development in the Frontend (coming soon)<development/devel_frontend>
-   Development in the Backend (coming soon)<development/devel_backend>
-   Tutorials and Scripts<development/tutorials_scripts>
-   API Documentation (coming soon)<development/api>
-   Testing (coming soon)<development/testing>
-   Benchmarking (coming soon)<development/benchmark>
-   Committing Code (coming soon)<development/committing>
-   Releasing a New Version (coming soon)<development/release>
-
 Citing PHOEBE 2.0
 ================================
 
-COMING SOON - the paper for PHOEBE 2.0-beta will be submitted soon.
+Once the paper has undergone the refereeing process and is accepted, we will
+release the official 2.0 version of PHOEBE.  Until then, please consider
+citing the arXiv release of the paper.
 
 FAQ
 ================================
