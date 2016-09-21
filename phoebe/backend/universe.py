@@ -1937,7 +1937,7 @@ class Star(Body):
             # abs_normal_intensities are the normal emergent passband intensities:
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
-                                              met=self.mesh.abuns.for_computations,
+                                              abun=self.mesh.abuns.for_computations,
                                               atm=atm)
 
 
@@ -1945,7 +1945,7 @@ class Star(Body):
             # TODO: why do we need to use abs(mus) here?
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
-                                     met=self.mesh.abuns.for_computations,
+                                     abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
                                      ld_func=ld_func,
@@ -1958,7 +1958,7 @@ class Star(Body):
             elif boosting_method == 'linear':
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
-                                   met=self.mesh.abuns.for_computations,
+                                   abun=self.mesh.abuns.for_computations,
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
                                    photon_weighted=intens_weighting=='photon')
@@ -2657,7 +2657,7 @@ class Envelope(Body):
             # abs_normal_intensities are the normal emergent passband intensities:
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
-                                              met=self.mesh.abuns.for_computations,
+                                              abun=self.mesh.abuns.for_computations,
                                               atm=atm)
 
 
@@ -2665,7 +2665,7 @@ class Envelope(Body):
             # TODO: why do we need to use abs(mus) here?
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
-                                     met=self.mesh.abuns.for_computations,
+                                     abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
                                      ld_func=ld_func,
@@ -2678,7 +2678,7 @@ class Envelope(Body):
             elif boosting_method == 'linear':
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
-                                   met=self.mesh.abuns.for_computations,
+                                   abun=self.mesh.abuns.for_computations,
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
                                    photon_weighted=intens_weighting=='photon')
