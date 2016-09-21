@@ -363,9 +363,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-        overcontact= True   
+        overcontact= True
         eb = phb.Bundle.default_binary(overcontact=True)
     else:
+        overcontact = False
         eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
@@ -610,8 +611,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         val = params[:,1][x].strip('"')
         pnew, d = ret_dict(pname, val)
         if pnew == 'ld_model':
-            val = val.split(' ')[0]
-            d['value'] = val[0].lower()+val[1::]
+            ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic Law': 'logarithmic', 'Square root law': 'square_root'}
+                      
+            d['value'] = ldlaws_1to2[val]#val[0].lower()+val[1::]
+
             # since ld_coeffs is dataset specific make sure there is at least one dataset
             if lcno != 0 or rvno != 0:
                 eb.set_value_all(check_visible=False, **d)
@@ -697,6 +700,7 @@ def par_value(param, index=None):
     d['dataset'] = param.dataset
     d['compute'] = param.compute
     d['kind'] = param.kind
+    print d['qualifier']
 # Determine what type of parameter you have and find it's value
     if isinstance(param, phb.parameters.FloatParameter) and not isinstance(param, phb.parameters.FloatArrayParameter):
         ptype = 'float'
@@ -721,9 +725,13 @@ def par_value(param, index=None):
         # in phoebe one this is a boolean parameter because you have the choice of either kurucz or blackbody
 
             ptype='boolean'
+        print param.qualifier
         if d['qualifier'] == 'ld_func':
-            val = val[0]
-            val = ['"'+val[0].upper() + val[1::]+' Law"']
+            print 'I went here'
+            ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic Law', 'square_root':'Square root law'}
+            val = ldlaws_2to1[val[0]]
+            val = ['"'+str(val)+'"']
+
     elif isinstance(param, phb.parameters.BoolParameter):
 
         ptype = 'boolean'
@@ -767,17 +775,19 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
             pnew2 = 'ybol'
             pnew = [pnew1, pnew2]
         else:
-            pnew = ['model']
+            return ['phoebe_ld_model']
     else:
         if ptype == 'array':
             pnew1 = str(dtype)+'x'
             pnew2 = str(dtype)+'y'
             pnew = [pnew1, pnew2]
+        else:
+            return ['phoebe_ld_model']
 
-    if component == 'primary':
+    if component == 'primary' and pnew[0] != 'model':
         pnew = [x + '1' for x in pnew]
 
-    elif component == 'secondary':
+    elif component == 'secondary' and pnew[0] != 'model':
         pnew = [x + '2' for x in pnew]
 
     if dnum != None:
@@ -790,7 +800,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
 # separate lds from everything because they suck
     if 'ld' in param:
-
+        
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
@@ -877,10 +887,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
     spots = eb.features
+    print ldlaws
     if len(ldlaws) == 0:
         pass
-    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square root']:
-        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square root'")
+    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
+        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
 
     #make lists to put results with important things already added
 
@@ -920,7 +931,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #        param = eb.get_parameter(prpars[x], component='primary')
         try:
             pnew = _2to1par[param.qualifier]
-            if param.qualifier in ['sma', 'period', 'incl','enabled','statweight','l3', 'ld_func'] or param.component == '_default':
+            if param.qualifier in ['sma', 'period', 'incl','enabled','statweight','l3'] or param.component == '_default':
                 param = None
 #            elif 'ld_' in param.qualifier:
 #                param = None
@@ -1004,7 +1015,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
             try:
                 pnew = _2to1par[param.qualifier]
-                if param.qualifier in [ 'alb', 'l3', 'ld_func', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
+                if param.qualifier in [ 'alb', 'l3', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
 
                     param = None
             except:

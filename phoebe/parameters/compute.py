@@ -43,7 +43,7 @@ def phoebe(**kwargs):
 
     # PHYSICS
     # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv_dep', 'lc_dep'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
-    params += [ChoiceParameter(qualifier='reflection_method', value=kwargs.get('reflection_method', 'none'), choices=['none', 'wilson', 'horvat'] if _devel_enabled else ['none', 'wilson'], description='Which method to use to handle all reflection')]
+    params += [ChoiceParameter(qualifier='reflection_method', value=kwargs.get('reflection_method', 'wilson'), choices=['none', 'wilson', 'horvat'] if _devel_enabled else ['none', 'wilson'], description='Which method to use to handle all reflection')]
     params += [ChoiceParameter(qualifier='boosting_method', value=kwargs.get('boosting_method', 'none'), choices=['none', 'linear'], description='Type of boosting method')]
 
     # TODO: include scattering here? (used to be in lcdep)
@@ -68,13 +68,17 @@ def phoebe(**kwargs):
     # params += [IntParameter(qualifier='subdiv_num', value=kwargs.get('subdiv_num', 3), limits=(0,None), description='Number of subdivisions')]
 
 
-    params += [BoolParameter(qualifier='mesh_offset', value=kwargs.get('mesh_offset', True), description='Whether to adjust the mesh to have the correct surface area (TESTING)')]
+
+    if _devel_enabled:
+        params += [BoolParameter(qualifier='mesh_offset', value=kwargs.get('mesh_offset', True), description='Whether to adjust the mesh to have the correct surface area (TESTING)')]
+        params += [FloatParameter(visible_if='mesh_method:marching', qualifier='mesh_init_phi', value=kwargs.get('mesh_init_phi', 0.0), default_unit=u.rad, limits=(0,2*np.pi), description='Initial rotation offset for mesh (TESTING)')]
 
     # DISTORTION
 
 
     # ECLIPSE DETECTION
     params += [ChoiceParameter(qualifier='eclipse_method', value=kwargs.get('eclipse_method', 'native'), choices=['only_horizon', 'graham', 'none', 'visible_partial', 'native', 'wd_horizon'] if _devel_enabled else ['native'], description='Type of eclipse algorithm')]
+    params += [ChoiceParameter(visible_if='eclipse_method:native', qualifier='horizon_method', value=kwargs.get('horizon_method', 'boolean'), choices=['boolean', 'linear'] if _devel_enabled else ['boolean'], description='Type of horizon method')]
 
 
 

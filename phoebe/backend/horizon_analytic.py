@@ -2,6 +2,17 @@ import numpy as np
 
 import libphoebe
 from phoebe.backend.mesh import euler_trans_matrix, transform_position_array
+from phoebe.frontend import io
+
+
+try:
+    import phoebeBackend as phb
+except ImportError:
+    _can_phb = False
+else:
+    _can_phb = True
+    phb.init()
+    phb.configure()
 
 import logging
 
@@ -10,11 +21,16 @@ logger = logging.getLogger("HORIZON_ANALYTIC")
 
 def cartesian_to_polar(x, y, x0=0.0, y0=0.0):
 
-    rhos = np.sqrt((x-x0)**2, (y-y0)**2)
+    rhos = np.sqrt((x-x0)**2 + (y-y0)**2)
     thetas = np.arctan2(y-y0, x-x0)
 
     return rhos, thetas
 
+def polar_to_cartesian(rho, theta, x0=0.0, y0=0.0):
+    x = rho * np.cos(theta) + x0
+    y = rho * np.sin(theta) + y0
+
+    return x, y
 
 def marching(q, F, d, Phi, scale, euler, pos):
     """
@@ -55,5 +71,40 @@ def marching(q, F, d, Phi, scale, euler, pos):
             'rhos': horizon_rhos, 'thetas': horizon_thetas}
 
 
-def wd(xs, ys, zs):
-    pass
+def wd(b, time, scale, pos):
+
+
+
+    def rho(theta, c, s):
+        sum = 0.0
+        for i in range(len(c)):
+            sum += c[i]*np.cos(i*theta)+s[i]*np.sin(i*theta)
+        return sum
+
+    if not _can_phb:
+        return {'xs': [], 'ys': [], 'zs': [],
+                'rhos': [], 'zs': []}
+
+
+    # TODO: move this outside the loop into backends.py?
+    io.pass_to_legacy(b, 'change_to_tmpfile')
+
+    phb.open('change_to_tmpfile')
+    # phb.open('default.phoebe')
+    combo = phb.lc((time,), 0, 0, 1)
+    # phb.quit()
+
+    thetas = np.linspace(-np.pi, np.pi, 1001)
+    rhos = rho(thetas, combo[1]['hAc'], combo[1]['hAs'])
+
+    rhos *= scale
+
+    # import matplotlib.pyplot as plt
+    # plt.plot(thetas, rhos, 'k.')
+    # plt.show()
+
+    xs, ys = polar_to_cartesian(rhos, thetas, pos[0], pos[1])
+
+    return {'xs': xs, 'ys': ys, 'zs': np.ones(xs.shape)*pos[2],
+            'rhos': rhos, 'thetas': thetas}
+

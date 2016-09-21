@@ -7,11 +7,12 @@ import copy
 
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
-from phoebe.backend import eclipse, potentials, mesh, horizon_analytic
+from phoebe.backend import eclipse, potentials, mesh
 import libphoebe
 
 from phoebe import u
 from phoebe import c
+from phoebe import _devel_enabled
 
 import logging
 logger = logging.getLogger("UNIVERSE")
@@ -42,6 +43,7 @@ def _value(obj):
 
 class System(object):
     def __init__(self, bodies_dict, eclipse_method='graham',
+                 horizon_method='boolean',
                  dynamics_method='keplerian',
                  reflection_method='none',
                  boosting_method='none'):
@@ -50,6 +52,7 @@ class System(object):
         """
         self._bodies = bodies_dict
         self.eclipse_method = eclipse_method
+        self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.reflection_method = reflection_method
         for body in self._bodies.values():
@@ -86,23 +89,30 @@ class System(object):
         # now pull general compute options
         if compute is not None:
             if isinstance(compute, str):
-                compute_ps = b.get_compute(compute)
+                compute_ps = b.get_compute(compute, check_visible=False)
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
+            horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
+            if _devel_enabled:
+                mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
+            else:
+                mesh_init_phi = 0.0
         else:
-            eclipse_method = 'graham'
+            eclipse_method = 'native'
+            horizon_method = 'boolean'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
             reflection_method = 'none'
             boosting_method = 'none'
+            mesh_init_phi = 0.0
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -115,9 +125,10 @@ class System(object):
         #bodies_dict = {star: globals()['Star'].from_bundle(b, star, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for star in starrefs}
 
         meshables = hier.get_meshables()
-        bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         return cls(bodies_dict, eclipse_method=eclipse_method,
+                   horizon_method=horizon_method,
                    dynamics_method=dynamics_method,
                    reflection_method=reflection_method,
                    boosting_method=boosting_method)
@@ -365,6 +376,7 @@ class System(object):
         """
 
         eclipse_method = kwargs.get('eclipse_method', self.eclipse_method)
+        horizon_method = kwargs.get('horizon_method', self.horizon_method)
         # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
         # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
@@ -392,7 +404,7 @@ class System(object):
                         possible_eclipse = True
                         break
 
-        if not possible_eclipse and not expose_horizon:
+        if not possible_eclipse and not expose_horizon and horizon_method=='boolean':
             eclipse_method = 'only_horizon'
 
         # meshes is an object which allows us to easily access and update columns
@@ -405,7 +417,15 @@ class System(object):
 
         ecl_func = getattr(eclipse, eclipse_method)
 
-        visibilities, weights, horizon = ecl_func(meshes, self.xs, self.ys, self.zs, expose_horizon=expose_horizon)
+        if eclipse_method=='native':
+            ecl_kwargs = {'horizon_method': horizon_method}
+        else:
+            ecl_kwargs = {}
+
+        visibilities, weights, horizon = ecl_func(meshes,
+                                                  self.xs, self.ys, self.zs,
+                                                  expose_horizon=expose_horizon,
+                                                  **ecl_kwargs)
 
         # NOTE: analytic horizons are called in backends.py since they don't
         # actually depend on the mesh at all.
@@ -500,7 +520,8 @@ class Body(object):
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
                  ld_func={}, ld_coeffs={},
-                 dynamics_method='keplerian'):
+                 dynamics_method='keplerian',
+                 mesh_init_phi=0.0):
         """
         TODO: add documentation
         """
@@ -561,6 +582,8 @@ class Body(object):
         # We'll also keep track of a conservative maximum r (from center of star to triangle, in real units).
         # This will be computed and stored when the periastron mesh is added as a standard
         self._max_r = None
+
+        self.mesh_init_phi = mesh_init_phi
 
         # TODO: allow custom meshes (see alpha:universe.Body.__init__)
         # TODO: reconsider partial/hidden/visible into opacity/visibility
@@ -1254,7 +1277,9 @@ class CustomBody(Body):
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
                  abun, frac_refl, mesh_method='marching',
-                 dynamics_method='keplerian', ind_self=0, ind_sibling=1,
+                 dynamics_method='keplerian',
+                 mesh_init_phi=0.0,
+                 ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False,
                  atm='blackbody', datasets=[], passband={},
                  intens_weighting={}, ld_func={}, ld_coeffs={},
@@ -1277,7 +1302,8 @@ class Star(Body):
         super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
                                    atm, datasets, passband,
                                    intens_weighting, ld_func, ld_coeffs,
-                                   dynamics_method=dynamics_method)
+                                   dynamics_method=dynamics_method,
+                                   mesh_init_phi=mesh_init_phi)
 
         self._is_convex = True
 
@@ -1324,7 +1350,8 @@ class Star(Body):
 
 
     @classmethod
-    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian', datasets=[], **kwargs):
+    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian',
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
         """
         Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
@@ -1420,7 +1447,10 @@ class Star(Body):
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
-        do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        if _devel_enabled:
+            do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        else:
+            do_mesh_offset = True
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
@@ -1430,7 +1460,8 @@ class Star(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                abun, frac_refl, mesh_method, dynamics_method,
+                mesh_init_phi, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
                 passband=passband, intens_weighting=intens_weighting,
                 ld_func=ld_func, ld_coeffs=ld_coeffs,
@@ -1545,7 +1576,8 @@ class Star(Body):
                                                          vnormgrads=True,
                                                          cnormgrads=False,
                                                          areas=True,
-                                                         volume=False)
+                                                         volume=False,
+                                                         init_phi=self.mesh_init_phi)
 
 
                 # Now we'll get the area and volume of the Roche potential
@@ -1996,7 +2028,7 @@ class Star(Body):
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
             abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
-            dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
+            dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
             ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
@@ -2017,7 +2049,8 @@ class Envelope(Body):
                                        ecc, atm, datasets, passband,
                                        intens_weighting,
                                        ld_func, ld_coeffs,
-                                       dynamics_method=dynamics_method)
+                                       dynamics_method=dynamics_method,
+                                       mesh_init_phi=mesh_init_phi)
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
@@ -2072,7 +2105,8 @@ class Envelope(Body):
 
 
     @classmethod
-    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian', datasets=[], **kwargs):
+    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian',
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -2189,7 +2223,8 @@ class Envelope(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
-                gravb_bol1, gravb_bol2, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                gravb_bol1, gravb_bol2, mesh_method, dynamics_method,
+                mesh_init_phi, ind_self, ind_sibling, comp_no,
                 atm=atm,
                 datasets=datasets, passband=passband,
                 intens_weighting=intens_weighting,
