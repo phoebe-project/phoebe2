@@ -604,8 +604,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         val = params[:,1][x].strip('"')
         pnew, d = ret_dict(pname, val)
         if pnew == 'ld_model':
-            ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic Law': 'logarithmic', 'Square root law': 'square_root'}
-                      
+            ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic law': 'logarithmic', 'Square root law': 'square_root'}
+
             d['value'] = ldlaws_1to2[val]#val[0].lower()+val[1::]
 
             # since ld_coeffs is dataset specific make sure there is at least one dataset
@@ -721,7 +721,7 @@ def par_value(param, index=None):
         print param.qualifier
         if d['qualifier'] == 'ld_func':
             print 'I went here'
-            ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic Law', 'square_root':'Square root law'}
+            ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
             val = ldlaws_2to1[val[0]]
             val = ['"'+str(val)+'"']
 
@@ -793,7 +793,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
 # separate lds from everything because they suck
     if 'ld' in param:
-        
+
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
