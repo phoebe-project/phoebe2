@@ -1097,7 +1097,7 @@ class Bundle(ParameterSet):
                 if len(hier.get_children_of(orbitref)) == 2:
                     incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
                     incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
-                    if incl_star != incl_orbit:
+                    if abs(incl_star - incl_orbit) > 1e-3:
                         return False,\
                             'misaligned orbits are not currently supported.'
 
