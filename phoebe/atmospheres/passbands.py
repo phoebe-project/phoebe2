@@ -434,7 +434,7 @@ class Passband:
                     IsE = 10**self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].flatten()
 
                     fEmask = np.isfinite(IsE)
-                    if len(IsE[fEmask]) == 0:
+                    if len(IsE[fEmask]) <= 1:
                         continue
                     IsE /= IsE[fEmask][-1]
 
