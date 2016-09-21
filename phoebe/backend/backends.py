@@ -775,22 +775,23 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     this_syn['horizon_zs'] = horizons[cind][:,2]
 
                 # Analytic horizon
-                if body.mesh_method == 'marching':
-                    q, F, d, Phi = body._mesh_args
-                    scale = body._scale
-                    euler = [ethetai[cind], elongani[cind], eincli[cind]]
-                    pos = [xi[cind], yi[cind], zi[cind]]
-                    ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
-                elif body.mesh_method == 'wd':
-                    scale = body._scale
-                    pos = [xi[cind], yi[cind], zi[cind]]
-                    ha = horizon_analytic.wd(b, time, scale, pos)
-                else:
-                    raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
+                if body.distortion_method == 'roche':
+                    if body.mesh_method == 'marching':
+                        q, F, d, Phi = body._mesh_args
+                        scale = body._scale
+                        euler = [ethetai[cind], elongani[cind], eincli[cind]]
+                        pos = [xi[cind], yi[cind], zi[cind]]
+                        ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
+                    elif body.mesh_method == 'wd':
+                        scale = body._scale
+                        pos = [xi[cind], yi[cind], zi[cind]]
+                        ha = horizon_analytic.wd(b, time, scale, pos)
+                    else:
+                        raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
 
-                this_syn['horizon_analytic_xs'] = ha['xs']
-                this_syn['horizon_analytic_ys'] = ha['ys']
-                this_syn['horizon_analytic_zs'] = ha['zs']
+                    this_syn['horizon_analytic_xs'] = ha['xs']
+                    this_syn['horizon_analytic_ys'] = ha['ys']
+                    this_syn['horizon_analytic_zs'] = ha['zs']
 
 
                 # Dataset-dependent quantities
