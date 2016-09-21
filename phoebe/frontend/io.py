@@ -727,7 +727,7 @@ def par_value(param, index=None):
             ptype='boolean'
         
         if d['qualifier'] == 'ld_func':
-            print 'I went here'
+            
             ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
             val = ldlaws_2to1[val[0]]
             val = ['"'+str(val)+'"']
@@ -805,7 +805,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
 # separate lds from everything because they suck
     if 'ld' in param:
-        
+
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com

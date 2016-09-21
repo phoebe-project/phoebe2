@@ -11,8 +11,7 @@ except ImportError:
     _can_phb = False
 else:
     _can_phb = True
-    phb.init()
-    phb.configure()
+    _phb_init = False
 
 import logging
 
@@ -85,23 +84,27 @@ def wd(b, time, scale, pos):
         return {'xs': [], 'ys': [], 'zs': [],
                 'rhos': [], 'zs': []}
 
+    if not _phb_init:
+        phb.init()
+        phb.configure()
+
 
     # TODO: move this outside the loop into backends.py?
     io.pass_to_legacy(b, 'change_to_tmpfile')
 
     phb.open('change_to_tmpfile')
-    # phb.open('default.phoebe')
+    phb.setpar('phoebe_indep', 'Time (HJD)')
     combo = phb.lc((time,), 0, 0, 1)
     # phb.quit()
+
+    if not len(combo[1]['theta']):
+        return {'xs': [], 'ys': [], 'zs': [],
+                'rhos': [], 'thetas': []}
 
     thetas = np.linspace(-np.pi, np.pi, 1001)
     rhos = rho(thetas, combo[1]['hAc'], combo[1]['hAs'])
 
     rhos *= scale
-
-    # import matplotlib.pyplot as plt
-    # plt.plot(thetas, rhos, 'k.')
-    # plt.show()
 
     xs, ys = polar_to_cartesian(rhos, thetas, pos[0], pos[1])
 
