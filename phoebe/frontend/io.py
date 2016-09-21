@@ -727,7 +727,7 @@ def par_value(param, index=None):
             ptype='boolean'
         
         if d['qualifier'] == 'ld_func':
-            print 'I went here'
+            
             ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
             val = ldlaws_2to1[val[0]]
             val = ['"'+str(val)+'"']
