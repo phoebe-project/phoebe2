@@ -1958,8 +1958,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume,
-      init_phi,
-      )){
+      &init_phi)
+  ){
     std::cerr << "rotstar_marching_mesh:Problem reading arguments\n";
     return NULL;
   }
