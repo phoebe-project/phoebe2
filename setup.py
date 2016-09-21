@@ -35,8 +35,8 @@ ext_modules = [
 ]
 
 setup (name = 'phoebe',
-       version = '2.0b',
-       description = 'PHOEBE 2.0 beta',
+       version = 'devel',
+       description = 'PHOEBE 2.0 devel',
        packages = ['phoebe', 'phoebe.constants', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils'],
        install_requires=['numpy','scipy','astropy'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/ptf/*.*','redlaws/*.*','tables/ld_coeffs/README',
