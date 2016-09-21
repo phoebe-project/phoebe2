@@ -1033,15 +1033,15 @@ class Body(object):
         atm = self.atm
 
         pb = passbands.get_passband(self.passband[dataset])
-        ld = pb.ldint(Teff=self.mesh.teffs.for_computations,
-                     logg=self.mesh.loggs.for_computations,
-                     abun=self.mesh.abuns.for_computations,
+        ld = pb.ldint(Teff=self.mesh.teffs.centers,
+                     logg=self.mesh.loggs.centers,
+                     abun=self.mesh.abuns.centers,
                      atm=atm,
                      ld_func=ld_func,
                      ld_coeffs=ld_coeffs,
                      photon_weighted=intens_weighting=='photon')
 
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas) * ld * np.pi
+        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ld) * np.pi
 
         # NOTE: when this is computed the first time (for the sake of determing
         # pblum_scale), get_pblum_scale will return 1.0
