@@ -40,7 +40,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    for ld_func in []: #b.get('ld_func', component='primary').choices:
+    for ld_func in b.get('ld_func', component='primary').choices:
         # let's test all of these against legacy.  For some we don't have
         # exact comparisons, so we'll get close and leave a really lose
         # tolerance.
@@ -65,12 +65,14 @@ def test_binary(plot=False):
 
             # some ld_funcs aren't supported by legacy.  So let's fall back
             # on logarthmic at least to make sure there isn't a large offset
-            if ld_func in ['logarithmic']:
+            if ld_func in ['logarithmic', 'square_root']:
                 # TODO: add linear and square_root once bugs 111 and 112 are fixed
                 ld_func_ph1 = ld_func
                 ld_coeffs_ph1 = ld_coeffs
                 exact_comparison = exact_comparison
             elif ld_func in ['linear']:
+                # TODO: this elif block should be removed once issue #111 is closed
+
                 # then we can fudge this by just sending the first coefficient
                 # to a different ld_func
                 ld_func_ph1 = 'logarithmic'
@@ -111,40 +113,60 @@ def test_binary(plot=False):
             phoebe2_val = b.get_value('fluxes@phoebe2model')
             phoebe1_val = b.get_value('fluxes@phoebe1model')
 
-            if plot:
-                print "exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
+            print "exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
+            if plot:
                 b.plot(dataset='lc01')
                 plt.legend()
                 plt.show()
 
-            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3 if exact_comparison else 0.3, atol=0.))
+            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=3e-3 if exact_comparison else 0.3, atol=0.))
 
 
-    for ld_func in ['quadratic', 'power', 'square_root']:
-        # TODO: remove square_root once supported fully above
+    for atm in ['ck2004', 'blackbody']:
+        b.set_value_all('atm@phoebe2', atm)
 
-        # these we just want to make sure the median value doesn't change
-        # as a function of ld_coeffs - to make sure the pblum scaling is
-        # accounting for limb-darkening correctly.
+        for ld_func in b.get('ld_func', component='primary').choices:
+            # now we just want to make sure the median value doesn't change
+            # as a function of ld_coeffs - to make sure the pblum scaling is
+            # accounting for limb-darkening correctly.
+            # This is especially important for those we couldn't check above
+            # vs legacy (quadratic, power), but also important to run all
+            # with blackbody.
+            if ld_func=='interp':
+                # there are no ld_coeffs here to vary
+                continue
 
-        b.set_value_all('atm@phoebe2', 'ck2004')
-        b.set_value_all('ld_func', ld_func)
+            b.set_value_all('ld_func', ld_func)
 
-        med_fluxes = []
-        for ld_coeff in [0.0, 0.25, 0.5, 0.75]:
-            ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
+            med_fluxes = []
+            if ld_func == 'power':
+                ld_coeff_loop = [0.0, 0.1, 0.2]
+            elif ld_func == 'logarithmic':
+                ld_coeff_loop = [0.0, 0.2, 0.4]
+            else:
+                ld_coeff_loop = [0.0, 0.4, 0.8]
 
-            b.set_value_all('ld_coeffs', ld_coeffs)
+            for ld_coeff in ld_coeff_loop:
+                ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
 
-            b.run_compute(compute='phoebe2', model='phoebe2model')
+                b.set_value_all('ld_coeffs', ld_coeffs)
 
-            med_fluxes.append(np.median(b.get_value('fluxes@phoebe2model')))
+                b.run_compute(compute='phoebe2', model='phoebe2model')
 
+                med_fluxes.append(np.median(b.get_value('fluxes@phoebe2model')))
 
-        std = np.stats.std(np.array(med_fluxes))
-        print "std(med_fluxes): {}".format(std)
-        assert(std < 0.05)
+                if plot:
+                    b.plot(model='phoebe2model')
+
+            med_fluxes = np.array(med_fluxes)
+            diff_med_fluxes = med_fluxes.max() - med_fluxes.min()
+            print "atm={} ld_func={} range(med_fluxes): {}".format(atm, ld_func, diff_med_fluxes)
+
+            if plot:
+                b.show()
+
+            assert(diff_med_fluxes < 0.02)
 
 
 
@@ -154,4 +176,4 @@ if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
 
-    b = test_binary(plot=True)
+    b = test_binary(plot=False)
