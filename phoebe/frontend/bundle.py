@@ -1483,7 +1483,7 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def to_phase(self, time, shift, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, shift=True, component=None, t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris
 
@@ -1524,11 +1524,16 @@ class Bundle(ParameterSet):
         else:
             phase = phshift + np.mod((time-t0)/period, 1.0)
 
-        phase[phase > 0.5] -= 1
+        if isinstance(phase, float):
+            if phase > 0.5:
+                phase -= 1
+        else:
+            # then should be an array
+            phase[phase > 0.5] -= 1
 
         return phase
 
-    def to_time(self, phase, shift, component=None, t0='t0_supconj', **kwargs):
+    def to_time(self, phase, shift=True, component=None, t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris
 

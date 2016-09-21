@@ -805,7 +805,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
 
 # separate lds from everything because they suck
     if 'ld' in param:
-        
+
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
