@@ -1057,7 +1057,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
     phb1.open('_tmp_legacy_inp')
-    phb1.updateLD()
+ #   phb1.updateLD()
     # TODO BERT: why are we saving here?
     phb1.save('after.phoebe')
     lcnum = 0
