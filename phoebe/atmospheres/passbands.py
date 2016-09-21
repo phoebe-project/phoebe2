@@ -297,7 +297,7 @@ class Passband:
     def compute_ck2004_intensities(self, path, verbose=False):
         models = os.listdir(path)
         Nmodels = len(models)
-        
+
         Teff, logg, abun, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
         boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
@@ -316,7 +316,7 @@ class Passband:
             sign = 1. if model[-18]=='P' else -1.
             abun[i] = sign*float(model[-17:-15])/10
             mu[i] = float(model[-14:-9])
-            
+
             # trim the spectrum at passband limits
 
             keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
@@ -327,10 +327,10 @@ class Passband:
             # polynomial to the Imu envelope by way of sigma clipping;
             # then compute a Legendre series derivative to get the
             # boosting index.
-            
+
             lnwl = np.log(wl)
             lnfl = np.log(fl) + 5*lnwl
-            
+
             # First Legendre fit to the data:
             envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
             continuum = np.polynomial.legendre.legval(lnwl, envelope)
@@ -353,19 +353,19 @@ class Passband:
 
             # calculate energy (E) and photon (P) weighted fluxes and
             # their integrals.
-            
+
             flE = self.ptf(wl)*fl
             flP = wl*flE
             flEint = flE.sum()
             flPint = flP.sum()
-            
+
             # calculate mean boosting coefficient and use it to get
             # boosting factors for energy (E) and photon (P) weighted
             # fluxes.
-            
+
             boostE = (flE*boosting_index).sum()/flEint
             boostP = (flP*boosting_index).sum()/flPint
-            
+
             ImuE[i] = np.log10(flEint)-10  # energy-weighted flux; -10 because of the 1AA dispersion
             ImuP[i] = np.log10(flPint/1.9864458e-5) # photon-weighted flux; the constant is 1e10*1e10*h*c
             boostingE[i] = boostE
@@ -392,7 +392,7 @@ class Passband:
         self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
         self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
         self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
-        
+
         for i, Imu in enumerate(ImuE):
             self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
@@ -708,7 +708,7 @@ class Passband:
             req = np.vstack((Teff, logg, abun)).T
             ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
 
-        return ldint
+        return ldint / np.pi
 
     def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
