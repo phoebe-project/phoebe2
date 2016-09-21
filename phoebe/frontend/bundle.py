@@ -995,6 +995,8 @@ class Bundle(ParameterSet):
         """
 
         hier = self.hierarchy
+        if hier is None:
+            return True, ''
         for component in hier.get_meshables():
             kind = hier.get_kind_of(component)
             comp_ps = self.get_component(component)
