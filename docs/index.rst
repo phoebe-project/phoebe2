@@ -276,14 +276,14 @@ Python and PHOEBE.  Some scripts may be listed under different sections if they
 fall under multiple categories.
 
 
-Single Stars (NOT YET SUPPORTED)
+Single Stars
 ------------------------------
 
 .. toctree::
    :maxdepth: 1
    :titlesonly:
 
-   Sun (rotating single star) (TESTING - not yet supported)<examples/sun>
+   Sun (rotating single star)<examples/sun>
    Single Star with Pulsations (TESTING - not yet supported)<examples/rotstar_pulsations>
 
 
@@ -300,8 +300,8 @@ Detached Binary Stars
    Complete Binary Animation<examples/animation_binary_complete>
    Rossiter-McLaughlin Effect (RVs)<examples/rossiter_mclaughlin>
    Wilson-Devinney Style Meshing<examples/mesh_wd>
-   Detached Binary: Roche vs Rotstar (TESTING - not yet supported)<examples/detached_rotstar>
-   Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
+   Detached Binary: Roche vs Rotstar <examples/detached_rotstar>
+   Binary with Spots<examples/binary_spots>
    Binary with Pulsations (TESTING - not yet supported)<examples/binary_pulsations>
 
 
@@ -356,15 +356,15 @@ Circumbinary Planets (NOT YET SUPPORTED)
 
 
 
-Spots (NOT YET SUPPORTED)
+Spots
 ------------------------------------
 
 .. toctree::
    :maxdepth: 1
    :titlesonly:
 
-   Binary with Spots (TESTING - not yet supported)<examples/binary_spots>
-   Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy (TESTING - not yet supported)<examples/legacy_spots>
+   Binary with Spots<examples/binary_spots>
+   Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy_spots>
 
 
 
