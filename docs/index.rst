@@ -329,28 +329,6 @@ Alternate Backends
    Comparing Spots in PHOEBE 2.0 vs PHOEBE Legacy<examples/legacy_spots>
 
 
-Frontend API Docs
-===============================
-
-.. toctree::
-   :maxdepth: 2
-
-   Frontend <api/phoebe.frontend>
-   Parameters <api/phoebe.parameters>
-
-
-Backend (Advanced) API Docs
-===============================
-
-.. toctree::
-   :maxdepth: 2
-
-   Backend <api/phoebe.backend>
-   Atmospheres <api/phoebe.atmospheres>
-   Constraints <api/phoebe.constraints>
-   Dynamics <api/phoebe.dynamics>
-   Distortions <api/phoebe.distortions>
-
 
 Citing PHOEBE 2.0
 ================================
