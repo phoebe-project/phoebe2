@@ -143,6 +143,7 @@ struct TLDquadratic: TLDmodel<T> {
 };
 
 // Nonlinear limb darkening (3 parameters)
+// aka power limb darkening
 // D(x) = 1 - x(1 - mu) - y (1 - mu)^p
 template <class T>  
 struct TLDnonlinear: TLDmodel<T> {

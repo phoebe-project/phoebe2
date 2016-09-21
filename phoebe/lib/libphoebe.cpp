@@ -1579,11 +1579,11 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     (char*)"init_phi",
     NULL};
   
-  double q, F, d, Omega0, delta;   
+  double q, F, d, Omega0, delta, 
+            init_phi = 0;   
   
   int choice = 0,               
-      max_triangles = 10000000, // 10^7
-      init_phi = 0;
+      max_triangles = 10000000; // 10^7
       
   bool
     b_full = false,
@@ -1824,6 +1824,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
+      init_phi: float, default 0
 
   Returns:
   
@@ -1905,9 +1906,10 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (char*)"areas",
     (char*)"area",
     (char*)"volume",
+    (char*)"init_phi",
     NULL};
   
-  double omega, Omega0, delta;   
+  double omega, Omega0, delta, init_phi = 0;   
   
   int max_triangles = 10000000; // 10^7
       
@@ -1941,7 +1943,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     *o_volume = 0; 
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!", kwlist,
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
       &omega, &Omega0, &delta, // neccesary 
       &max_triangles,
       &PyBool_Type, &o_full,       
@@ -1955,7 +1957,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_cnormgrads,
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
-      &PyBool_Type, &o_volume 
+      &PyBool_Type, &o_volume,
+      init_phi,
       )){
     std::cerr << "rotstar_marching_mesh:Problem reading arguments\n";
     return NULL;
@@ -2002,8 +2005,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
  
   
   if ((b_full ? 
-      !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV):
-      !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV)
+      !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+      !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
       )){
     std::cerr << "There is too much triangles\n";
     return NULL;
