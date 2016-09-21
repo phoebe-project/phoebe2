@@ -2059,8 +2059,8 @@ class Bundle(ParameterSet):
 
         """
 
-        if not _devel_enabled:
-            raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
+        # if not _devel_enabled:
+        #     raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
 
         self._kwargs_checks(kwargs)
 
