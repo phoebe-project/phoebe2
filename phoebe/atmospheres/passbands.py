@@ -144,7 +144,8 @@ class Passband:
             struct['_bb_func']      = self._bb_func
         if 'ck2004' in self.content:
             struct['_ck2004_axes']  = self._ck2004_axes
-            struct['_ck2004_grid']  = self._ck2004_grid
+            struct['_ck2004_energy_grid']  = self._ck2004_energy_grid
+            struct['_ck2004_photon_grid']  = self._ck2004_photon_grid
         if 'ck2004_all' in self.content:
             struct['_ck2004_intensity_axes']  = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
@@ -207,9 +208,10 @@ class Passband:
             # CASTELLI & KURUCZ (2004):
             # Axes needs to be a tuple of np.arrays, and grid a np.array:
             self._ck2004_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_axes']))
-            #~ self._ck2004_axes = (np.fromstring(x, dtype='float64') for x in struct['_ck2004_axes'])
-            self._ck2004_grid = np.fromstring(struct['_ck2004_grid'], dtype='float64')
-            self._ck2004_grid = self._ck2004_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            #~ self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
+            #~ self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            #~ self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
+            #~ self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
 
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
@@ -256,7 +258,10 @@ class Passband:
 
     def compute_ck2004_response(self, path, verbose=False):
         models = glob.glob(path+'/*M1.000.spectrum')
-        Teff, logg, abun, Inorm = [], [], [], []
+        Teff, logg, abun = [], [], []
+
+        InormE = np.empty(len(models))
+        InormP = np.empty(len(models))
 
         if verbose:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
@@ -274,7 +279,9 @@ class Passband:
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
-            Inorm.append(np.log10(fl.sum())-10)  # -10 because of the 1AA dispersion
+            flP = fl*wl
+            InormE[i] = np.log10(fl.sum())-10    # -10 because of the 1AA dispersion
+            InormP[i] = np.log10(flP.sum())-10   # -10 because of the 1AA dispersion
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -286,9 +293,13 @@ class Passband:
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
         self._ck2004_axes = (np.unique(Teff), np.unique(logg), np.unique(abun))
-        self._ck2004_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
-        for i, I0 in enumerate(Inorm):
-            self._ck2004_grid[Teff[i] == self._ck2004_axes[0], logg[i] == self._ck2004_axes[1], abun[i] == self._ck2004_axes[2], 0] = I0
+
+        self._ck2004_energy_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
+        self._ck2004_photon_grid = np.nan*np.ones((len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1))
+        for i, I0 in enumerate(InormE):
+            self._ck2004_energy_grid[Teff[i] == self._ck2004_axes[0], logg[i] == self._ck2004_axes[1], abun[i] == self._ck2004_axes[2], 0] = I0
+        for i, I0 in enumerate(InormP):
+            self._ck2004_photon_grid[Teff[i] == self._ck2004_axes[0], logg[i] == self._ck2004_axes[1], abun[i] == self._ck2004_axes[2], 0] = I0
 
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
@@ -637,13 +648,13 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Inorm_ck2004(self, Teff, logg, abun):
+    def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun),))
-            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_grid)[0][0]
+            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_grid).T[0]
+            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
 
         return log10_Inorm
 
@@ -657,7 +668,7 @@ class Passband:
 
         return log10_Imu
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody'):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
         if atm == 'blackbody':
             retval = 10**self._log10_Inorm_bb(Teff)
         elif atm == 'extern_planckint':
@@ -667,7 +678,7 @@ class Passband:
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
             retval = 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, abun)
         elif atm == 'ck2004':
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun)
+            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
