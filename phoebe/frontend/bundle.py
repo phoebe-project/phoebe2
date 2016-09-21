@@ -983,7 +983,7 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
-    def run_checks(self):
+    def run_checks(self, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -1133,7 +1133,7 @@ class Bundle(ParameterSet):
                     return check
 
                 if ld_func=='interp':
-                    for compute in self.computes:
+                    for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute')
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
@@ -2283,15 +2283,6 @@ class Bundle(ParameterSet):
         if model is None:
             model = 'latest'
 
-        if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks()
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
-
         if model in self.models:
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
@@ -2318,9 +2309,18 @@ class Bundle(ParameterSet):
             elif len(computes)>1:
                 raise ValueError("must provide label of compute options since more than one are attached")
 
-        # we'll wait to here to run kwargs checks so that add_compute is already
-        # called if necessary
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
         self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(computes=[compute])
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options

@@ -256,7 +256,7 @@ class Passband:
 
     def compute_ck2004_response(self, path, verbose=False):
         models = glob.glob(path+'/*M1.000.spectrum')
-        Teff, logg, met, Inorm = [], [], [], []
+        Teff, logg, abun, Inorm = [], [], [], []
 
         if verbose:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
@@ -268,7 +268,7 @@ class Passband:
             Teff.append(float(model[-26:-21]))
             logg.append(float(model[-20:-18]))
             sign = 1. if model[-18]=='P' else -1.
-            met.append(sign*float(model[-17:-15]))
+            abun.append(sign*float(model[-17:-15]))
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
@@ -281,7 +281,7 @@ class Passband:
 
         Teff = np.array(Teff)
         logg = np.array(logg)/10
-        abun = np.array(met)/10
+        abun = np.array(abun)/10
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
@@ -297,7 +297,7 @@ class Passband:
     def compute_ck2004_intensities(self, path, verbose=False):
         models = os.listdir(path)
         Nmodels = len(models)
-        
+
         Teff, logg, abun, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
         boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
@@ -316,7 +316,7 @@ class Passband:
             sign = 1. if model[-18]=='P' else -1.
             abun[i] = sign*float(model[-17:-15])/10
             mu[i] = float(model[-14:-9])
-            
+
             # trim the spectrum at passband limits
 
             keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
@@ -327,10 +327,10 @@ class Passband:
             # polynomial to the Imu envelope by way of sigma clipping;
             # then compute a Legendre series derivative to get the
             # boosting index.
-            
+
             lnwl = np.log(wl)
             lnfl = np.log(fl) + 5*lnwl
-            
+
             # First Legendre fit to the data:
             envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
             continuum = np.polynomial.legendre.legval(lnwl, envelope)
@@ -353,19 +353,19 @@ class Passband:
 
             # calculate energy (E) and photon (P) weighted fluxes and
             # their integrals.
-            
+
             flE = self.ptf(wl)*fl
             flP = wl*flE
             flEint = flE.sum()
             flPint = flP.sum()
-            
+
             # calculate mean boosting coefficient and use it to get
             # boosting factors for energy (E) and photon (P) weighted
             # fluxes.
-            
+
             boostE = (flE*boosting_index).sum()/flEint
             boostP = (flP*boosting_index).sum()/flPint
-            
+
             ImuE[i] = np.log10(flEint)-10  # energy-weighted flux; -10 because of the 1AA dispersion
             ImuP[i] = np.log10(flPint/1.9864458e-5) # photon-weighted flux; the constant is 1e10*1e10*h*c
             boostingE[i] = boostE
@@ -392,7 +392,7 @@ class Passband:
         self._ck2004_Imu_photon_grid[:,:,:,0,:] = 0.0
         self._ck2004_boosting_energy_grid[:,:,:,0,:] = 0.0
         self._ck2004_boosting_photon_grid[:,:,:,0,:] = 0.0
-        
+
         for i, Imu in enumerate(ImuE):
             self._ck2004_Imu_energy_grid[Teff[i] == self._ck2004_intensity_axes[0], logg[i] == self._ck2004_intensity_axes[1], abun[i] == self._ck2004_intensity_axes[2], mu[i] == self._ck2004_intensity_axes[3], 0] = Imu
         for i, Imu in enumerate(ImuP):
@@ -510,7 +510,7 @@ class Passband:
 
         self.content.append('ck2004_ldint')
 
-    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
+    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
         """
@@ -525,10 +525,10 @@ class Passband:
             table = self._ck2004_ld_energy_grid
 
         if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, met),))
+            req = np.array(((Teff, logg, abun),))
             ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
         else:
-            req = np.vstack((Teff, logg, met)).T
+            req = np.vstack((Teff, logg, abun)).T
             ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
 
         if ld_func == 'linear':
@@ -545,7 +545,7 @@ class Passband:
         return ld_coeffs
 
 
-    def import_wd_atmcof(self, plfile, atmfile, wdidx, Nmet=19, Nlogg=11, Npb=25, Nints=4):
+    def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
         """
         Parses WD's atmcof and reads in all Legendre polynomials for the
         given passband.
@@ -554,7 +554,7 @@ class Passband:
         @atmfile: path and filename of atmcof.dat
         @wdidx: WD index of the passed passband. This can be automated
                 but it's not a high priority.
-        @Nmet:  number of metallicity nodes in atmcof.dat. For the 2003 version
+        @Nabun: number of metallicity nodes in atmcof.dat. For the 2003 version
                 the number of nodes is 19.
         @Nlogg: number of logg nodes in atmcof.dat. For the 2003 version
                 the number of nodes is 11.
@@ -583,7 +583,7 @@ class Passband:
         atmtab = np.loadtxt(atmfile, converters={2: D2E, 3: D2E, 4: D2E, 5: D2E, 6: D2E, 7: D2E, 8: D2E, 9: D2E, 10: D2E, 11: D2E})
 
         # Break up the table along axes and extract a single passband data:
-        atmtab = np.reshape(atmtab, (Nmet, Npb, Nlogg, Nints, -1))
+        atmtab = np.reshape(atmtab, (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
 
         # Finally, reverse the metallicity axis because it is sorted in
@@ -613,7 +613,7 @@ class Passband:
 
         return log10_Inorm
 
-    def _log10_Inorm_extern_atmx(self, Teff, logg, met):
+    def _log10_Inorm_extern_atmx(self, Teff, logg, abun):
         """
         Internal function to compute normal passband intensities using
         the external WD machinery that employs model atmospheres and
@@ -621,7 +621,7 @@ class Passband:
 
         @Teff: effective temperature in K
         @logg: surface gravity in cgs
-        @met:  metallicity in dex, Solar=0.0
+        @abun: metallicity in dex, Solar=0.0
 
         Returns: log10(Inorm)
         """
@@ -629,35 +629,35 @@ class Passband:
         # atmcof.* accepts only floats, no arrays, so we need to check
         # and wrap if arrays are passed:
         if not hasattr(Teff, '__iter__'):
-            log10_Inorm, Inorm = atmcof.atmx(Teff, logg, met, self.extern_wd_idx)
+            log10_Inorm, Inorm = atmcof.atmx(Teff, logg, abun, self.extern_wd_idx)
         else:
             log10_Inorm = np.zeros(len(Teff))
             for i in range(len(Teff)):
-                log10_Inorm[i], _ = atmcof.atmx(Teff[i], logg[i], met[i], self.extern_wd_idx)
+                log10_Inorm[i], _ = atmcof.atmx(Teff[i], logg[i], abun[i], self.extern_wd_idx)
 
         return log10_Inorm
 
-    def _log10_Inorm_ck2004(self, Teff, logg, met):
+    def _log10_Inorm_ck2004(self, Teff, logg, abun):
         if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, met),))
+            req = np.array(((Teff, logg, abun),))
             log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_grid)[0][0]
         else:
-            req = np.vstack((Teff, logg, met)).T
+            req = np.vstack((Teff, logg, abun)).T
             log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_grid).T[0]
 
         return log10_Inorm
 
-    def _log10_Imu_ck2004(self, Teff, logg, met, mu, photon_weighted=False):
+    def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, met, mu),))
+            req = np.array(((Teff, logg, abun, mu),))
             log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
         else:
-            req = np.vstack((Teff, logg, met, mu)).T
+            req = np.vstack((Teff, logg, abun, mu)).T
             log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
 
         return log10_Imu
 
-    def Inorm(self, Teff=5772., logg=4.43, met=0.0, atm='blackbody'):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody'):
         if atm == 'blackbody':
             retval = 10**self._log10_Inorm_bb(Teff)
         elif atm == 'extern_planckint':
@@ -665,39 +665,39 @@ class Passband:
             retval = 0.1*10**self._log10_Inorm_extern_planckint(Teff)
         elif atm == 'extern_atmx':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            retval = 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, met)
+            retval = 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, abun)
         elif atm == 'ck2004':
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, met)
+            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: atm=%s, Teff=%s, logg=%s, met=%s' % (atm, Teff[nanmask], logg[nanmask], met[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: atm=%s, Teff=%s, logg=%s, abun=%s' % (atm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-    def Imu(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
             if atm == 'ck2004':
-                retval = 10**self._log10_Imu_ck2004(Teff, logg, met, mu, photon_weighted=photon_weighted)
+                retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
         elif ld_func == 'linear':
-            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_lin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
-            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_log(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_log(mu, *ld_coeffs)
         elif ld_func == 'square_root':
-            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_sqrt(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_sqrt(mu, *ld_coeffs)
         elif ld_func == 'quadratic':
-            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_quad(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_quad(mu, *ld_coeffs)
         elif ld_func == 'power':
-            retval = self.Inorm(Teff=Teff, logg=logg, met=met, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
         return retval
 
     def _ldint_ck2004(self, Teff, logg, abun, photon_weighted):
@@ -708,7 +708,7 @@ class Passband:
             req = np.vstack((Teff, logg, abun)).T
             ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
 
-        return ldint
+        return ldint / np.pi
 
     def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
@@ -732,29 +732,29 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s, mu=%s' % (Teff[nanmask], logg[nanmask], met[nanmask], mu[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
         return retval
 
-    def _bindex_ck2004(self, Teff, logg, met, mu, atm, photon_weighted=False):
+    def _bindex_ck2004(self, Teff, logg, abun, mu, atm, photon_weighted=False):
         grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
         if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, met, mu),))
+            req = np.array(((Teff, logg, abun, mu),))
             bindex = interp.interp(req, self._ck2004_intensity_axes, grid)[0][0]
         else:
-            req = np.vstack((Teff, logg, met, mu)).T
+            req = np.vstack((Teff, logg, abun, mu)).T
             bindex = interp.interp(req, self._ck2004_intensity_axes, grid).T[0]
 
         return bindex
 
-    def bindex(self, Teff=5772., logg=4.43, met=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
+    def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
         if atm == 'ck2004':
-            retval = self._bindex_ck2004(Teff, logg, met, mu, atm, photon_weighted)
+            retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, met=%s' % (Teff[nanmask], logg[nanmask], met[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
 def init_passbands():
@@ -827,14 +827,14 @@ if __name__ == '__main__':
     #~ plt.show()
     #~ exit()
 
-    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, met=0.0, atm='blackbody')
-    print 'planckint:', jV.Inorm(Teff=5880., logg=4.43, met=0.0, atm='extern_planckint')
-    print 'atmx:     ', jV.Inorm(Teff=5880., logg=4.43, met=0.0, atm='extern_atmx')
-    print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, met=0.0, atm='ck2004')
+    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody')
+    print 'planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint')
+    print 'atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx')
+    print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004')
 
     # Testing arrays:
 
     print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody')
     print 'planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint')
-    print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), met=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
-    print 'kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), met=np.array((0.0, 0.0, 0.0)), atm='kurucz')
+    print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
+    print 'kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz')
