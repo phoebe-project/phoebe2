@@ -25,7 +25,7 @@
 #include "triang_mesh.h"
 
 /*
-  Triangulization of closed surfaces using maching algorithm.
+  Triangulation of closed surfaces using maching algorithm.
 */
 template <class T, class Tbody>
 struct Tmarching: public Tbody {
@@ -57,7 +57,7 @@ struct Tmarching: public Tbody {
    Output:
      v - internal vertex
   */
-  void create_internal_vertex(T r[3], T g[3], Tvertex & v){
+  void create_internal_vertex(T r[3], T g[3], Tvertex & v, const T & phi = 0){
         
     for (int i = 0; i < 3; ++i) v.r[i] = r[i];
     
@@ -97,6 +97,28 @@ struct Tmarching: public Tbody {
     t2[0] = n[1]*t1[2] - n[2]*t1[1];
     t2[1] = n[2]*t1[0] - n[0]*t1[2];
     t2[2] = n[0]*t1[1] - n[1]*t1[0];
+    
+    //
+    // Rotate in tangent plane
+    //
+    if (phi != 0) {
+      
+      T q1[3], q2[3];
+      
+      for (int i = 0; i < 3; ++i) {
+        q1[i] = t1[i];
+        q2[i] = t2[i];
+      }
+     
+      T s, c;
+      
+      utils::sincos(phi, &s, &c);
+      
+      for (int i = 0; i < 3; ++i) {
+        t1[i] = c*q1[i] + s*q2[i];
+        t2[i] = -s*q1[i] + c*q2[i];
+      }
+    }
   }
   
   /*
@@ -257,7 +279,7 @@ struct Tmarching: public Tbody {
 
   int split_angle(Tvertex & v_prev, Tvertex & v, Tvertex & v_next, T *a) {
     
-    T q[3][2] = {{0,0}, {0,0}, {0,0}};
+    T q[3][2] = {{0.,0.}, {0.,0.}, {0.,0.}};
     
     // projecting vectors onto tangent plane of vertex v
     for (int i = 0; i < 2; ++i)
@@ -267,7 +289,10 @@ struct Tmarching: public Tbody {
         q[2][i] += a[j]*v.b[i][j];
       }
     
-    T s[2] = { utils::cross2D(q[2],q[0]), utils::cross2D(q[1], q[2])};
+    T s[2] = {
+      utils::cross2D(q[2], q[0]), 
+      utils::cross2D(q[1], q[2])
+    };
    
     if (s[0] > 0 && s[1] > 0) return 1;
     
@@ -280,13 +305,14 @@ struct Tmarching: public Tbody {
   Tmarching(void *params) : Tbody(params) { }
   
   /*
-    Triangulization using marching method of genus 0 closed and surfaces
+    Triangulation using marching method of genus 0 closed and surfaces
   
     Input: 
       init_r[3] - initial position 
       init_g[3] - initial gradient
       delta - size of triangles edges projected to tangent space
       max_triangles - maximal number of triangles used
+      init_phi - rotation of the initial hexagon
     Output:
       V - vector of vertices
       NatV - vector of normals at vertices (read N at V)
@@ -301,7 +327,8 @@ struct Tmarching: public Tbody {
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
-    std::vector<T> * GatV = 0
+    std::vector<T> * GatV = 0,
+    const T &init_phi = 0
     ) 
   {
     
@@ -315,7 +342,8 @@ struct Tmarching: public Tbody {
     Tvertex v, vk, *vp, Pi[6];
     
     // construct the vector base
-    create_internal_vertex(init_r, init_g, v);
+    create_internal_vertex(init_r, init_g, v, init_phi);
+    
     //v.index = 0; v.omega_changed = true;  // NOT NEEDED!
    
     // add vertex to the set, index 0
@@ -587,6 +615,7 @@ struct Tmarching: public Tbody {
       init_g[3] - initial gradient
       delta - size of triangles edges projected to tangent space
       max_triangles - maximal number of triangles used
+      init_phi - rotation of the initial hexagon
     Output:
       V - vector of vertices
       NatV - vector of normals at vertices (read N at V)
@@ -601,7 +630,8 @@ struct Tmarching: public Tbody {
     std::vector <T3Dpoint<T>> & V,
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
-    std::vector<T> * GatV = 0
+    std::vector<T> * GatV = 0,
+    const T &init_phi = 0
     ) 
   {
     
@@ -623,7 +653,7 @@ struct Tmarching: public Tbody {
       Tvertex v, vk;
 
       // construct the vector base
-      create_internal_vertex(init_r, init_g, v);
+      create_internal_vertex(init_r, init_g, v, init_phi);
    
       // add vertex to the set, index 0
       V.emplace_back(v.r);                  // saving only r

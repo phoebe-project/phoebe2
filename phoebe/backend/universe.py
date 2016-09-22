@@ -12,6 +12,7 @@ import libphoebe
 
 from phoebe import u
 from phoebe import c
+from phoebe import _devel_enabled
 
 import logging
 logger = logging.getLogger("UNIVERSE")
@@ -42,6 +43,7 @@ def _value(obj):
 
 class System(object):
     def __init__(self, bodies_dict, eclipse_method='graham',
+                 horizon_method='boolean',
                  dynamics_method='keplerian',
                  reflection_method='none',
                  boosting_method='none'):
@@ -50,6 +52,7 @@ class System(object):
         """
         self._bodies = bodies_dict
         self.eclipse_method = eclipse_method
+        self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
         self.reflection_method = reflection_method
         for body in self._bodies.values():
@@ -86,23 +89,30 @@ class System(object):
         # now pull general compute options
         if compute is not None:
             if isinstance(compute, str):
-                compute_ps = b.get_compute(compute)
+                compute_ps = b.get_compute(compute, check_visible=False)
             else:
                 # then hopefully compute is the parameterset
                 compute_ps = compute
             eclipse_method = compute_ps.get_value(qualifier='eclipse_method', **kwargs)
+            horizon_method = compute_ps.get_value(qualifier='horizon_method', check_visible=False, **kwargs)
             # subdiv_alg = 'edge' #compute_ps.get_value(qualifier='subdiv_alg', **kwargs)
             # subdiv_num = compute_ps.get_value(qualifier='subdiv_num', **kwargs)
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
+            if _devel_enabled:
+                mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
+            else:
+                mesh_init_phi = 0.0
         else:
-            eclipse_method = 'graham'
+            eclipse_method = 'native'
+            horizon_method = 'boolean'
             # subdiv_alg = 'edge'
             # subdiv_num = 3
             dynamics_method = 'keplerian'
             reflection_method = 'none'
             boosting_method = 'none'
+            mesh_init_phi = 0.0
 
         # NOTE: here we use globals()[Classname] because getattr doesn't work in
         # the current module - now this doesn't really make sense since we only
@@ -115,9 +125,10 @@ class System(object):
         #bodies_dict = {star: globals()['Star'].from_bundle(b, star, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for star in starrefs}
 
         meshables = hier.get_meshables()
-        bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, datasets=datasets, **kwargs) for comp in meshables}
+        bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
         return cls(bodies_dict, eclipse_method=eclipse_method,
+                   horizon_method=horizon_method,
                    dynamics_method=dynamics_method,
                    reflection_method=reflection_method,
                    boosting_method=boosting_method)
@@ -351,7 +362,7 @@ class System(object):
         # TODO: set to triangles if WD mesh_method
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
-    def handle_eclipses(self, **kwargs):
+    def handle_eclipses(self, expose_horizon=True, **kwargs):
         """
         Detect the triangles at the horizon and the eclipsed triangles, handling
         any necessary subdivision.
@@ -365,6 +376,7 @@ class System(object):
         """
 
         eclipse_method = kwargs.get('eclipse_method', self.eclipse_method)
+        horizon_method = kwargs.get('horizon_method', self.horizon_method)
         # subdiv_alg = kwargs.get('subdiv_alg', self.subdiv_alg)
         # subdiv_num = int(kwargs.get('subdiv_num', self.subdiv_num))
 
@@ -392,7 +404,7 @@ class System(object):
                         possible_eclipse = True
                         break
 
-        if not possible_eclipse:
+        if not possible_eclipse and not expose_horizon and horizon_method=='boolean':
             eclipse_method = 'only_horizon'
 
         # meshes is an object which allows us to easily access and update columns
@@ -405,17 +417,28 @@ class System(object):
 
         ecl_func = getattr(eclipse, eclipse_method)
 
-        # We need to run eclipse detection first to get the partial triangles
-        # to send to subdivision
-        visibilities, weights = ecl_func(meshes, self.xs, self.ys, self.zs)
+        if eclipse_method=='native':
+            ecl_kwargs = {'horizon_method': horizon_method}
+        else:
+            ecl_kwargs = {}
+
+        visibilities, weights, horizon = ecl_func(meshes,
+                                                  self.xs, self.ys, self.zs,
+                                                  expose_horizon=expose_horizon,
+                                                  **ecl_kwargs)
+
+        # NOTE: analytic horizons are called in backends.py since they don't
+        # actually depend on the mesh at all.
+
         # visiblilities here is a dictionary with keys being the component
         # labels and values being the np arrays of visibilities.  We can pass
         # this dictionary directly and the columns will be applied respectively.
         meshes.update_columns('visibilities', visibilities)
+
         if weights is not None:
             meshes.update_columns('weights', weights)
 
-        return
+        return horizon
 
 
     def observe(self, dataset, kind, components=None, distance=1.0, l3=0.0):
@@ -497,7 +520,8 @@ class Body(object):
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
                  ld_func={}, ld_coeffs={},
-                 dynamics_method='keplerian'):
+                 dynamics_method='keplerian',
+                 mesh_init_phi=0.0):
         """
         TODO: add documentation
         """
@@ -558,6 +582,8 @@ class Body(object):
         # We'll also keep track of a conservative maximum r (from center of star to triangle, in real units).
         # This will be computed and stored when the periastron mesh is added as a standard
         self._max_r = None
+
+        self.mesh_init_phi = mesh_init_phi
 
         # TODO: allow custom meshes (see alpha:universe.Body.__init__)
         # TODO: reconsider partial/hidden/visible into opacity/visibility
@@ -995,14 +1021,27 @@ class Body(object):
         # emergent normal intensities in this dataset's passband/atm in absolute units
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
-        # TODO: do we need to worry about any limb-darkening functions darkening/brightening at mu=0?
-        ld = 1.0
-
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
-        # limbdarkened as if they were at mu=0, and multiplied by their respective areas
-        total_integrated_intensity = np.sum(abs_normal_intensities*ld*areas) * np.pi
+        # limbdarkened as if they were at mu=1, and multiplied by their respective areas
+
+        # TODO: make these all kwargs.get('blah', self.default)?
+        ld_func = self.ld_func[dataset]
+        ld_coeffs = self.ld_coeffs[dataset]
+        intens_weighting = self.intens_weighting[dataset]
+        atm = self.atm
+
+        pb = passbands.get_passband(self.passband[dataset])
+        ld = pb.ldint(Teff=self.mesh.teffs.centers,
+                     logg=self.mesh.loggs.centers,
+                     abun=self.mesh.abuns.centers,
+                     atm=atm,
+                     ld_func=ld_func,
+                     ld_coeffs=ld_coeffs,
+                     photon_weighted=intens_weighting=='photon')
+
+        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ld) * np.pi
 
         # NOTE: when this is computed the first time (for the sake of determing
         # pblum_scale), get_pblum_scale will return 1.0
@@ -1251,7 +1290,9 @@ class CustomBody(Body):
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
                  abun, frac_refl, mesh_method='marching',
-                 dynamics_method='keplerian', ind_self=0, ind_sibling=1,
+                 dynamics_method='keplerian',
+                 mesh_init_phi=0.0,
+                 ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False,
                  atm='blackbody', datasets=[], passband={},
                  intens_weighting={}, ld_func={}, ld_coeffs={},
@@ -1274,7 +1315,8 @@ class Star(Body):
         super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
                                    atm, datasets, passband,
                                    intens_weighting, ld_func, ld_coeffs,
-                                   dynamics_method=dynamics_method)
+                                   dynamics_method=dynamics_method,
+                                   mesh_init_phi=mesh_init_phi)
 
         self._is_convex = True
 
@@ -1321,7 +1363,8 @@ class Star(Body):
 
 
     @classmethod
-    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian', datasets=[], **kwargs):
+    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian',
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
         """
         Build a star from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
@@ -1417,7 +1460,10 @@ class Star(Body):
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
-        do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        if _devel_enabled:
+            do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        else:
+            do_mesh_offset = True
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
@@ -1427,7 +1473,8 @@ class Star(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                abun, frac_refl, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                abun, frac_refl, mesh_method, dynamics_method,
+                mesh_init_phi, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
                 passband=passband, intens_weighting=intens_weighting,
                 ld_func=ld_func, ld_coeffs=ld_coeffs,
@@ -1542,7 +1589,8 @@ class Star(Body):
                                                          vnormgrads=True,
                                                          cnormgrads=False,
                                                          areas=True,
-                                                         volume=False)
+                                                         volume=False,
+                                                         init_phi=self.mesh_init_phi)
 
 
                 # Now we'll get the area and volume of the Roche potential
@@ -1645,7 +1693,8 @@ class Star(Body):
                                                vnormgrads=True,
                                                cnormgrads=False,
                                                areas=True,
-                                               volume=True)
+                                               volume=True,
+                                               init_phi=self.mesh_init_phi)
 
                 av = libphoebe.rotstar_area_volume(*mesh_args,
                                                    larea=True,
@@ -1891,6 +1940,7 @@ class Star(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
+        boosting_method = kwargs.get('boosting_method', self.boosting_method)
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -1901,15 +1951,16 @@ class Star(Body):
             # abs_normal_intensities are the normal emergent passband intensities:
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
-                                              met=self.mesh.abuns.for_computations,
-                                              atm=atm)
+                                              abun=self.mesh.abuns.for_computations,
+                                              atm=atm,
+                                              photon_weighted=intens_weighting=='photon')
 
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
-                                     met=self.mesh.abuns.for_computations,
+                                     abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
                                      ld_func=ld_func,
@@ -1917,16 +1968,12 @@ class Star(Body):
                                      photon_weighted=intens_weighting=='photon')
 
             # Beaming/boosting
-            if self.boosting_method == 'none':
-                alpha_b = 0.0
-
-                # light speed in Rsol/d
-                # TODO: should we mutliply velocities by -1 (z convention)?
-                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
-            elif self.boosting_method == 'linear':
+            if boosting_method == 'none':
+                boost_factors = 1.0
+            elif boosting_method == 'linear':
                 bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
                                    logg=self.mesh.loggs.for_computations,
-                                   met=self.mesh.abuns.for_computations,
+                                   abun=self.mesh.abuns.for_computations,
                                    mu=abs(self.mesh.mus_for_computations),
                                    atm=atm,
                                    photon_weighted=intens_weighting=='photon')
@@ -1996,7 +2043,7 @@ class Star(Body):
 class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
             abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
-            dynamics_method='keplerian', ind_self=0, ind_sibling=1, comp_no=1,
+            dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
             ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
@@ -2017,7 +2064,8 @@ class Envelope(Body):
                                        ecc, atm, datasets, passband,
                                        intens_weighting,
                                        ld_func, ld_coeffs,
-                                       dynamics_method=dynamics_method)
+                                       dynamics_method=dynamics_method,
+                                       mesh_init_phi=mesh_init_phi)
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
@@ -2072,7 +2120,8 @@ class Envelope(Body):
 
 
     @classmethod
-    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian', datasets=[], **kwargs):
+    def from_bundle(cls, b, component, compute=None, dynamics_method='keplerian',
+                    mesh_init_phi=0.0, datasets=[], **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -2189,7 +2238,8 @@ class Envelope(Body):
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
 
         return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
-                gravb_bol1, gravb_bol2, mesh_method, dynamics_method, ind_self, ind_sibling, comp_no,
+                gravb_bol1, gravb_bol2, mesh_method, dynamics_method,
+                mesh_init_phi, ind_self, ind_sibling, comp_no,
                 atm=atm,
                 datasets=datasets, passband=passband,
                 intens_weighting=intens_weighting,
@@ -2610,6 +2660,7 @@ class Envelope(Body):
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
+        boosting_method = kwargs.get('boosting_method', self.boosting_method)
 
         pblum = kwargs.get('pblum', 4*np.pi)
 
@@ -2621,15 +2672,16 @@ class Envelope(Body):
             # abs_normal_intensities are the normal emergent passband intensities:
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
-                                              met=self.mesh.abuns.for_computations,
-                                              atm=atm)
+                                              abun=self.mesh.abuns.for_computations,
+                                              atm=atm,
+                                              photon_weighted=intens_weighting=='photon')
 
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
             abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
                                      logg=self.mesh.loggs.for_computations,
-                                     met=self.mesh.abuns.for_computations,
+                                     abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
                                      ld_func=ld_func,
@@ -2637,12 +2689,17 @@ class Envelope(Body):
                                      photon_weighted=intens_weighting=='photon')
 
             # Beaming/boosting
-            if self.boosting_method == 'none':
-                alpha_b = 0.0
+            if boosting_method == 'none':
+                boost_factors = 1.0
+            elif boosting_method == 'linear':
+                bindex = pb.bindex(Teff=self.mesh.teffs.for_computations,
+                                   logg=self.mesh.loggs.for_computations,
+                                   abun=self.mesh.abuns.for_computations,
+                                   mu=abs(self.mesh.mus_for_computations),
+                                   atm=atm,
+                                   photon_weighted=intens_weighting=='photon')
 
-                # light speed in Rsol/d
-                # TODO: should we mutliply velocities by -1 (z convention)?
-                boost_factors = 1.0 + alpha_b * self.mesh.velocities.for_computations[:,2]/37241.94167601236
+                boost_factors = 1.0 + bindex * self.mesh.velocities.for_computations[:,2]/37241.94167601236
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 

@@ -103,7 +103,7 @@ ld_legacy -
 
 """
 
-def ld_to_phoebe(pn, d, rvdep=None, dataid=None):
+def ld_to_phoebe(pn, d, rvdep=None, dataid=None, law=None):
     if 'bol' in pn:
         d['context'] = 'component'
         pnew = 'bol'
@@ -119,7 +119,7 @@ def ld_to_phoebe(pn, d, rvdep=None, dataid=None):
         pnew = 'ld_model'
     if 'x' in pn:
         d['index'] = 0
-    elif 'y' in pn:
+    elif 'y' in pn and law != 'Linear cosine law':
         d['index'] = 1
 
     return [pnew, d]
@@ -354,8 +354,20 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     legacy_file_dir = os.path.dirname(filename)
 
+# load the phoebe file
+
+    params = np.loadtxt(filename, dtype='str', delimiter = ' = ')
+
+    morphology = params[:,1][list(params[:,0]).index('phoebe_model')]
+
+
 # load an empty legacy bundle and initialize obvious parameter sets
-    eb = phb.Bundle.default_binary()
+    if 'Overcontact' in morphology:
+        overcontact= True
+        eb = phb.Bundle.default_binary(overcontact=True)
+    else:
+        overcontact = False
+        eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
     if add_compute_phoebe == True:
@@ -365,9 +377,6 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     #    comid.append('lega1')
         eb.add_compute('legacy')#, compute=comid[-1])
 
-# load the phoebe file
-
-    params = np.loadtxt(filename, dtype='str', delimiter = ' = ')
 
 #basic filter on parameters that make no sense in phoebe 2
     ind = [list(params[:,0]).index(s) for s in params[:,0] if not ".ADJ" in s and not ".MIN" in s and not ".MAX" in s and not ".STEP" in s and not "gui_" in s]
@@ -378,19 +387,33 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     lcno = np.int(params[:,1][list(params[:,0]).index('phoebe_lcno')])
 # and spots
     spotno = np.int(params[:,1][list(params[:,0]).index('phoebe_spots_no')])
+
 # delete parameters that have already been accounted for and find lc and rv parameters
 
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
+
+    if 'Overcontact' in morphology:
+        params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
+        if 'UMa'in morphology:
+            params[:,1][list(params[:,0]).index('phoebe_teff2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_teff1.VAL')]
+            params[:,1][list(params[:,0]).index('phoebe_grb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_grb1.VAL')]
+            params[:,1][list(params[:,0]).index('phoebe_alb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_alb1.VAL')]
 # create mzero and grab it if it exists
     mzero = None
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+
+#Determin LD law
+
+    ldlaw = params[:,1][list(params[:,0]).index('phoebe_ld_model')]
 # FORCE hla and cla to follow conventions so the parser doesn't freak out.
     for x in range(1,lcno+1):
         hlain = list(params[:,0]).index('phoebe_hla['+str(x)+'].VAL')
         clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
         params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
+        if overcontact:
+            params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
 #and split into lc and rv and spot parameters
 
@@ -480,6 +503,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
+
+                if d['qualifier'] == 'pblum' and overcontact:
+
+                    d['component'] = 'common_envelope'
+
                 try:
                     eb.set_value_all(check_visible=False, **d)
                 except ValueError, msg:
@@ -588,8 +616,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         val = params[:,1][x].strip('"')
         pnew, d = ret_dict(pname, val)
         if pnew == 'ld_model':
-            val = val.split(' ')[0]
-            d['value'] = val[0].lower()+val[1::]
+            ldlaws_1to2= {'Linear cosine law': 'linear', 'Logarithmic law': 'logarithmic', 'Square root law': 'square_root'}
+            if val == 'Linear cosine law':
+                logger.warning('Linear cosine law is not currently supported. Converting to linear instead')
+            d['value'] = ldlaws_1to2[val]#val[0].lower()+val[1::]
+
             # since ld_coeffs is dataset specific make sure there is at least one dataset
             if lcno != 0 or rvno != 0:
                 eb.set_value_all(check_visible=False, **d)
@@ -600,8 +631,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['kind'] = 'star'
             d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
-            eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
+            if not overcontact:
+                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
             #print "val", val
+            else:
+                d['component'] = 'common_envelope'
             d['value'] = val
             d['qualifier'] = 'pot'
             d['kind'] = None
@@ -646,9 +680,23 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
+    if not overcontact:
+        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
+        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
+    # get rid of seconddary coefficient if ldlaw  is linear
+    
+    if 'Linear' in ldlaw:
 
-    eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
-    eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
+        ldcos = eb.filter('ld_coeffs')
+        ldcosbol = eb.filter('ld_coeffs_bol')
+        for x in range(len(ldcos)):
+            val = ldcos[x].value[0]
+            ldcos[x].set_value(np.array([val]))
+
+        for x in range(len(ldcosbol)):
+            
+            val = ldcosbol[x].value[0]
+            ldcosbol[x].set_value(np.array([val]))
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
@@ -672,6 +720,7 @@ def par_value(param, index=None):
     d['dataset'] = param.dataset
     d['compute'] = param.compute
     d['kind'] = param.kind
+
 # Determine what type of parameter you have and find it's value
     if isinstance(param, phb.parameters.FloatParameter) and not isinstance(param, phb.parameters.FloatArrayParameter):
         ptype = 'float'
@@ -696,9 +745,13 @@ def par_value(param, index=None):
         # in phoebe one this is a boolean parameter because you have the choice of either kurucz or blackbody
 
             ptype='boolean'
+
         if d['qualifier'] == 'ld_func':
-            val = val[0]
-            val = ['"'+val[0].upper() + val[1::]+' Law"']
+
+            ldlaws_2to1= {'linear':'Linear cosine law', 'logarithmic':'Logarithmic law', 'square_root':'Square root law'}
+            val = ldlaws_2to1[val[0]]
+            val = ['"'+str(val)+'"']
+
     elif isinstance(param, phb.parameters.BoolParameter):
 
         ptype = 'boolean'
@@ -720,8 +773,13 @@ def par_value(param, index=None):
         # val1 = param.get_value()[0]
         # val2 = param.get_value()[1]
         # val = [val1, val2]
+
         val = param.get_value().tolist()
+
         ptype='array'
+        if len(val) == 1:
+            val.append(0.0)
+
     else:
         ptype = 'unknown'
         val = [param.get_value()]
@@ -742,12 +800,14 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
             pnew2 = 'ybol'
             pnew = [pnew1, pnew2]
         else:
-            pnew = ['model']
+            return ['phoebe_ld_model']
     else:
         if ptype == 'array':
             pnew1 = str(dtype)+'x'
             pnew2 = str(dtype)+'y'
             pnew = [pnew1, pnew2]
+        else:
+            return ['phoebe_ld_model']
 
     if component == 'primary':
         pnew = [x + '1' for x in pnew]
@@ -838,8 +898,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     stars = eb['hierarchy'].get_stars()
     orbits = eb['hierarchy'].get_orbits()
 
+
     if len(stars) != 2 or len(orbits) != 1:
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
+# check for overcontact
+    overcontact = eb.hierarchy.is_overcontact('primary')
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -849,10 +912,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
     lcs = eb.get_dataset(kind='lc').datasets
     rvs = eb.get_dataset(kind='rv').datasets
     spots = eb.features
+
     if len(ldlaws) == 0:
         pass
-    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square root']:
-        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square root'")
+    elif list(ldlaws)[0] not in ['linear', 'logarithmic', 'square_root']:
+        raise ValueError(list(ldlaws)[0]+" is not an acceptable value for phoebe 1. Accepted options are 'linear', 'logarithmic' or 'square_root'")
 
     #make lists to put results with important things already added
 
@@ -868,7 +932,20 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
-
+    if overcontact:
+#        cepars = eb.filter(component='common_envelope', context='component')
+#   potential
+        val = [eb.get_value(qualifier='pot')]
+        ptype = 'float'
+        pname = ret_parname('pot', component='primary', ptype=ptype)
+        parnames.extend(pname)
+        parvals.extend(val)
+#   pblum
+        val = [eb.get_value(qualifier='pblum')]
+        ptype = 'float'
+        pname = ret_parname('pblum', component='primary', ptype=ptype)
+        parnames.extend(pname)
+        parvals.extend(val)
     # get primary parameters and convert
 
     for param in prpars.to_list():
@@ -879,7 +956,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #        param = eb.get_parameter(prpars[x], component='primary')
         try:
             pnew = _2to1par[param.qualifier]
-            if param.qualifier in ['sma', 'period', 'incl','enabled','statweight','l3', 'ld_func'] or param.component == '_default':
+            if param.qualifier in ['sma', 'period', 'incl','enabled','statweight','l3'] or param.component == '_default':
                 param = None
 #            elif 'ld_' in param.qualifier:
 #                param = None
@@ -889,10 +966,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             param=None
         if param != None:
             val, ptype = par_value(param)
+
             # if param.qualifier == 'frac_refl_bol':
                 # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
+            # print val, ptype, pname
             if pname[0] not in parnames:
+
                 parnames.extend(pname)
                 parvals.extend(val)
                 if ptype == 'array':
@@ -963,7 +1043,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
             try:
                 pnew = _2to1par[param.qualifier]
-                if param.qualifier in [ 'alb', 'l3', 'ld_func', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
+                if param.qualifier in [ 'alb', 'l3', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
 
                     param = None
             except:

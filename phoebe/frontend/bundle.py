@@ -983,7 +983,7 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
-    def run_checks(self):
+    def run_checks(self, **kwargs):
         """
         Check to see whether the system is expected to be computable.
 
@@ -995,6 +995,8 @@ class Bundle(ParameterSet):
         """
 
         hier = self.hierarchy
+        if hier is None:
+            return True, ''
         for component in hier.get_meshables():
             kind = hier.get_kind_of(component)
             comp_ps = self.get_component(component)
@@ -1097,7 +1099,7 @@ class Bundle(ParameterSet):
                 if len(hier.get_children_of(orbitref)) == 2:
                     incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
                     incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
-                    if incl_star != incl_orbit:
+                    if abs(incl_star - incl_orbit) > 1e-3:
                         return False,\
                             'misaligned orbits are not currently supported.'
 
@@ -1133,12 +1135,14 @@ class Bundle(ParameterSet):
                     return check
 
                 if ld_func=='interp':
-                    for compute in self.computes:
+                    for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute')
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
 
-            # while we're looping through stars, let's check teff vs gravb_bol
+        #### WARNINGS ONLY ####
+        # let's check teff vs gravb_bol
+        for component in self.hierarchy.get_stars():
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.k)
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
 
@@ -1438,13 +1442,19 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
-    def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
+    def get_ephemeris(self, component=None, t0='t0_supconj', shift=True, **kwargs):
         """
         Get the ephemeris of a component (star or orbit)
 
         :parameter str component: name of the component.  If not given,
             component will default to the top-most level of the current
             hierarchy
+        :parameter t0: qualifier of the parameter to be used for t0
+        :type t0: str
+        :parameter shift: if true, phase shift is applied (which should be
+            done to models); if false, it is not applied (which is suitable
+            for data).
+        :type shift: boolean
         :parameter **kwargs: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, phshift, dpdt).
             Note: be careful about units - input values will not be converted.
@@ -1463,9 +1473,11 @@ class Bundle(ParameterSet):
         if ps.kind in ['orbit']:
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
             ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
-            ret['phshift'] = ps.get_value(qualifier='phshift')
+            if shift:
+                ret['phshift'] = ps.get_value(qualifier='phshift')
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
         elif ps.kind in ['star']:
+            # TODO: consider renaming period to prot
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
         else:
             raise NotImplementedError
@@ -1475,13 +1487,19 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, shift=True, component=None, t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris
 
         :parameter time: time to convert to phases (should be in same system
             as t0s)
         :type time: float, list, or array
+        :parameter shift: if true, phase shift is applied (which should be
+            done to models); if false, it is not applied (which is suitable
+            for data).
+        :type shift: boolean
+        :parameter t0: qualifier of the parameter to be used for t0
+        :type t0: str
         :parameter str component: component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy
@@ -1491,7 +1509,7 @@ class Bundle(ParameterSet):
         :return: phase (float) or phases (array)
         """
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, t0=t0, shift=shift, **kwargs)
 
         if isinstance(time, list):
             time = np.array(time)
@@ -1505,26 +1523,43 @@ class Bundle(ParameterSet):
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
-        return ((time - t0) % (period + dpdt * (time - t0))) / \
-            (period + dpdt * (time - t0)) + phshift
+        if dpdt != 0:
+            phase = phshift + np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+        else:
+            phase = phshift + np.mod((time-t0)/period, 1.0)
 
-    def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
+        if isinstance(phase, float):
+            if phase > 0.5:
+                phase -= 1
+        else:
+            # then should be an array
+            phase[phase > 0.5] -= 1
+
+        return phase
+
+    def to_time(self, phase, shift=True, component=None, t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris
 
         :parameter phase: phase to convert to times (should be in
             same system as t0s)
         :type phase: float, list, or array
+        :parameter shift: if true, phase shift is applied (which should be
+            done to models); if false, it is not applied (which is suitable
+            for data).
+        :type shift: boolean
     `   :parameter str component: component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy
+        :parameter t0: qualifier of the parameter to be used for t0
+        :type t0: str
         :parameter **kwargs: any value passed through kwargs will override the
             ephemeris retrieved by component (ie period, t0, phshift, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: time (float) or times (array)
         """
 
-        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
+        ephem = self.get_ephemeris(component=component, t0=t0, shift=shift, **kwargs)
 
         if isinstance(phase, list):
             phase = np.array(phase)
@@ -1534,10 +1569,13 @@ class Bundle(ParameterSet):
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
-        # t = t0 + (phase - phshift) * (period + dpdt(t - t0))
-
         # if changing this, also see parameters.constraint.time_ephem
-        return t0 + ((phase - phshift) * period) / (1 - (phase - phshift) * dpdt)
+        if dpdt != 0:
+            time = t0 + 1./dpdt*(np.exp(dpdt*(phase-phshift))-period)
+        else:
+            time = t0 + (phase-phshift)*period
+
+        return time
 
     def add_dataset(self, kind, component=None, **kwargs):
         """
@@ -2023,8 +2061,8 @@ class Bundle(ParameterSet):
 
         """
 
-        if not _devel_enabled:
-            raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
+        # if not _devel_enabled:
+        #     raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
 
         self._kwargs_checks(kwargs)
 
@@ -2251,19 +2289,8 @@ class Bundle(ParameterSet):
             self.as_client(False)
             return self.get_model(model)
 
-        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
-
         if model is None:
             model = 'latest'
-
-        if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks()
-            if passed is None:
-                # then just raise a warning
-                logger.warning(msg)
-            if passed is False:
-                # then raise an error
-                raise ValueError("system failed to pass checks: {}".format(msg))
 
         if model in self.models:
             logger.warning("overwriting model: {}".format(model))
@@ -2297,6 +2324,19 @@ class Bundle(ParameterSet):
             computes = [compute]
         else:
             computes = compute
+
+        # we'll wait to here to run kwargs and system checks so that
+        # add_compute is already called if necessary
+        self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
+
+        if not kwargs.get('skip_checks', False):
+            passed, msg = self.run_checks(computes=computes)
+            if passed is None:
+                # then just raise a warning
+                logger.warning(msg)
+            if passed is False:
+                # then raise an error
+                raise ValueError("system failed to pass checks: {}".format(msg))
 
         # let's first make sure that there is no duplication of enabled datasets
         datasets = []

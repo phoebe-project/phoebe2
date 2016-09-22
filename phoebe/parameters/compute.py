@@ -33,9 +33,10 @@ def phoebe(**kwargs):
     params += [ChoiceParameter(qualifier='dynamics_method', value=kwargs.get('dynamics_method', 'keplerian'), choices=['keplerian', 'nbody', 'rebound', 'bs'] if _devel_enabled else ['keplerian'], description='Which method to use to determine the dynamics of components')]
     params += [BoolParameter(qualifier='ltte', value=kwargs.get('ltte', False), description='Correct for light travel time effects')]
 
-    params += [BoolParameter(visible_if='dynamics_method:nbody', qualifier='gr', value=kwargs.get('gr', False), description='Whether to account for general relativity effects')]
-    params += [FloatParameter(visible_if='dynamics_method:nbody', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
-    params += [ChoiceParameter(visible_if='dynamics_method:nbody', qualifier='integrator', value=kwargs.get('integrator', 'ias15'), choices=['ias15', 'whfast', 'sei', 'leapfrog', 'hermes'], description='Which integrator to use within rebound')]
+    if _devel_enabled:
+        params += [BoolParameter(visible_if='dynamics_method:nbody', qualifier='gr', value=kwargs.get('gr', False), description='Whether to account for general relativity effects')]
+        params += [FloatParameter(visible_if='dynamics_method:nbody', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
+        params += [ChoiceParameter(visible_if='dynamics_method:nbody', qualifier='integrator', value=kwargs.get('integrator', 'ias15'), choices=['ias15', 'whfast', 'sei', 'leapfrog', 'hermes'], description='Which integrator to use within rebound')]
 
     # params += [FloatParameter(visible_if='dynamics_method:bs', qualifier='stepsize', value=kwargs.get('stepsize', 0.01), default_unit=None, description='stepsize for the N-body integrator')]         # TODO: improve description (and units??)
     # params += [FloatParameter(visible_if='dynamics_method:bs', qualifier='orbiterror', value=kwargs.get('orbiterror', 1e-20), default_unit=None, description='orbiterror for the N-body integrator')]  # TODO: improve description (and units??)
@@ -43,7 +44,7 @@ def phoebe(**kwargs):
 
     # PHYSICS
     # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv_dep', 'lc_dep'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
-    params += [ChoiceParameter(qualifier='reflection_method', value=kwargs.get('reflection_method', 'none'), choices=['none', 'wilson', 'horvat'] if _devel_enabled else ['none', 'wilson'], description='Which method to use to handle all reflection')]
+    params += [ChoiceParameter(qualifier='reflection_method', value=kwargs.get('reflection_method', 'wilson'), choices=['none', 'wilson', 'horvat'] if _devel_enabled else ['none', 'wilson'], description='Which method to use to handle all reflection')]
     params += [ChoiceParameter(qualifier='boosting_method', value=kwargs.get('boosting_method', 'none'), choices=['none', 'linear'], description='Type of boosting method')]
 
     # TODO: include scattering here? (used to be in lcdep)
@@ -57,24 +58,30 @@ def phoebe(**kwargs):
     # has a kind in [star, disk, custombody]
     params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
     params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
-    params += [ChoiceParameter(copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_method', value=kwargs.get('mesh_method', 'marching'), choices=['marching', 'wd'], descriptio='Which method to use for discretizing the surface')]
+    params += [ChoiceParameter(copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_method', value=kwargs.get('mesh_method', 'marching'), choices=['marching', 'wd'] if _devel_enabled else ['marching'], descriptio='Which method to use for discretizing the surface')]
     params += [FloatParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='delta', value=kwargs.get('delta', 0.1), limits=(1e-9,None), default_unit=u.dimensionless_unscaled, description='Stepsize for mesh generation via marching method')]
     params += [IntParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='maxpoints', value=kwargs.get('maxpoints', 100000), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Maximum number of triangles for marching method')]
     params += [ChoiceParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=['roche', 'rotstar', 'nbody', 'sphere'] if _devel_enabled else ['roche', 'rotstar'], description='Method to use for distorting stars')]
-    params += [IntParameter(visible_if='mesh_method:wd', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 40), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Number of meshpoints for WD method')]
+
+    if _devel_enabled:
+        params += [IntParameter(visible_if='mesh_method:wd', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 40), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Number of meshpoints for WD method')]
     # ------------------------------------------------------
 
     #params += [ChoiceParameter(qualifier='subdiv_alg', value=kwargs.get('subdiv_alg', 'edge'), choices=['edge'], description='Subdivision algorithm')]
     # params += [IntParameter(qualifier='subdiv_num', value=kwargs.get('subdiv_num', 3), limits=(0,None), description='Number of subdivisions')]
 
 
-    params += [BoolParameter(qualifier='mesh_offset', value=kwargs.get('mesh_offset', True), description='Whether to adjust the mesh to have the correct surface area (TESTING)')]
+
+    if _devel_enabled:
+        params += [BoolParameter(qualifier='mesh_offset', value=kwargs.get('mesh_offset', True), description='Whether to adjust the mesh to have the correct surface area (TESTING)')]
+        params += [FloatParameter(visible_if='mesh_method:marching', qualifier='mesh_init_phi', value=kwargs.get('mesh_init_phi', 0.0), default_unit=u.rad, limits=(0,2*np.pi), description='Initial rotation offset for mesh (TESTING)')]
 
     # DISTORTION
 
 
     # ECLIPSE DETECTION
     params += [ChoiceParameter(qualifier='eclipse_method', value=kwargs.get('eclipse_method', 'native'), choices=['only_horizon', 'graham', 'none', 'visible_partial', 'native', 'wd_horizon'] if _devel_enabled else ['native'], description='Type of eclipse algorithm')]
+    params += [ChoiceParameter(visible_if='eclipse_method:native', qualifier='horizon_method', value=kwargs.get('horizon_method', 'boolean'), choices=['boolean', 'linear'] if _devel_enabled else ['boolean'], description='Type of horizon method')]
 
 
 
@@ -127,7 +134,7 @@ def legacy(**kwargs):
     params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
     params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
     params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
-    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary'], description='System type constraint')]
+    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary', 'Overcontact binary of the W UMa type', 'Overcontact binary not in thermal contact'], description='System type constraint')]
     params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
 #    params += [IntParameter(visible_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
 #    params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]

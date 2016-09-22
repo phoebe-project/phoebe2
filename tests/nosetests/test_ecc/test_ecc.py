@@ -12,8 +12,8 @@ def test_binary(plot=False):
 
 
     b.add_dataset('lc', times=np.linspace(0,3,101))
-    b.add_compute('phoebe', compute='phoebe2')
-    b.add_compute('legacy', compute='phoebe1')
+    b.add_compute('phoebe', reflection_method='none', compute='phoebe2')
+    b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
     # set matching atmospheres
     b.set_value_all('atm@phoebe2', 'extern_planckint')
@@ -31,21 +31,24 @@ def test_binary(plot=False):
 
 
         print "running phoebe2 model..."
-        b.run_compute(compute='phoebe2', model='phoebe2model')
+        b.run_compute(compute='phoebe2', reflection_method='none', model='phoebe2model')
         print "running phoebe1 model..."
-        b.run_compute(compute='phoebe1', model='phoebe1model')
+        b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
         phoebe1_val = b.get_value('fluxes@phoebe1model')
 
         if plot:
+            print "ecc: {} max (rel): {}".format(ecc , abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
+
             b.plot(dataset='lc01')
             plt.legend()
             plt.show()
 
-            print "max (rel):", abs((phoebe2_val-phoebe1_val)/phoebe1_val).max()
+
 
         # ecc: max(rel)
+        # 0.3: 0.00068
         # 0.6: 0.00078
         # 0.65: 0.00125
         # 0.67: 0.00269

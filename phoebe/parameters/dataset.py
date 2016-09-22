@@ -365,6 +365,14 @@ def mesh_syn(syn=True, **kwargs):
                 syn_params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.solRad/u.d, description='X velocity of center of triangles')]
                 syn_params += [FloatArrayParameter(qualifier='vys', time=t, value=kwargs.get('vys', []), default_unit=u.solRad/u.d, description='Y velocity of center of triangles')]
                 syn_params += [FloatArrayParameter(qualifier='vzs', time=t, value=kwargs.get('vzs', []), default_unit=u.solRad/u.d, description='Z velocity of center of triangles')]
+
+                syn_params += [FloatArrayParameter(qualifier='horizon_xs', time=t, value=kwargs.get('horizon_xs', []), default_unit=u.solRad, description='Horizon of the mesh (x component)')]
+                syn_params += [FloatArrayParameter(qualifier='horizon_ys', time=t, value=kwargs.get('horizon_ys', []), default_unit=u.solRad, description='Horizon of the mesh (y component)')]
+                syn_params += [FloatArrayParameter(qualifier='horizon_zs', time=t, value=kwargs.get('horizon_zs', []), default_unit=u.solRad, description='Horizon of the mesh (z component)')]
+                syn_params += [FloatArrayParameter(qualifier='horizon_analytic_xs', time=t, value=kwargs.get('horizon_analytic_xs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, x component)')]
+                syn_params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
+                syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
+
             syn_params += [FloatArrayParameter(qualifier='areas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of triangles')]
             syn_params += [FloatArrayParameter(qualifier='tareas', time=t, value=kwargs.get('areas', []), default_unit=u.solRad**2, description='Area of WD triangles')]
             # syn_params += [FloatArrayParameter(qualifier='volumes', time=t, value=kwargs.get('volumes', []), default_unit=u.solRad**3, description='Volume of triangles')]
@@ -397,14 +405,14 @@ def mesh_syn(syn=True, **kwargs):
                     # TODO: descriptions for each column
                     if kind=='rv':
                         indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
-                        if _devel_enabled:
-                            indeps['abs_intensities'] = u.W/u.m**3
-                            indeps['abs_normal_intensities'] = u.W/u.m**3
+                        # if _devel_enabled:
+                        indeps['abs_intensities'] = u.W/u.m**3
+                        indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='lc':
                         indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
-                        if _devel_enabled:
-                            indeps['abs_intensities'] = u.W/u.m**3
-                            indeps['abs_normal_intensities'] = u.W/u.m**3
+                        # if _devel_enabled:
+                        indeps['abs_intensities'] = u.W/u.m**3
+                        indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='mesh':
                         continue
                     else:
