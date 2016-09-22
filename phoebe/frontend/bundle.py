@@ -1140,7 +1140,9 @@ class Bundle(ParameterSet):
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
 
-            # while we're looping through stars, let's check teff vs gravb_bol
+        #### WARNINGS ONLY ####
+        # let's check teff vs gravb_bol
+        for component in self.hierarchy.get_stars():
             teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.k)
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
 
