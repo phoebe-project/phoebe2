@@ -3,13 +3,15 @@
 Getting Started
 ==================================
 
-The PHOEBE 2.0-beta release aims to provide fully-tested functionality that
+The `PHOEBE 2.0-beta release <https://github.com/phoebe-project/phoebe2/releases/tag/2.0b>`_
+aims to provide fully-tested functionality that
 matches that of the legacy PHOEBE 1.0 (light curve and radial velocity forward
 models of binary star systems) but with improved precision and a python
 interface.
 
 Although we have attempted to test as thoroughly as possible, please continue
-to be skeptical of all results and `report any issues or bugs <https://github.com/phoebe-project/phoebe2/>`_.
+to be skeptical of all results and
+`report any issues or bugs <https://github.com/phoebe-project/phoebe2/issues>`_.
 
 See below for installation instructions as well as a listing of all available
 tutorials and example scripts.
