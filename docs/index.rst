@@ -261,7 +261,7 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    Reflection and Heating<tutorials/reflection_heating>
    Beaming and Boosting (not yet implemented)<tutorials/beaming_boosting>
    Eclipse Detection<tutorials/eclipse>
-   Intensity Weighing<tutorials/intens_weighting>
+   Intensity Weighting<tutorials/intens_weighting>
 
 COMING SOON (differences between various t0s and phasing)
 
