@@ -256,7 +256,7 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    Reflection and Heating<tutorials/reflection_heating>
    Beaming and Boosting<tutorials/beaming_boosting>
    Eclipse Detection<tutorials/eclipse>
-   Intensity Weighing<tutorials/intens_weighing>
+   Intensity Weighing<tutorials/intens_weighting>
 
 
 Example Scripts
