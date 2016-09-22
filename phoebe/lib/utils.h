@@ -197,7 +197,7 @@ namespace utils {
   
     // z = x cross y  
   template <class T> T cross2D(T x[2], T y[2]) {
-    return x[1]*y[2] - x[2]*y[1];
+    return x[0]*y[1] - x[1]*y[0];
   }
   
   

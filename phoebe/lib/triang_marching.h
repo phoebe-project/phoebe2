@@ -279,7 +279,7 @@ struct Tmarching: public Tbody {
 
   int split_angle(Tvertex & v_prev, Tvertex & v, Tvertex & v_next, T *a) {
     
-    T q[3][2] = {{0,0}, {0,0}, {0,0}};
+    T q[3][2] = {{0.,0.}, {0.,0.}, {0.,0.}};
     
     // projecting vectors onto tangent plane of vertex v
     for (int i = 0; i < 2; ++i)
@@ -289,7 +289,10 @@ struct Tmarching: public Tbody {
         q[2][i] += a[j]*v.b[i][j];
       }
     
-    T s[2] = { utils::cross2D(q[2],q[0]), utils::cross2D(q[1], q[2])};
+    T s[2] = {
+      utils::cross2D(q[2], q[0]), 
+      utils::cross2D(q[1], q[2])
+    };
    
     if (s[0] > 0 && s[1] > 0) return 1;
     
