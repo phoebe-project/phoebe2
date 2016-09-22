@@ -208,10 +208,10 @@ class Passband:
             # CASTELLI & KURUCZ (2004):
             # Axes needs to be a tuple of np.arrays, and grid a np.array:
             self._ck2004_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_axes']))
-            #~ self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
-            #~ self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
-            #~ self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
-            #~ self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            self._ck2004_energy_grid = np.fromstring(struct['_ck2004_energy_grid'], dtype='float64')
+            self._ck2004_energy_grid = self._ck2004_energy_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
+            self._ck2004_photon_grid = np.fromstring(struct['_ck2004_photon_grid'], dtype='float64')
+            self._ck2004_photon_grid = self._ck2004_photon_grid.reshape(len(self._ck2004_axes[0]), len(self._ck2004_axes[1]), len(self._ck2004_axes[2]), 1)
 
         if 'ck2004_all' in self.content:
             # CASTELLI & KURUCZ (2004) all intensities:
