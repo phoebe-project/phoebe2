@@ -1952,7 +1952,8 @@ class Star(Body):
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
                                               abun=self.mesh.abuns.for_computations,
-                                              atm=atm)
+                                              atm=atm,
+                                              photon_weighted=intens_weighting=='photon')
 
 
             # abs_intensities are the projected (limb-darkened) passband intensities
@@ -2672,7 +2673,8 @@ class Envelope(Body):
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
                                               abun=self.mesh.abuns.for_computations,
-                                              atm=atm)
+                                              atm=atm,
+                                              photon_weighted=intens_weighting=='photon')
 
 
             # abs_intensities are the projected (limb-darkened) passband intensities

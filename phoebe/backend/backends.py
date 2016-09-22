@@ -796,9 +796,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 # Dataset-dependent quantities
                 indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
-                if _devel_enabled:
-                    indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
-                    indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']
+                # if _devel_enabled:
+                indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
+                indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']
                 for infomesh in infolist:
                     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
                         new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
