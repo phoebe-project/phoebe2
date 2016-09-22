@@ -255,7 +255,7 @@ synthetic models, but expect a comfortable understanding of using PHOEBE and pyt
    Passband Luminosity<tutorials/pblum>
    Third Light<tutorials/l3>
    Distance<tutorials/distance>
-   Limb Darkening (not yet fully-implemented)<tutorials/limb_darkening>
+   Limb Darkening<tutorials/limb_darkening>
    Gravitational Redshift (RVs)<tutorials/grav_redshift>
    Reddening and Extinction (not yet implemented)<tutorials/reddening_extinction>
    Reflection and Heating<tutorials/reflection_heating>
