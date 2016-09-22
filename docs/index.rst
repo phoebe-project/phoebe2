@@ -269,7 +269,7 @@ Python and PHOEBE.  Some scripts may be listed under different sections if they
 fall under multiple categories.
 
 
-Single Stars (NOT YET SUPPORTED)
+Single Stars
 ------------------------------
 
 .. toctree::
