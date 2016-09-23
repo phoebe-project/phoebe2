@@ -829,6 +829,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
+        
         if component == 'primary':
 
             if param == 'pblum':
@@ -872,11 +873,12 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
         else:
             dset = ''
     # determine the determinant of the parameter based on parameter type
-
+        print "check", param, ptype, dtype
         if ptype == 'float':
             det = '.VAL'
-
+        
         elif ptype == 'boolean' and dtype=='':
+            print "inside", param, ptype, dtype
             det = '_switch'
         else:
             det = ''
@@ -1022,7 +1024,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 # loop through lcs
 
     for x in range(len(lcs)):
-        quals = eb.filter(dataset=lcs[x], context='dataset')
+        quals = eb.filter(dataset=lcs[x], context='dataset')+eb.filter(dataset=lcs[x], context='compute')
         #phoebe 2 is ALWAYS times so pass time as the ind variable
         parnames.append('phoebe_lc_indep['+str(x+1)+']')
         parvals.append('Time (HJD)')
@@ -1054,10 +1056,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             if param != None:
 
                 val, ptype = par_value(param)
+            
                 if param.qualifier == 'pblum':
                     pname = ret_parname(param.qualifier, component= param.component, dnum = x+1, ptype=ptype)
 
                 else:
+            
                     pname = ret_parname(param.qualifier, component=param.component, dtype='lc', dnum = x+1, ptype=ptype)
                 if pname[0] not in parnames:
                     parnames.extend(pname)
@@ -1095,7 +1099,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #if there is more than one rv...try this
 
     for y in range(len(rvs)):
-        quals = eb.filter(dataset=rvs[y], context='dataset')
+        quals = eb.filter(dataset=rvs[y], context='dataset')+eb.filter(dataset=rvs[y], context='compute')
 
         #if there is more than 1 rv try this
         try:
@@ -1267,7 +1271,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
                 types.append(ptype)
         try:
             pnew = _2to1par[param.qualifier]
-            if param.qualifier in ['ld_func']:
+            if param.qualifier in ['ld_func'] or param.dataset:
                 param = None
         except:
 
