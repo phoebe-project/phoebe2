@@ -873,12 +873,12 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
         else:
             dset = ''
     # determine the determinant of the parameter based on parameter type
-        print "check", param, ptype, dtype
+
         if ptype == 'float':
             det = '.VAL'
         
         elif ptype == 'boolean' and dtype=='':
-            print "inside", param, ptype, dtype
+    
             det = '_switch'
         else:
             det = ''
