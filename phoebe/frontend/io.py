@@ -684,7 +684,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
-    
+
     if 'Linear' in ldlaw:
 
         ldcos = eb.filter('ld_coeffs')
@@ -694,7 +694,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             ldcos[x].set_value(np.array([val]))
 
         for x in range(len(ldcosbol)):
-            
+
             val = ldcosbol[x].value[0]
             ldcosbol[x].set_value(np.array([val]))
     #print eb['pot@secondary']
@@ -711,7 +711,7 @@ d - dictionary with parameter, context, dataset etc.
 """
 
 
-def par_value(param, index=None):
+def par_value(param, index=None, **kwargs):
 # build a dictionary
 
     d={}
@@ -731,7 +731,7 @@ def par_value(param, index=None):
         except:
             unit = None
 
-        val = param.get_quantity(unit=unit).value
+        val = param.get_quantity(unit=unit, **kwargs).value
         # if d['qualifier'] == 'alb':
             # val = [1.0-val]
 
@@ -740,7 +740,7 @@ def par_value(param, index=None):
         val = [val]
     elif isinstance(param, phb.parameters.ChoiceParameter):
         ptype = 'choice'
-        val = [param.get_value()]
+        val = [param.get_value(**kwargs)]
         if d['qualifier'] == 'atm':
         # in phoebe one this is a boolean parameter because you have the choice of either kurucz or blackbody
 
@@ -755,26 +755,26 @@ def par_value(param, index=None):
     elif isinstance(param, phb.parameters.BoolParameter):
 
         ptype = 'boolean'
-        val = [_bool2to1[param.get_value()]]
+        val = [_bool2to1[param.get_value(**kwargs)]]
 
     elif isinstance(param, phb.parameters.IntParameter):
         ptype = 'int'
-        val = [param.get_value()]
+        val = [param.get_value(**kwargs)]
 
-        if d['qualifier'] == 'refl_num':
+        # if d['qualifier'] == 'refl_num':
 
         #    val = [param.get_value()-1]
-            val = [param.get_value()]
+            # val = [param.get_value()]
 
-        else:
-            val = [param.get_value()]
+        # else:
+            # val = [param.get_value()]
 
     elif isinstance(param, phb.parameters.FloatArrayParameter):
         # val1 = param.get_value()[0]
         # val2 = param.get_value()[1]
         # val = [val1, val2]
 
-        val = param.get_value().tolist()
+        val = param.get_value(**kwargs).tolist()
 
         ptype='array'
         if len(val) == 1:
@@ -782,7 +782,7 @@ def par_value(param, index=None):
 
     else:
         ptype = 'unknown'
-        val = [param.get_value()]
+        val = [param.get_value(**kwargs)]
 
     return [val, ptype]
 
@@ -829,7 +829,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
         pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
-        
+
         if component == 'primary':
 
             if param == 'pblum':
@@ -873,12 +873,12 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
         else:
             dset = ''
     # determine the determinant of the parameter based on parameter type
-
+        # print "check", param, ptype, dtype
         if ptype == 'float':
             det = '.VAL'
-        
+
         elif ptype == 'boolean' and dtype=='':
-    
+            # print "inside", param, ptype, dtype
             det = '_switch'
         else:
             det = ''
@@ -893,7 +893,7 @@ Create a .phoebe file from phoebe 1 from a phoebe 2 bundle.
 
 """
 
-def pass_to_legacy(eb, filename='2to1.phoebe'):
+def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 
     # check to make sure you have exactly two stars and exactly one orbit
@@ -1056,12 +1056,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             if param != None:
 
                 val, ptype = par_value(param)
-            
+
                 if param.qualifier == 'pblum':
                     pname = ret_parname(param.qualifier, component= param.component, dnum = x+1, ptype=ptype)
 
                 else:
-            
+
                     pname = ret_parname(param.qualifier, component=param.component, dtype='lc', dnum = x+1, ptype=ptype)
                 if pname[0] not in parnames:
                     parnames.extend(pname)
@@ -1237,9 +1237,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 
 #loop through LEGACY compute parameter set
 
-    comquals = eb.get_compute(kind='legacy', check_visible=False)-eb.get_compute(kind='legacy', component='_default')
+    # comquals = eb.get_compute(kind='legacy', check_visible=False)-eb.get_compute(kind='legacy', component='_default')
+    computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
 
-    for param in comquals.to_list():
+    for param in computeps.to_list():
+        if param.component == '_default':
+            continue
 
 #        if param.qualifier == 'heating':
 #            if param.get_value() == False:
@@ -1249,12 +1252,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
 #               parvals[in2] = 0.0
         #TODO add reflection switch
         if param.qualifier == 'refl_num':
-            if param.get_value() == 0:
-               in1 =  parnames.index('phoebe_alb1.VAL')
-               in2 =  parnames.index('phoebe_alb2.VAL')
-               parvals[in1] = 0.0
-               parvals[in2] = 0.0
-            elif  param.get_value() == 1:
+            if param.get_value(**kwargs) == 0:
+                in1 =  parnames.index('phoebe_alb1.VAL')
+                in2 =  parnames.index('phoebe_alb2.VAL')
+                parvals[in1] = 0.0
+                parvals[in2] = 0.0
+            elif  param.get_value(**kwargs) == 1:
                 pname = 'phoebe_reffect_switch'
                 val = '0'
                 ptype='boolean'
@@ -1279,7 +1282,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe'):
             param = None
 
         if param != None:
-            val, ptype = par_value(param)
+            val, ptype = par_value(param, **kwargs)
             if param.qualifier == 'gridsize':
                 pname = ret_parname(param.qualifier, component = param.component, dtype='grid', ptype=ptype)
             elif param.qualifier =='atm':
