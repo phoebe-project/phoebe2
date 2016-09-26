@@ -1568,7 +1568,7 @@ class ParameterSet(object):
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
 
-        if default is not None:
+        if default is not None is not None:
             # then we need to do a filter first to see if parameter exists
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
@@ -1614,26 +1614,20 @@ class ParameterSet(object):
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
 
-        if default is not None:
+        if default is not None is not None:
             # then we need to do a filter first to see if parameter exists
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
 
         param = self.get_parameter(twig=twig, **kwargs)
 
-        if param.qualifier in kwargs.keys():
-            # then we have an "override" value that was passed, and we should
-            # just return that.
-            # Example b.get_value('teff', teff=6000) returns 6000
-            return kwargs.get(param.qualifier)
-
         # if hasattr(param, 'default_unit'):
         # This breaks for constraint parameters
         if isinstance(param, FloatParameter) or\
                 isinstance(param,FloatArrayParameter):
-            return param.get_value(unit=unit, t=t)
+            return param.get_value(unit=unit, t=t, **kwargs)
 
-        return param.get_value()
+        return param.get_value(**kwargs)
 
     def set_value(self, twig=None, value=None, **kwargs):
         """
@@ -3431,8 +3425,12 @@ class Parameter(object):
 
 
         """
-        raise NotImplementedError  # <--- leave this in place, should be subclassed
-
+        if self.qualifier in kwargs.keys():
+            # then we have an "override" value that was passed, and we should
+            # just return that.
+            # Example teff_param.get_value('teff', teff=6000) returns 6000
+            return kwargs.get(self.qualifier)
+        return None
 
     def set_value(self, *args, **kwargs):
         """
@@ -3477,10 +3475,12 @@ class StringParameter(Parameter):
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
+        default = super(StringParameter, self).get_value(**kwargs)
+        if default is not None: return default
         return str(self._value)
 
     @send_if_client
@@ -3528,7 +3528,7 @@ class TwigParameter(Parameter):
         return self._bundle.get_parameter(uniqueid=self._value)
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
@@ -3536,6 +3536,8 @@ class TwigParameter(Parameter):
         # retrieve that parameter, but display the current uniquetwig
         # to the user
         # print "*** TwigParameter.get_value self._value: {}".format(self._value)
+        default = super(TwigParameter, self).get_value(**kwargs)
+        if default is not None: return default
         if self._value is None:
             return None
         return _uniqueid_to_uniquetwig(self._bundle, self._value)
@@ -3588,10 +3590,12 @@ class ChoiceParameter(Parameter):
         return self._choices
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
+        default = super(ChoiceParameter, self).get_value(**kwargs)
+        if default is not None: return default
         return str(self._value)
 
     @send_if_client
@@ -3633,10 +3637,12 @@ class BoolParameter(Parameter):
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
+        default = super(BoolParameter, self).get_value(**kwargs)
+        if default is not None: return default
         return self._value
 
     @send_if_client
@@ -3673,10 +3679,12 @@ class DictParameter(Parameter):
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
+        default = super(DictParameter, self).get_value(**kwargs)
+        if default is not None: return default
         return self._value
 
     @send_if_client
@@ -3740,10 +3748,12 @@ class IntParameter(Parameter):
         return (self.limits[0] is None or value >= self.limits[0]) and (self.limits[1] is None or value <= self.limits[1])
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
+        default = super(IntParameter, self).get_value(**kwargs)
+        if default is not None: return default
         return self._value
 
     @send_if_client
@@ -3881,7 +3891,7 @@ class FloatParameter(Parameter):
         self._timederiv = timederiv
 
     #@update_if_client is on the called get_quantity
-    def get_value(self, unit=None, t=None):
+    def get_value(self, unit=None, t=None, **kwargs):
         """
         @param unit: astropy unit
         @type unit: astropy.units.Unit
@@ -3892,14 +3902,16 @@ class FloatParameter(Parameter):
         @return: value in requested unit
         @rtype: depends on cast_type
         """
-        quantity = self.get_quantity(unit=unit, t=t)
+        default = super(FloatParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        quantity = self.get_quantity(unit=unit, t=t, **kwargs)
         if hasattr(quantity, 'value'):
             return quantity.value
         else:
             return quantity
 
     @update_if_client
-    def get_quantity(self, unit=None, t=None):
+    def get_quantity(self, unit=None, t=None, **kwargs):
         """
         @param unit: astropy unit
         @type unit: astropy.units.Unit
@@ -3910,7 +3922,13 @@ class FloatParameter(Parameter):
         @return: value in requested unit
         @rtype: depends on cast_type
         """
-        value = self._value
+        default = super(FloatParameter, self).get_value(**kwargs) # <- note this is calling get_value on the Parameter object
+        if default is not None:
+            value = default
+            if isinstance(default, u.Quantity):
+                return value
+        else:
+            value = self._value
 
         if t is not None:
             raise NotImplementedError("timederiv is currently disabled until it can be tested thoroughly")
@@ -4331,10 +4349,12 @@ class ArrayParameter(Parameter):
         #~ raise NotImplementedError
 
     @update_if_client
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
 
         """
+        default = super(ArrayParameter, self).get_value(**kwargs)
+        if default is not None: return default
         return self._value
 
     @send_if_client
