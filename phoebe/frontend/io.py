@@ -516,6 +516,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #Now RVs
     for x in range(1,rvno+1):
         rvs = eb.get_dataset(kind='rv').datasets
+
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
         rvpt = rvpars[rvint]

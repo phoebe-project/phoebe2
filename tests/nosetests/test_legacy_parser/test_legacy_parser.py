@@ -43,34 +43,46 @@ def legacy_test(filename='default.phoebe'):
         data = np.loadtxt(os.path.join(dir, datafile))
 
         time = b.filter(dataset=lcs[x], qualifier='times').get_value()
-        print "checking time in "+lcs[x]
+        print("checking time in "+str(lcs[x]))
         assert(np.all(time==data[:,0]))
         flux = b.filter(dataset=lcs[x], qualifier='fluxes').get_value()
-        print "checking flux in "+lcs[x]
+        print("checking flux in "+str(lcs[x]))
         assert(np.all(flux==data[:,1]))
         sigma = b.filter(dataset=lcs[x], qualifier='sigmas').get_value()
-        print "checking sigma in "+lcs[x]
+        print("checking sigma in "+str(lcs[x]))
         assert(np.all(sigma==data[:,2]))
         #calculate lc
         flux, mesh = phb1.lc(tuple(data[:,0].tolist()), x, 1)
         fluxes.append(flux)
+        #check ld coeffs
+        ldx1, ldy1 = b.filter(dataset=lcs[0], qualifier='ld_coeffs', component='primary').get_value()
+
+        ld_coeffs1 =[phb1.getpar('phoebe_ld_lcx1', x), phb1.getpar('phoebe_ld_lcy1', x), phb1.getpar('phoebe_ld_lcx2', x), phb1.getpar('phoebe_ld_lcy2', x)]
+        ldx1, ldy1 = b.filter(dataset=lcs[x], qualifier='ld_coeffs', component='primary').get_value()
+        ldx2, ldy2 = b.filter(dataset=lcs[x], qualifier='ld_coeffs', component='secondary').get_value()
+        ld_coeffs2 = [ldx1, ldy1, ldx2, ldy2]
+        print("checking ld coeffs in "+str(lcs[x]))
+        assert(np.all(ld_coeffs1==ld_coeffs2))
 
     rvno = phb1.getpar('phoebe_rvno')
     prim = 0
     sec = 0
     for x in range(rvno):
+        print 'rvs'
         component = phb1.getpar('phoebe_rv_dep', x).split(' ')[0].lower()
+        
         a = int(x/2.)
+        print a
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=rvs[a], qualifier='times', component=component).get_value()
-        print "checking time in "+rvs[a]
+        print("checking time in "+str(rvs[a]))
         assert(np.all(time==data[:,0]))
         rv = b.filter(dataset=rvs[a], qualifier='rvs', component=component).get_value()
-        print "checking rv in "+rvs[a]
+        print("checking rv in "+str(rvs[a]))
         assert(np.all(rv==data[:,1]))
         sigma = b.filter(dataset=rvs[a], qualifier='sigmas', component=component).get_value()
-        print "checking sigma in "+rvs[a]
+        print("checking sigma in "+str(rvs[a]))
         assert(np.all(sigma==data[:,2]))
 
 
@@ -78,10 +90,23 @@ def legacy_test(filename='default.phoebe'):
 
             rv1 = np.array(phb1.rv1(tuple(data[:,0].tolist()), prim))
             vels.append(rv1)
+            ld_coeffs1 =[phb1.getpar('phoebe_ld_rvx1', prim), phb1.getpar('phoebe_ld_rvy1', prim), phb1.getpar('phoebe_ld_rvx2', prim), phb1.getpar('phoebe_ld_rvy2', prim)]
+            ldx1, ldy1 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='primary').get_value()
+            ldx2, ldy2 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='secondary').get_value()
+            ld_coeffs2 = [ldx1, ldy1, ldx2, ldy2]
+            print("checking ld coeffs in primary "+str(rvs[a]))
+            assert(np.all(ld_coeffs1==ld_coeffs2))
             prim = prim+1
         else:
             rv2 = np.array(phb1.rv2(tuple(data[:,0].tolist()), sec))
             vels2.append(rv2)
+            
+            ld_coeffs1 =[phb1.getpar('phoebe_ld_rvx1', sec), phb1.getpar('phoebe_ld_rvy1', sec), phb1.getpar('phoebe_ld_rvx2', sec), phb1.getpar('phoebe_ld_rvy2', sec)]
+            ldx1, ldy1 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='primary').get_value()
+            ldx2, ldy2 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='secondary').get_value()
+            ld_coeffs2 = [ldx1, ldy1, ldx2, ldy2]
+            print("checking ld coeffs in secondary "+str(rvs[a]))
+            assert(np.all(ld_coeffs1==ld_coeffs2))
             sec = sec+1
 
     b.run_compute(kind='legacy')
@@ -107,7 +132,12 @@ def legacy_test(filename='default.phoebe'):
             print("trying secondary rv at "+str(rvs[a]))
             assert(np.allclose(vels2[sec], rv2, atol=1e-5))
             sec = sec+1
-
+    print("comparing bolometric ld coeffs")
+    ld_coeffs1 =[phb1.getpar('phoebe_ld_xbol1', x), phb1.getpar('phoebe_ld_ybol1', x), phb1.getpar('phoebe_ld_xbol2', x), phb1.getpar('phoebe_ld_ybol2',x)]
+    ldx1, ldy1 = b.filter(qualifier='ld_coeffs_bol', component='primary').get_value()
+    ldx2, ldy2 = b.filter(qualifier='ld_coeffs_bol', component='secondary').get_value()
+    ld_coeffs2 = [ldx1, ldy1, ldx2, ldy2]
+    assert(np.all(ld_coeffs1==ld_coeffs2))
 #            assert(np.all(vels2[x] == rv2))
 
 #        if np.any((vels1[x]-rv2) != 0):
