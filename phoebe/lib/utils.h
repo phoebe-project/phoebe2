@@ -204,7 +204,7 @@ namespace utils {
   // solve for x: A x = b
   template <class T> bool solve2D(T A[2][2], T b[2], T x[2]){
     T det = A[0][0]*A[1][1] - A[1][0]*A[0][1];
-    
+        
     if (det == 0) return false;
     
     x[0] = (A[1][1]*b[0] - A[0][1]*b[1])/det;

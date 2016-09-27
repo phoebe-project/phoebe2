@@ -944,9 +944,10 @@ namespace gen_roche {
     Output:
       p - point on the horizon
   */
+  //#define DEBUG
   template<class T> 
   bool point_on_horizon(
-    T r[3], 
+    T p[3], 
     T view[3], 
     int choice,
     const T & Omega0, 
@@ -959,15 +960,20 @@ namespace gen_roche {
     // Starting points 
     //
       
-    
     if (choice != 0 && choice != 1) {
       std::cerr 
         << "point_on_horizon:: choices != 0,1 not supported yet\n";
       return false;
     }
     
+    typedef T real;
+    
+    real r[3], v[3];
+    
+    for (int i = 0; i < 3; ++i) v[i] = view[i]; 
+    
     #if 0
-
+   
     if (choice == 0) {
       r[0] = 0; 
       r[1] = 0;
@@ -980,22 +986,23 @@ namespace gen_roche {
     #else
     
     // determine direction of initial point
-    T fac;
-    if (std::abs(view[0]) >= 0.5 || std::abs(view[1]) >= 0.5){
-      fac = 1/std::hypot(view[0], view[1]);
-      r[0] = fac*view[1];
-      r[1] = -fac*view[0];
+    real fac;
+    if (std::abs(v[0]) >= 0.5 || std::abs(v[1]) >= 0.5){
+      fac = 1/std::hypot(v[0], v[1]);
+      r[0] = fac*v[1];
+      r[1] = -fac*v[0];
       r[2] = 0.0;
     } else {
-      fac = 1/std::hypot(view[0], view[2]);
-      r[0] = -fac*view[2];
+      fac = 1/std::hypot(v[0], v[2]);
+      r[0] = -fac*v[2];
       r[1] = 0.0;
-      r[2] = fac*view[0];
+      r[2] = fac*v[0];
     }
 
     // estimate of the radius of sphere that is 
     // inside the Roche lobe
-    T r0 = 0.5*(choice == 0 ? 
+
+    real r0 = 0.5*(choice == 0 ? 
                 poleL(Omega0, q, F, delta): 
                 poleR(Omega0, q, F, delta));
     
@@ -1013,9 +1020,9 @@ namespace gen_roche {
     // Initialize body class
     //
     
-    T params[] = {q, F, delta, Omega0};
+    real params[] = {q, F, delta, Omega0};
     
-    Tgen_roche<T> roche(params);
+    Tgen_roche<real> roche(params);
     
     // Solving both constrains at the same time
     //  Omega_0 - Omega(r) = 0
@@ -1023,7 +1030,8 @@ namespace gen_roche {
     
     int i, it = 0;
     
-    T dr_max, r_max, t, f, H[3][3], 
+    real
+      dr_max, r_max, t, f, H[3][3], 
       A[2][2], a[4], b[3], u[2], x[2];
     
     do {
@@ -1034,16 +1042,43 @@ namespace gen_roche {
       // get the hessian on the constrain
       roche.hessian(r, H);
       
-      utils::dot3D(H, view, b);
+      utils::dot3D(H, v, b);
       
       // define the matrix of direction that constrains change
-      A[0][0] = utils::dot3D(a,a);
-      A[0][1] = A[1][0] = utils::dot3D(a,b);
-      A[1][1] = utils::dot3D(b,b);
+      A[0][0] = utils::dot3D(a, a);
+      A[0][1] = A[1][0] = utils::dot3D(a, b);
+      A[1][1] = utils::dot3D(b, b);
       
       // negative remainder in that directions
       u[0] = -a[3];
-      u[1] = -utils::dot3D(a, view);
+      u[1] = -utils::dot3D(a, v);
+      
+      #if defined(DEBUG)
+      std::cerr.precision(16);
+      std::cerr << std::scientific;
+      std::cerr 
+        << "Omega0=" << Omega0
+        << "\nq=" << q
+        << "\nF=" << F
+        << "\nd=" << delta << '\n';
+        
+      std::cerr 
+        << "r=\n"
+        << r[0] << '\t' << r[1] << '\t' << r[2] << '\n'
+        << "H=\n"
+        << H[0][0] << '\t' << H[0][1] << '\t' << H[0][2] << '\n'
+        << H[1][0] << '\t' << H[1][1] << '\t' << H[1][2] << '\n'
+        << H[2][0] << '\t' << H[2][1] << '\t' << H[2][2] << '\n'
+        << "a=\n"
+        << a[0] << '\t' << a[1] << '\t' << a[2] << '\t' << a[3] << '\n'
+        << "v=\n"
+        << v[0] << '\t' << v[1] << '\t' << v[2] << '\n'
+        << "A=\n"
+        << A[0][0] << '\t' << A[0][1] << '\n'
+        << A[1][0] << '\t' << A[1][1] << '\n'
+        << "u=\n"
+        << u[0] << '\t' << u[1] << '\n';
+      #endif
       
       // solving 2x2 system: 
       //  A x = u
@@ -1055,6 +1090,10 @@ namespace gen_roche {
       dr_max = r_max = 0;
     
       if (utils::solve2D(A, u, x)){ 
+        
+        #if defined(DEBUG)
+        std::cerr << "x=\n" << x[0] << '\t' << x[1] << '\n';
+        #endif
         
         //shift along the directions that the constrains change
         for (i = 0; i < 3; ++i) {
@@ -1079,11 +1118,16 @@ namespace gen_roche {
         }
       }
       
-      //std::cout << "P----\n";
-      //std::cout << r[0] << '\t' << r[1] << '\t' << r[2] << '\n';
-      //std::cout << it << '\t' << dr_max << '\n';
-      
+      #if defined(DEBUG)
+      std::cerr.precision(16);
+      std::cerr << std::scientific;
+      std::cerr << "point_on_horizon:\n";
+      std::cerr << "rnew=" << r[0] << '\t' << r[1] << '\t' << r[2] << '\n';
+      std::cerr << "it=" it << " dr_max=" << dr_max << " r_max=" << r_max << '\n';
+      #endif 
+    
     } while (dr_max > eps*r_max + min && ++it < max_iter);
+    
     /*
     roche.grad(r, a);
     
@@ -1096,9 +1140,12 @@ namespace gen_roche {
     
     std::cout << "dOmega=" << a[3] << " sum=" << sum << "\n";
     */
+    
+    for (int i = 0; i < 3; ++i) p[i] = r[i];
+    
     return (it < max_iter);
   }
-  
+  //#undef DEBUG
     
   /*
     Starting point for meshing the Roche lobe is on x-axis.

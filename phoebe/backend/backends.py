@@ -1051,7 +1051,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     #make phoebe 1 file
 
     # TODO BERT: this really should be a random name (tmpfile) so two instances won't clash
-    io.pass_to_legacy(b, filename='_tmp_legacy_inp')
+    io.pass_to_legacy(b, filename='_tmp_legacy_inp', compute=compute, **kwargs)
     phb1.init()
     try:
         phb1.configure()

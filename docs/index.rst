@@ -4,26 +4,26 @@ Getting Started
 ==================================
 
 The `PHOEBE 2.0-beta release <https://github.com/phoebe-project/phoebe2/releases/tag/2.0b>`_
-aims to provide fully-tested functionality that
-matches that of the legacy PHOEBE 1.0 (light curve and radial velocity forward
-models of binary star systems) but with improved precision and a python
-interface.
+aims to provide a thoroughly tested functionality that is comparable to
+that of the legacy `PHOEBE 1.0 <http://phoebe-project.org/1.0>`_ (forward models of
+binary star systems' light and radial velocity curves), but with improved
+precision and a python interface.
 
-Although we have attempted to test as thoroughly as possible, please continue
-to be skeptical of all results and
+Although we have attempted to test the beta release as thoroughly as possible,
+please err on the conservative side, critically evaluate all results and
 `report any issues or bugs <https://github.com/phoebe-project/phoebe2/issues>`_.
 
-See below for installation instructions as well as a listing of all available
-tutorials and example scripts.
+Below we provide installation instructions, tutorials and example scripts for
+a facilitated experience with PHOEBE.
 
 Supported Physics (from PHOEBE 1.0)
 ----------------------------------------
 
-* detached roche binaries
+* detached and semi-detached roche binaries
 * keplerian orbits (including eccentric orbits with volume conservation)
 * passbands/atmospheres
-* limb-darkening
-* gravity brightening
+* limb darkening
+* gravity darkening
 * reflection (heating without redistribution)
 * finite integration time via oversampling
 * circular spots
@@ -31,19 +31,18 @@ Supported Physics (from PHOEBE 1.0)
 New Physics (not in PHOEBE 1.0)
 ----------------------------------------
 
-* beaming/boosting
+* Doppler boosting
 * single rotating stars
-
+* Lambert scattering
 
 Unsupported Physics (from PHOEBE 1.0)
 ----------------------------------------
 
 PHOEBE 2.0 can not yet handle:
 
-* overcontact systems (in development)
-* semi-detached/contact systems (planned future development)
-* X-ray binaries
-
+* overcontact systems (in active development)
+* interstellar extinction
+* color constraining
 
 Unsupported Convenience Functionality
 -----------------------------------------
@@ -52,25 +51,25 @@ Unsupported Convenience Functionality
 * GUI (in development)
 * data in magnitudes (dropping support - convert manually)
 * data in phases (dropping support - but function provided to convert during import)
-* phase shifts
-
 
 Planned Physics Support
 ------------------------------------------
-More advanced physics can be found in the PHOEBE 2.0-alpha releases
-and will be ported to beta as soon as they can be tested robustly.
+Advanced physics can be found in the PHOEBE 2.0-alpha release. We are incorporating
+all aspects as we thoroughly test them. Each novel feature will be accompanied
+by a peer-reviewed paper.
 
-Planned (new) future features include:
+Planned future features include:
 
-* heating (heat redistribution)
-* triple and N-body systems (in development)
+* heat redistribution (in progress)
+* triple and N-body systems (in progress)
+* advanced overcontact models (in progress)
 * N-body dynamics (in development)
-* misaligned binaries
+* misaligned binaries (in development)
 * pulsations (in development)
-* bayesian (MCMC) fitting
-* synthetic spectra
-* synthetic eclipse timing variations (ETVs) (in development)
-* synthetic interferometry
+* bayesian (MCMC) fitting (in development)
+* synthetic spectra (planning)
+* synthetic eclipse timing variations (ETVs) (planning)
+* synthetic interferometry (planning)
 
 
 Download and Installation
@@ -79,9 +78,8 @@ Download and Installation
 Download
 --------------------------------
 
-PHOEBE 2.0 is now hosted on GitHub.  Once released, it will be packaged for installation
-via pip, but for now requires manually downloading and installing through
-SVN or git.
+PHOEBE 2.0 is hosted on GitHub. Once officially released, it will be packaged
+for installation via pip, but for now requires manually downloading and installing through git.
 
 To download via the `github repository <https://github.com/phoebe-project/phoebe2/>`_:
 
@@ -93,38 +91,31 @@ To download via the `github repository <https://github.com/phoebe-project/phoebe
 Dependencies
 --------------------------------
 
-Note for **mac users**: it is suggested to use `homebrew to install a parallel version
-of python <https://joernhees.de/blog/2014/02/25/scientific-python-on-mac-os-x-10-9-with-homebrew/>`_.
-PHOEBE has currently been tested to compile correctly using homebrew on El Capitan.
-
 PHOEBE requires python 2.7+ (not yet fully tested on python 3.x) with the following packages:
 
-* numpy (may need 1.10+)
+* numpy (1.10+)
 * scipy
 * astropy (1.0+)
 
-And suggested packages (required for some optional but commonly used features):
+Suggested packages (required for some optional but commonly used features):
 
 * matplotlib (suggested for plotting)
-* sympy (for safer and more flexible constraints)
+* sympy (for more flexible constraints)
 
-And optional packages (used for less commonly used features):
+Optional packages (used for less commonly used features):
 
 * mpld3 (alternate plotting - devel version only)
 * bokeh (alternate plotting - devel version only)
 
+Note for **mac users**: it is suggested to use `homebrew to install a parallel version
+of python <https://joernhees.de/blog/2014/02/25/scientific-python-on-mac-os-x-10-9-with-homebrew/>`_.
+PHOEBE has currently been tested to compile correctly using homebrew on El Capitan.
 
 
 Installation
 -------------------------------
 
-NOTE: the beta version now builds to a python module named 'phoebe' which may
-conflict with the alpha version if you have that installed (but will not
-conflict with PHOEBE 0.2x, 0.3x, or 1.0).  If you do have PHOEBE 2.0-alpha
-installed, please uninstall before attempting to install PHOEBE 2.0-beta.
-
-
-To install without admin rights for a single-user:
+To install locally, for a single-user:
 
 ::
 
@@ -133,26 +124,31 @@ To install without admin rights for a single-user:
 
 
 
-or to install system-wide with admin rights:
+or to install system-wide (with root priviliges):
 
 ::
 
    python setup.py build
    sudo python setup.py install
 
+NOTE: the beta version builds a python module named 'phoebe' which will
+conflict with the alpha version if you have it installed (but will not
+conflict with PHOEBE 0.2x, 0.3x, or 1.0). If you do have PHOEBE 2.0-alpha
+installed, please uninstall before attempting to install PHOEBE 2.0-beta.
+
 
 Testing
 --------------------------------
 
-To run all tests locally on your machine, run the following in the 'tests'
-directory in the source.  Note that you may need to enabled development
-mode to run all the tests (currently detected by the presence of a file
-in ~/.phoebe_devel_enabled)
+To run all tests locally on your machine, go to the 'phoebe2/tests'
+directory in the source and run:
 
 ::
 
    python run_tests nosetests
 
+NOTE: you need to enable the development mode to run all the tests. You do so
+by creating an empty file ~/.phoebe_devel_enabled.
 
 Please `report any issues or bugs <https://github.com/phoebe-project/phoebe2/issues>`_.
 
