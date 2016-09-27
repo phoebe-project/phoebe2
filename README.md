@@ -1,5 +1,5 @@
-PHOEBE 2.0-beta RELEASE NOTES                         SEPTEMBER 26, 2016
-
+PHOEBE 2.0-beta RELEASE NOTES &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEPTEMBER 26, 2016
+------------------------------------------------------------------------
 
 Hello and thank you for your interest in PHOEBE 2.0-beta!
 
