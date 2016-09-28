@@ -1732,6 +1732,7 @@ class Bundle(ParameterSet):
         # will handle these
         # TODO: should this happen before kwargs?
         # TODO: can we avoid rebuilding ALL the constraints when we call this?
+        self.run_delayed_constraints() # need to run this since some get rebuilt
         self.set_hierarchy()
 
         for k, v in kwargs.items():
@@ -2113,6 +2114,9 @@ class Bundle(ParameterSet):
         kwargs['twig'] = twig
         kwargs['context'] = 'constraint'
         # kwargs['qualifier'] = 'expression'
+        kwargs['check_visible'] = False
+        kwargs['check_default'] = False
+        print "***", kwargs
         expression_param = self.get_parameter(**kwargs)
 
         kwargs = {}
@@ -2122,6 +2126,8 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
+        kwargs['check_visible'] = False
+        kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)
 
         result = expression_param.result
