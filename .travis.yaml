@@ -48,5 +48,9 @@ install:
 
 
 script:
-    - cd tests/nosetests
-    - nosetests
+    - cd tests
+    - python run_tests.py nosetests
+
+branches:
+  only:
+    - continuous_integration
