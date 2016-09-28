@@ -6,6 +6,7 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
 
 def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     """

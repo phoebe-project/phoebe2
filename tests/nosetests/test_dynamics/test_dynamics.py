@@ -6,6 +6,7 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
 
 def _keplerian_v_nbody(b, plot=False):
     """
