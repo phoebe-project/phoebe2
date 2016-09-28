@@ -9,16 +9,13 @@ env:
     global:
         # Set defaults to avoid repeating in most cases
         - PYTHON_VERSION=2.7
-        - NUMPY_VERSION=stable
+        - NUMPY_VERSION=1.10
         - MAIN_CMD='python setup.py'
         - CONDA_DEPENDENCIES='scipy matplotlib'
         - PIP_DEPENDENCIES=''
 
     matrix:
-        - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
-        # - PYTHON_VERSION=3.3 SETUP_CMD='egg_info'
-        # - PYTHON_VERSION=3.4 SETUP_CMD='egg_info'
-        # - PYTHON_VERSION=3.5 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=2.7
 
 matrix:
 
@@ -28,20 +25,20 @@ matrix:
     include:
 
         # Try MacOS X
-        - os: osx
-          env: SETUP_CMD='test'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        # - os: osx
+        #   env: SETUP_CMD='test'
+        #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
 
 
         # Try with various versions of numpy/astropy
         - os: linux
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 SETUP_CMD='test --open-files'
-        - os: linux
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable SETUP_CMD='test --open-files'
+          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
+        # - os: linux
+        #   env: PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable'
 
 
     allow_failures:
-      - env: NUMPY_VERSION=dev SETUP_CMD='test'
+      - env: NUMPY_VERSION=dev
 
 
 
@@ -51,4 +48,5 @@ install:
 
 
 script:
-    - $MAIN_CMD $SETUP_CMD
+    - cd tests
+    - python run_tests nosetests
