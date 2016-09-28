@@ -3,9 +3,6 @@ language: python
 os:
     - linux
 
-python:
-    - 2.7
-
 sudo: false
 
 env:
@@ -45,12 +42,10 @@ matrix:
 install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
+    - python setup.py build
+    - python setup.py install --user
 
 
 script:
     - cd tests
-    - python run_tests.py nosetests
-
-branches:
-  only:
-    - continuous_integration
+    - nosetests
