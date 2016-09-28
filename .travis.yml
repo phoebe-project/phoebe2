@@ -5,8 +5,11 @@ addons:
     packages:
     - gfortran
     - g++-5
+    - gcc-5
+    - clang-3.6
 
-sudo: false
+sudo: required
+dist: trusty
 
 
 os:
