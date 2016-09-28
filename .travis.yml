@@ -19,7 +19,7 @@ env:
     global:
         # Set defaults to avoid repeating in most cases
         - CONDA_DEPENDENCIES='scipy matplotlib sympy'
-        - PIP_DEPENDENCIES='nose rebound reboundx'
+        - PIP_DEPENDENCIES='nose rebound'
 
 
 matrix:
