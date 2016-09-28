@@ -1,4 +1,4 @@
-language: python
+language: c
 
 os:
     - linux
@@ -10,7 +10,6 @@ env:
         # Set defaults to avoid repeating in most cases
         - PYTHON_VERSION=2.7
         - NUMPY_VERSION=1.10
-        - MAIN_CMD='python setup.py'
         - CONDA_DEPENDENCIES='scipy matplotlib'
         - PIP_DEPENDENCIES=''
 
