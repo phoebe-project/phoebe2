@@ -1,15 +1,16 @@
-language: c
+language: python
 
 os:
     - linux
+
+python:
+    - 2.7
 
 sudo: false
 
 env:
     global:
         # Set defaults to avoid repeating in most cases
-        - PYTHON_VERSION=2.7
-        - NUMPY_VERSION=1.10
         - CONDA_DEPENDENCIES='scipy matplotlib'
         - PIP_DEPENDENCIES=''
 
@@ -47,5 +48,5 @@ install:
 
 
 script:
-    - cd tests
-    - python run_tests nosetests
+    - cd tests/nosetests
+    - nosetests
