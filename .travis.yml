@@ -67,6 +67,10 @@ install:
     - ./configure
     - make
     - sudo make install
+    - cd ../phoebe-scripts
+    - ./configure
+    - make
+    - sudo make install
     - cd ../phoebe-py
     - python setup.py build
     - python setup.py install --user
