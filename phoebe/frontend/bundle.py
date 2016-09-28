@@ -134,6 +134,9 @@ class Bundle(ParameterSet):
         self._is_client = False
         self._last_client_update = None
 
+        # handle delayed constraints when interactive mode is off
+        self._delayed_constraints = []
+
         if not len(params):
             # add position (only 1 allowed and required)
             self._attach_params(_system.system(), context='system')
@@ -2123,11 +2126,18 @@ class Bundle(ParameterSet):
 
         result = expression_param.result
 
-        constrained_param.set_value(result, force=True)
+        constrained_param.set_value(result, force=True, run_constraints=True)
 
         logger.info("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
         return result
+
+    def run_delayed_constraints(self):
+        """
+        """
+        for constraint_id in self._delayed_constraints:
+            self.run_constraint(uniqueid=constraint_id)
+        self._delayed_constraints = []
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
         """
@@ -2324,6 +2334,10 @@ class Bundle(ParameterSet):
             computes = [compute]
         else:
             computes = compute
+
+        # if interactive mode was ever off, let's make sure all constraints
+        # have been run before running system checks or computing the model
+        self.run_delayed_constraints()
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary

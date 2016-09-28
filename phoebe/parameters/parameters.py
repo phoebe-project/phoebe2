@@ -3992,7 +3992,7 @@ class FloatParameter(Parameter):
         return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks)
 
     @send_if_client
-    def set_quantity(self, value, unit=None, force=False, run_checks=None, **kwargs):
+    def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
         """
 
         If unit is not provided, will default to self.default_unit.
@@ -4062,9 +4062,18 @@ class FloatParameter(Parameter):
         else:
             self._value = value
 
-        for constraint_id in self._in_constraints:
-            #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
-            self._bundle.run_constraint(uniqueid=constraint_id)
+        if run_constraints is None:
+            run_constraints = conf.interactive
+        if run_constraints:
+            for constraint_id in self._in_constraints:
+                #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
+                self._bundle.run_constraint(uniqueid=constraint_id)
+        else:
+            # then we want to delay running constraints... so we need to track
+            # which ones need to be run once requested
+            for constraint_id in self._in_constraints:
+                if constraint_id not in self._bundle._delayed_constraints:
+                    self._bundle._delayed_constraints.append(constraint_id)
 
         # run_checks if requested (default)
         if run_checks is None:
