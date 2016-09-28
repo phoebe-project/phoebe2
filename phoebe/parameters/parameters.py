@@ -38,6 +38,7 @@ else:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
 from phoebe import u
+from phoebe import conf
 
 try:
     import sympy
@@ -3597,7 +3598,7 @@ class ChoiceParameter(Parameter):
         return str(self._value)
 
     @send_if_client
-    def set_value(self, value, run_checks=True, **kwargs):
+    def set_value(self, value, run_checks=None, **kwargs):
         """
 
         """
@@ -3614,6 +3615,8 @@ class ChoiceParameter(Parameter):
             self._value = value
 
             # run_checks if requested (default)
+            if run_checks is None:
+                run_checks = conf.interactive
             if run_checks and self._bundle:
                 passed, msg = self._bundle.run_checks()
                 if not passed:
@@ -3983,13 +3986,13 @@ class FloatParameter(Parameter):
             raise ValueError("value could not be cast to float")
 
     #@send_if_client is on the called set_quantity
-    def set_value(self, value, unit=None, force=False, run_checks=True, **kwargs):
+    def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
         """
         return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks)
 
     @send_if_client
-    def set_quantity(self, value, unit=None, force=False, run_checks=True, **kwargs):
+    def set_quantity(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
 
         If unit is not provided, will default to self.default_unit.
@@ -4064,6 +4067,8 @@ class FloatParameter(Parameter):
             self._bundle.run_constraint(uniqueid=constraint_id)
 
         # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive
         if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:

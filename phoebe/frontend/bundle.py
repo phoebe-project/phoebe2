@@ -20,7 +20,7 @@ from phoebe.frontend import io
 import libphoebe
 
 from phoebe import u
-from phoebe import _devel_enabled
+from phoebe import conf
 
 import logging
 logger = logging.getLogger("BUNDLE")
@@ -193,7 +193,7 @@ class Bundle(ParameterSet):
         :parameter bool as_client: whether to attach in client mode
             (default: True)
         """
-        if not _devel_enabled:
+        if not conf.devel:
             raise NotImplementedError("'from_server' not officially supported for this release.  Enable developer mode to test.")
 
         # TODO: run test message on server, if localhost and fails, attempt to
@@ -324,7 +324,7 @@ class Bundle(ParameterSet):
             the primary component of the outer-orbit
         :return: instantiated :class:`Bundle` object
         """
-        if not _devel_enabled:
+        if not conf.devel:
             raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
 
         b = cls()
@@ -2061,7 +2061,7 @@ class Bundle(ParameterSet):
 
         """
 
-        # if not _devel_enabled:
+        # if not conf.devel:
         #     raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
 
         self._kwargs_checks(kwargs)

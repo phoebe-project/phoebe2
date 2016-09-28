@@ -5,11 +5,6 @@ __version__ = 'devel'
 import os
 import sys
 
-# Check to see whether developer/testing mode is enabled.
-_devel_enabled = os.path.isfile(os.path.expanduser('~/.phoebe_devel_enabled'))
-if _devel_enabled:
-    print("WARNING: developer mode enabled, to disable 'rm ~/.phoebe_devel_enabled' and restart phoebe")
-
 # People shouldn't import Phoebe from the installation directory (inspired upon
 # pymc warning message).
 if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]))>-1:
@@ -29,6 +24,47 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
 import matplotlib
 if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
     matplotlib.use('Agg')
+
+class Settings(object):
+    def __init__(self):
+        # Check to see whether in interactive mode
+        import __main__
+        # hasattr(__main__, '__file__') will be True if running a python script, but
+        # false if in a python or ipython interpreter.
+        # sys.flags.interactive will be 1 if the -i flag is sent to python
+        self._interactive = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
+
+        # Check to see whether developer/testing mode is enabled.
+        self._devel = os.path.isfile(os.path.expanduser('~/.phoebe_devel_enabled'))
+        if self._devel:
+            print("WARNING: developer mode enabled, to disable 'rm ~/.phoebe_devel_enabled' and restart phoebe")
+
+    def interactive_on(self):
+        self._interactive = True
+
+    def interactive_off(self):
+        self._interactive = False
+
+    @property
+    def interactive(self):
+        return self._interactive
+
+    def devel_on(self):
+        self._devel = True
+
+    def devel_off(self):
+        self._devel = False
+
+    @property
+    def devel(self):
+        return self._devel
+
+
+
+conf = Settings()
+
+
+
 
 
 # make packages available at top-level
@@ -66,4 +102,24 @@ def default_binary(*args, **kwargs):
 
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
+
+def is_interactive():
+    return conf.interactive
+
+def interactive_on():
+    conf.interactive_on()
+
+def interactive_off():
+    conf.interactive_off()
+
+def is_devel():
+    return conf.devel
+
+def devel_on():
+    conf.devel_on()
+
+def devel_off():
+    conf.devel_off()
+
+
 

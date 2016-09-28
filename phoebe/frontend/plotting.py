@@ -36,7 +36,7 @@ except ImportError:
 else:
     _use_mpld3 = True
 
-from phoebe import _devel_enabled
+from phoebe import conf
 
 import logging
 logger = logging.getLogger("PLOTTING")
@@ -534,7 +534,7 @@ def save_mpl(fname, **kwargs):
 def mpld3(ps, data, plot_inds, **kwargs):
     """
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
 
@@ -573,7 +573,7 @@ def save_mpld3(fname, **kwargs):
 def mpl2bokeh(ps, data, plot_inds, **kwargs):
     """
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
     if not _use_bkh:
@@ -614,7 +614,7 @@ def bokeh(ps, data, plot_inds, **kwargs):
         title
         linewidth
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
     if not _use_bkh:
@@ -702,7 +702,7 @@ def save_bokeh(fname, **kwargs):
 def lightning(ps, data, plot_inds, **kwargs):
     """
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
     try:
