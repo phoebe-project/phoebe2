@@ -1,20 +1,22 @@
 language: c
 
-os:
-    - linux
-
 addons:
   apt:
     packages:
     - gfortran
     - g++-5.4
 
+sudo: false
+
+
+os:
+    - linux
+
 compiler:
-  - gcc
+  - g++-5.4
   - clang
 
 
-sudo: false
 
 env:
     global:
