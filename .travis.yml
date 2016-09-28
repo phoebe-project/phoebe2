@@ -1,7 +1,11 @@
-language: c
+language: c++
 
 addons:
   apt:
+    sources:
+    # add PPAs with more up-to-date toolchains
+    - ubuntu-toolchain-r-test
+    - llvm-toolchain-precise-3.6
     packages:
     - gfortran
     - g++-5
