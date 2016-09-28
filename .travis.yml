@@ -67,7 +67,7 @@ install:
     - ./configure
     - make
     - sudo make install
-    - cd ../phoebe-scripts
+    - cd ../phoebe-scripter
     - ./configure
     - make
     - sudo make install
