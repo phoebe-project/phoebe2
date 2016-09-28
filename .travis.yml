@@ -77,6 +77,11 @@ install:
     - python setup.py build
     - python setup.py install --user
     - cd ../..
+    - git clone git://github.com/dfm/photodynam.git
+    - cd photodynam
+    - make
+    - sudo make install
+    - cd ..
 
 
 script:
