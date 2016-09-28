@@ -2116,7 +2116,7 @@ class Bundle(ParameterSet):
         # kwargs['qualifier'] = 'expression'
         kwargs['check_visible'] = False
         kwargs['check_default'] = False
-        print "***", kwargs
+        # print "***", kwargs
         expression_param = self.get_parameter(**kwargs)
 
         kwargs = {}
