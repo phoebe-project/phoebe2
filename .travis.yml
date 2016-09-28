@@ -4,8 +4,9 @@ addons:
   apt:
     packages:
     - gfortran
+    - g++-5
 
-sudo: true
+sudo: false
 
 
 os:
@@ -50,8 +51,8 @@ matrix:
       - env: NUMPY_VERSION=dev
 
 
-before_install:
-    - sudo apt-get install g++-5
+# before_install:
+#     - sudo apt-get install g++-5
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
