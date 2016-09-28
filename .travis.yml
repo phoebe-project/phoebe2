@@ -30,6 +30,8 @@ matrix:
     include:
 
         # Try with various compilers with default version of numpy/astropy
+        # TODO: let's not actually run nosetests for these, but just make
+        # sure they build
         - os: linux
           compiler: g++
           env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
