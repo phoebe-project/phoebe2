@@ -38,13 +38,14 @@ matrix:
           compiler: g++-5
           env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
 
-        - os: linux
-          compiler: clang-3.6
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
+        # clang fails to build phoebe1
+        # - os: linux
+        #   compiler: clang-3.6
+        #   env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
 
-        - os: osx
-          compiler: clang-3.6
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
+        # - os: osx
+        #   compiler: clang-3.6
+        #   env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
 
 
         # Try with various version of numpy/astropy with default compiler
@@ -71,6 +72,7 @@ install:
     - ./configure
     - make
     - sudo make install
+    - sudo ldconfig -v
     - cd ../phoebe-py
     - python setup.py build
     - python setup.py install --user
