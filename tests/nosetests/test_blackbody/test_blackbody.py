@@ -6,10 +6,12 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
+
 
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
-    
+
     # Two spherical suns
     b.set_value_all('teff', value=5772.)
     b.set_value('sma', component='binary', value=100.)

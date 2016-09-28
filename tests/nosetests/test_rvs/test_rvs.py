@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import phoebeBackend as phb
 
+phoebe.devel_on()
+
 def _beta_vs_legacy(b):
 
     period = b.get_value('period@orbit')
