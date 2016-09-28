@@ -75,6 +75,7 @@ install:
     - cd photodynam
     - make
     - sudo cp photodynam /usr/local/bin/
+    - cd ..
 
 
 script:
