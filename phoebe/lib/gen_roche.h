@@ -836,9 +836,12 @@ namespace gen_roche {
       w = Omega0*delta,                   // rescaled potential 
       b = F*F*delta*delta*delta*(1 + q);  // rescaled F^2
       
-    
     if (choice < 0 || choice > 2) return false;
-     
+    
+    #if 0
+    std::cerr << "lobe_xrange:start" << std::endl;
+    #endif
+      
     //
     //  left lobe
     //
@@ -921,7 +924,11 @@ namespace gen_roche {
       std::cerr << "lobe_xrange::problems with right boundary\n";
       return false;
     }
-
+    
+    #if 0
+    std::cerr << "lobe_xrange:end" << std::endl;
+    #endif
+    
     return true;
   }
 
