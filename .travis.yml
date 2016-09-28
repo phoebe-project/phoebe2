@@ -20,6 +20,7 @@ env:
         # Set defaults to avoid repeating in most cases
         - CONDA_DEPENDENCIES='scipy matplotlib sympy'
         - PIP_DEPENDENCIES='nose rebound'
+        - NOSETESTS=1
 
 
 matrix:
@@ -35,12 +36,10 @@ matrix:
         - os: linux
           compiler: g++
           env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
-          nosetests: true
 
         - os: linux
           compiler: g++-5
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
-          nosetests: false
+          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=0'
 
         # clang fails to build phoebe1
         # - os: linux
@@ -56,7 +55,6 @@ matrix:
         - os: linux
           compiler: g++-5
           env: PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable'
-          nosetests: true
 
 
     allow_failures:
@@ -92,6 +90,6 @@ install:
 
 
 script:
-    - if [ $nosetests ];
+    - if [ $NOSETESTS == 1 ];
       then cd tests/nosetests && nosetests;
       fi;
