@@ -1,14 +1,19 @@
-language: python
+language: c
 
 os:
     - linux
+
+compiler:
+  - gcc
+  - clang
+
 
 sudo: false
 
 env:
     global:
         # Set defaults to avoid repeating in most cases
-        - CONDA_DEPENDENCIES='scipy matplotlib'
+        - CONDA_DEPENDENCIES='scipy matplotlib sympy'
         - PIP_DEPENDENCIES=''
 
     matrix:
@@ -37,7 +42,8 @@ matrix:
     allow_failures:
       - env: NUMPY_VERSION=dev
 
-
+before_install:
+    - sudo apt-get install gfortran
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
