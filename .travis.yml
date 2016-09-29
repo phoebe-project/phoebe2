@@ -105,5 +105,5 @@ install:
 
 script:
     - if [ $NOSETESTS == 1 ];
-      then cd tests/nosetests && travis_wait nosetests;
+      then cd tests/nosetests && travis_wait 90 nosetests;
       fi;
