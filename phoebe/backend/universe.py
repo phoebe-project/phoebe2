@@ -12,7 +12,7 @@ import libphoebe
 
 from phoebe import u
 from phoebe import c
-from phoebe import _devel_enabled
+from phoebe import conf
 
 import logging
 logger = logging.getLogger("UNIVERSE")
@@ -100,7 +100,7 @@ class System(object):
             dynamics_method = compute_ps.get_value(qualifier='dynamics_method', **kwargs)
             reflection_method = compute_ps.get_value(qualifier='reflection_method', **kwargs)
             boosting_method = compute_ps.get_value(qualifier='boosting_method', **kwargs)
-            if _devel_enabled:
+            if conf.devel:
                 mesh_init_phi = compute_ps.get_value(qualifier='mesh_init_phi', unit=u.rad, **kwargs)
             else:
                 mesh_init_phi = 0.0
@@ -1460,7 +1460,7 @@ class Star(Body):
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
-        if _devel_enabled:
+        if conf.devel:
             do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
         else:
             do_mesh_offset = True

@@ -2,7 +2,7 @@
 from phoebe.parameters import *
 from phoebe.parameters import constraint
 from phoebe import u
-from phoebe import _devel_enabled
+from phoebe import conf
 
 # Each of these functions should take component, **kwargs as arguments and
 # return a ParameterSet of parameters to attach to the bundle (meta-data will
@@ -37,7 +37,7 @@ def orbit(component, **kwargs):
     params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Periastron')]
     params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Eccentricity')]
-    if _devel_enabled:
+    if conf.devel:
         params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, description='Eccentricity change')]
     params += [FloatParameter(qualifier='t0_perpass', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage')]  # TODO: d vs JD
     params += [FloatParameter(qualifier='t0_supconj', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction')]  # TODO: d vs JD
@@ -103,7 +103,7 @@ def star(component, **kwargs):
     # params += [FloatParameter(qualifier='frac_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
     params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
 
-    # if _devel_enabled:
+    # if conf.devel:
         # also see constraint below
         # these currently don't do anything until libphoebe's reflection will take these values
         # params += [FloatParameter(qualifier='frac_refl_noredist_bol', value=kwargs.get('frac_refl_noredist_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is not redistributed')]
@@ -138,7 +138,7 @@ def star(component, **kwargs):
 
     constraints += [(constraint.freq, component)]
     constraints += [(constraint.refl, component)]
-    # if _devel_enabled:
+    # if conf.devel:
         # constraints += [(constraint.reflredist, component)]
 
 
@@ -156,7 +156,7 @@ def envelope(component, **kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'envelope' component (ie overcontacts) not officially supported for this release.  Enable developer mode to test.")
 
 

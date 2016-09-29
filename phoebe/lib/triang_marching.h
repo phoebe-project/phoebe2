@@ -46,6 +46,7 @@ struct Tmarching: public Tbody {
       b[3][3];   // b[0] = t1, b[1] = t2, b[2] = n
   };
   
+  bool precision;
  
   /*
    Create internal vertex (copy point and generate base) 
@@ -151,31 +152,40 @@ struct Tmarching: public Tbody {
     // decreasing precision is dangerous as it can miss the surface
     const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
-        
+    
     do {
+         
+      do {
+      
+        // g = (grad F, F) 
+        this->grad(r, g, precision);
+        
+        // fac = F/|grad(F)|^2
+        fac = g[3]/utils::norm2(g);
+        
+        // dr = F/|grad(F)|^2 grad(F) 
+        // r' = r - dr 
+        dr1 = r1 = 0;        
+        for (int i = 0; i < 3; ++i) {
+          
+          r[i] -= (t = fac*g[i]);
+          
+          // calc. L_infty norm of vec{dr}
+          if ((t = std::abs(t)) > dr1) dr1 = t;
+          
+          // calc L_infty of of vec{r'}
+          if ((t = std::abs(r[i])) > r1) r1 = t;
+        }
+        
+      } while (dr1 > eps*r1 + min && ++n < max_iter);
     
-      // g = (grad F, F) 
-      this->grad(r, g);
-      
-      // fac = F/|grad(F)|^2
-      fac = g[3]/utils::norm2(g);
-      
-      // dr = F/|grad(F)|^2 grad(F) 
-      // r' = r - dr 
-      dr1 = r1 = 0;        
-      for (int i = 0; i < 3; ++i) {
-        
-        r[i] -= (t = fac*g[i]);
-        
-        // calc. L_infty norm of vec{dr}
-        if ((t = std::abs(t)) > dr1) dr1 = t;
-        
-        // calc L_infty of of vec{r'}
-        if ((t = std::abs(r[i])) > r1) r1 = t;
-      }
-      
-    } while (dr1 > eps*r1 + min && ++n < max_iter);
-    
+      if (!precision && n >= max_iter) {
+        precision = true;
+        n = 0;
+      } else break;
+
+    } while (1);
+ 
     // creating vertex
     create_internal_vertex(r, g, v);
     
@@ -214,33 +224,42 @@ struct Tmarching: public Tbody {
     // decreasing precision is dangerous as it can miss the surface
     const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();
-    
+
     if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
-         
-    do {
-    
-      // g = (grad F, F) 
-      this->grad(r, g);
       
-      // fac = F/|grad(F)|^2
-      fac = g[3]/utils::norm2(g);
+    do {      
       
-      // dr = F/|grad(F)|^2 grad(F) 
-      // r' = r - dr 
-      dr1 = r1 = 0;        
-      for (int i = 0; i < 3; ++i) {
-        
-        r[i] -= (t = fac*g[i]);
-        
-        // calc. L_infty norm of vec{dr}
-        if ((t = std::abs(t)) > dr1) dr1 = t;
-        
-        // calc L_infty of of vec{r'}
-        if ((t = std::abs(r[i])) > r1) r1 = t;
-      }
+      do {
       
-    } while (dr1 > eps*r1 + min && ++nr_iter < max_iter);
-    
+        // g = (grad F, F) 
+        this->grad(r, g, precision);
+        
+        // fac = F/|grad(F)|^2
+        fac = g[3]/utils::norm2(g);
+        
+        // dr = F/|grad(F)|^2 grad(F) 
+        // r' = r - dr 
+        dr1 = r1 = 0;        
+        for (int i = 0; i < 3; ++i) {
+          
+          r[i] -= (t = fac*g[i]);
+          
+          // calc. L_infty norm of vec{dr}
+          if ((t = std::abs(t)) > dr1) dr1 = t;
+          
+          // calc L_infty of of vec{r'}
+          if ((t = std::abs(r[i])) > r1) r1 = t;
+        }
+        
+      } while (dr1 > eps*r1 + min && ++nr_iter < max_iter);
+      
+      if (!precision && nr_iter >= max_iter) {
+        precision = true;
+        nr_iter = 0;
+      } else break;
+
+    } while(1);
+
     // creating simplified vertex, 
     // note: std::hypot(,,) is comming in C++17
     
@@ -332,6 +351,9 @@ struct Tmarching: public Tbody {
     ) 
   {
     
+    // start with normal precision defined by T
+    precision = false;
+
     V.clear();
     Tr.clear();
     
@@ -635,6 +657,9 @@ struct Tmarching: public Tbody {
     ) 
   {
     
+    // start with normal precision defined by T
+    precision = false;
+   
     V.clear();
     Tr.clear();
     

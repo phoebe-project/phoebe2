@@ -13,6 +13,7 @@ if plot:
     except ImportError:
         plot = False
 
+phoebe.devel_on()
 
 from multiprocessing import Process
 def run_with_limited_time(func, args, kwargs, time):

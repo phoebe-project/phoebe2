@@ -6,6 +6,8 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
+
 def _get_ld_coeffs(ld_coeff, ld_func):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:

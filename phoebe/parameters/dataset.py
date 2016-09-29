@@ -3,7 +3,7 @@ from phoebe.parameters import *
 from phoebe.parameters import constraint
 from phoebe.atmospheres import passbands  # need to load pbtable (dictionary of available passbands)
 from phoebe import u
-from phoebe import _devel_enabled
+from phoebe import conf
 
 _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
@@ -130,7 +130,7 @@ def etv(**kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'etv' dataset not officially supported for this release.  Enable developer mode to test.")
 
     obs_params = []
@@ -189,7 +189,7 @@ def ifm(**kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'IFM' dataset not officially supported for this release.  Enable developer mode to test.")
 
 
@@ -405,12 +405,12 @@ def mesh_syn(syn=True, **kwargs):
                     # TODO: descriptions for each column
                     if kind=='rv':
                         indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
-                        # if _devel_enabled:
+                        # if conf.devel:
                         indeps['abs_intensities'] = u.W/u.m**3
                         indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='lc':
                         indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
-                        # if _devel_enabled:
+                        # if conf.devel:
                         indeps['abs_intensities'] = u.W/u.m**3
                         indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='mesh':

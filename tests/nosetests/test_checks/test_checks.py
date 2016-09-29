@@ -6,6 +6,8 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
+
 
 def test_checks():
     b = phoebe.Bundle.default_binary()

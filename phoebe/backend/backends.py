@@ -9,7 +9,7 @@ from phoebe.backend import universe, etvs, horizon_analytic
 from phoebe.distortions  import roche
 from phoebe.frontend import io
 from phoebe import u, c
-from phoebe import _devel_enabled
+from phoebe import conf
 
 try:
     import phoebeBackend as phb1
@@ -796,7 +796,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 # Dataset-dependent quantities
                 indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
-                # if _devel_enabled:
+                # if conf.devel:
                 indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
                 indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']
                 for infomesh in infolist:

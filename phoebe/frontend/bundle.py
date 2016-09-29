@@ -20,7 +20,7 @@ from phoebe.frontend import io
 import libphoebe
 
 from phoebe import u
-from phoebe import _devel_enabled
+from phoebe import conf
 
 import logging
 logger = logging.getLogger("BUNDLE")
@@ -134,6 +134,9 @@ class Bundle(ParameterSet):
         self._is_client = False
         self._last_client_update = None
 
+        # handle delayed constraints when interactive mode is off
+        self._delayed_constraints = []
+
         if not len(params):
             # add position (only 1 allowed and required)
             self._attach_params(_system.system(), context='system')
@@ -193,7 +196,7 @@ class Bundle(ParameterSet):
         :parameter bool as_client: whether to attach in client mode
             (default: True)
         """
-        if not _devel_enabled:
+        if not conf.devel:
             raise NotImplementedError("'from_server' not officially supported for this release.  Enable developer mode to test.")
 
         # TODO: run test message on server, if localhost and fails, attempt to
@@ -324,7 +327,7 @@ class Bundle(ParameterSet):
             the primary component of the outer-orbit
         :return: instantiated :class:`Bundle` object
         """
-        if not _devel_enabled:
+        if not conf.devel:
             raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
 
         b = cls()
@@ -993,6 +996,9 @@ class Bundle(ParameterSet):
 
         :return: True if passed, False if failed and a message
         """
+
+        # make sure all constraints have been run
+        self.run_delayed_constraints()
 
         hier = self.hierarchy
         if hier is None:
@@ -1729,6 +1735,7 @@ class Bundle(ParameterSet):
         # will handle these
         # TODO: should this happen before kwargs?
         # TODO: can we avoid rebuilding ALL the constraints when we call this?
+        self.run_delayed_constraints() # need to run this since some get rebuilt
         self.set_hierarchy()
 
         for k, v in kwargs.items():
@@ -2061,7 +2068,7 @@ class Bundle(ParameterSet):
 
         """
 
-        # if not _devel_enabled:
+        # if not conf.devel:
         #     raise NotImplementedError("'flip_constraint' not officially supported for this release.  Enable developer mode to test.")
 
         self._kwargs_checks(kwargs)
@@ -2110,6 +2117,9 @@ class Bundle(ParameterSet):
         kwargs['twig'] = twig
         kwargs['context'] = 'constraint'
         # kwargs['qualifier'] = 'expression'
+        kwargs['check_visible'] = False
+        kwargs['check_default'] = False
+        # print "***", kwargs
         expression_param = self.get_parameter(**kwargs)
 
         kwargs = {}
@@ -2119,15 +2129,24 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
+        kwargs['check_visible'] = False
+        kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)
 
         result = expression_param.result
 
-        constrained_param.set_value(result, force=True)
+        constrained_param.set_value(result, force=True, run_constraints=True)
 
         logger.info("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
         return result
+
+    def run_delayed_constraints(self):
+        """
+        """
+        for constraint_id in self._delayed_constraints:
+            self.run_constraint(uniqueid=constraint_id)
+        self._delayed_constraints = []
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
         """
@@ -2324,6 +2343,10 @@ class Bundle(ParameterSet):
             computes = [compute]
         else:
             computes = compute
+
+        # if interactive mode was ever off, let's make sure all constraints
+        # have been run before running system checks or computing the model
+        self.run_delayed_constraints()
 
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary

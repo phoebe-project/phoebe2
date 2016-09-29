@@ -429,65 +429,96 @@ namespace utils {
       roots - vector of polished roots
   */
    template <class T> 
-   void polish(const int & n, T *a, std::vector<T> & roots){
+   void polish(const int & n, T *a, std::vector<T> & roots, const bool multi_roots = true){
       
-      const int iter_max = 10;
+      const int iter_max = 20;
+      
+      const T eps_2 = std::numeric_limits<T>::epsilon()/2;
       const T eps = 10*std::numeric_limits<T>::epsilon();
       const T min = 10*std::numeric_limits<T>::min();
       
-      int it;
-      
-      long double dx;
-      
-      for (auto && x : roots) {
+      int  ir = 0;
+  
+      for (auto && xi: roots) {
         
-        it = 0;  
-        
+        int it = 0;  
+
+        long double dx, x = xi, f, df, d2f, e;
+                
         do {
-          #if 0
-          // Horner algorithm to compute value and derivative
-          // http://www.physics.utah.edu/~detar/lessons/c++/array/node4.html
-          long double f = a[n], df = 0;
-          for (int i = n - 1; i >= 0; --i) { 
-            df = f + x*df;
-            f  = a[i] + x*f;
-          }
           
-          // Newton-Raphson step
-          x -= (dx = f/df); 
-          #else
-          // Horner algorithm to compute value, derivative and second derivative
-          // http://www.ece.rice.edu/dsp/software/FVHDP/horner2.pdf
-          long double f = a[n], df = 0, d2f = 0;
-          for (int i = n - 1; i >= 0; --i) { 
-            d2f = df + x*d2f;
-            df = f + x*df;
-            f  = a[i] + x*f;
-          }
-          d2f *= 2;
-          
-          // Newton-Raphson step for multiple roots
-          // https://www.math.uwaterloo.ca/~wgilbert/Research/GilbertNewtonMultiple.pdf
-          x -= (dx = f*df/(df*df - f*d2f)); 
-          #endif
-          /*
-          std::cout.precision(16);
-          std::cout << std::scientific;
-          std::cout << x << '\t' << dx << '\t' << f  << '\n';
-          */
+          if (multi_roots) {
             
-        } while (std::abs(dx) > eps*std::abs(x) + min && (++it) < iter_max); 
+            // Horner algorithm to compute value, derivative and second derivative
+            // http://www.ece.rice.edu/dsp/software/FVHDP/horner2.pdf
+            f = a[n], df = d2f = e = 0;
+            for (int i = n - 1; i >= 0; --i) { 
+              d2f = df + x*d2f;
+              df = f + x*df;
+              
+              // maximal expected error
+              e = e*std::abs(x) + eps_2*(2*std::abs(x*f) + std::abs(a[i]));
+              f  = a[i] + x*f;
+            }
+            d2f *= 2;
+            
+            // Newton-Raphson step for multiple roots
+            // https://www.math.uwaterloo.ca/~wgilbert/Research/GilbertNewtonMultiple.pdf
+            x -= (dx = f*df/(df*df - f*d2f)); 
+          } else {
+            
+            // Horner algorithm to compute value and derivative
+            // http://www.physics.utah.edu/~detar/lessons/c++/array/node4.html
+            f = a[n], df = e = 0;
+            for (int i = n - 1; i >= 0; --i) { 
+              df = f + x*df;
+              // maximal expected error
+              e = e*std::abs(x) + eps_2*(2*std::abs(x*f) + std::abs(a[i]));
+              f  = a[i] + x*f;
+            }
         
+            // Newton-Raphson step
+            x -= (dx = f/df);           
+          }
+          
+          #if 0
+          std::cerr.precision(16);
+          std::cerr << std::scientific;
+          std::cerr 
+            << "I=:" << it << '\t' << x << '\t' 
+            << dx << '\t' << f << '\t' << df << '\t' << e << '\n';
+          #endif
+            
+            
+        } while (std::abs(f) > 0.5*e && std::abs(dx) > eps*std::abs(x) + min && (++it) < iter_max); 
+                
         //std::cout << "-----\n";
         
-        if (it == iter_max) 
+        if (it == iter_max) { 
           std::cerr << "Warning: Root polishing did not succeed\n";
+          
+          std::cerr.precision(std::numeric_limits<T>::digits10);
+          std::cerr << std::scientific;
+          
+          std::cerr 
+            << "i=" << ir << '\n'
+            << "n=" << n << '\n' 
+            << "x=" << x << '\n'
+            << "xi=" << xi << '\n'
+            << "dx=" << dx << '\n'
+            << "f=" << f << '\n'
+            << "eps=" << eps << '\n'
+            << "min="<< min << '\n';
+            
+          for (int i = 0; i <= n; ++i) std::cerr << a[i] << '\t';
+          std::cerr << '\n'; 
+        }
         
+        xi = x;
+        ++ir;
       }
    }
    
-  
-  
   /*
     Real roots of the quadratic equation
 
@@ -500,8 +531,7 @@ namespace utils {
       roots -- list of real roots sorted ascending order
   */ 
   template <class T> 
-  void solve_quadratic(T a[3], std::vector<T> &roots)
-  {
+  void solve_quadratic(T a[3], std::vector<T> & roots){
     
     roots.clear();
     
@@ -565,8 +595,7 @@ namespace utils {
   */ 
 
   template <class T> 
-  void solve_cubic(T a[4], std::vector<T> & roots)
-  {
+  void solve_cubic(T a[4], std::vector<T> & roots) {
     
     roots.clear();
     
@@ -593,9 +622,17 @@ namespace utils {
         D = p*p*p/27 + q*q/4,
               
         A = 2*std::sqrt(std::abs(p)/3), phi;
-     
-      //std::cerr << "cubic::a=" << d  << ' ' << c << ' ' << b << ' ' << 1 << '\n';
-      //std::cerr << "cubic::D=" << D << " q =" << q << " p=" << p << '\n';
+      
+      #if 0
+      std::cerr.precision(16);
+      std::cerr << std::scientific;
+      
+      std::cerr 
+        << "cubic::\n"
+        << "a=" << d  << ' ' << c << ' ' << b << ' ' << 1 << '\n'
+        << "D=" << D << " A=" << A  << '\n' 
+        << "q=" << q << " p=" << p << '\n';
+      #endif
        
       if (D <= 0 || std::abs(D) < eps){ // 3 real roots, of 1 real roots if (p=q=0)
         
@@ -605,15 +642,22 @@ namespace utils {
           
           T r = 3*q/(A*p);
           
+          #if 0
+          std::cerr 
+            << "cubic::\n"
+            << "r=" << r << '\n';
+          #endif
+          
           phi = (std::abs(r) > 1 ? 0 : std::acos(r));
         
-      
           for (int i = 2; i >= 0; --i) {
-            /*T t;
+            #if 0
+            T t;
             roots.push_back(t = A*std::cos((phi - m_2pi*i)/3) - b/3);
             std::cerr << "cubic::x=" << t << '\n';
-            */
-           roots.push_back(A*std::cos((phi - m_2pi*i)/3) - b/3);
+            #else
+            roots.push_back(A*std::cos((phi - m_2pi*i)/3) - b/3);
+            #endif
           }
         }
       } else {

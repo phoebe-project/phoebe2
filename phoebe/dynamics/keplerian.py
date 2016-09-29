@@ -5,7 +5,7 @@ from numpy import pi,sqrt,cos,sin,tan,arctan
 from scipy.optimize import newton
 
 from phoebe import u, c
-from phoebe import _devel_enabled
+from phoebe import conf
 
 import logging
 logger = logging.getLogger("DYNAMICS.KEPLERIAN")
@@ -36,6 +36,8 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
         set to True.
 
     """
+
+    b.run_delayed_constraints()
 
     computeps = b.get_compute(compute, check_visible=False, force_ps=True)
     ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
@@ -75,7 +77,7 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
         long_ans.append([s.get_value('long_an', u.rad, component=orbit) for orbit in ancestororbits])
         incls.append([s.get_value('incl', u.rad, component=orbit) for orbit in ancestororbits])
         dpdts.append([s.get_value('dpdt', u.d/u.d, component=orbit) for orbit in ancestororbits])
-        if _devel_enabled:
+        if conf.devel:
             deccdts.append([s.get_value('deccdt', u.dimensionless_unscaled/u.d, component=orbit) for orbit in ancestororbits])
         else:
             deccdts.append([0.0 for orbit in ancestororbits])

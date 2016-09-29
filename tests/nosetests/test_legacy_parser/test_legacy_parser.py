@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+phb2.devel_on()
 
 def legacy_test(filename='default.phoebe'):
 
