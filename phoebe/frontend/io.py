@@ -895,6 +895,8 @@ Create a .phoebe file from phoebe 1 from a phoebe 2 bundle.
 
 def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
+    eb.run_delayed_constraints()
+
 
     # check to make sure you have exactly two stars and exactly one orbit
     stars = eb['hierarchy'].get_stars()
