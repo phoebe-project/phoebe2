@@ -37,6 +37,8 @@ def dynamics_from_bundle(b, times, compute=None, return_euler=False, **kwargs):
 
     """
 
+    b.run_delayed_constraints()
+
     computeps = b.get_compute(compute, check_visible=False, force_ps=True)
     ltte = computeps.get_value('ltte', check_visible=False, **kwargs)
 
