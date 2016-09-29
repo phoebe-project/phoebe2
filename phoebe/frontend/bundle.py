@@ -2077,6 +2077,8 @@ class Bundle(ParameterSet):
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
 
+        self.run_delayed_constraints()
+
         param = self.get_constraint(**kwargs)
 
         if solve_for is None:
