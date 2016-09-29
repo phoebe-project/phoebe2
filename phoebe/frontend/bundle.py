@@ -997,6 +997,9 @@ class Bundle(ParameterSet):
         :return: True if passed, False if failed and a message
         """
 
+        # make sure all constraints have been run
+        self.run_delayed_constraints()
+
         hier = self.hierarchy
         if hier is None:
             return True, ''
