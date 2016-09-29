@@ -85,6 +85,8 @@ def dynamics_from_bundle(b, times, compute=None, return_roche_euler=False, use_k
 
     """
 
+    b.run_delayed_constraints()
+
     hier = b.hierarchy
 
     computeps = b.get_compute(compute, check_visible=False, force_ps=True)
