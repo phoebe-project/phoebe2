@@ -543,12 +543,12 @@ namespace gen_roche {
     const T & q, 
     const T & b
   ) {
-
-    if (w > 100 && w > 2*q){  // w->infty
-      
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
+    
+    T t;
+    
+    bool direct = true;
+     
+    if (w > 100 && 2*q < w){  // w->infty
       
       T q2 = q*q,
         s = 1/w,
@@ -557,28 +557,75 @@ namespace gen_roche {
           q*(1 + q*(-5 + 5*b + q*(10 + q2))), 
           b*(3*b/4 + q*(3 + 10*q2)) + q*(-1 + q*(9 + q*(-15 + q*(20 + q2)))),
           q*(1 + b*(-3.5 + 21*b/4) + q*(-14 + 21*b + q*(42 + q*(-35 + 35*b/2 + q*(35 + q2)))))
-        },
-        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        };
+      
+      t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
         
-       int it = 0;
+      t = -t;
        
-       T dt, v[2]; 
+      direct = false;
        
-       t = -t;
-       
-       do {
-          // note: working with 
-          rescaled_potential_on_x_axis(v, 3, t, q, b);
+    } else if (w > 100 && q < w) { // w->infty, q ~ w
+    
+      T a = b/(1 + q),
+        s = 1/w,
+        f = q*s,
+        f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
+        s1 = 1/(w - q),
+        
+        // denominator
+        D[8] = {1, 1, 2*f1, 2*f1, 4*f12, 2*f12, 4*f13, 4*f13},
+        
+        // numerator
+        N[8] = {1, 0, (-2 - a)*f, -a + (2 + a)*f, f*(4 + (8 + a*(12 + 3*a))*f),
+          f*(-2 + a*(6 + 3*a) + (-12 + (-13 - 3*a)*a)*f),
+          -3*a*a + f*(-4 + a*(14 + 9*a) + f*(-40 + (-44 - 9*a)*a + (-4 + a*(-42 + (-33 - 6*a)*a))*f)),
+          f*(4 - 16*a + f*(64 + a*(-22 + (-72 - 18*a)*a) + (112 + a*(218 + a*(117 + 18*a)))*f))},
+        C[8];
+        
+      for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
+        
+      t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+      
+      t = -t;
+    
+      direct = false;
+    }
+    
+    #if 0
+    std::cerr << "D" << direct << '\n';
+    #endif
+     
+    if (!direct) {
+      const int iter_max = 10;
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+            
+      int it = 0;
+      
+      T dt, v[2]; 
+      
+      #if 0
+      std::cerr << "t0=" << t  << '\n';
+      #endif
+      
+      do {
+        // note: working with 
+        rescaled_potential_on_x_axis(v, 3, t, q, b);
           
-          t -= (dt = (v[0] - w)/v[1]); 
+        t -= (dt = (v[0] - w)/v[1]); 
           
-          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
           
-       } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
       
       if (!(it < iter_max))
         std::cerr << "left_lobe_left_xborder::slow convergence\n";
-
+      
+      #if 0
+      std::cerr << "t1=" << t  << '\n';
+      #endif
+      
       return t;
     }
     
@@ -609,11 +656,11 @@ namespace gen_roche {
     const T & b
   ) {
   
-    if (w > 100 && w > 2*q){  // w->infty
-      
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
+    T t;
+    
+    bool direct = true;
+    
+    if (w > 100 && 2*q < w){  // w->infty
       
       T q2 = q*q,
         s = 1/w,
@@ -622,25 +669,70 @@ namespace gen_roche {
           q*(1 + q*(5 + 5*b + q*(10 + q2))), 
           b*(3*b/4 + q*(3 + 10*q2)) + q*(1 + q*(9 + q*(15 + q*(20 + q2)))),
           q*(1 + b*(3.5 + 21*b/4) + q*(14 + 21*b + q*(42 + q*(35 + 35*b/2 + q*(35 + q2)))))
-        },
-        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        };
+      
+      t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
         
-       int it = 0;
+      direct = false;
+      
+    } else if (w > 100 && q < w) {   // w->infty, w ~ q
+      
+      T a = b/(1 + q),
+        s = 1/w,
+        f = q*s,
+        f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
+        s1 = 1/(w - q),
+        
+        // denominator
+        D[8] = {1, 1, 2*f1, 2*f1, 4*f12, 2*f12, 4*f13, 4*f13},
+        
+        // numerator
+        N[8] ={1, 0, (-2 - a)*f, -a + (-2 + a)*f, f*(4 + (8 + a*(12 + 3*a))*f),
+          f*(2 + a*(6 + 3*a) + (12 + (1 - 3*a)*a)*f),
+          -3*a*a + f*(-4 + a*(-14 + 9*a) + f*(-40 + (12 - 9*a)*a + (-4 + a*(-70 + (-33 - 6*a)*a))*f)),
+          f*(-4 - 16*a + f*(-64 + a*(-58 + (-72 - 18*a)*a) + (-112 + a*(-106 + a*(27 + 18*a)))*f))},
+        C[8];
+        
+      for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
+        
+      t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+      
+      direct = false;
+    }
+    
+    #if 0
+    std::cerr << "D" << direct << '\n';
+    #endif
+    
+    if (!direct) {
+    
+      const int iter_max = 10;
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      int it = 0;
        
-       T dt, v[2]; 
-
-       do {
-          rescaled_potential_on_x_axis(v, 3, t, q, b);
+      T dt, v[2]; 
+      
+      #if 0
+      std::cerr << "t0=" << t  << '\n';
+      #endif
+      
+      do {
+        rescaled_potential_on_x_axis(v, 3, t, q, b);
           
-          t -= (dt = (v[0] - w)/v[1]); 
+        t -= (dt = (v[0] - w)/v[1]); 
           
-          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-       } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
       
       if (!(it < iter_max))
         std::cerr << "left_lobe_right_xborder::slow convergence\n";
-
+      
+      #if 0
+      std::cerr << "t1=" << t  << '\n';
+      #endif
+      
       return t;
     }
     
@@ -839,7 +931,14 @@ namespace gen_roche {
     if (choice < 0 || choice > 2) return false;
     
     #if 0
-    std::cerr << "lobe_xrange:start" << std::endl;
+    std::cerr.precision(16);
+    std::cerr << std::scientific;
+    std::cerr 
+      << "lobe_xrange:start" << '\n'
+      << "choice=" << choice << '\n'
+      << "w=" << w << '\n'
+      << "q=" << q << '\n'
+      << "b=" << b << std::endl;
     #endif
       
     //
