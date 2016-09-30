@@ -3989,7 +3989,7 @@ class FloatParameter(Parameter):
     def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
         """
-        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks)
+        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks, **kwargs)
 
     @send_if_client
     def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
