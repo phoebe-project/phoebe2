@@ -757,6 +757,9 @@ class Bundle(ParameterSet):
     def _handle_pblum_defaults(self):
         """
         """
+
+        self.run_delayed_constraints()
+
         hier = self.get_hierarchy()
         # Handle choice parameters that need components as choices
         meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
@@ -799,8 +802,6 @@ class Bundle(ParameterSet):
                 repr_ = kwargs['value']
                 kind = None
             else:
-                # TODO: raise warning?
-                # return self.remove_parameter(context='hierarchy')
                 repr_ = self.get_hierarchy().get_value()
                 kind = None
 
@@ -1740,7 +1741,8 @@ class Bundle(ParameterSet):
         # components will not be empty
         kwargs.setdefault('times', [0.])
 
-        # TODO: should this happen before kwargs?
+        # this needs to happen before kwargs get applied so that the default
+        # values can be overridden by the supplied kwargs
         self._handle_pblum_defaults()
 
         for k, v in kwargs.items():
@@ -2154,6 +2156,7 @@ class Bundle(ParameterSet):
         for constraint_id in self._delayed_constraints:
             self.run_constraint(uniqueid=constraint_id)
         self._delayed_constraints = []
+
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
         """
