@@ -754,6 +754,24 @@ class Bundle(ParameterSet):
         if _history_enabled:
             self.enable_history()
 
+    def _handle_pblum_defaults(self):
+        """
+        """
+        hier = self.get_hierarchy()
+        # Handle choice parameters that need components as choices
+        meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
+        for param in self.filter(qualifier='pblum_ref',
+                                 context='dataset').to_list():
+            param._choices = ['self'] + meshablerefs
+            if param.value == '':
+                # then this was the default from the parameter itself, so we
+                # want to set it to be pblum if its the "primary" star, and
+                # otherwise point to the primary star
+                if param.component == meshablerefs[0]:
+                    param.set_value('self')
+                else:
+                    param.set_value(meshablerefs[0])
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system.
@@ -765,6 +783,10 @@ class Bundle(ParameterSet):
         - string representation (preferably passed through hierarchy already)
         - func and strings/PSs/params to pass to function
         """
+
+        # need to run any constraints since some may be deleted and rebuilt
+        self.run_delayed_constraints()
+
 
         _old_param = self.get_hierarchy()
 
@@ -798,19 +820,7 @@ class Bundle(ParameterSet):
         metawargs = {'context': 'system'}
         self._attach_params([hier_param], **metawargs)
 
-        # Handle choice parameters that need components as choices
-        meshablerefs = hier_param.get_meshables()  # TODO: consider for overcontacts
-        for param in self.filter(qualifier='pblum_ref',
-                                 context='dataset').to_list():
-            param._choices = ['self'] + meshablerefs
-            if param.value == '':
-                # then this was the default from the parameter itself, so we
-                # want to set it to be pblum if its the "primary" star, and
-                # otherwise point to the primary star
-                if param.component == meshablerefs[0]:
-                    param.set_value('self')
-                else:
-                    param.set_value(meshablerefs[0])
+        self._handle_pblum_defaults()
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
@@ -1730,13 +1740,8 @@ class Bundle(ParameterSet):
         # components will not be empty
         kwargs.setdefault('times', [0.])
 
-
-        # pblum_ref/pblum defaults depend on the hierarchy, calling set_hierarchy
-        # will handle these
         # TODO: should this happen before kwargs?
-        # TODO: can we avoid rebuilding ALL the constraints when we call this?
-        self.run_delayed_constraints() # need to run this since some get rebuilt
-        self.set_hierarchy()
+        self._handle_pblum_defaults()
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
