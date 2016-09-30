@@ -8,17 +8,19 @@ import matplotlib.pyplot as plt
 import phoebeBackend as phb
 
 phoebe.devel_on()
+# phoebe.interactive_on()
 
 def _beta_vs_legacy(b):
 
     period = b.get_value('period@orbit')
     times = np.linspace(-0.2,1.2*period,200)
 
-    b.add_dataset('lc', times=times, dataset='lc01', atm='blackbody', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
-    b.add_dataset('rv', times=times, dataset='rv01', atm='blackbody', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
+    b.add_dataset('lc', times=times, dataset='lc01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
+    b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 
-    b.add_compute('phoebe', compute='phnum', ltte=False, rv_method='flux-weighted', reflection_method='none')
-    b.add_compute('legacy', compute='legnum', ltte=False, rv_method='flux-weighted', refl_num=0)
+    b.add_compute('phoebe', compute='phnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', reflection_method='none')
+    b.add_compute('legacy', compute='legnum', ltte=False, atm='blackbody', rv_method='flux-weighted', refl_num=0)
+
 
     b.run_compute('phnum', model='phnumresults')
     b.run_compute('legnum', model='legnumresults')
