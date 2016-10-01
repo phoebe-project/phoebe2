@@ -127,5 +127,5 @@ after_success: |
         git add *.png
         echo $TESTING_KEY
         git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch=$branch_name\ncommit=$commit_hash"
-        git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark
+        git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark master
     fi
