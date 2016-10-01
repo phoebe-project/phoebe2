@@ -116,9 +116,9 @@ script:
 
 after_success: |
     if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ]; then
-        ls
+        ls benchmark/
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
-        cp ./*.profile ./phoebe2-benchmark/
+        cp ./benchmark/*.profile ./phoebe2-benchmark/
         cd phoebe2-benchmark
         git -c user.name='travis' -c user.email='travis' commit -m
         git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark
