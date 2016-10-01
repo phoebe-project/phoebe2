@@ -51,6 +51,10 @@ if 'doctests' in do:
 
 if 'benchmark' in do or 'benchmarks' in do:
     print "RUNNING BENCHMARKS..."
+
+    branch_name =  commands.getoutput('git rev-parse --symbolic-full-name --abbrev-ref HEAD')
+    commit_hash = commands.getoutput('git log -n 1 --pretty=format:"%H"')
+
     os.chdir(os.path.join(cwd, 'benchmark'))
     times = {}
     for fname in glob('./*py'):
@@ -60,6 +64,12 @@ if 'benchmark' in do or 'benchmarks' in do:
 
         out  = commands.getoutput('time python -m cProfile -o {} {}'.format(f_profile, f_py))
         times[f_py] = float(out.split()[-9].split('user')[0])
+
+
+
+        f_result = open(f_py.split('.py')[0]+'.log', 'a')
+        f_result.write("{} {} {}\n".format(branch_name, commit_hash, times[f_py]))
+        f_result.close()
 
 
     print "PROFILE TIMES (see individual .profile files for details)"

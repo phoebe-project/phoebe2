@@ -4,5 +4,7 @@
 *.ipynb_checkpoints*
 *.pyc*
 *.active
+*.profile
+*.log
 /docs/tutorials/*.phoebe
 /docs/tutorials/*.bundle

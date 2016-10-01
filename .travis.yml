@@ -109,20 +109,20 @@ script:
     # - if [ $NOSETESTS == 1 ];
     #   then nosetests -v -s -d -w tests/nosetests/;
     #   fi;
-    - if [ $BENCHMARK == 1 ];
-      then cd tests && python run_tests.py benchmark;
-      fi;
-
+    - echo "just testing benchmarks"
 
 after_success: |
     if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ]; then
         branch_name=$(git rev-parse --symbolic-full-name --abbrev-ref HEAD)
         commit_hash=$(git log -n 1 --pretty=format:"%H")
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
+        cp ./phoebe2-benchmark/*.log ./tests/benchmark/
+        cd tests && python run_tests.py benchmark
         cp ./benchmark/*.profile ./phoebe2-benchmark/
+        cp ./benchmark/*.log ./phoebe2-benchmark/
         cd phoebe2-benchmark
-        git -c user.name='travis' -c user.email='travis'
         git add *.profile
-        git commit -m "updating benchmarks" -m "branch=$branch_name\ncommit=$commit_hash"
+        git add *.log
+        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch=$branch_name\ncommit=$commit_hash"
         git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark
     fi
