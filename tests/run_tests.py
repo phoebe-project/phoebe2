@@ -82,10 +82,11 @@ if 'benchmark' in do or 'benchmarks' in do:
         lines = f_result.readlines()
         f_result.close()
 
+        branches_skip = []
         branches = {}
         for line in lines:
             branch, commit, time = line.strip().split()
-            if branch not in branches.keys():
+            if branch not in branches.keys() and branch not in branches_skip:
                 branches[branch] = []
 
         for line in lines:
