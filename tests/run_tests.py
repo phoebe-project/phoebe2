@@ -57,8 +57,8 @@ if 'doctests' in do:
 if 'benchmark' in do or 'benchmarks' in do:
     print "RUNNING BENCHMARKS..."
 
-    branch_name =  commands.getoutput('git rev-parse --symbolic-full-name --abbrev-ref HEAD')
-    commit_hash = commands.getoutput('git log -n 1 --pretty=format:"%H"')
+    branch_name =  os.environ.get('TRAVIS_BRANCH', commands.getoutput('git rev-parse --symbolic-full-name --abbrev-ref HEAD'))
+    commit_hash = os.environ.get('TRAVIS_COMMIT', commands.getoutput('git log -n 1 --pretty=format:"%H"'))
 
     os.chdir(os.path.join(cwd, 'benchmark'))
     times = {}
