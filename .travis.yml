@@ -115,7 +115,8 @@ script:
 
 
 after_success: |
-    if [ $BENCHMARK == 1 ] && [ -n "$GITHUB_API_KEY" ]; then
+    if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ]; then
+        echo "here"
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
         cp *.profile phoebe2-benchmark/
         cd phoebe2-benchmark
