@@ -120,6 +120,6 @@ after_success: |
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
         cp ./benchmark/*.profile ./phoebe2-benchmark/
         cd phoebe2-benchmark
-        git -c user.name='travis' -c user.email='travis' commit -m
+        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks"
         git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark
     fi
