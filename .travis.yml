@@ -101,10 +101,9 @@ install:
 
 
 script:
-    # - if [ $NOSETESTS == 1 ];
-    #   then nosetests -v -s -d -w tests/nosetests/;
-    #   fi;
-    - echo "skipping nosetests"
+    - if [ $NOSETESTS == 1 ];
+      then nosetests -v -s -d -w tests/nosetests/;
+      fi;
 
 after_success: |
     if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ] && [ $TRAVIS_PULL_REQUEST == 'false' ]; then
