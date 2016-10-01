@@ -88,10 +88,6 @@ install:
     - ./configure
     - make
     - sudo make install
-    # - cd ../phoebe-scripter
-    # - ./configure
-    # - make
-    # - sudo make install
     - sudo ldconfig -v
     - cd ../phoebe-py
     - python setup.py build
@@ -105,16 +101,13 @@ install:
 
 
 script:
-    # - travis_wait 90 nosetests
     # - if [ $NOSETESTS == 1 ];
     #   then nosetests -v -s -d -w tests/nosetests/;
     #   fi;
-    - echo "just testing benchmarks"
+    - echo "skipping nosetests"
 
 after_success: |
-    if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ]; then
-        branch_name=$TRAVIS_BRANCH
-        commit_hash=$(git log -n 1 --pretty=format:"%H")
+    if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ] && [ $TRAVIS_PULL_REQUEST == 'false' ]; then
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
         cp ./phoebe2-benchmark/*.log ./tests/benchmark/ 2>/dev/null || :
         cd tests && python run_tests.py benchmark
@@ -125,7 +118,6 @@ after_success: |
         git add *.profile
         git add *.log
         git add *.png
-        echo $TESTING_KEY
-        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch: $branch_name   commit: https://github.com/phoebe-project/phoebe2/commit/$commit_hash"
+        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch: $TRAVIS_BRANCH   commit: https://github.com/phoebe-project/phoebe2/commit/$TRAVIS_COMMIT"
         git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark master
     fi
