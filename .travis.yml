@@ -116,7 +116,7 @@ after_success: |
         branch_name=$(git rev-parse --symbolic-full-name --abbrev-ref HEAD)
         commit_hash=$(git log -n 1 --pretty=format:"%H")
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
-        cp ./phoebe2-benchmark/*.log ./tests/benchmark/
+        cp ./phoebe2-benchmark/*.log ./tests/benchmark/ 2>/dev/null || :
         cd tests && python run_tests.py benchmark
         cp ./benchmark/*.profile ./phoebe2-benchmark/
         cp ./benchmark/*.log ./phoebe2-benchmark/
