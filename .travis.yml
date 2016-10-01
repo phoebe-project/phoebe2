@@ -21,6 +21,7 @@ env:
         - CONDA_DEPENDENCIES='scipy matplotlib sympy'
         - PIP_DEPENDENCIES='nose rebound'
         - NOSETESTS=1
+        - BENCHMARK=0
 
 
 matrix:
@@ -33,7 +34,7 @@ matrix:
         # Try with various compilers with default version of numpy/astropy
         - os: linux
           compiler: g++
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0'
+          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 BENCHMARK=1'
 
         - os: linux
           compiler: g++-5
@@ -87,10 +88,6 @@ install:
     - ./configure
     - make
     - sudo make install
-    - cd ../phoebe-scripter
-    - ./configure
-    - make
-    - sudo make install
     - sudo ldconfig -v
     - cd ../phoebe-py
     - python setup.py build
@@ -104,7 +101,22 @@ install:
 
 
 script:
-    # - travis_wait 90 nosetests
     - if [ $NOSETESTS == 1 ];
       then nosetests -v -s -d -w tests/nosetests/;
       fi;
+
+after_success: |
+    if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ] && [ $TRAVIS_PULL_REQUEST == 'false' ]; then
+        git clone git://github.com/phoebe-project/phoebe2-benchmark.git
+        cp ./phoebe2-benchmark/*.log ./tests/benchmark/ 2>/dev/null || :
+        cd tests && python run_tests.py benchmark
+        cp ./benchmark/*.profile ../phoebe2-benchmark/ 2>/dev/null || :
+        cp ./benchmark/*.log ../phoebe2-benchmark/ 2>/dev/null || :
+        cp ./benchmark/*.log.png ../phoebe2-benchmark 2>/dev/null || :
+        cd ../phoebe2-benchmark
+        git add *.profile
+        git add *.log
+        git add *.png
+        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch: $TRAVIS_BRANCH   commit: https://github.com/phoebe-project/phoebe2/commit/$TRAVIS_COMMIT"
+        git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark master
+    fi
