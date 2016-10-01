@@ -5,6 +5,9 @@ pylint: sudo pip install pylint
 
 """
 
+import matplotlib
+matplotlib.use('Agg')
+
 from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt

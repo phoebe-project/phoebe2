@@ -88,10 +88,10 @@ install:
     - ./configure
     - make
     - sudo make install
-    - cd ../phoebe-scripter
-    - ./configure
-    - make
-    - sudo make install
+    # - cd ../phoebe-scripter
+    # - ./configure
+    # - make
+    # - sudo make install
     - sudo ldconfig -v
     - cd ../phoebe-py
     - python setup.py build
