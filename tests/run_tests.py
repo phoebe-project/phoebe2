@@ -6,6 +6,8 @@ pylint: sudo pip install pylint
 """
 
 from glob import glob
+import numpy as np
+import matplotlib.pyplot as plt
 import os
 import sys
 import commands
@@ -67,11 +69,43 @@ if 'benchmark' in do or 'benchmarks' in do:
 
 
 
-        f_result = open(f_py.split('.py')[0]+'.log', 'a')
+        f_result_fname = f_py.split('.py')[0]+'.log'
+        f_result = open(f_result_fname, 'a')
         f_result.write("{} {} {}\n".format(branch_name, commit_hash, times[f_py]))
         f_result.close()
+
+        print "plotting benchmark history for {}...".format(f_py)
+        f_result = open(f_result_fname, 'r')
+        lines = f_result.readlines()
+        f_result.close()
+
+        branches = {}
+        for line in lines:
+            branch, commit, time = line.strip().split()
+            if branch not in branches.keys():
+                branches[branch] = []
+
+        for line in lines:
+            branch, commit, time = line.strip().split()
+            for branch_i in branches.keys():
+                if branch_i == branch:
+                    branches[branch].append(time)
+                else:
+                    branches[branch].append(np.nan)
+
+        plt.cla()
+        x = range(len(lines))
+        for branch, benchmark_ts in branches.items():
+            plt.plot(x, benchmark_ts, 'ko-', label=branch)
+        plt.legend()
+        plt.title(f_py.split('.py')[0])
+        plt.xlabel('commit')
+        plt.ylabel('benchmark time (s)')
+        plt.savefig(f_result_fname+'.png')
+
 
 
     print "PROFILE TIMES (see individual .profile files for details)"
     for f_py, time in times.items():
         print "{}: {}".format(f_py, time)
+
