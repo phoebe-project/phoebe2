@@ -93,15 +93,16 @@ if 'benchmark' in do or 'benchmarks' in do:
                 else:
                     branches[branch].append(np.nan)
 
-        plt.cla()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
         x = range(len(lines))
         for branch, benchmark_ts in branches.items():
-            plt.plot(x, benchmark_ts, 'ko-', label=branch)
+            ax.plot(x, benchmark_ts, 'ko-', label=branch)
         plt.legend()
-        plt.title(f_py.split('.py')[0])
-        plt.xlabel('commit')
-        plt.ylabel('benchmark time (s)')
-        plt.savefig(f_result_fname+'.png')
+        ax.set_title(f_py.split('.py')[0])
+        ax.set_xlabel('commit')
+        ax.set_ylabel('benchmark time (s)')
+        fig.savefig(f_result_fname+'.png')
 
 
 
