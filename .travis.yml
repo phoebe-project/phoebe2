@@ -113,7 +113,7 @@ script:
 
 after_success: |
     if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ]; then
-        branch_name=$(git rev-parse --symbolic-full-name --abbrev-ref HEAD)
+        branch_name=$TRAVIS_BRANCH
         commit_hash=$(git log -n 1 --pretty=format:"%H")
         git clone git://github.com/phoebe-project/phoebe2-benchmark.git
         cp ./phoebe2-benchmark/*.log ./tests/benchmark/ 2>/dev/null || :
@@ -126,6 +126,6 @@ after_success: |
         git add *.log
         git add *.png
         echo $TESTING_KEY
-        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch=$branch_name\ncommit=$commit_hash"
+        git -c user.name='travis' -c user.email='travis' commit -m "updating benchmarks" -m "branch: $branch_name   commit: https://github.com/phoebe-project/phoebe2/commit/$commit_hash"
         git push -q -f https://kecnry:$GITHUB_API_KEY@github.com/phoebe-project/phoebe2-benchmark master
     fi
