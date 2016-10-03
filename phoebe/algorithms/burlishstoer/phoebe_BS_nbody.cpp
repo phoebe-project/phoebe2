@@ -1,5 +1,11 @@
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
+// providing the Python interface -I/usr/include/python2.7/
 #include <Python.h>
+#include <numpy/arrayobject.h>
+
+
 #include "n_body_state.h"
 #include "n_body.h"
 
@@ -246,9 +252,12 @@ static PyMethodDef Methods[] = {
     {NULL,               NULL,             0,            NULL}
 };
 
+static char const *Docstring =
+  "Module wraps Burlishstoer integrator";
+
 PyMODINIT_FUNC initphoebe_burlishstoer (void)
 {
-    PyObject *backend = Py_InitModule("phoebe_burlishstoer", Methods);
+    PyObject *backend = Py_InitModule3("phoebe_burlishstoer", Methods, Docstring);
     if (!backend)
         return;
 }
