@@ -424,6 +424,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     protomesh = computeparams.get_value('protomesh', **kwargs)
     pbmesh = computeparams.get_value('pbmesh', **kwargs)
+    do_horizon = computeparams.get_value('horizon', **kwargs)
     if 'protomesh' in kwargs.keys():
         # remove protomesh so that it isn't passed twice in _extract_from_bundle_by_time
         kwargs.pop('protomesh')
@@ -640,7 +641,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
 
-            expose_horizon =  'orb' in [info['kind'] for info in infolist]
+            expose_horizon =  'mesh' in [info['kind'] for info in infolist] and do_horizon
             horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
@@ -769,29 +770,30 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_syn['visible_centroids'] = vcs
 
                 # Eclipse horizon
-                if horizons is not None:
+                if do_horizon and horizons is not None:
                     this_syn['horizon_xs'] = horizons[cind][:,0]
                     this_syn['horizon_ys'] = horizons[cind][:,1]
                     this_syn['horizon_zs'] = horizons[cind][:,2]
 
                 # Analytic horizon
-                if body.distortion_method == 'roche':
-                    if body.mesh_method == 'marching':
-                        q, F, d, Phi = body._mesh_args
-                        scale = body._scale
-                        euler = [ethetai[cind], elongani[cind], eincli[cind]]
-                        pos = [xi[cind], yi[cind], zi[cind]]
-                        ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
-                    elif body.mesh_method == 'wd':
-                        scale = body._scale
-                        pos = [xi[cind], yi[cind], zi[cind]]
-                        ha = horizon_analytic.wd(b, time, scale, pos)
-                    else:
-                        raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
+                if do_horizon:
+                    if body.distortion_method == 'roche':
+                        if body.mesh_method == 'marching':
+                            q, F, d, Phi = body._mesh_args
+                            scale = body._scale
+                            euler = [ethetai[cind], elongani[cind], eincli[cind]]
+                            pos = [xi[cind], yi[cind], zi[cind]]
+                            ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
+                        elif body.mesh_method == 'wd':
+                            scale = body._scale
+                            pos = [xi[cind], yi[cind], zi[cind]]
+                            ha = horizon_analytic.wd(b, time, scale, pos)
+                        else:
+                            raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
 
-                    this_syn['horizon_analytic_xs'] = ha['xs']
-                    this_syn['horizon_analytic_ys'] = ha['ys']
-                    this_syn['horizon_analytic_zs'] = ha['zs']
+                        this_syn['horizon_analytic_xs'] = ha['xs']
+                        this_syn['horizon_analytic_ys'] = ha['ys']
+                        this_syn['horizon_analytic_zs'] = ha['zs']
 
 
                 # Dataset-dependent quantities
