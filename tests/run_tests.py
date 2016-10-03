@@ -99,9 +99,8 @@ if 'benchmark' in do or 'benchmarks' in do:
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        x = range(len(lines))
         for branch, benchmark_ts in branches.items():
-            ax.plot(x, benchmark_ts, 'o-', label=branch)
+            ax.plot(range(len(benchmark_ts)), benchmark_ts, 'o-', label=branch)
         plt.legend()
         ax.set_title(f_py.split('.py')[0])
         ax.set_xlabel('commit')
