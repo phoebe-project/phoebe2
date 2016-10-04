@@ -1081,9 +1081,10 @@ class Body(object):
     def set_pblum_scale(self, dataset, pblum_scale, **kwargs):
         self._pblum_scale[dataset] = pblum_scale
 
-    def get_pblum_scale(self, dataset):
+    def get_pblum_scale(self, dataset, **kwargs):
         """
         """
+        # kwargs needed just so component can be passed but ignored
 
         if dataset in self._pblum_scale.keys():
             return self._pblum_scale[dataset]
