@@ -46,11 +46,13 @@ class System(object):
                  horizon_method='boolean',
                  dynamics_method='keplerian',
                  reflection_method='none',
-                 boosting_method='none'):
+                 boosting_method='none',
+                 parent_envelope_of={}):
         """
         :parameter dict bodies_dict: dictionary of component names and Bodies (or subclass of Body)
         """
         self._bodies = bodies_dict
+        self._parent_envelope_of = parent_envelope_of
         self.eclipse_method = eclipse_method
         self.horizon_method = horizon_method
         self.dynamics_method = dynamics_method
@@ -127,11 +129,19 @@ class System(object):
         meshables = hier.get_meshables()
         bodies_dict = {comp: globals()[hier.get_kind_of(comp).title()].from_bundle(b, comp, compute, dynamics_method=dynamics_method, mesh_init_phi=mesh_init_phi, datasets=datasets, **kwargs) for comp in meshables}
 
+        # envelopes need to know their relationships with the underlying stars
+        parent_envelope_of = {}
+        for meshable in meshables:
+            if hier.get_kind_of(meshable) == 'envelope':
+                for starref in hier.get_siblings_of(meshable):
+                    parent_envelope_of[starref] = meshable
+
         return cls(bodies_dict, eclipse_method=eclipse_method,
                    horizon_method=horizon_method,
                    dynamics_method=dynamics_method,
                    reflection_method=reflection_method,
-                   boosting_method=boosting_method)
+                   boosting_method=boosting_method,
+                   parent_envelope_of=parent_envelope_of)
 
     def items(self):
         """
@@ -162,7 +172,12 @@ class System(object):
         """
         TODO: add documentation
         """
-        return self._bodies[component]
+        if component in self._bodies.keys():
+            return self._bodies[component]
+        else:
+            # then hopefully we're a child star of an overcontact envelope
+            parent_component = self._parent_envelope_of[component]
+            return self._bodies[parent_component]
 
     @property
     def meshes(self):
@@ -1061,6 +1076,9 @@ class Body(object):
         # luminosity in relative units gives the provided pblum
         pblum_scale = pblum / total_integrated_intensity
 
+        self.set_pblum_scale(dataset, pblum_scale)
+
+    def set_pblum_scale(self, dataset, pblum_scale, **kwargs):
         self._pblum_scale[dataset] = pblum_scale
 
     def get_pblum_scale(self, dataset):
@@ -2046,7 +2064,9 @@ class Envelope(Body):
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
             ld_func={}, ld_coeffs={},
-            do_rv_grav=False, features=[], do_mesh_offset=True, **kwargs):
+            do_rv_grav=False, features=[], do_mesh_offset=True,
+            label_envelope='common_envelope', label_primary='primary',
+            label_secondary='secondary', **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -2066,6 +2086,10 @@ class Envelope(Body):
                                        ld_func, ld_coeffs,
                                        dynamics_method=dynamics_method,
                                        mesh_init_phi=mesh_init_phi)
+
+        self.label_envelope = label_envelope
+        self.label_primary = label_primary
+        self.label_secondary = label_secondary
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
@@ -2117,6 +2141,12 @@ class Envelope(Body):
         self.volume_factor = 1.0  # TODO: eventually make this a parameter (currently defined to be the ratio between volumes at apastron/periastron)
 
         self._do_mesh_offset = do_mesh_offset
+
+        # pblum scale needs to be different for envelopes - we need to actually
+        # track the pblum per-component (envelope, primary, secondary) separately
+        self._pblum_scale = {label_envelope: {},
+                             label_primary: {},
+                             label_secondary: {}}
 
 
     @classmethod
@@ -2245,7 +2275,10 @@ class Envelope(Body):
                 intens_weighting=intens_weighting,
                 ld_func=ld_func, ld_coeffs=ld_coeffs,
                 do_rv_grav=do_rv_grav,
-                features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
+                features=features, do_mesh_offset=do_mesh_offset,
+                label_envelope=label_envelope,
+                label_primary=label_self, label_secondary=label_sibling,
+                **mesh_kwargs)
 
     @property
     def needs_recompute_instantaneous(self):
@@ -2455,8 +2488,6 @@ class Envelope(Body):
         """
         TODO: add documentation
         """
-        pass  # TODO: do we need any of these things for overcontacts?
-
         pole_func = getattr(libphoebe, '{}_pole'.format(self.distortion_method))
         gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format(self.distortion_method))
 
@@ -2603,9 +2634,13 @@ class Envelope(Body):
 
         mesh.update_columns(frac_refl=frac_refl)
 
-    def compute_luminosity(self, dataset, comp, **kwargs):
+    def compute_luminosity(self, dataset, component=None, **kwargs):
         """
         """
+
+        if component is None:
+            component = self.label_envelope
+
         # areas are the NON-projected areas of each surface element.  We'll be
         # integrating over normal intensities, so we don't need to worry about
         # multiplying by mu to get projected areas.
@@ -2616,23 +2651,28 @@ class Envelope(Body):
         intens_weighting = self.intens_weighting[dataset]
         atm = self.atm
 
-        if comp==0:
-            areas = self.mesh.areas_si[self.mesh.env_comp3<0.34]
-        else:
-            areas = self.mesh.areas_si[self.mesh.env_comp3>0.34]
-
+        areas = self.mesh.areas_si
         teffs = self.mesh.teffs.centers
         loggs = self.mesh.loggs.centers
         abuns = self.mesh.abuns.centers
 
-        if comp==0:
+        if component==self.label_envelope:
+            teffs = teffs
+            loggs = loggs
+            abuns = abuns
+            areas = areas
+        elif component==self.label_primary:
             teffs = teffs[self.mesh.env_comp3<0.34]
             loggs = loggs[self.mesh.env_comp3<0.34]
             abuns = abuns[self.mesh.env_comp3<0.34]
-        else:
+            areas = areas[self.mesh.env_comp3<0.34]
+        elif component==self.label_secondary:
             teffs = teffs[self.mesh.env_comp3>0.34]
             loggs = loggs[self.mesh.env_comp3>0.34]
             abuns = abuns[self.mesh.env_comp3>0.34]
+            areas = areas[self.mesh.env_comp3>0.34]
+        else:
+            raise ValueError
 
         # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
@@ -2659,41 +2699,41 @@ class Envelope(Body):
 
         # NOTE: when this is computed the first time (for the sake of determing
         # pblum_scale), get_pblum_scale will return 1.0
-        return total_integrated_intensity * self.get_pblum_scale(dataset)
+        return total_integrated_intensity * self.get_pblum_scale(dataset, component=component)
 
-    def compute_pblum_scale(self, dataset, pblum, comp, **kwargs):
+    def compute_pblum_scale(self, dataset, pblum, component=None, **kwargs):
         """
         intensities should already be computed for this dataset at the time for which pblum is being provided
 
         TODO: add documentation
         """
+        if component is None:
+            component = self.label_envelope
 
-        total_integrated_intensity = self.compute_luminosity(dataset, comp, **kwargs)
+        total_integrated_intensity = self.compute_luminosity(dataset, component=component, **kwargs)
 
         # We now want to remember the scale for all intensities such that the
         # luminosity in relative units gives the provided pblum
         pblum_scale = pblum / total_integrated_intensity
 
-        if comp==0:
-            self._pblum_scale_0[dataset] = pblum_scale
-        else:
-            self._pblum_scale_1[dataset] = pblum_scale
+        self._pblum_scale[component][dataset] = pblum_scale
 
-    def get_pblum_scale(self, dataset, comp):
+    def set_pblum_scale(self, dataset, pblum_scale, component=None, **kwargs):
+        if component is None:
+            component = self.label_envelope
+
+        self._pblum_scale[component][dataset] = pblum_scale
+
+    def get_pblum_scale(self, dataset, component=None):
         """
         """
-        if comp==0:
-            if dataset in self._pblum_scale_0.keys():
-                return self._pblum_scale_0[dataset]
-            else:
-                #logger.warning("no pblum scale found for dataset: {}".format(dataset))
-                return 1.0
+        if component is None:
+            component = self.label_envelope
+
+        if dataset in self._pblum_scale[component].keys():
+            return self._pblum_scale[component][dataset]
         else:
-            if dataset in self._pblum_scale_1.keys():
-                return self._pblum_scale_1[dataset]
-            else:
-                #logger.warning("no pblum scale found for dataset: {}".format(dataset))
-                return 1.0
+            return 1.0
 
     def _populate_ifm(self, dataset, **kwargs):
         """

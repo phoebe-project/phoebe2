@@ -569,7 +569,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pblum_copy = {}
-            for component in meshablerefs:
+            # for component in meshablerefs:
+            for component in b.filter(qualifier='pblum_ref').components:
                 if component=='_default':
                     continue
                 pblum_ref = b.get_value(qualifier='pblum_ref', component=component, dataset=dataset, context='dataset')
@@ -578,7 +579,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
-                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs)
+                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within common_envelope... and then smart enough to handle the pblum_scale
+
+                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
                 else:
                     # then this component wants to copy the scale from another component
                     # in the system.  We'll just store this now so that we make sure the
@@ -589,7 +592,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pblum_copy.items():
-                system.get_body(comp)._pblum_scale[dataset] = system.get_body(comp_copy).get_pblum_scale(dataset)
+                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=component)
+                system.get_body(comp).set_pblum_scale(dataset, component=component, pblum_scale=pblum_scale)
 
 
     # MAIN COMPUTE LOOP
