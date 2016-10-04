@@ -2603,6 +2603,98 @@ class Envelope(Body):
 
         mesh.update_columns(frac_refl=frac_refl)
 
+    def compute_luminosity(self, dataset, comp, **kwargs):
+        """
+        """
+        # areas are the NON-projected areas of each surface element.  We'll be
+        # integrating over normal intensities, so we don't need to worry about
+        # multiplying by mu to get projected areas.
+        # comp refers to the part of the enevelope that corresponds to component
+        pb = passbands.get_passband(self.passband[dataset])
+        ld_func = self.ld_func[dataset]
+        ld_coeffs = self.ld_coeffs[dataset]
+        intens_weighting = self.intens_weighting[dataset]
+        atm = self.atm
+
+        if comp==0:
+            areas = self.mesh.areas_si[self.mesh.env_comp3<0.34]
+        else:
+            areas = self.mesh.areas_si[self.mesh.env_comp3>0.34]
+
+        teffs = self.mesh.teffs.centers
+        loggs = self.mesh.loggs.centers
+        abuns = self.mesh.abuns.centers
+
+        if comp==0:
+            teffs = teffs[self.mesh.env_comp3<0.34]
+            loggs = loggs[self.mesh.env_comp3<0.34]
+            abuns = abuns[self.mesh.env_comp3<0.34]
+        else:
+            teffs = teffs[self.mesh.env_comp3>0.34]
+            loggs = loggs[self.mesh.env_comp3>0.34]
+            abuns = abuns[self.mesh.env_comp3>0.34]
+
+        # abs_normal_intensities are directly out of the passbands module and are
+        # emergent normal intensities in this dataset's passband/atm in absolute units
+        abs_normal_intensities = pb.Inorm(Teff=teffs,
+                                          logg=loggs,
+                                          abun=abuns,
+                                          atm=atm)
+
+        # Our total integrated intensity in absolute units (luminosity) is now
+        # simply the sum of the normal emergent intensities times pi (to account
+        # for intensities emitted in all directions across the solid angle),
+        # limbdarkened as if they were at mu=1, and multiplied by their respective areas
+
+
+        ld = pb.ldint(Teff=teffs,
+                     logg=loggs,
+                     abun=abuns,
+                     atm=atm,
+                     ld_func=ld_func,
+                     ld_coeffs=ld_coeffs,
+                     photon_weighted=intens_weighting=='photon')
+
+        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ld) * np.pi
+
+        # NOTE: when this is computed the first time (for the sake of determing
+        # pblum_scale), get_pblum_scale will return 1.0
+        return total_integrated_intensity * self.get_pblum_scale(dataset)
+
+    def compute_pblum_scale(self, dataset, pblum, comp, **kwargs):
+        """
+        intensities should already be computed for this dataset at the time for which pblum is being provided
+
+        TODO: add documentation
+        """
+
+        total_integrated_intensity = self.compute_luminosity(dataset, comp, **kwargs)
+
+        # We now want to remember the scale for all intensities such that the
+        # luminosity in relative units gives the provided pblum
+        pblum_scale = pblum / total_integrated_intensity
+
+        if comp==0:
+            self._pblum_scale_0[dataset] = pblum_scale
+        else:
+            self._pblum_scale_1[dataset] = pblum_scale
+
+    def get_pblum_scale(self, dataset, comp):
+        """
+        """
+        if comp==0:
+            if dataset in self._pblum_scale_0.keys():
+                return self._pblum_scale_0[dataset]
+            else:
+                #logger.warning("no pblum scale found for dataset: {}".format(dataset))
+                return 1.0
+        else:
+            if dataset in self._pblum_scale_1.keys():
+                return self._pblum_scale_1[dataset]
+            else:
+                #logger.warning("no pblum scale found for dataset: {}".format(dataset))
+                return 1.0
+
     def _populate_ifm(self, dataset, **kwargs):
         """
         TODO: add documentation
@@ -2757,7 +2849,6 @@ class Envelope(Body):
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
             'boost_factors': boost_factors}
-
 
 class Feature(object):
     """
