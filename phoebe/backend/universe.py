@@ -2734,7 +2734,7 @@ class Envelope(Body):
         if dataset in self._pblum_scale[component].keys():
             return self._pblum_scale[component][dataset]
         else:
-            return 1.0
+            return 1.
 
     def _populate_ifm(self, dataset, **kwargs):
         """
@@ -2842,10 +2842,16 @@ class Envelope(Body):
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
-            normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset)
-            intensities = abs_intensities * self.get_pblum_scale(dataset)
 
+            normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset,component=self.label_primary)
+            intensities = abs_intensities * self.get_pblum_scale(dataset,component=self.label_primary)
 
+            print 'primary pblum scale', self.get_pblum_scale(dataset,component=self.label_primary)
+
+            #normal_intensities[self.mesh.env_comp==1] = abs_normal_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
+            #intensities[self.mesh.env_comp==1] = abs_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
+
+            print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
 
         elif lc_method=='analytical':
             raise NotImplementedError("analytical fluxes not yet ported to beta")
