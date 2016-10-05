@@ -570,7 +570,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # absolute and relative intensities
             pblum_copy = {}
             # for component in meshablerefs:
-            for component in b.filter(qualifier='pblum_ref').components:
+            for component in b.filter(qualifier='pblum_ref', dataset=dataset).components:
                 if component=='_default':
                     continue
                 pblum_ref = b.get_value(qualifier='pblum_ref', component=component, dataset=dataset, context='dataset')
@@ -592,8 +592,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pblum_copy.items():
-                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=component)
-                system.get_body(comp).set_pblum_scale(dataset, component=component, pblum_scale=pblum_scale)
+                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
 
     # MAIN COMPUTE LOOP

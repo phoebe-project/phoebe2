@@ -2717,7 +2717,8 @@ class Envelope(Body):
         # luminosity in relative units gives the provided pblum
         pblum_scale = pblum / total_integrated_intensity
 
-        self._pblum_scale[component][dataset] = pblum_scale
+        # self._pblum_scale[component][dataset] = pblum_scale
+        self.set_pblum_scale(dataset, component=component, pblum_scale=pblum_scale)
 
     def set_pblum_scale(self, dataset, pblum_scale, component=None, **kwargs):
         if component is None:
@@ -2848,8 +2849,8 @@ class Envelope(Body):
 
             print 'primary pblum scale', self.get_pblum_scale(dataset,component=self.label_primary)
 
-            #normal_intensities[self.mesh.env_comp==1] = abs_normal_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
-            #intensities[self.mesh.env_comp==1] = abs_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
+            normal_intensities[self.mesh.env_comp==1] = abs_normal_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
+            intensities[self.mesh.env_comp==1] = abs_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
 
             print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
 
