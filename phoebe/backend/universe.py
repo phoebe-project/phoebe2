@@ -196,7 +196,7 @@ class System(object):
         #
         # rather than calling self.meshes repeatedly
 
-        return mesh.Meshes(self._bodies)
+        return mesh.Meshes(self._bodies, self._parent_envelope_of)
 
 
     def initialize_meshes(self):
@@ -2482,6 +2482,11 @@ class Envelope(Body):
         else:
             raise NotImplementedError("mesh_method '{}' is not supported".format(mesh_method))
 
+
+        new_mesh['label_envelope'] = self.label_envelope
+        new_mesh['label_primary'] = self.label_primary
+        new_mesh['label_secondary'] = self.label_secondary
+
         return new_mesh, sma, mesh_args
 
 
@@ -2847,12 +2852,12 @@ class Envelope(Body):
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset,component=self.label_primary)
             intensities = abs_intensities * self.get_pblum_scale(dataset,component=self.label_primary)
 
-            print 'primary pblum scale', self.get_pblum_scale(dataset,component=self.label_primary)
+            # print 'primary pblum scale', self.get_pblum_scale(dataset,component=self.label_primary)
 
             normal_intensities[self.mesh.env_comp==1] = abs_normal_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
             intensities[self.mesh.env_comp==1] = abs_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
 
-            print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
+            # print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
 
         elif lc_method=='analytical':
             raise NotImplementedError("analytical fluxes not yet ported to beta")
