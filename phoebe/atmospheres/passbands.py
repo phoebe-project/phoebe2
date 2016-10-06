@@ -795,6 +795,8 @@ def init_passbands(refresh=False):
 
         path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
         for f in os.listdir(path):
+            if f=='README':
+                continue
             init_passband(path+f)
             # pb = Passband.load(path+f)
             # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
