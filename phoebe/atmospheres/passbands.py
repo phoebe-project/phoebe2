@@ -826,7 +826,7 @@ def download_passband(passband):
     if passband not in list_online_passbands():
         raise ValueError("passband '{}' not available".format(passband))
 
-    passband_fname = passband.lower().replace(':', '_')+'.pb'
+    passband_fname = _online_passbands[passband]
     pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
     passband_fname_local = os.path.join(pb_dir, passband_fname)
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}/{}'.format(__version__, passband_fname)
@@ -852,10 +852,9 @@ def list_online_passbands(refresh=False):
 
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}/list_online_passbands'.format(__version__)
         resp = urllib2.urlopen(url)
-        lst = json.loads(resp.read())
-        _online_passbands = lst
+        _online_passbands = json.loads(resp.read())
 
-    return _online_passbands
+    return _online_passbands.keys()
 
 def get_passband(passband):
 
