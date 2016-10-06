@@ -30,6 +30,9 @@ logger.addHandler(logging.NullHandler())
 # at some point.
 _pbtable = {}
 
+_initialized = False
+_online_passbands = None
+
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
         """
@@ -780,18 +783,24 @@ def init_passband(fullpath):
     pb = Passband.load(fullpath)
     _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.content, 'pb': None}
 
-def init_passbands():
+def init_passbands(refresh=False):
     """
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
     passband names qualified as 'pbset:pbname' and corresponding files
     and atmosphere content within.
     """
-    path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
-    for f in os.listdir(path):
-        init_passband(path+f)
-        # pb = Passband.load(path+f)
-        # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+    global _initialized
+
+    if not _initialized or refresh:
+
+        path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
+        for f in os.listdir(path):
+            init_passband(path+f)
+            # pb = Passband.load(path+f)
+            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+
+        _initialized = True
 
 def install_passband(fname):
     """
@@ -802,6 +811,12 @@ def install_passband(fname):
     pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
     shutil.copy(fname, pb_dir)
     init_passband(os.path.join(pb_dir, fname))
+
+def uninstall_all_passbands():
+    path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
+    for f in os.listdir(path):
+        logger.warning("deleting file: {}".format(path+f))
+        os.remove(path+f)
 
 
 def download_passband(passband):
@@ -819,13 +834,29 @@ def download_passband(passband):
     urllib.urlretrieve(url, passband_fname_local)
     init_passband(passband_fname_local)
 
-def list_online_passbands():
+
+def list_passbands(refresh=False):
+    return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
+
+def list_installed_passbands(refresh=False):
+    if refresh:
+        init_passbands(True)
+    else:
+        return _pbtable.keys()
+
+def list_online_passbands(refresh=False):
     """
     """
-    url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}/list_online_passbands'.format(__version__)
-    resp = urllib2.urlopen(url)
-    lst = json.loads(resp.read())
-    return lst
+    global _online_passbands
+    if _online_passbands is None or refresh:
+
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}/list_online_passbands'.format(__version__)
+        resp = urllib2.urlopen(url)
+        lst = json.loads(resp.read())
+        _online_passbands = lst
+        return lst
+
+    return _online_passbands
 
 def get_passband(passband):
 
