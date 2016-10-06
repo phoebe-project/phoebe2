@@ -841,8 +841,8 @@ def list_passbands(refresh=False):
 def list_installed_passbands(refresh=False):
     if refresh:
         init_passbands(True)
-    else:
-        return _pbtable.keys()
+
+    return _pbtable.keys()
 
 def list_online_passbands(refresh=False):
     """
@@ -854,7 +854,6 @@ def list_online_passbands(refresh=False):
         resp = urllib2.urlopen(url)
         lst = json.loads(resp.read())
         _online_passbands = lst
-        return lst
 
     return _online_passbands
 
