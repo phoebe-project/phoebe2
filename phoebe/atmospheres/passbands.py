@@ -858,11 +858,10 @@ def list_online_passbands(refresh=False):
 def get_passband(passband):
 
     if passband not in _pbtable.keys():
-        online_passbands = list_online_passbands()
-        if passband in online_passbands:
+        if passband in list_online_passbands:
             download_passband(passband)
-
-        raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, _pbtable.keys()), online_passbands)
+        else:
+            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands, list_online_passbands))
 
     if _pbtable[passband]['pb'] is None:
         logger.info("loading {} passband".format(passband))
