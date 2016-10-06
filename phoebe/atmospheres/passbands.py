@@ -14,7 +14,6 @@ import marshal
 import types
 from phoebe.atmospheres import atmcof
 from phoebe.algorithms import interp
-from phoebe import __version__
 import os
 import glob
 import shutil
@@ -829,7 +828,7 @@ def download_passband(passband):
     passband_fname = _online_passbands[passband]
     pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
     passband_fname_local = os.path.join(pb_dir, passband_fname)
-    url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}/{}'.format(__version__, passband_fname)
+    url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     urllib.urlretrieve(url, passband_fname_local)
     init_passband(passband_fname_local)
@@ -850,7 +849,7 @@ def list_online_passbands(refresh=False):
     global _online_passbands
     if _online_passbands is None or refresh:
 
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}/list_online_passbands'.format(__version__)
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
         resp = urllib2.urlopen(url)
         _online_passbands = json.loads(resp.read())
 
