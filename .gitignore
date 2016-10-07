@@ -7,5 +7,11 @@
 *.profile
 *.log
 *.png
+/docs/_build
+/docs/api
+/docs/examples/*.rst
+/docs/examples/*.py
+/docs/tutorials/*.rst
+/docs/tutorials/*.py
 /docs/tutorials/*.phoebe
 /docs/tutorials/*.bundle

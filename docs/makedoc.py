@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     cwd = os.getcwd()
 
-    if 'skiptests' not in sys.argv:
+    if 'runtests' in sys.argv:
         print "TESTING TUTORIALS"
         sys.path.append(os.path.join(cwd, '../tests'))
         import ipynbtest
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     print "BUILDING API"
     os.chdir(cwd)
-    os.system('sphinx-apidoc -f -o api/ ../phoebe2/')
+    os.system('sphinx-apidoc -f -o ./api/ ../phoebe/')
 
     print "BUILDING HTML"
     os.system('make html')
