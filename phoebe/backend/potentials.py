@@ -169,7 +169,7 @@ def project_onto_potential(r, pot_name, *args):
         rmag = rmag0 - pot(rmag0*dc, *args)/dpdr(rmag0*dc, *args[:-1])
         n_iter += 1
     if n_iter == 100:
-        print('warning: projection did not converge')
+        logger.warning('projection did not converge')
 
     r = rmag*dc
 
@@ -278,7 +278,7 @@ def discretize_wd_style(N, q, F, d, Phi):
             dsigma_t_sq = s*(s-side1)*(s-side2)*(s-side3)
             dsigma_t = sqrt(dsigma_t_sq) if dsigma_t_sq > 0 else 0.0
             ############################################################
-            
+
             if DEBUG:
                 fc = 'orange'
 
@@ -334,7 +334,7 @@ def discretize_wd_style(N, q, F, d, Phi):
     # Assemble a mesh table:
     table = np.array(Ts)
     return table
-    
+
 def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
 
     Ts = []
@@ -347,10 +347,10 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
     potential = 'BinaryRoche'
     q_1, Phi_1 = q, Phi
     q_2, Phi_2 = 1./q, Phi/q + 0.5*(q-1)/q
-    
+
     xminz1, xminy1, y1, z1 = nekmin(Phi_1,q_1,0.5,0.05,0.05)
     xmin1 = (xminz1+xminy1)/2.
-    
+
     xmin2 = d - xmin1
     #xminz2, xminy2, y2, z2 = nekmin(Phi_2,q_2,0.5,0.05,0.05)
 
@@ -363,7 +363,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
         dpdx = globals()['d%sdx'%(pot_name)]
         dpdy = globals()['d%sdy'%(pot_name)]
         dpdz = globals()['d%sdz'%(pot_name)]
-        
+
         # Rectangle centers:
         theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
         phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
@@ -416,7 +416,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
         dpdx = globals()['d%sdx'%(pot_name)]
         dpdy = globals()['d%sdy'%(pot_name)]
         dpdz = globals()['d%sdz'%(pot_name)]
-        
+
         # Rectangle centers:
         theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+2)])
         phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
@@ -431,7 +431,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
                 # print "projecting center"
                 rc = np.array((r0*sin(theta[t])*cos(phi[t][i]), r0*sin(theta[t])*sin(phi[t][i]), r0*cos(theta[t])))
                 vc = project_onto_potential(rc, potential, d, q, F, Phi).r
-                
+
                 if ((vc[0] < 0. and vc[0] > -1.) or abs(vc[0]) <= xmin) and abs(vc[1])>=1e-16:
 
                     # Next we need to find the tangential plane, which we'll get by finding the normal,
@@ -457,7 +457,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
                     r2 = np.dot(vc, nc) / np.dot(l2, nc) * l2
                     r3 = np.dot(vc, nc) / np.dot(l3, nc) * l3
                     r4 = np.dot(vc, nc) / np.dot(l4, nc) * l4
-                    
+
                     # This sorts out the vertices, now we need to fudge the surface
                     # area. WD does not take curvature of the equipotential at vc
                     # into account, so the surface area computed from these vertex-
@@ -484,7 +484,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
                     ############################################################
 
                     #if abs(r1[0]) <= xmin and abs(r2[0]) <= xmin and abs(r3[0]) <= xmin and abs(r4[0]) <= xmin:
- 
+
                     # check whether the trapezoids cross the neck and if so put them back into their place
                     # do the same for end traezoids also
 
@@ -502,7 +502,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
                             #vc,nc,r1,r2,r3,r4,dsigma,dsigma_t,phi_half,dphi_new=wd_recompute_neck(r0,xmin,y1,z1,r1,r2,r3,r4,theta[t],dtheta,potential,d,q,F,Phi)
                             disgma = wd_recompute_neck(r0,xmin,y1,z1,r1,r2,r3,r4,theta[t],dtheta,potential,d,q,F,Phi)
                             #phi[t][i],dphi=phi_half,dphi_new
-   
+
                         # If all of the vertices are on one side of the minimum, keep trapezoids as they are
 
                         # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
@@ -533,7 +533,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
                     n2 = np.array((-dpdx(v2, d, q, F), -dpdy(v2, d, q, F), -dpdz(v2, d, q, F)))
                     n3 = np.array((-dpdx(v3, d, q, F), -dpdy(v3, d, q, F), -dpdz(v3, d, q, F)))
                     n4 = np.array((-dpdx(v4, d, q, F), -dpdy(v4, d, q, F), -dpdz(v4, d, q, F)))
-                    
+
                     ############################################################
 
                     # Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2])))
@@ -567,7 +567,7 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
         for T in Ts[Tstart[-2]:Tstart[-1]]:
             Ts.append(np.array((T[0],  T[1], -T[2], T[3], T[4],  T[5], -T[6], T[7],  T[8], -T[9], T[10],  T[11], -T[12], T[13],  T[14], -T[15], np.pi-T[16], T[17], T[18], T[19],  T[20], -T[21], T[22],  T[23], -T[24], T[25],  T[26], -T[27])))
         Tstart.pop(-1)
-                    
+
                     # if obj == 0:
                     #     Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r3[0], r3[1], r3[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))
                     #     Ts.append(np.array((vc[0], vc[1], vc[2], dsigma/2, r3[0], r3[1], r3[2], r4[0], r4[1], r4[2], r1[0], r1[1], r1[2], nc[0], nc[1], nc[2], theta[t], phi[t][0], dsigma_t)))

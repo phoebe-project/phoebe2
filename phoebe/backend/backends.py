@@ -1079,7 +1079,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    quit()
     if protomesh:
         time = [perpass]
-        print 'TIME', time
+        # print 'TIME', time
         phb1.setpar('phoebe_lcno', 1)
         flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)
         fill_mesh(mesh, 'protomesh')
