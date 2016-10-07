@@ -16,6 +16,9 @@ from phoebe.atmospheres import atmcof
 from phoebe.algorithms import interp
 import os
 import glob
+import shutil
+import urllib, urllib2
+import json
 
 import logging
 logger = logging.getLogger("PASSBANDS")
@@ -25,6 +28,9 @@ logger.addHandler(logging.NullHandler())
 # of the functions in this module; it might be nice to make it read-only
 # at some point.
 _pbtable = {}
+
+_initialized = False
+_online_passbands = None
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
@@ -775,23 +781,108 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-def init_passbands():
+
+def init_passband(fullpath):
+    """
+    """
+    logger.info("initializing passband at {}".format(fullpath))
+    pb = Passband.load(fullpath)
+    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.content, 'pb': None}
+
+def init_passbands(refresh=False):
     """
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
     passband names qualified as 'pbset:pbname' and corresponding files
     and atmosphere content within.
     """
+    global _initialized
 
+    if not _initialized or refresh:
+
+        path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
+        for f in os.listdir(path):
+            if f=='README':
+                continue
+            init_passband(path+f)
+            # pb = Passband.load(path+f)
+            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+
+        _initialized = True
+
+def install_passband(fname):
+    """
+    Install a passband from a local file.  This simply copies the file into the
+    install path - but beware that clearing the installation will clear the
+    passband as well
+    """
+    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
+    shutil.copy(fname, pb_dir)
+    init_passband(os.path.join(pb_dir, fname))
+
+def uninstall_all_passbands():
     path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
     for f in os.listdir(path):
-        pb = Passband.load(path+f)
-        _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+        logger.warning("deleting file: {}".format(path+f))
+        os.remove(path+f)
+
+
+def download_passband(passband):
+    """
+    Download and install a given passband from the repository.
+    """
+    if passband not in list_online_passbands():
+        raise ValueError("passband '{}' not available".format(passband))
+
+    passband_fname = _online_passbands[passband]
+    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
+    passband_fname_local = os.path.join(pb_dir, passband_fname)
+    url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
+    logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
+    try:
+        urllib.urlretrieve(url, passband_fname_local)
+    except IOError:
+        raise IOError("unable to download {} passband - check connection".format(passband))
+    else:
+        init_passband(passband_fname_local)
+
+
+def list_passbands(refresh=False):
+    return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
+
+def list_installed_passbands(refresh=False):
+    if refresh:
+        init_passbands(True)
+
+    return _pbtable.keys()
+
+def list_online_passbands(refresh=False):
+    """
+    """
+    global _online_passbands
+    if _online_passbands is None or refresh:
+
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
+        try:
+            resp = urllib2.urlopen(url)
+        except urllib2.URLError:
+            logger.warning("connection to online passbands lost")
+            if _online_passbands is not None:
+                return _online_passbands.keys()
+            else:
+                return []
+        else:
+            _online_passbands = json.loads(resp.read())
+
+    return _online_passbands.keys()
 
 def get_passband(passband):
 
     if passband not in _pbtable.keys():
-        raise ValueError("passband: {} not found. Try one of: {}".format(passband, _pbtable.keys()))
+        if passband in list_online_passbands():
+            download_passband(passband)
+        else:
+            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands, list_online_passbands))
 
     if _pbtable[passband]['pb'] is None:
         logger.info("loading {} passband".format(passband))
