@@ -115,7 +115,7 @@ static PyObject *interp(PyObject *self, PyObject *args)
 
 	powers = (int*)malloc((numAxes+1)*sizeof(*powers));
 	
-  powers[0] = 1;
+    powers[0] = 1;
 	for (i = 1; i < numAxes+1; i++)
 		powers[i] = powers[i-1]*2;
 
@@ -193,8 +193,10 @@ static PyObject *interp(PyObject *self, PyObject *args)
 				idx += (axidx[j]-1+(k/(int)pow(2, j))%2)*prod[j];
 				//~ printf("% 1.1f ", ax[j][axidx[j]-1+(k/(int)pow(2, j))%2]);
 			}
-			for (l = 0; l < numVals; l++)
+			for (l = 0; l < numVals; l++) {
 				fvv[k][l] = grid[idx*numVals+l];
+                //~ printf("fvv[%d][%d] = %f\n", k, l, fvv[k][l]);
+            }
 		}
 
 		//~ for (j = 0; j < numAxes; j++)
