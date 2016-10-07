@@ -2847,12 +2847,12 @@ class Envelope(Body):
             normal_intensities = abs_normal_intensities * self.get_pblum_scale(dataset,component=self.label_primary)
             intensities = abs_intensities * self.get_pblum_scale(dataset,component=self.label_primary)
 
-            print 'primary pblum scale', self.get_pblum_scale(dataset,component=self.label_primary)
+            #print 'primary pblum scale', self.get_pblum_scale(dataset,component=self.label_primary)
 
             normal_intensities[self.mesh.env_comp==1] = abs_normal_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
             intensities[self.mesh.env_comp==1] = abs_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
 
-            print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
+            #print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
 
         elif lc_method=='analytical':
             raise NotImplementedError("analytical fluxes not yet ported to beta")
