@@ -649,12 +649,12 @@ class Passband:
         return log10_Inorm
 
     def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
-        if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, abun),))
-            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
-        else:
-            req = np.vstack((Teff, logg, abun)).T
-            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
+        #~ if not hasattr(Teff, '__iter__'):
+            #~ req = np.array(((Teff, logg, abun),))
+            #~ log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
+        #~ else:
+        req = np.vstack((Teff, logg, abun)).T
+        log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
 
         return log10_Inorm
 
@@ -669,14 +669,21 @@ class Passband:
         return log10_Imu
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+        # convert scalars to vectors if necessary:
+        if not hasattr(Teff, '__iter__'):
+            Teff = np.array((Teff,))
+        if not hasattr(logg, '__iter__'):
+            logg = np.array((logg,))
+        if not hasattr(abun, '__iter__'):
+            abun = np.array((abun,))
         if atm == 'blackbody':
             retval = 10**self._log10_Inorm_bb(Teff)
         elif atm == 'extern_planckint':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            retval = 0.1*10**self._log10_Inorm_extern_planckint(Teff)
+            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
         elif atm == 'extern_atmx':
-            # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            retval = 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, abun)
+            # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
+            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
         elif atm == 'ck2004':
             retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
         else:
