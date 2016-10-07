@@ -832,8 +832,12 @@ def download_passband(passband):
     passband_fname_local = os.path.join(pb_dir, passband_fname)
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
-    urllib.urlretrieve(url, passband_fname_local)
-    init_passband(passband_fname_local)
+    try:
+        urllib.urlretrieve(url, passband_fname_local)
+    except IOError:
+        raise IOError("unable to download {} passband - check connection".format(passband))
+    else:
+        init_passband(passband_fname_local)
 
 
 def list_passbands(refresh=False):
@@ -852,8 +856,16 @@ def list_online_passbands(refresh=False):
     if _online_passbands is None or refresh:
 
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
-        resp = urllib2.urlopen(url)
-        _online_passbands = json.loads(resp.read())
+        try:
+            resp = urllib2.urlopen(url)
+        except urllib2.URLError:
+            logger.warning("connection to online passbands lost")
+            if _online_passbands is not None:
+                return _online_passbands.keys()
+            else:
+                return []
+        else:
+            _online_passbands = json.loads(resp.read())
 
     return _online_passbands.keys()
 
