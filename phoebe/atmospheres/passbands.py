@@ -860,7 +860,7 @@ def list_online_passbands(refresh=False):
 def get_passband(passband):
 
     if passband not in _pbtable.keys():
-        if passband in list_online_passbands:
+        if passband in list_online_passbands():
             download_passband(passband)
         else:
             raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands, list_online_passbands))
