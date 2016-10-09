@@ -11,7 +11,8 @@ addons:
     - g++-5
     - gcc-5
     - clang-3.6
-
+    - libstdc++-5-dev
+    
 sudo: required
 dist: trusty
 
