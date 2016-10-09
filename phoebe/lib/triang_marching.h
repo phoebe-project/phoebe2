@@ -1035,7 +1035,7 @@ struct Tmarching: public Tbody {
   
   */
   
-  Tbad_pair check_bad_pairs(Tfront_polygon  &P, const T &delta2){
+  Tbad_pair check_bad_pairs(Tfront_polygon &P, const T &delta2){
     
     int s;
     
@@ -1043,20 +1043,22 @@ struct Tmarching: public Tbody {
     
     auto 
       it_begin = P.begin(),
-      it_end = P.end(),
-      it_last = it_end - 1,
+      it_last = P.end() - 1,
       
       it0  = it_begin, 
-      it0_next = it + 1, 
+      it0_next = it0 + 1, 
       it0_prev = it_last, 
       it0_last = it_last - 2;
       
     while (1) {
       
+      // checking only those it1 - it0 > 1
       auto 
-        it1 = it0 + 2, 
-        it1_next = (it1 != it_last ? it1 + 1 : it_begin),
-        it1_prev = it0 + 1,
+        it1 = (it0_next == it_last ? it0_next + 1 : it_begin), 
+        it1_next = (it1 == it_last ? it_begin : it1 + 1),
+        it1_prev = (it1 == it_begin ? it_last : it1 - 1),
+       
+        // avoiding that the last element of it1 is the neighbour of it0
         it1_last = (it0 == it_begin ? it_last - 1 : it_last);
       
       while (1) {
@@ -1114,34 +1116,36 @@ struct Tmarching: public Tbody {
     Collect all bad points between polygon front P and part 
     of the polygon
   */
-  
-  Tbad_pair check_bad_points(
+  //#define DEBUG
+  Tbad_pair check_bad_pairs(
     Tfront_polygon &P, 
-    Tfront_polygon::iterator & start, 
-    Tfront_polygon::iterator & end,
+    typename Tfront_polygon::iterator & start, 
+    typename Tfront_polygon::iterator & end,
     const T &delta2 ){
     
     int s;
     
     T a[3];
     
+    // checking all combinations of (it0, it1)
     auto 
       it_begin = P.begin(),
-      it_end = P.end(),
-      it_last = it_end - 1,
+      it_last = P.end() - 1,
       
       it0 = start, 
-      it0_next = (it0 == it_last  ? it_begin : it0 + 1) 
+      it0_next = (it0 == it_last  ? it_begin : it0 + 1), 
       it0_prev = (it0 == it_begin ? it_last  : it0 - 1),
-      it0_last = end - 1;
+      it0_last = end - 1,
+      
+      // avoid running twice over the [start,end)
+      it1_last = (it0_prev == it_begin ? it_last : it0_prev - 1);
       
     while (1) {
-    
+      
       auto   
         it1 = (it0_next == it_last ? it_begin : it0_next + 1),
         it1_next = (it1 == it_last  ? it_begin : it1 + 1),
-        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),
-        it1_last = (it0_prev == it_begin ? it_last : it0 - 1);
+        it1_prev = (it1 == it_begin ? it_last  : it1 - 1);
       
       while (1) {
          
@@ -1158,18 +1162,25 @@ struct Tmarching: public Tbody {
             s = split_angle(*it0_prev, *it0, *it0_next, a);
             
             if (s != 0 && s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
-        
+              
+              int ind[2] = {
+                static_cast<int>(it0 - it_begin), 
+                static_cast<int>(it1 - it_begin)
+              };
+              
               // create new last front
               #if defined(DEBUG)
               std::cerr 
                 << "P.size=" << P.size() 
-                << " i=" << int(it0 - it_begin)
-                << " j=" << int(it1 - it_begin)
+                << " i=" << ind[0]
+                << " j=" << ind[1]
                 << " len=" << int(it1 + 1 - it0) 
                 << std::endl;
               #endif
               
-              return Tbad_pair(it0 - it_begin, it1 - it_begin);
+              if (ind[0] < ind[1]) return Tbad_pair(ind[0], ind[1]); 
+                         
+              return Tbad_pair(ind[1], ind[0]); 
             }
           }
         }
@@ -1186,13 +1197,19 @@ struct Tmarching: public Tbody {
       }
       
       if (it0 == it0_last) break;
+      
       it0_prev = it0;
-      it0 = it0_next++;
+      it0 = it0_next;
+      
+      if (it0_next == it_last) 
+        it0_next = it_begin; 
+      else
+        ++it0_next;
     }
 
     return Tbad_pair(0, 0);
   }
-  
+  //#undef DEBUG
 
   /*
     Triangulization using marching method of genus 0 closed and surfaces.
@@ -1306,7 +1323,7 @@ struct Tmarching: public Tbody {
     
       // current front polygon
       Tfront_polygon & P  = lP.back();
-      Tbad_pair &B = lB.back();
+      Tbad_pair & B = lB.back();
       
       do {
         
@@ -1343,13 +1360,13 @@ struct Tmarching: public Tbody {
                 
             it0->omega_changed = true;
             it1->omega_changed = true;
-  
+            
             Tfront_polygon P1(it0, it1 + 1);
             P.erase(it0 + 1, it1); 
-            B = check_bad_points(P, delta2);
+            B = check_bad_pairs(P, delta2);
          
             lP.push_back(P1);    
-            lB.push_back(check_bad_points(P1, delta2));
+            lB.push_back(check_bad_pairs(P1, delta2));
             
             break;
           }
@@ -1535,12 +1552,13 @@ struct Tmarching: public Tbody {
             
             // add vertices to front and replace minimal
             *(it_min++) = *Pi;
-            auto it = P.insert(it_min, Pi + 1, Pi + nt - 1);
-          
+            auto it0 = P.insert(it_min, Pi + 1, Pi + nt - 1);
+             
             // check if there are any bad pairs 
-            --it; 
-            B = check_bad_points(P, it, it + nt - 1, delta2);
-
+            auto it1 = (--it0) + nt - 1;
+                   
+            B = check_bad_pairs(P, it0, it1, delta2);
+            
           } else {
             // add triangle
             Tr.emplace_back(it_prev->index, it_next->index, it_min->index);
