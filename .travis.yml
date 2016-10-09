@@ -1,4 +1,4 @@
-language: c++
+#language: c++
 
 addons:
   apt:
@@ -58,7 +58,7 @@ matrix:
 
         - os: linux
           compiler: g++-5
-          env:  CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=dev ASTROPY_VERSION=dev'
+          env: CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=dev ASTROPY_VERSION=dev'
 
         # Try with various versions of python with default numpy/astropy and compiler
         # - os: linux
