@@ -1552,10 +1552,12 @@ struct Tmarching: public Tbody {
             
             // add vertices to front and replace minimal
             *(it_min++) = *Pi;
-            auto it0 = P.insert(it_min, Pi + 1, Pi + nt - 1);
-             
-            // check if there are any bad pairs 
-            auto it1 = (--it0) + nt - 1;
+            
+            typename Tfront_polygon::iterator 
+            //auto 
+              it0 = P.insert(it_min, Pi + 1, Pi + nt - 1),
+              // check if there are any bad pairs 
+              it1 = (--it0) + nt - 1;
                    
             B = check_bad_pairs(P, it0, it1, delta2);
             
