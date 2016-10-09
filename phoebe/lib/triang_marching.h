@@ -1553,9 +1553,11 @@ struct Tmarching: public Tbody {
             // add vertices to front and replace minimal
             *(it_min++) = *Pi;
             
+            Tfront_polygon ft(Pi + 1, Pi + nt - 1);
+            
             typename Tfront_polygon::iterator 
             //auto 
-              it0 = P.insert(it_min, Pi + 1, Pi + nt - 1),
+              it0 = P.insert(it_min, ft.begin(), ft.end()),
               // check if there are any bad pairs 
               it1 = (--it0) + nt - 1;
                    
