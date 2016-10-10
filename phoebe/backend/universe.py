@@ -290,7 +290,7 @@ class System(object):
                                                                                        frac_refls_per_body,
                                                                                        intens_intrins_per_body,
                                                                                        ld_func_and_coeffs,
-                                                                                       self.reflection_method.title()
+                                                                                       bytes(self.reflection_method.title())
                                                                                        )
 
 
@@ -301,7 +301,7 @@ class System(object):
             #                                                                            frac_refls_per_body,
             #                                                                            intens_intrins_per_body,
             #                                                                            ld_func_and_coeffs,
-            #                                                                            self.reflection_method.title()
+            #                                                                            bytes(self.reflection_method.title())
             #                                                                            )
 
 
@@ -334,7 +334,7 @@ class System(object):
                                                                                     intens_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds,
-                                                                                    self.reflection_method.title()
+                                                                                    bytes(self.reflection_method.title())
                                                                                     )
 
 
@@ -346,7 +346,7 @@ class System(object):
                                                                                     # intens_intrins_flat,
                                                                                     # ld_func_and_coeffs,
                                                                                     # ld_inds,
-                                                                                    # self.reflection_method.title()
+                                                                                    # bytes(self.reflection_method.title())
                                                                                     # )
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
