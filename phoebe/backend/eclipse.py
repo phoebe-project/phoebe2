@@ -167,7 +167,7 @@ def native(meshes, xs, ys, zs, expose_horizon=False, horizon_method='boolean'):
                                      tvisibilities=True,
                                      taweights=True,
                                      method=bytes(horizon_method),
-                                     horizon=bytes(expose_horizon))
+                                     horizon=expose_horizon)
 
     visibilities = meshes.unpack_column_flat(info['tvisibilities'], computed_type='triangles')
     weights = meshes.unpack_column_flat(info['taweights'], computed_type='triangles')
