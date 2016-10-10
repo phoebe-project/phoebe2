@@ -1,7 +1,7 @@
 from numpy.distutils.core import setup, Extension
 
 import os
-os.environ["CXX"] = "g++"
+#os.environ["CXX"] = "g++"
 
 # Set to true if you want to link against electric fence:
 CDEBUG = False

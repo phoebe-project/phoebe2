@@ -1579,6 +1579,7 @@ class Star(Body):
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
                                                          choice=0,
+                                                         full=True,
                                                          max_triangles=maxpoints,
                                                          vertices=True,
                                                          triangles=True,
@@ -1683,6 +1684,7 @@ class Star(Body):
 
                 new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
                                                delta=delta,
+                                               full=True,
                                                max_triangles=maxpoints,
                                                vertices=True,
                                                triangles=True,
@@ -2322,6 +2324,7 @@ class Envelope(Body):
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
                                                          choice=2,
+                                                         full=True,
                                                          max_triangles=maxpoints,
                                                          vertices=True,
                                                          triangles=True,
