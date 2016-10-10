@@ -12,8 +12,9 @@ from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
 import marshal
 import types
-from phoebe.atmospheres import atmcof
-from phoebe.algorithms import interp
+#from phoebe.atmospheres import atmcof
+#from phoebe.algorithms import interp
+import libphoebe
 import os
 import glob
 import shutil
@@ -205,9 +206,8 @@ class Passband:
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
-            if not atmcof.meta.initialized:
-                atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-                atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+            atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+            self.wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
             self.extern_wd_idx = struct['extern_wd_idx']
 
         if 'ck2004' in self.content:
@@ -543,10 +543,10 @@ class Passband:
 
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun),))
-            ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
+            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
+            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
 
         if ld_func == 'linear':
             return ld_coeffs[0:1]
@@ -582,8 +582,8 @@ class Passband:
         """
 
         # Initialize the external atmcof module if necessary:
-        if not atmcof.meta.initialized:
-            atmcof.init(plfile, atmfile)
+        # PERHAPS WD_DATA SHOULD BE GLOBAL??
+        self.wd_data = libphoebe.wd_readdata(plfile, atmfile)
 
         # That is all that was necessary for *_extern_planckint() and
         # *_extern_atmx() functions. However, we also want to support
@@ -599,10 +599,16 @@ class Passband:
         D2E = lambda s: float(s.replace('D', 'E'))
         atmtab = np.loadtxt(atmfile, converters={2: D2E, 3: D2E, 4: D2E, 5: D2E, 6: D2E, 7: D2E, 8: D2E, 9: D2E, 10: D2E, 11: D2E})
 
+        # !!!!!
+        # THE ABOVE IS NOT NEEDED AS self.wd_data HAS ALL THE DATA
+        # SOMEBODY THAT UNDERSTANDS WHAT IS DONE HERE PLEASE CORRECT USE IT
+        # !!!!!
+        
         # Break up the table along axes and extract a single passband data:
         atmtab = np.reshape(atmtab, (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
-
+        
+        
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
@@ -618,15 +624,7 @@ class Passband:
         Returns: log10(Inorm)
         """
 
-        # atmcof.* accepts only floats, no arrays, so we need to check
-        # and wrap if arrays are passed:
-        if not hasattr(Teff, '__iter__'):
-            log10_Inorm, _ = atmcof.planckint(Teff, self.extern_wd_idx)
-        else:
-            log10_Inorm = np.empty_like(Teff)
-            for i, teff in enumerate(Teff):
-                log10_Inorm[i], _ = atmcof.planckint(teff, self.extern_wd_idx)
-                #~ print i, teff, log10_Inorm[i]
+        log10_Inorm = libphoebe.planckint(Teff, self.extern_wd_idx, self.wd_data["planck_table"])
 
         return log10_Inorm
 
@@ -643,34 +641,27 @@ class Passband:
         Returns: log10(Inorm)
         """
 
-        # atmcof.* accepts only floats, no arrays, so we need to check
-        # and wrap if arrays are passed:
-        if not hasattr(Teff, '__iter__'):
-            log10_Inorm, Inorm = atmcof.atmx(Teff, logg, abun, self.extern_wd_idx)
-        else:
-            log10_Inorm = np.zeros(len(Teff))
-            for i in range(len(Teff)):
-                log10_Inorm[i], _ = atmcof.atmx(Teff[i], logg[i], abun[i], self.extern_wd_idx)
-
+        log10_Inorm = libphoebe.atmx(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
+        
         return log10_Inorm
 
     def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
         #~ if not hasattr(Teff, '__iter__'):
             #~ req = np.array(((Teff, logg, abun),))
-            #~ log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
+            #~ log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
         #~ else:
         req = np.vstack((Teff, logg, abun)).T
-        log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
+        log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
 
         return log10_Inorm
 
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
+            log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
+            log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
 
         return log10_Imu
 
@@ -727,10 +718,10 @@ class Passband:
     def _ldint_ck2004(self, Teff, logg, abun, photon_weighted):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun),))
-            ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid)[0][0]
+            ldint = libphoebe.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
+            ldint = libphoebe.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
 
         return ldint / np.pi
 
@@ -763,10 +754,10 @@ class Passband:
         grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            bindex = interp.interp(req, self._ck2004_intensity_axes, grid)[0][0]
+            bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            bindex = interp.interp(req, self._ck2004_intensity_axes, grid).T[0]
+            bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid).T[0]
 
         return bindex
 
@@ -902,8 +893,8 @@ if __name__ == '__main__':
 
     # Constructing a passband:
 
-    atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-    atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+    #atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+    #wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
 
     jV = Passband('tables/ptf/JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, calibrated=True, wlunits=u.AA, reference='ADPS', version=1.0, comments='')
     jV.compute_blackbody_response()
@@ -926,7 +917,7 @@ if __name__ == '__main__':
     #~ Inorm_verts1 = grid[(axes[0] >= 4999) & (axes[0] < 10001), axes[1] == 4.5, axes[2] == 0.0, 0]
     #~ Inorm_verts2 = grid[(axes[0] >= 4999) & (axes[0] < 10001), axes[1] == 4.0, axes[2] == 0.0, 0]
 
-    #~ res = interp.interp(req, axes, grid)
+    #~ res = libphoebe.interp(req, axes, grid)
     #~ print res.shape
 
     #~ import matplotlib.pyplot as plt
