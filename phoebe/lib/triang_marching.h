@@ -1135,17 +1135,22 @@ struct Tmarching: public Tbody {
       it0 = start, 
       it0_next = (it0 == it_last  ? it_begin : it0 + 1), 
       it0_prev = (it0 == it_begin ? it_last  : it0 - 1),
-      it0_last = end - 1,
-      
-      // avoid running twice over the [start,end)
-      it1_last = (it0_prev == it_begin ? it_last : it0_prev - 1);
+      it0_prev_start = it0_prev, 
+      it0_last = end - 1;
       
     while (1) {
       
       auto   
         it1 = (it0_next == it_last ? it_begin : it0_next + 1),
         it1_next = (it1 == it_last  ? it_begin : it1 + 1),
-        it1_prev = (it1 == it_begin ? it_last  : it1 - 1);
+        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),
+      
+        // avoid running twice over the [start,end)
+        it1_last = (
+          it0 == start ?
+          (it0_prev_start == it_begin ? it_last : it0_prev_start - 1): 
+          it0_prev_start
+        );
       
       while (1) {
          
