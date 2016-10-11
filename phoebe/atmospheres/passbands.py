@@ -624,7 +624,7 @@ class Passband:
         Returns: log10(Inorm)
         """
 
-        log10_Inorm = libphoebe.planckint(Teff, self.extern_wd_idx, self.wd_data["planck_table"])
+        log10_Inorm = libphoebe.wd_planckint(Teff, self.extern_wd_idx, self.wd_data["planck_table"])
 
         return log10_Inorm
 
@@ -641,7 +641,7 @@ class Passband:
         Returns: log10(Inorm)
         """
 
-        log10_Inorm = libphoebe.atmx(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
+        log10_Inorm = libphoebe.wd_atmint(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
         
         return log10_Inorm
 
