@@ -5685,21 +5685,36 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
       &PyArray_Type, &o_grid)) {
       
     std::cerr 
-      << "interp:: argument type mismatch: req and grid need to be numpy "
+      << "interp::argument type mismatch: req and grid need to be numpy "
       << "arrays and axes a tuple of numpy arrays.\n";
     
     return NULL;
   }
   
+   PyArrayObject 
+    *o_req1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_req, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY),
+    *o_grid1 = (PyArrayObject *)PyArray_FROM_OTF((PyObject *)o_grid, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
+  
+  if (!o_req1 ||!o_grid1) {
+    
+    if (!o_req1) std::cerr << "interp::req failed transformation to IN_ARRAY\n";
+    if (!o_grid1) std::cerr << "interp::grid failed transformation to IN_ARRAY\n";
+
+    Py_DECREF(o_req1);
+    Py_DECREF(o_grid1);
+    return NULL;
+  }
+
   int Na = PyTuple_Size(o_axes),      // number of axes
-      Np = PyArray_DIM(o_req, 0),     // number of points
-      Nv = PyArray_DIM(o_grid, Na),   // number of values interpolated
+      Np = PyArray_DIM(o_req1, 0),     // number of points
+      Nv = PyArray_DIM(o_grid1, Na),   // number of values interpolated
       Nr = Np*Nv;                     // number of returned values
   
+
   double
     *R = new double [Nr],                 // returned values
-    *Q = (double *) PyArray_DATA(o_req),  // requested values
-    *G = (double *) PyArray_DATA(o_grid); // grid of values
+    *Q = (double *) PyArray_DATA(o_req1),  // requested values
+    *G = (double *) PyArray_DATA(o_grid1); // grid of values
     
 
   // Unpack the axes
@@ -5724,7 +5739,10 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
   for (double *q = Q, *r = R, *re = r + Nr; r != re; q += Na, r += Nv) 
     lin_iterp.get(q, r);
   
-  
+  // clean copies of objects
+  Py_DECREF(o_req1);
+  Py_DECREF(o_grid1);
+    
   // Clean data about axes
   delete [] L;  
   delete [] A;

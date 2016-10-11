@@ -680,7 +680,7 @@ class Passband:
             # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
         elif atm == 'ck2004':
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
