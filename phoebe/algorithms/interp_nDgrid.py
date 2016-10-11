@@ -3,10 +3,7 @@ Non-standard interpolation methods.
 """
 import time
 import itertools
-try:
-    import interp
-except ImportError:
-    pass
+import libphoebe   
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage import _nd_image, _ni_support
@@ -120,7 +117,7 @@ def cinterpolate(p, axis_values, pixelgrid):
     @return: Ninterpolate X Ndata array
     @rtype: array
     """
-    res = interp.interp(p, axis_values, pixelgrid)
+    res = libphoebe.interp(p, axis_values, pixelgrid)
     return res
 
 

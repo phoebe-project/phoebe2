@@ -1,7 +1,7 @@
 from numpy.distutils.core import setup, Extension
 
-import os
-os.environ["CXX"] = "g++"
+#import os
+#os.environ["CXX"] = "g++"
 
 # Set to true if you want to link against electric fence:
 CDEBUG = False
@@ -26,12 +26,6 @@ ext_modules = [
 
     Extension('phoebe.algorithms.ceclipse',
               sources = ['phoebe/algorithms/ceclipse.cpp']),
-
-    Extension('phoebe.algorithms.interp',
-             sources = ['phoebe/algorithms/interp.cpp']),
-
-    Extension('phoebe.atmospheres.atmcof',
-              sources = ['./phoebe/atmospheres/atmcof.f']),
 ]
 
 setup (name = 'phoebe',

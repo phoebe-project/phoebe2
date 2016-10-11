@@ -12,8 +12,6 @@ from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
 import marshal
 import types
-#from phoebe.atmospheres import atmcof
-#from phoebe.algorithms import interp
 import libphoebe
 import os
 import glob
