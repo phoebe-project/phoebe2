@@ -6186,7 +6186,7 @@ static PyMethodDef Methods[] = {
     "Calculating the value of the limb darkening function."},
 
   { "ld_D0",
-    (PyCFunction)ld_D,
+    (PyCFunction)ld_D0,
     METH_VARARGS|METH_KEYWORDS, 
     "Calculating the integrated limb darkening function."},
         
