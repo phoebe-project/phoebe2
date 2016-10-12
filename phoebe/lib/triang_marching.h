@@ -46,6 +46,9 @@ struct Tmarching: public Tbody {
       b[3][3];   // b[0] = t1, b[1] = t2, b[2] = n
   };
   
+  typedef std::vector<Tvertex> Tfront_polygon;
+  typedef std::pair<int,int> Tbad_pair;
+
   bool precision;
  
   /*
@@ -379,8 +382,7 @@ struct Tmarching: public Tbody {
     // Create initial frontal polygon
     // Step 0:
     //
-    typedef std::vector<Tvertex> Tfront_polygon;
-    
+   
     Tfront_polygon P; // front polygon, working here as circular list
     
     T s, c, st, ct, sa[6], ca[6];
@@ -626,10 +628,11 @@ struct Tmarching: public Tbody {
     return (Tr.size() < max_triangles);
   }
   
-
+  
   /*
     Triangulization using marching method of genus 0 closed and surfaces
-    - adding additionals checks 
+    Has
+    -- additionals checks 
     -- support multifronts
   
     Input: 
@@ -1020,6 +1023,562 @@ struct Tmarching: public Tbody {
       } while (st_triang);
     
       
+    } while (lP.size() > 0 && st_triang);
+   
+    return st_triang;
+  }
+  
+  /*
+    Collect all bad points of the polygon front P
+    
+    P.size() > 3
+  
+  */
+  
+  Tbad_pair check_bad_pairs(Tfront_polygon &P, const T &delta2){
+    
+    int s;
+    
+    T a[3];
+    
+    auto 
+      it_begin = P.begin(),
+      it_last = P.end() - 1,
+      
+      it0  = it_begin, 
+      it0_next = it0 + 1, 
+      it0_prev = it_last, 
+      it0_last = it_last - 2;
+      
+    while (1) {
+      
+      // checking only those it1 - it0 > 1
+      auto 
+        it1 = (it0_next == it_last ? it0_next + 1 : it_begin), 
+        it1_next = (it1 == it_last ? it_begin : it1 + 1),
+        it1_prev = (it1 == it_begin ? it_last : it1 - 1),
+       
+        // avoiding that the last element of it1 is the neighbour of it0
+        it1_last = (it0 == it_begin ? it_last - 1 : it_last);
+      
+      while (1) {
+        
+        // are on the side the object
+        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
+        
+          utils::sub3D(it1->r, it0->r, a);
+        
+          // if near enough and looking inside from it and from it1
+          if (utils::norm2(a) < delta2) {
+            
+            // check if same side of both edges and determine the side
+            // depending of it_prev -> it -> it_next circle
+            s = split_angle(*it0_prev, *it0, *it0_next, a);
+            
+            if (s != 0 && 
+                s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
+        
+              // create new last front
+              #if defined(DEBUG)
+              std::cerr 
+                << "P.size=" << P.size() 
+                << " i=" << int(it0 - it_begin)
+                << " j=" << int(it1 - it_begin)
+                << " len=" << int(it1 + 1 - it) 
+                << std::endl;
+              #endif
+              
+              return Tbad_pair(it0 - it_begin, it1 - it_begin);
+            }
+          }
+        }
+
+        if (it1 == it1_last) break;
+        it1_prev = it1;
+        it1 = it1_next;
+      
+        if (it1_next == it_last)
+          it1_next = it_begin;
+        else
+          ++it1_next;
+      }
+      
+      if (it0 == it0_last) break;
+      it0_prev = it0;
+      it0 = it0_next++;
+    }
+
+    return Tbad_pair(0, 0);
+  }
+  
+  
+  /*
+    Collect all bad points between polygon front P and part 
+    of the polygon
+  */
+  //#define DEBUG
+  Tbad_pair check_bad_pairs(
+    Tfront_polygon &P, 
+    typename Tfront_polygon::iterator & start, 
+    typename Tfront_polygon::iterator & end,
+    const T &delta2 ){
+    
+    int s;
+    
+    T a[3];
+    
+    // checking all combinations of (it0, it1)
+    auto 
+      it_begin = P.begin(),
+      it_last = P.end() - 1,
+      
+      it0 = start, 
+      it0_next = (it0 == it_last  ? it_begin : it0 + 1), 
+      it0_prev = (it0 == it_begin ? it_last  : it0 - 1),
+      it0_prev_start = it0_prev, 
+      it0_last = end - 1;
+      
+    while (1) {
+      
+      auto   
+        it1 = (it0_next == it_last ? it_begin : it0_next + 1),
+        it1_next = (it1 == it_last  ? it_begin : it1 + 1),
+        it1_prev = (it1 == it_begin ? it_last  : it1 - 1),
+      
+        // avoid running twice over the [start,end)
+        it1_last = (
+          it0 == start ?
+          (it0_prev_start == it_begin ? it_last : it0_prev_start - 1): 
+          it0_prev_start
+        );
+      
+      while (1) {
+         
+        // are on the side the object
+        if (utils::dot3D(it0->b[2], it1->b[2]) > 0) {
+        
+          utils::sub3D(it1->r, it0->r, a);
+        
+          // if near enough and looking inside from it and from it1
+          if (utils::norm2(a) < delta2) {
+            
+            // check if same side of both edges and determine the side
+            // depending of it_prev -> it -> it_next circle
+            s = split_angle(*it0_prev, *it0, *it0_next, a);
+            
+            if (s != 0 && s*split_angle(*it1_prev, *it1, *it1_next, a) < 0) {
+              
+              int ind[2] = {
+                static_cast<int>(it0 - it_begin), 
+                static_cast<int>(it1 - it_begin)
+              };
+              
+              // create new last front
+              #if defined(DEBUG)
+              std::cerr 
+                << "P.size=" << P.size() 
+                << " i=" << ind[0]
+                << " j=" << ind[1]
+                << " len=" << int(it1 + 1 - it0) 
+                << std::endl;
+              #endif
+              
+              if (ind[0] < ind[1]) return Tbad_pair(ind[0], ind[1]); 
+                         
+              return Tbad_pair(ind[1], ind[0]); 
+            }
+          }
+        }
+        
+        if (it1 == it1_last) break;
+                      
+        it1_prev = it1;
+        it1 = it1_next;
+      
+        if (it1_next == it_last) 
+          it1_next = it_begin; 
+        else
+          ++it1_next;
+      }
+      
+      if (it0 == it0_last) break;
+      
+      it0_prev = it0;
+      it0 = it0_next;
+      
+      if (it0_next == it_last) 
+        it0_next = it_begin; 
+      else
+        ++it0_next;
+    }
+
+    return Tbad_pair(0, 0);
+  }
+  //#undef DEBUG
+
+  /*
+    Triangulization using marching method of genus 0 closed and surfaces.
+    
+    Has: 
+      -- additionals checks 
+      -- supports multifronts
+      -- clever detection of bad pairs/points  
+    
+    Input: 
+      init_r[3] - initial position 
+      init_g[3] - initial gradient
+      delta - size of triangles edges projected to tangent space
+      max_triangles - maximal number of triangles used
+      init_phi - rotation of the initial hexagon
+    
+    Output:
+      V - vector of vertices
+      NatV - vector of normals at vertices (read N at V)
+      Tr - vector of triangles
+      GatV - norm of the gradient at vertices
+  */
+  
+  bool triangulize_full_clever(
+    T init_r[3],
+    T init_g[3],
+    const T & delta, 
+    const unsigned & max_triangles, 
+    std::vector <T3Dpoint<T>> & V,
+    std::vector <T3Dpoint<T>> & NatV,
+    std::vector <T3Dpoint<int>> & Tr,
+    std::vector<T> * GatV = 0,
+    const T &init_phi = 0
+    ) 
+  {
+    
+    // start with normal precision defined by T
+    precision = false;
+   
+    V.clear();
+    Tr.clear();
+    
+    const int max_iter = 100;
+ 
+    // list of front polygons: front is threated as circular list
+    std::vector<Tfront_polygon> lP(1); 
+    
+    // list of bad pairs
+    //   pair.first = pair.second means there is no bad pair
+    std::vector<Tbad_pair> lB;
+        
+    //
+    // Create initial frontal polygon lP[0] and initial bad point lB[0]
+    // Step 0:
+    //
+    
+    {
+      Tvertex v, vk;
+      
+      Tfront_polygon & P  = lP.back();
+      
+      lB.emplace_back(0,0);   // no bad pair detected 
+        
+      // construct the vector base
+      create_internal_vertex(init_r, init_g, v, init_phi);
+   
+      // add vertex to the set, index 0
+      V.emplace_back(v.r);                  // saving only r
+      if (GatV) GatV->emplace_back(v.norm); // saving g
+      NatV.emplace_back(v.b[2]);            // saving only normal
+    
+      T sa[6], ca[6], qk[3];
+      
+      utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
+       
+      for (int k = 0; k < 6; ++k){
+        
+        for (int i = 0; i < 3; ++i) 
+          qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
+          
+        if (!project_onto_potential(qk, vk, max_iter)){
+          std::cerr << "Warning: Projection did not converge\n";
+        }  
+        
+        // store points into initial front
+        vk.index = k + 1;  // = V.size();
+        vk.omega_changed = true;
+        P.push_back(vk);
+        
+        V.emplace_back(vk.r);                     // saving only r
+        if (GatV) GatV->emplace_back(vk.norm);    // saving norm
+        NatV.emplace_back(vk.b[2]);               // saving only normal
+      }
+    
+      //
+      // Creating initial hexagon -- triangle faces in Tr
+      //
+      for (int k = 0; k < 5; ++k) Tr.emplace_back(0, k + 1, k + 2);
+      Tr.emplace_back(0, 6, 1);      
+    }
+   
+    //
+    //  Triangulization of genus 0 surfaces
+    //
+    
+    T delta2 = delta*delta;
+    
+    bool st_triang = true; // status whether there are to many triangles
+        
+    do {
+    
+      // current front polygon
+      Tfront_polygon & P  = lP.back();
+      Tbad_pair & B = lB.back();
+      
+      do {
+        
+        //  
+        // Processing the last three vertices 
+        //
+        if (P.size() == 3) {
+          Tr.emplace_back(P[0].index, P[1].index, P[2].index);
+          
+          // erasing discussed front
+          lP.pop_back();
+          
+          // erase discussed possible bad pair
+          lB.pop_back();
+          
+          break;
+        }
+       
+        // pointers associated to the front
+        auto it_begin = P.begin(), it_end = P.end(), it_last = it_end - 1; 
+       
+        //
+        // If a non-neighboring vertices are to close form new fronts
+        // Step 2
+        //
+        {
+          // if bad pair is set do the cut of the front
+          if (B.first != B.second) {
+            
+            // separate fronts P -> P, P1
+            auto 
+              it0 = it_begin + B.first,
+              it1 = it_begin + B.second;
+                
+            it0->omega_changed = true;
+            it1->omega_changed = true;
+            
+            Tfront_polygon P1(it0, it1 + 1);
+            P.erase(it0 + 1, it1); 
+            B = check_bad_pairs(P, delta2);
+         
+            lP.push_back(P1);    
+            lB.push_back(check_bad_pairs(P1, delta2));
+            
+            break;
+          }
+        }
+       
+        //
+        // Calculate the front angles and choose the point with the smallest
+        // Step 1
+        //
+        
+        T omega_min = utils::m_2pi;
+        
+        typename Tfront_polygon::iterator it_min;
+        
+        {
+           
+          T omega, t, tt, c, s, st, ct;
+          
+          // set it_prev, it, it_next: as circular list
+          auto it = it_begin, it_next = it + 1, it_prev = it_last;
+         
+          while (1) { 
+            
+            if (it -> omega_changed) { // calculate frontal angle if need
+               
+              c = s = ct = st = 0;
+              for (int i = 0; i < 3; ++i) {
+                t  = it_prev->r[i] - it->r[i];  // = dr1[i], dr1 = p_prev - p_cur
+                c += t*it->b[0][i];             // = dr1[i]*t1[i]
+                s += t*it->b[1][i];             // = dr1[i]*t2[i]
+              
+                tt  = it_next->r[i] - it->r[i];  // = dr2[i], dr2 = p_next - p_cur
+                ct += tt*it->b[0][i];            // = dr2[i]*t1[i]
+                st += tt*it->b[1][i];            // = dr2[i]*t2[i]
+              }
+              
+              // = arg[ dr1.dr2 + I k.(dr1 x dr2) ]  
+              // omega = atan2(st,ct) - atan2(s,c); 
+              omega = std::atan2(c*st - s*ct, c*ct + s*st);
+              
+              // omega = omega mod 2 Pi (offset 0)        
+              if (omega < 0) omega += utils::m_2pi;
+
+              it -> omega = omega; 
+              it -> omega_changed = false;
+              
+            } else  omega = it -> omega;
+            
+            // saving the minimal value of omega        
+            if (omega < omega_min) {
+              it_min = it;
+              omega_min = omega;
+            }
+               
+            // cyclic permutation of pointers
+            it_prev = it;
+            it = it_next;
+            
+            if (it_next == it_begin) break;
+            
+            if (it_next == it_last) 
+              it_next = it_begin;
+            else 
+              ++it_next;
+          }
+        }
+        
+        
+        //
+        // Discuss the point with the minimal angle 
+        // Step 3
+        //
+        
+        {
+          // prepare pointers to vertices in P
+          auto 
+            it_prev = it_min, 
+            it_next = it_min;
+          
+          if (it_min != it_begin) --it_prev; else it_prev = it_last;
+          if (it_min != it_last) ++it_next; else it_next = it_begin;
+         
+          // number of triangles to be generated
+          int nt = int(omega_min/utils::m_pi3) + 1;   
+         
+          T domega = omega_min/nt; 
+          
+          // correct domega for extreme cases
+          if (domega < 0.8 && nt > 1)
+            domega = omega_min/(--nt);
+          else if (nt == 1 && domega > 0.8 && 
+                   dist2(it_prev->r, it_next->r) > 1.4*delta2) 
+            domega = omega_min/(++nt);
+          else if (omega_min < 3 && 
+                    ( dist2(it_prev->r, it_min->r) < 0.25*delta2 || 
+                      dist2(it_next->r, it_min->r) < 0.25*delta2)
+                  ) 
+            nt = 1;
+          
+ 
+          it_prev->omega_changed = true;
+          it_next->omega_changed = true;
+          
+          if (nt > 1) {
+
+            // projection of dr = p_next - p_min to tangent space
+            //  c = dr.t1
+            //  s = dr.t2 
+
+            T c = 0, s = 0, t;    
+
+            for (int i = 0; i < 3; ++i){
+              t = it_prev->r[i] - it_min->r[i];   // = dr[i]
+              c += t*it_min->b[0][i];             // = dr[i]*t1[i]
+              s += t*it_min->b[1][i];             // = dr[i]*t2[i]
+            }
+            
+            // returning fac*(sin(k domega), cos(k domega)) 
+            // where fac = delta/|(c, s)|
+            
+            T sa[6], ca[6];
+            
+            utils::sincos_array(nt - 1, domega, sa, ca, delta/std::hypot(c, s));
+
+            int n = V.size();             // size of the set of vertices
+            
+            T st, ct, qk[3];
+            
+            Tvertex Pi[6], *vp = Pi;      // new front from it_min
+            
+            for (int k = 1; k < nt; ++k, ++n, ++vp){
+              
+              // rotate in tangent plane
+              ct = c*ca[k] - s*sa[k];
+              st = c*sa[k] + s*ca[k];
+
+              // forming point on tangent plane
+              for (int i = 0; i < 3; ++i)
+                qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
+
+              if (!project_onto_potential(qk, *vp, max_iter)){
+                
+                T g[4];
+                
+                std::cerr << "Warning: Projection did not converge\n";
+                
+                this->grad(qk, g);
+                
+                std::cerr.precision(16);
+                
+                std::cerr 
+                  << "Start\n"
+                  << qk[0] << ' ' << qk[1] << ' ' << qk[2] << '\n'
+                  << g[0]  << ' ' << g[1]  << ' ' << g[2]  << '\n'
+                  << g[3]  << '\n';
+                  
+              
+                this->grad(vp->r, g);
+                
+                std::cerr 
+                  << "End\n"
+                  << vp->r[0] << ' ' << vp->r[1] << ' ' << vp->r[2] << '\n'
+                  << g[0] << ' ' << g[1] << ' ' << g[2] << '\n'
+                  << g[3] << '\n';
+              }
+              
+              vp->index = n; // = V.size();
+              vp->omega_changed = true;
+              
+              // V.emplace_back(vp->r, vp->b[2]);  
+              V.emplace_back(vp->r);                    // saving only r
+              if (GatV) GatV->emplace_back(vp->norm);   // saving g
+              NatV.emplace_back(vp->b[2]);              // saving only normal
+              
+              // add triangle
+              Tr.emplace_back((k == 1 ? it_prev->index : n - 1), n, it_min->index);
+            }
+            
+            // Note: n = V.size();
+            
+            // add triangle
+            Tr.emplace_back(n - 1, it_next->index, it_min->index);
+            
+            // add vertices to front and replace minimal
+            *(it_min++) = *Pi;
+            
+            auto 
+              it0 = P.insert(it_min, Pi + 1, Pi + nt - 1),
+            
+            // check if there are any bad pairs 
+              it1 = (--it0) + nt - 1;
+                   
+            B = check_bad_pairs(P, it0, it1, delta2);
+            
+          } else {
+            // add triangle
+            Tr.emplace_back(it_prev->index, it_next->index, it_min->index);
+            
+            // erase vertex from the front
+            P.erase(it_min);            
+          }
+        }
+
+        st_triang = Tr.size() < max_triangles;
+        
+      } while (st_triang);
+    
     } while (lP.size() > 0 && st_triang);
    
     return st_triang;

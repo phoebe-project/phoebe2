@@ -1690,7 +1690,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   
   if ((b_full ? 
-       !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
        !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
       )){
     std::cerr << "roche_marching_mesh::There are too many triangles\n";
@@ -2005,7 +2005,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
  
   
   if ((b_full ? 
-      !march.triangulize_full(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+      !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
       )){
     std::cerr << "There is too much triangles\n";
