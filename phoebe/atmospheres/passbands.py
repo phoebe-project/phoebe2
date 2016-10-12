@@ -591,21 +591,9 @@ class Passband:
         # Store the passband index for use in planckint() and atmx():
         self.extern_wd_idx = wdidx
 
-        # The original atmcof.dat features 'D' instead of 'E' for
-        # exponential notation. We need to provide a converter for
-        # numpy's loadtxt to read that in:
-        D2E = lambda s: float(s.replace('D', 'E'))
-        atmtab = np.loadtxt(atmfile, converters={2: D2E, 3: D2E, 4: D2E, 5: D2E, 6: D2E, 7: D2E, 8: D2E, 9: D2E, 10: D2E, 11: D2E})
-
-        # !!!!!
-        # THE ABOVE IS NOT NEEDED AS self.wd_data HAS ALL THE DATA
-        # SOMEBODY THAT UNDERSTANDS WHAT IS DONE HERE PLEASE CORRECT USE IT
-        # !!!!!
-        
         # Break up the table along axes and extract a single passband data:
-        atmtab = np.reshape(atmtab, (Nabun, Npb, Nlogg, Nints, -1))
+        atmtab = np.reshape(self.wd_data["atm_table"], (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
-        
         
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
