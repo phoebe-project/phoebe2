@@ -48,11 +48,37 @@
 #include "interpolation.h"         // Nulti-dimensional linear interpolation
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
- 
+
 // providing the Python interface -I/usr/include/python2.7/
 #include <Python.h>
 #include <numpy/arrayobject.h>
 
+
+// Porting to Python 3
+// Ref: http://python3porting.com/cextensions.html
+#if PY_MAJOR_VERSION >= 3
+  #define MOD_ERROR_VAL NULL
+  #define MOD_SUCCESS_VAL(val) val
+  #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
+  #define MOD_DEF(ob, name, doc, methods) \
+        static struct PyModuleDef moduledef = { \
+          PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
+        ob = PyModule_Create(&moduledef);
+
+  // adding missing declarations and functions
+  #define PyString_Type PyBytes_Type
+  #define PyString_AsString PyBytes_AsString
+  #define PyString_Check PyBytes_Check
+  
+#else
+  #define MOD_ERROR_VAL
+  #define MOD_SUCCESS_VAL(val)
+  #define MOD_INIT(name) PyMODINIT_FUNC init##name(void)
+  #define MOD_DEF(ob, name, doc, methods) \
+        ob = Py_InitModule3(name, methods, doc);
+#endif
+
+ 
 /*
   Getting the Python typename 
 */
@@ -3015,6 +3041,7 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
+              "claret"      4 parameters
               "interp"      interpolation data TODO !!!!
               
     LDidx[]: 1-rank numpy array of indices of LD models used on each of triangles
@@ -3252,6 +3279,7 @@ static PyObject *mesh_radiosity_problem_triangles(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
+               "claret"      4 parameters
               "interp"      interpolation data  TODO !!!!
               
                
@@ -3478,6 +3506,7 @@ static PyObject *mesh_radiosity_problem_triangles_nbody_convex(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
+              "claret"      4 parameters
               "interp"      interpolation data  TODO !!!!
   optionally:
 
@@ -3690,6 +3719,7 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
+              "claret"      4 parameters
               "interp"      interpolation data  TODO !!!!
               
     LDidx[]: 1-rank numpy array of indices of LD models used on each vertex
@@ -4857,82 +4887,139 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
   
   Python:
 
-    value = ld_funcD(mu, description)
+    value = ld_D(mu, descr, params)
     
   with arguments
 
     mu: float
-    description:  tuple defining the LD model of the form
-                    ("name", float parameters)  
-                  supported ld models:
-                    "uniform"     0 parameters
-                    "linear"      1 parameters
-                    "quadratic"   2 parameters
-                    "nonlinear"   3 parameters
-                    "logarithmic" 2 parameters
-                    "square_root" 2 parameters
+    descr: string
+           supported ld models:
+              "uniform"     0 parameters
+              "linear"      1 parameters
+              "quadratic"   2 parameters
+              "nonlinear"   3 parameters
+              "logarithmic" 2 parameters
+              "square_root" 2 parameters
+              "claret"      4 parameters
+    params: 1-rank numpy array 
   Return: 
     value of D(mu) for a given LD model 
 */
 
-static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
-
+static PyObject *ld_D(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "ld_D";
+  
   //
   // Reading arguments
   //
 
   char *kwlist[] = {
     (char*)"mu",          
-    (char*)"description",
+    (char*)"descr",
+    (char*)"params",
     NULL
   };
   
   double mu;
   
-  PyObject *t;
+  PyObject *o_descr;
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!", kwlist, 
-      &mu, &PyTuple_Type, &t)){
-    std::cerr << "ld_funcD::Problem reading arguments\n";
+  PyArrayObject *o_params;
+  
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!O!", kwlist, 
+        &mu, 
+        &PyString_Type, &o_descr, 
+        &PyArray_Type,  &o_params)
+      ){
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
+ 
+  TLDmodel_type type = LD::type(PyString_AsString(o_descr));
   
-  // NO CHECKING
-  int nr_par;
+  if (type == NONE) {
+    std::cerr << fname << "::This model is not supported\n";
+    return NULL;  
+  }
   
-  TLDmodel_type type;
-    
-  char *s = PyString_AsString(PyTuple_GetItem(t, 0));
-  
-  switch (fnv1a_32::hash(s)){
-
-    case "uniform"_hash32: type = UNIFORM; nr_par = 0; break;
-    case "linear"_hash32 : type = LINEAR; nr_par = 1; break;
-    case "quadratic"_hash32: type = QUADRATIC; nr_par = 2; break;
-    case "nonlinear"_hash32: type = NONLINEAR; nr_par = 3; break;
-    case "logarithmic"_hash32: type = LOGARITHMIC; nr_par = 2; break;
-    case "square_root"_hash32: type = SQUARE_ROOT; nr_par = 2; break;
-    
-    default:
-      std::cerr << "limbdarkening_D::This model is not supported\n";
-      return NULL;
-  }    
-  
-  double par[3];
-  
-  //ReadFloatFromTuple(t, nr_par, 1, par); // contains checks
-   
-  for (int i = 0; i < nr_par; ++i) 
-    par[i] = PyFloat_AsDouble(PyTuple_GetItem(t, i + 1));
-     
-  return PyFloat_FromDouble(LD::D(type, mu, par));
+  return PyFloat_FromDouble(LD::D(type, mu, (double*)PyArray_DATA(o_params)));
 }
+
+
 
 /*
   C++ wrapper for Python code:
 
-    Calculating the gradient fo the limb darkening function D(mu) with respect to parameters
-    at constant argument in speherical coordinates
+    Calculating integral of limb darkening function D(mu) over the
+    unit half sphere:
+    
+    int_0^pi 2pi cos(theta) sin(theta) D(cos(theta))
+    
+  Python:
+
+    value = ld_D0(descr, params)
+    
+  with arguments
+
+    descr: string
+           supported ld models:
+              "uniform"     0 parameters
+              "linear"      1 parameters
+              "quadratic"   2 parameters
+              "nonlinear"   3 parameters
+              "logarithmic" 2 parameters
+              "square_root" 2 parameters
+              "claret"      4 parameters
+    params: 1-rank numpy array
+     
+  Return: 
+    value of integrated D(mu) for a given LD model 
+*/
+
+static PyObject *ld_D0(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "ld_D0";
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {   
+    (char*)"descr",
+    (char*)"params",
+    NULL
+  };
+  
+  PyObject *o_descr;
+  
+  PyArrayObject *o_params;
+  
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!O!", kwlist, 
+        &PyString_Type, &o_descr, 
+        &PyArray_Type,  &o_params)
+      ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+ 
+  TLDmodel_type type = LD::type(PyString_AsString(o_descr));
+  
+  if (type == NONE) {
+    std::cerr << fname << "::This model is not supported\n";
+    return NULL;  
+  }
+  
+  return PyFloat_FromDouble(LD::D0(type, (double*)PyArray_DATA(o_params)));
+}
+
+
+
+/*
+  C++ wrapper for Python code:
+
+    Calculating the gradient fo the limb darkening function D(mu) 
+    with respect to parameters at constant argument in speherical coordinates
     
     vec r = r (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
   
@@ -4940,87 +5027,200 @@ static PyObject *ld_funcD(PyObject *self, PyObject *args, PyObject *keywds) {
   
   Python:
 
-    grad_{parameters} D = ld_gradparD(mu, description)
+    grad_{parameters} D = ld_gradparD(mu, descr, params)
     
   with arguments
 
     mu: float
-    description: tuple defining the LD model of the form
-                  ("name", float parameters)  
-                  supported ld models:
-                    "uniform"     0 parameters
-                    "linear"      1 parameters
-                    "quadratic"   2 parameters
-                    "nonlinear"   3 parameters
-                    "logarithmic" 2 parameters
-                    "square_root" 2 parameters
-  
+    descr: string:
+          "uniform"     0 parameters
+          "linear"      1 parameters
+          "quadratic"   2 parameters
+          "nonlinear"   3 parameters
+          "logarithmic" 2 parameters
+          "square_root" 2 parameters
+          "claret"      4 parameters
+    
+    params: 1-rank numpy array 
+     
   Return: 
     1-rank numpy array of floats: gradient of the function D(mu) w.r.t. parameters
 */
 
 static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
-
+  
+  const char *fname = "ld_gradparD";
+   
   //
   // Reading arguments
   //
 
   char *kwlist[] = {
     (char*)"mu",          
-    (char*)"description",
+    (char*)"descr",
+    (char*)"params",
     NULL
   };
   
   double mu;
   
-  PyObject *t;
+  PyObject *o_descr;
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!", kwlist, 
-      &mu, &PyTuple_Type, &t)) {
-    std::cerr << "ld_gradparD::Problem reading arguments\n";
+  PyArrayObject *o_params;
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "dO!O!", kwlist, 
+        &mu, 
+        &PyString_Type, &o_descr,
+        &PyArray_Type,  &o_params)
+      ) {
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
-
-  // NO CHECKING
   
-  int nr_par;
+  TLDmodel_type type = LD::type(PyString_AsString(o_descr));
   
-  TLDmodel_type type;
+  if (type == NONE) {
+    std::cerr << fname << "::This model is not supported\n";
+    return NULL;  
+  }
+  
+  int nr_par = LD::nrpar(type);
+  
+  double *g = new double [nr_par];
     
-  char *s = PyString_AsString(PyTuple_GetItem(t, 0));
+  LD::gradparD(type, mu, (double*)PyArray_DATA(o_params), g);
   
-  switch (fnv1a_32::hash(s)){
-
-    case "uniform"_hash32: type = UNIFORM; nr_par = 0; break;
-    case "linear"_hash32 : type = LINEAR; nr_par = 1; break;
-    case "quadratic"_hash32: type = QUADRATIC; nr_par = 2; break;
-    case "nonlinear"_hash32: type = NONLINEAR; nr_par = 3; break;
-    case "logarithmic"_hash32: type = LOGARITHMIC; nr_par = 2; break;
-    case "square_root"_hash32: type = SQUARE_ROOT; nr_par = 2; break;
-    
-    default:
-      std::cerr << "limbdarkening_D::This model is not supported\n";
-      return NULL;
-  }    
-  
-  double par[3], *g = new double [nr_par];
-  
-  //ReadFloatFromTuple(t, nr_par, 1, par); // contains checks
-  
-  for (int i = 0; i < nr_par; ++i) 
-    par[i] = PyFloat_AsDouble(PyTuple_GetItem(t, i + 1));
-  
-  LD::gradparD(type, mu, par, g);
-    
-  // return the results
+  // Return the results
   npy_intp dims = nr_par;
 
-  PyObject *pya = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, g);
+  PyObject *results = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, g);
   
-  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  PyArray_ENABLEFLAGS((PyArrayObject *)results, NPY_ARRAY_OWNDATA);
 
-  return pya;
+  return results;
 }
+
+
+/*
+  C++ wrapper for Python code:
+
+    Determining number of float parameters particula 
+    limb darkening model
+    
+  Python:
+
+    value = ld_nrpar(descr)
+    
+  with arguments
+
+    descr: string (bytes)  
+          supported ld models:
+            "uniform"     0 parameters
+            "linear"      1 parameters
+            "quadratic"   2 parameters
+            "nonlinear"   3 parameters
+            "logarithmic" 2 parameters
+            "square_root" 2 parameters
+            "claret"      4 parameters
+  Return: 
+    int: number of parameters 
+*/
+
+static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "ld_nrpar";
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {         
+    (char*)"descr",
+    NULL
+  };
+   
+  PyObject *o_descr;
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!", kwlist, 
+        &PyString_Type, &o_descr)
+      ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+ 
+  TLDmodel_type type = LD::type(PyString_AsString(o_descr));
+  
+  if (type == NONE) {
+    std::cerr << fname << "::This model is not supported\n";
+    return NULL;  
+  }
+    
+  return PyInt_FromLong(LD::nrpar(type));
+}
+
+/*
+  C++ wrapper for Python code:
+
+    Check the parameters of the particular limb darkening model
+    
+  Python:
+
+    value = ld_check(descr, params)
+    
+  with arguments
+
+    descr: string (bytes)  
+          supported ld models:
+            "uniform"     0 parameters
+            "linear"      1 parameters
+            "quadratic"   2 parameters
+            "nonlinear"   3 parameters
+            "logarithmic" 2 parameters
+            "square_root" 2 parameters
+            "claret"      4 parameters
+    params: 1-rank numpy array of float
+  
+  Return: 
+    true: int: number of parameters 
+*/
+
+static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "ld_check";
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {         
+    (char*)"descr",
+    (char*)"params",
+    NULL
+  };
+   
+  PyObject *o_descr;
+  
+  PyArrayObject *o_params;
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "O!O!", kwlist, 
+        &PyString_Type, &o_descr,
+        &PyArray_Type,  &o_params)
+      ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+ 
+  TLDmodel_type type = LD::type(PyString_AsString(o_descr));
+  
+  if (type == NONE) {
+    std::cerr << fname << "::This model is not supported\n";
+    return NULL;  
+  }
+  
+  return PyBool_FromLong(LD::check(type, (double*)PyArray_DATA(o_params)));
+}
+
+
 /*
   C++ wrapper for Python code:
 
@@ -5710,7 +5910,6 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
       Nv = PyArray_DIM(o_grid1, Na),   // number of values interpolated
       Nr = Np*Nv;                     // number of returned values
   
-
   double
     *R = new double [Nr],                 // returned values
     *Q = (double *) PyArray_DATA(o_req1),  // requested values
@@ -5981,18 +6180,32 @@ static PyMethodDef Methods[] = {
     "q, F, d, and the value of generalized Kopal potential Omega."},
 // --------------------------------------------------------------------
 
-    { "ld_funcD",
-    (PyCFunction)ld_funcD,
+  { "ld_D",
+    (PyCFunction)ld_D,
     METH_VARARGS|METH_KEYWORDS, 
     "Calculating the value of the limb darkening function."},
-    
-    
+
+  { "ld_D0",
+    (PyCFunction)ld_D,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the integrated limb darkening function."},
+        
   { "ld_gradparD",
     (PyCFunction)ld_gradparD,
     METH_VARARGS|METH_KEYWORDS, 
     "Calculating the gradient of the limb darkening function w.r.t. "
     "parameters."},
-  
+
+  { "ld_nrpar",
+    (PyCFunction)ld_nrpar,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Returns the number of required parameters."},
+    
+  { "ld_check",
+    (PyCFunction)ld_check,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Checking parameters if resulting D(mu) is in the range [0,1] for all mu."},
+      
 // --------------------------------------------------------------------
 
     { "wd_readdata",
@@ -6026,16 +6239,21 @@ static char const *Docstring =
   "Module wraps routines dealing with models of stars and "
   "triangular mesh generation and their manipulation.";
 
-/* module initialization */
-PyMODINIT_FUNC initlibphoebe (void)
-{
-  
-  PyObject *backend = Py_InitModule3("libphoebe", Methods, Docstring);
 
-  if (!backend) return;
+
+/* module initialization */
+MOD_INIT(libphoebe) {
+  
+  PyObject *backend;
+  
+  MOD_DEF(backend, "libphoebe", Docstring, Methods)
+
+  if (!backend) return MOD_ERROR_VAL;
     
   // Added to handle Numpy arrays
   // Ref: 
   // * http://docs.scipy.org/doc/numpy-1.10.1/user/c-info.how-to-extend.html
   import_array();
+  
+  return MOD_SUCCESS_VAL(backend);
 }
