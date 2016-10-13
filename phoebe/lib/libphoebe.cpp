@@ -2885,7 +2885,7 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
   Return:
     pointer to the TLDmodel<double>, in case of error return NULL;
 */ 
-bool LDmodelFromTuple(PyObject *p, TLDmodel<double> *pmodel) {
+bool LDmodelFromTuple(PyObject *p, TLDmodel<double> * & pmodel) {
 
   if (!PyTuple_CheckExact(p)) {
     std::cerr 
@@ -2968,7 +2968,6 @@ bool LDmodelFromTuple(PyObject *p, TLDmodel<double> *pmodel) {
       break;
    
     case "interp"_hash32:
-      pmodel = 0;
       return true;
     
     default:
@@ -3014,10 +3013,10 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
 
   int len = PyList_Size(p);
   
-  TLDmodel<double> *ld_mod = 0;
-  
+  TLDmodel<double> *ld_mod;
+      
   for (int i = 0; i < len; ++i) {
-   
+    
     if (LDmodelFromTuple(PyList_GetItem(p, i), ld_mod)) {
       LDmod.push_back(ld_mod);
     } else {
