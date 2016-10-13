@@ -2875,8 +2875,6 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
   return Py_None;
 }
 
-  
-  
 /*
   Create a LD model from a tuple.
   
@@ -2887,18 +2885,18 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
   Return:
     pointer to the TLDmodel<double>, in case of error return NULL;
 */ 
-TLDmodel<double> *LDmodelFromTuple(PyObject *p) {
+bool LDmodelFromTuple(PyObject *p, TLDmodel<double> *pmodel) {
 
   if (!PyTuple_CheckExact(p)) {
     std::cerr 
       << "LDmodelFromTuple::LD model description is not a tuple.\n"; 
-    return NULL;
+    return false;
   }
       
   if (PyTuple_Size(p) == 0) {     
     std::cerr 
       << "LDmodelFromTuple::LD model tuple is empty.\n";
-    return NULL;
+    return false;
   }
   
   PyObject *q = PyTuple_GetItem(p, 0);
@@ -2906,7 +2904,7 @@ TLDmodel<double> *LDmodelFromTuple(PyObject *p) {
   if (!PyString_Check(q)) {
     std::cerr 
       << "LDmodelFromTuple::LD model name is not string.\n";
-    return NULL;
+    return false;
   }
   
   double par[3];
@@ -2916,41 +2914,64 @@ TLDmodel<double> *LDmodelFromTuple(PyObject *p) {
   switch (fnv1a_32::hash(PyString_AsString(q))){
 
     case "uniform"_hash32: 
-      return new TLDuniform<double>();
-    break;
+      pmodel = new TLDuniform<double>();
+      return true;
       
     case "linear"_hash32:
       e = ReadFloatFromTuple(p, 1, 1, par);
-      if (e == 0) return new TLDlinear<double>(par);
-    break;
+      if (e == 0) {
+        pmodel = new TLDlinear<double>(par);
+        return true;
+      }
+      break;
     
     case "quadratic"_hash32:
       e = ReadFloatFromTuple(p, 2, 1, par);
-      if (e == 0) return new TLDquadratic<double>(par);
-    break;
+      if (e == 0) {
+        pmodel = new TLDquadratic<double>(par);
+        return true;
+      } 
+      break;
     
     case "nonlinear"_hash32:
       e = ReadFloatFromTuple(p, 3, 1, par);
-      if (e == 0) return new TLDnonlinear<double>(par);
-    break;
+      if (e == 0) {
+        pmodel = new TLDnonlinear<double>(par);
+        return true;
+      } 
+      break;
     
     case "logarithmic"_hash32:
       e = ReadFloatFromTuple(p, 2, 1, par);
-      if (e == 0) return new TLDlogarithmic<double>(par);
-    break;
+      if (e == 0) {
+        pmodel = TLDlogarithmic<double>(par);
+        return true;
+      }
+      break;
     
     case "square_root"_hash32:
       e = ReadFloatFromTuple(p, 2, 1, par);
-      if (e == 0) return new TLDsquare_root<double>(par);
-    break;
+      if (e == 0) {
+        pmodel = new TLDsquare_root<double>(par);
+        return true;
+      }
+      break;
+      
+    case "claret"_hash32:
+      e = ReadFloatFromTuple(p, 4, 1, par);
+      if (e == 0) {
+        pmodel = new TLDclaret<double>(par);
+        return true;
+      }
+      break;
    
     case "interp"_hash32:
-      return 0;
-    break;
+      pmodel = 0;
+      return true;
     
     default:
       std::cerr << "LDmodelFromTuple::Don't know to handle this LD model.\n";
-      return NULL;
+      return false;
   }
     
   switch (e) {
@@ -2970,7 +2991,7 @@ TLDmodel<double> *LDmodelFromTuple(PyObject *p) {
         << "LDmodelFromTuple::Unknown error.\n";
   }
   
-  return NULL;
+  return false;
 }
 
 
@@ -2995,20 +3016,13 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
   
   for (int i = 0; i < len; ++i) {
    
-    ld_mod = LDmodelFromTuple(PyList_GetItem(p, i));
-    
-    if (ld_mod  != NULL) {
-    
+    if (LDmodelFromTuple(PyList_GetItem(p, i), ld_mod)) {
       LDmod.push_back(ld_mod);
-    
     } else {
-      
-      for (auto && ld: LDmod) delete ld;
-        
+      for (auto && ld: LDmod) if (ld) delete ld;
       return false;
     }
   }
-  
   return true;
 }
 
