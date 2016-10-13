@@ -2911,6 +2911,8 @@ bool LDmodelFromTuple(PyObject *p, TLDmodel<double> *pmodel) {
   
   int e = 0;
   
+  pmodel = 0;
+  
   switch (fnv1a_32::hash(PyString_AsString(q))){
 
     case "uniform"_hash32: 
@@ -2944,7 +2946,7 @@ bool LDmodelFromTuple(PyObject *p, TLDmodel<double> *pmodel) {
     case "logarithmic"_hash32:
       e = ReadFloatFromTuple(p, 2, 1, par);
       if (e == 0) {
-        pmodel = TLDlogarithmic<double>(par);
+        pmodel = new TLDlogarithmic<double>(par);
         return true;
       }
       break;
@@ -3012,7 +3014,7 @@ bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod
 
   int len = PyList_Size(p);
   
-  TLDmodel<double> *ld_mod;
+  TLDmodel<double> *ld_mod = 0;
   
   for (int i = 0; i < len; ++i) {
    
