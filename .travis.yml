@@ -82,10 +82,9 @@ matrix:
 
 
 before_install:
-    if [ $TRAVIS_OS_NAME == 'osx' ]; then
-        brew update
-        brew install git coreutils gnu-sed gtk+ libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util
-    fi
+    - if [[ $TRAVIS_OS_NAME == 'osx' ]];
+      then brew update && brew install git coreutils gnu-sed gtk+ libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util;
+      fi;
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
