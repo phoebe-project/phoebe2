@@ -1,3 +1,5 @@
+# https://travis-ci.org/phoebe-project/phoebe2
+
 language: none
 
 addons:
@@ -80,7 +82,7 @@ matrix:
 
 
 before_install:
-    if [$TRAVIS_OS_NAME == 'osx']; then
+    if [ $TRAVIS_OS_NAME == 'osx' ]; then
         brew update
         brew install git coreutils gnu-sed gtk+ libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util
     fi
