@@ -17,7 +17,7 @@ def test_binary(plot=False):
     oc['incl'] = 90
 
 
-    oc.add_dataset('lc', time=np.linspace(0,3,100), dataset='lc01')
+    oc.add_dataset('lc', times=np.linspace(0,3,100), dataset='lc01')
     oc.set_value_all('ld_func','logarithmic')
 
     oc.add_compute('phoebe', compute='phoebe2', mesh_method='marching')
