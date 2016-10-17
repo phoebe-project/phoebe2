@@ -7,9 +7,8 @@ from scipy.optimize import newton
 
 from phoebe import u, c
 
-# from phoebe.dynamics import burlishstoer as bs
 try:
-    import phoebe_burlishstoer as bs
+    import photodynam
 except ImportError:
     _can_bs = False
 else:
@@ -435,7 +434,7 @@ def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
     """
 
     if not _can_bs:
-        raise ImportError("phoebe_burlishstoer is not installed")
+        raise ImportError("photodynam is not installed (http://github.com/phoebe-project/photodynam)")
 
     times = _ensure_tuple(times)
     masses = _ensure_tuple(masses)
@@ -448,7 +447,7 @@ def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     # TODO: include vgamma!!!!
     # print "*** bs.do_dynamics", masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0
-    d = bs.do_dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0, stepsize, orbiterror, ltte, return_roche_euler)
+    d = photodynam.do_dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms, t0, stepsize, orbiterror, ltte, return_roche_euler)
     # d is in the format: {'t': (...), 'x': ( (1,2,3), (1,2,3), ...), 'y': ..., 'z': ...}
 
     nobjects = len(masses)
