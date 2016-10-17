@@ -1,8 +1,5 @@
 from numpy.distutils.core import setup, Extension
 
-#import os
-#os.environ["CXX"] = "g++"
-
 # Set to true if you want to link against electric fence:
 CDEBUG = False
 
@@ -11,15 +8,6 @@ if CDEBUG:
     libraries += ['efence']
 
 ext_modules = [
-
-    Extension('phoebe_burlishstoer',
-        sources = ['./phoebe/algorithms/burlishstoer/phoebe_BS_nbody.cpp',
-                    './phoebe/algorithms/burlishstoer/n_body.cpp',
-                    './phoebe/algorithms/burlishstoer/n_body_state.cpp',
-                    './phoebe/algorithms/burlishstoer/kepcart.h'
-                    ]
-              ),
-
     Extension('libphoebe',
       sources = ['./phoebe/lib/libphoebe.cpp'],
       extra_compile_args = ["-std=c++11"]),
