@@ -98,7 +98,7 @@ install:
     - ./configure
     - make
     - sudo make install
-    - sudo ldconfig -v
+    - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo ldconfig -v; fi;
     - cd ../phoebe-py
     - python setup.py build
     - python setup.py install --user
