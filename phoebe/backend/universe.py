@@ -278,12 +278,7 @@ class System(object):
 
             intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
 
-            # ld_func = kwargs.get('ld_func_bol', 'logarithmic')
-            # ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
-            # ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + list(body.ld_coeffs['bol'])) for body in self.bodies]
-
-            # ld_inds = np.zeros(frac_refls_f
+            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
@@ -313,6 +308,7 @@ class System(object):
 
         else:
             logger.info("handling reflection (general case), method='{}'".format(self.reflection_method))
+            raise NotImplementedError("passing ld_func_bol and ld_coeffs_bol to reflection for general case not yet supported")
 
             vertices_flat = meshes.get_column_flat('vertices')
             triangles_flat = meshes.get_column_flat('triangles')
@@ -322,12 +318,12 @@ class System(object):
 
             intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
 
-            # ld_func = kwargs.get('ld_func_bol', 'logarithmic')
-            # ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
-            # ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
-            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + list(body.ld_coeffs['bol'])) for body in self.bodies]
+            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
+            # TODO: get the correct index for each vertex - maybe something like meshes.get_column_flat('comp'),
+            # then remove the NotImplementedError and test
             ld_inds = np.zeros(frac_refls_flat.shape)
+            # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
 
             # TODO: this will fail for WD meshes - use triangles instead?
             intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
