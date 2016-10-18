@@ -939,13 +939,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     if overcontact:
 #        cepars = eb.filter(component='common_envelope', context='component')
 #   potential
-        val = [eb.get_value(qualifier='pot')]
+        val = [eb.get_value(qualifier='pot', context='component')]
         ptype = 'float'
         pname = ret_parname('pot', component='primary', ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
 #   pblum
-        val = [eb.get_value(qualifier='pblum')]
+        val = [eb.get_value(qualifier='pblum', context='component')]
         ptype = 'float'
         pname = ret_parname('pblum', component='primary', ptype=ptype)
         parnames.extend(pname)
