@@ -103,10 +103,12 @@ install:
     - python setup.py build
     - python setup.py install --user
     - cd ../..
-    - git clone git://github.com/dfm/photodynam.git
+    - git clone git://github.com/phoebe-project/photodynam.git
     - cd photodynam
     - make
     - sudo cp photodynam /usr/local/bin/
+    - python setup.py build
+    - python setup.py install --user
     - cd ..
 
 
