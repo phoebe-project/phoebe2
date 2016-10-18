@@ -1793,9 +1793,7 @@ bool solve_radiosity_equation_Wilson_nbody(
   
     //std::cerr << dM << '\t' << Mmax << '\t' << dM/Mmax << '\n';
   } while (dM > epsM*Mmax && ++it < max_iter);
-  
-  std::cerr << "Wilson:it=" << it << '\n';
-  
+    
   return it < max_iter;  
 }
 
@@ -1902,8 +1900,6 @@ bool solve_radiosity_equation_Horvat_nbody(
   for (int i = 0; i < nb; ++i) 
     for (int j = 0, m = N[i]; j < m; ++j) 
       Fout[i][j] += R[i][j]*Fin[i][j];
-
-  std::cerr << "Horvat:it=" << it << '\n';
     
   return it < max_iter;  
 }
