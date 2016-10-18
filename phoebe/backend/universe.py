@@ -237,8 +237,8 @@ class System(object):
                 # TODO: this needs to take ld_func_bol, ld_coeffs_bol
                 body.populate_observable(time, 'lc', 'bol',
                                          passband=bol_pband,
-                                         ld_func='linear',
-                                         ld_coeffs=[0.],
+                                         ld_func=body.ld_func['bol'],
+                                         ld_coeffs=body.ld_coeffs['bol'],
                                          atm='blackbody',
                                          boosting_method='none')
 
@@ -278,9 +278,11 @@ class System(object):
 
             intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
 
-            ld_func = kwargs.get('ld_func_bol', 'logarithmic')
-            ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
-            ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
+            # ld_func = kwargs.get('ld_func_bol', 'logarithmic')
+            # ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
+            # ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs)) for _ in self.bodies]
+            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + list(body.ld_coeffs['bol'])) for body in self.bodies]
+
             # ld_inds = np.zeros(frac_refls_f
 
             intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
@@ -320,9 +322,11 @@ class System(object):
 
             intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
 
-            ld_func = kwargs.get('ld_func_bol', 'logarithmic')
-            ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
-            ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
+            # ld_func = kwargs.get('ld_func_bol', 'logarithmic')
+            # ld_coeffs = kwargs.get('ld_coeffs_bol', [0.0,0.0])
+            # ld_func_and_coeffs = [tuple([ld_func] + list(ld_coeffs))]
+            ld_func_and_coeffs = [tuple([body.ld_func['bol']] + list(body.ld_coeffs['bol'])) for body in self.bodies]
+
             ld_inds = np.zeros(frac_refls_flat.shape)
 
             # TODO: this will fail for WD meshes - use triangles instead?
@@ -1471,6 +1475,8 @@ class Star(Body):
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
+        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
+        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
                 abun, frac_refl, mesh_method, dynamics_method,
@@ -2238,6 +2244,8 @@ class Envelope(Body):
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
+        ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
+        ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
         return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, frac_refl1, frac_refl2,
                 gravb_bol1, gravb_bol2, mesh_method, dynamics_method,
