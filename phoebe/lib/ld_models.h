@@ -198,7 +198,7 @@ struct TLDnonlinear: TLDmodel<T> {
 template <class T>
 struct TLDlogarithmic: TLDmodel<T> {
   
-  T x, y;
+  T x, y; 
 
   TLDlogarithmic(const T *p) : x(p[0]), y(p[1]) {
     setup();

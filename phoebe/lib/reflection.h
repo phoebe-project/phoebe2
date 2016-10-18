@@ -1792,10 +1792,8 @@ bool solve_radiosity_equation_Wilson_nbody(
     }
   
     //std::cerr << dM << '\t' << Mmax << '\t' << dM/Mmax << '\n';
-  
   } while (dM > epsM*Mmax && ++it < max_iter);
-  
-
+    
   return it < max_iter;  
 }
 
@@ -1891,7 +1889,7 @@ bool solve_radiosity_equation_Horvat_nbody(
       t = std::abs(Fin[i][j] - Ftmp[i][j]);
       if (t > dF)  dF = t;      
     }
-  
+        
   } while (dF > epsF*Fmax && ++it < max_iter);
   
   //
@@ -1902,7 +1900,7 @@ bool solve_radiosity_equation_Horvat_nbody(
   for (int i = 0; i < nb; ++i) 
     for (int j = 0, m = N[i]; j < m; ++j) 
       Fout[i][j] += R[i][j]*Fin[i][j];
-
+    
   return it < max_iter;  
 }
 
@@ -1964,13 +1962,13 @@ bool solve_radiosity_equation_Horvat_nbody(
   //
   int nb = F0.size();
   
-  std::vector<std::vector<T>> S0(nb );
+  std::vector<std::vector<T>> S0(nb);
   
   for (int i = 0; i < nb; ++i) S0[i].resize(F0[i].size(), 0);
   
   for (auto && f: Fmat) S0[f.b1][f.i1] += f.F*F0[f.b2][f.i2];
   
-  return solve_radiosity_equation_Horvat_nbody( Fmat, R, F0, S0, Fout, epsF, max_iter);
+  return solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, S0, Fout, epsF, max_iter);
 }
 
 #endif //#if !defined(__reflection_h) 

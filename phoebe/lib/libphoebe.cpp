@@ -155,7 +155,9 @@ PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
 
 
 template <typename T>
-void PyArray_To3DPointVector(PyArrayObject *oV, std::vector<T3Dpoint<T>> &V){
+void PyArray_To3DPointVector(
+  PyArrayObject *oV, 
+  std::vector<T3Dpoint<T>> &V){
    
   // Note: p is interpreted in C-style contiguous fashion
   int N = PyArray_DIM(oV, 0);
@@ -164,36 +166,6 @@ void PyArray_To3DPointVector(PyArrayObject *oV, std::vector<T3Dpoint<T>> &V){
   
   for (T *p = (T*) PyArray_DATA(oV), *p_e = p + 3*N; p != p_e; p += 3)
     V.emplace_back(p);
-}
-
-/*
-  Reading floats from a tuple
-  
-  Input:
-    p - tuple
-    len - length to be read
-    start -- starting index
-    
-  Output:
-    par - pointer to read floats
-  
-  Return:
-    0 : if OK
-    10: too short
-    20: some other error
-*/
-int ReadFloatFromTuple(PyObject *p, int len, int start, double *par, bool checks = true){
-  
-  if (len) { 
-    if (PyTuple_Size(p) < start + len) return 10;
-    
-    for (int i = 0; i < len; ++i) 
-      par[i] = PyFloat_AsDouble(PyTuple_GetItem(p, start + i));
-
-    if (PyErr_Occurred()) return 20;
-  }
-  
-  return 0;
 }
 
 /*
@@ -526,8 +498,6 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
       
   return  pya;
 }
-
-
 
 /*
   C++ wrapper for Python code:
@@ -2879,13 +2849,15 @@ static PyObject *mesh_export_povray(PyObject *self, PyObject *args, PyObject *ke
   Create a LD model from a tuple.
   
   Input:
-    p - Tuple of the form ("name", sequence of parameters)
+    p - Tuple of the form ("name", 1-rank numpy array of floats)
 
     
   Return:
     pointer to the TLDmodel<double>, in case of error return NULL;
 */ 
-bool LDmodelFromTuple(PyObject *p, TLDmodel<double> * & pmodel) {
+bool LDmodelFromTuple(
+  PyObject *p, 
+  TLDmodel<double> * & pmodel) {
 
   if (!PyTuple_CheckExact(p)) {
     std::cerr 
@@ -2894,104 +2866,62 @@ bool LDmodelFromTuple(PyObject *p, TLDmodel<double> * & pmodel) {
   }
       
   if (PyTuple_Size(p) == 0) {     
-    std::cerr 
-      << "LDmodelFromTuple::LD model tuple is empty.\n";
+    std::cerr << "LDmodelFromTuple::LD model tuple is empty.\n";
     return false;
   }
   
-  PyObject *q = PyTuple_GetItem(p, 0);
+  PyObject *s = PyTuple_GetItem(p, 0);
       
-  if (!PyString_Check(q)) {
-    std::cerr 
-      << "LDmodelFromTuple::LD model name is not string.\n";
+  if (!PyString_Check(s)) {
+    std::cerr << "LDmodelFromTuple::LD model name is not string.\n";
     return false;
   }
-  
-  double par[3];
-  
-  int e = 0;
+    
+  double *par = 0;
   
   pmodel = 0;
   
-  switch (fnv1a_32::hash(PyString_AsString(q))){
+  switch (fnv1a_32::hash(PyString_AsString(s))){
 
     case "uniform"_hash32: 
       pmodel = new TLDuniform<double>();
       return true;
       
-    case "linear"_hash32:
-      e = ReadFloatFromTuple(p, 1, 1, par);
-      if (e == 0) {
-        pmodel = new TLDlinear<double>(par);
-        return true;
-      }
-      break;
+    case "linear"_hash32: 
+      par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
+      pmodel = new TLDlinear<double>(par);
+      return true;
     
     case "quadratic"_hash32:
-      e = ReadFloatFromTuple(p, 2, 1, par);
-      if (e == 0) {
-        pmodel = new TLDquadratic<double>(par);
-        return true;
-      } 
-      break;
+      par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
+      pmodel = new TLDquadratic<double>(par);
+      return true;
     
     case "nonlinear"_hash32:
-      e = ReadFloatFromTuple(p, 3, 1, par);
-      if (e == 0) {
-        pmodel = new TLDnonlinear<double>(par);
-        return true;
-      } 
-      break;
-    
+      par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
+      pmodel = new TLDnonlinear<double>(par);
+      return true;
+      
     case "logarithmic"_hash32:
-      e = ReadFloatFromTuple(p, 2, 1, par);
-      if (e == 0) {
-        pmodel = new TLDlogarithmic<double>(par);
-        return true;
-      }
-      break;
+      par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
+      pmodel = new TLDlogarithmic<double>(par);
+      return true;
     
     case "square_root"_hash32:
-      e = ReadFloatFromTuple(p, 2, 1, par);
-      if (e == 0) {
-        pmodel = new TLDsquare_root<double>(par);
-        return true;
-      }
-      break;
+      par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
+      pmodel = new TLDsquare_root<double>(par);
+      return true;
       
     case "claret"_hash32:
-      e = ReadFloatFromTuple(p, 4, 1, par);
-      if (e == 0) {
-        pmodel = new TLDclaret<double>(par);
-        return true;
-      }
-      break;
+      par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
+      pmodel = new TLDclaret<double>(par);
+      return true;
    
     case "interp"_hash32:
       return true;
-    
-    default:
-      std::cerr << "LDmodelFromTuple::Don't know to handle this LD model.\n";
-      return false;
   }
-    
-  switch (e) {
-    
-    case 10: 
-      std::cerr 
-        << "LDmodelFromTuple::LD model tuple does not have appropriate size.\n";
-    break;
-    
-    case 20:
-      std::cerr 
-        << "LDmodelFromTuple::LD model tuple conversion error.\n"; 
-    break;
-    
-    default:
-      std::cerr 
-        << "LDmodelFromTuple::Unknown error.\n";
-  }
-  
+
+  std::cerr << "LDmodelFromTuple::Don't know to handle this LD model.\n";
   return false;
 }
 
@@ -3000,7 +2930,7 @@ bool LDmodelFromTuple(PyObject *p, TLDmodel<double> * & pmodel) {
   Create a LD model from a tuple.
   
   Input:
-    p - list of tuples of the form ("name", sequence of parameters)
+    p - list of tuples of the form ("name", 1-rank numpy array of floats)
   
   Output:
     LDmod - vector of LDmodels
@@ -3009,7 +2939,9 @@ bool LDmodelFromTuple(PyObject *p, TLDmodel<double> * & pmodel) {
     true if no error, false otherwise
 */
 
-bool LDmodelFromListOfTuples(PyObject *p, std::vector<TLDmodel<double>*> & LDmod) {
+bool LDmodelFromListOfTuples(
+  PyObject *p, 
+  std::vector<TLDmodel<double>*> & LDmod) {
 
   int len = PyList_Size(p);
   
@@ -3620,7 +3552,7 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
     std::cerr << fname << "::There seem to just n=" << n << " bodies.\n";
     return NULL;
   }
-   
+  
   std::vector<std::vector<T3Dpoint<double>>> V(n), NatV(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
   std::vector<std::vector<double>> A(n), R(n), F0(n), F;
@@ -3646,7 +3578,7 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
 
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
-    
+  
   //
   // Solving the radiosity equation depending on the model
   //
@@ -3654,7 +3586,7 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
     bool success = false;
     
     char *s = PyString_AsString(omodel);
-      
+        
     switch (fnv1a_32::hash(s)) {
       
       case "Wilson"_hash32:
