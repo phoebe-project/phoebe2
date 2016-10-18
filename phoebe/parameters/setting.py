@@ -1,6 +1,6 @@
 
 from phoebe.parameters import *
-from phoebe import conf
+from phoebe import conf, __version__
 
 def settings(**kwargs):
     """
@@ -14,6 +14,7 @@ def settings(**kwargs):
 
     params = []
 
+    params += [StringParameter(qualifier='phoebe_version', value=kwargs.get('phoebe_version', __version__), description='Version of PHOEBE - change with caution')]
     params += [BoolParameter(qualifier='log_history', value=kwargs.get('log_history', False), description='Whether to log history (undo/redo)')]
     params += [DictParameter(qualifier='dict_filter', value=kwargs.get('dict_filter', {}), description='Filters to use when using dictionary access')]
     params += [BoolParameter(qualifier='dict_set_all', value=kwargs.get('dict_set_all', False), description='Whether to set all values for dictionary access that returns more than 1 result')]
