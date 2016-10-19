@@ -36,7 +36,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    for alb in np.linspace(0, 1.0, 4):
+    for alb in [0, 0.5, 1.0]:
         print "alb = {}".format(alb)
         b.set_value_all('frac_refl_bol', alb)
 
