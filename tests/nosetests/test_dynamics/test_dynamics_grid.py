@@ -17,7 +17,7 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
 
     b.add_compute(dynamics_method='bs')
 
-    times = np.linspace(0, 5*period, 100)
+    times = np.linspace(0, 5*period, 101)
     nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
     k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
 
@@ -39,7 +39,7 @@ def _phoebe_v_photodynam(b, period, plot=False):
     test a single bundle for phoebe's nbody vs photodynam via the frontend
     """
 
-    times = np.linspace(0, 5*period, 100)
+    times = np.linspace(0, 5*period, 21)
 
     b.add_dataset('orb', times=times, dataset='orb01', components=b.hierarchy.get_stars())
     # photodynam and phoebe should have the same nbody defaults... if for some reason that changes,
@@ -84,7 +84,7 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 
     # TODO: loop over ltte=True,False
 
-    times = np.linspace(0, 5*period, 100)
+    times = np.linspace(0, 5*period, 101)
     b.add_dataset('orb', times=times, dataset='orb01', components=b.hierarchy.get_stars())
     b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian', ltte=ltte)
     b.add_compute('phoebe', dynamics_method='bs', compute='nbody', ltte=ltte)

@@ -13,7 +13,7 @@ phoebe.devel_on()
 def _beta_vs_legacy(b):
 
     period = b.get_value('period@orbit')
-    times = np.linspace(-0.2,1.2*period,200)
+    times = np.linspace(-0.2,1.2*period,51)
 
     b.add_dataset('lc', times=times, dataset='lc01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])

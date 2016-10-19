@@ -17,7 +17,7 @@ def test_binary(plot=False):
     b.set_value('sma', component='binary', value=100.)
     b.set_value('period', component='binary', value=81.955)
 
-    b.add_dataset('lc', times=np.linspace(0,100,101))
+    b.add_dataset('lc', times=np.linspace(0,100,21))
     b.add_compute('phoebe', compute='phoebe2')
     b.add_compute('legacy', compute='phoebe1')
 
