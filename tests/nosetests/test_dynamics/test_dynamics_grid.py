@@ -84,7 +84,7 @@ def _frontend_v_backend(b, ltte, period, plot=False):
 
     # TODO: loop over ltte=True,False
 
-    times = np.linspace(0, 5*period, 21)
+    times = np.linspace(0, 5*period, 101)
     b.add_dataset('orb', times=times, dataset='orb01', components=b.hierarchy.get_stars())
     b.add_compute('phoebe', dynamics_method='keplerian', compute='keplerian', ltte=ltte)
     b.add_compute('phoebe', dynamics_method='bs', compute='nbody', ltte=ltte)
