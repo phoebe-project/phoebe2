@@ -19,7 +19,7 @@ def test_binary(plot=False):
 
     b.set_value('incl', component='binary', value=45.0)
 
-    b.add_dataset('lc', times=np.linspace(0,3,101))
+    b.add_dataset('lc', times=np.linspace(0,3,21))
     if plot:
         b.add_dataset('mesh', times=[0.0])
     b.add_compute('phoebe', compute='phoebe2', reflection_method='wilson')
