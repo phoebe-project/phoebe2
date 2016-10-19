@@ -17,7 +17,7 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
 
     b.add_compute(dynamics_method='bs')
 
-    times = np.linspace(0, 5*period, 21)
+    times = np.linspace(0, 5*period, 101)
     nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
     k_ts, k_xs, k_ys, k_zs, k_vxs, k_vys, k_vzs = phoebe.dynamics.keplerian.dynamics_from_bundle(b, times, ltte=ltte)
 
