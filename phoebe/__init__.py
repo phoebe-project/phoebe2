@@ -101,9 +101,6 @@ def default_star(*args, **kwargs):
 def default_binary(*args, **kwargs):
     return Bundle.default_binary(*args, **kwargs)
 
-def default_overcontact(*args, **kwargs):
-    return Bundle.default_overcontact(*args, **kwargs)
-
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
 

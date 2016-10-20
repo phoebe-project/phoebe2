@@ -31,7 +31,7 @@ def orbit(component, **kwargs):
     params = []
 
     #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 10.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
+    params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, description='Orbital frequency')]
     params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, description='Period change')]
     params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Periastron')]
@@ -50,7 +50,7 @@ def orbit(component, **kwargs):
     # params += [FloatParameter(qualifier='dincldt', value=kwargs.get('dincldt', 0.0), default_unit=u.deg/u.yr, description="Inclination change")]
     params += [FloatParameter(qualifier='phshift', value=kwargs.get('phshift', 0.0), default_unit=u.dimensionless_unscaled, description='Phase shift')]
     params += [FloatParameter(qualifier='q', value=kwargs.get('q', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Mass ratio')]
-    params += [FloatParameter(qualifier='sma', value=kwargs.get('sma', 25.0), default_unit=u.solRad, limits=(0.0,None), description='Semi major axis of the orbit')]
+    params += [FloatParameter(qualifier='sma', value=kwargs.get('sma', 5.3), default_unit=u.solRad, limits=(0.0,None), description='Semi major axis of the orbit')]
     params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node')]
 
     constraints = []
