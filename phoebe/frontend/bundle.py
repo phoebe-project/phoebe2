@@ -303,6 +303,34 @@ class Bundle(ParameterSet):
         return b
 
     @classmethod
+    def default_overcontact(cls, starA='primary', starB='secondary', orbit='binary',
+                            envelope='common_envelope'):
+        """Load a bundle with a default overcontact binary as the system.
+
+        primary - secondary - envelope
+
+        This is a constructor, so should be called as:
+
+        >>> b = Bundle.default_overcontact()
+
+        :return: instantiated :class:`Bundle` object
+        """
+        b = cls()
+        b.add_star(component=starA)
+        b.add_star(component=starB)
+        # add an orbit that will get us close to two solar mass stars
+        b.add_orbit(component=orbit, period=1.0, sma=3.3)
+        b.add_component('envelope', component=envelope)
+        b.set_hierarchy(_hierarchy.binaryorbit,
+                        b[orbit],
+                        b[starA],
+                        b[starB],
+                        b['common_envelope'])
+
+        return b
+
+
+    @classmethod
     def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
                        starA='starA', starB='starB', starC='starC',
                        inner='inner', outer='outer',
