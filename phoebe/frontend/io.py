@@ -901,12 +901,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     # check to make sure you have exactly two stars and exactly one orbit
     stars = eb['hierarchy'].get_stars()
     orbits = eb['hierarchy'].get_orbits()
-
+    primary, secondary = stars
 
     if len(stars) != 2 or len(orbits) != 1:
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for overcontact
-    overcontact = eb.hierarchy.is_overcontact('primary')
+    overcontact = eb.hierarchy.is_overcontact(primary)
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -932,22 +932,24 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parnames.append('phoebe_indep')
     parvals.append('"Time (HJD)"')
     types.append('choice')
-    primary, secondary = stars
+
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
     if overcontact:
+        envelope = eb.hierarchy.get_siblings_of(primary)[-1]
 #        cepars = eb.filter(component='common_envelope', context='component')
 #   potential
-        val = [eb.get_value(qualifier='pot')]
+        val = [eb.get_value(qualifier='pot', component=envelope)]
         ptype = 'float'
-        pname = ret_parname('pot', component='primary', ptype=ptype)
+        pname = ret_parname('pot', component=envelope, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
 #   pblum
-        val = [eb.get_value(qualifier='pblum')]
+        # TODO BERT: need to deal with multiple datasets
+        val = [eb.get_value(qualifier='pblum', component=primary, context='dataset')]
         ptype = 'float'
-        pname = ret_parname('pblum', component='primary', ptype=ptype)
+        pname = ret_parname('pblum', component=primary, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
     # get primary parameters and convert
