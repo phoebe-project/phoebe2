@@ -942,7 +942,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #   potential
         val = [eb.get_value(qualifier='pot', component=envelope)]
         ptype = 'float'
-        pname = ret_parname('pot', component=envelope, ptype=ptype)
+        # note here that phoebe1 assigns this to the primary, not envelope
+        pname = ret_parname('pot', component=primary, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
 #   pblum
