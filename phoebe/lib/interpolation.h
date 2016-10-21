@@ -152,7 +152,7 @@ struct Tlinear_interpolation {
     // Run the axes first to make sure interpolation is possible.
     for (j = Na-1; j >= 0; --j) {
       axidx[j] = utils::flt(x[j], A[j], L[j]);
-      
+    
       // AN OUT-OF-BOUNDS SITUATION -- both sides handled.
       if (axidx[j] < 1) {
         for (l = 0; l < Nv; ++l) r[l] = std::nan("");
