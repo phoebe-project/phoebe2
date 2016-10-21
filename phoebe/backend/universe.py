@@ -1001,6 +1001,7 @@ class Body(object):
             self._fill_abuns(abun=self.abun)
             self._fill_albedos(frac_refl=self.frac_refl)
 
+
         return
 
     def _fill_abuns(self, mesh=None, abun=0.0):
@@ -2431,20 +2432,81 @@ class Envelope(Body):
 
                 # create the env_comp array and change the values of all where vertices x>xmin to 1
                 env_comp = np.zeros(len(new_mesh['vertices']))
-                env_comp[new_mesh['vertices'][:,0]>xmin] = 1
 
+                env_comp[new_mesh['vertices'][:,0]>xmin] = 1
+                #
                 new_mesh['env_comp'] = env_comp
+                # print new_mesh['env_comp']
 
                 # do the similar for triangles
                 env_comp3 = np.zeros(len(new_mesh['triangles']))
 
+                # Uncomment this is we want to average over vertices and comment below :/
+                # for i in range(len(new_mesh['triangles'])):
+                #
+                #     #take the vertex indices of each triangle
+                #     vind = new_mesh['triangles'][i]
+                #     print 'vind: ', vind
+                #     env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
+                #
+
+                new_mesh['env_comp3']=env_comp3
+
+                # Comment this is we want to average over vertices
+                N = len(new_mesh['vertices'])
                 for i in range(len(new_mesh['triangles'])):
 
                     #take the vertex indices of each triangle
                     vind = new_mesh['triangles'][i]
-                    env_comp3[i] = np.average([new_mesh['env_comp'][vind[0]],new_mesh['env_comp'][vind[1]],new_mesh['env_comp'][vind[2]]])
+                    center = new_mesh['centers'][i]
 
-                new_mesh['env_comp3']=env_comp3
+                    # the adding of vertices and vertex parameters should go in a function
+
+                    def add_vertex_to_mesh(i,j,vind,comp):
+
+                        N = len(new_mesh['vertices'])
+                        # add vertex params
+                        new_mesh['vertices'] = np.vstack((new_mesh['vertices'],new_mesh['vertices'][vind]))
+                        new_mesh['pvertices'] = np.vstack((new_mesh['pvertices'],new_mesh['pvertices'][vind]))
+                        new_mesh['vnormals'] = np.vstack((new_mesh['vnormals'],new_mesh['vnormals'][vind]))
+                        new_mesh['normgrads'] = np.hstack((new_mesh['normgrads'],new_mesh['normgrads'][vind]))
+                        new_mesh['velocities'] = np.vstack((new_mesh['velocities'],np.zeros(3)))
+                        new_mesh['env_comp'] = np.hstack((new_mesh['env_comp'],comp))
+                        new_mesh['triangles'][i][j] = N
+
+                    if center[0] <= xmin:
+                        new_mesh['env_comp3'][i] = 0
+                        if new_mesh['vertices'][vind[0]][0] > xmin:
+                            add_vertex_to_mesh(i,0,vind[0],0)
+                        else:
+                            new_mesh['env_comp'][vind[0]] = 0
+
+                        if new_mesh['vertices'][vind[1]][0] > xmin:
+                            add_vertex_to_mesh(i,1,vind[1],0)
+                        else:
+                            new_mesh['env_comp'][vind[1]] = 0
+
+                        if new_mesh['vertices'][vind[2]][0] > xmin:
+                            add_vertex_to_mesh(i,2,vind[2],0)
+                        else:
+                            new_mesh['env_comp'][vind[2]] = 0
+
+                    else:
+                        new_mesh['env_comp3'][i] = 1
+                        if new_mesh['vertices'][vind[0]][0] <= xmin:
+                            add_vertex_to_mesh(i,0,vind[0],1)
+                        else:
+                            new_mesh['env_comp'][vind[0]] = 1
+
+                        if new_mesh['vertices'][vind[1]][0] <=xmin:
+                            add_vertex_to_mesh(i,1,vind[1],1)
+                        else:
+                            new_mesh['env_comp'][vind[1]] = 1
+
+                        if new_mesh['vertices'][vind[2]][0] <= xmin:
+                            add_vertex_to_mesh(i,2,vind[2],1)
+                        else:
+                            new_mesh['env_comp'][vind[2]] = 1
 
                 # compute fractional areas of vertices
 
@@ -2668,15 +2730,15 @@ class Envelope(Body):
             abuns = abuns
             areas = areas
         elif component==self.label_primary:
-            teffs = teffs[self.mesh.env_comp3<0.34]
-            loggs = loggs[self.mesh.env_comp3<0.34]
-            abuns = abuns[self.mesh.env_comp3<0.34]
-            areas = areas[self.mesh.env_comp3<0.34]
+            teffs = teffs[self.mesh.env_comp3 == 0]
+            loggs = loggs[self.mesh.env_comp3 == 0]
+            abuns = abuns[self.mesh.env_comp3 == 0]
+            areas = areas[self.mesh.env_comp3 == 0]
         elif component==self.label_secondary:
-            teffs = teffs[self.mesh.env_comp3>0.34]
-            loggs = loggs[self.mesh.env_comp3>0.34]
-            abuns = abuns[self.mesh.env_comp3>0.34]
-            areas = areas[self.mesh.env_comp3>0.34]
+            teffs = teffs[self.mesh.env_comp3 == 1]
+            loggs = loggs[self.mesh.env_comp3 == 1]
+            abuns = abuns[self.mesh.env_comp3 == 1]
+            areas = areas[self.mesh.env_comp3 == 1]
         else:
             raise ValueError
 
@@ -2705,6 +2767,7 @@ class Envelope(Body):
 
         # NOTE: when this is computed the first time (for the sake of determing
         # pblum_scale), get_pblum_scale will return 1.0
+
         return total_integrated_intensity * self.get_pblum_scale(dataset, component=component)
 
     def compute_pblum_scale(self, dataset, pblum, component=None, **kwargs):
@@ -2717,11 +2780,11 @@ class Envelope(Body):
             component = self.label_envelope
 
         total_integrated_intensity = self.compute_luminosity(dataset, component=component, **kwargs)
-
+        # print 'Total integrated luminosity for component %s is %d.' % (component, total_integrated_intensity)
         # We now want to remember the scale for all intensities such that the
         # luminosity in relative units gives the provided pblum
         pblum_scale = pblum / total_integrated_intensity
-
+        # print 'Pblum scale for component %s is %d.' % (component, pblum_scale)
         # self._pblum_scale[component][dataset] = pblum_scale
         self.set_pblum_scale(dataset, component=component, pblum_scale=pblum_scale)
 
@@ -2858,7 +2921,7 @@ class Envelope(Body):
             intensities[self.mesh.env_comp==1] = abs_intensities[self.mesh.env_comp==1] * self.get_pblum_scale(dataset,component=self.label_secondary)
 
             # print 'secondary pblum scale', self.get_pblum_scale(dataset,component=self.label_secondary)
-            
+
         elif lc_method=='analytical':
             raise NotImplementedError("analytical fluxes not yet ported to beta")
             #lcdep, ref = system.get_parset(ref)

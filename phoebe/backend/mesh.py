@@ -1271,9 +1271,9 @@ class Meshes(object):
             if comp_no is None:
                 col = col
             elif comp_no == 0:
-                col = col[self._dict[c]['env_comp3'] < 0.34]
+                col = col[self._dict[c]['env_comp3'] == 0]
             elif comp_no == 1:
-                col = col[self._dict[c]['env_comp3'] > 0.34]
+                col = col[self._dict[c]['env_comp3'] == 1]
             else:
                 raise NotImplementedError
 
