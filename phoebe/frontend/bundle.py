@@ -762,18 +762,19 @@ class Bundle(ParameterSet):
 
         hier = self.get_hierarchy()
         # Handle choice parameters that need components as choices
-        meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
+        # meshablerefs = hier.get_meshables()  # TODO: consider for overcontacts
+        starrefs = hier.get_stars()  # TODO: consider for overcontacts
         for param in self.filter(qualifier='pblum_ref',
                                  context='dataset').to_list():
-            param._choices = ['self'] + meshablerefs
+            param._choices = ['self'] + starrefs
             if param.value == '':
                 # then this was the default from the parameter itself, so we
                 # want to set it to be pblum if its the "primary" star, and
                 # otherwise point to the primary star
-                if param.component == meshablerefs[0]:
+                if param.component == starrefs[0]:
                     param.set_value('self')
                 else:
-                    param.set_value(meshablerefs[0])
+                    param.set_value(starrefs[0])
 
     def set_hierarchy(self, *args, **kwargs):
         """
