@@ -2274,7 +2274,14 @@ class ParameterSet(object):
             # TODO: include zparam.uniquetwig if axes_3d
             default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
             if default_label[0] == '@':
+                # then let's just trim the leading @
                 default_label = default_label[1:]
+            if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
+                # then we had some overlap that doesn't form a whole label
+                # this can happen for "times" and "fluxes", for example
+                # leaving the leading "es".  So let's trim this and only
+                # return the rest
+                default_label = '@'.join(default_label.split('@')[1:])
         kwargs.setdefault('label', default_label)
 
         # Now let's try to figure out the plottype (whether to do plot or
