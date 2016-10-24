@@ -1644,12 +1644,13 @@ class Star(Body):
                                                   new_mesh['triangles'],
                                                   curvature=True,
                                                   vertices=True,
-                                                  tnormals=False,
+                                                  tnormals=True,
                                                   areas=True,
                                                   volume=False)
 
                     new_mesh['vertices'] = mo['vertices']
                     new_mesh['areas'] = mo['areas']
+                    new_mesh['tnormals'] = mo['tnormals']
 
                     # TODO: need to update centers (so that they get passed
                     # to the frontend as x, y, z)
@@ -1739,6 +1740,7 @@ class Star(Body):
                                                   new_mesh['pvertices'],
                                                   new_mesh['vnormals'],
                                                   new_mesh['triangles'],
+                                                  curvature=True,
                                                   vertices=True,
                                                   tnormals=False,
                                                   areas=True,
@@ -2401,13 +2403,15 @@ class Envelope(Body):
                                                   new_mesh['pvertices'],
                                                   new_mesh['vnormals'],
                                                   new_mesh['triangles'],
+                                                  curvature=True,
                                                   vertices=True,
-                                                  tnormals=False,
+                                                  tnormals=True,
                                                   areas=True,
                                                   volume=False)
 
                     new_mesh['vertices'] = mo['vertices']
                     new_mesh['areas'] = mo['areas']
+                    new_mesh['tnormals'] = mo['tnormals']
 
                     # TODO: need to update centers (so that they get passed
                     # to the frontend as x, y, z)
