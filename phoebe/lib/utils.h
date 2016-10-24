@@ -21,7 +21,9 @@ namespace utils {
   const double m_2pi = 6.2831853071795864769252867665590083999;  // 2 pi
   const double m_4pi = 12.5663706143591729538505735331180167998; // 4 pi
   const double m_pi3 = 1.04719755119659774615421446109316806665; // pi/3
-
+  const double m_e = 2.71828182845904523533978449066641588615; // e
+  const double m_1_e = 0.36787944117144232159552377016146086744; // 1/e
+  
   /*
     Return square of the value.
     
@@ -867,6 +869,129 @@ namespace utils {
     return low;
   }
   
+  
+  /* 
+   Giving the principal solution -- upper branch of the solution
+   of the Lambert equation
+     
+        W e^W = x
+        
+    for x in [-1/e, infty) and W > -1.  
+     
+    The solution is called Lambert W function or ProductLog
+      
+   Ref:
+    * http://mathworld.wolfram.com/LambertW-Function.html
+    * Robert M. Corless, et.al, A Sequence of Series for The Lambert W Function 
+      
+  */
+  
+  template <class T> 
+  T lambertW(const T & x){
+    
+    // checking limits 
+    if (x == T(0)) return  T(0);
+    
+    if (std::isinf(x) ) {
+      if (x > 0)
+        return std::numeric_limits<T>::infinity();
+      else 
+        return std::nan("");
+    }
+    
+    if (x < -m_1_e || std::isnan(x)) return std::nan("");
+    
+    //
+    // calculating approximation 
+    //
+    
+    T p, w;
+    
+    
+    if (x < -0.25*m_1_e) {
+      // around branching point 
+      p = std::sqrt(2.0*(m_e*x + 1.0));
+      w = -1. + p*(1 + p*(-0.3333333333333333 + p*(0.1527777777777778 + 
+           p*(-0.07962962962962963 + p*(0.044502314814814814 + p*(-0.02598471487360376 + 
+           p*(0.01563563253233392 - 0.009616892024299432*p)))))));
+           
+      if (x + m_1_e < 1e-3) return w;
+      
+    } else if ( x < -0.5*m_1_e){
+      // series around -0.75*m_1_e
+      p = x + 3*m_1_e/4;
+      w = -0.41986860097402295 + p*(2.6231325990041836 + p*(-9.370814155554825 + 
+          p*(53.573090925650874 + p*(-371.14484652831385 + p*(2852.957668395053 + 
+          p*(-23404.79831089446 + p*(200748.5156249781 - 1.7785330276273934e6*p)))))));
+      
+      if (std::abs(p) < 1e-3) return w;
+    } else if (std::abs(x) <= 0.5*m_1_e) {
+      w = x*(1 + x*(-1. + x*(1.5 + x*(-2.6666666666666665 + x*(5.208333333333333 + 
+          x*(-10.8 + (23.343055555555555 - 52.01269841269841*x)*x))))));
+    
+      if (std::abs(x) < 1e-3) return w;
+    } else if (x <= 1.5*m_1_e) {
+      // series around m_1_e
+      p = x - m_1_e;
+      w = 0.2784645427610738 + p*(0.5920736016838016 + p*(-0.31237407786966215 + 
+         p*(0.24090600442965682 + p*(-0.2178832755815021 + p*(0.21532401351646263 + 
+         p*(-0.22520037555300257 + p*(0.24500015392074573 - 0.27439507212836256*p)))))));
+                     
+      if (std::abs(p) < 1e-3) return w;
+   } else if (x <= 2.5*m_1_e) {
+      // series around 2*m_1_e
+      p = x - 2*m_1_e;
+      w = 0.46305551336554884 + p*(0.4301666532987023 + p*(-0.1557603379726202 + 
+          p*(0.08139743653170319 + p*(-0.049609658385920324 + p*(0.032938686466159176 + 
+          p*(-0.02310194185417815 + p*(0.016833472598465127 - 0.012616316325209298*p)))))));
+     
+      if (std::abs(p) < 1e-3) return w;
+    } else if (x <= 20*m_1_e) {
+      // expanding W(exp(p+1)) around p=0
+      p = std::log(x/m_e);
+      w = 1. + p*(0.5 + p*(0.0625 + p*(-0.005208333333333333 + p*(-0.0003255208333333333 + 
+          p*(0.00021158854166666667 + p*(-0.00003187391493055556 + 
+          p*(-1.7680819072420636e-6 + 1.8520960732111855e-6*p)))))));
+    
+    } else { // asymptotic approximation
+      T L1 = std::log(x),
+        L2 = std::log(L1);
+      w = L1 - L2 + L2/L1*(1 + (L2/2 - 1)/L1);
+    }
+    
+    //
+    // Halley’s method
+    // x > 0: log(w) + w = log(x) := z 
+    // x < 0: log(q) - q = log(-x) := z, q = -w 
+    // Ref:
+    //  *  https://en.wikipedia.org/wiki/Halley%27s_method
+    
+    const int max_iter = 20;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+    
+    int iter = 0;
+    
+    T z = std::log(std::abs(x)), dw;
+    
+    if (x > 0) {    
+      do {
+        p = std::log(w) - z;
+        dw = (2*w*(1 + w)*(w + p))/((2 + w)*(1 + 2*w) + p);
+        w -= dw;
+      } while (std::abs(dw) < eps*std::abs(w) + min && ++iter < max_iter );
+    } else {
+      w = -w;
+      do {
+        p = std::log(w) - z;
+        dw = (2*w*(-1 + w)*(w - p))/((-2 + w)*(-1 + 2*w) + p);
+        w -= dw;
+      } while (std::abs(dw) < eps*std::abs(w) + min && ++iter < max_iter );
+      w = -w;
+    }
+    
+    return w;
+  }
 } // namespace utils
 
 #endif  // #if !defined(__utils_h)

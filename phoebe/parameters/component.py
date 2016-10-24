@@ -34,7 +34,7 @@ def orbit(component, **kwargs):
     params += [FloatParameter(qualifier='period', timederiv='dpdt', value=kwargs.get('period', 3.0), default_unit=u.d, limits=(0.0,None), description='Orbital period')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 2*np.pi/3.0), default_unit=u.rad/u.d, description='Orbital frequency')]
     params += [FloatParameter(qualifier='dpdt', value=kwargs.get('dpdt', 0.0), default_unit=u.s/u.yr, description='Period change')]
-    params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Periastron')]
+    params += [FloatParameter(qualifier='per0', timederiv='dperdt', value=kwargs.get('per0', 0.0), default_unit=u.deg, description='Argument of periastron')]
     params += [FloatParameter(qualifier='dperdt', value=kwargs.get('dperdt', 0.0), default_unit=u.deg/u.yr, description='Periastron change')]
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Eccentricity')]
     if conf.devel:
@@ -177,6 +177,8 @@ def envelope(component, **kwargs):
     params += [FloatParameter(qualifier='intens_coeff4', value=kwargs.get('intens_coeff4', 1.0), default_unit=u.dimensionless_unscaled, description='')]
     params += [FloatParameter(qualifier='intens_coeff5', value=kwargs.get('intens_coeff5', 1.0), default_unit=u.dimensionless_unscaled, description='')]
 
+    params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
+    params += [FloatArrayParameter(qualifier='ld_coeffs_bol', value=kwargs.get('ld_coeffs_bol', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Bolometric limb darkening coefficients')]
 
     constraints = []
 

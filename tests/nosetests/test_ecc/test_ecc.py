@@ -12,7 +12,7 @@ def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
 
-    b.add_dataset('lc', times=np.linspace(0,3,101))
+    b.add_dataset('lc', times=np.linspace(0,3,21))
     b.add_compute('phoebe', reflection_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
@@ -27,7 +27,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    for ecc in [0.3, 0.6, 0.675]:
+    for ecc in [0.3, 0.675]:
         b.set_value('ecc', ecc)
 
 

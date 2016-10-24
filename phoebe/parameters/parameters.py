@@ -39,6 +39,7 @@ from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
 from phoebe import u
 from phoebe import conf
+from phoebe import list_passbands, list_installed_passbands, list_online_passbands, download_passband
 
 try:
     import sympy
@@ -3609,8 +3610,16 @@ class ChoiceParameter(Parameter):
         except:
             raise ValueError("could not cast value to string")
         else:
+            if self.qualifier=='passband':
+                if value not in self.choices:
+                    self._choices = list_passbands(refresh=True)
+
             if value not in self.choices:
                 raise ValueError("value must be one of {}".format(self.choices))
+
+            if self.qualifier=='passband' and value not in list_installed_passbands():
+                # then we need to download and install before setting
+                download_passband(value)
 
             self._value = value
 
@@ -3989,7 +3998,7 @@ class FloatParameter(Parameter):
     def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
         """
-        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks)
+        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks, **kwargs)
 
     @send_if_client
     def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):

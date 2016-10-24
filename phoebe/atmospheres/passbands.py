@@ -12,10 +12,12 @@ from scipy import interpolate, integrate
 from scipy.optimize import curve_fit as cfit
 import marshal
 import types
-from phoebe.atmospheres import atmcof
-from phoebe.algorithms import interp
+import libphoebe
 import os
 import glob
+import shutil
+import urllib, urllib2
+import json
 
 import logging
 logger = logging.getLogger("PASSBANDS")
@@ -25,6 +27,9 @@ logger.addHandler(logging.NullHandler())
 # of the functions in this module; it might be nice to make it read-only
 # at some point.
 _pbtable = {}
+
+_initialized = False
+_online_passbands = None
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
@@ -199,9 +204,8 @@ class Passband:
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
-            if not atmcof.meta.initialized:
-                atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-                atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+            atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+            self.wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
             self.extern_wd_idx = struct['extern_wd_idx']
 
         if 'ck2004' in self.content:
@@ -537,10 +541,10 @@ class Passband:
 
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun),))
-            ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
+            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ld_coeffs = interp.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
+            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
 
         if ld_func == 'linear':
             return ld_coeffs[0:1]
@@ -576,8 +580,8 @@ class Passband:
         """
 
         # Initialize the external atmcof module if necessary:
-        if not atmcof.meta.initialized:
-            atmcof.init(plfile, atmfile)
+        # PERHAPS WD_DATA SHOULD BE GLOBAL??
+        self.wd_data = libphoebe.wd_readdata(plfile, atmfile)
 
         # That is all that was necessary for *_extern_planckint() and
         # *_extern_atmx() functions. However, we also want to support
@@ -587,16 +591,10 @@ class Passband:
         # Store the passband index for use in planckint() and atmx():
         self.extern_wd_idx = wdidx
 
-        # The original atmcof.dat features 'D' instead of 'E' for
-        # exponential notation. We need to provide a converter for
-        # numpy's loadtxt to read that in:
-        D2E = lambda s: float(s.replace('D', 'E'))
-        atmtab = np.loadtxt(atmfile, converters={2: D2E, 3: D2E, 4: D2E, 5: D2E, 6: D2E, 7: D2E, 8: D2E, 9: D2E, 10: D2E, 11: D2E})
-
         # Break up the table along axes and extract a single passband data:
-        atmtab = np.reshape(atmtab, (Nabun, Npb, Nlogg, Nints, -1))
+        atmtab = np.reshape(self.wd_data["atm_table"], (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
-
+        
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
@@ -612,15 +610,7 @@ class Passband:
         Returns: log10(Inorm)
         """
 
-        # atmcof.* accepts only floats, no arrays, so we need to check
-        # and wrap if arrays are passed:
-        if not hasattr(Teff, '__iter__'):
-            log10_Inorm, _ = atmcof.planckint(Teff, self.extern_wd_idx)
-        else:
-            log10_Inorm = np.empty_like(Teff)
-            for i, teff in enumerate(Teff):
-                log10_Inorm[i], _ = atmcof.planckint(teff, self.extern_wd_idx)
-                #~ print i, teff, log10_Inorm[i]
+        log10_Inorm = libphoebe.wd_planckint(Teff, self.extern_wd_idx, self.wd_data["planck_table"])
 
         return log10_Inorm
 
@@ -637,48 +627,48 @@ class Passband:
         Returns: log10(Inorm)
         """
 
-        # atmcof.* accepts only floats, no arrays, so we need to check
-        # and wrap if arrays are passed:
-        if not hasattr(Teff, '__iter__'):
-            log10_Inorm, Inorm = atmcof.atmx(Teff, logg, abun, self.extern_wd_idx)
-        else:
-            log10_Inorm = np.zeros(len(Teff))
-            for i in range(len(Teff)):
-                log10_Inorm[i], _ = atmcof.atmx(Teff[i], logg[i], abun[i], self.extern_wd_idx)
-
+        log10_Inorm = libphoebe.wd_atmint(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
+        
         return log10_Inorm
 
     def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
-        if not hasattr(Teff, '__iter__'):
-            req = np.array(((Teff, logg, abun),))
-            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
-        else:
-            req = np.vstack((Teff, logg, abun)).T
-            log10_Inorm = interp.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
+        #~ if not hasattr(Teff, '__iter__'):
+            #~ req = np.array(((Teff, logg, abun),))
+            #~ log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
+        #~ else:
+        req = np.vstack((Teff, logg, abun)).T
+        log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid).T[0]
 
         return log10_Inorm
 
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
+            log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            log10_Imu = interp.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
+            log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
 
         return log10_Imu
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+        # convert scalars to vectors if necessary:
+        if not hasattr(Teff, '__iter__'):
+            Teff = np.array((Teff,))
+        if not hasattr(logg, '__iter__'):
+            logg = np.array((logg,))
+        if not hasattr(abun, '__iter__'):
+            abun = np.array((abun,))
         if atm == 'blackbody':
             retval = 10**self._log10_Inorm_bb(Teff)
         elif atm == 'extern_planckint':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            retval = 0.1*10**self._log10_Inorm_extern_planckint(Teff)
+            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
         elif atm == 'extern_atmx':
-            # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            retval = 0.1*10**self._log10_Inorm_extern_atmx(Teff, logg, abun)
+            # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
+            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
         elif atm == 'ck2004':
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
@@ -714,10 +704,10 @@ class Passband:
     def _ldint_ck2004(self, Teff, logg, abun, photon_weighted):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun),))
-            ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid)[0][0]
+            ldint = libphoebe.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ldint = interp.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
+            ldint = libphoebe.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
 
         return ldint / np.pi
 
@@ -750,10 +740,10 @@ class Passband:
         grid = self._ck2004_boosting_photon_grid if photon_weighted else self._ck2004_boosting_energy_grid
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
-            bindex = interp.interp(req, self._ck2004_intensity_axes, grid)[0][0]
+            bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid)[0][0]
         else:
             req = np.vstack((Teff, logg, abun, mu)).T
-            bindex = interp.interp(req, self._ck2004_intensity_axes, grid).T[0]
+            bindex = libphoebe.interp(req, self._ck2004_intensity_axes, grid).T[0]
 
         return bindex
 
@@ -768,23 +758,108 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-def init_passbands():
+
+def init_passband(fullpath):
+    """
+    """
+    logger.info("initializing passband at {}".format(fullpath))
+    pb = Passband.load(fullpath)
+    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.content, 'pb': None}
+
+def init_passbands(refresh=False):
     """
     This function should be called only once, at import time. It
     traverses the passbands directory and builds a lookup table of
     passband names qualified as 'pbset:pbname' and corresponding files
     and atmosphere content within.
     """
+    global _initialized
 
+    if not _initialized or refresh:
+
+        path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
+        for f in os.listdir(path):
+            if f=='README':
+                continue
+            init_passband(path+f)
+            # pb = Passband.load(path+f)
+            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+
+        _initialized = True
+
+def install_passband(fname):
+    """
+    Install a passband from a local file.  This simply copies the file into the
+    install path - but beware that clearing the installation will clear the
+    passband as well
+    """
+    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
+    shutil.copy(fname, pb_dir)
+    init_passband(os.path.join(pb_dir, fname))
+
+def uninstall_all_passbands():
     path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
     for f in os.listdir(path):
-        pb = Passband.load(path+f)
-        _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+        logger.warning("deleting file: {}".format(path+f))
+        os.remove(path+f)
+
+
+def download_passband(passband):
+    """
+    Download and install a given passband from the repository.
+    """
+    if passband not in list_online_passbands():
+        raise ValueError("passband '{}' not available".format(passband))
+
+    passband_fname = _online_passbands[passband]
+    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
+    passband_fname_local = os.path.join(pb_dir, passband_fname)
+    url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
+    logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
+    try:
+        urllib.urlretrieve(url, passband_fname_local)
+    except IOError:
+        raise IOError("unable to download {} passband - check connection".format(passband))
+    else:
+        init_passband(passband_fname_local)
+
+
+def list_passbands(refresh=False):
+    return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
+
+def list_installed_passbands(refresh=False):
+    if refresh:
+        init_passbands(True)
+
+    return _pbtable.keys()
+
+def list_online_passbands(refresh=False):
+    """
+    """
+    global _online_passbands
+    if _online_passbands is None or refresh:
+
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
+        try:
+            resp = urllib2.urlopen(url)
+        except urllib2.URLError:
+            logger.warning("connection to online passbands lost")
+            if _online_passbands is not None:
+                return _online_passbands.keys()
+            else:
+                return []
+        else:
+            _online_passbands = json.loads(resp.read())
+
+    return _online_passbands.keys()
 
 def get_passband(passband):
 
     if passband not in _pbtable.keys():
-        raise ValueError("passband: {} not found. Try one of: {}".format(passband, _pbtable.keys()))
+        if passband in list_online_passbands():
+            download_passband(passband)
+        else:
+            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands, list_online_passbands))
 
     if _pbtable[passband]['pb'] is None:
         logger.info("loading {} passband".format(passband))
@@ -804,8 +879,8 @@ if __name__ == '__main__':
 
     # Constructing a passband:
 
-    atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-    atmcof.init(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+    #atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
+    #wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
 
     jV = Passband('tables/ptf/JOHNSON.V', pbset='Johnson', pbname='V', effwl=5500.0, calibrated=True, wlunits=u.AA, reference='ADPS', version=1.0, comments='')
     jV.compute_blackbody_response()
@@ -828,7 +903,7 @@ if __name__ == '__main__':
     #~ Inorm_verts1 = grid[(axes[0] >= 4999) & (axes[0] < 10001), axes[1] == 4.5, axes[2] == 0.0, 0]
     #~ Inorm_verts2 = grid[(axes[0] >= 4999) & (axes[0] < 10001), axes[1] == 4.0, axes[2] == 0.0, 0]
 
-    #~ res = interp.interp(req, axes, grid)
+    #~ res = libphoebe.interp(req, axes, grid)
     #~ print res.shape
 
     #~ import matplotlib.pyplot as plt

@@ -402,6 +402,11 @@ class ProtoMesh(object):
         self._pos               = np.array([0.,0.,0.])  # will be updated when placed in orbit (only for Meshes)
         self._scalar_fields     = ['volume']
 
+        if 'label_envelope' in kwargs.keys():
+            self._label_envelope = kwargs.pop('label_envelope')
+            self._label_primary = kwargs.pop('label_primary')
+            self._label_secondary = kwargs.pop('label_secondary')
+
 
         # TODO: split keys that are set vs computed-on-the-fly so when
         # we call something like ScaledProtoMesh.from_proto we don't have
@@ -932,6 +937,12 @@ class ScaledProtoMesh(ProtoMesh):
 
         mesh = cls(**proto_mesh.items())
         mesh._scale_mesh(scale=scale)
+
+        if hasattr(proto_mesh, '_label_envelope'):
+            mesh._label_envelope = proto_mesh._label_envelope
+            mesh._label_primary = proto_mesh._label_primary
+            mesh._label_secondary = proto_mesh._label_secondary
+
         return mesh
 
     def _scale_mesh(self, scale):
@@ -994,6 +1005,11 @@ class Mesh(ScaledProtoMesh):
         mesh._scale_mesh(scale=scale)
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
 
+        if hasattr(proto_mesh, '_label_envelope'):
+            mesh._label_envelope = proto_mesh._label_envelope
+            mesh._label_primary = proto_mesh._label_primary
+            mesh._label_secondary = proto_mesh._label_secondary
+
         return mesh
 
     @classmethod
@@ -1006,6 +1022,11 @@ class Mesh(ScaledProtoMesh):
         mesh = cls(**scaledproto_mesh.items())
 
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
+
+        if hasattr(scaledproto_mesh, '_label_envelope'):
+            mesh._label_envelope = scaledproto_mesh._label_envelope
+            mesh._label_primary = scaledproto_mesh._label_primary
+            mesh._label_secondary = scaledproto_mesh._label_secondary
 
         return mesh
 
@@ -1139,7 +1160,7 @@ class Meshes(object):
     In effect this has the same structure as the system, but allows passing only
     the meshes and dropping all the Body methods/attributes.
     """
-    def __init__(self, items):
+    def __init__(self, items, parent_envelope_of={}):
         """
         TODO: add documentation
 
@@ -1148,6 +1169,7 @@ class Meshes(object):
         self._dict = {component: body.mesh for component, body in items.items()}
         #self._component_by_no = {body.comp_no: component for component, body in items.items()}
         self._components = items.keys()
+        self._parent_envelope_of = parent_envelope_of
 
     def items(self):
         """
@@ -1223,11 +1245,39 @@ class Meshes(object):
         :parameter components:
         """
         def get_field(c, field, computed_type):
+            if c not in self._dict.keys():
+                # then handle the case where we're requesting a star in an
+                # envelope (ie. request the "primary" half of "common_envelope")
+
+                c_orig = c
+                c = self._parent_envelope_of[c]
+                # TODO: how in the world do we access this logic????????
+                # right now its stored in Envelope.label_primary
+                if c_orig == self._dict[c]._label_primary:
+                    comp_no = 0
+                elif c_orig == self._dict[c]._label_secondary:
+                    comp_no = 1
+                else:
+                    raise ValueError
+            else:
+                comp_no = None
+
             f = self._dict[c][field]
             if isinstance(f, ComputedColumn):
-                return getattr(f, computed_type)
+                col = getattr(f, computed_type)
             else:
-                return f
+                col =  f
+
+            if comp_no is None:
+                col = col
+            elif comp_no == 0:
+                col = col[self._dict[c]['env_comp3'] == 0]
+            elif comp_no == 1:
+                col = col[self._dict[c]['env_comp3'] == 1]
+            else:
+                raise NotImplementedError
+
+            return col
 
         if components:
             if isinstance(components, str):

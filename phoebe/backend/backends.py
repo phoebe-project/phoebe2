@@ -424,6 +424,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     protomesh = computeparams.get_value('protomesh', **kwargs)
     pbmesh = computeparams.get_value('pbmesh', **kwargs)
+    do_horizon = computeparams.get_value('horizon', **kwargs)
     if 'protomesh' in kwargs.keys():
         # remove protomesh so that it isn't passed twice in _extract_from_bundle_by_time
         kwargs.pop('protomesh')
@@ -568,7 +569,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pblum_copy = {}
-            for component in meshablerefs:
+            # for component in meshablerefs:
+            for component in b.filter(qualifier='pblum_ref', dataset=dataset).components:
                 if component=='_default':
                     continue
                 pblum_ref = b.get_value(qualifier='pblum_ref', component=component, dataset=dataset, context='dataset')
@@ -577,7 +579,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
-                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs)
+                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within common_envelope... and then smart enough to handle the pblum_scale
+
+                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
                 else:
                     # then this component wants to copy the scale from another component
                     # in the system.  We'll just store this now so that we make sure the
@@ -588,7 +592,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pblum_copy.items():
-                system.get_body(comp)._pblum_scale[dataset] = system.get_body(comp_copy).get_pblum_scale(dataset)
+                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
 
     # MAIN COMPUTE LOOP
@@ -640,7 +645,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # of per-vertex weights which are used to determine the physical quantities
             # (ie teff, logg) that should be used in computing observables (ie intensity)
 
-            expose_horizon =  'orb' in [info['kind'] for info in infolist]
+            expose_horizon =  'mesh' in [info['kind'] for info in infolist] and do_horizon
             horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
@@ -769,29 +774,30 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_syn['visible_centroids'] = vcs
 
                 # Eclipse horizon
-                if horizons is not None:
+                if do_horizon and horizons is not None:
                     this_syn['horizon_xs'] = horizons[cind][:,0]
                     this_syn['horizon_ys'] = horizons[cind][:,1]
                     this_syn['horizon_zs'] = horizons[cind][:,2]
 
                 # Analytic horizon
-                if body.distortion_method == 'roche':
-                    if body.mesh_method == 'marching':
-                        q, F, d, Phi = body._mesh_args
-                        scale = body._scale
-                        euler = [ethetai[cind], elongani[cind], eincli[cind]]
-                        pos = [xi[cind], yi[cind], zi[cind]]
-                        ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
-                    elif body.mesh_method == 'wd':
-                        scale = body._scale
-                        pos = [xi[cind], yi[cind], zi[cind]]
-                        ha = horizon_analytic.wd(b, time, scale, pos)
-                    else:
-                        raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
+                if do_horizon:
+                    if body.distortion_method == 'roche':
+                        if body.mesh_method == 'marching':
+                            q, F, d, Phi = body._mesh_args
+                            scale = body._scale
+                            euler = [ethetai[cind], elongani[cind], eincli[cind]]
+                            pos = [xi[cind], yi[cind], zi[cind]]
+                            ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
+                        elif body.mesh_method == 'wd':
+                            scale = body._scale
+                            pos = [xi[cind], yi[cind], zi[cind]]
+                            ha = horizon_analytic.wd(b, time, scale, pos)
+                        else:
+                            raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
 
-                    this_syn['horizon_analytic_xs'] = ha['xs']
-                    this_syn['horizon_analytic_ys'] = ha['ys']
-                    this_syn['horizon_analytic_zs'] = ha['zs']
+                        this_syn['horizon_analytic_xs'] = ha['xs']
+                        this_syn['horizon_analytic_ys'] = ha['ys']
+                        this_syn['horizon_analytic_zs'] = ha['zs']
 
 
                 # Dataset-dependent quantities
@@ -1073,7 +1079,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    quit()
     if protomesh:
         time = [perpass]
-        print 'TIME', time
+        # print 'TIME', time
         phb1.setpar('phoebe_lcno', 1)
         flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)
         fill_mesh(mesh, 'protomesh')
