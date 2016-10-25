@@ -109,6 +109,9 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             except ValueError:
                 is_float = False
                 colorarray = None
+            except TypeError:
+                is_float = False
+                colorarray = None
             else:
                 # matplotlib also accepts stringed floats which will be converted to grayscale (ie '0.8')
                 is_float = True

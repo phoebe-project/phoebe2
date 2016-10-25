@@ -292,30 +292,35 @@ class System(object):
             teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
 
             intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
+            ldint_per_body = meshes.get_column('ldint:bol', computed_type='for_computations').values()
+
+            fluxes_intrins_per_body = [intens_intrins * ldint for intens_intrins, ldint in zip(intens_intrins_per_body, ldint_per_body)]
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
-            intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
+            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
                                                                                        frac_refls_per_body,
-                                                                                       intens_intrins_per_body,
+                                                                                       fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
                                                                                        self.reflection_method.title()
                                                                                        )
 
 
-            # intens_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
+            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
             #                                                                            triangles_per_body,
             #                                                                            normals_per_body,
             #                                                                            areas_per_body,
             #                                                                            frac_refls_per_body,
-            #                                                                            intens_intrins_per_body,
+            #                                                                            fluxes_intrins_per_body,
             #                                                                            ld_func_and_coeffs,
             #                                                                            self.reflection_method.title()
             #                                                                            )
 
+
+            intens_intrins_and_refl_per_body = [fluxes_intrins_and_refl / ldint for fluxes_intrins_and_refl, ldint in zip(fluxes_intrins_and_refl_per_body, ldint_per_body)]
 
             intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
             intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
@@ -332,6 +337,8 @@ class System(object):
             frac_refls_flat = meshes.get_column_flat('frac_refl', computed_type='for_computations')
 
             intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
+            ldint_flat = meshes.get_column_flat('ldint:bol', computed_type='for_computations')
+            fluxes_intrins_flat = intens_intrins_flat * ldint_flat
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
@@ -341,28 +348,30 @@ class System(object):
             # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
 
             # TODO: this will fail for WD meshes - use triangles instead?
-            intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
+            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
                                                                                     triangles_flat,
                                                                                     normals_flat,
                                                                                     areas_flat,
                                                                                     frac_refls_flat,
-                                                                                    intens_intrins_flat,
+                                                                                    fluxes_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds,
                                                                                     self.reflection_method.title()
                                                                                     )
 
 
-            # intens_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_triangles(vertices_flat,
+            # fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_triangles(vertices_flat,
                                                                                     # triangles_flat,
                                                                                     # normals_flat,
                                                                                     # areas_flat,
                                                                                     # frac_refls_flat,
-                                                                                    # intens_intrins_flat,
+                                                                                    # fluxes_intrins_flat,
                                                                                     # ld_func_and_coeffs,
                                                                                     # ld_inds,
                                                                                     # self.reflection_method.title()
                                                                                     # )
+
+            intens_intrins_and_refl_flat = fluxes_intrins_and_refl_flat / ldint_flat
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
@@ -1037,25 +1046,12 @@ class Body(object):
         # emergent normal intensities in this dataset's passband/atm in absolute units
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
+        ldint = self.mesh['ldint:{}'.format(dataset)].centers
+
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
-
-        # TODO: make these all kwargs.get('blah', self.default)?
-        ld_func = self.ld_func[dataset]
-        ld_coeffs = self.ld_coeffs[dataset]
-        intens_weighting = self.intens_weighting[dataset]
-        atm = self.atm
-
-        pb = passbands.get_passband(self.passband[dataset])
-        ldint = pb.ldint(Teff=self.mesh.teffs.centers,
-                         logg=self.mesh.loggs.centers,
-                         abun=self.mesh.abuns.centers,
-                         atm=atm,
-                         ld_func=ld_func,
-                         ld_coeffs=ld_coeffs,
-                         photon_weighted=intens_weighting=='photon')
 
         total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint) * np.pi
 
@@ -1981,6 +1977,14 @@ class Star(Body):
                                      ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
+            ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
+                             logg=self.mesh.loggs.for_computations,
+                             abun=self.mesh.abuns.for_computations,
+                             atm=atm,
+                             ld_func=ld_func,
+                             ld_coeffs=ld_coeffs,
+                             photon_weighted=intens_weighting=='photon')
+
             # Beaming/boosting
             if boosting_method == 'none':
                 boost_factors = 1.0
@@ -2050,6 +2054,7 @@ class Star(Body):
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
+            'ldint': ldint,
             'boost_factors': boost_factors}
 
 
@@ -2712,63 +2717,40 @@ class Envelope(Body):
         # areas are the NON-projected areas of each surface element.  We'll be
         # integrating over normal intensities, so we don't need to worry about
         # multiplying by mu to get projected areas.
-        # comp refers to the part of the enevelope that corresponds to component
-        pb = passbands.get_passband(self.passband[dataset])
-        ld_func = self.ld_func[dataset]
-        ld_coeffs = self.ld_coeffs[dataset]
-        intens_weighting = self.intens_weighting[dataset]
-        atm = self.atm
-
         areas = self.mesh.areas_si
-        teffs = self.mesh.teffs.centers
-        loggs = self.mesh.loggs.centers
-        abuns = self.mesh.abuns.centers
-
-        if component==self.label_envelope:
-            teffs = teffs
-            loggs = loggs
-            abuns = abuns
-            areas = areas
-        elif component==self.label_primary:
-            teffs = teffs[self.mesh.env_comp3 == 0]
-            loggs = loggs[self.mesh.env_comp3 == 0]
-            abuns = abuns[self.mesh.env_comp3 == 0]
-            areas = areas[self.mesh.env_comp3 == 0]
-        elif component==self.label_secondary:
-            teffs = teffs[self.mesh.env_comp3 == 1]
-            loggs = loggs[self.mesh.env_comp3 == 1]
-            abuns = abuns[self.mesh.env_comp3 == 1]
-            areas = areas[self.mesh.env_comp3 == 1]
-        else:
-            raise ValueError
 
         # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        abs_normal_intensities = pb.Inorm(Teff=teffs,
-                                          logg=loggs,
-                                          abun=abuns,
-                                          atm=atm)
+        abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
+
+        ldint = self.mesh['ldint:{}'.format(dataset)].centers
+
+        if component == self.label_envelope:
+            areas = areas
+            abs_normal_intensities = abs_normal_intensities
+            ldint = ldint
+        elif component == self.label_primary:
+            areas = areas[self.mesh.env_comp3 == 0]
+            abs_normal_intensities = abs_normal_intensities[self.mesh.env_comp3 == 0]
+            ldint = ldint[self.mesh.env_comp3 == 0]
+        elif component == self.label_secondary:
+            areas = areas[self.mesh.env_comp3 == 1]
+            abs_normal_intensities = abs_normal_intensities[self.mesh.env_comp3 == 1]
+            ldint = ldint[self.mesh.env_comp3 == 1]
+        else:
+            raise ValueError
 
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
+        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint) * np.pi
 
-        ld = pb.ldint(Teff=teffs,
-                     logg=loggs,
-                     abun=abuns,
-                     atm=atm,
-                     ld_func=ld_func,
-                     ld_coeffs=ld_coeffs,
-                     photon_weighted=intens_weighting=='photon')
-
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ld) * np.pi
-
-        # NOTE: when this is computed the first time (for the sake of determing
+        # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
+        return total_integrated_intensity * self.get_pblum_scale(dataset)
 
-        return total_integrated_intensity * self.get_pblum_scale(dataset, component=component)
 
     def compute_pblum_scale(self, dataset, pblum, component=None, **kwargs):
         """
@@ -2890,6 +2872,14 @@ class Envelope(Body):
                                      ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
+            ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
+                             logg=self.mesh.loggs.for_computations,
+                             abun=self.mesh.abuns.for_computations,
+                             atm=atm,
+                             ld_func=ld_func,
+                             ld_coeffs=ld_coeffs,
+                             photon_weighted=intens_weighting=='photon')
+
             # Beaming/boosting
             if boosting_method == 'none':
                 boost_factors = 1.0
@@ -2964,6 +2954,7 @@ class Envelope(Body):
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
+            'ldint': ldint,
             'boost_factors': boost_factors}
 
 class Feature(object):
