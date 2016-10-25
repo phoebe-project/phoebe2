@@ -1049,17 +1049,17 @@ class Body(object):
         atm = self.atm
 
         pb = passbands.get_passband(self.passband[dataset])
-        ld = pb.ldint(Teff=self.mesh.teffs.centers,
-                     logg=self.mesh.loggs.centers,
-                     abun=self.mesh.abuns.centers,
-                     atm=atm,
-                     ld_func=ld_func,
-                     ld_coeffs=ld_coeffs,
-                     photon_weighted=intens_weighting=='photon')
+        ldint = pb.ldint(Teff=self.mesh.teffs.centers,
+                         logg=self.mesh.loggs.centers,
+                         abun=self.mesh.abuns.centers,
+                         atm=atm,
+                         ld_func=ld_func,
+                         ld_coeffs=ld_coeffs,
+                         photon_weighted=intens_weighting=='photon')
 
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ld) * np.pi
+        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint) * np.pi
 
-        # NOTE: when this is computed the first time (for the sake of determing
+        # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
         return total_integrated_intensity * self.get_pblum_scale(dataset)
 
@@ -1572,31 +1572,19 @@ class Star(Body):
         Phi = kwargs.get('Phi', self.Phi)  # NOTE: self.Phi automatically corrects for the secondary star
         q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
 
-        # TODO: remove rounding once libphoebe can handle more decimal places
         mesh_args = (q, F, d, Phi)
 
         if mesh_method == 'marching':
-            # Phi = kwargs.get('Phi', self.Phi_user)  # NOTE: self.Phi_user is not corrected for the secondary star, but that's fine because we pass primary vs secondary as choice
-            # q = 1./self.q if self.comp_no == 2 else self.q  # NOTE: undo the inversion so this is ALWAYS Mp/Ms
-
             delta = kwargs.get('delta', self.delta)
             maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
-
 
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
-                rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
-                # print "*** as roche", Phi, F, sma, rpole*sma
-
-                # TODO: need to figure this out, this currently causes issues
-                # with large sma (too many triangles).  rpole*sma /helps/ but
-                # doesn't quite do the right thing.
                 rpole = libphoebe.roche_pole(*mesh_args)
                 delta *= rpole
-                # print delta
 
-                # print "*** libphoebe.roche_marcing_mesh", mesh_args, delta
+                # print "*** libphoebe.roche_marcing_mesh args: {}, rpole: {}, delta: {}".format(mesh_args, rpole, delta)
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
@@ -2008,7 +1996,8 @@ class Star(Body):
             else:
                 raise NotImplementedError("boosting_method='{}' not supported".format(self.boosting_method))
 
-            # TODO: does this make sense to boost proj but not norm?
+            # boosting is aspect dependent so we don't need to correct the
+            # normal intensities
             abs_intensities *= boost_factors
 
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
