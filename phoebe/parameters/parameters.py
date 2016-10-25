@@ -3950,12 +3950,6 @@ class FloatParameter(Parameter):
         if t is not None:
             raise NotImplementedError("timederiv is currently disabled until it can be tested thoroughly")
 
-        if self._bundle is not None and len(self._bundle._delayed_constraints) and self in [self._bundle.get_constraint(uniqueid=uid).constrained_parameter for uid in self._bundle._delayed_constraints]:
-            #self.is_constraint is not None and self._bundle is not None and self.is_constraint.uniqueid in self._bundle._delayed_constraints:
-            logger.warning("constraints have not been updated.  Call bundle.run_delayed_constraints() or enable running constraints immediately with phoebe.interactive_on()")
-            # value = self.is_constraint.get_result() # results in infinite loop
-            # self._bundle.run_delayed_constraints()
-
         if t is not None and self.is_constraint is not None:
             # TODO: is this a risk for an infinite loop?
             value = self.is_constraint.get_result(t=t)
