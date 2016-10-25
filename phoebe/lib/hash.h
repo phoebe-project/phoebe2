@@ -2,6 +2,7 @@
 #define __hash_h
 
 #include <cstdint>
+#include <string>
 
 /*
   String hashing for fast switching based on string argument.
@@ -52,7 +53,10 @@ namespace fnv1a_64 {
    
     return ret;
   }
-   
+  
+  // run time  hashing
+  hash_t hash(const std::string & s) { return hash(s.c_str()); }
+ 
 } // namespace fnv1a_64
    
 constexpr unsigned long long operator "" _hash64(char const* p, size_t)
@@ -89,6 +93,8 @@ namespace fnv1a_32 {
    
     return ret;
   }
+  
+  hash_t hash(const std::string & s) { return hash(s.c_str()); }
    
 } // namespace fnv1a_32
    

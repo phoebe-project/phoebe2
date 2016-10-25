@@ -247,6 +247,7 @@ namespace gen_roche {
     const T & F = 1,
     const T & delta = 1
   ) {
+
     return delta*poleLR(Omega0*delta, q);
   }
 

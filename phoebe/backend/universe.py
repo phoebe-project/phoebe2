@@ -298,25 +298,27 @@ class System(object):
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
-            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
+            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
                                                                                        frac_refls_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
-                                                                                       self.reflection_method.title()
+                                                                                       self.reflection_method.title(),
+                                                                                       support=b'vertices'
                                                                                        )
 
 
-            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
+            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
             #                                                                            triangles_per_body,
             #                                                                            normals_per_body,
             #                                                                            areas_per_body,
             #                                                                            frac_refls_per_body,
             #                                                                            fluxes_intrins_per_body,
             #                                                                            ld_func_and_coeffs,
-            #                                                                            self.reflection_method.title()
+            #                                                                            self.reflection_method.title(),
+            #                                                                            support=b'vertices'
             #                                                                            )
 
 
@@ -348,7 +350,7 @@ class System(object):
             # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
 
             # TODO: this will fail for WD meshes - use triangles instead?
-            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
+            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                                     triangles_flat,
                                                                                     normals_flat,
                                                                                     areas_flat,
@@ -356,11 +358,12 @@ class System(object):
                                                                                     fluxes_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds,
-                                                                                    self.reflection_method.title()
+                                                                                    self.reflection_method.title(),
+                                                                                    support=b'vertices'
                                                                                     )
 
 
-            # fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_triangles(vertices_flat,
+            # fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                                     # triangles_flat,
                                                                                     # normals_flat,
                                                                                     # areas_flat,
@@ -369,6 +372,7 @@ class System(object):
                                                                                     # ld_func_and_coeffs,
                                                                                     # ld_inds,
                                                                                     # self.reflection_method.title()
+                                                                                    #support=b'triangles'
                                                                                     # )
 
             intens_intrins_and_refl_flat = fluxes_intrins_and_refl_flat / ldint_flat
