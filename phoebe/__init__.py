@@ -92,6 +92,9 @@ def logger(*args, **kwargs):
 def open(*args, **kwargs):
     return Bundle.open(*args, **kwargs)
 
+def load(*args, **kwargs):
+    return Bundle.open(*args, **kwargs)
+
 def from_legacy(*args, **kwargs):
     return Bundle.from_legacy(*args, **kwargs)
 
