@@ -509,7 +509,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
   
   Python:
     
-    dict = roche_area_and_volume(q, F, d, Omega0, <keyword>=<value>)
+    dict = roche_area_volume(q, F, d, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -1394,7 +1394,7 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
   p[3] = 0; // Omega
   
   Tgen_roche<double> b(p);
-
+  
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
 }
 
@@ -3349,7 +3349,7 @@ static PyObject *mesh_radiosity_problem_triangles_nbody_convex(
   //
 
   std::vector<Tmat_elem_nbody<double>> Fmat;
-    
+  
   triangle_mesh_radiosity_matrix_triangles_nbody_convex(V, Tr, NatT, A, LDmod, Fmat);
 
   for (auto && ld: LDmod) delete ld;
@@ -3574,8 +3574,12 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
 
   std::vector<Tmat_elem_nbody<double>> Fmat;
     
-  triangle_mesh_radiosity_matrix_vertices_nbody_convex(V, Tr, NatV, A, LDmod, Fmat);
-
+  triangle_mesh_radiosity_matrix_vertices_nbody_convex(
+    V, Tr, NatV, A, LDmod, Fmat);
+ 
+  std::cerr << "Fmat.size=" << Fmat.size() << " V.size=" << V.size() << '\n';
+  for (int i = 0; i < 2; ++i) std::cerr << "V[i].size=" << V[i].size() << '\n';
+ 
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
   
