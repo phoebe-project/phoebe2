@@ -54,9 +54,9 @@ matrix:
           compiler: g++-5
           env: CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1'
 
-        - os: linux
-          compiler: g++-5
-          env: CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=dev ASTROPY_VERSION=dev NOSETESTS=1'
+        # - os: linux
+        #   compiler: g++-5
+        #   env: CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=dev ASTROPY_VERSION=dev NOSETESTS=1'
 
         # Try with various versions of python with default numpy/astropy and compiler
         # - os: linux
