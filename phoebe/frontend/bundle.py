@@ -1088,6 +1088,10 @@ class Bundle(ParameterSet):
                 ecc = self.get_value(qualifier='ecc', component=orbitref, context='component')
 
                 starrefs = hier.get_children_of(orbitref)
+                if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
+                    # print "***", hier.get_kind_of(starrefs[0]), hier.get_kind_of(starrefs[1])
+                    continue
+
                 comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
                 comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
                 q0 = roche.q_for_component(q, comp0)
