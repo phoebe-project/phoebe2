@@ -464,13 +464,12 @@ bool triangle_mesh_redistribution_matrix_triangles(
     auto & par = p.second;
     auto & Dmat = Dmats[p.first];
     
-    
     switch (fnv1a_32::hash(p.first)) {
       
-      case "uniform"_hash32:
-      calc_redistrib_matrix(A, Dmat);
-      break;
-        
+      case "none"_hash32: break;
+      
+      case "uniform"_hash32: calc_redistrib_matrix(A, Dmat); break;
+      
       case "local"_hash32:
       {
         
@@ -582,6 +581,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
             which are used to calculate distribution matrices
           
           Models supported:
+            none      0 paramters
             uniform   0 parameters
             local     1 parameter [h]
                         h = 0: flux is reflected back from element that
@@ -632,6 +632,8 @@ bool triangle_mesh_redistribution_matrix_vertices(
     auto & Dmat = Dmats[p.first];
     
     switch (fnv1a_32::hash(p.first)) {
+      
+      case "none"_hash32: break;
       
       case "uniform"_hash32:
       
@@ -1316,9 +1318,14 @@ void add_sparse_matrices(
   std::vector<Tsparse_mat_elem<T>> &B
 ){
   
-  if (W.size() > 1) {
+  // number of distribution matrices different then none
+  int n = 0;
+  auto h_none = "none"_hash32;
+  for (auto && w : W) if (fnv1a_64::hash(w.first) != h_none) ++n; 
+
+  if (n > 1) {
     
-    T **R = utils::matrix <T>(d,d);
+    T **R = utils::matrix <T>(d, d);
     
     memset(R[0], 0, d*d*sizeof(T));    
     
@@ -1349,7 +1356,13 @@ void add_sparse_matrices(
     
     utils::free_matrix(R);
     
-  } else B = A[W.begin()->first];
+  } else {
+    for (auto && w : W) 
+      if (fnv1a_64::hash(w.first) != h_none) {
+        B = A[w.first];
+        break;
+      }
+  }
 }
 
 
