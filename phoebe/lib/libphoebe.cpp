@@ -3363,6 +3363,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
     st_interp = true;
     break;
   }
+  
   std::vector<std::vector<T3Dpoint<double>>> V(n), N(n);
   std::vector<std::vector<T3Dpoint<int>>> Tr(n);
   std::vector<std::vector<double>> A(n), R(n), F0(n), F;
@@ -3476,7 +3477,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
   Python:
 
     dict = mesh_radiosity_redistrib_problem_nbody_convex(
-        V, Tr, N, A, R, F0, F1, LDmod, Dmod, Dweight, model, support, <keyword> = <value>, ... )
+        V, Tr, N, A, R, F0, LDmod, Dmod, Dweight, model, support, <keyword> = <value>, ... )
     
   where positional parameters:
   
@@ -3512,10 +3513,11 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
                "claret"      4 parameters
               "interp"      interpolation data  TODO !!!!
               
-    Dmod = {Dmod1, Dmod2, ...}: list of dictionaries of the format
+    Dmod = {Dmod1, Dmod2, ...}: list of dictionaries of element of the format
            {'redistr. name':  params = 1-rank numpy array}
             
             with one model per body. Supported redistribution models:
+            "none"        0 paramters -> do only reflection
             "uniform"     0 paramaters
             "local"       1 parameter (h)
             "horizontal"  4 parameters (o_x, o_y, o_z, h)
@@ -3651,6 +3653,11 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     break;
   }
  
+  if (st_interp) {
+    std::cerr << fname << "::This is not yet implemented\n";
+    return NULL;
+  }
+  
   //
   // Reading support type
   //
@@ -3690,24 +3697,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oF0, b), F0[b]);
   }
 
- 
-  //
-  // Determine the LD view-factor matrix
-  //
-
-  std::vector<Tview_factor_nbody<double>> Fmat;
-  
-  if (support == 0)  
-    triangle_mesh_radiosity_matrix_triangles_nbody_convex(
-      V, Tr, N, A, LDmod, Fmat);
-  else
-    triangle_mesh_radiosity_matrix_vertices_nbody_convex(
-      V, Tr, N, A, LDmod, Fmat);
-
-  for (auto && ld: LDmod) delete ld;
-  LDmod.clear();
-  
-  //
+   //
   // Reading redistribution models
   // 
   
@@ -3740,72 +3730,140 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       ++dw;
     }
   }
-
-  //
-  // Calculating redistribution matrices
-  //
   
-  std::vector<std::map<std::string, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);  
-  
+  //
+  // If only none is used as redistribution model
+  // we internally swicth to reflection
+  //
+  bool only_reflection = true;
   {
-    bool st;
+    auto h_none = "none"_hash32;
+  
+    for (int b = 0; only_reflection && b < n; ++b)
+      for (auto && w: Dweights[b]) 
+        if (fnv1a_64::hash(w.first) != h_none) {
+          only_reflection = false;
+          break;
+        }
+  }
+  
+  
+  //
+  // Determine the LD view-factor matrix
+  //
+
+  std::vector<Tview_factor_nbody<double>> Fmat;
+  
+  if (support == 0)  
+    triangle_mesh_radiosity_matrix_triangles_nbody_convex(
+      V, Tr, N, A, LDmod, Fmat);
+  else
+    triangle_mesh_radiosity_matrix_vertices_nbody_convex(
+      V, Tr, N, A, LDmod, Fmat);
+
+  for (auto && ld: LDmod) delete ld;
+  LDmod.clear();
+  
+
+  if (!only_reflection) {
     
-    for (int b = 0; b < n; ++b) {
+    //
+    // Calculating redistribution matrices
+    //
+    
+    std::vector<std::map<std::string, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);  
+    
+    {
+      bool st;
       
-      st = (support == 0 ?
-        triangle_mesh_redistribution_matrix_triangles(
-          V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
-        triangle_mesh_redistribution_matrix_vertices(
-          V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
-      );
-      
-      if (!st) {
-        std::cerr << fname << "::Redistribution matrix calculation failed\n";
-        return NULL;
+      for (int b = 0; b < n; ++b) {
+        
+        st = (support == 0 ?
+          triangle_mesh_redistribution_matrix_triangles(
+            V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
+          triangle_mesh_redistribution_matrix_vertices(
+            V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
+        );
+        
+        if (!st) {
+          std::cerr << fname << "::Redistribution matrix calculation failed\n";
+          return NULL;
+        }
       }
     }
-  }
 
-  
-  std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat(n);
-  
-  for (int b = 0; b < n; ++b)
-    if (support == 0)
-      add_sparse_matrices(Tr[b].size(), Dweights[b], Dmats[b], Dmat[b]);
-    else
-      add_sparse_matrices(V[b].size(), Dweights[b], Dmats[b], Dmat[b]);
- 
-
-  //
-  // Solving the radiosity-redistribution equation depending on the model
-  //
-  {
-    bool st = false;
     
-    char *s = PyString_AsString(omodel);
+    std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat(n);
+    
+    for (int b = 0; b < n; ++b)
+      if (support == 0)
+        add_sparse_matrices(Tr[b].size(), Dweights[b], Dmats[b], Dmat[b]);
+      else
+        add_sparse_matrices(V[b].size(), Dweights[b], Dmats[b], Dmat[b]);
+   
+
+    //
+    // Solving the radiosity-redistribution equation depending on the model
+    //
+    {
+      bool st = false;
       
-    switch (fnv1a_32::hash(s)) {
+      char *s = PyString_AsString(omodel);
+        
+      switch (fnv1a_32::hash(s)) {
+        
+        case "Wilson"_hash32:
+          st = solve_radiosity_equation_with_redistribution_Wilson_nbody(
+                Fmat, Dmat, R, F0, F1, Fout);
+        break;
+        
+        case "Horvat"_hash32:
+          st = solve_radiosity_equation_with_redistribution_Horvat_nbody(
+                Fmat, Dmat, R, F0, F1, Fout);
+        break;
+        
+        default:
+          std::cerr 
+            << fname << "::This radiosity-redistribution model ="
+            << s << " does not exist\n";
+          return NULL;
+      }
       
-      case "Wilson"_hash32:
-        st = solve_radiosity_equation_with_redistribution_Wilson_nbody(
-              Fmat, Dmat, R, F0, F1, Fout);
-      break;
-      
-      case "Horvat"_hash32:
-        st = solve_radiosity_equation_with_redistribution_Horvat_nbody(
-              Fmat, Dmat, R, F0, F1, Fout);
-      break;
-      
-      default:
-        std::cerr 
-          << fname << "::This radiosity-redistribution model ="
-          << s << " does not exist\n";
-        return NULL;
+      if (!st) std::cerr << fname << "::slow convergence\n";
     }
+  } else {
     
-    if (!st) std::cerr << fname << "::slow convergence\n";
-  }
+    //
+    // Solving the radiosity equation depending on the model
+    //
+    {
+      bool success = false;
+      
+      char *s = PyString_AsString(omodel);
+        
+      switch (fnv1a_32::hash(s)) {
+        
+        case "Wilson"_hash32:
+        success = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, Fout);
+        break;
+        
+        case "Horvat"_hash32:
+        success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, Fout);
+        break;
+        
+        default:
+          std::cerr 
+            << fname << "::This radiosity model ="
+            << s << " does not exist\n";
+          return NULL;
+      }
+      
+      if (!success) std::cerr << fname << "::slow convergence\n";
+    }
   
+    // nothing happens to exitance !!!!
+    F1 = F0;
+  }
 
   PyObject *results = PyDict_New();
   

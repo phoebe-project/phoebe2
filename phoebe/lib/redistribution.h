@@ -190,7 +190,7 @@ void calc_directions(
     
     f = 0;
     for (i = 0; i < 3; ++i) {
-      t = (v[i] -= x[3]);
+      t = (v[i] -= x[i]);
       f += t*t;
     }
     
@@ -303,7 +303,7 @@ void calc_connectivity(
   Calculating redistribution matrix D_{i,j} based on the 
   connectivity matrix C_{i,j}:
 
-    D_{i,j} = A_j C_{i,j}/sum_k A_k C_{k,j}
+    D_{i,j} = A_j C_{i,j}/(sum_k A_k C_{k,j})
               
   Input:
     C - matrix of non-zero connections C[i] = {j_1, j_2, ..., j_k}
@@ -325,13 +325,18 @@ void calc_redistrib_matrix(
   T f;
   
   int j = 0;
-
+  
+  auto it = A.begin();
+  
   for (auto && c : C) {
     f = 0;
     for (auto && i : c) f += A[i];
     f = 1/f;
-    for (auto && i : c) Dmat.emplace_back(i, j, f*A[j]); 
+    
+    for (auto && i : c) Dmat.emplace_back(i, j, f*(*it)); 
+    
     ++j;
+    ++it;
   }
 }
 
@@ -392,7 +397,7 @@ void calc_area_at_vertices(
   
   int *t;
   
-  auto it = AatV.begin();
+  auto it = A.begin();
   
   T a;
   
@@ -464,13 +469,14 @@ bool triangle_mesh_redistribution_matrix_triangles(
     auto & par = p.second;
     auto & Dmat = Dmats[p.first];
     
-    
     switch (fnv1a_32::hash(p.first)) {
       
-      case "uniform"_hash32:
+      case "none"_hash32: break;
+      
+      case "uniform"_hash32: 
       calc_redistrib_matrix(A, Dmat);
       break;
-        
+      
       case "local"_hash32:
       {
         
@@ -481,11 +487,8 @@ bool triangle_mesh_redistribution_matrix_triangles(
           for (i = 0; i < Nt; ++i) Dmat.emplace_back(i, i, T(1));
         } else {        // h > 0
           
-          // calculate of characteristic points: barycenters
           if (st) {
-            
-            P = V;
-               
+            // calculate of characteristic points: barycenters
             calc_barycenters(V, Tr, P);
 
             // fitting sphere to barycenters
@@ -524,11 +527,8 @@ bool triangle_mesh_redistribution_matrix_triangles(
           for (i = 0; i < Nt; ++i) Dmat.emplace_back(i, i, T(1));
         } else {        // h > 0
           
-          if (st) {
-            
+          if (st) {            
             // calculate characteristic points: barycenters
-            P = V;
-            
             calc_barycenters(V, Tr, P);
             
             // fitting sphere to barycenters          
@@ -582,6 +582,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
             which are used to calculate distribution matrices
           
           Models supported:
+            none      0 paramters
             uniform   0 parameters
             local     1 parameter [h]
                         h = 0: flux is reflected back from element that
@@ -633,6 +634,8 @@ bool triangle_mesh_redistribution_matrix_vertices(
     
     switch (fnv1a_32::hash(p.first)) {
       
+      case "none"_hash32: break;
+      
       case "uniform"_hash32:
       
       if (st[0]) {
@@ -645,16 +648,19 @@ bool triangle_mesh_redistribution_matrix_vertices(
         
       case "local"_hash32:
       {
-        
         T h = par[0]; // neighborhood size
 
         if (h == 0) {  // h == 0
           Dmat.reserve(Nv);
           for (i = 0; i < Nv; ++i) Dmat.emplace_back(i, i, T(1));
         } else {        // h > 0
-      
+          
+          if (st[0]) {
+            calc_area_at_vertices(Nv, Tr, A, AatV);
+            st[0] = false;
+          }
+          
           if (st[1]) {
-            
             P = V;
             
             // fitting sphere to vertices
@@ -673,12 +679,7 @@ bool triangle_mesh_redistribution_matrix_vertices(
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;          
           calc_connectivity(h/r, P, C);
-          
-          if (st[0]) {
-            calc_area_at_vertices(Nv, Tr, A, AatV);
-            st[0] = false;
-          }
-          
+                    
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
         }
@@ -697,8 +698,12 @@ bool triangle_mesh_redistribution_matrix_vertices(
           for (i = 0; i < Nv; ++i) Dmat.emplace_back(i, i, T(1));
         } else {        // h > 0
           
+          if (st[0]) {
+            calc_area_at_vertices(Nv, Tr, A, AatV);
+            st[0] = false;
+          }         
+          
           if (st[1]) {
-           
             P = V;
             
             // fitting sphere to vertices
@@ -713,15 +718,10 @@ bool triangle_mesh_redistribution_matrix_vertices(
            
             st[1] = false;
           }
-
+          
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;
           calc_connectivity(h/r, o, P, C);
-
-          if (st[0]) {
-            calc_area_at_vertices(Nv, Tr, A, AatV);
-            st[0] = false;
-          }
 
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
@@ -1316,9 +1316,14 @@ void add_sparse_matrices(
   std::vector<Tsparse_mat_elem<T>> &B
 ){
   
-  if (W.size() > 1) {
+  // number of distribution matrices different then none
+  int n = 0;
+  auto h_none = "none"_hash32;
+  for (auto && w : W) if (fnv1a_64::hash(w.first) != h_none) ++n; 
+
+  if (n > 1) {
     
-    T **R = utils::matrix <T>(d,d);
+    T **R = utils::matrix <T>(d, d);
     
     memset(R[0], 0, d*d*sizeof(T));    
     
@@ -1349,7 +1354,13 @@ void add_sparse_matrices(
     
     utils::free_matrix(R);
     
-  } else B = A[W.begin()->first];
+  } else {
+    for (auto && w : W) 
+      if (fnv1a_64::hash(w.first) != h_none) {
+        B = A[w.first];
+        break;
+      }
+  }
 }
 
 
