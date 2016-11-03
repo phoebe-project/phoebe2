@@ -257,7 +257,6 @@ class System(object):
                                          atm='blackbody',
                                          boosting_method='none')
 
-            # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
 
 
@@ -303,7 +302,7 @@ class System(object):
 
             # TODO: need to get the correct rotation axis for each star
             distribution_models_per_body = [{'local': np.array([body.refl_localredist_radius]),
-                                             'horiz': np.array([0.0, 1.0, 0.0, body.refl_horizredist_width]),
+                                             'horiz': np.array(list(body.mesh.pole_normal) + [body.refl_horizredist_width]),
                                              'global': np.array([])} for body in self.bodies]
             # distribution_models_per_body = [{'linear': np.array([0.5])}, {}]
             # need to sum to 1 per-body (need to check either here or higher in the frontend)
