@@ -298,29 +298,36 @@ class System(object):
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
-            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
-                                                                                       triangles_per_body,
-                                                                                       normals_per_body,
-                                                                                       areas_per_body,
-                                                                                       frac_refls_per_body,
-                                                                                       fluxes_intrins_per_body,
-                                                                                       ld_func_and_coeffs,
-                                                                                       self.reflection_method.title(),
-                                                                                       support=b'vertices'
-                                                                                       )
+            # TODO: add support for wd meshes by changing support to 'triangles'
+            # and once implemented for convex and general case remove error statement above
+
+            # TODO: need to get the correct rotation axis for each star
+            distribution_models_per_body = [{'local': np.array([body.refl_localredist_radius]),
+                                             'horiz': np.array([0.0, 1.0, 0.0, body.refl_horizredist_width]),
+                                             'global': np.array([])} for body in self.bodies]
+            # distribution_models_per_body = [{'linear': np.array([0.5])}, {}]
+            # need to sum to 1 per-body (need to check either here or higher in the frontend)
+            total_heatings = [1-body.frac_refl for body in self.bodies]
+            distribution_weights_per_body = [{'local': body.frac_refl_localredist/total_heating,
+                                              'horiz': body.frac_refl_horizredist/total_heating,
+                                              'global': body.frac_refl_globalredist/total_heating} for body,total_heating in zip(self.bodies, total_heatings)]
+
+            stuff = libphoebe.mesh_radiosity_redistrib_problem_nbody_convex(vertices_per_body,
+                                                                            triangles_per_body,
+                                                                            normals_per_body,
+                                                                            areas_per_body,
+                                                                            frac_refls_per_body,
+                                                                            fluxes_intrins_per_body,
+                                                                            ld_func_and_coeffs,
+                                                                            distribution_models_per_body,
+                                                                            distribution_weights_per_body,
+                                                                            self.reflection_method.title(),
+                                                                            support=b'vertices'
+                                                                            )
 
 
-            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
-            #                                                                            triangles_per_body,
-            #                                                                            normals_per_body,
-            #                                                                            areas_per_body,
-            #                                                                            frac_refls_per_body,
-            #                                                                            fluxes_intrins_per_body,
-            #                                                                            ld_func_and_coeffs,
-            #                                                                            self.reflection_method.title(),
-            #                                                                            support=b'vertices'
-            #                                                                            )
-
+            fluxes_intrins_and_refl_per_body = stuff['radiosity']
+            # exitance_intrins_and_refl_per_body = stuff['update-exitance']
 
             intens_intrins_and_refl_per_body = [fluxes_intrins_and_refl / ldint for fluxes_intrins_and_refl, ldint in zip(fluxes_intrins_and_refl_per_body, ldint_per_body)]
 
@@ -349,31 +356,19 @@ class System(object):
             ld_inds = np.zeros(frac_refls_flat.shape)
             # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
 
-            # TODO: this will fail for WD meshes - use triangles instead?
+            # TODO: add support for wd meshes by changing support to 'triangles'
+            # and once implemented for convex and general case remove error statement above
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
-                                                                                    triangles_flat,
-                                                                                    normals_flat,
-                                                                                    areas_flat,
-                                                                                    frac_refls_flat,
-                                                                                    fluxes_intrins_flat,
-                                                                                    ld_func_and_coeffs,
-                                                                                    ld_inds,
-                                                                                    self.reflection_method.title(),
-                                                                                    support=b'vertices'
-                                                                                    )
-
-
-            # fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
-                                                                                    # triangles_flat,
-                                                                                    # normals_flat,
-                                                                                    # areas_flat,
-                                                                                    # frac_refls_flat,
-                                                                                    # fluxes_intrins_flat,
-                                                                                    # ld_func_and_coeffs,
-                                                                                    # ld_inds,
-                                                                                    # self.reflection_method.title()
-                                                                                    #support=b'triangles'
-                                                                                    # )
+                                                                            triangles_flat,
+                                                                            normals_flat,
+                                                                            areas_flat,
+                                                                            frac_refls_flat,
+                                                                            fluxes_intrins_flat,
+                                                                            ld_func_and_coeffs,
+                                                                            ld_inds,
+                                                                            self.reflection_method.title(),
+                                                                            support=b'vertices'
+                                                                            )
 
             intens_intrins_and_refl_flat = fluxes_intrins_and_refl_flat / ldint_flat
 
@@ -1309,7 +1304,9 @@ class CustomBody(Body):
 
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                 abun, frac_refl, mesh_method='marching',
+                 abun, frac_refl, frac_refl_localredist, frac_refl_horizredist, frac_refl_globalredist,
+                 refl_localredist_radius, refl_horizredist_width,
+                 mesh_method='marching',
                  dynamics_method='keplerian',
                  mesh_init_phi=0.0,
                  ind_self=0, ind_sibling=1,
@@ -1370,6 +1367,12 @@ class Star(Body):
         # self.gravb_law = gravb_law
         self.abun = abun
         self.frac_refl = frac_refl
+        self.frac_refl_localredist = frac_refl_localredist
+        self.frac_refl_horizredist = frac_refl_horizredist
+        self.frac_refl_globalredist = frac_refl_globalredist
+        self.refl_localredist_radius = refl_localredist_radius
+        self.refl_horizredist_width = refl_horizredist_width
+
         # self.frac_heat = frac_heat
         # self.frac_scatt = frac_scatt
 
@@ -1450,8 +1453,11 @@ class Star(Body):
 
         abun = b.get_value('abun', component=component, context='component')
         frac_refl = b.get_value('frac_refl_bol', component=component, context='component')
-        # frac_heat = b.get_value('frac_heat_bol', component=component, context='component')
-        # frac_scatt = b.get_value('frac_scatt_bol', component=component, context='component')
+        frac_refl_localredist = b.get_value('frac_refl_localredist_bol', component=component, context='component')
+        frac_refl_horizredist = b.get_value('frac_refl_horizredist_bol', component=component, context='component')
+        frac_refl_globalredist = b.get_value('frac_refl_globalredist_bol', component=component, context='component')
+        refl_localredist_radius = b.get_value('refl_localredist_radius', component=component, context='component', unit=u.deg, check_visible=False)
+        refl_horizredist_width  = b.get_value('refl_horizredist_width', component=component, context='component', unit=u.deg, check_visible=False)
 
         try:
             do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
@@ -1495,7 +1501,9 @@ class Star(Body):
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                abun, frac_refl, mesh_method, dynamics_method,
+                abun, frac_refl, frac_refl_localredist, frac_refl_horizredist, frac_refl_globalredist,
+                refl_localredist_radius, refl_horizredist_width,
+                mesh_method, dynamics_method,
                 mesh_init_phi, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
                 passband=passband, intens_weighting=intens_weighting,
@@ -2228,11 +2236,7 @@ class Envelope(Body):
         gravb_bol1 = b.get_value('gravb_bol', component=starrefs[0], context='component')
         gravb_bol2 = b.get_value('gravb_bol', component=starrefs[1], context='component')
 
-        # gravb_law = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
-        #gravb_law2 = b.get_value('gravblaw_bol', component=starrefs[0], context='component')
-
         abun = b.get_value('abun', component=component, context='component')
-        #frac_refl = b.get_value('frac_refl_bol', component=component, context='component')
 
 
         try:

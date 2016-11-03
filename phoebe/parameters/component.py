@@ -100,22 +100,16 @@ def star(component, **kwargs):
 
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
-    # params += [FloatParameter(qualifier='frac_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_bol', 0.4), default_unit=u.dimensionless_unscaled, description='Bolometric albedo (1-alb heating, alb reflected)')]
+    # also see constraint below
     params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-
-    also see constraint below
-    these currently don't do anything until libphoebe's reflection will take these values
-    params += [FloatParameter(qualifier='frac_refl_noredist_bol', value=kwargs.get('frac_refl_noredist_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is not redistributed')]
     params += [FloatParameter(qualifier='frac_refl_localredist_bol', value=kwargs.get('frac_refl_localredist_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is locally redistributed')]
     params += [FloatParameter(qualifier='frac_refl_horizredist_bol', value=kwargs.get('frac_refl_horizredist_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is horizontally (along constant latitude) redistributed')]
     params += [FloatParameter(qualifier='frac_refl_globalredist_bol', value=kwargs.get('frac_refl_globalredist_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is globally redistributed')]
 
+    params += [FloatParameter(qualifier='refl_localredist_radius', visible_if='frac_refl_localredist_bol:!0.0', value=kwargs.get('refl_localredist_radius', 10), default_unit=u.deg, limits=(0,180), description='angular radius of local redistribution')]
+    params += [FloatParameter(qualifier='refl_horizredist_width', visible_if='frac_refl_horizredist_bol:!0.0', value=kwargs.get('refl_horizredist_width', 10), default_unit=u.deg, limits=(0,180), description='angular half-width of horizontal redistribution')]
 
     # params += [FloatParameter(qualifier='frac_scatt_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
-    params += [FloatParameter(qualifier='frac_lost_bol', value=kwargs.get('frac_lost_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0, 1.0), description='ratio of incident bolometric light that is lost/ignored')]
-
-    # params += [FloatParameter(qualifier='redist', value=kwargs.get('redist', 0.0), unit=u.dimensionless_unscaled, description='Global redist par (1-redist) local heating, redist global heating')]
-    # params += [FloatParameter(qualifier='redisth', value=kwargs.get('redisth', 0.0), unit=u.dimensionless_unscaled, description='Horizontal redist par (redisth/redist) horizontally spread')]
 
     # TODO: allow for 'interp' as choice, make default, and set visible_if for ld_coeffs_bol (see ld_coeffs in dataset.py)
     params += [ChoiceParameter(qualifier='ld_func_bol', value=kwargs.get('ld_func_bol', 'logarithmic'), choices=_ld_func_choices_no_interp, description='Bolometric limb darkening model')]
@@ -136,9 +130,7 @@ def star(component, **kwargs):
     # - incl_aligned
 
     constraints += [(constraint.freq, component)]
-    constraints += [(constraint.refl, component)]
-    constraints += [(constraint.reflredist, component)]
-
+    constraints += [(constraint.frac_bol, component)]
 
     return ParameterSet(params), constraints
 

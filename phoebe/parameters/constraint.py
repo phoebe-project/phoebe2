@@ -578,7 +578,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 #}
 #{ Intra-component constraints
 
-def refl(b, component, solve_for=None, **kwargs):
+def frac_bol(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to ensure that energy is conserved and all incident
     light is accounted for.
@@ -587,41 +587,26 @@ def refl(b, component, solve_for=None, **kwargs):
     comp_ps = b.get_component(component=component)
 
     frac_refl_bol = comp_ps.get_parameter(qualifier='frac_refl_bol')
-    # frac_heat_bol = comp_ps.get_parameter(qualifier='frac_heat_bol')
-    # frac_scatt_bol = comp_ps.get_parameter(qualifier='frac_scatt_bol')
-    frac_lost_bol = comp_ps.get_parameter(qualifier='frac_lost_bol')
+    frac_refl_localredist_bol = comp_ps.get_parameter(qualifier='frac_refl_localredist_bol')
+    frac_refl_horizredist_bol = comp_ps.get_parameter(qualifier='frac_refl_horizredist_bol')
+    frac_refl_globalredist_bol = comp_ps.get_parameter(qualifier='frac_refl_globalredist_bol')
 
-    if solve_for in [frac_lost_bol, None]:
-        lhs = frac_lost_bol
-        rhs = 1.0 - frac_refl_bol  #- heating_bol - scattering_bol
+    if solve_for in [frac_refl_globalredist_bol, None]:
+        lhs = frac_refl_globalredist_bol
+        rhs = 1.0 - frac_refl_bol - frac_refl_localredist_bol - frac_refl_horizredist_bol
+    elif solve_for in [frac_refl_horizredist_bol]:
+        lhs = frac_refl_horizredist_bol
+        rhs = 1.0 - frac_refl_bol - frac_refl_localredist_bol - frac_refl_globalredist_bol
+    elif solve_for in [frac_refl_localredist_bol]:
+        lhs = frac_refl_localredist_bol
+        rhs = 1.0 - frac_refl_bol - frac_refl_horizredist_bol - frac_refl_globalredist_bol
     elif solve_for in [frac_refl_bol]:
         lhs = frac_refl_bol
-        rhs = 1.0 - frac_lost_bol
+        rhs = 1.0 - frac_refl_horizredist_bol - frac_refl_localredist_bol - frac_refl_globalredist_bol
     else:
         raise NotImplementedError
 
     return lhs, rhs, {'component': component}
-
-def reflredist(b, component, solve_for=None, **kwargs):
-    """
-    Create a constraint to ensure that all reflected light is considered under
-    the available redistribution schemes
-    """
-    comp_ps = b.get_component(component=component)
-
-    frac_refl_noredist_bol = comp_ps.get_parameter('frac_refl_noredist_bol')
-    frac_refl_localredist_bol = comp_ps.get_parameter('frac_refl_localredist_bol')
-    frac_refl_horizredist_bol = comp_ps.get_parameter('frac_refl_horizredist_bol')
-    frac_refl_globalredist_bol = comp_ps.get_parameter('frac_refl_globalredist_bol')
-
-    if solve_for in [frac_refl_noredist_bol, None]:
-        lhs = frac_refl_noredist_bol
-        rhs = 1.0 - frac_refl_localredist_bol - frac_refl_horizredist_bol - frac_refl_globalredist_bol
-    else:
-        raise NotImplementedError
-
-    return lhs, rhs, {'component': component}
-
 
 #}
 #{ Inter-component constraints
