@@ -423,7 +423,7 @@ void calc_area_at_vertices(
           
           Models supported:
             global  0 parameters
-            local   1 parameter [h]
+            local   1 parameter [h] [h is angle in radians]
                         h = 0: flux is reflected back from element that
                         accepted it 
             horiz   4 parameters: [o_x, o_y, o_z, h]
@@ -474,8 +474,8 @@ bool triangle_mesh_redistribution_matrix_triangles(
       case "none"_hash32: break;
       
       case "global"_hash32: 
-      calc_redistrib_matrix(A, Dmat);
-      break;
+        calc_redistrib_matrix(A, Dmat);
+        break;
       
       case "local"_hash32:
       {
@@ -507,7 +507,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;
           
-          calc_connectivity(h/r, P, C);
+          calc_connectivity(h, P, C);
           
           // creating re-distribution matrix from connectivity matrix          
           calc_redistrib_matrix(C, A, Dmat);
@@ -549,7 +549,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;
           
-          calc_connectivity(h/r, o, P, C);
+          calc_connectivity(h, o, P, C);
            
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, A, Dmat);
@@ -584,7 +584,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
           Models supported:
             none      0 paramters
             global  0 parameters
-            local   1 parameter [h]
+            local   1 parameter [h is angle in radians]
                         h = 0: flux is reflected back from element that
                         accepted it 
             horiz   4 parameters: [o_x, o_y, o_z, h]
@@ -678,7 +678,7 @@ bool triangle_mesh_redistribution_matrix_vertices(
           
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;          
-          calc_connectivity(h/r, P, C);
+          calc_connectivity(h, P, C);
                     
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
@@ -721,7 +721,7 @@ bool triangle_mesh_redistribution_matrix_vertices(
           
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;
-          calc_connectivity(h/r, o, P, C);
+          calc_connectivity(h, o, P, C);
 
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
