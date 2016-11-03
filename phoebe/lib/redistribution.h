@@ -422,16 +422,16 @@ void calc_area_at_vertices(
             which are used to calculate distribution matrices
           
           Models supported:
-            uniform   0 parameters
-            local     1 parameter [h]
+            global  0 parameters
+            local   1 parameter [h]
                         h = 0: flux is reflected back from element that
                         accepted it 
-            horizontal 4 parameters: [o_x, o_y, o_z, h]
+            horiz   4 parameters: [o_x, o_y, o_z, h]
             
           Example:
-             Dpar["uniform"] = std::vector<T>();
+             Dpar["global"] = std::vector<T>();
              Dpar["local"] = std::vector<T>(1);
-             Dpar["horizontal"] = std::vector<T>(4);
+             Dpar["horiz"] = std::vector<T>(4);
              
   
   Output:
@@ -473,7 +473,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
       
       case "none"_hash32: break;
       
-      case "uniform"_hash32: 
+      case "global"_hash32: 
       calc_redistrib_matrix(A, Dmat);
       break;
       
@@ -516,7 +516,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
       
       break;
       
-      case "horizontal"_hash32:
+      case "horiz"_hash32:
       {
         
         T o[3] = {par[0], par[1], par[2]},   // axis
@@ -583,14 +583,14 @@ bool triangle_mesh_redistribution_matrix_triangles(
           
           Models supported:
             none      0 paramters
-            uniform   0 parameters
-            local     1 parameter [h]
+            global  0 parameters
+            local   1 parameter [h]
                         h = 0: flux is reflected back from element that
                         accepted it 
-            horizontal 4 parameters: [o_x, o_y, o_z, h]
+            horiz   4 parameters: [o_x, o_y, o_z, h]
             
           Example:
-             Dpar["uniform"] = std::vector<T>();
+             Dpar["global"] = std::vector<T>();
              Dpar["local"] = std::vector<T>(1);
   
   Output:
@@ -636,7 +636,7 @@ bool triangle_mesh_redistribution_matrix_vertices(
       
       case "none"_hash32: break;
       
-      case "uniform"_hash32:
+      case "global"_hash32:
       
       if (st[0]) {
         calc_area_at_vertices(Nv, Tr, A, AatV);
@@ -687,7 +687,7 @@ bool triangle_mesh_redistribution_matrix_vertices(
       
       break;
       
-      case "horizontal"_hash32:
+      case "horiz"_hash32:
       {
         
         T o[3] = {par[0], par[1], par[2]},   // axis

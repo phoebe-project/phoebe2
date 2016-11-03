@@ -2968,7 +2968,8 @@ bool LDmodelFromListOfTuples(
   
   Python:
 
-    F = mesh_radiosity_problem_triangles(V, Tr, NatT, A, R, F0, LDmod, LDidx, model, <keyword>=<value>, ... )
+    F = mesh_radiosity_problem_triangles(
+        V, Tr, NatT, A, R, F0, LDmod, LDidx, model, support, <keyword>=<value>, ... )
     
   where positional parameters:
   
@@ -3251,7 +3252,7 @@ static PyObject *mesh_radiosity_problem(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-               "claret"      4 parameters
+              "claret"      4 parameters
               "interp"      interpolation data  TODO !!!!
               
                
@@ -3518,9 +3519,9 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
             
             with one model per body. Supported redistribution models:
             "none"        0 paramters -> do only reflection
-            "uniform"     0 paramaters
+            "global"      0 paramaters
             "local"       1 parameter (h)
-            "horizontal"  4 parameters (o_x, o_y, o_z, h)
+            "horiz"       4 parameters (o_x, o_y, o_z, h)
     
     Dweight = {Dw1, Dw2, ....}: list of dictionaries with weights of 
               different models fo the format
@@ -3601,7 +3602,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     *oV, *oTr, *oN, *oA, *oR, *oF0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!O!O!O!O!O!O!O!O!O!|ddi", kwlist,
+      args, keywds,  "O!O!O!O!O!O!O!O!O!O!O!|ddi", kwlist,
       &PyList_Type, &oV,         // neccesary 
       &PyList_Type, &oTr,
       &PyList_Type, &oN,
