@@ -1456,8 +1456,8 @@ class Star(Body):
         frac_refl_localredist = b.get_value('frac_refl_localredist_bol', component=component, context='component')
         frac_refl_horizredist = b.get_value('frac_refl_horizredist_bol', component=component, context='component')
         frac_refl_globalredist = b.get_value('frac_refl_globalredist_bol', component=component, context='component')
-        refl_localredist_radius = b.get_value('refl_localredist_radius', component=component, context='component', unit=u.deg, check_visible=False)
-        refl_horizredist_width  = b.get_value('refl_horizredist_width', component=component, context='component', unit=u.deg, check_visible=False)
+        refl_localredist_radius = b.get_value('refl_localredist_radius', component=component, context='component', unit=u.rad, check_visible=False)
+        refl_horizredist_width  = b.get_value('refl_horizredist_width', component=component, context='component', unit=u.rad, check_visible=False)
 
         try:
             do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
