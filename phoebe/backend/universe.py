@@ -307,9 +307,9 @@ class System(object):
             # distribution_models_per_body = [{'linear': np.array([0.5])}, {}]
             # need to sum to 1 per-body (need to check either here or higher in the frontend)
             total_heatings = [1-body.frac_refl for body in self.bodies]
-            distribution_weights_per_body = [{'local': body.frac_refl_localredist/total_heating,
-                                              'horiz': body.frac_refl_horizredist/total_heating,
-                                              'global': body.frac_refl_globalredist/total_heating} for body,total_heating in zip(self.bodies, total_heatings)]
+            distribution_weights_per_body = [{'local': body.frac_refl_localredist/total_heating if total_heating > 0 else 0.0,
+                                              'horiz': body.frac_refl_horizredist/total_heating if total_heating > 0 else 0.0,
+                                              'global': body.frac_refl_globalredist/total_heating if total_heating > 0 else 0.0} for body,total_heating in zip(self.bodies, total_heatings)]
 
             stuff = libphoebe.mesh_radiosity_redistrib_problem_nbody_convex(vertices_per_body,
                                                                             triangles_per_body,
