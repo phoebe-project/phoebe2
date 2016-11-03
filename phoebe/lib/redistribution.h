@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <vector>
+#include <fstream>
 #include <utility>
 #include <map>
 #include <cmath>
@@ -246,6 +247,21 @@ void calc_connectivity(
     C[i].push_back(i);
   }
 }
+
+void print_connectivity(
+  const char * filename,
+  std::vector<std::vector<int>> & C
+) {
+  
+  std::ofstream f(filename);
+
+  int i = 0;
+  for (auto && c : C) {
+    for (auto && j : c) f << i << '\t' << j << '\n';   
+    ++i;
+  }
+}
+
 
 /*
   Calculating connectivity matrix based the rule
@@ -679,7 +695,9 @@ bool triangle_mesh_redistribution_matrix_vertices(
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;          
           calc_connectivity(h, P, C);
-                    
+          
+          //print_connectivity("c_local.txt", C);
+            
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
         }
@@ -692,7 +710,11 @@ bool triangle_mesh_redistribution_matrix_vertices(
         
         T o[3] = {par[0], par[1], par[2]},   // axis
           h = par[3];                        // neighborhood size
-
+        
+       // std::cerr 
+       // << "o=" << o[0] << ' ' << o[1] << ' ' << o[2] << '\n'
+       // << " h=" << h << '\n';
+        
         if (h == 0) {  // h == 0
           Dmat.reserve(Nv);
           for (i = 0; i < Nv; ++i) Dmat.emplace_back(i, i, T(1));
@@ -723,6 +745,8 @@ bool triangle_mesh_redistribution_matrix_vertices(
           std::vector<std::vector<int>>C;
           calc_connectivity(h, o, P, C);
 
+          //print_connectivity("c_horiz.txt", C);
+            
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
         }
@@ -1316,12 +1340,17 @@ void add_sparse_matrices(
   std::vector<Tsparse_mat_elem<T>> &B
 ){
   
-  // number of distribution matrices different then none
+  // number of distribution matrices different then none and non-zero
   int n = 0;
   auto h_none = "none"_hash32;
-  for (auto && w : W) if (fnv1a_64::hash(w.first) != h_none) ++n; 
+  for (auto && w : W) 
+    if (fnv1a_64::hash(w.first) != h_none && w.second != 0) 
+      ++n; 
 
   if (n > 1) {
+    // there are several non-zero matrices
+    // so it is wise to reserve dxd matrix to
+    // speed up the calculations
     
     T **R = utils::matrix <T>(d, d);
     
@@ -1331,13 +1360,15 @@ void add_sparse_matrices(
     
     for (auto && w : W) {
       T t = w.second;
-      auto & mat = A[w.first];
-      for (auto && m : mat) {
-        T & r = R[m.i][m.j];
-        if (r == 0){
-          ++size;
-          r = t*m.value;
-        } else r += t*m.value; 
+      if (t != 0) {
+        auto & mat = A[w.first];
+        for (auto && m : mat) {
+          T & r = R[m.i][m.j];
+          if (r == 0){
+            ++size;
+            r = t*m.value;
+          } else r += t*m.value; 
+        }
       }
     }
 
@@ -1355,9 +1386,12 @@ void add_sparse_matrices(
     utils::free_matrix(R);
     
   } else {
+    // just one non-zero and non-none element
     for (auto && w : W) 
-      if (fnv1a_64::hash(w.first) != h_none) {
+      if (fnv1a_64::hash(w.first) != h_none && w.second != 0) {
         B = A[w.first];
+        T t = w.second;
+        for (auto & b : B) b.value *= t;
         break;
       }
   }

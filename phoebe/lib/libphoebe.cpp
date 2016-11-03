@@ -3725,10 +3725,25 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       o = PyList_GetItem(oDweight, b);
       pos = 0;
       while (PyDict_Next(o, &pos, &key, &value))
-        (*dw)[PyString_AsString(key)] = PyFloat_AsDouble(value);
-      
+          (*dw)[PyString_AsString(key)] = PyFloat_AsDouble(value);
       ++dp;
       ++dw;
+    }
+  }
+  
+  // Clean list of models that need to be calculated for each objects
+  {
+    auto h_none = "none"_hash32;
+   
+    for (int b = 0; b < n; ++b) {
+      
+      std::map<std::string, std::vector<double>> Dpars1;
+       
+      for (auto && w : Dweights[b])
+        if (fnv1a_64::hash(w.first) != h_none && w.second != 0)
+          Dpars1[w.first] = Dpars[b][w.first];
+   
+      Dpars[b] = Dpars1;
     }
   }
   
@@ -3738,14 +3753,11 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
   //
   bool only_reflection = true;
   {
-    auto h_none = "none"_hash32;
-  
-    for (int b = 0; only_reflection && b < n; ++b)
-      for (auto && w: Dweights[b]) 
-        if (fnv1a_64::hash(w.first) != h_none) {
-          only_reflection = false;
-          break;
-        }
+    for (int b = 0; b < n; ++b)
+      if (Dweights[b].size() != 0) {
+        only_reflection = false;
+        break;
+      }      
   }
   
   
