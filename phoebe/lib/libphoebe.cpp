@@ -3698,7 +3698,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oF0, b), F0[b]);
   }
 
-   //
+  //
   // Reading redistribution models
   // 
   
@@ -3784,24 +3784,44 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     // Calculating redistribution matrices
     //
     
-    std::vector<std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);  
-    
+    std::vector<std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);
+     
     {
-      bool st;
+      bool st = true; 
+
+      if (0) {
+
+        for (int b = 0; st && b < n; ++b)
+          st = (support == 0 ?
+            triangle_mesh_redistribution_matrix_triangles(
+              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
+            triangle_mesh_redistribution_matrix_vertices(
+              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
+          );
+
+      } else {
+        
+        struct Tlinear_edge {
+          double operator()(const double &x , const double &thresh) const {
+            if (std::abs(x) <= thresh) return 1.0 - std::abs(x)/thresh;
+            return 0.0;
+          }
+        };
       
-      for (int b = 0; b < n; ++b) {
-        
-        st = (support == 0 ?
-          triangle_mesh_redistribution_matrix_triangles(
-            V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
-          triangle_mesh_redistribution_matrix_vertices(
-            V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
-        );
-        
-        if (!st) {
-          std::cerr << fname << "::Redistribution matrix calculation failed\n";
-          return NULL;
-        }
+        for (int b = 0; st && b < n; ++b)
+          st = (support == 0 ?
+            triangle_mesh_redistribution_matrix_triangles
+            <double, Tlinear_edge >(
+              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
+            triangle_mesh_redistribution_matrix_vertices
+            <double, Tlinear_edge >(
+              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
+          );
+      }
+      
+      if (!st) {
+        std::cerr << fname << "::Redistribution matrix calculation failed\n";
+        return NULL;
       }
     }
 

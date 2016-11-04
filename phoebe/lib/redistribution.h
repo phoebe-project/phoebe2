@@ -202,6 +202,42 @@ void calc_directions(
 }
 
 /*
+  Printing "connectivity matrix" -- printing non-zero of element.
+  
+  Input:
+    filename - name of the file
+    C - connectivity matrix
+*/
+void print_connectivity(
+  const char *filename,
+  std::vector<std::vector<int>> & C
+) {
+  
+  std::ofstream f(filename);
+
+  int i = 0;
+  for (auto && c : C) {
+    for (auto && j : c) f << i << '\t' << j << '\n';   
+    ++i;
+  }
+}
+
+template<class T>
+void print_connectivity(
+  const char *filename,
+  std::vector<std::vector<std::pair<int,T>>> & C
+) {
+  
+  std::ofstream f(filename);
+
+  int i = 0;
+  for (auto && c : C) {
+    for (auto && p : c) f << i << '\t' << p.first << '\t' << p.second << '\n';   
+    ++i;
+  }
+}
+
+/*
   Calculating connectivity matrix based the rule
     
     C_{i,j} = 1 if distance is < thresh
@@ -249,20 +285,42 @@ void calc_connectivity(
   }
 }
 
-void print_connectivity(
-  const char *filename,
-  std::vector<std::vector<int>> & C
-) {
-  
-  std::ofstream f(filename);
 
-  int i = 0;
-  for (auto && c : C) {
-    for (auto && j : c) f << i << '\t' << j << '\n';   
-    ++i;
+template<class T, class F>
+void calc_connectivity(
+  const T & thresh, 
+  std::vector<T3Dpoint<T>> & P, 
+  std::vector<std::vector<std::pair<int,T>>> & C)
+{ 
+  
+  int i, j, N = P.size();
+  
+  C.resize(N);
+  
+  T t, t0 = F()(0.0, thresh), *v1, *v2, tmp;
+                        
+  for (i = 0; i < N; ++i) {
+  
+    v1 = P[i].data;
+    
+    for (j = 0; j < i; ++j) {
+    
+      v2 = P[j].data;
+
+      tmp = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+      
+      t = F()(std::acos(tmp), thresh);
+      
+      if (t) {
+        
+        C[i].emplace_back(j, t);
+        C[j].emplace_back(i, t);
+      }
+    }
+    
+    C[i].emplace_back(i, t0);
   }
 }
-
 
 /*
   Calculating connectivity matrix based the rule
@@ -316,6 +374,45 @@ void calc_connectivity(
   }
 }
 
+
+template<class T, class F>
+void calc_connectivity(
+  const T & thresh, 
+  T o[3],
+  std::vector<T3Dpoint<T>> & P, 
+  std::vector<std::vector<std::pair<int,T>>> & C)
+{ 
+  
+  int i, j, N = P.size();
+  
+  C.resize(N);
+  
+  T t, t0 = F()(0.0, thresh), *v1, *v2, c1, c2, tmp;
+              
+  for (i = 0; i < N; ++i) {
+
+    v1 = P[i].data;
+    c1 = v1[0]*o[0] + v1[1]*o[1] + v1[2]*o[2];
+     
+    for (j = 0; j < i; ++j) {
+    
+      v2 = P[j].data;
+      c2 = v2[0]*o[0] + v2[1]*o[1] + v2[2]*o[2];
+
+      tmp = std::sqrt((1 - c1*c1)*(1 - c2*c2)) + c1*c2;
+      
+      t = F()(std::acos(tmp), thresh);
+      
+      if (t) {
+        C[i].emplace_back(j, t);
+        C[j].emplace_back(i, t);
+      }
+    }
+    
+    C[i].emplace_back(i, t0);
+  }
+}
+
 /*
   Calculating redistribution matrix D_{i,j} based on the 
   connectivity matrix C_{i,j}:
@@ -351,6 +448,32 @@ void calc_redistrib_matrix(
     f = 1/f;
     
     for (auto && i : c) Dmat.emplace_back(i, j, f*(*it)); 
+    
+    ++j;
+    ++it;
+  }
+}
+
+
+template<class T>
+void calc_redistrib_matrix(
+  std::vector<std::vector<std::pair<int,T>>> &C, 
+  std::vector<T> &A, 
+  std::vector<Tsparse_mat_elem<T>> & Dmat)
+{
+
+  T f;
+  
+  int j = 0;
+  
+  auto it = A.begin();
+  
+  for (auto && c : C) {
+    f = 0;
+    for (auto && p : c) f += A[p.first]*p.second;
+    f = 1/f;
+    
+    for (auto && p : c) Dmat.emplace_back(p.first, j, p.second*f*(*it)); 
     
     ++j;
     ++it;
@@ -594,6 +717,143 @@ bool triangle_mesh_redistribution_matrix_triangles(
   return true;
 }
 
+
+
+template <class T, class F> 
+bool triangle_mesh_redistribution_matrix_triangles(
+  std::vector<T3Dpoint<T>>   & V,                                 // inputs 
+  std::vector<T3Dpoint<int>> & Tr,
+  std::vector<T3Dpoint<T>>   & NatT,
+  std::vector<T> & A,
+  std::map<fnv1a_32::hash_t, std::vector<T>> & Dpars,
+  std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<T>>> & Dmats  // output
+){
+  
+  const char *fname = "triangle_mesh_redistribution_matrix_triangles";
+   
+  int i, Nt = Tr.size();
+  
+  bool st = true;
+  
+  std::vector<T3Dpoint<T>> P;
+  
+  Dmats.clear();
+    
+  T x[3], r;
+  
+  for (auto && p : Dpars){
+    
+    auto & par = p.second;
+    auto & Dmat = Dmats[p.first];
+    
+    switch (p.first) {
+      
+      case "none"_hash32: break;
+      
+      case "global"_hash32: 
+        calc_redistrib_matrix(A, Dmat);
+        break;
+      
+      case "local"_hash32:
+      {
+        if (par.size() != 1) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
+        
+        T h = par[0]; // neighborhood size
+
+        if (h == 0) {  // h == 0
+          Dmat.reserve(Nt);
+          for (i = 0; i < Nt; ++i) Dmat.emplace_back(i, i, T(1));
+        } else {        // h > 0
+          
+          if (st) {
+            // calculate of characteristic points: barycenters
+            calc_barycenters(V, Tr, P);
+
+            // fitting sphere to barycenters
+            if (!fit_sphere(P, r, x)) {
+              std::cerr << fname << "::Fitting sphere failed\n";
+              return false;
+            }
+            
+            // project characteristic points onto unit sphere
+            // v -> (v - x)/|v - x|          
+            calc_directions(x, P);
+            
+            st = false;
+          }
+          
+          // creating "connectivity" matrix 
+          std::vector<std::vector<std::pair<int,T>>>C;
+          
+          calc_connectivity<T,F>(h, P, C);
+          
+          // creating re-distribution matrix from connectivity matrix          
+          calc_redistrib_matrix(C, A, Dmat);
+        }
+      }
+      
+      break;
+      
+      case "horiz"_hash32:
+      {
+        
+        if (par.size() != 4) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
+        
+        T o[3] = {par[0], par[1], par[2]},   // axis
+          h = par[3];                        // neighborhood size
+
+        if (h == 0) {   // h == 0
+          Dmat.reserve(Nt);
+          for (i = 0; i < Nt; ++i) Dmat.emplace_back(i, i, T(1));
+        } else {        // h > 0
+          
+          if (st) {            
+            // calculate characteristic points: barycenters
+            calc_barycenters(V, Tr, P);
+            
+            // fitting sphere to barycenters          
+            T x[3], r;
+            
+            if (!fit_sphere(P, r, x)) {
+              std::cerr << fname << "::Fitting sphere failed\n";
+              return false;
+            }
+            
+            // project characteristic points onto unit sphere
+            // v -> (v - x)/|v - x|          
+            calc_directions(x, P);
+            
+            st = false;
+          }
+          
+          // creating "connectivity" matrix 
+          std::vector<std::vector<std::pair<int,T>>>C;
+          
+          calc_connectivity<T,F>(h, o, P, C);
+           
+          // creating re-distribution matrix from connectivity matrix
+          calc_redistrib_matrix(C, A, Dmat);
+        }
+      }
+      break;
+      
+      default:
+        std::cerr 
+          << fname 
+          << "::\nThis type of redistribution is not supported\n";
+        return false;
+    }
+  }
+  
+  return true;
+}
+
 /*
   Calculate redistribution matrices for a given body in the per-vertices 
   discretization. Surface represents a single body.
@@ -784,6 +1044,163 @@ bool triangle_mesh_redistribution_matrix_vertices(
   return true;  
 }
 
+
+template <class T, class F>
+bool triangle_mesh_redistribution_matrix_vertices(
+  std::vector<T3Dpoint<T>>   & V,                                 // inputs 
+  std::vector<T3Dpoint<int>> & Tr,
+  std::vector<T3Dpoint<T>>   & NatV,
+  std::vector<T> & A,
+  std::map<fnv1a_32::hash_t, std::vector<T>> & Dpars,
+  std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<T>>> & Dmats  // output
+){
+  
+  const char *fname = "triangle_mesh_redistribution_matrix_vertices";
+  
+  // calculate areas associates with vertices
+  int i, Nv = V.size();
+    
+  // variables to prevent multiple calculations
+  bool st[2] = {true, true};
+  
+  std::vector<T3Dpoint<T>> P;
+  
+  std::vector<T> AatV;
+  
+  Dmats.clear();
+  
+  T x[3], r;
+ 
+  for (auto && p : Dpars){
+    
+    auto & par = p.second;
+    auto & Dmat = Dmats[p.first];
+    
+    switch (p.first) {
+      
+      case "none"_hash32: break;
+      
+      case "global"_hash32:
+      
+      if (st[0]) {
+        calc_area_at_vertices(Nv, Tr, A, AatV);
+        st[0] = false;
+      }
+      
+      calc_redistrib_matrix(AatV, Dmat);
+      break;
+        
+      case "local"_hash32:
+      {
+        
+        if (par.size() != 1) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
+        
+        T h = par[0]; // neighborhood size
+
+        if (h == 0) {  // h == 0
+          Dmat.reserve(Nv);
+          for (i = 0; i < Nv; ++i) Dmat.emplace_back(i, i, T(1));
+        } else {        // h > 0
+          
+          if (st[0]) {
+            calc_area_at_vertices(Nv, Tr, A, AatV);
+            st[0] = false;
+          }
+          
+          if (st[1]) {
+            P = V;
+            
+            // fitting sphere to vertices
+            if (!fit_sphere(P, r, x)) {
+              std::cerr << fname << "::Fitting sphere failed\n";
+              return false;
+            }
+
+            // project characteristic points onto unit sphere
+            // v -> (v - x)/|v - x|
+            calc_directions(x, P);
+      
+            st[1] = false;
+          }
+          
+          // creating "connectivity" matrix 
+          std::vector<std::vector<std::pair<int,T>>>C;          
+          calc_connectivity<T,F>(h, P, C);
+          
+          //print_connectivity("c_local.txt", C);
+            
+          // creating re-distribution matrix from connectivity matrix
+          calc_redistrib_matrix(C, AatV, Dmat);
+        }
+      }
+      
+      break;
+      
+      case "horiz"_hash32:
+      {
+        if (par.size() != 4) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
+        
+        T o[3] = {par[0], par[1], par[2]},   // axis
+          h = par[3];                        // neighborhood size
+        
+//        std::cerr 
+//          << "o=" << o[0] << ' ' << o[1] << ' ' << o[2] << '\n'
+//          << " h=" << h << '\n';
+          
+        if (h == 0) {  // h == 0
+          Dmat.reserve(Nv);
+          for (i = 0; i < Nv; ++i) Dmat.emplace_back(i, i, T(1));
+        } else {        // h > 0
+          
+          if (st[0]) {
+            calc_area_at_vertices(Nv, Tr, A, AatV);
+            st[0] = false;
+          }         
+          
+          if (st[1]) {
+            P = V;
+            
+            // fitting sphere to vertices
+            if (!fit_sphere(P, r, x)) {
+              std::cerr << fname << "::Fitting sphere failed\n";
+              return false;
+            }
+
+            // project characteristic points onto unit sphere
+            // v -> (v - x)/|v - x|
+            calc_directions(x, P);
+           
+            st[1] = false;
+          }
+          
+          // creating "connectivity" matrix 
+          std::vector<std::vector<std::pair<int,T>>>C;
+          calc_connectivity<T,F>(h, o, P, C);
+
+          //print_connectivity("c_horiz.txt", C);
+            
+          // creating re-distribution matrix from connectivity matrix
+          calc_redistrib_matrix(C, AatV, Dmat);
+        }
+      }
+      break;
+      
+      default:
+        std::cerr 
+          << fname 
+          << "::\nThis type of redistribution is not supported\n";
+        return false;
+    }
+  }
+  
+  return true;  
+}
 
 /*
   Solving the radiosity-redistribution model -- a combination of 
