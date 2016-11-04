@@ -16,6 +16,7 @@
 #include <cmath>
 #include <string>
 
+#include "hash.h"
 #include "utils.h"
 #include "redistribution.h"
 
@@ -249,7 +250,7 @@ void calc_connectivity(
 }
 
 void print_connectivity(
-  const char * filename,
+  const char *filename,
   std::vector<std::vector<int>> & C
 ) {
   
@@ -464,8 +465,8 @@ bool triangle_mesh_redistribution_matrix_triangles(
   std::vector<T3Dpoint<int>> & Tr,
   std::vector<T3Dpoint<T>>   & NatT,
   std::vector<T> & A,
-  std::map<std::string, std::vector<T>> & Dpars,
-  std::map<std::string, std::vector<Tsparse_mat_elem<T>>> & Dmats  // output
+  std::map<fnv1a_32::hash_t, std::vector<T>> & Dpars,
+  std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<T>>> & Dmats  // output
 ){
   
   const char *fname = "triangle_mesh_redistribution_matrix_triangles";
@@ -485,7 +486,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
     auto & par = p.second;
     auto & Dmat = Dmats[p.first];
     
-    switch (fnv1a_32::hash(p.first)) {
+    switch (p.first) {
       
       case "none"_hash32: break;
       
@@ -598,7 +599,7 @@ bool triangle_mesh_redistribution_matrix_triangles(
             which are used to calculate distribution matrices
           
           Models supported:
-            none      0 paramters
+            none    0 paramters
             global  0 parameters
             local   1 parameter [h is angle in radians]
                         h = 0: flux is reflected back from element that
@@ -623,8 +624,8 @@ bool triangle_mesh_redistribution_matrix_vertices(
   std::vector<T3Dpoint<int>> & Tr,
   std::vector<T3Dpoint<T>>   & NatV,
   std::vector<T> & A,
-  std::map<std::string, std::vector<T>> & Dpars,
-  std::map<std::string, std::vector<Tsparse_mat_elem<T>>> & Dmats  // output
+  std::map<fnv1a_32::hash_t, std::vector<T>> & Dpars,
+  std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<T>>> & Dmats  // output
 ){
   
   const char *fname = "triangle_mesh_redistribution_matrix_vertices";
@@ -648,7 +649,7 @@ bool triangle_mesh_redistribution_matrix_vertices(
     auto & par = p.second;
     auto & Dmat = Dmats[p.first];
     
-    switch (fnv1a_32::hash(p.first)) {
+    switch (p.first) {
       
       case "none"_hash32: break;
       
@@ -1299,8 +1300,8 @@ void add_sparse_matrices(
 */
 template <class T>
 void add_sparse_matrices(
-  std::map<std::string, T> &W,
-  std::map<std::string, std::vector<Tsparse_mat_elem<T>> > &A,
+  std::map<fnv1a_32::hash_t, T> &W,
+  std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<T>> > &A,
   std::vector<Tsparse_mat_elem<T>> &B
 ){
   
@@ -1335,18 +1336,21 @@ void add_sparse_matrices(
 template <class T>
 void add_sparse_matrices(
   const int &d,
-  std::map<std::string, T> &W,
-  std::map<std::string, std::vector<Tsparse_mat_elem<T>> > &A,
+  std::map<fnv1a_32::hash_t, T> &W,
+  std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<T>> > &A,
   std::vector<Tsparse_mat_elem<T>> &B
 ){
   
   // number of distribution matrices different then none and non-zero
   int n = 0;
+  
   auto h_none = "none"_hash32;
+  
   for (auto && w : W) 
-    if (fnv1a_64::hash(w.first) != h_none && w.second != 0) 
+    if (w.first != h_none && w.second != 0) 
       ++n; 
-
+  
+  
   if (n > 1) {
     // there are several non-zero matrices
     // so it is wise to reserve dxd matrix to
@@ -1388,7 +1392,7 @@ void add_sparse_matrices(
   } else {
     // just one non-zero and non-none element
     for (auto && w : W) 
-      if (fnv1a_64::hash(w.first) != h_none && w.second != 0) {
+      if (w.first != h_none && w.second != 0) {
         B = A[w.first];
         T t = w.second;
         for (auto & b : B) b.value *= t;

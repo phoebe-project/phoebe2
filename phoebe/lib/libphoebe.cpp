@@ -3511,18 +3511,18 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-               "claret"      4 parameters
+              "claret"      4 parameters
               "interp"      interpolation data  TODO !!!!
-              
+ 
     Dmod = {Dmod1, Dmod2, ...}: list of dictionaries of element of the format
            {'redistr. name':  params = 1-rank numpy array}
             
             with one model per body. Supported redistribution models:
-            "none"        0 paramters -> do only reflection
-            "global"      0 paramaters
-            "local"       1 parameter (h)
-            "horiz"       4 parameters (o_x, o_y, o_z, h)
-    
+            "none"   0 paramters -> do only reflection
+            "global" 0 paramaters
+            "local"  1 parameter (h)   h - angle in radians 
+            "horiz"  4 parameters (o_x, o_y, o_z, h) o_i - unit vector
+
     Dweight = {Dw1, Dw2, ....}: list of dictionaries with weights of 
               different models fo the format
               {'redistr. name': value of float type}
@@ -3702,8 +3702,8 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
   // Reading redistribution models
   // 
   
-  std::vector<std::map<std::string, std::vector<double>>> Dpars(n);
-  std::vector<std::map<std::string, double>> Dweights(n);
+  std::vector<std::map<fnv1a_32::hash_t, std::vector<double>>> Dpars(n);
+  std::vector<std::map<fnv1a_32::hash_t, double>> Dweights(n);
   
   {
     Py_ssize_t pos;
@@ -3719,13 +3719,13 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       o = PyList_GetItem(oDmod, b);
       pos = 0;
       while (PyDict_Next(o, &pos, &key, &value))
-        PyArray_ToVector((PyArrayObject*)value, (*dp)[PyString_AsString(key)]);
+        PyArray_ToVector((PyArrayObject*)value, (*dp)[fnv1a_32::hash(PyString_AsString(key))]);
       
       // reading weights for redistribution model
       o = PyList_GetItem(oDweight, b);
       pos = 0;
       while (PyDict_Next(o, &pos, &key, &value))
-          (*dw)[PyString_AsString(key)] = PyFloat_AsDouble(value);
+        (*dw)[fnv1a_32::hash(PyString_AsString(key))] = PyFloat_AsDouble(value);
       ++dp;
       ++dw;
     }
@@ -3737,10 +3737,10 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
    
     for (int b = 0; b < n; ++b) {
       
-      std::map<std::string, std::vector<double>> Dpars1;
+      std::map<fnv1a_32::hash_t, std::vector<double>> Dpars1;
        
       for (auto && w : Dweights[b])
-        if (fnv1a_64::hash(w.first) != h_none && w.second != 0)
+        if (w.first != h_none && w.second != 0)
           Dpars1[w.first] = Dpars[b][w.first];
    
       Dpars[b] = Dpars1;
@@ -3784,7 +3784,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     // Calculating redistribution matrices
     //
     
-    std::vector<std::map<std::string, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);  
+    std::vector<std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);  
     
     {
       bool st;
@@ -3850,18 +3850,18 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     // Solving the radiosity equation depending on the model
     //
     {
-      bool success = false;
+      bool st = false;
       
       char *s = PyString_AsString(omodel);
         
       switch (fnv1a_32::hash(s)) {
         
         case "Wilson"_hash32:
-        success = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, Fout);
+        st = solve_radiosity_equation_Wilson_nbody(Fmat, R, F0, Fout);
         break;
         
         case "Horvat"_hash32:
-        success = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, Fout);
+        st = solve_radiosity_equation_Horvat_nbody(Fmat, R, F0, Fout);
         break;
         
         default:
@@ -3871,7 +3871,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
           return NULL;
       }
       
-      if (!success) std::cerr << fname << "::slow convergence\n";
+      if (!st) std::cerr << fname << "::slow convergence\n";
     }
   
     // nothing happens to exitance !!!!
