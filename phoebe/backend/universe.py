@@ -254,7 +254,7 @@ class System(object):
                                          passband=bol_pband,
                                          ld_func=body.ld_func['bol'],
                                          ld_coeffs=body.ld_coeffs['bol'],
-                                         atm='blackbody',
+                                         atm=body.atm if 'extern' not in body.atm else 'blackbody',
                                          boosting_method='none')
 
             self.handle_reflection()
