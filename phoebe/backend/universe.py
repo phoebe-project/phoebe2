@@ -254,10 +254,9 @@ class System(object):
                                          passband=bol_pband,
                                          ld_func=body.ld_func['bol'],
                                          ld_coeffs=body.ld_coeffs['bol'],
-                                         atm='blackbody',
+                                         atm=body.atm if 'extern' not in body.atm else 'blackbody',
                                          boosting_method='none')
 
-            # TODO: need to pass ld_coeffs_bol, ld_func_bol as kwargs
             self.handle_reflection()
 
 
