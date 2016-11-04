@@ -31,7 +31,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.set_value_all('atm@phoebe2', 'extern_planckint')
 
     b.run_compute('phoebe1', model='phoebe1model', protomesh=True, pbmesh=True, refl_num=0)
-    b.run_compute('phoebe2', model='phoebe2model', protomesh=True, pbmesh=True, reflection_method='none')
+    b.run_compute('phoebe2', model='phoebe2model', protomesh=True, pbmesh=True, irrad_method='none')
 
 
     compares = []

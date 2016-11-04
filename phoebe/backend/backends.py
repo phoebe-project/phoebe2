@@ -1593,8 +1593,8 @@ def jktebop(b, compute, times=[], **kwargs):
             logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
             ldcoeffsB = (0.5,0.5)
 
-        albA = b.get_value('frac_refl_bol', component=starrefs[0], context='component')
-        albB = b.get_value('frac_refl_bol', component=starrefs[1], context='component')
+        albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
+        albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
 
         tratio = b.get_value('teff', component=starrefs[0], context='component', unit=u.K) / b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 

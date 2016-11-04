@@ -578,7 +578,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 #}
 #{ Intra-component constraints
 
-def frac_bol(b, component, solve_for=None, **kwargs):
+def irrad_frac(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to ensure that energy is conserved and all incident
     light is accounted for.
@@ -586,23 +586,23 @@ def frac_bol(b, component, solve_for=None, **kwargs):
 
     comp_ps = b.get_component(component=component)
 
-    frac_refl_bol = comp_ps.get_parameter(qualifier='frac_refl_bol')
-    frac_refl_localredist_bol = comp_ps.get_parameter(qualifier='frac_refl_localredist_bol')
-    frac_refl_horizredist_bol = comp_ps.get_parameter(qualifier='frac_refl_horizredist_bol')
-    frac_refl_globalredist_bol = comp_ps.get_parameter(qualifier='frac_refl_globalredist_bol')
+    irrad_frac_refl_bol = comp_ps.get_parameter(qualifier='irrad_frac_refl_bol')
+    irrad_frac_redist_local_bol = comp_ps.get_parameter(qualifier='irrad_frac_redist_local_bol')
+    irrad_frac_redist_horiz_bol = comp_ps.get_parameter(qualifier='irrad_frac_redist_horiz_bol')
+    irrad_frac_redist_global_bol = comp_ps.get_parameter(qualifier='irrad_frac_redist_global_bol')
 
-    if solve_for in [frac_refl_globalredist_bol, None]:
-        lhs = frac_refl_globalredist_bol
-        rhs = 1.0 - frac_refl_bol - frac_refl_localredist_bol - frac_refl_horizredist_bol
-    elif solve_for in [frac_refl_horizredist_bol]:
-        lhs = frac_refl_horizredist_bol
-        rhs = 1.0 - frac_refl_bol - frac_refl_localredist_bol - frac_refl_globalredist_bol
-    elif solve_for in [frac_refl_localredist_bol]:
-        lhs = frac_refl_localredist_bol
-        rhs = 1.0 - frac_refl_bol - frac_refl_horizredist_bol - frac_refl_globalredist_bol
-    elif solve_for in [frac_refl_bol]:
-        lhs = frac_refl_bol
-        rhs = 1.0 - frac_refl_horizredist_bol - frac_refl_localredist_bol - frac_refl_globalredist_bol
+    if solve_for in [irrad_frac_redist_global_bol, None]:
+        lhs = irrad_frac_redist_global_bol
+        rhs = 1.0 - irrad_frac_refl_bol - irrad_frac_redist_local_bol - irrad_frac_redist_horiz_bol
+    elif solve_for in [irrad_frac_redist_horiz_bol]:
+        lhs = irrad_frac_redist_horiz_bol
+        rhs = 1.0 - irrad_frac_refl_bol - irrad_frac_redist_local_bol - irrad_frac_redist_global_bol
+    elif solve_for in [irrad_frac_redist_local_bol]:
+        lhs = irrad_frac_redist_local_bol
+        rhs = 1.0 - irrad_frac_refl_bol - irrad_frac_redist_horiz_bol - irrad_frac_redist_global_bol
+    elif solve_for in [irrad_frac_refl_bol]:
+        lhs = irrad_frac_refl_bol
+        rhs = 1.0 - irrad_frac_redist_horiz_bol - irrad_frac_redist_local_bol - irrad_frac_redist_global_bol
     else:
         raise NotImplementedError
 

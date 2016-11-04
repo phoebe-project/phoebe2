@@ -29,7 +29,7 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     print "running phoebe2 model..."
-    b.run_compute(compute='phoebe2', reflection_method='none', model='phoebe2model')
+    b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
     print "running phoebe1 model..."
     b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 

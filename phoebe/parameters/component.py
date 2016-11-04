@@ -101,13 +101,13 @@ def star(component, **kwargs):
     params += [FloatParameter(qualifier='gravb_bol', value=kwargs.get('gravb_bol', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Bolometric gravity brightening')]
 
     # also see constraint below
-    params += [FloatParameter(qualifier='frac_refl_bol', value=kwargs.get('frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
-    params += [FloatParameter(qualifier='frac_refl_localredist_bol', value=kwargs.get('frac_refl_localredist_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is locally redistributed')]
-    params += [FloatParameter(qualifier='frac_refl_horizredist_bol', value=kwargs.get('frac_refl_horizredist_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is horizontally (along constant latitude) redistributed')]
-    params += [FloatParameter(qualifier='frac_refl_globalredist_bol', value=kwargs.get('frac_refl_globalredist_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of frac_refl_bol that is globally redistributed')]
+    params += [FloatParameter(qualifier='irrad_frac_refl_bol', value=kwargs.get('irrad_frac_refl_bol', 0.6), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is used for reflection (heating without redistribution)')]
+    params += [FloatParameter(qualifier='irrad_frac_redist_local_bol', value=kwargs.get('irrad_frac_redist_local_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is locally redistributed')]
+    params += [FloatParameter(qualifier='irrad_frac_redist_horiz_bol', value=kwargs.get('irrad_frac_redist_horiz_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is horizontally (along constant latitude) redistributed')]
+    params += [FloatParameter(qualifier='irrad_frac_redist_global_bol', value=kwargs.get('irrad_frac_redist_global_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of incident bolometric light that is globally redistributed')]
 
-    params += [FloatParameter(qualifier='refl_localredist_radius', visible_if='frac_refl_localredist_bol:!0.0', value=kwargs.get('refl_localredist_radius', 10), default_unit=u.deg, limits=(0,180), description='angular radius of local redistribution')]
-    params += [FloatParameter(qualifier='refl_horizredist_width', visible_if='frac_refl_horizredist_bol:!0.0', value=kwargs.get('refl_horizredist_width', 10), default_unit=u.deg, limits=(0,180), description='angular half-width of horizontal redistribution')]
+    params += [FloatParameter(qualifier='redist_local_radius', visible_if='irrad_frac_redist_local_bol:!0.0', value=kwargs.get('redist_local_radius', 10), default_unit=u.deg, limits=(0,180), description='angular radius of local redistribution')]
+    params += [FloatParameter(qualifier='redist_horiz_width', visible_if='irrad_frac_redist_horiz_bol:!0.0', value=kwargs.get('redist_horiz_width', 10), default_unit=u.deg, limits=(0,180), description='angular half-width of horizontal redistribution')]
 
     # params += [FloatParameter(qualifier='frac_scatt_bol', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('frac_scatt_bol', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='ratio of bolometric incident light that is scattered')]
 
@@ -130,7 +130,7 @@ def star(component, **kwargs):
     # - incl_aligned
 
     constraints += [(constraint.freq, component)]
-    constraints += [(constraint.frac_bol, component)]
+    constraints += [(constraint.irrad_frac, component)]
 
     return ParameterSet(params), constraints
 

@@ -22,7 +22,7 @@ def test_binary(plot=False):
     b.add_dataset('lc', times=np.linspace(0,3,21))
     if plot:
         b.add_dataset('mesh', times=[0.0])
-    b.add_compute('phoebe', compute='phoebe2', reflection_method='wilson')
+    b.add_compute('phoebe', compute='phoebe2', irrad_method='wilson')
     b.add_compute('legacy', compute='phoebe1', mult_refl=True, refl_num=5)
 
     # set matching atmospheres
@@ -38,7 +38,7 @@ def test_binary(plot=False):
 
     for alb in [0, 0.5, 1.0]:
         print "alb = {}".format(alb)
-        b.set_value_all('frac_refl_bol', alb)
+        b.set_value_all('irrad_frac_refl_bol', alb)
 
         print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', delta=0.1, model='phoebe2model')
