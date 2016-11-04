@@ -496,6 +496,10 @@ bool triangle_mesh_redistribution_matrix_triangles(
       
       case "local"_hash32:
       {
+        if (par.size() != 1) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
         
         T h = par[0]; // neighborhood size
 
@@ -535,6 +539,11 @@ bool triangle_mesh_redistribution_matrix_triangles(
       
       case "horiz"_hash32:
       {
+        
+        if (par.size() != 4) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
         
         T o[3] = {par[0], par[1], par[2]},   // axis
           h = par[3];                        // neighborhood size
@@ -665,6 +674,12 @@ bool triangle_mesh_redistribution_matrix_vertices(
         
       case "local"_hash32:
       {
+        
+        if (par.size() != 1) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
+        
         T h = par[0]; // neighborhood size
 
         if (h == 0) {  // h == 0
@@ -708,14 +723,18 @@ bool triangle_mesh_redistribution_matrix_vertices(
       
       case "horiz"_hash32:
       {
+        if (par.size() != 4) {
+          std::cerr << fname << "::Params wrongs size\n";
+          return false;
+        }
         
         T o[3] = {par[0], par[1], par[2]},   // axis
           h = par[3];                        // neighborhood size
         
-       // std::cerr 
-       // << "o=" << o[0] << ' ' << o[1] << ' ' << o[2] << '\n'
-       // << " h=" << h << '\n';
-        
+//        std::cerr 
+//          << "o=" << o[0] << ' ' << o[1] << ' ' << o[2] << '\n'
+//          << " h=" << h << '\n';
+          
         if (h == 0) {  // h == 0
           Dmat.reserve(Nv);
           for (i = 0; i < Nv; ++i) Dmat.emplace_back(i, i, T(1));
@@ -1349,8 +1368,7 @@ void add_sparse_matrices(
   for (auto && w : W) 
     if (w.first != h_none && w.second != 0) 
       ++n; 
-  
-  
+
   if (n > 1) {
     // there are several non-zero matrices
     // so it is wise to reserve dxd matrix to
