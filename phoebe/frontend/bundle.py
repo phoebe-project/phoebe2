@@ -572,12 +572,16 @@ class Bundle(ParameterSet):
         # TODO: raise error if old_component not found?
 
         self._check_label(new_component)
+        # changing hierarchy must be called first since it needs to access
+        # the kind of old_component
+        self.hierarchy.change_component(old_component, new_component)
         for param in self.filter(component=old_component).to_list():
             param._component = new_component
         for param in self.filter(context='constraint').to_list():
-            for k, v in param.constraint_kwargs:
+            for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+
 
     def get_setting(self, twig=None, **kwargs):
         """

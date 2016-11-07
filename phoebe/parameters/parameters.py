@@ -4543,6 +4543,16 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
+    def change_component(self, old_component, new_component):
+        """
+        """
+        kind = self.get_kind_of(old_component)
+        value = self.get_value()
+        # TODO: this could still cause issues if the names of components are
+        # contained in other components (ie starA, starAB)
+        value = value.replace("{}:{}".format(kind, old_component), "{}:{}".format(kind, new_component))
+        self.set_value(value)
+
     def get_components(self):
         """
         """
