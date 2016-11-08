@@ -369,6 +369,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
 }
 
+
 /*
   C++ wrapper for Python code:
   
@@ -421,16 +422,19 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
 /*
   C++ wrapper (trivial) for Python code:
   
-  Calculate height h of sphere's pole
+  Calculate height h of sphere's pole defined
+    
+    Omega0 = Omega(x, y, z) = 1/sqrt(x^2 + y^2 + z^2)
 
   Python:
     
-    h = sphere_pole(R)   
+    h = sphere_pole(Omega0)   
   
   where parameters are
   
   positionals:
-    R: float 
+    
+    Omega0: float 
     
   and return float
   
@@ -446,18 +450,18 @@ static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   //
   
   char *kwlist[] = {
-    (char*)"R",
+    (char*)"Omega0",
     NULL};
       
-  double R;
+  double Omega0;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "d", kwlist, &R)){
+      args, keywds,  "d", kwlist, &Omega0)){
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
-  return PyFloat_FromDouble(R);
+  return PyFloat_FromDouble(1/Omega0);
 }
 
 /*
@@ -868,16 +872,18 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 /*
   C++ wrapper (trivial) for Python code:
   
-  Calculate area and volume of sphere of radious R.
+  Calculate area and volume of sphere of radious R:
+    
+    Omega0 = 1/R
   
   Python:
     
-    dict = sphere_area_and_volume(R, <keyword>=<value>)
+    dict = sphere_area_and_volume(Omega0, <keyword>=<value>)
   
   where parameters are
   
   positionals:
-    R: radius
+    Omega0: 1/radius
   
   keywords:
   
@@ -906,7 +912,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
   //
   
   char *kwlist[] = {
-    (char*)"R",
+    (char*)"Omega0",
     (char*)"larea",
     (char*)"lvolume",
     NULL};
@@ -920,11 +926,11 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
     *o_larea = 0,
     *o_lvolume = 0;
   
-  double R;
+  double Omega0;
   
   if (!PyArg_ParseTupleAndKeywords(
         args, keywds,  "d|O!O!", kwlist, 
-        &R, 
+        &Omega0, 
         &PyBool_Type, &o_larea,
         &PyBool_Type, &o_lvolume
       )
@@ -944,7 +950,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
     
   PyObject *results = PyDict_New();
   
-  double R2 = R*R;
+  double R = 1/Omega0, R2 = R*R;
       
   if (b_larea)
     PyDict_SetItemStringStealRef(
@@ -1344,21 +1350,22 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
   
-  Calculate the gradient and the value of the potential of the generalized
-  Kopal potential Omega at a given point
+  Calculate the gradient and the value of the rotenting star potential
+  at a given point
 
       -grad Omega (x,y,z)
   
-  which is outwards the Roche lobe.
+  which is outwards the lobe.
   
   
   Python:
     
-    g = rot_gradOmega(omega, r)
+    g = rotstar_gradOmega(omega, r)
    
-   with parameters
-      omega: float - parameter of the potential
-      r: 1-rank numpy array of length 3 = [x,y,z]
+  with parameters
+    
+    omega: float - parameter of the potential
+    r: 1-rank numpy array of length 3 = [x,y,z]
   
   and returns float
   
@@ -1368,13 +1375,15 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
 
 
 static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
-    
+  
+  const char * fname = "rotstar_gradOmega";
+  
   double p[2];  
 
   PyArrayObject *X;
 
   if (!PyArg_ParseTuple(args, "dO!", p, &PyArray_Type, &X)) {
-    std::cerr << "rotstar_gradOmega:Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
 
@@ -1385,6 +1394,62 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
   double *g = new double [4];
 
   b.grad((double*)PyArray_DATA(X), g);
+  
+  npy_intp dims[1] = {4};
+
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+    
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
+}
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the gradient and the value of the potential spherical object
+  at a given point
+
+      -grad Omega (x,y,z) = r/|r|^3 r =[x,y,z]
+  
+  which is outwards the lobe.
+  
+  
+  Python:
+    
+    g = sphere_gradOmega(r)
+   
+   with parameters
+   
+      r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns float
+  
+    g : 1-rank numpy array 
+      = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
+*/
+
+
+static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
+  
+  const char *fname = "sphere_gradOmega";
+  
+  PyArrayObject *X;
+
+  if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &X)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  double 
+    *x = (double*) PyArray_DATA(X),
+    *g = new double [4],
+    R = utils::hypot3(x),
+    F = 1/(R*R*R);   
+  
+  
+  for (int i = 0; i < 3; ++i) g[i] = F*x[i];  
+  g[3] = -1/R;
   
   npy_intp dims[1] = {4};
 
@@ -1494,6 +1559,57 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
 }
 
 
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the gradient of the potential of the potential corresponding 
+  to the sphere
+
+      -grad Omega (x,y,z)
+  
+  Python:
+    
+    g = sphere_gradOmega_only(r)
+   
+   with parameters
+    
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns float
+  
+    g : 1-rank numpy array = -grad Omega (x,y,z)
+*/
+
+static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
+  
+  const char *fname = "sphere_gradOmega_only";
+ 
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &X)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double
+    *x = (double*)PyArray_DATA(X),
+    *g = new double [3],
+    R = utils::hypot3(x),
+    F = 1/(R*R*R);
+    
+  for (int i = 0; i < 3; ++i) g[i] = F*x[i];
+  
+  npy_intp dims[1] = {3};
+
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
+}
+
 /*
   C++ wrapper for Python code:
   
@@ -1575,6 +1691,47 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
   Trot_star<double> b(p);
 
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the value of the potential of the sphere at 
+  a given point
+
+      Omega (x,y,z) = 1/sqrt(x^2+ y^2 + z^2)
+  
+  Python:
+    
+    Omega0 = rotstar_Omega(r)
+   
+   with parameters
+  
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+
+static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
+
+  const char *fname = "sphere_Omega\n";
+  
+  double p[2];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "O!", p, &PyArray_Type, &X)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  double R = utils::hypot3((double*)PyArray_DATA(X));
+    
+  return PyFloat_FromDouble(1/R);
 }
 
 /*
@@ -2251,16 +2408,16 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 
     Marching meshing of sphere implicitely defined 
     
-      R^2 = Omega(x,y,z) = x^2 + y^2 + z^2
+      Omega0 = Omega(x,y,z) = 1/sqrt(x^2 + y^2 + z^2)
     
   Python:
 
-    dict = sphere_marching_mesh(R, delta, <keyword>=[true,false], ... )
+    dict = sphere_marching_mesh(Omega0, delta, <keyword>=[true,false], ... )
     
   where parameters
   
     positional:
-      R: float - value of the generalized Kopal potential
+      Omega0: float - value of the potential
       delta: float - size of triangles edges projected to tangent space
     
     keywords: 
@@ -2357,7 +2514,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   //
 
  char *kwlist[] = {
-    (char*)"R",
+    (char*)"Omega0",
     (char*)"delta",
     (char*)"max_triangles",
     (char*)"full",
@@ -2375,7 +2532,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
     (char*)"init_phi",
     NULL};
   
-  double R, delta, 
+  double Omega0, delta, 
          init_phi = 0;   
   
   int max_triangles = 10000000; // 10^7
@@ -2411,8 +2568,8 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
 
   if (!PyArg_ParseTupleAndKeywords(
       args, keywds,  "dd|iO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
-      &R, &delta,                 // neccesary 
-      &max_triangles,             // optional ...
+      &Omega0, &delta,                  // neccesary 
+      &max_triangles,                   // optional ...
       &PyBool_Type, &o_full,
       &PyBool_Type, &o_vertices, 
       &PyBool_Type, &o_vnormals,
@@ -2454,7 +2611,9 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   //
   //  Marching triangulation of the Roche lobe 
   //
-
+  
+  double R = 1/Omega0;
+  
   Tmarching<double, Tsphere<double> > march(&R);
   
   double r[3], g[3];
@@ -6476,6 +6635,19 @@ static PyMethodDef Methods[] = {
     "Calculate the value of the rotating star potential"
     " at given point [x,y,z] for given values of omega."},  
  
+  { "sphere_Omega", 
+    sphere_Omega,   
+    METH_VARARGS, 
+    "Calculate the value of the potential of the sphere "
+    " at given point [x,y,z]."},  
+
+
+  { "sphere_gradOmega", 
+    sphere_gradOmega,   
+    METH_VARARGS, 
+    "Calculate the gradient of the potential of the sphere"
+    " at given point [x,y,z]."},  
+    
 // --------------------------------------------------------------------
     
   { "roche_gradOmega_only", 
@@ -6488,7 +6660,13 @@ static PyMethodDef Methods[] = {
     rotstar_gradOmega_only,   
     METH_VARARGS, 
     "Calculate the gradient of the rotating star potential"
-    " at given point [x,y,z] for given values of omega."},   
+    " at given point [x,y,z] for given values of omega."},
+
+  { "sphere_gradOmega_only", 
+    sphere_gradOmega_only,   
+    METH_VARARGS, 
+    "Calculate the gradient of the potential of the sphere"
+    " at given point [x,y,z]."},  
 
 // --------------------------------------------------------------------
   
