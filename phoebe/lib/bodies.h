@@ -106,7 +106,7 @@ struct Ttorus {
 template <class T>
 struct Tsphere {
   
-  double R;
+  double R, R2;
   
   /*
     Reading and storing the parameters
@@ -116,6 +116,7 @@ struct Tsphere {
   Tsphere(void *params){ 
     T *p = (T*) params;
     R = *p; 
+    R2 = R*R;
   }
   
   /* 
@@ -135,7 +136,7 @@ struct Tsphere {
     
     for (int i = 0; i < 3; ++i) ret[i] = 2*r[i];
      
-    ret[3] = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - R*R;
+    ret[3] = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - R2;
   }
 
   /*
