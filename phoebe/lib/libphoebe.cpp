@@ -370,7 +370,6 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
 }
 
-
 /*
   C++ wrapper for Python code:
   
@@ -420,6 +419,47 @@ static PyObject *rotstar_pole(PyObject *self, PyObject *args, PyObject *keywds) 
   return PyFloat_FromDouble(1/Omega0);
 }
 
+/*
+  C++ wrapper (trivial) for Python code:
+  
+  Calculate height h of sphere's pole
+
+  Python:
+    
+    h = sphere_pole(R)   
+  
+  where parameters are
+  
+  positionals:
+    R: float 
+    
+  and return float
+  
+    h : height of the lobe's pole = R
+*/
+
+static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char  *fname = "sphere_pole";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"R",
+    NULL};
+      
+  double R;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "d", kwlist, &R)){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  return PyFloat_FromDouble(R);
+}
 
 /*
   C++ wrapper for Python code:
@@ -822,6 +862,104 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
 
   if (b_lvolume)
     PyDict_SetItemStringStealRef(results, "lvolume", PyFloat_FromDouble(av[1]));
+  
+  return results;
+}
+
+/*
+  C++ wrapper (trivial) for Python code:
+  
+  Calculate area and volume of sphere of radious R.
+  
+  Python:
+    
+    dict = sphere_area_and_volume(R, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    R: radius
+  
+  keywords:
+  
+    lvolume: boolean, default True
+    larea: boolean, default True
+    
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    lvolume: volume of the lobe of the rotating star  
+      float:  
+      
+    larea: area of the lobe of the rotating star
+      float:
+*/
+
+static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "sphere_area_volume";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"R",
+    (char*)"larea",
+    (char*)"lvolume",
+    NULL};
+  
+  
+  bool 
+    b_larea = true,
+    b_lvolume = true;
+        
+  PyObject
+    *o_larea = 0,
+    *o_lvolume = 0;
+  
+  double R;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds,  "d|O!O!", kwlist, 
+        &R, 
+        &PyBool_Type, &o_larea,
+        &PyBool_Type, &o_lvolume
+      )
+     ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  if (o_larea) b_larea = PyObject_IsTrue(o_larea);
+  if (o_lvolume) b_lvolume = PyObject_IsTrue(o_lvolume);
+  
+  if (!b_larea && !b_lvolume) return NULL;
+ 
+  //
+  // Calculate area and volume
+  //
+    
+  PyObject *results = PyDict_New();
+  
+  double R2 = R*R;
+      
+  if (b_larea)
+    PyDict_SetItemStringStealRef(
+      results, 
+      "larea", 
+      PyFloat_FromDouble(utils::m_4pi*R2)
+    );
+
+  if (b_lvolume)
+    PyDict_SetItemStringStealRef(
+      results, 
+      "lvolume", 
+      PyFloat_FromDouble(utils::m_4pi3*R2*R)
+    );
   
   return results;
 }
@@ -6319,6 +6457,11 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the height of the pole of rotating star for given a omega."},
 
+  { "sphere_pole", 
+    (PyCFunction)sphere_pole,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the height of the pole of sphere for given a R."},
+
 // --------------------------------------------------------------------
   { "rotstar_from_roche", 
     (PyCFunction)rotstar_from_roche,   
@@ -6340,6 +6483,11 @@ static PyMethodDef Methods[] = {
     "Determine the area and volume of the rotating star for given a omega "
     "and Omega0"},
 
+  { "sphere_area_volume", 
+    (PyCFunction)sphere_area_volume,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the area and volume of the sphere for given a R."},
+    
 // --------------------------------------------------------------------
  
   { "roche_Omega_at_vol", 
@@ -6376,7 +6524,7 @@ static PyMethodDef Methods[] = {
     "Calculate the value of the generalized Kopal potentil"
     " at given point [x,y,z] for given values of q, F and d."},  
 
-    { "rotstar_Omega", 
+  { "rotstar_Omega", 
     rotstar_Omega,   
     METH_VARARGS, 
     "Calculate the value of the rotating star potential"
