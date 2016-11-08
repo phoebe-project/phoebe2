@@ -972,7 +972,9 @@ bool triangle_mesh_redistribution_matrix_vertices(
           std::vector<std::vector<int>>C;          
           calc_connectivity(h, P, C);
           
-          //print_connectivity("c_local.txt", C);
+          #if 0
+          print_connectivity("sphere_conn_local.txt", C);
+          #endif
             
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
@@ -1024,8 +1026,10 @@ bool triangle_mesh_redistribution_matrix_vertices(
           // creating "connectivity" matrix 
           std::vector<std::vector<int>>C;
           calc_connectivity(h, o, P, C);
-
-          //print_connectivity("c_horiz.txt", C);
+          
+          #if 0
+          print_connectivity("sphere_conn_horiz.txt", C);
+          #endif
             
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
@@ -1130,7 +1134,9 @@ bool triangle_mesh_redistribution_matrix_vertices(
           std::vector<std::vector<std::pair<int,T>>>C;          
           calc_connectivity<T,F>(h, P, C);
           
-          //print_connectivity("c_local.txt", C);
+          #if 0
+          print_connectivity("sphere_conn_local.txt", C);
+          #endif
             
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
@@ -1182,8 +1188,10 @@ bool triangle_mesh_redistribution_matrix_vertices(
           // creating "connectivity" matrix 
           std::vector<std::vector<std::pair<int,T>>>C;
           calc_connectivity<T,F>(h, o, P, C);
-
-          //print_connectivity("c_horiz.txt", C);
+          
+          #if 0
+          print_connectivity("sphere_conn_horiz.txt", C);
+          #endif
             
           // creating re-distribution matrix from connectivity matrix
           calc_redistrib_matrix(C, AatV, Dmat);
