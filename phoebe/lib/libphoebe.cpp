@@ -2623,17 +2623,21 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   std::vector<T3Dpoint<double>> V, NatV;
   std::vector<T3Dpoint<int>> Tr; 
   std::vector<double> *GatV = 0;
-     
-  if (b_vnormgrads) GatV = new std::vector<double>;
   
-  if ((b_full ? 
-       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
-       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      )){
+  if (
+      ( b_full ? 
+        !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+        :
+        !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      )
+    ){
     std::cerr << fname << "::There are too many triangles\n";
     return NULL;
   }
   
+  if (b_vnormgrads)
+    GatV = new std::vector<double>(V.size(), Omega0*Omega0);
+    
   //
   // Calculte the mesh properties
   //
@@ -2641,7 +2645,8 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   
   double 
     area, volume, 
-    *p_area = 0, *p_volume = 0;
+    *p_area = 0, 
+    *p_volume = 0;
   
   std::vector<double> *A = 0; 
   
@@ -2665,15 +2670,50 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   
   std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
   
-  if (b_centers) C = new std::vector<T3Dpoint<double>>;
- 
-  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
- 
-  if (b_cnormgrads) GatC = new std::vector<double>;
- 
- 
-  march.central_points(V, Tr, C, NatC, GatC);
+  if (b_centers || b_cnormals) {
+    
+    std::vector<T3Dpoint<double>>::iterator itC, itNatC;
+    
+    if (b_centers) {
+      C = new std::vector<T3Dpoint<double>> (Tr.size());
+      itC = C->begin();
+    }
+    
+    if (b_cnormals){
+      NatC = new std::vector<T3Dpoint<double>> (Tr.size());
+      itNatC = NatC->begin();
+    }
+    
+    double f, t, r[3];
+    
+    for (auto tr : Tr) {
+      
+      f = 0;
+      for (int i = 0; i < 3; ++i) {
+        r[i] = t = V[tr[0]][i] +  V[tr[1]][i] + V[tr[2]][i];
+        f += t*t;
+      }
+      
+      f = 1/std::sqrt(f);
+      
+      for (int i = 0; i < 3; ++i) r[i] *= f;
+      
+      // C
+      if (b_centers) { 
+        for (int i = 0; i < 3; ++i) (*itC)[i] = R*r[i];
+        ++itC;
+      }
+      
+      // Cnorms
+      if (b_cnormals) { 
+        for (int i = 0; i < 3; ++i) (*itNatC)[i] = r[i];
+        ++itNatC;
+      }
+    }
+  }
   
+  if (b_cnormgrads)
+    GatC = new std::vector<double>(V.size(), Omega0*Omega0);
   
   if (b_vertices)
     PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
