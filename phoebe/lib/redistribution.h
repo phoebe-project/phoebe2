@@ -434,16 +434,14 @@ void calc_redistrib_matrix(
   std::vector<std::vector<int>> &C, 
   std::vector<T> &A, 
   std::vector<Tsparse_mat_elem<T>> & Dmat)
-{
-
-  T f;
-  
+{ 
   int j = 0;
   
   auto it = A.begin();
   
   for (auto && c : C) {
-    f = 0;
+    
+    long double f = 0;
     for (auto && i : c) f += A[i];
     f = 1/f;
     
@@ -462,14 +460,13 @@ void calc_redistrib_matrix(
   std::vector<Tsparse_mat_elem<T>> & Dmat)
 {
 
-  T f;
-  
   int j = 0;
   
   auto it = A.begin();
   
   for (auto && c : C) {
-    f = 0;
+    
+    long double f = 0;
     for (auto && p : c) f += A[p.first]*p.second;
     f = 1/f;
     
@@ -497,19 +494,26 @@ void calc_redistrib_matrix(
   std::vector<T> &A, 
   std::vector<Tsparse_mat_elem<T>> & Dmat)
 {
-  T f = 0;
+  long double f = 0;
   for (auto && a: A) f += a;
   f = 1/f;
 
-  int i, j = 0, N = A.size();
+  int j = 0, N = A.size();
   
-  Dmat.reserve(N*N);
+  Dmat.resize(N*N);
   
-  T ra;
+  auto it = Dmat.begin();
   
   for (auto && a : A){
-    ra = a*f;
-    for (i = 0; i < N; ++i) Dmat.emplace_back(i, j, ra);
+    
+    long double ra = a*f;
+    
+    for (int i = 0; i < N; ++i, ++it) {
+      it->i = i;
+      it->j = j;
+      it->value = ra;
+    }
+    
     ++j;
   }
 }
