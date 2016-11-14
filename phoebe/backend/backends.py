@@ -905,7 +905,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     """
     p2to1 = {'tloc':'teffs', 'glog':'loggs', 'vcx':'xs', 'vcy':'ys', 'vcz':'zs', 'grx':'nxs', 'gry':'nys', 'grz':'nzs', 'csbt':'cosbetas', 'rad':'rs','Inorm':'abs_normal_intensities'}
 
-    def ret_dict(key):
+    def ret_dict(key, stars):
         """
         Build up dictionary for each phoebe1 parameter, so that they
         correspond to the correct phoebe2 parameter.
@@ -928,9 +928,9 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             # TODO: is this hardcoding component names?  We should really access
             # from the hierarchy instead (we can safely assume a binary) by doing
             # b.hierarchy.get_stars() and b.hierarchy.get_primary_or_secondary()
-            d['component'] = 'primary'
+            d['component'] = stars[0]
         elif comp== 2:
-            d['component'] = 'secondary'
+            d['component'] = stars[1]
         else:
             #This really shouldn't happen
             raise ValueError("All mesh keys should be component specific.")
@@ -943,7 +943,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         return d
 
 
-    def fill_mesh(mesh, type, time=None):
+    def fill_mesh(mesh, type, stars, time=None):
         """
         Fill phoebe2 mesh with values from phoebe1
 
@@ -972,7 +972,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             grtot = [np.sqrt(grtot1),np.sqrt(grtot2)]
 
         for key in keys:
-            d = ret_dict(key)
+            d = ret_dict(key, stars)
      #       key_values =  np.array_split(mesh[key],n)
             if type == 'protomesh':
                 # take care of the protomesh
@@ -1066,9 +1066,10 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     phb1.open('_tmp_legacy_inp')
  #   phb1.updateLD()
     # TODO BERT: why are we saving here?
-    # phb1.save('after.phoebe')
+#    phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
+    rvid = None
     infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, protomesh=protomesh, pbmesh=pbmesh)
 
 
@@ -1082,7 +1083,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         # print 'TIME', time
         phb1.setpar('phoebe_lcno', 1)
         flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)
-        fill_mesh(mesh, 'protomesh')
+        fill_mesh(mesh, 'protomesh', stars)
 
     for info in infos:
         info = info[0]
@@ -1106,7 +1107,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             # take care of the lc first
                 this_syn['fluxes'] = flux
 
-                fill_mesh(mesh, 'pbmesh', time=time)
+                fill_mesh(mesh, 'pbmesh', stars, time=time)
             # now deal with parameters
     #            keys = mesh.keys()
     #            n = len(time)
@@ -1177,32 +1178,68 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #                 time = time[:-1]
 
         elif info['kind'] == 'rv':
-#            print "SYN", this_syn
-            rvid = info['dataset']
-            #print "rvid", info
-#            quit()
 
-            if rvid == phb1.getpar('phoebe_rv_id', 0):
-
+            if rvid == None:
                 dep =  phb1.getpar('phoebe_rv_dep', 0)
-                dep = dep.split(' ')[0].lower()
-           # must account for rv datasets with multiple components
-                if dep != info['component']:
-                    dep = info['component']
-
-            elif rvid == phb1.getpar('phoebe_rv_id', 1):
+            else:
                 dep =  phb1.getpar('phoebe_rv_dep', 1)
-                dep = dep.split(' ')[0].lower()
-           # must account for rv datasets with multiple components
-                if dep != info['component']:
-                    dep = info['component']
+            dep = dep.split(' ')[0].lower()
 
-            proximity = computeparams.filter(qualifier ='rv_method', component='primary', dataset=rvid).get_value()
+            rvid = info['dataset']
 
+            if dep == 'primary':
+                comp = primary
+            elif dep == 'secondary':
+                comp = secondary
+
+            proximity = computeparams.filter(qualifier ='rv_method', component=comp, dataset=rvid).get_value() 
             if proximity == 'flux-weighted':
                 rveffects = 1
             else:
-                rveffects = 0
+                rveffects = 0   
+
+            if dep == 'primary':
+                print 'primary'
+                phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
+                rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
+                rvnum = rvnum+1
+
+            elif dep == 'secondary':
+                print 'secondary'
+                phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
+                rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
+                rvnum = rvnum+1
+            else:
+                raise ValueError(str(info['component'])+' is not the primary or the secondary star')
+
+
+                 #print "***", u.solRad.to(u.km)
+            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)                     
+#########################################################################################################
+#            if rvid == phb1.getpar('phoebe_rv_id', 0):
+
+#                dep =  phb1.getpar('phoebe_rv_dep', 0)
+#                dep = dep.split(' ')[0].lower()
+           # must account for rv datasets with multiple components
+#                if dep == 'primary':
+#                    component = primary
+#                elif dep == 'secondary':
+#                    component = secondary
+
+
+#            elif rvid == phb1.getpar('phoebe_rv_id', 1):
+#                dep =  phb1.getpar('phoebe_rv_dep', 1)
+#                dep = dep.split(' ')[0].lower()
+           # must account for rv datasets with multiple components
+#                if dep != info['component']:
+#                    dep = info['component']
+
+#            proximity = computeparams.filter(qualifier ='rv_method', component=component, dataset=rvid).get_value()
+
+#            if proximity == 'flux-weighted':
+#                rveffects = 1
+#            else:
+#                rveffects = 0
 #            try:
 #                dep2 =  phb1.getpar('phoebe_rv_dep', 1)
 #                dep2 = dep2.split(' ')[0].lower()
@@ -1211,21 +1248,22 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #            print "dep", dep
 #            print "dep2", dep2
 #            print "COMPONENT", info['component']
-            if dep == 'primary':
-                phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
-                rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
-                rvnum = rvnum+1
+#            if dep == 'primary':
+#                phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
+#                rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
+#                rvnum = rvnum+1
 
-            elif dep == 'secondary':
-                phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
-                rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
-                rvnum = rvnum+1
-            else:
-                raise ValueError(str(info['component'])+' is not the primary or the secondary star')
+#            elif dep == 'secondary':
+#                phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
+#                rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
+
+#                rvnum = rvnum+1
+#            else:
+#                raise ValueError(str(info['component'])+' is not the primary or the secondary star')
 
 
             #print "***", u.solRad.to(u.km)
-            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)
+#            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s, component = component)
 #            print "INFO", info
 #            print "SYN", this_syn
 
