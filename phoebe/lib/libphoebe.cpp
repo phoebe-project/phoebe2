@@ -4237,8 +4237,8 @@ static PyObject *mesh_radiosity_problem_vertices_nbody_convex(
   triangle_mesh_radiosity_matrix_vertices_nbody_convex(
     V, Tr, NatV, A, LDmod, Fmat);
  
-  std::cerr << "Fmat.size=" << Fmat.size() << " V.size=" << V.size() << '\n';
-  for (int i = 0; i < 2; ++i) std::cerr << "V[i].size=" << V[i].size() << '\n';
+  //std::cerr << "Fmat.size=" << Fmat.size() << " V.size=" << V.size() << '\n';
+  //for (int i = 0; i < 2; ++i) std::cerr << "V[i].size=" << V[i].size() << '\n';
  
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
