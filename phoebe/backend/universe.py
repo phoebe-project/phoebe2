@@ -1666,10 +1666,10 @@ class Star(Body):
                     # pot<->rpole constraint.  So, let's get the Phi that
                     # would match the same polar radius as if it were a roche
                     # potential.
-                    rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
+                    # rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
                     # print "*** before rotstar_from_roche", Phi, F, sma, rpole*sma
                     omega, Phi = libphoebe.rotstar_from_roche(*mesh_args)
-                    rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)  # TODO: REMOVE
+                    # rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)  # TODO: REMOVE
                     # print "*** after rotstar_from_roche", Phi, omega, sma, rpole*sma
 
                 else:
@@ -1752,10 +1752,86 @@ class Star(Body):
 
                 scale = sma
 
-
             elif self.distortion_method == 'sphere':
-                # TODO: implement this (discretize and save mesh_args)
-                raise NotImplementedError("'sphere' distortion_method not yet supported - try roche")
+
+                if self._is_single:
+                    raise NotImplementedError()
+                    # TODO: need to use rpole directly?
+
+                rpole = libphoebe.roche_pole(*mesh_args)
+                delta *= rpole
+
+                omega = 1./rpole
+
+                mesh_args = (omega,)
+
+                # print "*** sphere_marching_mesh rpole:{} omega:{} delta:{}".format(rpole, mesh_args[0], delta)
+
+                new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
+                                               delta=delta,
+                                               full=True,
+                                               max_triangles=maxpoints,
+                                               vertices=True,
+                                               triangles=True,
+                                               centers=True,
+                                               vnormals=True,
+                                               tnormals=True,
+                                               cnormals=False,
+                                               vnormgrads=True,
+                                               cnormgrads=False,
+                                               areas=True,
+                                               volume=True,
+                                               init_phi=self.mesh_init_phi)
+
+                av = libphoebe.sphere_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
+
+                new_mesh['volume'] = av['lvolume']
+
+                if self._do_mesh_offset:
+                    # vertices directly from meshing are placed directly on the
+                    # potential, causing the volume and surface area to always
+                    # (for convex surfaces) be underestimated.  Now let's jitter
+                    # each of the vertices along their normals to recover the
+                    # expected volume/surface area.  Since they are moved along
+                    # their normals, vnormals applies to both vertices and
+                    # pvertices.
+                    new_mesh['pvertices'] = new_mesh.pop('vertices')
+                    mo = libphoebe.mesh_offseting(av['larea'],
+                                                  new_mesh['pvertices'],
+                                                  new_mesh['vnormals'],
+                                                  new_mesh['triangles'],
+                                                  curvature=True,
+                                                  vertices=True,
+                                                  tnormals=False,
+                                                  areas=True,
+                                                  volume=False)
+
+                    new_mesh['vertices'] = mo['vertices']
+                    new_mesh['areas'] = mo['areas']
+
+                    # TODO: need to update centers (so that they get passed
+                    # to the frontend as x, y, z)
+                    # new_mesh['centers'] = mo['centers']
+
+                else:
+                    # pvertices should just be a copy of vertices
+                    new_mesh['pvertices'] = new_mesh['vertices']
+
+                # We only need the gradients where we'll compute local
+                # quantities which, for a marching mesh, is at the vertices.
+                new_mesh['normgrads'] = new_mesh.pop('vnormgrads')
+
+                # And lastly, let's fill the velocities column - with zeros
+                # at each of the vertices
+                new_mesh['velocities'] = np.zeros(new_mesh['vertices'].shape)
+
+                new_mesh['tareas'] = np.array([])
+
+                scale = sma
+
+
             elif self.distortion_method == 'nbody':
                 # TODO: implement this (discretize and save mesh_args)
                 raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
