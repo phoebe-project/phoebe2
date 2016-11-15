@@ -1,7 +1,7 @@
 
 import numpy as np
 import commands
-
+import tempfile
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
 from phoebe import dynamics
@@ -985,7 +985,6 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, -prot_val, -prot_val, -prot_val, -prot_val)).flatten()
                 else:
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
-
                 if key[:2] =='gr':
                     grtotn = grtot[int(key[-1])-1]
 
@@ -1048,7 +1047,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
 #    starrefs  = hier.get_stars()
 #    orbitrefs = hier.get_orbits()
-
+    
     stars = b.hierarchy.get_stars()
     primary, secondary = stars
     #need for protomesh
@@ -1056,14 +1055,16 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     # print primary, secondary
     #make phoebe 1 file
 
-    # TODO BERT: this really should be a random name (tmpfile) so two instances won't clash
-    io.pass_to_legacy(b, filename='_tmp_legacy_inp', compute=compute, **kwargs)
+
+    #create temporary file
+    tmp_file = tempfile.NamedTemporaryFile()
+    io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
     phb1.init()
     try:
         phb1.configure()
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-    phb1.open('_tmp_legacy_inp')
+    phb1.open(tmp_file.name)
  #   phb1.updateLD()
     # TODO BERT: why are we saving here?
 #    phb1.save('after.phoebe')
