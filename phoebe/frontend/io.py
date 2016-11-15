@@ -952,7 +952,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         # TODO BERT: need to deal with multiple datasets
         val = [eb.get_value(qualifier='pblum', component=primary, context='dataset')]
         ptype = 'float'
-        pname = ret_parname('pblum', component=comp_int, ptype=ptype)
+        pname = ret_parname('pblum', comp_int=comp_int, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
     # get primary parameters and convert
