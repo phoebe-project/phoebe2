@@ -248,14 +248,22 @@ class System(object):
 
         if self.reflection_method is not 'none' and not ignore_effects:  # and kinds includes a kind that requires fluxes
             for starref, body in self.items():
-                # TODO: no limb-darkening (ie mu=1)
-                # TODO: this needs to take ld_func_bol, ld_coeffs_bol
-                body.populate_observable(time, 'lc', 'bol',
-                                         passband=bol_pband,
-                                         ld_func=body.ld_func['bol'],
-                                         ld_coeffs=body.ld_coeffs['bol'],
-                                         atm=body.atm if 'extern' not in body.atm else 'blackbody',
-                                         boosting_method='none')
+                # body.populate_observable(time, 'lc', 'bol',
+                #                          passband=bol_pband,
+                #                          ld_func=body.ld_func['bol'],
+                #                          ld_coeffs=body.ld_coeffs['bol'],
+                #                          atm=body.atm if 'extern' not in body.atm else 'blackbody',
+                #                          boosting_method='none')
+
+                abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
+                                                                atm='blackbody',
+                                                                photon_weighted=False)
+
+                body.mesh.update_columns_dict({'abs_normal_intensities:bol': abs_normal_intensities})
+                # ldint will be assumed to be pi since we're using blackbody bolometric for reflection
+                # TODO: could optimize a bit by assuming this within reflection or handle_reflection
+                # rather than filling the mesh with pis
+                body.mesh.update_columns_dict({'ldint:bol': np.full(abs_normal_intensities.shape, np.pi)})
 
             self.handle_reflection()
 
