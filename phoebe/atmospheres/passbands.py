@@ -4,7 +4,7 @@
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
 # inside phoebe will be ignored within passbands
-from astropy.constants import h, c, k_B
+from astropy.constants import h, c, k_B, sigma_sb
 from astropy import units as u
 
 import numpy as np
@@ -641,6 +641,16 @@ class Passband:
 
         return log10_Inorm
 
+    def _Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
+        #~ if not hasattr(Teff, '__iter__'):
+            #~ req = np.array(((Teff, logg, abun),))
+            #~ log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
+        #~ else:
+        req = np.vstack((Teff, logg, abun)).T
+        Inorm = libphoebe.interp(req, self._ck2004_axes, 10**self._ck2004_photon_grid if photon_weighted else 10**self._ck2004_energy_grid).T[0]
+
+        return Inorm
+
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
@@ -650,6 +660,16 @@ class Passband:
             log10_Imu = libphoebe.interp(req, self._ck2004_intensity_axes, self._ck2004_Imu_photon_grid if photon_weighted else self._ck2004_Imu_energy_grid).T[0]
 
         return log10_Imu
+
+    def _Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, abun, mu),))
+            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, 10**self._ck2004_Imu_photon_grid if photon_weighted else 10**self._ck2004_Imu_energy_grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, abun, mu)).T
+            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, 10**self._ck2004_Imu_photon_grid if photon_weighted else 10**self._ck2004_Imu_energy_grid).T[0]
+
+        return Imu
 
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
         # convert scalars to vectors if necessary:
@@ -668,7 +688,7 @@ class Passband:
             # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
         elif atm == 'ck2004':
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
+            retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
@@ -680,7 +700,7 @@ class Passband:
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
             if atm == 'ck2004':
-                retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
+                retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
         elif ld_func == 'linear':
@@ -868,6 +888,31 @@ def get_passband(passband):
 
     return _pbtable[passband]['pb']
 
+def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+    """
+    @Teff: value or array of effective temperatures
+    @logg: surface gravity; not used, for class compatibility only
+    @abun: abundances; not used, for class compatibility only
+    @atm: atmosphere model, must be blackbody, otherwise exception is raised
+    @photon_weighted: intensity weighting scheme; must be False, otherwise exception is raised
+    
+    Computes normal bolometric intensity using the Stefan-Boltzmann law,
+    Inorm_bol_bb = 1/\pi \sigma T^4.
+    
+    Input parameters mimick the Passband class Inorm method for calling
+    convenience.
+    """
+    if atm != 'blackbody':
+        raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
+    if photon_weighted != False:
+        raise ValueError('intensities must be energy-weighted in Inorm_bol_bb.')
+    
+    # convert scalars to vectors if necessary:
+    if not hasattr(Teff, '__iter__'):
+        Teff = np.array((Teff,))
+
+    return sigma_sb.value * Teff**4 / np.pi
+    
 
 if __name__ == '__main__':
 
