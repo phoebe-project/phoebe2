@@ -244,17 +244,11 @@ class System(object):
         ignore_effects: whether to ignore reflection and features (useful for computing luminosities)
         """
 
-        bol_pband = 'Bolometric:1760-40000'
 
         if self.reflection_method is not 'none' and not ignore_effects:  # and kinds includes a kind that requires fluxes
             for starref, body in self.items():
-                # body.populate_observable(time, 'lc', 'bol',
-                #                          passband=bol_pband,
-                #                          ld_func=body.ld_func['bol'],
-                #                          ld_coeffs=body.ld_coeffs['bol'],
-                #                          atm=body.atm if 'extern' not in body.atm else 'blackbody',
-                #                          boosting_method='none')
-
+                # TODO: is photon_weighted = False always safe here even if the
+                # passband observables are requested in photon_weighted=True?
                 abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
                                                                 atm='blackbody',
                                                                 photon_weighted=False)
