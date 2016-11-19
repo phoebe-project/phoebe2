@@ -5254,6 +5254,7 @@ class ConstraintParameter(Parameter):
 
         self._qualifier = newly_constrained_param.qualifier
         self._component = newly_constrained_param.component
+        self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
         self.set_default_unit(newly_constrained_param.default_unit)
