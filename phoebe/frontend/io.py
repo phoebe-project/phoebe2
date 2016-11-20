@@ -2,6 +2,7 @@ import numpy as np
 import phoebe as phb
 import os.path
 import logging
+from phoebe import conf
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -351,7 +352,7 @@ filename - a .phoebe file (from phoebe 1)
 """
 
 def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
-
+    conf.interactive_off()
     legacy_file_dir = os.path.dirname(filename)
 
 # load the phoebe file
@@ -698,6 +699,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             val = ldcosbol[x].value[0]
             ldcosbol[x].set_value(np.array([val]))
+
+    conf.interactive_on()
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
