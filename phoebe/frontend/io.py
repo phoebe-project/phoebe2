@@ -352,6 +352,7 @@ filename - a .phoebe file (from phoebe 1)
 """
 
 def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
+    conf_state = conf.interactive
     conf.interactive_off()
     legacy_file_dir = os.path.dirname(filename)
 
@@ -699,8 +700,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             val = ldcosbol[x].value[0]
             ldcosbol[x].set_value(np.array([val]))
-
-    conf.interactive_on()
+    if conf_state:
+        conf.interactive_on()
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
