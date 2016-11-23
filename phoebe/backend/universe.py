@@ -1591,7 +1591,7 @@ class Star(Body):
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
                 rpole = libphoebe.roche_pole(*mesh_args)
-                delta *= rpole
+                #delta *= rpole
 
                 # print "*** libphoebe.roche_marching_mesh args: {}, rpole: {}, delta: {}".format(mesh_args, rpole, delta)
 

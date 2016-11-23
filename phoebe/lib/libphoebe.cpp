@@ -646,6 +646,15 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   
   if (res_choice == 0) return NULL;
   
+  #if 0
+  std::cerr.precision(16);
+  std::cerr 
+    << "q=" << q
+    << " F=" << F
+    << " d=" << delta
+    << " Omega0=" << Omega0  << '\n';
+  #endif
+    
 
   //
   // Posibility of using approximation
@@ -1973,6 +1982,16 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     
   double params[4] = {q, F, d, Omega0};
   
+  #if 0
+  std::cerr.precision(16);
+  std::cerr 
+    << "q=" << q
+    << " F=" << F
+    << " d=" << d
+    << " Omega0=" << Omega0 
+    << " delta=" << delta << '\n';
+  #endif
+    
   Tmarching<double, Tgen_roche<double>> march(params);  
   
   std::vector<T3Dpoint<double>> V, NatV;
@@ -1989,6 +2008,12 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     std::cerr << fname << "::There are too many triangles\n";
     return NULL;
   }
+  
+  #if 0
+  std::cerr 
+    << "V.size=" << V.size() 
+    << " Tr.size=" << Tr.size() << '\n';
+  #endif
   
   //
   // Calculte the mesh properties
@@ -3573,9 +3598,9 @@ bool LDmodelFromTuple(
       pmodel = new TLDsquare_root<double>(par);
       return true;
       
-    case "claret"_hash32:
+    case "power"_hash32:
       par = (double*)PyArray_DATA((PyArrayObject*)PyTuple_GetItem(p, 1));
-      pmodel = new TLDclaret<double>(par);
+      pmodel = new TLDpower<double>(par);
       return true;
    
     case "interp"_hash32:
@@ -4292,6 +4317,14 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     return NULL;
   }
  
+  #if 0
+  {
+    int i = 0;
+    for (auto && pld: LDmod)
+      std::cerr << i++ << " LD:type=" << pld->type << '\n';
+  }
+  #endif
+    
   //
   // Checking number of bodies
   //
@@ -5565,7 +5598,7 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-              "claret"      4 parameters
+              "power"       4 parameters
     params: 1-rank numpy array 
   Return: 
     value of D(mu) for a given LD model 
@@ -5635,7 +5668,7 @@ static PyObject *ld_D(PyObject *self, PyObject *args, PyObject *keywds) {
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-              "claret"      4 parameters
+              "power "      4 parameters
     params: 1-rank numpy array
      
   Return: 
@@ -5704,7 +5737,7 @@ static PyObject *ld_D0(PyObject *self, PyObject *args, PyObject *keywds) {
           "nonlinear"   3 parameters
           "logarithmic" 2 parameters
           "square_root" 2 parameters
-          "claret"      4 parameters
+          "power"       4 parameters
     
     params: 1-rank numpy array 
      
@@ -5786,7 +5819,7 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
             "nonlinear"   3 parameters
             "logarithmic" 2 parameters
             "square_root" 2 parameters
-            "claret"      4 parameters
+            "power"       4 parameters
   Return: 
     int: number of parameters 
 */
@@ -5842,7 +5875,8 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
             "nonlinear"   3 parameters
             "logarithmic" 2 parameters
             "square_root" 2 parameters
-            "claret"      4 parameters
+            "power"       4 parameters
+
     params: 1-rank numpy array of float
   
   Return: 
@@ -5907,7 +5941,8 @@ static PyObject *ld_check(PyObject *self, PyObject *args, PyObject *keywds) {
     
     atm_table: coefficients for calculating light intensity with atmospheres
       1-rank numpy array of floats
-*/ 
+*/
+ 
 static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   
   //
