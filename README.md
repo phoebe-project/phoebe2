@@ -95,7 +95,7 @@ python. To start PHOEBE, issue:
 To understand how to use PHOEBE, please consult the tutorials, scripts
 and manuals hosted on the PHOEBE webpage:
 
-    http://phoebe-project.org/2.0b/#Tutorials
+    http://phoebe-project.org/docs/2.0b/#Tutorials
 
 
 QUESTIONS? SUGGESTIONS? CONCERNS?
