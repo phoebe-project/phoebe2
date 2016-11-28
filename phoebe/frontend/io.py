@@ -366,7 +366,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
         overcontact= True
-        eb = phb.Bundle.default_binary(overcontact=True)
+        eb = phb.Bundle.default_binary(contact_binary=True)
     else:
         overcontact = False
         eb = phb.Bundle.default_binary()

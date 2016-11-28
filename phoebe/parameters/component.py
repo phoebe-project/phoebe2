@@ -144,7 +144,7 @@ def star(component, **kwargs):
 
     return ParameterSet(params), constraints
 
-def envelope(component, **kwargs):
+def contact_envelope(component, **kwargs):
     """
     Create parameters for an envelope (usually will be attached to two stars solRad
         that they can share a common-envelope)

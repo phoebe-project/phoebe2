@@ -272,7 +272,7 @@ class Bundle(ParameterSet):
 
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
-                       overcontact=False):
+                       contact_binary=False):
         """Load a bundle with a default binary as the system.
 
         primary - secondary
@@ -287,13 +287,13 @@ class Bundle(ParameterSet):
         b.add_star(component=starA)
         b.add_star(component=starB)
         b.add_orbit(component=orbit)
-        if overcontact:
-            b.add_component('envelope', component='common_envelope')
+        if contact_binary:
+            b.add_component('contact_envelope', component='contact_envelope')
             b.set_hierarchy(_hierarchy.binaryorbit,
                             b[orbit],
                             b[starA],
                             b[starB],
-                            b['common_envelope'])
+                            b['contact_envelope'])
         else:
             b.set_hierarchy(_hierarchy.binaryorbit,
                             b[orbit],
@@ -306,7 +306,7 @@ class Bundle(ParameterSet):
     def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
                        starA='starA', starB='starB', starC='starC',
                        inner='inner', outer='outer',
-                       common_envelope='common_envelope'):
+                       contact_envelope='contact_envelope'):
         """Load a bundle with a default triple system.
 
         Set inner_as_primary based on what hierarchical configuration you want.
@@ -338,11 +338,11 @@ class Bundle(ParameterSet):
         b.add_orbit(component=outer, period=10)
 
         if inner_as_overcontact:
-            b.add_envelope(component=common_envelope)
+            b.add_envelope(component=contact_envelope)
             inner_hier = _hierarchy.binaryorbit(b[inner],
                                            b[starA],
                                            b[starB],
-                                           b[common_envelope])
+                                           b[contact_envelope])
         else:
             inner_hier = _hierarchy.binaryorbit(b[inner], b[starA], b[starB])
 

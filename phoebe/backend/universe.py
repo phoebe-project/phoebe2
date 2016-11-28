@@ -2137,7 +2137,7 @@ class Star(Body):
 
 
 
-class Envelope(Body):
+class Contact_Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
             abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
@@ -2159,12 +2159,12 @@ class Envelope(Body):
             for the secondary star in this overcontact envelope
         :return: instantiated :class:`Envelope` object
         """
-        super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
-                                       ecc, atm, datasets, passband,
-                                       intens_weighting,
-                                       ld_func, ld_coeffs,
-                                       dynamics_method=dynamics_method,
-                                       mesh_init_phi=mesh_init_phi)
+        super(Contact_Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
+                                               ecc, atm, datasets, passband,
+                                               intens_weighting,
+                                               ld_func, ld_coeffs,
+                                               dynamics_method=dynamics_method,
+                                               mesh_init_phi=mesh_init_phi)
 
         self.label_envelope = label_envelope
         self.label_primary = label_primary
