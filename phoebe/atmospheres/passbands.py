@@ -931,7 +931,7 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
 
     if photon_weighted:
-        factor = 2.6814126821264836e3#/Teff
+        factor = 2.6814126821264836e22/Teff
     else:
         factor = 1.0
     
@@ -939,7 +939,7 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     if not hasattr(Teff, '__iter__'):
         Teff = np.array((Teff,))
 
-    return sigma_sb.value * Teff**4 / np.pi
+    return factor * sigma_sb.value * Teff**4 / np.pi
     
 
 if __name__ == '__main__':
