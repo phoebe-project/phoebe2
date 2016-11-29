@@ -304,8 +304,8 @@ class Passband:
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
             flP = fl*wl
-            InormE[i] = np.log10(fl.sum())-10    # -10 because of the 1AA dispersion
-            InormP[i] = np.log10(flP.sum())      # no -10 because it is multiplied by lambda, so AA cancel out
+            InormE[i] = np.log10(fl.sum())-10    # -10 because dlambda = 1AA when we integrate by summing
+            InormP[i] = np.log10(flP.sum())+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -401,8 +401,8 @@ class Passband:
             boostE = (flE*boosting_index).sum()/flEint
             boostP = (flP*boosting_index).sum()/flPint
 
-            ImuE[i] = np.log10(flEint)-10  # energy-weighted flux; -10 because of the 1AA dispersion
-            ImuP[i] = np.log10(flPint/1.9864458e-5) # photon-weighted flux; the constant is 1e10*1e10*h*c
+            ImuE[i] = np.log10(flEint)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
+            ImuP[i] = np.log10(flPint)+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
             boostingE[i] = boostE
             boostingP[i] = boostP
 
