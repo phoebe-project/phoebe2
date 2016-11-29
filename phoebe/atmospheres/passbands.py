@@ -525,7 +525,7 @@ class Passband:
 
         self.content.append('ck2004_ldint')
 
-    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
+    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='power', photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
         """
@@ -904,8 +904,13 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     """
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
-    if photon_weighted != False:
-        raise ValueError('intensities must be energy-weighted in Inorm_bol_bb.')
+    #~ if photon_weighted != False:
+        #~ raise ValueError('intensities must be energy-weighted in Inorm_bol_bb.')
+
+    if photon_weighted:
+        factor = 2.6814126821264836e22/Teff
+    else:
+        factor = 1.0
     
     # convert scalars to vectors if necessary:
     if not hasattr(Teff, '__iter__'):
