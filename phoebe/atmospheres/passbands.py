@@ -305,7 +305,7 @@ class Passband:
             fl *= self.ptf(wl)
             flP = fl*wl
             InormE[i] = np.log10(fl.sum())-10    # -10 because of the 1AA dispersion
-            InormP[i] = np.log10(flP.sum())-10   # -10 because of the 1AA dispersion
+            InormP[i] = np.log10(flP.sum())      # no -10 because it is multiplied by lambda, so AA cancel out
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
