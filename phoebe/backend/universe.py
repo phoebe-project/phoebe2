@@ -246,21 +246,7 @@ class System(object):
 
 
         if self.reflection_method is not 'none' and not ignore_effects:  # and kinds includes a kind that requires fluxes
-            for starref, body in self.items():
-                # TODO: is photon_weighted = False always safe here even if the
-                # passband observables are requested in photon_weighted=True?
-                abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
-                                                                atm='blackbody',
-                                                                photon_weighted=False)
-
-                body.mesh.update_columns_dict({'abs_normal_intensities:bol': abs_normal_intensities})
-                # ldint will be assumed to be pi since we're using blackbody bolometric for reflection
-                # TODO: could optimize a bit by assuming this within reflection or handle_reflection
-                # rather than filling the mesh with pis
-                body.mesh.update_columns_dict({'ldint:bol': np.full(abs_normal_intensities.shape, np.pi)})
-
             self.handle_reflection()
-
 
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
@@ -270,17 +256,42 @@ class System(object):
         """
         """
         if self.reflection_method == 'none':
+            # then there is nothing to do here
             return
-
-
-        # meshes is an object which allows us to easily access and update columns
-        # in the meshes *in memory*.  That is meshes.update_columns will propogate
-        # back to the current mesh for each body.
-        meshes = self.meshes
-
 
         if 'wd' in [body.mesh_method for body in self.bodies]:
             raise NotImplementedError("reflection not yet supported for WD-style meshing")
+
+            # TODO: to support this, each call to libphoebe (both for convex
+            # and general case) needs to have an if statement to be replaced by
+            # something like the following:
+
+            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
+            #                                                                            triangles_per_body,
+            #                                                                            normals_per_body,
+            #                                                                            areas_per_body,
+            #                                                                            frac_refls_per_body,
+            #                                                                            fluxes_intrins_per_body,
+            #                                                                            ld_func_and_coeffs,
+            #                                                                            self.reflection_method.title()
+            #                                                                            )
+
+
+        # meshes is an object which allows us to easily access and update columns
+        # in the meshes *in memory*.  That is meshes.update_columns will propagate
+        # back to the current mesh for each body.
+        meshes = self.meshes
+
+        # reflection needs bolometric, energy weighted, normal intensities.
+        fluxes_intrins_per_body = []
+        for starref, body in self.items():
+            abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
+                                                            atm='blackbody',
+                                                            photon_weighted=False)
+
+            fluxes_intrins_per_body.append(abs_normal_intensities * np.pi)
+
+        fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
         if np.all([body.is_convex for body in self.bodies]):
             logger.info("handling reflection (convex case), method='{}'".format(self.reflection_method))
@@ -291,11 +302,6 @@ class System(object):
             areas_per_body = meshes.get_column('areas').values()
             frac_refls_per_body = meshes.get_column('frac_refl', computed_type='for_computations').values()
             teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
-
-            intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
-            ldint_per_body = meshes.get_column('ldint:bol', computed_type='for_computations').values()
-
-            fluxes_intrins_per_body = [intens_intrins * ldint for intens_intrins, ldint in zip(intens_intrins_per_body, ldint_per_body)]
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
@@ -309,23 +315,7 @@ class System(object):
                                                                                        self.reflection_method.title()
                                                                                        )
 
-
-            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
-            #                                                                            triangles_per_body,
-            #                                                                            normals_per_body,
-            #                                                                            areas_per_body,
-            #                                                                            frac_refls_per_body,
-            #                                                                            fluxes_intrins_per_body,
-            #                                                                            ld_func_and_coeffs,
-            #                                                                            self.reflection_method.title()
-            #                                                                            )
-
-
-            intens_intrins_and_refl_per_body = [fluxes_intrins_and_refl / ldint for fluxes_intrins_and_refl, ldint in zip(fluxes_intrins_and_refl_per_body, ldint_per_body)]
-
-            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
-            intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
-
+            fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
             logger.info("handling reflection (general case), method='{}'".format(self.reflection_method))
@@ -337,10 +327,6 @@ class System(object):
             areas_flat = meshes.get_column_flat('areas')
             frac_refls_flat = meshes.get_column_flat('frac_refl', computed_type='for_computations')
 
-            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
-            ldint_flat = meshes.get_column_flat('ldint:bol', computed_type='for_computations')
-            fluxes_intrins_flat = intens_intrins_flat * ldint_flat
-
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
             # TODO: get the correct index for each vertex - maybe something like meshes.get_column_flat('comp'),
@@ -348,7 +334,6 @@ class System(object):
             ld_inds = np.zeros(frac_refls_flat.shape)
             # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
 
-            # TODO: this will fail for WD meshes - use triangles instead?
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
                                                                                     triangles_flat,
                                                                                     normals_flat,
@@ -376,15 +361,13 @@ class System(object):
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
-        # TODO: set to triangles if WD mesh_method
-        meshes.set_column_flat('abs_normal_intensities:bol', intens_intrins_and_refl_flat)
+        # update the effective temperatures to give this same bolometric
+        # flux under stefan-boltzmann. These effective temperatures will
+        # then be used for all passband intensities.
+        teffs_intrins_and_refl_flat = teffs_intrins_flat * (fluxes_intrins_and_refl_flat / fluxes_intrins_flat) ** (1./4)
 
-        # update the effective temperatures to gives this same bolometric
-        # intensity under stefan-boltzmann these effective temperatures will
-        # then be used for all passband intensities
-        teffs_intrins_and_refl_flat = teffs_intrins_flat * (intens_intrins_and_refl_flat / intens_intrins_flat) ** (1./4)
-
-        # TODO: set to triangles if WD mesh_method
+        # TODO: set to triangles if WD mesh_method (note: WD mesh will
+        # currently raise NotImplementedError)
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
     def handle_eclipses(self, expose_horizon=True, **kwargs):
