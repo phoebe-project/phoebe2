@@ -44,7 +44,7 @@ def phoebe(**kwargs):
 
     # PHYSICS
     # TODO: should either of these be per-dataset... if so: copy_for={'kind': ['rv_dep', 'lc_dep'], 'dataset': '*'}, dataset='_default' and then edit universe.py to pull for the correct dataset (will need to become dataset-dependent dictionary a la ld_func)
-    params += [ChoiceParameter(qualifier='reflection_method', value=kwargs.get('reflection_method', 'wilson'), choices=['none', 'wilson', 'horvat'] if conf.devel else ['none', 'wilson'], description='Which method to use to handle all reflection')]
+    params += [ChoiceParameter(qualifier='irrad_method', value=kwargs.get('irrad_method', 'wilson'), choices=['none', 'wilson', 'horvat'], description='Which method to use to handle all irradiation effects (reflection, redistribution)')]
     params += [ChoiceParameter(qualifier='boosting_method', value=kwargs.get('boosting_method', 'none'), choices=['none', 'linear'], description='Type of boosting method')]
 
     # TODO: include scattering here? (used to be in lcdep)

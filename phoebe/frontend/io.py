@@ -28,7 +28,7 @@ _1to2par = {'ld_model':'ld_func',
             'pot':'pot',
             'met':'abun',
             'f': 'syncpar',
-            'alb': 'frac_refl_bol',
+            'alb': 'irrad_frac_refl_bol',
             'grb':'gravb_bol',
             'ecc': 'ecc',
             'perr0':'per0',
@@ -980,7 +980,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
             val, ptype = par_value(param)
 
-            # if param.qualifier == 'frac_refl_bol':
+            # if param.qualifier == 'irrad_frac_refl_bol':
                 # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
             # print val, ptype, pname
@@ -1012,7 +1012,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
 
             val, ptype = par_value(param)
-            # if param.qualifier == 'frac_refl_bol':
+            # if param.qualifier == 'irrad_frac_refl_bol':
                 # val = [1-float(val[0])]
             pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
             if pname[0] not in parnames:
