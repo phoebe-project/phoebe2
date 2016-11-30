@@ -36,7 +36,7 @@ def test_binary(plot=False):
     cb.set_value_all('ltte', False)
 
     print "running phoebe2 model..."
-    cb.run_compute(compute='phoebe2', irradiation_method='none', model='phoebe2model')
+    cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
     print "running phoebe1 model..."
     cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
