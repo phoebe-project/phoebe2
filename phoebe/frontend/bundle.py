@@ -2045,6 +2045,14 @@ class Bundle(ParameterSet):
         :parameter **kwargs: any other tags to do the filter
             (except twig or context)
         """
+        # let's run delayed constraints first to ensure that we get the same
+        # results in interactive and non-interactive modes as well as to make
+        # sure we don't have delayed constraints for the constraint we're
+        # about to remove.  This could perhaps be optimized by searching
+        # for this/these constraints and only running/removing those, but
+        # probably isn't worth the savings.
+        self.run_delayed_constraints()
+
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
 
