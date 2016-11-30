@@ -308,10 +308,10 @@ class System(object):
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
-                                                                                       frac_refls_per_body,
+                                                                                       irrad_frac_refls_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
-                                                                                       self.reflection_method.title()
+                                                                                       self.irrad_method.title()
                                                                                        )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
@@ -337,11 +337,11 @@ class System(object):
                                                                                     triangles_flat,
                                                                                     normals_flat,
                                                                                     areas_flat,
-                                                                                    frac_refls_flat,
+                                                                                    irrad_frac_refls_flat,
                                                                                     fluxes_intrins_flat,
                                                                                     ld_func_and_coeffs,
                                                                                     ld_inds,
-                                                                                    self.reflection_method.title()
+                                                                                    self.irrad_method.title()
                                                                                     )
 
 
