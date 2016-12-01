@@ -489,7 +489,7 @@ static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
       choice: default 0
         0 - primary star
         1 - secondary star -- not yet supported
-        2 - overcontact -- not permitted
+        2 - contact binary -- not permitted
       
   and returns vector of parameters float
   
@@ -567,7 +567,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
-            2 for discussing overcontact 
+            2 for discussing contact envelope
             
     lvolume: boolean, default True
     larea: boolean, default True
@@ -997,7 +997,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
-            2 for discussing overcontact
+            2 for discussing contact envelope
     precision: float, default 1e-12
       aka relative precision
     accuracy: float, default 1e-12
@@ -4844,7 +4844,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
     choice: interr, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
+      2 - searching a point for contact binary case
   Return: 
     H: 2-rank numpy array of 3D point on a horizon
 */
@@ -5042,7 +5042,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     choice: integer, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
+      2 - searching a point for contact binary case
   
   Return: 
     xrange: 1-rank numpy array of two numbers p
@@ -5130,7 +5130,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
     choice: integer, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
+      2 - searching a point for contact binary case
     
     boundary_list: boolean, default false
       return the list of boundary points

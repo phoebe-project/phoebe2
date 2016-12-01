@@ -365,10 +365,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-        overcontact= True
+        contact_binary= True
         eb = phb.Bundle.default_binary(contact_binary=True)
     else:
-        overcontact = False
+        contact_binary = False
         eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
@@ -414,7 +414,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
         params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
-        if overcontact:
+        if contact_binary:
             params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
 #and split into lc and rv and spot parameters
@@ -506,9 +506,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
-                if d['qualifier'] == 'pblum' and overcontact:
+                if d['qualifier'] == 'pblum' and contact_binary:
 
-                    d['component'] = 'common_envelope'
+                    d['component'] = 'contact_envelope'
 
                 try:
                     eb.set_value_all(check_visible=False, **d)
@@ -634,11 +634,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['kind'] = 'star'
             d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
-            if not overcontact:
+            if not contact_binary:
                 eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
             #print "val", val
             else:
-                d['component'] = 'common_envelope'
+                d['component'] = 'contact_envelope'
             d['value'] = val
             d['qualifier'] = 'pot'
             d['kind'] = None
@@ -683,7 +683,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
-    if not overcontact:
+    if not contact_binary:
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
@@ -910,8 +910,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     if len(stars) != 2 or len(orbits) != 1:
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
-# check for overcontact
-    overcontact = eb.hierarchy.is_overcontact(primary)
+# check for contact_binary
+    contact_binary = eb.hierarchy.is_contact_binary(primary)
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -941,10 +941,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
-    if overcontact:
+    if contact_binary:
         comp_int = 1
         envelope = eb.hierarchy.get_siblings_of(primary)[-1]
-#        cepars = eb.filter(component='common_envelope', context='component')
+#        cepars = eb.filter(component='contact_envelope', context='component')
 #   potential
         val = [eb.get_value(qualifier='pot', component=envelope)]
         ptype = 'float'

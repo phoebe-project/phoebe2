@@ -300,7 +300,7 @@ namespace gen_roche {
     detached,
     solo_left,
     solo_right,
-    overcontact,
+    contact_binary,
     overflow
   };
 
@@ -332,12 +332,12 @@ namespace gen_roche {
       if (oL2 >= oL3) {
         if (omega >= oL2) {
           nr = 1;
-          return overcontact;  
+          return contact_binary;
         } 
       } else { // oL2 < oL3
         if (omega >= oL3) {
           nr = 1;
-          return overcontact;
+          return contact_binary;
         } 
       }
     } else if (oL1 < oL2 && oL1 < oL3) { // omega(L1) < omega(L_{2,3})
@@ -1001,7 +1001,7 @@ namespace gen_roche {
          
         if (!(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
           std::cerr 
-            << "lobe_xrange::overcontact lobe does not seem to exist\n"
+            << "lobe_xrange::contact binary lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;

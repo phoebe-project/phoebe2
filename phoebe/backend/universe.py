@@ -175,7 +175,7 @@ class System(object):
         if component in self._bodies.keys():
             return self._bodies[component]
         else:
-            # then hopefully we're a child star of an overcontact envelope
+            # then hopefully we're a child star of an contact_binary envelope
             parent_component = self._parent_envelope_of[component]
             return self._bodies[parent_component]
 
@@ -2137,14 +2137,14 @@ class Star(Body):
 
 
 
-class Contact_Envelope(Body):
+class Envelope(Body):
     def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
             abun, frac_refl1, frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
             ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True,
-            label_envelope='common_envelope', label_primary='primary',
+            label_envelope='contact_envelope', label_primary='primary',
             label_secondary='secondary', **kwargs):
         """
         [NOT IMPLEMENTED]
@@ -2154,17 +2154,17 @@ class Contact_Envelope(Body):
         :type masses: list of floats
         :parameter float sma: sma of this component's parent orbit (solRad)
         :parameter float abun: abundance of this star
-        :parameter int ind_self: index in all arrays (positions, masses, etc) for the primary star in this overcontact envelope
+        :parameter int ind_self: index in all arrays (positions, masses, etc) for the primary star in this contact_binary envelope
         :parameter int ind_sibling: index in all arrays (positions, masses, etc)
-            for the secondary star in this overcontact envelope
+            for the secondary star in this contact_binary envelope
         :return: instantiated :class:`Envelope` object
         """
-        super(Contact_Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
-                                               ecc, atm, datasets, passband,
-                                               intens_weighting,
-                                               ld_func, ld_coeffs,
-                                               dynamics_method=dynamics_method,
-                                               mesh_init_phi=mesh_init_phi)
+        super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
+                                       ecc, atm, datasets, passband,
+                                       intens_weighting,
+                                       ld_func, ld_coeffs,
+                                       dynamics_method=dynamics_method,
+                                       mesh_init_phi=mesh_init_phi)
 
         self.label_envelope = label_envelope
         self.label_primary = label_primary
@@ -2183,7 +2183,7 @@ class Contact_Envelope(Body):
         # as defaults if they are not passed in future calls.  If for some reason
         # they are time dependent, then the instantaneous values need to be passed
         # for each call to update_position
-        self.F = 1.0 # by definition for an overcontact
+        self.F = 1.0 # by definition for an contact_binary
         self.freq_rot = freq_rot   # TODO: change to just pass period and compute freq_rot here?
         self.sma = sma
 
@@ -2234,7 +2234,7 @@ class Contact_Envelope(Body):
         """
         [NOT IMPLEMENTED]
 
-        Build an overcontact from the :class:`phoebe.frontend.bundle.Bundle` and its
+        Build an contact_binary from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
 
         Usually it makes more sense to call :meth:`System.from_bundle` directly.
@@ -2254,7 +2254,7 @@ class Contact_Envelope(Body):
         hier = b.hierarchy
 
         if not len(hier.get_value()):
-            raise NotImplementedError("Overcontact envelope meshing requires a hierarchy to exist")
+            raise NotImplementedError("Contact envelope meshing requires a hierarchy to exist")
 
 
         label_envelope = component
@@ -2273,7 +2273,7 @@ class Contact_Envelope(Body):
         # meshing for BRS needs d,q,F,Phi
         # d is instantaneous based on x,y,z of self and sibling
         # q is instantaneous based on masses of self and sibling
-        # F we will assume is always 1 for an overcontact
+        # F we will assume is always 1 for an contact_binary
         # Phi we can get now
 
         env_ps = b.filter(component=component, context='component')

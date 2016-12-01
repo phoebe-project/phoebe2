@@ -579,7 +579,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
-                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within common_envelope... and then smart enough to handle the pblum_scale
+                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
 
                     system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
                 else:

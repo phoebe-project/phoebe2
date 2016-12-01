@@ -92,7 +92,7 @@ namespace gen_roche {
       than 1e-4. NOT SURE
       
     Stability:
-      It works for overcontact and well detached cases, but could be problematic
+      It works for contact and well detached cases, but could be problematic
       d(polar radius)/dz is too small.
        
     Output:
@@ -371,7 +371,7 @@ namespace gen_roche {
       than 1e-4. NOT SURE
       
     Stability:
-      It works for overcontact and well detached cases, but could be problematic
+      It works for contact and well detached cases, but could be problematic
       d(polar radius)/dz is too small.
        
     Output:
@@ -760,7 +760,7 @@ template<class T>
       than 1e-4. NOT SURE
       
     Stability:
-      It works for overcontact and well detached cases, but could be problematic
+      It works for contact and well detached cases, but could be problematic
       d(polar radius)/dz is too small.
        
     Output:
