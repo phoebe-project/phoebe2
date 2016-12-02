@@ -318,7 +318,6 @@ class System(object):
 
         else:
             logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
-            raise NotImplementedError("passing ld_func_bol and ld_coeffs_bol to reflection for general case not yet supported")
 
             vertices_flat = meshes.get_column_flat('vertices')
             triangles_flat = meshes.get_column_flat('triangles')
@@ -327,11 +326,7 @@ class System(object):
             irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations')
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
-
-            # TODO: get the correct index for each vertex - maybe something like meshes.get_column_flat('comp'),
-            # then remove the NotImplementedError and test
-            ld_inds = np.zeros(irrad_frac_refls_flat.shape)
-            # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
+            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.bodies, fluxes_intrins_per_body)})
 
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
                                                                                     triangles_flat,
@@ -340,23 +335,11 @@ class System(object):
                                                                                     irrad_frac_refls_flat,
                                                                                     fluxes_intrins_flat,
                                                                                     ld_func_and_coeffs,
-                                                                                    ld_inds,
+                                                                                    ld_inds_flat,
                                                                                     self.irrad_method.title()
                                                                                     )
 
 
-            # fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_triangles(vertices_flat,
-                                                                                    # triangles_flat,
-                                                                                    # normals_flat,
-                                                                                    # areas_flat,
-                                                                                    # frac_refls_flat,
-                                                                                    # fluxes_intrins_flat,
-                                                                                    # ld_func_and_coeffs,
-                                                                                    # ld_inds,
-                                                                                    # self.reflection_method.title()
-                                                                                    # )
-
-            intens_intrins_and_refl_flat = fluxes_intrins_and_refl_flat / ldint_flat
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
