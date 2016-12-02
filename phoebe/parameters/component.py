@@ -82,16 +82,16 @@ def star(component, **kwargs):
     params = []
 
     #~ params += [ObjrefParameter(value=component)]
-    params += [FloatParameter(qualifier='rpole', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('rpole', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Polar radius at periastron')]
-    params += [FloatParameter(qualifier='pot', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron')]   # TODO: correct units???
+    params += [FloatParameter(qualifier='rpole', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('rpole', 1.0), default_unit=u.solRad, limits=(0.0,None), description='Polar radius at periastron')]
+    params += [FloatParameter(qualifier='pot', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('pot', 4.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Potential at periastron')]   # TODO: correct units???
     params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 10000.), default_unit=u.K, limits=(0.0,None), description='Mean effective temperature')]
-    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
+    params += [FloatParameter(qualifier='abun', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
 
-    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_overcontact:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
-    params += [FloatParameter(qualifier='period', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
-    params += [FloatParameter(qualifier='freq', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
+    params += [FloatParameter(qualifier='syncpar', visible_if='hierarchy.is_contact_binary:False,hierarchy.is_binary:True', value=kwargs.get('syncpar', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Synchronicity parameter')]
+    params += [FloatParameter(qualifier='period', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('period', 1.0), default_unit=u.d, limits=(0.0,None), description='Rotation period')]
+    params += [FloatParameter(qualifier='freq', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('freq', 2*np.pi), default_unit=u.rad/u.d, limits=(0.0,None), description='Rotation frequency')]
 
-    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_overcontact:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
+    params += [FloatParameter(qualifier='incl', visible_if='hierarchy.is_contact_binary:False', value=kwargs.get('incl', 90), default_unit=u.deg, description='Inclination of the stellar rotation axis')]
     # params += [FloatParameter(qualifier='pitch', value=kwargs.get('pitch', 90), default_unit=u.deg, description='Pitch of the stellar rotation axis')]
     # params += [FloatParameter(qualifier='yaw', value=kwargs.get('yaw', 0), default_unit=u.deg, description='Yaw of the stellar rotation axis')]
     # params += [FloatParameter(qualifier='vsini', value=kwargs.get('vsini', 1), default_unit=u.km/u.s, description='Projected maximum rotational velocity')]
@@ -128,7 +128,7 @@ def star(component, **kwargs):
 
     return ParameterSet(params), constraints
 
-def contact_envelope(component, **kwargs):
+def envelope(component, **kwargs):
     """
     Create parameters for an envelope (usually will be attached to two stars solRad
         that they can share a common-envelope)

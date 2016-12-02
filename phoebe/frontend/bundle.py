@@ -288,7 +288,7 @@ class Bundle(ParameterSet):
         b.add_star(component=starB)
         b.add_orbit(component=orbit)
         if contact_binary:
-            b.add_component('contact_envelope', component='contact_envelope')
+            b.add_component('envelope', component='contact_envelope')
             b.set_hierarchy(_hierarchy.binaryorbit,
                             b[orbit],
                             b[starA],
@@ -869,7 +869,7 @@ class Bundle(ParameterSet):
                                         constraint=self._default_label('comp_sma', context='constraint'))
 
 
-                if not self.hierarchy.is_overcontact(component):
+                if not self.hierarchy.is_contact_binary(component):
 
                     logger.info('re-creating rotation_period constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
@@ -905,7 +905,7 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('incl_aligned', context='constraint'))
 
 
-            if not self.hierarchy.is_overcontact(component) or self.hierarchy.get_kind_of(component)=='envelope':
+            if not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope':
                 # potential constraint shouldn't be done for STARS in OVERCONTACTS
 
                 logger.info('re-creating potential constraint for {}'.format(component))
@@ -2048,9 +2048,9 @@ class Bundle(ParameterSet):
         # let's run delayed constraints first to ensure that we get the same
         # results in interactive and non-interactive modes as well as to make
         # sure we don't have delayed constraints for the constraint we're
-        # about to remove.  This could perhaps be optimized by searching
-        # for this/these constraints and only running/removing those, but
-        # probably isn't worth the savings.
+        #  about to remove.  This could perhaps be optimized by searching
+        #  for this/these constraints and only running/removing those, but
+        #  probably isn't worth the savings.
         self.run_delayed_constraints()
 
         kwargs['twig'] = twig

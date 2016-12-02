@@ -4739,7 +4739,7 @@ class HierarchyParameter(StringParameter):
     def get_meshables(self):
         """
         return a list of components that are meshable (generally stars, but handles
-            the envelope for an overcontact)
+            the envelope for an contact_binary)
         """
 
         l = re.findall(r"[\w']+", self.get_value())
@@ -4763,11 +4763,11 @@ class HierarchyParameter(StringParameter):
         return item_kind
 
 
-    def is_overcontact(self, component):
+    def is_contact_binary(self, component):
         """
         especially useful for constraints
 
-        tells whether any component (star, envelope) is part of an overcontact
+        tells whether any component (star, envelope) is part of a contact_binary
         by checking its siblings for an envelope
         """
         if 'envelope' not in self.get_value():
