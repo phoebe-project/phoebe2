@@ -946,7 +946,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         envelope = eb.hierarchy.get_siblings_of(primary)[-1]
 #        cepars = eb.filter(component='contact_envelope', context='component')
 #   potential
-        val = [eb.get_value(qualifier='pot', component=envelope)]
+        val = [eb.get_value(qualifier='pot', component=envelope, context='component')]
         ptype = 'float'
         # note here that phoebe1 assigns this to the primary, not envelope
         pname = ret_parname('pot', comp_int=comp_int, ptype=ptype)
@@ -1136,7 +1136,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 if param.component == primary:
                     comp_int = 1
                 elif param.component == secondary:
-                    comp_int = 2               
+                    comp_int = 2
                 else:
                     comp_int = None
 
@@ -1183,7 +1183,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     if param.component == primary:
                         comp_int = 1
                     elif param.component == secondary:
-                        comp_int = 2               
+                        comp_int = 2
                     else:
                         comp_int = None
 
@@ -1225,10 +1225,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if param.component == primary:
                 comp_int = 1
             elif param.component == secondary:
-                comp_int = 2                          
+                comp_int = 2
             else:
                 comp_int = None
-                
+
             try:
                 pnew = _2to1par[param.qualifier]
 
@@ -1280,7 +1280,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param.component == primary:
             comp_int = 1
         elif param.component == secondary:
-            comp_int = 2               
+            comp_int = 2
         else:
             comp_int = None
 
@@ -1352,7 +1352,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param.component == primary:
             comp_int = 1
         elif param.component == secondary:
-            comp_int = 2       
+            comp_int = 2
         else:
             comp_int = None
 
