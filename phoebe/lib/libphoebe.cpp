@@ -4249,10 +4249,78 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
     Astrophysical Journal,  356, 613-622, 1990 June
 */
 
+struct Tmesh_radiosity_redistrib_problem_nbody {
+  
+  bool 
+    use_stored, 
+    redistr_stored, 
+    reflect_stored;
+  
+  int  
+    process_type;
+    
+  std::vector<Tview_factor_nbody<double>> Fmat;
+  std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat;
+  
+  Tmesh_radiosity_redistrib_problem_nbody() {
+    
+    use_stored = false,     // whether we use this structure to store 
+                            // redistr metrices  
+    redistr_stored = false, // true - needs to be set, false - it is already set
+    reflect_stored = false; // true - needs to be set, false - it is already set
+    
+    process_type = -1;
+  }
+  
+} __redistrib_problem_nbody;
+
+static PyObject *mesh_radiosity_redistrib_problem_nbody_convex_setup(
+  PyObject *self, PyObject *args, PyObject *keywds){
+  
+  const char *fname = "mesh_radiosity_redistrib_problem_nbody_convex_setup";
+
+  char *kwlist[] = {
+    (char*)"use_stored",
+    (char*)"reset", 
+    NULL
+  };   
+ 
+ PyObject *o_use_stored, *o_reset;
+
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds,  "O!O!", kwlist,
+        &PyBool_Type, &o_use_stored,         // neccesary 
+        &PyBool_Type, &o_reset)
+      ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL; 
+  }
+  
+  bool
+    b_use_stored = PyObject_IsTrue(o_use_stored),
+    b_reset = PyObject_IsTrue(o_reset);
+    
+  __redistrib_problem_nbody.use_stored = b_use_stored;
+ 
+  if (b_reset) {
+    __redistrib_problem_nbody.redistr_stored = false;
+    __redistrib_problem_nbody.reflect_stored = false;
+    __redistrib_problem_nbody.process_type = -1;
+    
+    __redistrib_problem_nbody.Dmat.clear();
+    __redistrib_problem_nbody.Fmat.clear();
+  }
+  
+  Py_INCREF(Py_None);
+  
+  return Py_None;
+ 
+}
+
 static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
   PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char *fname = "mesh_radiosity_redistrib_problem_triangles_nbody_convex";
+  const char *fname = "mesh_radiosity_redistrib_problem_nbody_convex";
   
   //
   // Reading arguments
@@ -4390,69 +4458,138 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oR, b), R[b]);
     PyArray_ToVector((PyArrayObject *)PyList_GetItem(oF0, b), F0[b]);
   }
-
+  
   //
   // Reading redistribution models
   // 
   
-  std::vector<std::map<fnv1a_32::hash_t, std::vector<double>>> Dpars(n);
-  std::vector<std::map<fnv1a_32::hash_t, double>> Dweights(n);
-  
-  {
-    Py_ssize_t pos;
+  bool only_reflection;
+ 
+  std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat;
     
-    PyObject *o, *key, *value;
+  if (!__redistrib_problem_nbody.use_stored || (__redistrib_problem_nbody.use_stored && __redistrib_problem_nbody.process_type < 0)) {
+  
+    std::vector<std::map<fnv1a_32::hash_t, std::vector<double>>> Dpars(n);
+    std::vector<std::map<fnv1a_32::hash_t, double>> Dweights(n);
     
-    auto dp = Dpars.begin();
-    auto dw = Dweights.begin();
+    {
+      Py_ssize_t pos;
       
-    for (int b = 0; b < n; ++b){
+      PyObject *o, *key, *value;
       
-      // reading redistribution model parameters 
-      o = PyList_GetItem(oDmod, b);
-      pos = 0;
-      while (PyDict_Next(o, &pos, &key, &value))
-        PyArray_ToVector((PyArrayObject*)value, (*dp)[fnv1a_32::hash(PyString_AsString(key))]);
-      
-      // reading weights for redistribution model
-      o = PyList_GetItem(oDweight, b);
-      pos = 0;
-      while (PyDict_Next(o, &pos, &key, &value))
-        (*dw)[fnv1a_32::hash(PyString_AsString(key))] = PyFloat_AsDouble(value);
-      ++dp;
-      ++dw;
+      auto dp = Dpars.begin();
+      auto dw = Dweights.begin();
+        
+      for (int b = 0; b < n; ++b){
+        
+        // reading redistribution model parameters 
+        o = PyList_GetItem(oDmod, b);
+        pos = 0;
+        while (PyDict_Next(o, &pos, &key, &value))
+          PyArray_ToVector((PyArrayObject*)value, (*dp)[fnv1a_32::hash(PyString_AsString(key))]);
+        
+        // reading weights for redistribution model
+        o = PyList_GetItem(oDweight, b);
+        pos = 0;
+        while (PyDict_Next(o, &pos, &key, &value))
+          (*dw)[fnv1a_32::hash(PyString_AsString(key))] = PyFloat_AsDouble(value);
+        ++dp;
+        ++dw;
+      }
     }
-  }
-  
-  // Clean list of models that need to be calculated for each objects
-  {
-    auto h_none = "none"_hash32;
-   
-    for (int b = 0; b < n; ++b) {
-      
-      std::map<fnv1a_32::hash_t, std::vector<double>> Dpars1;
-       
-      for (auto && w : Dweights[b])
-        if (w.first != h_none && w.second != 0)
-          Dpars1[w.first] = Dpars[b][w.first];
-   
-      Dpars[b] = Dpars1;
+    
+    // Clean list of models that need to be calculated for each objects
+    {
+      auto h_none = "none"_hash32;
+     
+      for (int b = 0; b < n; ++b) {
+        
+        std::map<fnv1a_32::hash_t, std::vector<double>> Dpars1;
+         
+        for (auto && w : Dweights[b])
+          if (w.first != h_none && w.second != 0)
+            Dpars1[w.first] = Dpars[b][w.first];
+     
+        Dpars[b] = Dpars1;
+      }
     }
-  }
   
-  //
-  // If only none is used as redistribution model
-  // we internally swicth to reflection
-  //
-  bool only_reflection = true;
-  {
+    //
+    // If only none is used as redistribution model
+    // we internally switch to reflection
+    //
+    only_reflection = true;
     for (int b = 0; b < n; ++b)
       if (Dweights[b].size() != 0) {
         only_reflection = false;
         break;
-      }      
-  }
+      }
   
+    __redistrib_problem_nbody.process_type = (only_reflection ? 1 : 0);
+  
+  
+    if (!only_reflection) {
+       
+      Dmat.resize(n);
+      
+      //
+      // Calculate redistribution matrices
+      //
+      
+      std::vector<std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);
+       
+      {
+        bool st = true; 
+
+        if (0) {
+
+          for (int b = 0; st && b < n; ++b)
+            st = (support == 0 ?
+              triangle_mesh_redistribution_matrix_triangles(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
+              triangle_mesh_redistribution_matrix_vertices(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
+            );
+
+        } else {
+          
+          struct Tlinear_edge {
+            double operator()(const double &x , const double &thresh) const {
+              if (std::abs(x) <= thresh) return 1.0 - std::abs(x)/thresh;
+              return 0.0;
+            }
+          };
+        
+          for (int b = 0; st && b < n; ++b)
+            st = (support == 0 ?
+              triangle_mesh_redistribution_matrix_triangles<double, Tlinear_edge >(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
+              triangle_mesh_redistribution_matrix_vertices<double, Tlinear_edge >(V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
+            );
+        }
+        
+        if (!st) {
+          std::cerr << fname << "::Redistribution matrix calculation failed\n";
+          return NULL;
+        }
+      }
+     
+      //
+      // Determine the final redistribution matrix
+      //
+      for (int b = 0; b < n; ++b)
+        if (support == 0)
+          add_sparse_matrices(Tr[b].size(), Dweights[b], Dmats[b], Dmat[b]);
+        else
+          add_sparse_matrices(V[b].size(), Dweights[b], Dmats[b], Dmat[b]);
+    
+      if (__redistrib_problem_nbody.use_stored && !__redistrib_problem_nbody.redistr_stored) {
+        __redistrib_problem_nbody.Dmat = Dmat;
+        __redistrib_problem_nbody.redistr_stored = true;
+      }
+    }
+  
+  } else {
+    only_reflection = (__redistrib_problem_nbody.process_type == 1);
+    if (!only_reflection) Dmat = __redistrib_problem_nbody.Dmat;
+  }
   
   //
   // Determine the LD view-factor matrix
@@ -4460,74 +4597,29 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
 
   std::vector<Tview_factor_nbody<double>> Fmat;
   
-  if (support == 0)  
-    triangle_mesh_radiosity_matrix_triangles_nbody_convex(
-      V, Tr, N, A, LDmod, Fmat);
-  else
-    triangle_mesh_radiosity_matrix_vertices_nbody_convex(
-      V, Tr, N, A, LDmod, Fmat);
+  if (__redistrib_problem_nbody.use_stored && __redistrib_problem_nbody.reflect_stored) 
+    Fmat = __redistrib_problem_nbody.Fmat;
+  else {
+      
+    if (support == 0)  
+      triangle_mesh_radiosity_matrix_triangles_nbody_convex(V, Tr, N, A, LDmod, Fmat);
+    else
+      triangle_mesh_radiosity_matrix_vertices_nbody_convex(V, Tr, N, A, LDmod, Fmat);
 
+    if (__redistrib_problem_nbody.use_stored && !__redistrib_problem_nbody.reflect_stored) {
+      __redistrib_problem_nbody.Fmat = Fmat;
+      __redistrib_problem_nbody.reflect_stored = true;
+    }
+  }
+  
   for (auto && ld: LDmod) delete ld;
   LDmod.clear();
   
-
+  //
+  //  Solving radiosity equations
+  //  
   if (!only_reflection) {
-    
-    //
-    // Calculating redistribution matrices
-    //
-    
-    std::vector<std::map<fnv1a_32::hash_t, std::vector<Tsparse_mat_elem<double>>>> Dmats(n);
-     
-    {
-      bool st = true; 
-
-      if (0) {
-
-        for (int b = 0; st && b < n; ++b)
-          st = (support == 0 ?
-            triangle_mesh_redistribution_matrix_triangles(
-              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
-            triangle_mesh_redistribution_matrix_vertices(
-              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
-          );
-
-      } else {
-        
-        struct Tlinear_edge {
-          double operator()(const double &x , const double &thresh) const {
-            if (std::abs(x) <= thresh) return 1.0 - std::abs(x)/thresh;
-            return 0.0;
-          }
-        };
-      
-        for (int b = 0; st && b < n; ++b)
-          st = (support == 0 ?
-            triangle_mesh_redistribution_matrix_triangles
-            <double, Tlinear_edge >(
-              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b]) :
-            triangle_mesh_redistribution_matrix_vertices
-            <double, Tlinear_edge >(
-              V[b], Tr[b], N[b], A[b], Dpars[b], Dmats[b])
-          );
-      }
-      
-      if (!st) {
-        std::cerr << fname << "::Redistribution matrix calculation failed\n";
-        return NULL;
-      }
-    }
-
-    
-    std::vector<std::vector<Tsparse_mat_elem<double>>> Dmat(n);
-    
-    for (int b = 0; b < n; ++b)
-      if (support == 0)
-        add_sparse_matrices(Tr[b].size(), Dweights[b], Dmats[b], Dmat[b]);
-      else
-        add_sparse_matrices(V[b].size(), Dweights[b], Dmats[b], Dmat[b]);
-   
-
+  
     //
     // Solving the radiosity-redistribution equation depending on the model
     //
@@ -4539,13 +4631,11 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
       switch (fnv1a_32::hash(s)) {
         
         case "Wilson"_hash32:
-          st = solve_radiosity_equation_with_redistribution_Wilson_nbody(
-                Fmat, Dmat, R, F0, F1, Fout);
+          st = solve_radiosity_equation_with_redistribution_Wilson_nbody(Fmat, Dmat, R, F0, F1, Fout);
         break;
         
         case "Horvat"_hash32:
-          st = solve_radiosity_equation_with_redistribution_Horvat_nbody(
-                Fmat, Dmat, R, F0, F1, Fout);
+          st = solve_radiosity_equation_with_redistribution_Horvat_nbody(Fmat, Dmat, R, F0, F1, Fout);
         break;
         
         default:
@@ -6866,7 +6956,13 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Solving the radiosity redistribution problem with limb darkening "
     "for n separate convex bodies using chosen reflection model."},
-    
+
+   { "mesh_radiosity_redistrib_problem_nbody_convex_setup",
+    (PyCFunction)mesh_radiosity_redistrib_problem_nbody_convex_setup,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Background setup of radiosity redistribution problem with limb "
+    "darkening for n separate convex bodies using chosen reflection model."},
+        
 // --------------------------------------------------------------------    
 
   { "roche_reprojecting_vertices",
