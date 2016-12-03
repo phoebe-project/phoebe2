@@ -18,7 +18,7 @@ def _beta_vs_legacy(b):
     b.add_dataset('lc', times=times, dataset='lc01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 
-    b.add_compute('phoebe', compute='phnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', reflection_method='none')
+    b.add_compute('phoebe', compute='phnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', irrad_method='none')
     b.add_compute('legacy', compute='legnum', ltte=False, atm='blackbody', rv_method='flux-weighted', refl_num=0)
 
 

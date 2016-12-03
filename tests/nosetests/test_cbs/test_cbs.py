@@ -7,9 +7,8 @@ import matplotlib.pyplot as plt
 def test_binary(plot=False):
 
     cb = phoebe.Bundle.default_binary(contact_binary=True)
-    q = 1.
     cb['pot@contact_envelope'] = 3.5
-    cb['q'] = q
+    cb['q'] = 1.0
     cb['teff@primary'] = 5000.
     cb['teff@secondary'] = 5000.
     # cb.set_value_all('incl',90.0)
@@ -31,12 +30,11 @@ def test_binary(plot=False):
     cb.set_value_all('ld_func', 'logarithmic')
     cb.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    cb.set_value_all('refl_num',0)
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)
 
     print "running phoebe2 model..."
-    cb.run_compute(compute='phoebe2', reflection_method='none', model='phoebe2model')
+    cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
     print "running phoebe1 model..."
     cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
@@ -64,4 +62,4 @@ def test_binary(plot=False):
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
 
-    cb = test_binary(plot=False)
+    cb = test_binary(plot=True)
