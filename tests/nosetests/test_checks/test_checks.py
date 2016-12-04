@@ -14,7 +14,6 @@ def test_checks():
 
 
     b.add_dataset('lc')
-    b.add_compute()
 
     # test overflow
     passed, msg = b.run_checks()
