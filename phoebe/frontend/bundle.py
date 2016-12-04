@@ -268,6 +268,7 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
+        b.add_compute()
         return b
 
     @classmethod
@@ -299,6 +300,8 @@ class Bundle(ParameterSet):
                             b[orbit],
                             b[starA],
                             b[starB])
+
+        b.add_compute()
 
         return b
 
@@ -357,6 +360,8 @@ class Bundle(ParameterSet):
 
         # TODO: does this constraint need to be rebuilt when things change?
         # (ie in set_hierarchy)
+
+        b.add_compute()
 
         return b
 
