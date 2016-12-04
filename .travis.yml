@@ -44,9 +44,9 @@ matrix:
         #   compiler: clang-3.6
         #   env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=0'
 
-        - os: osx
-          compiler: clang-3.6
-          env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=1'
+        # - os: osx
+        #   compiler: clang-3.6
+        #   env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=1'
 
 
         # Try with various versions of numpy/astropy with default compiler
