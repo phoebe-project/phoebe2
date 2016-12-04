@@ -15,7 +15,8 @@ def _keplerian_v_nbody(b, ltte, period, plot=False):
 
     # TODO: loop over ltte=True,False (once keplerian dynamics supports the switch)
 
-    b.add_compute(dynamics_method='bs')
+    # b.add_compute(dynamics_method='bs')
+    b.set_value('dynamics_method', 'bs')
 
     times = np.linspace(0, 5*period, 101)
     nb_ts, nb_xs, nb_ys, nb_zs, nb_vxs, nb_vys, nb_vzs = phoebe.dynamics.nbody.dynamics_from_bundle(b, times, ltte=ltte)
@@ -44,13 +45,13 @@ def _phoebe_v_photodynam(b, period, plot=False):
     b.add_dataset('orb', times=times, dataset='orb01', components=b.hierarchy.get_stars())
     # photodynam and phoebe should have the same nbody defaults... if for some reason that changes,
     # then this will probably fail
-    b.add_compute('photodynam', compute='pd')
+    b.add_compute('photodynam', compute='pdcompute')
     # photodynam backend ONLY works with ltte=True, so we will run the phoebe backend with that as well
     # TODO: remove distortion_method='nbody' once that is supported
-    b.add_compute('phoebe', dynamics_method='nbody', ltte=True, compute='phoebe')
+    b.add_compute('phoebe', dynamics_method='nbody', ltte=True, compute='phoebecompute')
 
-    b.run_compute('pd', model='pdresults')
-    b.run_compute('phoebe', model='phoeberesults')
+    b.run_compute('pdcompute', model='pdresults')
+    b.run_compute('phoebecompute', model='phoeberesults')
 
     for comp in b.hierarchy.get_stars():
         # TODO: check to see how low we can make atol (or change to rtol?)
@@ -148,7 +149,7 @@ def test_binary(plot=False):
         for q in [0.5,1.]:
             for ltte in [True, False]:
 
-                b = phoebe.Bundle.default_binary()
+                b = phoebe.default_binary()
                 b.set_default_unit_all('sma', u.AU)
                 b.set_default_unit_all('period', u.d)
 
@@ -157,7 +158,7 @@ def test_binary(plot=False):
                 b.set_value('q', q)
                 _keplerian_v_nbody(b, ltte, system[1], plot=plot)
 
-                b = phoebe.Bundle.default_binary()
+                b = phoebe.default_binary()
                 b.set_default_unit_all('sma', u.AU)
                 b.set_default_unit_all('period', u.d)
 
