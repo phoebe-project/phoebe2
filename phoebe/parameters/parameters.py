@@ -3833,7 +3833,13 @@ class FloatParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), unit)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'timederiv'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for'] # TODO: add adjust?  or is that a different subclass?
+        if conf.devel:
+            # NOTE: this check will take place when CREATING the parameter,
+            # so toggling devel after won't affect whether timederiv is included
+            # in string representations.
+            self._dict_fields_other += ['timederiv']
+
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
