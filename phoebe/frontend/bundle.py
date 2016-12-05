@@ -2380,6 +2380,13 @@ class Bundle(ParameterSet):
         # have been run before running system checks or computing the model
         self.run_delayed_constraints()
 
+        # any kwargs that were used just to filter for get_compute should  be
+        # removed so that they aren't passed on to all future get_value(...
+        # **kwargs) calls
+        for k in parameters._meta_fields_filter:
+            if k in kwargs.keys():
+                dump = kwargs.pop(k)
+
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
         self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
