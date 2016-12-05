@@ -161,7 +161,7 @@ def test_binary(plot=False):
             if plot:
                 b.show()
 
-            assert(diff_med_fluxes < 0.02)
+            assert(diff_med_fluxes < 0.025)
 
 
 

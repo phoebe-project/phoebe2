@@ -17,7 +17,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.add_dataset('lc', times=[0], dataset='lc01')
 
     b.add_compute('legacy', compute='phoebe1')
-    b.add_compute('phoebe', compute='phoebe2', subdiv_num=0)
+    b.add_compute('phoebe', compute='phoebe2')
 
     b.set_value_all('mesh_method', 'wd')
     b.set_value_all('eclipse_method', 'graham')
@@ -45,9 +45,9 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     # compares += [{'qualifier': 'cosbetas', 'dataset': 'protomesh', 'atol': 1e-14}]
 
     compares += [{'qualifier': 'loggs', 'dataset': 'protomesh', 'atol': 2e-4}]
-    compares += [{'qualifier': 'teffs', 'dataset': 'protomesh', 'atol': 1e-6}]
+    compares += [{'qualifier': 'teffs', 'dataset': 'protomesh', 'atol': 1e-5}]
 
-    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 1e5}] # NOTE: these values are of order 1E14
+    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 2e5}] # NOTE: these values are of order 1E14
 
 
     for c in compares:

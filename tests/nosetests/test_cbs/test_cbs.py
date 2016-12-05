@@ -40,12 +40,16 @@ def test_binary(plot=False):
 
     phoebe2_val_lc = cb.get_value('fluxes@phoebe2model')
     phoebe1_val_lc = cb.get_value('fluxes@phoebe1model')
-    phoebe2_val_rv1 = cb.get_value('rvs@primary@phoebe2model')[1:49]
-    phoebe1_val_rv1 = cb.get_value('rvs@primary@phoebe1model')[1:49]
-    phoebe2_val_rv2 = cb.get_value('rvs@secondary@phoebe2model')
-    phoebe1_val_rv2 = cb.get_value('rvs@secondary@phoebe1model')
+    phoebe2_val_rv1 = cb.get_value('rvs@primary@phoebe2model')[2:48]
+    phoebe1_val_rv1 = cb.get_value('rvs@primary@phoebe1model')[2:48]
+    phoebe2_val_rv2 = cb.get_value('rvs@secondary@phoebe2model')[2:48]
+    phoebe1_val_rv2 = cb.get_value('rvs@secondary@phoebe1model')[2:48]
 
     if plot:
+        print "max rtol lc:", np.max((phoebe2_val_lc - phoebe1_val_lc)/phoebe1_val_lc)
+        print "max atol rv1:", np.max(phoebe2_val_rv1 - phoebe1_val_rv1)
+        print "max atol rv2:", np.max(phoebe2_val_rv2 - phoebe1_val_rv2)
+
         cb.plot(dataset='lc01')
         plt.legend()
         plt.show()
@@ -54,9 +58,12 @@ def test_binary(plot=False):
         plt.legend()
         plt.show()
 
-    assert(np.allclose(phoebe2_val_lc, phoebe1_val_lc, rtol=3e-3, atol=0.))
-    assert(np.allclose(phoebe2_val_rv1, phoebe1_val_rv1, rtol=0., atol=0.2))
-    assert(np.allclose(phoebe2_val_rv2, phoebe1_val_rv2, rtol=0., atol=0.2))
+    assert(np.allclose(phoebe2_val_lc, phoebe1_val_lc, rtol=7e-3, atol=0.))
+    # note the amplitude is about 100, so this is comperable to a relative
+    # tolerance of 7e-3 (but we can't do relative because then everything blows
+    # up near 0)
+    assert(np.allclose(phoebe2_val_rv1, phoebe1_val_rv1, rtol=0., atol=0.7))
+    assert(np.allclose(phoebe2_val_rv2, phoebe1_val_rv2, rtol=0., atol=0.7))
     return cb
 
 if __name__ == '__main__':
