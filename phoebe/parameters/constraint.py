@@ -578,7 +578,7 @@ def keplers_third_law_hierarchical(b, orbit1, orbit2, solve_for=None, **kwargs):
 #}
 #{ Intra-component constraints
 
-def refl(b, component, solve_for=None, **kwargs):
+def irrad_frac(b, component, solve_for=None, **kwargs):
     """
     Create a constraint to ensure that energy is conserved and all incident
     light is accounted for.
@@ -586,17 +586,15 @@ def refl(b, component, solve_for=None, **kwargs):
 
     comp_ps = b.get_component(component=component)
 
-    frac_refl_bol = comp_ps.get_parameter(qualifier='frac_refl_bol')
-    # frac_heat_bol = comp_ps.get_parameter(qualifier='frac_heat_bol')
-    # frac_scatt_bol = comp_ps.get_parameter(qualifier='frac_scatt_bol')
-    frac_lost_bol = comp_ps.get_parameter(qualifier='frac_lost_bol')
+    irrad_frac_refl_bol = comp_ps.get_parameter(qualifier='irrad_frac_refl_bol')
+    irrad_frac_lost_bol = comp_ps.get_parameter(qualifier='irrad_frac_lost_bol')
 
-    if solve_for in [frac_lost_bol, None]:
-        lhs = frac_lost_bol
-        rhs = 1.0 - frac_refl_bol  #- heating_bol - scattering_bol
-    elif solve_for in [frac_refl_bol]:
-        lhs = frac_refl_bol
-        rhs = 1.0 - frac_lost_bol
+    if solve_for in [irrad_frac_lost_bol, None]:
+        lhs = irrad_frac_lost_bol
+        rhs = 1.0 - irrad_frac_refl_bol
+    elif solve_for in [irrad_frac_refl_bol]:
+        lhs = irrad_frac_refl_bol
+        rhs = 1.0 - irrad_frac_lost_bol
     else:
         raise NotImplementedError
 

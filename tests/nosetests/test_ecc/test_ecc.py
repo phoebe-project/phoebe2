@@ -13,7 +13,7 @@ def test_binary(plot=False):
 
     period = b.get_value('period@binary')
     b.add_dataset('lc', times=np.linspace(0,period,21))
-    b.add_compute('phoebe', reflection_method='none', compute='phoebe2')
+    b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
     # set matching atmospheres
@@ -32,7 +32,7 @@ def test_binary(plot=False):
 
 
         print "running phoebe2 model..."
-        b.run_compute(compute='phoebe2', reflection_method='none', model='phoebe2model')
+        b.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
         print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 

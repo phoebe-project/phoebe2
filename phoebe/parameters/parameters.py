@@ -1983,6 +1983,12 @@ class ParameterSet(object):
             # edgecolor, but if either of those two values are provided, they
             # should take precedence.
             color = kwargs.get('color', None)
+            if 'facecolors' in kwargs.keys() and 'facecolor' not in kwargs.keys():
+                logger.warning("assuming you meant 'facecolor' instead of 'facecolors'")
+                kwargs['facecolor'] = kwargs.pop('facecolors')
+            if 'edgecolors' in kwargs.keys() and 'edgecolor' not in kwargs.keys():
+                logger.warning("assuming you meant 'edgecolor' instead of 'edgecolors'")
+                kwargs['edgecolor'] = kwargs.pop('edgecolors')
             kwargs.setdefault('facecolor', 'w' if color is None else color)
             kwargs.setdefault('edgecolor', 'k' if color is None else color)
 
@@ -2274,7 +2280,14 @@ class ParameterSet(object):
             # TODO: include zparam.uniquetwig if axes_3d
             default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
             if default_label[0] == '@':
+                # then let's just trim the leading @
                 default_label = default_label[1:]
+            if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
+                # then we had some overlap that doesn't form a whole label
+                # this can happen for "times" and "fluxes", for example
+                # leaving the leading "es".  So let's trim this and only
+                # return the rest
+                default_label = '@'.join(default_label.split('@')[1:])
         kwargs.setdefault('label', default_label)
 
         # Now let's try to figure out the plottype (whether to do plot or
@@ -4536,6 +4549,16 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
+    def change_component(self, old_component, new_component):
+        """
+        """
+        kind = self.get_kind_of(old_component)
+        value = self.get_value()
+        # TODO: this could still cause issues if the names of components are
+        # contained in other components (ie starA, starAB)
+        value = value.replace("{}:{}".format(kind, old_component), "{}:{}".format(kind, new_component))
+        self.set_value(value)
+
     def get_components(self):
         """
         """
@@ -4722,7 +4745,7 @@ class HierarchyParameter(StringParameter):
     def get_meshables(self):
         """
         return a list of components that are meshable (generally stars, but handles
-            the envelope for an overcontact)
+            the envelope for an contact_binary)
         """
 
         l = re.findall(r"[\w']+", self.get_value())
@@ -4746,11 +4769,11 @@ class HierarchyParameter(StringParameter):
         return item_kind
 
 
-    def is_overcontact(self, component):
+    def is_contact_binary(self, component):
         """
         especially useful for constraints
 
-        tells whether any component (star, envelope) is part of an overcontact
+        tells whether any component (star, envelope) is part of a contact_binary
         by checking its siblings for an envelope
         """
         if 'envelope' not in self.get_value():
@@ -5103,10 +5126,15 @@ class ConstraintParameter(Parameter):
                     return True
             return False
 
+        def get_values(vars, safe_label=True):
+            # use np.float64 so that dividing by zero will results in a
+            # np.inf
+            return {var.safe_label if safe_label else var.user_label: np.float64(var.get_quantity(t=t).si.value) if var.get_parameter()!=self.constrained_parameter else np.float64(var.get_quantity().si.value) for var in vars}
+
         eq = self.get_value()
 
         if _use_sympy and not eq_needs_builtin(eq):
-            values = {var.safe_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
+            values = get_values(self._vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
             for v in self._vars:
@@ -5127,7 +5155,7 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = {var.user_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
+                values = get_values(self._vars, safe_label=False)
 
                 from phoebe.constraints.builtin import ecosw2per0, esinw2per0, rochepotential2rpole, rocherpole2potential, rotstarpotential2rpole, rotstarrpole2potential
                 # if len(self.hierarchy.get_meshables())==1:
@@ -5141,7 +5169,7 @@ class ConstraintParameter(Parameter):
 
             else:
                 # the following works for np arrays
-                values = {var.safe_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
+                values = get_values(self._vars, safe_label=True)
 
                 # if any of the arrays are empty (except the one we're filling)
                 # then we want to return an empty array as well (the math would fail)
@@ -5232,6 +5260,7 @@ class ConstraintParameter(Parameter):
 
         self._qualifier = newly_constrained_param.qualifier
         self._component = newly_constrained_param.component
+        self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
         self.set_default_unit(newly_constrained_param.default_unit)

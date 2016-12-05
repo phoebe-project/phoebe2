@@ -4,7 +4,7 @@
 # NOTE: we'll import directly from astropy here to avoid
 # circular imports BUT any changes to these units/constants
 # inside phoebe will be ignored within passbands
-from astropy.constants import h, c, k_B
+from astropy.constants import h, c, k_B, sigma_sb
 from astropy import units as u
 
 import numpy as np
@@ -146,23 +146,24 @@ class Passband:
         struct['ptf_func']      = self.ptf_func
         struct['ptf_wl']        = self.wl
         if 'blackbody' in self.content:
-            struct['_bb_func']      = self._bb_func
+            struct['_bb_func_energy'] = self._bb_func_energy
+            struct['_bb_func_photon'] = self._bb_func_photon
         if 'ck2004' in self.content:
-            struct['_ck2004_axes']  = self._ck2004_axes
-            struct['_ck2004_energy_grid']  = self._ck2004_energy_grid
-            struct['_ck2004_photon_grid']  = self._ck2004_photon_grid
+            struct['_ck2004_axes'] = self._ck2004_axes
+            struct['_ck2004_energy_grid'] = self._ck2004_energy_grid
+            struct['_ck2004_photon_grid'] = self._ck2004_photon_grid
         if 'ck2004_all' in self.content:
-            struct['_ck2004_intensity_axes']  = self._ck2004_intensity_axes
+            struct['_ck2004_intensity_axes'] = self._ck2004_intensity_axes
             struct['_ck2004_Imu_energy_grid'] = self._ck2004_Imu_energy_grid
             struct['_ck2004_Imu_photon_grid'] = self._ck2004_Imu_photon_grid
             struct['_ck2004_boosting_energy_grid'] = self._ck2004_boosting_energy_grid
             struct['_ck2004_boosting_photon_grid'] = self._ck2004_boosting_photon_grid
         if 'ck2004_ld' in self.content:
-            struct['_ck2004_ld_energy_grid']  = self._ck2004_ld_energy_grid
-            struct['_ck2004_ld_photon_grid']  = self._ck2004_ld_photon_grid
+            struct['_ck2004_ld_energy_grid'] = self._ck2004_ld_energy_grid
+            struct['_ck2004_ld_photon_grid'] = self._ck2004_ld_photon_grid
         if 'ck2004_ldint' in self.content:
-            struct['_ck2004_ldint_energy_grid']  = self._ck2004_ldint_energy_grid
-            struct['_ck2004_ldint_photon_grid']  = self._ck2004_ldint_photon_grid
+            struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
+            struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -191,11 +192,17 @@ class Passband:
         self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
 
         if 'blackbody' in self.content:
-            self._bb_func = list(struct['_bb_func'])
-            self._bb_func[0] = np.fromstring(self._bb_func[0])
-            self._bb_func[1] = np.fromstring(self._bb_func[1])
-            self._bb_func = tuple(self._bb_func)
-            self._log10_Inorm_bb = lambda Teff: interpolate.splev(Teff, self._bb_func)
+            self._bb_func_energy = list(struct['_bb_func_energy'])
+            self._bb_func_energy[0] = np.fromstring(self._bb_func_energy[0])
+            self._bb_func_energy[1] = np.fromstring(self._bb_func_energy[1])
+            self._bb_func_energy = tuple(self._bb_func_energy)
+            self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
+
+            self._bb_func_photon = list(struct['_bb_func_photon'])
+            self._bb_func_photon[0] = np.fromstring(self._bb_func_photon[0])
+            self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
+            self._bb_func_photon = tuple(self._bb_func_photon)
+            self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         self.ptf_func = list(struct['ptf_func'])
         self.ptf_func[0] = np.fromstring(self.ptf_func[0])
@@ -247,17 +254,30 @@ class Passband:
     def _planck(self, lam, Teff):
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
 
-    def _bb_intensity(self, Teff):
-        pb = lambda w: self._planck(w, Teff)*self.ptf(w)
+    def _photplanck(self, lam, Teff):
+        return 2*self.c/lam**4 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
+
+    def _bb_intensity(self, Teff, photon_weighted=False):
+        if photon_weighted:
+            pb = lambda w: self._photplanck(w, Teff)*self.ptf(w)
+        else:
+            pb = lambda w: self._planck(w, Teff)*self.ptf(w)
         return integrate.quad(pb, self.wl[0], self.wl[-1])[0]
 
     def compute_blackbody_response(self, Teffs=None):
         if Teffs == None:
             Teffs = np.linspace(3500, 50000, 100)
 
-        log10ints = np.array([np.log10(self._bb_intensity(Teff)) for Teff in Teffs])
-        self._bb_func = interpolate.splrep(Teffs, log10ints, s=0)
-        self._log10_Inorm_bb = lambda Teff: interpolate.splev(Teff, self._bb_func)
+        # Energy-weighted intensities:
+        log10ints_energy = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=False)) for Teff in Teffs])
+        self._bb_func_energy = interpolate.splrep(Teffs, log10ints_energy, s=0)
+        self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
+
+        # Photon-weighted intensities:
+        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=True )) for Teff in Teffs])
+        self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
+        self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+
         self.content.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
@@ -284,8 +304,8 @@ class Passband:
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
             flP = fl*wl
-            InormE[i] = np.log10(fl.sum())-10    # -10 because of the 1AA dispersion
-            InormP[i] = np.log10(flP.sum())-10   # -10 because of the 1AA dispersion
+            InormE[i] = np.log10(fl.sum())-10    # -10 because dlambda = 1AA when we integrate by summing
+            InormP[i] = np.log10(flP.sum())+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -381,8 +401,8 @@ class Passband:
             boostE = (flE*boosting_index).sum()/flEint
             boostP = (flP*boosting_index).sum()/flPint
 
-            ImuE[i] = np.log10(flEint)-10  # energy-weighted flux; -10 because of the 1AA dispersion
-            ImuP[i] = np.log10(flPint/1.9864458e-5) # photon-weighted flux; the constant is 1e10*1e10*h*c
+            ImuE[i] = np.log10(flEint)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
+            ImuP[i] = np.log10(flPint)+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
             boostingE[i] = boostE
             boostingP[i] = boostP
 
@@ -525,7 +545,7 @@ class Passband:
 
         self.content.append('ck2004_ldint')
 
-    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='power', photon_weighted=False):
+    def interpolate_ck2004_ldcoeffs(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='power', photon_weighted=False):
         """
         Interpolate the passband-stored table of LD model coefficients.
         """
@@ -641,6 +661,16 @@ class Passband:
 
         return log10_Inorm
 
+    def _Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
+        #~ if not hasattr(Teff, '__iter__'):
+            #~ req = np.array(((Teff, logg, abun),))
+            #~ log10_Inorm = libphoebe.interp(req, self._ck2004_axes, self._ck2004_photon_grid if photon_weighted else self._ck2004_energy_grid)[0][0]
+        #~ else:
+        req = np.vstack((Teff, logg, abun)).T
+        Inorm = libphoebe.interp(req, self._ck2004_axes, 10**self._ck2004_photon_grid if photon_weighted else 10**self._ck2004_energy_grid).T[0]
+
+        return Inorm
+
     def _log10_Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
         if not hasattr(Teff, '__iter__'):
             req = np.array(((Teff, logg, abun, mu),))
@@ -651,6 +681,16 @@ class Passband:
 
         return log10_Imu
 
+    def _Imu_ck2004(self, Teff, logg, abun, mu, photon_weighted=False):
+        if not hasattr(Teff, '__iter__'):
+            req = np.array(((Teff, logg, abun, mu),))
+            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, 10**self._ck2004_Imu_photon_grid if photon_weighted else 10**self._ck2004_Imu_energy_grid)[0][0]
+        else:
+            req = np.vstack((Teff, logg, abun, mu)).T
+            Imu = libphoebe.interp(req, self._ck2004_intensity_axes, 10**self._ck2004_Imu_photon_grid if photon_weighted else 10**self._ck2004_Imu_energy_grid).T[0]
+
+        return Imu
+
     def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
         # convert scalars to vectors if necessary:
         if not hasattr(Teff, '__iter__'):
@@ -660,7 +700,10 @@ class Passband:
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
         if atm == 'blackbody':
-            retval = 10**self._log10_Inorm_bb(Teff)
+            if photon_weighted:
+                retval = 10**self._log10_Inorm_bb_photon(Teff)
+            else:
+                retval = 10**self._log10_Inorm_bb_energy(Teff)
         elif atm == 'extern_planckint':
             # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
@@ -668,7 +711,7 @@ class Passband:
             # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
         elif atm == 'ck2004':
-            retval = 10**self._log10_Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
+            retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
@@ -680,19 +723,19 @@ class Passband:
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
             if atm == 'ck2004':
-                retval = 10**self._log10_Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
+                retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
         elif ld_func == 'linear':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_lin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_log(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
         elif ld_func == 'square_root':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_sqrt(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
         elif ld_func == 'quadratic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_quad(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
         elif ld_func == 'power':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
@@ -868,6 +911,37 @@ def get_passband(passband):
 
     return _pbtable[passband]['pb']
 
+def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+    """
+    @Teff: value or array of effective temperatures
+    @logg: surface gravity; not used, for class compatibility only
+    @abun: abundances; not used, for class compatibility only
+    @atm: atmosphere model, must be blackbody, otherwise exception is raised
+    @photon_weighted: intensity weighting scheme; must be False, otherwise exception is raised
+    
+    Computes normal bolometric intensity using the Stefan-Boltzmann law,
+    Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
+    requested, Inorm_bol_bb is multiplied by a conversion factor that
+    comes from integrating lambda/hc P(lambda) over all lambda.
+    
+    Input parameters mimick the Passband class Inorm method for calling
+    convenience.
+    """
+
+    if atm != 'blackbody':
+        raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
+
+    if photon_weighted:
+        factor = 2.6814126821264836e22/Teff
+    else:
+        factor = 1.0
+    
+    # convert scalars to vectors if necessary:
+    if not hasattr(Teff, '__iter__'):
+        Teff = np.array((Teff,))
+
+    return factor * sigma_sb.value * Teff**4 / np.pi
+    
 
 if __name__ == '__main__':
 

@@ -97,28 +97,42 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         _symmetric_colorkeys = ['rvs', 'vxs', 'vys', 'vzs', 'nxs', 'nys', 'nzs']
 
-        try:
-            float(kwargs[colorkey])
-        except:
+        if isinstance(kwargs[colorkey], float):
+            kwargs[colorkey] = str(kwargs[colorkey])
+            is_float = True
+        elif isinstance(kwargs[colorkey], list) or isinstance(kwargs[colorkey], np.ndarray):
+            colorarray = np.asarray(kwargs[colorkey])
             is_float = False
         else:
-            # matplotlib also accepts stringed floats which will be converted to grayscale (ie '0.8')
-            is_float = True
+            try:
+                float(kwargs[colorkey])
+            except ValueError:
+                is_float = False
+                colorarray = None
+            except TypeError:
+                is_float = False
+                colorarray = None
+            else:
+                # matplotlib also accepts stringed floats which will be converted to grayscale (ie '0.8')
+                is_float = True
 
         if kwargs[colorkey] is None or is_float or (kwargs[colorkey] in _mplcolors and kwargs[colorkey].split('@')[0] not in _symmetric_colorkeys):
             colorarray = None
         else:
             color = kwargs.pop(colorkey)
+            if not isinstance(color, str):
+                color = ''
             # print "***", color, ps.qualifiers
             # colorarray = ps.get_value(twig=color)
             # metawargs = {k:v for k,v in ps.meta.items() if k not in ['qualifier', ]
 
             # TODO: can we handle looping over times here?  Or does that belong in animate only?
             #colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
-            if len(ps.times)>1:
-                colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
-            else:
-                colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
+            if colorarray is None:
+                if len(ps.times)>1:
+                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
+                else:
+                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
 
             if make_array is not None:
                 # then we need to alter the value in the kwargs dictionary to be a

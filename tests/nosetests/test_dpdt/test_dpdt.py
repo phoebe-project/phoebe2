@@ -14,7 +14,7 @@ def test_binary(plot=False):
 
     period = b.get_value('period@binary')
     b.add_dataset('lc', times=np.linspace(0,period,21))
-    b.add_compute('phoebe', reflection_method='none', compute='phoebe2')
+    b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
     # set matching atmospheres
