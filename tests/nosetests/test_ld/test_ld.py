@@ -29,7 +29,8 @@ def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
 
-    b.add_dataset('lc', times=np.linspace(0,3,21))
+    period = b.get_value('period@binary')
+    b.add_dataset('lc', times=np.linspace(0,period,21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
@@ -160,7 +161,7 @@ def test_binary(plot=False):
             if plot:
                 b.show()
 
-            assert(diff_med_fluxes < 0.02)
+            assert(diff_med_fluxes < 0.025)
 
 
 

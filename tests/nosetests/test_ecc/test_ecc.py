@@ -11,8 +11,8 @@ phoebe.devel_on()
 def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
-
-    b.add_dataset('lc', times=np.linspace(0,3,21))
+    period = b.get_value('period@binary')
+    b.add_dataset('lc', times=np.linspace(0,period,21))
     b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
 
@@ -27,7 +27,8 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    for ecc in [0.3, 0.675]:
+    # 0.51 starts to overlap
+    for ecc in [0.3, 0.505]:
         b.set_value('ecc', ecc)
 
 
@@ -46,17 +47,7 @@ def test_binary(plot=False):
             plt.legend()
             plt.show()
 
-
-
-        # ecc: max(rel)
-        # 0.3: 0.00068
-        # 0.6: 0.00078
-        # 0.65: 0.00125
-        # 0.67: 0.00269
-        # 0.672: 0.002931
-        # 0.675: 0.00349
-        # 0.68: overflowing at periastron (via system checks)
-        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.65 else 5e-3, atol=0.))
+        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3 if ecc < 0.5 else 5e-3, atol=0.))
 
     return b
 

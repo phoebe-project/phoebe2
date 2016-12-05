@@ -305,6 +305,7 @@ class Bundle(ParameterSet):
 
         return b
 
+
     @classmethod
     def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
                        starA='starA', starB='starB', starC='starC',
