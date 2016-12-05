@@ -1983,6 +1983,12 @@ class ParameterSet(object):
             # edgecolor, but if either of those two values are provided, they
             # should take precedence.
             color = kwargs.get('color', None)
+            if 'facecolors' in kwargs.keys() and 'facecolor' not in kwargs.keys():
+                logger.warning("assuming you meant 'facecolor' instead of 'facecolors'")
+                kwargs['facecolor'] = kwargs.pop('facecolors')
+            if 'edgecolors' in kwargs.keys() and 'edgecolor' not in kwargs.keys():
+                logger.warning("assuming you meant 'edgecolor' instead of 'edgecolors'")
+                kwargs['edgecolor'] = kwargs.pop('edgecolors')
             kwargs.setdefault('facecolor', 'w' if color is None else color)
             kwargs.setdefault('edgecolor', 'k' if color is None else color)
 
