@@ -1995,10 +1995,19 @@ class ParameterSet(object):
             # TODO: do the same logic with cmap, facecmap, edgecmap as colors
             # above
 
-            kwargs.setdefault('xunit', 'solRad')
-            kwargs.setdefault('yunit', 'solRad')
-            if axes_3d:
-                kwargs.setdefault('zunit', 'solRad')
+            if ps.dataset == 'protomesh':
+                # then the array are dimensionless - which really means in
+                # units of sma
+                kwargs.setdefault('xunit', None)
+                kwargs.setdefault('yunit', None)
+                if axes_3d:
+                    kwargs.setdefault('zunit', None)
+            else:
+                kwargs.setdefault('xunit', 'solRad')
+                kwargs.setdefault('yunit', 'solRad')
+                if axes_3d:
+                    kwargs.setdefault('zunit', 'solRad')
+
             if kwargs['xunit'] != kwargs['yunit']:
                 raise ValueError('xunit and yunit must be the same for mesh plots')
             if axes_3d and kwargs['xunit']!=kwargs['zunit']:
