@@ -1172,6 +1172,13 @@ class Bundle(ParameterSet):
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
 
+        # mesh-consistency checks
+        for compute in self.computes:
+            mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
+            if 'wd' in mesh_methods:
+                if len(set(mesh_methods)) > 1:
+                    return False, "all (or none) components must use mesh_method='wd'"
+
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
         for component in self.hierarchy.get_stars():
