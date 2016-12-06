@@ -580,6 +580,8 @@ class Bundle(ParameterSet):
         self._check_label(new_component)
         # changing hierarchy must be called first since it needs to access
         # the kind of old_component
+        if len([c for c in self.components if new_component in c]):
+            logger.warning("hierarchy may not update correctly with new component")
         self.hierarchy.change_component(old_component, new_component)
         for param in self.filter(component=old_component).to_list():
             param._component = new_component
@@ -587,6 +589,7 @@ class Bundle(ParameterSet):
             for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+
 
 
     def get_setting(self, twig=None, **kwargs):
