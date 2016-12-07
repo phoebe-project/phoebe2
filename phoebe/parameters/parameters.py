@@ -1248,7 +1248,7 @@ class ParameterSet(object):
             raise ValueError("0 results found")
         elif len(ps) != 1:
             # TODO: custom exception?
-            raise ValueError("{} results found".format(len(ps)))
+            raise ValueError("{} results found: {}".format(len(ps), ps.twigs))
         else:
             # then only 1 item, so return the parameter
             return ps._params[0]
