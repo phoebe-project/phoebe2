@@ -297,8 +297,8 @@ class Passband:
             #~ spc = np.loadtxt(model).T -- waaay slower
             spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
-            Teff[i] = float(m[-17-offset:-12-offset])
-            logg[i] = float(m[-11-offset:-9-offset])/10
+            Teff[i] = float(model[-17-offset:-12-offset])
+            logg[i] = float(model[-11-offset:-9-offset])/10
             sign = 1. if model[-9-offset]=='P' else -1.
             abun[i] = sign*float(model[-8-offset:-6-offset])/10
 
@@ -349,8 +349,8 @@ class Passband:
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
 
-            Teff[i] = float(m[-17-offset:-12-offset])
-            logg[i] = float(m[-11-offset:-9-offset])/10
+            Teff[i] = float(model[-17-offset:-12-offset])
+            logg[i] = float(model[-11-offset:-9-offset])/10
             sign = 1. if model[-9-offset]=='P' else -1.
             abun[i] = sign*float(model[-8-offset:-6-offset])/10
             mu[i] = float(model[-5-offset:-offset])
