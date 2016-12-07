@@ -281,11 +281,14 @@ class Passband:
         self.content.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
-        models = glob.glob(path+'/*M1.000.spectrum')
-        Teff, logg, abun = [], [], []
+        models = glob.glob(path+'/*M1.000*')
+        Nmodels = len(models)
 
-        InormE = np.empty(len(models))
-        InormP = np.empty(len(models))
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        InormE, InormP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
             print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
@@ -294,10 +297,11 @@ class Passband:
             #~ spc = np.loadtxt(model).T -- waaay slower
             spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
-            Teff.append(float(model[-26:-21]))
-            logg.append(float(model[-20:-18]))
-            sign = 1. if model[-18]=='P' else -1.
-            abun.append(sign*float(model[-17:-15]))
+            Teff[i] = float(m[-17-offset:-12-offset])
+            logg[i] = float(m[-11-offset:-9-offset])/10
+            sign = 1. if model[-9-offset]=='P' else -1.
+            abun[i] = sign*float(model[-8-offset:-6-offset])/10
+
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
@@ -309,10 +313,6 @@ class Passband:
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
-
-        Teff = np.array(Teff)
-        logg = np.array(logg)/10
-        abun = np.array(abun)/10
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
@@ -333,6 +333,9 @@ class Passband:
         models = os.listdir(path)
         Nmodels = len(models)
 
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
         Teff, logg, abun, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
         boostingE, boostingP = np.empty(Nmodels), np.empty(Nmodels)
@@ -346,11 +349,11 @@ class Passband:
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
 
-            Teff[i] = float(model[-26:-21])
-            logg[i] = float(model[-20:-18])/10
-            sign = 1. if model[-18]=='P' else -1.
-            abun[i] = sign*float(model[-17:-15])/10
-            mu[i] = float(model[-14:-9])
+            Teff[i] = float(m[-17-offset:-12-offset])
+            logg[i] = float(m[-11-offset:-9-offset])/10
+            sign = 1. if model[-9-offset]=='P' else -1.
+            abun[i] = sign*float(model[-8-offset:-6-offset])/10
+            mu[i] = float(model[-5-offset:-offset])
 
             # trim the spectrum at passband limits
 
