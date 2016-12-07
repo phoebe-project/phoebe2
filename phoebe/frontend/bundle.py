@@ -1854,7 +1854,7 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = None
         # Let's also avoid the possibility of accidentally deleting system
         # parameters, etc
-        kwargs.setdefault('context', ['dataset', 'model', 'constraint'])
+        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
         # and lastly, let's handle deps if kind was passed
         kind = kwargs.get('kind', None)
 
