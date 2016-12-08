@@ -2492,7 +2492,12 @@ class ParameterSet(object):
         if do_plot:
 
             if plotting_backend in ['mpl']:
-                plt.gcf().tight_layout()
+                try:
+                    plt.gcf().tight_layout()
+                except ValueError:
+                    # this can fail sometimes if axes were added via add_axes
+                    # instead of add_subplot
+                    pass
 
             if show:
                 self.show()
