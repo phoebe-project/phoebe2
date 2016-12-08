@@ -249,6 +249,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         pckwargs = {}
         pckwargs['facecolors'] = kwargs.get('facecolor', 'w')  # note change from singular -> plural
         pckwargs['edgecolors'] = kwargs.get('edgecolor', 'k')  # note change from singular -> plural
+        pckwargs['zorder'] = mplkwargs.get('zorder', 1)
 
         pckwargs, facecolorarray = _process_colorarray(ps, pckwargs, 'facecolors', kwargs.get('facecmap', _default_cmap(ps, pckwargs['facecolors'])), plot_inds)
         pckwargs, edgecolorarray = _process_colorarray(ps, pckwargs, 'edgecolors', kwargs.get('edgecmap', _default_cmap(ps, pckwargs['facecolors'])), plot_inds)
