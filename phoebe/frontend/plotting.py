@@ -458,6 +458,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
 
             highlight_kwargs = {}
+            highlight_kwargs['zorder'] = 99 # try to place on top
             highlight_kwargs['marker'] = kwargs['highlight_marker']
             if kwargs['highlight_color'] is not None:
                 highlight_kwargs['color'] = kwargs['highlight_color']
