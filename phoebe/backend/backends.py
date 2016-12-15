@@ -1047,7 +1047,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
 #    starrefs  = hier.get_stars()
 #    orbitrefs = hier.get_orbits()
-    
+
     stars = b.hierarchy.get_stars()
     primary, secondary = stars
     #need for protomesh
@@ -1060,7 +1060,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     tmp_file = tempfile.NamedTemporaryFile()
 #   testing
 #    filename = 'check.phoebe'
-#   real 
+#   real
     io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
 #   testing
 #    io.pass_to_legacy(b, filename=filename, compute=compute, **kwargs)
@@ -1202,20 +1202,20 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             elif dep == 'secondary':
                 comp = secondary
 
-            proximity = computeparams.filter(qualifier ='rv_method', component=comp, dataset=rvid).get_value() 
+            proximity = computeparams.filter(qualifier ='rv_method', component=comp, dataset=rvid).get_value()
             if proximity == 'flux-weighted':
                 rveffects = 1
             else:
-                rveffects = 0   
+                rveffects = 0
 
             if dep == 'primary':
-                print 'primary'
+                # print 'primary'
                 phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
                 rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
                 rvnum = rvnum+1
 
             elif dep == 'secondary':
-                print 'secondary'
+                # print 'secondary'
                 phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
                 rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
                 rvnum = rvnum+1
@@ -1224,7 +1224,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
 
                  #print "***", u.solRad.to(u.km)
-            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)                     
+            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)
 #########################################################################################################
 #            if rvid == phb1.getpar('phoebe_rv_id', 0):
 
