@@ -503,10 +503,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         for k in lc_dict:
             pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
-            print d
+#            print d
         # as long as the parameter exists add it
             if len(d) > 0:
-                print d
+#                print d
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
@@ -686,7 +686,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['value'] = val
 #        elif pnew == 'refl_num':
         if len(d) > 0:
-            print d
+#            print d
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
