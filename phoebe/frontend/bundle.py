@@ -241,7 +241,7 @@ class Bundle(ParameterSet):
         return cls()
 
     @classmethod
-    def from_legacy(cls, filename):
+    def from_legacy(cls, filename, add_compute_legacy=False, add_compute_phoebe=True):
         """Load a bundle from a PHOEBE 1.0 Legacy file.
 
         This is a constructor so should be called as:
@@ -251,7 +251,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
-        return io.load_legacy(filename)
+        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
     def default_star(cls, starA='starA'):

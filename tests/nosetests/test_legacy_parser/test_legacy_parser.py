@@ -17,7 +17,7 @@ def legacy_test(filename='default.phoebe'):
     phb1.open(os.path.join(dir, filename))
 
     #load phoebe2 file
-    b = phb2.Bundle.from_legacy(os.path.join(dir, filename))
+    b = phb2.Bundle.from_legacy(os.path.join(dir, filename), add_compute_legacy=True)
     b.change_component('primary', 'cow')
     b.change_component('secondary', 'pig')
     # create time array and get datasets
@@ -118,6 +118,7 @@ def legacy_test(filename='default.phoebe'):
         lc2 = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
         time = b.filter('times', context='model', dataset=lcs[x]).get_value()
         print("comparing lightcurve "+str(lcs[x]))
+        print fluxes[x]-lc2
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
@@ -158,7 +159,11 @@ def legacy_test(filename='default.phoebe'):
 if __name__ == '__main__':
 
 #    logger= phb2.logger()
-    filename = 'default.phoebe'
-    legacy_test(filename)
-
+    detached = 'default.phoebe'
+#    contact = 'contact.phoebe'
+#    print "checking detached system"
+    legacy_test(detached)
+#    print "checking contact system"
+#    legacy_test(contact)
+  
 

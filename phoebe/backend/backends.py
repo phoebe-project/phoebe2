@@ -1058,15 +1058,24 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
     #create temporary file
     tmp_file = tempfile.NamedTemporaryFile()
+#   testing
+#    filename = 'check.phoebe'
+#   real 
     io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
+#   testing
+#    io.pass_to_legacy(b, filename=filename, compute=compute, **kwargs)
     phb1.init()
     try:
         phb1.configure()
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
+#   real
     phb1.open(tmp_file.name)
- #   phb1.updateLD()
+#   testing
+#    phb1.open(filename)
+#    phb1.updateLD()
     # TODO BERT: why are we saving here?
+#   testing
 #    phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
