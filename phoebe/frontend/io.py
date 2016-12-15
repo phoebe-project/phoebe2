@@ -395,7 +395,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
 
     if not add_compute_legacy:
-        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)    
+        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)
 
     if 'Overcontact' in morphology:
         params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
@@ -708,6 +708,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             val = ldcosbol[x].value[0]
             ldcosbol[x].set_value(np.array([val]))
     if conf_state:
+        eb.run_delayed_constraints()
         conf.interactive_on()
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
