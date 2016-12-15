@@ -372,9 +372,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
-    if add_compute_phoebe == True:
+#    if add_compute_phoebe == True:
     #    comid.append('phoebe01')
-        eb.add_compute('phoebe')#, compute=comid[0])
+#        eb.add_compute('phoebe')#, compute=comid[0])
     if add_compute_legacy == True:
     #    comid.append('lega1')
         eb.add_compute('legacy')#, compute=comid[-1])
