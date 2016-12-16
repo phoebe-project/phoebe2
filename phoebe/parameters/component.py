@@ -140,10 +140,6 @@ def envelope(component, **kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    if not conf.devel:
-        raise NotImplementedError("'envelope' component (ie overcontacts) not officially supported for this release.  Enable developer mode to test.")
-
-
     params = []
 
     params += [FloatParameter(qualifier='abun', value=kwargs.get('abun', 0.), default_unit=u.dimensionless_unscaled, description='Metallicity')]   # TODO: correct units??? check if log or not? (logabun = 0)
