@@ -1425,3 +1425,19 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #    raise NotImplementedError
 
     return
+
+def N_to_Ntriangles(N):
+    """
+    @N: WD style gridsize
+    
+    Converts WD style grid size @N to the number of triangles on the
+    surface.
+    
+    Returns: number of triangles.
+    """
+    
+    theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+1)])
+    phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
+    Ntri = 2*np.array([len(p) for p in phi]).sum()
+
+    return Ntri
