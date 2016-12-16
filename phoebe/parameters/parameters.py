@@ -1616,7 +1616,7 @@ class ParameterSet(object):
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
 
-        if default is not None is not None:
+        if default is not None:
             # then we need to do a filter first to see if parameter exists
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
