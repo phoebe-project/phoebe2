@@ -49,7 +49,7 @@ def test_binary(plot=False):
         # 0.0: 0.0007
         # 0.5: 0.0007
         # 1.0: 0.0007
-        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=8e-4, atol=0.))
+        assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
 
     return b
 

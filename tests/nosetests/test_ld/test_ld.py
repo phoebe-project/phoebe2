@@ -112,7 +112,7 @@ def test_binary(plot=False):
                 plt.legend()
                 plt.show()
 
-            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=3e-3 if exact_comparison else 0.3, atol=0.))
+            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.))
 
 
     for atm in ['ck2004', 'blackbody']:
@@ -161,7 +161,7 @@ def test_binary(plot=False):
             if plot:
                 b.show()
 
-            assert(diff_med_fluxes < 0.025)
+            assert(diff_med_fluxes < 0.035)
 
 
 
