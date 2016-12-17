@@ -16,7 +16,7 @@ _1to2par = {'ld_model':'ld_func',
             'rvcoff': 'ld_coeffs',
             'lccoff':'ld_coeffs',
             'active': 'enabled',
-            'model': 'morphology',
+#            'model': 'morphology',
             'filter': 'passband',
             'hjd0': 't0_supconj',
             'period': 'period',
@@ -372,9 +372,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
-    if add_compute_phoebe == True:
+#    if add_compute_phoebe == True:
     #    comid.append('phoebe01')
-        eb.add_compute('phoebe')#, compute=comid[0])
+#        eb.add_compute('phoebe')#, compute=comid[0])
     if add_compute_legacy == True:
     #    comid.append('lega1')
         eb.add_compute('legacy')#, compute=comid[-1])
@@ -393,6 +393,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 # delete parameters that have already been accounted for and find lc and rv parameters
 
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
+
+    if not add_compute_legacy:
+        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)
 
     if 'Overcontact' in morphology:
         params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
@@ -500,15 +503,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         for k in lc_dict:
             pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+#            print d
         # as long as the parameter exists add it
             if len(d) > 0:
-
+#                print d
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
-                if d['qualifier'] == 'pblum' and contact_binary:
+#                if d['qualifier'] == 'pblum' and contact_binary:
 
-                    d['component'] = 'contact_envelope'
+#                    d['component'] = 'contact_envelope'
 
                 try:
                     eb.set_value_all(check_visible=False, **d)
@@ -661,8 +665,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if val == 1:
                 d['value'] = 'kurucz'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
-            d['kind'] = 'legacy'
-            eb.set_value(check_relevant=False, **d)
+            if add_compute_legacy:
+                d['kind'] = 'legacy'
+                eb.set_value(check_relevant=False, **d)
+
             d['kind'] = 'phoebe'
             d['value'] = 'ck2004'
 #            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
@@ -678,8 +684,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             val = N_to_Ntriangles(int(np.float(val)))
             d['qualifier'] = 'ntriangles'
             d['value'] = val
+#        elif pnew == 'refl_num':
         if len(d) > 0:
-            # print d
+#            print d
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
@@ -701,6 +708,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             val = ldcosbol[x].value[0]
             ldcosbol[x].set_value(np.array([val]))
     if conf_state:
+        eb.run_delayed_constraints()
         conf.interactive_on()
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
@@ -939,9 +947,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     types.append('choice')
 
 
+
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
     if contact_binary:
+        #note system morphology
+        parnames.append('phoebe_model')
+        parvals.append('"Overcontact binary not in thermal contact"')
+        types.append('choice')
+
         comp_int = 1
         envelope = eb.hierarchy.get_siblings_of(primary)[-1]
 #        cepars = eb.filter(component='contact_envelope', context='component')
@@ -954,12 +968,17 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parvals.extend(val)
 #   pblum
         # TODO BERT: need to deal with multiple datasets
-        val = [eb.get_value(qualifier='pblum', component=primary, context='dataset')]
-        ptype = 'float'
-        pname = ret_parname('pblum', comp_int=comp_int, ptype=ptype)
-        parnames.extend(pname)
-        parvals.extend(val)
+ #       for x in range(len(lcs)):
+ #           val = [eb.get_value(qualifier='pblum', component=primary, context='dataset', dataset=lcs[x])]
+ #           ptype = 'float'
+ #           pname = ret_parname('pblum', comp_int=comp_int, ptype=ptype)
+ #           parnames.extend(pname)
+ #           parvals.extend(val)
     # get primary parameters and convert
+    else:
+        parnames.append('phoebe_model')
+        parvals.append('"Detached binary"')
+        types.append('choice')
 
     for param in prpars.to_list():
 
@@ -1047,6 +1066,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parnames.append('phoebe_lc_id['+str(x+1)+']')
         parvals.append(lcs[x])
         types.append('choice')
+
         for param in quals.to_list():
 #            if len(eb.filter(qualifier=quals[y], dataset=lcs[x])) == 1:
 #                if isinstance(eb.get_parameter(prpars[0], component='primary'), phoebe.parameters.Float                elif 'ld_' in param.qualifier:
@@ -1076,7 +1096,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 val, ptype = par_value(param)
 
                 if param.qualifier == 'pblum':
-                    pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
+                    if contact_binary:
+                        pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
+                    else:
+                        pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
 
                 else:
 

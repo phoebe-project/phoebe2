@@ -241,7 +241,7 @@ class Bundle(ParameterSet):
         return cls()
 
     @classmethod
-    def from_legacy(cls, filename):
+    def from_legacy(cls, filename, add_compute_legacy=False, add_compute_phoebe=True):
         """Load a bundle from a PHOEBE 1.0 Legacy file.
 
         This is a constructor so should be called as:
@@ -251,7 +251,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
-        return io.load_legacy(filename)
+        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
     def default_star(cls, starA='starA'):
@@ -580,6 +580,8 @@ class Bundle(ParameterSet):
         self._check_label(new_component)
         # changing hierarchy must be called first since it needs to access
         # the kind of old_component
+        if len([c for c in self.components if new_component in c]):
+            logger.warning("hierarchy may not update correctly with new component")
         self.hierarchy.change_component(old_component, new_component)
         for param in self.filter(component=old_component).to_list():
             param._component = new_component
@@ -587,6 +589,7 @@ class Bundle(ParameterSet):
             for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+
 
 
     def get_setting(self, twig=None, **kwargs):
@@ -1171,6 +1174,13 @@ class Bundle(ParameterSet):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute')
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
+
+        # mesh-consistency checks
+        for compute in self.computes:
+            mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
+            if 'wd' in mesh_methods:
+                if len(set(mesh_methods)) > 1:
+                    return False, "all (or none) components must use mesh_method='wd'"
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
@@ -1844,7 +1854,7 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = None
         # Let's also avoid the possibility of accidentally deleting system
         # parameters, etc
-        kwargs.setdefault('context', ['dataset', 'model', 'constraint'])
+        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
         # and lastly, let's handle deps if kind was passed
         kind = kwargs.get('kind', None)
 

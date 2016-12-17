@@ -1248,7 +1248,7 @@ class ParameterSet(object):
             raise ValueError("0 results found")
         elif len(ps) != 1:
             # TODO: custom exception?
-            raise ValueError("{} results found".format(len(ps)))
+            raise ValueError("{} results found: {}".format(len(ps), ps.twigs))
         else:
             # then only 1 item, so return the parameter
             return ps._params[0]
@@ -1616,7 +1616,7 @@ class ParameterSet(object):
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
 
-        if default is not None is not None:
+        if default is not None:
             # then we need to do a filter first to see if parameter exists
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
@@ -1995,10 +1995,19 @@ class ParameterSet(object):
             # TODO: do the same logic with cmap, facecmap, edgecmap as colors
             # above
 
-            kwargs.setdefault('xunit', 'solRad')
-            kwargs.setdefault('yunit', 'solRad')
-            if axes_3d:
-                kwargs.setdefault('zunit', 'solRad')
+            if ps.dataset == 'protomesh':
+                # then the array are dimensionless - which really means in
+                # units of sma
+                kwargs.setdefault('xunit', None)
+                kwargs.setdefault('yunit', None)
+                if axes_3d:
+                    kwargs.setdefault('zunit', None)
+            else:
+                kwargs.setdefault('xunit', 'solRad')
+                kwargs.setdefault('yunit', 'solRad')
+                if axes_3d:
+                    kwargs.setdefault('zunit', 'solRad')
+
             if kwargs['xunit'] != kwargs['yunit']:
                 raise ValueError('xunit and yunit must be the same for mesh plots')
             if axes_3d and kwargs['xunit']!=kwargs['zunit']:
@@ -2483,7 +2492,12 @@ class ParameterSet(object):
         if do_plot:
 
             if plotting_backend in ['mpl']:
-                plt.gcf().tight_layout()
+                try:
+                    plt.gcf().tight_layout()
+                except ValueError:
+                    # this can fail sometimes if axes were added via add_axes
+                    # instead of add_subplot
+                    pass
 
             if show:
                 self.show()
