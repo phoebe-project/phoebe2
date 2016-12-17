@@ -674,9 +674,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                     # set gridsize
             d['value'] = val
             eb.set_value_all(check_visible=False, **d)
-            # change parameter and value to delta
-            val = 10**(-0.98359345*np.log10(np.float(val))+0.4713824)
-            d['qualifier'] = 'delta'
+            # change parameter and value to ntriangles
+            val = N_to_Ntriangles(np.float(val))
+            d['qualifier'] = 'ntriangles'
             d['value'] = val
         if len(d) > 0:
             # print d
@@ -1429,13 +1429,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 def N_to_Ntriangles(N):
     """
     @N: WD style gridsize
-    
+
     Converts WD style grid size @N to the number of triangles on the
     surface.
-    
+
     Returns: number of triangles.
     """
-    
+
     theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+1)])
     phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
     Ntri = 2*np.array([len(p) for p in phi]).sum()
