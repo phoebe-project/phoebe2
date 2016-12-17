@@ -675,7 +675,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['value'] = val
             eb.set_value_all(check_visible=False, **d)
             # change parameter and value to ntriangles
-            val = N_to_Ntriangles(np.float(val))
+            val = N_to_Ntriangles(int(np.float(val)))
             d['qualifier'] = 'ntriangles'
             d['value'] = val
         if len(d) > 0:
