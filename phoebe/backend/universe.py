@@ -716,17 +716,6 @@ class Body(object):
 
         N = len(new_mesh_dict['triangles'])
 
-        # if mesh_method == 'marching':
-        #     maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
-        #     if N>=(maxpoints-1):
-        #         raise ValueError(("Maximum number of triangles reached ({}). "
-        #                           "Consider raising the value of the parameter "
-        #                           "'maxpoints', or "
-        #                           "decrease the mesh density. It is also "
-        #                           "possible that the equipotential surface is "
-        #                           "not closed.").format(N))
-
-
         logger.info("covered surface with %d triangles"%(N))
 
         protomesh = mesh.ProtoMesh(**new_mesh_dict)
@@ -1305,8 +1294,7 @@ class Star(Body):
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
-        self.delta = kwargs.get('delta', 0.1)                               # Marching
-        self.maxpoints = kwargs.get('maxpoints', 1e5)                       # Marching
+        self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
         self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
 
@@ -1426,8 +1414,7 @@ class Star(Body):
 
         mesh_kwargs = {}
         if mesh_method == 'marching':
-            mesh_kwargs['delta'] = b.get_value('delta', component=component, compute=compute, **kwargs) if compute is not None else 0.1
-            mesh_kwargs['maxpoints'] = b.get_value('maxpoints', component=component, compute=compute, **kwargs) if compute is not None else 1e5
+            mesh_kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, **kwargs) if compute is not None else 1000
             mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, **kwargs) if compute is not None else 'roche'
         elif mesh_method == 'wd':
             mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, **kwargs) if compute is not None else 30
@@ -1538,14 +1525,16 @@ class Star(Body):
         mesh_args = (q, F, d, Phi)
 
         if mesh_method == 'marching':
-            delta = kwargs.get('delta', self.delta)
-            maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
 
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
-                rpole = libphoebe.roche_pole(*mesh_args)
-                delta *= rpole
+                av = libphoebe.roche_area_volume(*mesh_args,
+                                                 choice=0,
+                                                 larea=True,
+                                                 lvolume=True)
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 # print "*** libphoebe.roche_marching_mesh args: {}, rpole: {}, delta: {}".format(mesh_args, rpole, delta)
 
@@ -1553,7 +1542,7 @@ class Star(Body):
                                                          delta=delta,
                                                          choice=0,
                                                          full=True,
-                                                         max_triangles=maxpoints,
+                                                         max_triangles=ntriangles*2,
                                                          vertices=True,
                                                          triangles=True,
                                                          centers=True,
@@ -1571,10 +1560,7 @@ class Star(Body):
                 # itself (not the mesh).
                 # TODO: which volume(s) do we want to report?  Either way, make
                 # sure to do the same for the OC case and rotstar
-                av = libphoebe.roche_area_volume(*mesh_args,
-                                                 choice=0,
-                                                 larea=True,
-                                                 lvolume=True)
+
 
                 new_mesh['volume'] = av['lvolume']
 
@@ -1649,8 +1635,11 @@ class Star(Body):
                     Phi = self.Phi_user # because we don't want to do conversion for secondary
 
 
-                rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)
-                delta *= rpole
+                av = libphoebe.rotstar_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
+
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 mesh_args = (omega, Phi)
 
@@ -1659,7 +1648,7 @@ class Star(Body):
                 new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
                                                delta=delta,
                                                full=True,
-                                               max_triangles=maxpoints,
+                                               max_triangles=ntriangles*2,
                                                vertices=True,
                                                triangles=True,
                                                centers=True,
@@ -1672,9 +1661,7 @@ class Star(Body):
                                                volume=True,
                                                init_phi=self.mesh_init_phi)
 
-                av = libphoebe.rotstar_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
+
 
                 new_mesh['volume'] = av['lvolume']
 
@@ -1727,18 +1714,21 @@ class Star(Body):
                     # TODO: need to use rpole directly?
 
                 rpole = libphoebe.roche_pole(*mesh_args)
-                delta *= rpole
-
                 omega = 1./rpole
-
                 mesh_args = (omega,)
+
+                av = libphoebe.sphere_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
+
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 # print "*** sphere_marching_mesh rpole:{} omega:{} delta:{}".format(rpole, mesh_args[0], delta)
 
                 new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
                                                delta=delta,
                                                full=True,
-                                               max_triangles=maxpoints,
+                                               max_triangles=ntriangles*2,
                                                vertices=True,
                                                triangles=True,
                                                centers=True,
@@ -1751,9 +1741,7 @@ class Star(Body):
                                                volume=True,
                                                init_phi=self.mesh_init_phi)
 
-                av = libphoebe.sphere_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
+
 
                 new_mesh['volume'] = av['lvolume']
 
@@ -2138,8 +2126,7 @@ class Envelope(Body):
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
-        self.delta = kwargs.get('delta', 0.1)                               # Marching
-        self.maxpoints = kwargs.get('maxpoints', 1e5)                       # Marching
+        self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
         self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
 
@@ -2287,8 +2274,7 @@ class Envelope(Body):
 
         mesh_kwargs = {}
         if mesh_method == 'marching':
-            mesh_kwargs['delta'] = b.get_value('delta', component=component, compute=compute) if compute is not None else 0.1
-            mesh_kwargs['maxpoints'] = b.get_value('maxpoints', component=component, compute=compute) if compute is not None else 1e5
+            mesh_kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute) if compute is not None else 1000
             mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute) if compute is not None else 'roche'
         elif mesh_method == 'wd':
             mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute) if compute is not None else 30
@@ -2393,21 +2379,24 @@ class Envelope(Body):
             # Phi = kwargs.get('Phi', self.Phi_user)  # NOTE: self.Phi_user is not corrected for the secondary star, but that's fine because we pass primary vs secondary as choice
             # q = 1./self.q if self.comp_no == 2 else self.q  # NOTE: undo the inversion so this is ALWAYS Mp/Ms
 
-            delta = kwargs.get('delta', self.delta)
-            maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
 
 
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
-                rpole = libphoebe.roche_pole(*mesh_args)
-                delta *= rpole
+                av = libphoebe.roche_area_volume(*mesh_args,
+                                                 choice=2,
+                                                 larea=True,
+                                                 lvolume=True)
+
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
                                                          choice=2,
                                                          full=True,
-                                                         max_triangles=maxpoints,
+                                                         max_triangles=ntriangles*2,
                                                          vertices=True,
                                                          triangles=True,
                                                          centers=True,
@@ -2424,11 +2413,6 @@ class Envelope(Body):
                 # itself (not the mesh).
                 # TODO: which volume(s) do we want to report?  Either way, make
                 # sure to do the same for the OC case and rotstar
-                av = libphoebe.roche_area_volume(*mesh_args,
-                                                 choice=2,
-                                                 larea=True,
-                                                 lvolume=True)
-
                 new_mesh['volume'] = av['lvolume']
 
                 if self._do_mesh_offset:

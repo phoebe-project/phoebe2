@@ -17,7 +17,7 @@ def test_binary(plot=False):
     cb.add_dataset('lc', times=np.linspace(0,3,50), dataset='lc01')
     cb.add_dataset('rv', time=np.linspace(0,3,50), dataset='rv01')
 
-    cb.add_compute('phoebe', compute='phoebe2', mesh_method='marching')
+    cb.add_compute('phoebe', ntriangles=4000, compute='phoebe2', mesh_method='marching')
     cb.add_compute('legacy', compute='phoebe1')
 
     cb.set_value_all('atm@phoebe2', 'extern_planckint')
