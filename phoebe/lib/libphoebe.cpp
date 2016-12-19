@@ -270,6 +270,111 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   return results;
 }
 
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate rotating parameter and interval theta' of the Roche lobes 
+  with misaligned spin (S) and orbital angular velocity vectors.
+  
+  Spin (S) is a angular velocity vector defined in the rotating reference 
+  frame attached to the binary system with the origin (o) in the center of 
+  the primary star and with the basis vectors
+    B =(^i, ^j, ^k)
+    
+    vec S = |S| B.(sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+    
+  where
+    ^i - in directon from primary star to secondary star
+    ^k - in direction of orbital angular angular velocity vector
+    ^j = ^k x ^i
+  
+  The potential of misaligned Roche lobes is given in reference frame
+  
+    o, B' = (^i, ^j', ^k')
+  
+  with
+    
+    ^j' = ^j cos(xi) + ^k sin(xi)
+    ^k' = -^j sin(xi) + ^k cos(xi)
+    
+  and in this system
+  
+    vec S = |S| B'.(sin(theta'), 0, cos(theta'))
+  
+  Python:
+    
+    [xi, theta'] = misaligned_transf(type, S)
+   
+   with parameters
+    
+    type: string 
+    S : 1-rank numpy array
+    
+    if type="cartesian":
+      S = np.array([Sx, Sy, Sz])  vec S = Sx*^i + Sy*^j + Sz*^k
+    
+    if type = "spherical":
+      S = np.array([theta, phi])
+    
+    
+  and returns 
+
+    [xi, theta']: 1-rank numpy array
+      xi - rotation angle
+      theta' - new angle between S and new z-axis ^k'
+*/
+
+static PyObject *misaligned_transf(PyObject *self, PyObject *args) {
+  
+  const char *fname = "misaligned_trans";
+
+  PyObject *o_type;
+  PyArrayObject *o_S;  
+  
+  if (!PyArg_ParseTuple(args, "O!O!", 
+       &PyString_Type, &o_type,
+       &PyArray_Type, &o_S)){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double 
+    *S = (double*) PyArray_DATA(o_S),
+    t, s[3],
+    *res = new double [2];
+  
+  switch (fnv1a_32::hash(PyString_AsString(o_type))) {
+    
+    case "cartesian"_hash32:
+      t = 1/utils::hypot3(S);
+      for (int i = 0; i < 3; ++i) s[i] = t*S[i];
+    break;
+    
+    case "spherical"_hash32:
+      s[0] = std::sin(S[0])*std::cos(S[1]);
+      s[1] = std::sin(S[0])*std::sin(S[1]);
+      s[2] = std::cos(S[0]);
+    break;
+    
+    default:
+      std::cerr << "This type is not supported\n";
+      return NULL;
+  }
+
+
+  res[0] = std::atan2(-s[1], s[2]);
+  res[1] = std::atan2(s[0], std::sqrt(1 - s[0]*s[0]));
+  
+  npy_intp dims[1] = {2};
+
+  PyObject *o_res = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, res);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_res, NPY_ARRAY_OWNDATA);
+  
+  return o_res;
+}
+
 /*
   C++ wrapper for Python code:
   
@@ -3953,7 +4058,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   }
   
   if (b_taweights) {
-    PyDict_SetItemStringStealRef(results,"taweights", PyArray_From3DPointVector(*W));
+    PyDict_SetItemStringStealRef(results,"misaligned_transftaweights", PyArray_From3DPointVector(*W));
     delete W; 
   }
 
@@ -7875,6 +7980,15 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
 */ 
 static PyMethodDef Methods[] = {
+  
+ { "misaligned_transf", 
+    misaligned_transf,   
+    METH_VARARGS, 
+    "Determine angle parameters of the misaligned Roche lobes from "
+    "the spin angular velocity in the rotating binary system "},
+
+// --------------------------------------------------------------------
+ 
   
   { "roche_critical_potential", 
     (PyCFunction)roche_critical_potential,   
