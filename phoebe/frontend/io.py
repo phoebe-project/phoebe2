@@ -661,9 +661,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             val = int(val)
 
             if val == 0:
-                d['value'] = 'blackbody'
+                d['value'] = 'extern_planckint'
             if val == 1:
-                d['value'] = 'kurucz'
+                d['value'] = 'extern_atmx'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
             if add_compute_legacy:
                 d['kind'] = 'legacy'
@@ -1352,7 +1352,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if param.qualifier == 'gridsize':
                 pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='grid', ptype=ptype)
             elif param.qualifier =='atm':
-                atmval = {'kurucz':1, 'blackbody':0}
+                atmval = {'extern_atmx':1, 'extern_planckint':0}
                 pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
 
                 val = str(atmval[val[0]])
