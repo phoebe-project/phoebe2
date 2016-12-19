@@ -20,8 +20,7 @@ def test_binary(plot=False):
     cb.add_compute('phoebe', ntriangles=4000, compute='phoebe2', mesh_method='marching')
     cb.add_compute('legacy', compute='phoebe1')
 
-    cb.set_value_all('atm@phoebe2', 'extern_planckint')
-    cb.set_value_all('atm@phoebe1', 'blackbody')
+    cb.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
     cb.set_value_all('ld_func_bol', 'logarithmic')

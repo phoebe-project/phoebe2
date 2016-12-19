@@ -46,7 +46,7 @@ def test_binary(plot=False):
     b.add_dataset('rv', times=times, dataset='rv01', ld_func='logarithmic', ld_coeffs = [0.5,0.5])
 
     b.add_compute('phoebe', compute='phnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', irrad_method='none')
-    b.add_compute('legacy', compute='legnum', ltte=False, atm='blackbody', rv_method='flux-weighted', refl_num=0)
+    b.add_compute('legacy', compute='legnum', ltte=False, atm='extern_planckint', rv_method='flux-weighted', refl_num=0)
 
     for syncpar in [1./4, 4]:
         print "setting syncpar@primary to", syncpar

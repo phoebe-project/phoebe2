@@ -27,8 +27,7 @@ def test_binary(plot=False):
     b.add_compute('legacy', compute='phoebe1', refl_num=5)
 
     # set matching atmospheres
-    b.set_value_all('atm@phoebe2', 'extern_planckint')
-    b.set_value_all('atm@phoebe1', 'blackbody')
+    b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
     b.set_value_all('ld_func_bol', 'logarithmic')
@@ -81,8 +80,7 @@ def test_contact(plot=False):
     b.add_compute('legacy', compute='phoebe1', refl_num=5, morphology = 'Overcontact binary not in thermal contact')
 
     # set matching atmospheres
-    b.set_value_all('atm@phoebe2', 'extern_planckint')
-    b.set_value_all('atm@phoebe1', 'blackbody')
+    b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
     b.set_value_all('ld_func_bol', 'logarithmic')
