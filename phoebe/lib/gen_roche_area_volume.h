@@ -82,7 +82,7 @@ namespace gen_roche {
       polish - if true than after each RK step 
                 we perform reprojection onto surface
                  
-    Using: Integrating surface in cylindric geometry
+    Using: Integrating surface in cylindrical coordinate system
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in x direction
     
@@ -361,7 +361,7 @@ namespace gen_roche {
       polish - if true than after each RK step 
                 we perform reprojection onto surface
                 
-    Using: Integrating surface in cylindric geometry
+    Using: Integrating surface in cylindrical coordinate system
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in x direction to get the surface points
       c. Romberg integration scheme to compute the surface and volume

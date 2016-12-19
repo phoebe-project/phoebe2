@@ -256,7 +256,7 @@ namespace gen_roche {
     Pole of the second star at (delta,0,z), z > 0, i.e. 
     smallest z > 0 such that
   
-      Omega(1,0,z) = Omega0
+      Omega(delta, 0,z) = Omega0
     
     Input:
       Omega0 - value of potential

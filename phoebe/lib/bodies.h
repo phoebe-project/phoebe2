@@ -241,9 +241,8 @@ struct Theart {
 template <class T>
 struct Tgen_roche {
   
-  T q, F, delta, Omega0, x0, 
+  T q, F, delta, Omega0, 
     b, f0; // derived constants
-  
   
   Tgen_roche() {}
   
@@ -553,4 +552,192 @@ struct Trot_star {
   }
   
 };
+
+
+/* ===================================================================
+  Generalizd Roche potential with misaligned binary system
+  
+  Defined of implicitly by a constrain
+
+    Omega(x,y,z,params) = 
+      1/r1 + q(1/r2 - x/delta^2) + 1/2 (1+q) F^2 [(x cos theta' - z sin theta')^2 + y^2] 
+    
+    constrain = Omega0 - Omega(x,y,z,params) = 0
+    
+    r1 = sqrt(x^2 + y^2 + z^2)
+    r2 = sqrt((x - delta)^2 + y^2+z^2)
+    
+ Ref:
+  * Avni Y and Schiller N,
+    Generalized Roche potential for misaligned binary systems - 
+    Properties of the critical lobe,
+    Astrophysical Journal, Part 1, vol. 257, June 15, 1982, p. 703-714.
+ =================================================================== */ 
+
+template <class T>
+struct Tmisaligned_roche {
+  
+  T q, F, delta, theta, Omega0,
+    b, f0, s, c;     // derived
+  
+  /*
+    Reading and storing the parameters
+    params[0] = q  
+    params[1] = F
+    params[2] = delta
+    params[3] = theta
+    params[4] = Omega0
+  */
+  
+  Tmisaligned_roche(void *params) 
+  : q(((T*)params)[0]), 
+    F(((T*)params)[1]),
+    delta(((T*)params)[2]), 
+    theta(((T*)params)[3]),
+    Omega0(((T*)params)[4])
+  { 
+    f0 = 1/(delta*delta);
+    b = (1 + q)*F*F;
+    utils::sincos(theta, &s, &c);
+  }
+  
+  /*
+    Definition of the potential minus the reference.
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+      Omega0 - Omega(x,y,z)
+  */
+  
+  T constrain(T r[3]) {
+    
+    T x = r[0], y = r[1], z = r[2],
+      x_ = x*c - z*s,
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x - delta, y, z);
+      
+    return Omega0 - (1/r1 + q*(1/r2 - f0*x) + 0.5*b*(x_*x_ + y*y));
+  }
+  
+  /*
+    Definition of the potential minus the reference and the 
+    gradient of it:
+      
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[4]:
+        {ret[0], ret[1], ret[2]} = -grad-potential Omega
+        ret[3] = Omega0 - Omega 
+  */
+
+  
+  void grad(T r[3], T ret[4], const bool & precision = false){
+    
+    if (precision) {
+      
+      long double 
+        x = r[0], y = r[1], z = r[2], 
+        x1 = x - delta, 
+        x_ = x*c - z*s,
+        r1 = utils::hypot3(r),
+        r2 = utils::hypot3(x1, y, z),
+        f1 = 1/r1, f13 = f1*f1*f1,
+        f2 = 1/r2, f23 = f2*f2*f2,
+        tmp = f13 + f23*q;
+        
+      
+      ret[0] = f13*x + q*(f0 + f23*x1) - b*c*x_, 
+      ret[1] = (tmp - b)*y;
+      ret[2] = tmp*z + b*s*x_;
+      ret[3] = Omega0 - (f1 + q*(f2 - f0*x) + 0.5*b*(x_*x_ + y*y));   
+      
+      return;
+    }
+    
+    T x = r[0], y = r[1], z = r[2], 
+      x1 = x - delta,
+      x_ = x*c - z*s,
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x1, y, z),
+      f1 = 1/r1, f13 = f1*f1*f1,
+      f2 = 1/r2, f23 = f2*f2*f2,
+      tmp = f13 + f23*q;
+    
+    ret[0] = f13*x + q*(f0 + f23*x1) - b*c*x_, 
+    ret[1] = (tmp - b)*y;
+    ret[2] = tmp*z + b*s*x_;
+    ret[3] = Omega0 - (f1 + q*(f2 - f0*x) + 0.5*b*(x_*x_ + y*y));
+  }
+    
+  /*
+    Definition of the gradient of the negative potential
+     
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[3]:
+        {ret[0], ret[1], ret[2]} = grad-potential
+  */
+  
+  void grad_only(T r[3], T ret[3]){
+    
+    T x = r[0], y = r[1], z = r[2], 
+      x1 = x - delta, 
+      x_ = x*c - z*s,
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x1, y, z),
+      f13 = 1/(r1*r1*r1),
+      f23 = 1/(r2*r2*r2), 
+      tmp = f13 + f23*q;
+     
+    ret[0] = f13*x + q*(f0 + f23*x1) - b*c*x_, 
+    ret[1] = (tmp - b)*y;
+    ret[2] = tmp*z + b*s*x_;
+  }
+
+  
+  /*
+    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    resulting:
+      H_{ij} = - partial_i partial_j Omega
+    
+  */
+  void hessian (T r[3], T H[3][3]){
+    
+    T x = r[0], y = r[1], z = r[2], 
+      x1 = x - delta, 
+      w = y*y + z*z,
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x1, y, z),
+      f1 = 1/r1, f13 = f1*f1*f1, f15 = f13*f1*f1,
+      f2 = 1/r2, f23 = f2*f2*f2, f25 = f23*f2*f2, 
+      tmp1 = f15 + f25*q, tmp2 = f13 + f23*q;
+  
+    H[0][0] = -b*c*c - 2*tmp2  + 3*tmp1*w;
+    H[0][1] = H[1][0] = -3*(delta*f15 + tmp1*x1)*y;
+    H[0][2] = H[2][0] = b*c*s - 3*(delta*f15 + tmp1*x1)*z;
+    H[1][1] =  -b + tmp2 - 3*tmp1*y*y;
+    H[1][2] = H[2][1] = -3*tmp1*y*z;
+    H[2][2] = tmp2 - b*s*s - 3*tmp1*z*z;
+  }
+};
+
+
 #endif // #if !defined(__bodies_h)

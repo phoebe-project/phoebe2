@@ -44,6 +44,7 @@
     
 #include "gen_roche.h"             // support for generalized Roche lobes 
 #include "rot_star.h"              // support for rotating stars
+#include "misaligned_roche.h"      // support for gen. Roche lobes with missaligned angular momenta
 
 #include "wd_atm.h"                // Wilson-Devinney atmospheres
 #include "interpolation.h"         // Nulti-dimensional linear interpolation
@@ -370,6 +371,68 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   return PyFloat_FromDouble(gen_roche::poleR(Omega0, q, F, delta));
 }
 
+/*
+  C++ wrapper for Python code:
+  
+  Calculate pole of the primary star in the misaligned Roche potential.
+  
+  Python:
+    
+    h = misaligned_pole(q, F, d, Omega0)
+  
+  where parameters are
+  
+  positionals:
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    Omega: float - value potential 
+  
+  and return 
+  
+    p: 1-rank numpy array - vector position of the pole
+
+*/
+
+static PyObject *misaligned_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "misaligned_pole";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"theta",
+    (char*)"Omega0",
+    NULL};
+  
+  double q, F, delta, theta, Omega0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "ddddd", kwlist, 
+        &q, &F, &delta, &theta, &Omega0)){
+  
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double *p = new double[3];
+  
+  misaligned_roche::poleL(p, Omega0, q, F, delta, theta);
+  
+  npy_intp dims[1] = {3};
+  
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, p);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);   
+      
+  return pya;
+}
 
 /*
   C++ wrapper for Python code:
@@ -818,6 +881,8 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
 static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
   
+  const char *fname = "rotstar_area_volume";
+  
   //
   // Reading arguments
   //
@@ -846,7 +911,7 @@ static PyObject *rotstar_area_volume(PyObject *self, PyObject *args, PyObject *k
       &PyBool_Type, &o_lvolume
       )
     ) {
-    std::cerr << "rotstar_area_volume:Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
@@ -982,6 +1047,206 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
 /*
   C++ wrapper for Python code:
   
+  Calculate area and volume of the generalied Roche lobes with 
+  misaligned spin and orbit velocity vectors.
+
+  Omega_0 = Omega(x,y,z)
+  
+  Python:
+    
+    dict = misaligned_area_volume(q, F, d, Omega0, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    Omega: float - value potential 
+  
+  keywords:
+    choice: integer, default 0
+            0 for discussing left lobe
+            1 for discussing right lobe
+            2 for discussing overcontact 
+            
+    lvolume: boolean, default True
+    larea: boolean, default True
+    
+    epsA : float, default 1e-12
+      relative precision of the area
+
+    epsV : float, default 1e-12
+      relative precision of the volume
+
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    lvolume: volume of the left or right Roche lobe  
+      float:  
+      
+    larea: area of the left or right Roche lobe
+      float:
+*/
+
+//#define DEBUG
+static PyObject *misaligned_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "misaligned_area_volume";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"theta",
+    (char*)"Omega0",
+    (char*)"choice",
+    (char*)"larea",
+    (char*)"lvolume",
+    (char*)"epsA",
+    (char*)"epsV",
+    NULL};
+       
+  int choice = 0;
+ 
+  double eps[2] = {1e-12, 1e-12};
+  
+  bool b_av[2] = {true, true};  // b_larea, b_lvolume
+  
+  PyObject *o_av[2] = {0, 0};    // *o_larea = 0, *o_lvolume = 0;
+  
+  double q, F, delta, theta, Omega0;
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "ddddd|iO!O!dd", kwlist, 
+      &q, &F, &delta, &theta, &Omega0, 
+      &choice,
+      &PyBool_Type, o_av,
+      &PyBool_Type, o_av + 1,
+      eps, eps + 1
+      )) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  if (theta != 0 && choice != 0) {
+    std::cerr 
+      << fname 
+      << "::choice != 0 && theta !=0 is currently not supported \n";
+    return NULL;
+  }
+  
+  //
+  // Read boolean variables and define result-choice
+  //   
+
+  unsigned res_choice = 0;
+
+  for (int i = 0, j = 1; i < 2; ++i, j <<=1) {
+    if (o_av[i]) b_av[i] = PyObject_IsTrue(o_av[i]);
+    if (b_av[i]) res_choice += j;
+  }
+  
+  if (res_choice == 0) return NULL;
+ 
+  //
+  // Calculate area and volume:
+  //
+
+  const int m_min = 1 << 6;  // minimal number of points along x-axis
+  
+  int m0 = m_min;            // starting number of points alomg x-axis  
+      
+  bool adjust = true;
+    
+  double p[2][2], xrange[2], av[2], e, t;
+ 
+  //
+  // Choosing boundaries on x-axis or calculating the pole
+  //
+  
+  if (theta == 0) {      // Non-misaligned Roche lobes 
+    if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
+      std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
+      return NULL;
+    }
+  }
+  //
+  // one step adjustment of precison for area and volume
+  // calculation
+  //
+  
+  do {
+      
+    for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
+      if (theta == 0)
+        gen_roche::area_volume_integration
+          (p[i], res_choice, xrange, Omega0, q, F, delta, m);
+      else 
+        misaligned_roche::area_volume
+          (p[i], res_choice, Omega0, q, F, delta, theta, m);
+    
+    if (adjust) {
+         
+      // extrapolation based on assumption
+      //   I = I0 + a_1 h^4
+      // estimating errors
+      
+      int m0_next = m0;
+      
+      adjust = false;
+      
+      for (int i = 0; i < 2; ++i) if (b_av[i]) {
+        // best approximation
+        av[i] = t = (16*p[1][i] - p[0][i])/15;
+        
+        // relative error
+        e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
+                  
+        if (e > eps[i]) {
+          int k = int(1.1*m0*std::pow(e/eps[i], 0.25));
+          if (k > m0_next) {
+            m0_next = k;
+            adjust = true;
+          }
+        }
+      }
+      
+      if (adjust) m0 = m0_next; else break;
+    
+    } else {
+      // best approximation
+      for (int i = 0; i < 2; ++i) 
+        if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
+      break;
+    }
+    
+    adjust = false;
+    
+  } while (1);
+
+
+  PyObject *results = PyDict_New();
+  
+  const char *str[2] =  {"larea", "lvolume"};
+  
+  for (int i = 0; i < 2; ++i) if (b_av[i])
+    PyDict_SetItemStringStealRef(results, str[i], PyFloat_FromDouble(av[i]));
+
+  return results;
+}
+
+/*
+  C++ wrapper for Python code:
+  
   Calculate the value of the generalized Kopal potential Omega1 corresponding 
   to parameters (q,F,d) and the volume of the Roche lobes equals to vol.  
     
@@ -1025,6 +1290,8 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
 //#define DEBUG
 static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
   
+  const char * fname = "roche_Omega_at_vol";
+  
   //
   // Reading arguments
   //
@@ -1062,14 +1329,14 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
       &max_iter
       )
     ) {
-    std::cerr << "roche_Omega_at_vol:Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
     
   bool b_Omega0 = !std::isnan(Omega0);
   
   if (!b_Omega0) {
-    std::cerr << "Currently not supporting lack of guessed Omega.\n";
+    std::cerr << fname << "::Currently not supporting lack of guessed Omega.\n";
     return NULL;
   }
      
@@ -1096,7 +1363,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   do {
 
     if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta, true)){
-      std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
+      std::cerr << fname << "::Determining lobe's boundaries failed\n";
       return NULL;
     }
     
@@ -1177,7 +1444,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
    
   if (!(it < max_iter)){
-    std::cerr << "roche_Omega_at_vol: Maximum number of iterations exceeded\n";
+    std::cerr << fname << "::Maximum number of iterations exceeded\n";
     return NULL;
   }
   // We use the condition on the argument (= Omega) ~ constraining backward error, 
@@ -1185,7 +1452,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
   
   return PyFloat_FromDouble(Omega);
 }
-#undef DEBUG
+//#undef DEBUG
 
 /*
   C++ wrapper for Python code:
@@ -1227,6 +1494,8 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
 //#define DEBUG
 static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
   
+  const char *fname = "rotstar_Omega_at_vol";
+  
   //
   // Reading arguments
   //
@@ -1256,14 +1525,14 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
       &max_iter
       )
     ) {
-    std::cerr << "rotstar_Omega_at_vol:Problem reading arguments\n";
+    std::cerr << fname <<"::Problem reading arguments\n";
     return NULL;
   }
     
   bool b_Omega0 = !std::isnan(Omega0);
   
   if (!b_Omega0) {
-    std::cerr << "Currently not supporting lack of guessed Omega.\n";
+    std::cerr << fname <<"::Currently not supporting lack of guessed Omega.\n";
     return NULL;
   }
     
@@ -1291,7 +1560,7 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
   } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
    
   if (!(it < max_iter)){
-    std::cerr << "rotstar_Omega_at_vol: Maximum number of iterations exceeded\n";
+    std::cerr << fname <<"::Maximum number of iterations exceeded\n";
     return NULL;
   }
   // We use the condition on the argument (= Omega) ~ constraining backward error, 
@@ -1299,6 +1568,207 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
   
   return PyFloat_FromDouble(Omega);
 }
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the value of the generalized Kopal potential Omega1 corresponding 
+  to parameters (q,F,d,theta) and the volume of the Roche lobes, with misaligned 
+  spin and orbital angular velocity vectors, equals to vol.  
+    
+  The Roche lobe(s) is defined as equipotential of the generalized
+  Kopal potential Omega:
+
+      Omega_i = Omega(x,y,z; q, F, d, theta)
+  
+  Python:
+    
+    Omega1 = misaligned_Omega_at_vol(vol, q, F, d, theta, Omega0, <keyword>=<value>)
+  
+  where parameters are
+  
+  positionals:
+    vol: float - volume of the Roche lobe
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    Omega0: float - guess for value potential Omega1
+    
+  keywords: (optional)
+    choice: integer, default 0
+            0 for discussing left lobe
+            1 for discussing right lobe
+            2 for discussing overcontact
+    precision: float, default 1e-12
+      aka relative precision
+    accuracy: float, default 1e-12
+      aka absolute precision
+    max_iter: integer, default 100
+      maximal number of iterations in the Newton-Raphson
+    
+  Returns:
+  
+    Omega1 : float
+      value of the Kopal potential for (q,F,d1) such that volume
+      is equal to the case (q,F,d,Omega0)
+*/
+
+//#define DEBUG
+static PyObject *misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char * fname = "misaligned_Omega_at_vol";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"vol",
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"theta",
+    (char*)"Omega0",
+    (char*)"choice",
+    (char*)"precision",
+    (char*)"accuracy",
+    (char*)"max_iter",
+    NULL};
+       
+  int 
+    choice = 0;
+    
+  double
+    vol, 
+    q, F, delta, theta, 
+    Omega0 = nan(""),
+    precision = 1e-12,
+    accuracy = 1e-12;
+  
+  int max_iter = 100;  
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dddddd|iddi", kwlist, 
+      &vol, &q, &F, &delta, &theta, &Omega0,
+      &choice,
+      &precision,
+      &accuracy,
+      &max_iter
+      )
+    ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  if (theta != 0 && choice != 0) {
+    std::cerr 
+      << fname 
+      << "::choice != 0 && theta !=0 is currently not supported \n";
+    return NULL;
+  }
+
+  bool b_Omega0 = !std::isnan(Omega0);
+  
+  if (!b_Omega0) {
+    std::cerr << fname << "::Currently not supporting lack of guessed Omega.\n";
+    return NULL;
+  }
+
+  const int m_min = 1 << 6;  // minimal number of points along x-axis
+    
+  int 
+    m0 = m_min,  // minimal number of points along x-axis
+    it = 0;      // number of iterations
+
+  double 
+    Omega = Omega0, dOmega, 
+    V[2], xrange[2], p[2][2];
+  
+  
+  // expected precisions of the integrals
+  double eps = precision/2;
+  
+  do {
+    
+    if (theta == 0) {      // Non-misaligned Roche lobes
+      if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta)){
+        std::cerr << fname << "::Determining lobe's boundaries failed\n";
+        return NULL;
+      }
+    }
+    
+    // adaptive calculation of the volume and its derivative
+    bool adjust = true;
+    
+    do {
+       
+      // calculate volume and derivate volume w.r.t to Omega
+      for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
+        if (theta == 0)
+          gen_roche::volume(p[i], 3, xrange, Omega, q, F, delta, m);
+        else
+          misaligned_roche::volume(p[i], 3, Omega, q, F, delta, theta, m);
+          
+     
+      if (adjust) {
+        
+        // extrapolations based on the expansion
+        // I = I0 + a1 h^4 + a2 h^5 + ...
+        // result should have relative precision better than 1e-12 
+        
+        int m0_next = m0;
+        
+        double e, t;
+        
+        adjust = false;
+        
+        for (int i = 0; i < 2; ++i) {
+          
+          // best estimate
+          V[i] = t = (16*p[1][i] - p[0][i])/15;
+          
+          // relative error
+          e = std::max(std::abs(p[0][i]/t - 1), 16*std::abs(p[1][i]/t - 1));
+                   
+          if (e > eps) {
+            int k = int(1.1*m0*std::pow(e/eps, 0.25));
+            if (k > m0_next) {
+              m0_next = k;
+              adjust = true;
+            }  
+          }
+        }
+        
+        if (adjust) m0 = m0_next; else break;
+        
+      } else {
+        // just calculate best estimate, 
+        // as the precision should be adjusted
+        for (int i = 0; i < 2; ++i) V[i] =(16*p[1][i] - p[0][i])/15;
+        break;
+      }
+      
+      adjust = false;
+      
+    } while (1); 
+        
+    Omega -= (dOmega = (V[0] - vol)/V[1]);
+        
+  } while (std::abs(dOmega) > accuracy + precision*Omega && ++it < max_iter);
+   
+  if (!(it < max_iter)){
+    std::cerr << fname << "::Maximum number of iterations exceeded\n";
+    return NULL;
+  }
+  
+  // We use the condition on the argument (= Omega) ~ constraining backward error, 
+  // but we could also use condition on the value (= Volume) ~ constraing forward error
+  
+  return PyFloat_FromDouble(Omega);
+}
+
+
 
 /*
   C++ wrapper for Python code:
@@ -1316,10 +1786,11 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
     g = roche_gradOmega(q, F, d, r)
    
    with parameters
-      q: float = M2/M1 - mass ratio
-      F: float - synchronicity parameter
-      d: float - separation between the two objects
-      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    r: 1-rank numpy array of length 3 = [x,y,z]
    
   
   and returns float
@@ -1429,9 +1900,9 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
     
     g = sphere_gradOmega(r)
    
-   with parameters
+  with parameters
    
-      r: 1-rank numpy array of length 3 = [x,y,z]
+    r: 1-rank numpy array of length 3 = [x,y,z]
   
   and returns float
   
@@ -1455,8 +1926,7 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
     *x = (double*) PyArray_DATA(X),
     *g = new double [4],
     R = utils::hypot3(x),
-    F = 1/(R*R*R);   
-  
+    F = 1/(R*R*R);
   
   for (int i = 0; i < 3; ++i) g[i] = F*x[i];  
   g[3] = -1/R;
@@ -1469,7 +1939,66 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
   
   return pya;
 }
- 
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the gradient of the potential of the generalized
+  Kopal potential Omega with misaligned spin and orbital angular 
+  velocity vectors at a given point
+
+      -grad Omega (x,y,z)
+  
+  Python:
+    
+    g = misaligned_gradOmega(q, F, d, theta, r)
+   
+  with parameters
+
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    r: 1-rank numpy array of length 3 = [x,y,z]
+
+  and returns float
+  
+    g : 1-rank numpy array
+        = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
+*/
+
+static PyObject *misaligned_gradOmega(PyObject *self, PyObject *args) {
+  
+  const char *fname = "misaligned_gradOmega";
+  
+  double p[5];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "ddddO!", 
+        p, p + 1, p + 2, p + 3, 
+        &PyArray_Type, &X)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  p[4] = 0;
+  
+  Tmisaligned_roche<double> b(p);
+  
+  double *g = new double [4];
+
+  b.grad((double*)PyArray_DATA(X), g);
+
+  npy_intp dims[1] = {4};
+
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
+}
+
 /*
   C++ wrapper for Python code:
   
@@ -1482,13 +2011,13 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
     
     g = roche_gradOmega_only(q, F, d, r)
    
-   with parameters
-      q: float = M2/M1 - mass ratio
-      F: float - synchronicity parameter
-      d: float - separation between the two objects
-      r: 1-rank numpy array of length 3 = [x,y,z]
+  with parameters
    
-  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    r: 1-rank numpy array of length 3 = [x,y,z]
+   
   and returns float
   
     g : 1-rank numpy array = -grad Omega (x,y,z)
@@ -1531,12 +2060,11 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
     
     g = rotstar_gradOmega_only(omega, r)
    
-   with parameters
+  with parameters
     
-      omega: float - parameter of the potential
-      r: 1-rank numpy array of length 3 = [x,y,z]
-   
-  
+    omega: float - parameter of the potential
+    r: 1-rank numpy array of length 3 = [x,y,z]
+ 
   and returns float
   
     g : 1-rank numpy array = -grad Omega (x,y,z)
@@ -1568,8 +2096,6 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   return pya;
 }
 
-
-
 /*
   C++ wrapper for Python code:
   
@@ -1582,11 +2108,10 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
     
     g = sphere_gradOmega_only(r)
    
-   with parameters
+  with parameters
     
-      r: 1-rank numpy array of length 3 = [x,y,z]
+    r: 1-rank numpy array of length 3 = [x,y,z]
    
-  
   and returns float
   
     g : 1-rank numpy array = -grad Omega (x,y,z)
@@ -1623,6 +2148,62 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
   
+  Calculate the gradient of the potential of the generalized
+  Kopal potential Omega with misaligned spin and orbital angular 
+  velocity vectors at a given point
+
+      -grad Omega (x,y,z)
+  
+  Python:
+    
+    g = misaligned_gradOmega_only(q, F, d, theta, r)
+   
+   with parameters
+  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    r: 1-rank numpy array of length 3 = [x,y,z]
+
+  and returns float
+  
+    g : 1-rank numpy array = -grad Omega (x,y,z)
+*/
+
+static PyObject *misaligned_gradOmega_only(PyObject *self, PyObject *args) {
+  
+  const char *fname = "misaligned_gradOmega_only";
+  
+  double p[5];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "ddddO!", 
+        p, p + 1, p + 2, p + 3, 
+        &PyArray_Type, &X)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  Tmisaligned_roche<double> b(p);
+  
+  double *g = new double [3];
+
+  b.grad_only((double*)PyArray_DATA(X), g);
+
+  npy_intp dims[1] = {3};
+
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
+}
+
+/*
+  C++ wrapper for Python code:
+  
   Calculate the value of the potential of the generalized
   Kopal potential Omega at a given point
 
@@ -1632,12 +2213,13 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
     
     Omega0 = roche_Omega(q, F, d, r)
    
-   with parameters
-      q: float = M2/M1 - mass ratio
-      F: float - synchronicity parameter
-      d: float - separation between the two objects
-      r: 1-rank numpy array of length 3 = [x,y,z]
-   
+  with parameters
+
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    r: 1-rank numpy array of length 3 = [x,y,z]
+ 
   
   and returns a float
   
@@ -1674,10 +2256,10 @@ static PyObject *roche_Omega(PyObject *self, PyObject *args) {
     
     Omega0 = rotstar_Omega(omega, r)
    
-   with parameters
+  with parameters
   
-      omega: float - parameter of the potential
-      r: 1-rank numpy array of length 3 = [x,y,z]
+    omega: float - parameter of the potential
+    r: 1-rank numpy array of length 3 = [x,y,z]
    
   
   and returns a float
@@ -1746,11 +2328,62 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
 
 /*
   C++ wrapper for Python code:
+  
+  Calculate the value of the potential of the generalized
+  Kopal potential Omega for misaligned binaries at a given point
 
-    Marching meshing of Roche lobes implicitely defined by generalized 
-    Kopal potential:
+      Omega (x,y,z; q, F, d, theta)
+  
+  Python:
     
-      Omega_0 = Omega(x,y,z)
+    Omega0 = misaligned_Omega(q, F, delta, r, theta)
+   
+   with parameters
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      theta: float - angle between spin and orbital angular velocity vectors [rad]
+      r: 1-rank numpy array of length 3 = [x,y,z]
+   
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+
+static PyObject *misaligned_Omega(PyObject *self, PyObject *args) {
+  
+  const char * fname = "misaligned_Omega";
+  
+  double p[5];
+
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, "ddddO!", 
+       p, p + 1, p + 2, p + 3, 
+       &PyArray_Type, &X)){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  p[4] = 0; // Omega0 = 0
+  
+  Tmisaligned_roche<double> b(p);
+
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+
+/*
+  C++ wrapper for Python code:
+
+    Marching meshing of Roche lobes implicitely defined 
+       
+    Omega_0 = Omega(x,y,z)
+    
+    by generalized Kopal potential:
+    
+    Omega(x,y,z) =  1/r1 + q [1/r2 - x/delta^2] + 1/2 F^2(1 + q) (x^2 + y^2)
+    r1 = sqrt(x^2 + y^2 + z^2)
+    r1 = sqrt((x-delta)^2 + y^2 + z^2)
     
   Python:
 
@@ -2740,6 +3373,378 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   
   if (b_cnormgrads)
     GatC = new std::vector<double>(V.size(), Omega0*Omega0);
+  
+  if (b_vertices)
+    PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
+
+  if (b_vnormals)
+    PyDict_SetItemStringStealRef(results, "vnormals", PyArray_From3DPointVector(NatV));
+
+  if (b_vnormgrads) {
+    PyDict_SetItemStringStealRef(results, "vnormgrads", PyArray_FromVector(*GatV));
+    delete GatV;
+  }
+  
+  if (b_triangles)
+    PyDict_SetItemStringStealRef(results, "triangles", PyArray_From3DPointVector(Tr));
+
+  if (b_areas) {
+    PyDict_SetItemStringStealRef(results, "areas", PyArray_FromVector(*A));
+    delete A;  
+  }
+  
+  if (b_area)
+    PyDict_SetItemStringStealRef(results, "area", PyFloat_FromDouble(area));
+
+  if (b_tnormals) {
+    PyDict_SetItemStringStealRef(results, "tnormals", PyArray_From3DPointVector(*NatT));
+    delete NatT;
+  }
+
+  if (b_volume)
+    PyDict_SetItemStringStealRef(results, "volume", PyFloat_FromDouble(volume));
+  
+  if (b_centers) {
+    PyDict_SetItemStringStealRef(results, "centers", PyArray_From3DPointVector(*C));
+    delete C;  
+  }
+
+  if (b_cnormals) {
+    PyDict_SetItemStringStealRef(results, "cnormals", PyArray_From3DPointVector(*NatC));
+    delete NatC;
+  }
+  
+  if (b_cnormgrads) {
+    PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
+    delete GatC;
+  }
+  
+  return results;
+}
+
+/*
+  C++ wrapper for Python code:
+
+    Marching meshing of generalized Roche lobes with misaligned spin and orbit angular 
+    velocity vector that is implicitely 
+    
+      Omega(x,y,z) = Omega0
+    
+    defined by Avni's generalized Kopal potential:
+    
+      Omega(x,y,z,params) = 
+      1/r1 + q(1/r2 - x/delta^2) + 
+      1/2 (1 + q) F^2 [(x cos theta' - z sin theta')^2 + y^2]
+      
+    r1 = sqrt(x^2 + y^2 + z^2)
+    r2 = sqrt((x-delta)^2 + y^2 + z^2)
+    
+  Python:
+
+    dict = misaligned_marching_mesh(q, F, d, theta, Omega0, delta, <keyword>=[true,false], ... )
+    
+  where parameters
+  
+    positional:
+  
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      theta: float - angle between spin and orbital angular velocity vectors [rad] 
+      Omega0: float - value of the generalized Kopal potential
+      delta: float - size of triangles edges projected to tangent space
+    
+    keywords: 
+      choice: integer, default 0
+          0 - primary lobe is exists
+          1 - secondary lobe is exists
+        for overcontacts choice is 0 or 1
+        choice controls where is the begining the triangulation
+
+      max_triangles:integer, default 10^7 
+        maximal number of triangles
+        if number of triangles exceeds max_triangles it returns NULL  
+      
+      full: boolean, default False
+        using full version of marching method as given in the paper 
+        by (Hartmann, 1998)
+        
+      vertices: boolean, default False
+      vnormals: boolean, default False
+      vnormgrads:boolean, default False
+      triangles: boolean, default False
+      tnormals: boolean, default False
+      areas: boolean, default False
+      area: boolean, default False
+      volume: boolean, default False
+      centers: boolean, default False
+      cnormals: boolean, default False
+      cnormgrads: boolean, default False
+      init_phi: float, default 0
+
+  Returns:
+  
+    dictionary
+  
+  with keywords
+  
+    vertices: 
+      V[][3]    - 2-rank numpy array of vertices 
+    
+    vnormals:
+      NatV[][3] - 2-rank numpy array of normals at vertices
+ 
+    vnormgrads:
+      GatV[]  - 1-rank numpy array of norms of the gradients at central points
+ 
+    triangles:
+      T[][3]    - 2-rank numpy array of 3 indices of vertices 
+                composing triangles of the mesh aka connectivity matrix
+    
+    tnormals:
+      NatT[][3] - 2-rank numpy array of normals of triangles
+  
+    areas:
+      A[]       - 1-rank numpy array of areas of triangles
+    
+    area:
+      area      - area of triangles of mesh
+    
+    volume:
+      volume    - volume of body enclosed by triangular mesh
+      
+    centers:
+      C[][3]    - 2-rank numpy array of central points of triangles
+                  central points is  barycentric points projected to 
+                  Roche lobes
+    cnormals:
+      NatC[][3]   - 2-rank numpy array of normals of central points
+ 
+    cnormgrads:
+      GatC[]      - 1-rank numpy array of norms of the gradients at central points
+    
+    
+  Typically face-vertex format is (V, T) where
+  
+    V - vertices
+    T - connectivity matrix with indices labeling vertices in 
+        counter-clockwise orientation so that normal vector is pointing 
+        outward
+  
+  Refs:
+  * for face-vertex format see https://en.wikipedia.org/wiki/Polygon_mesh
+  * http://docs.scipy.org/doc/numpy-1.10.1/reference/arrays.ndarray.html
+  * http://docs.scipy.org/doc/numpy/reference/c-api.array.html#creating-arrays
+  * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
+  * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
+*/
+
+static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "misaligned_marching_mesh";
+  
+  //
+  // Reading arguments
+  //
+
+ char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"theta",
+    (char*)"Omega0",
+    (char*)"delta",
+    (char*)"choice",
+    (char*)"max_triangles",
+    (char*)"full",
+    (char*)"vertices", 
+    (char*)"vnormals",
+    (char*)"vnormgrads",
+    (char*)"triangles", 
+    (char*)"tnormals", 
+    (char*)"centers", 
+    (char*)"cnormals",
+    (char*)"cnormgrads",
+    (char*)"areas",
+    (char*)"area",
+    (char*)"volume",
+    (char*)"init_phi",
+    NULL};
+  
+  double q, F, d, theta, Omega0, delta, 
+          init_phi = 0;   
+  
+  int choice = 0,               
+      max_triangles = 10000000; // 10^7
+      
+  bool
+    b_full = false,
+    b_vertices = false, 
+    b_vnormals = false, 
+    b_vnormgrads = false,
+    b_triangles = false, 
+    b_tnormals = false, 
+    b_centers = false,
+    b_cnormals = false,
+    b_cnormgrads = false,
+    b_areas = false,
+    b_area = false,
+    b_volume = false;
+    
+  // http://wingware.com/psupport/python-manual/2.3/api/boolObjects.html
+  PyObject
+    *o_full = 0,
+    *o_vertices = 0, 
+    *o_vnormals = 0, 
+    *o_vnormgrads = 0,
+    *o_triangles = 0, 
+    *o_tnormals = 0, 
+    *o_centers = 0,
+    *o_cnormals = 0,
+    *o_cnormgrads = 0,
+    *o_areas = 0,
+    *o_area = 0,
+    *o_volume = 0;
+
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "dddddd|iiO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
+      &q, &F, &d, &theta, &Omega0, &delta,  // neccesary 
+      &choice,                              // optional ...
+      &max_triangles,
+      &PyBool_Type, &o_full,
+      &PyBool_Type, &o_vertices, 
+      &PyBool_Type, &o_vnormals,
+      &PyBool_Type, &o_vnormgrads,
+      &PyBool_Type, &o_triangles, 
+      &PyBool_Type, &o_tnormals,
+      &PyBool_Type, &o_centers,
+      &PyBool_Type, &o_cnormals,
+      &PyBool_Type, &o_cnormgrads,
+      &PyBool_Type, &o_areas,
+      &PyBool_Type, &o_area,
+      &PyBool_Type, &o_volume,
+      &init_phi
+      )) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  if (o_full) b_full = PyObject_IsTrue(o_full);
+  if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
+  if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
+  if (o_vnormgrads) b_vnormgrads = PyObject_IsTrue(o_vnormgrads);
+  if (o_triangles) b_triangles = PyObject_IsTrue(o_triangles);
+  if (o_tnormals)  b_tnormals = PyObject_IsTrue(o_tnormals);
+  if (o_centers) b_centers = PyObject_IsTrue(o_centers);
+  if (o_cnormals) b_cnormals = PyObject_IsTrue(o_cnormals);
+  if (o_cnormgrads) b_cnormgrads = PyObject_IsTrue(o_cnormgrads);
+  if (o_areas) b_areas = PyObject_IsTrue(o_areas);
+  if (o_area) b_area = PyObject_IsTrue(o_area);
+  if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+     
+  //
+  // Storing results in dictioonary
+  // https://docs.python.org/2/c-api/dict.html
+  //
+  PyObject *results = PyDict_New();
+  
+  
+  if (choice < 0 || choice > 2){
+    std::cerr << fname << "::This choice is not supported\n"; 
+    return NULL;
+  }
+    
+  //
+  // Choosing the meshing initial point 
+  //
+  
+  double r[3], g[3];
+  
+  if (!misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta)){
+    std::cerr << fname << "::Determining initial meshing point failed\n";
+    return NULL;
+  }
+  
+  //
+  //  Marching triangulation of the Roche lobe 
+  //
+    
+  double params[] = {q, F, d, theta, Omega0};
+  
+  #if 0
+  std::cerr.precision(16);
+  std::cerr 
+    << "q=" << q
+    << " F=" << F
+    << " d=" << d
+    << " theta=" << theta
+    << " Omega0=" << Omega0 
+    << " delta=" << delta << '\n';
+  #endif
+    
+  Tmarching<double, Tmisaligned_roche<double>> march(params);  
+  
+  std::vector<T3Dpoint<double>> V, NatV;
+  std::vector<T3Dpoint<int>> Tr; 
+  std::vector<double> *GatV = 0;
+     
+  if (b_vnormgrads) GatV = new std::vector<double>;
+  
+  
+  if ((b_full ? 
+       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      )){
+    std::cerr << fname << "::There are too many triangles\n";
+    return NULL;
+  }
+  
+  #if 0
+  std::cerr 
+    << "V.size=" << V.size() 
+    << " Tr.size=" << Tr.size() << '\n';
+  #endif
+  
+  //
+  // Calculte the mesh properties
+  //
+  int vertex_choice = 0;
+  
+  double 
+    area, volume, 
+    *p_area = 0, *p_volume = 0;
+  
+  std::vector<double> *A = 0; 
+  
+  std::vector<T3Dpoint<double>> *NatT = 0;
+  
+  if (b_areas) A = new std::vector<double>;
+  
+  if (b_area) p_area = &area;
+  
+  if (b_tnormals) NatT = new std::vector<T3Dpoint<double>>;
+  
+  if (b_volume) p_volume = &volume;
+   
+  mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
+ 
+  //
+  // Calculte the central points
+  // 
+
+  std::vector<double> *GatC = 0;
+  
+  std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
+  
+  if (b_centers) C = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
+ 
+  if (b_cnormgrads) GatC = new std::vector<double>;
+ 
+ 
+  march.central_points(V, Tr, C, NatC, GatC);
+  
   
   if (b_vertices)
     PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
@@ -5027,7 +6032,9 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
 */
 
 static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
-
+  
+  const char *fname = "roche_horizon";
+  
   //
   // Reading arguments
   //
@@ -5059,7 +6066,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
       &q, &F, &d, &Omega0,
       &length,
       &choice)){
-    std::cerr << "roche_horizon::Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
@@ -5074,7 +6081,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
   //
   if (!gen_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, max_iter)) {
     std::cerr 
-    << "roche_horizon::Convergence to the point on horizon failed\n";
+    << fname << "::Convergence to the point on horizon failed\n";
     return NULL;
   }
   
@@ -5098,7 +6105,7 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
  
   if (!horizon.calc(H, view, p, dt)) {
    std::cerr 
-    << "roche_horizon::Convergence to the point on horizon failed\n";
+    << fname << "::Convergence to the point on horizon failed\n";
     return NULL;
   }
 
@@ -5130,7 +6137,9 @@ static PyObject *roche_horizon(PyObject *self, PyObject *args, PyObject *keywds)
 */
 
 static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
-
+  
+  const char *fname = "rotstar_horizon";
+  
   //
   // Reading arguments
   //
@@ -5155,7 +6164,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
       &PyArray_Type, &oV, 
       &omega, &Omega0,
       &length)){
-    std::cerr << "rotstar_horizon::Problem reading arguments\n";
+    std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
 
@@ -5170,7 +6179,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
   //
   if (!rot_star::point_on_horizon(p, view, Omega0, omega)) {
     std::cerr 
-    << "rotstar_horizon::Convergence to the point on horizon failed\n";
+    << fname << "::Convergence to the point on horizon failed\n";
     return NULL;
   }
   
@@ -5190,12 +6199,123 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
  
   if (!horizon.calc(H, view, p, dt)) {
    std::cerr 
-    << "rotstar_horizon::Convergence to the point on horizon failed\n";
+    << fname << "::Convergence to the point on horizon failed\n";
     return NULL;
   }
 
   return PyArray_From3DPointVector(H);
 }
+
+/*
+  C++ wrapper for Python code:
+
+    Calculating the horizon on the generalied Roche lobes with 
+    misaligned spin and orbit angular velocity vectors.
+    
+  Python:
+
+    H = misaligned_horizon(v, q, F, d, theta, Omega0, <keywords>=<value>)
+    
+  with arguments
+  
+  positionals: necessary
+    v[3] - 1-rank numpy array of floats: direction of the viewer  
+    q: float = M2/M1 - mass ratio
+    F: float - synchronicity parameter
+    d: float - separation between the two objects
+    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    Omega0: float - value of the generalized Kopal potential
+  
+  keywords:
+    length: integer, default 1000, 
+      approximate number of points on a horizon
+    choice: interr, default 0:
+      0 - searching a point on left lobe
+      1 - searching a point on right lobe
+      2 - searching a point for overcontact case
+  Return: 
+    H: 2-rank numpy array of 3D point on a horizon
+*/
+
+static PyObject *misaligned_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "misaligned_horizon";
+  
+  //
+  // Reading arguments
+  //
+
+  char *kwlist[] = {
+    (char*)"v",
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"theta",
+    (char*)"Omega0",
+    (char*)"length",
+    (char*)"choice",
+    NULL
+  };
+  
+  PyArrayObject *oV;
+  
+  double q, F, d, theta, Omega0;   
+    
+  int 
+    length = 1000,
+    choice  = 0,
+    max_iter = 100;
+  
+  
+  if (!PyArg_ParseTupleAndKeywords(
+      args, keywds,  "O!ddddd|ii", kwlist,
+      &PyArray_Type, &oV, 
+      &q, &F, &d, &theta, &Omega0,
+      &length, &choice)){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double 
+    params[] = {q, F, d, theta, Omega0},
+    *view = (double*) PyArray_DATA(oV);
+  
+  double p[3];
+  
+  //
+  //  Find a point on horizon
+  //
+  if (!misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter)) {
+    std::cerr << fname << "::Convergence to the point on horizon failed\n";
+    return NULL;
+  }
+  
+  //
+  // Estimate the step
+  //
+  double dt = 0; 
+  
+  if (choice == 0 || choice == 1)
+    dt = utils::m_2pi*utils::hypot3(p)/length;
+  else
+    dt = 2*utils::m_2pi*utils::hypot3(p)/length;
+  
+  //
+  //  Find the horizon
+  //
+  
+  Thorizon<double, Tmisaligned_roche<double>> horizon(params);
+    
+  std::vector<T3Dpoint<double>> H;
+ 
+  if (!horizon.calc(H, view, p, dt)) {
+   std::cerr << fname << "::Convergence to the point on horizon failed\n";
+    return NULL;
+  }
+
+  return PyArray_From3DPointVector(H);
+}
+
 
 
 /*
@@ -6786,6 +7906,13 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the height of the pole of sphere for given a R."},
 
+  { "misaligned_pole", 
+    (PyCFunction)misaligned_pole,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the postion of the pole of generalized Roche lobes with "
+    "misaligned angular spin-orbital angular velocity vectors for given "
+    "values of q, F, d, theta and Omega0"},
+
 // --------------------------------------------------------------------
   { "rotstar_from_roche", 
     (PyCFunction)rotstar_from_roche,   
@@ -6811,7 +7938,14 @@ static PyMethodDef Methods[] = {
     (PyCFunction)sphere_area_volume,   
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the area and volume of the sphere for given a R."},
-    
+
+  { "misaligned_area_volume", 
+    (PyCFunction)misaligned_area_volume,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the area and volume of the generalized Roche lobes with "
+    "misaligned spin and orbtal angular velocity vectors for given "
+    "values of q, F, d, theta and Omega0."},
+        
 // --------------------------------------------------------------------
  
   { "roche_Omega_at_vol", 
@@ -6826,6 +7960,14 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the value of the rotating star potential at "
     "values of omega and volume."},
+    
+   { "misaligned_Omega_at_vol", 
+    (PyCFunction)misaligned_Omega_at_vol,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the value of the generalized Kopal potential of "
+    "Roche lobes with with misaligned spin and orbtal angular "
+    "velocity vectors at values of q, F, d, theta and volume."},
+     
 // --------------------------------------------------------------------
 
   { "roche_gradOmega", 
@@ -6834,18 +7976,31 @@ static PyMethodDef Methods[] = {
     "Calculate the gradient and the value of the generalized Kopal potentil"
     " at given point [x,y,z] for given values of q, F and d."},  
 
-    { "rotstar_gradOmega", 
+  { "rotstar_gradOmega", 
     rotstar_gradOmega,   
     METH_VARARGS, 
     "Calculate the gradient and the value of the rotating star potential"
     " at given point [x,y,z] for given values of omega."},  
+
+  { "sphere_gradOmega", 
+    sphere_gradOmega,   
+    METH_VARARGS, 
+    "Calculate the gradient of the potential of the sphere"
+    " at given point [x,y,z]."},  
+
+  { "misaligned_gradOmega", 
+    misaligned_gradOmega,   
+    METH_VARARGS, 
+    "Calculate the gradient of the generalized Kopal potential with "
+    " misaligned angular momenta at given point [x,y,z] for given "
+    " values of q, F, d and theta"},  
 
 // --------------------------------------------------------------------
 
   { "roche_Omega", 
     roche_Omega,   
     METH_VARARGS, 
-    "Calculate the value of the generalized Kopal potentil"
+    "Calculate the value of the generalized Kopal potential"
     " at given point [x,y,z] for given values of q, F and d."},  
 
   { "rotstar_Omega", 
@@ -6860,12 +8015,12 @@ static PyMethodDef Methods[] = {
     "Calculate the value of the potential of the sphere "
     " at given point [x,y,z]."},  
 
-
-  { "sphere_gradOmega", 
-    sphere_gradOmega,   
+  { "misaligned_Omega", 
+    misaligned_Omega,   
     METH_VARARGS, 
-    "Calculate the gradient of the potential of the sphere"
-    " at given point [x,y,z]."},  
+    "Calculate the value of the generalized Kopal potential with "
+    " misaligned angular velocity vectors at given point [x,y,z] for given "
+    " values of q, F, d and theta"}, 
     
 // --------------------------------------------------------------------
     
@@ -6886,6 +8041,13 @@ static PyMethodDef Methods[] = {
     METH_VARARGS, 
     "Calculate the gradient of the potential of the sphere"
     " at given point [x,y,z]."},  
+
+  { "misaligned_gradOmega_only", 
+    misaligned_gradOmega_only,   
+    METH_VARARGS, 
+    "Calculate the gradient of the generalized Kopal potential with "
+    " misaligned angular momenta at given point [x,y,z] for given "
+    " values of q, F, d and theta"},   
 
 // --------------------------------------------------------------------
   
@@ -6909,6 +8071,14 @@ static PyMethodDef Methods[] = {
     "Determine the triangular meshing of a sphere for given radius R."
     "The edge of triangles used in the mesh are approximately delta."},
 
+  { "misaligned_marching_mesh", 
+    (PyCFunction)misaligned_marching_mesh,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the triangular meshing of generalized Roche lobes with " 
+    "misaligned spin and orbital angular velocity vectors for "
+    "given values of q, F, d, theta and value of the generalized Kopal potential "
+    "Omega0. The edge of triangles used in the mesh are approximately delta."},
+    
 // --------------------------------------------------------------------    
   
   { "mesh_visibility",
@@ -6992,6 +8162,13 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Calculating the horizon on the rotating star defined by view direction,"
     "omega, and the value of the potential"},
+    
+  { "misaligned_horizon",
+    (PyCFunction)misaligned_horizon,
+    METH_VARARGS|METH_KEYWORDS, 
+    "Calculating the horizon on the Roche lobe with misaligned spin and orbital "
+    "angular velocity vectors defined by the view direction,"
+    "q,F,d, theta and the value of generalized Kopal potential Omega."},
 
 // --------------------------------------------------------------------
   { "roche_xrange",
