@@ -25,6 +25,10 @@ import matplotlib
 if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
     matplotlib.use('Agg')
 
+import logging
+_logger = logging.getLogger("PHOEBE")
+_logger.addHandler(logging.NullHandler())
+
 class Settings(object):
     def __init__(self):
         # Check to see whether in interactive mode
@@ -32,7 +36,11 @@ class Settings(object):
         # hasattr(__main__, '__file__') will be True if running a python script, but
         # false if in a python or ipython interpreter.
         # sys.flags.interactive will be 1 if the -i flag is sent to python
-        self._interactive = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
+
+        # For now we'll set interactive mode to True by default, requiring it to
+        # explicitly be disabled.  See #154 (https://github.com/phoebe-project/phoebe2/issues/154)
+        # self._interactive = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
+        self._interactive = True
 
         # Check to see whether developer/testing mode is enabled.
         self._devel = os.path.isfile(os.path.expanduser('~/.phoebe_devel_enabled'))
@@ -43,6 +51,8 @@ class Settings(object):
         self._interactive = True
 
     def interactive_off(self):
+        _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
+
         self._interactive = False
 
     @property
