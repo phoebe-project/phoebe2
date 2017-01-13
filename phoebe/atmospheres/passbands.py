@@ -127,24 +127,33 @@ class Passband:
         ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
         self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
 
-        # Spline fit to the passband transmission function table:
+        # Working (optionally oversampled) wavelength array:
+        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+
+        # Spline fit to the energy-weighted passband transmission function table:
         self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+        self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
 
-        # Working wavelength array:
-        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+        # Spline fit to the photon-weighted passband transmission function table:
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0)
+        self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
+        self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
     def save(self, archive):
         struct = dict()
 
-        struct['content']       = self.content
-        struct['pbset']         = self.pbset
-        struct['pbname']        = self.pbname
-        struct['effwl']         = self.effwl
-        struct['calibrated']    = self.calibrated
-        struct['ptf_table']     = self.ptf_table
-        struct['ptf_func']      = self.ptf_func
-        struct['ptf_wl']        = self.wl
+        struct['content']         = self.content
+        struct['pbset']           = self.pbset
+        struct['pbname']          = self.pbname
+        struct['effwl']           = self.effwl
+        struct['calibrated']      = self.calibrated
+        struct['ptf_table']       = self.ptf_table
+        struct['ptf_wl']          = self.wl
+        struct['ptf_func']        = self.ptf_func
+        struct['ptf_area']        = self.ptf_area
+        struct['ptf_photon_func'] = self.ptf_photon_func
+        struct['ptf_photon_area'] = self.ptf_photon_area
         if 'blackbody' in self.content:
             struct['_bb_func_energy'] = self._bb_func_energy
             struct['_bb_func_photon'] = self._bb_func_photon
@@ -190,6 +199,20 @@ class Passband:
         self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
         self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
         self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
+        #~ self.ptf_area = struct['ptf_area']
+        #~ self.ptf_photon_area = struct['ptf_photon_area']
+
+        self.ptf_func = list(struct['ptf_func'])
+        self.ptf_func[0] = np.fromstring(self.ptf_func[0])
+        self.ptf_func[1] = np.fromstring(self.ptf_func[1])
+        self.ptf_func = tuple(self.ptf_func)
+        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+
+        #~ self.ptf_photon_func = list(struct['ptf_photon_func'])
+        #~ self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
+        #~ self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
+        #~ self.ptf_photon_func = tuple(self.ptf_photon_func)
+        #~ self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
         if 'blackbody' in self.content:
             self._bb_func_energy = list(struct['_bb_func_energy'])
@@ -203,12 +226,6 @@ class Passband:
             self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
             self._bb_func_photon = tuple(self._bb_func_photon)
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
-
-        self.ptf_func = list(struct['ptf_func'])
-        self.ptf_func[0] = np.fromstring(self.ptf_func[0])
-        self.ptf_func[1] = np.fromstring(self.ptf_func[1])
-        self.ptf_func = tuple(self.ptf_func)
-        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -252,21 +269,55 @@ class Passband:
         return self
 
     def _planck(self, lam, Teff):
+        """
+        Computes monochromatic blackbody intensity in W/m^3 using the
+        Planck function.
+        
+        @lam: wavelength in m
+        @Teff: effective temperature in K
+        
+        Returns: monochromatic blackbody intensity
+        """
+        
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
 
-    def _photplanck(self, lam, Teff):
-        return 2*self.c/lam**4 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
-
     def _bb_intensity(self, Teff, photon_weighted=False):
+        """
+        Computes mean passband intensity using blackbody atmosphere:
+        
+        I_pb^E = \int_\lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
+        I_pb^P = \int_\lambda \lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
+        
+        Superscripts E and P stand for energy and photon, respectively.
+        
+        @Teff: effective temperature in K
+        @photon_weighted: photon/energy switch
+        
+        Returns: mean passband intensity using blackbody atmosphere.
+        """
+        
         if photon_weighted:
-            pb = lambda w: self._photplanck(w, Teff)*self.ptf(w)
+            pb = lambda w: w*self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_photon_area
         else:
             pb = lambda w: self._planck(w, Teff)*self.ptf(w)
-        return integrate.quad(pb, self.wl[0], self.wl[-1])[0]
+            return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
     def compute_blackbody_response(self, Teffs=None):
+        """
+        Computes blackbody intensities across the entire range of
+        effective temperatures.
+        
+        @Teffs: an array of effective temperatures. If None, a default
+        array from ~300K to ~500000K with 97 steps is used. The default
+        array is uniform in log10 scale.
+        
+        Returns: n/a
+        """
+
         if Teffs == None:
-            Teffs = np.linspace(3500, 50000, 100)
+            log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
+            Teffs = 10**log10Teffs
 
         # Energy-weighted intensities:
         log10ints_energy = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=False)) for Teff in Teffs])
@@ -274,13 +325,24 @@ class Passband:
         self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
 
         # Photon-weighted intensities:
-        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=True )) for Teff in Teffs])
+        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=True)) for Teff in Teffs])
         self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         self.content.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
+        """
+        Computes Castelli & Kurucz (2004) intensities across the entire
+        range of model atmospheres.
+        
+        @path: path to the directory containing ck2004 SEDs
+        @verbose: switch to determine whether computing progress should
+        be printed on screen
+        
+        Returns: n/a
+        """
+
         models = glob.glob(path+'/*M1.000*')
         Nmodels = len(models)
 
@@ -291,7 +353,7 @@ class Passband:
         InormE, InormP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
-            print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing Castelli & Kurucz (2004) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
             #~ spc = np.loadtxt(model).T -- waaay slower
@@ -308,8 +370,8 @@ class Passband:
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
             flP = fl*wl
-            InormE[i] = np.log10(fl.sum())-10    # -10 because dlambda = 1AA when we integrate by summing
-            InormP[i] = np.log10(flP.sum())+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
+            InormE[i] = np.log10(fl.sum()/self.ptf_area)-10          # energy-weighted intensity; -10 because dlambda = 1AA when we integrate by summing
+            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area)-10  # photon-weighted intensity
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -404,8 +466,8 @@ class Passband:
             boostE = (flE*boosting_index).sum()/flEint
             boostP = (flP*boosting_index).sum()/flPint
 
-            ImuE[i] = np.log10(flEint)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
-            ImuP[i] = np.log10(flPint)+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
+            ImuE[i] = np.log10(flEint/self.ptf_area)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
+            ImuP[i] = np.log10(flPint/self.ptf_photon_area)-10 # photon-weighted intensity
             boostingE[i] = boostE
             boostingP[i] = boostP
 
@@ -716,11 +778,11 @@ class Passband:
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
         elif atm == 'extern_planckint':
-            # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
-            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
+            # 10^-8 below is for A -> cm:
+            retval = 10**(self._log10_Inorm_extern_planckint(Teff))
         elif atm == 'extern_atmx':
-            # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
-            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
+            # 10^-8 below is for A -> cm:
+            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun))
         elif atm == 'ck2004':
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
