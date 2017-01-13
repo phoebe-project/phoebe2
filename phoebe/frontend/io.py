@@ -394,6 +394,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
 
+
+# check to see if reflection is on
+
+    ref_effect = np.int(params[:,1][list(params[:,0]).index('phoebe_reffect_switch')])
+
+    if ref_effect == 0:
+
+        params[:,1][list(params[:,0]).index('phoebe_reffect_reflections')] = 0
+        logger.warning('Phoebe Legacy reflection effect switch is set to false so refl_num is being set to 0.')
+        
     if not add_compute_legacy:
         params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)
 
