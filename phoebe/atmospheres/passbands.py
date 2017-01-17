@@ -391,8 +391,19 @@ class Passband:
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('ck2004')
 
-    def compute_ck2004_intensities(self, path, verbose=False):
+    def compute_ck2004_intensities(self, path, particular=None, verbose=False):
+        """
+        Computes direction-dependent passband intensities using Castelli
+        & Kurucz (2004) model atmospheres.
+        
+        @path: path to the directory with SEDs
+        @particular: particular file in @path to be processed; if None,
+                     all files in the directory are processed.
+        @verbose: set to True to display progress in the terminal.
+        """
         models = os.listdir(path)
+        if particular != None:
+            models = [particular]
         Nmodels = len(models)
 
         # Store the length of the filename extensions for parsing:
@@ -444,7 +455,14 @@ class Passband:
                 envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
                 continuum = np.polynomial.legendre.legval(lnwl, envelope)
                 diff = lnfl-continuum
-                clipped = (diff > -sigma)
+
+                # clipping will sometimes unclip already clipped points
+                # because the fit is slightly different, which can lead
+                # to infinite loops. To prevent that, we never allow
+                # clipped points to be resurrected, which is achieved
+                # by the following bitwise condition (array comparison):
+                clipped = clipped & (diff > -sigma)
+
                 if clipped.sum() == Npts:
                     break
 
