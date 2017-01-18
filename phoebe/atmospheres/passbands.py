@@ -428,8 +428,7 @@ class Passband:
             abun[i] = sign*float(model[-8-offset:-6-offset])/10
             mu[i] = float(model[-5-offset:-offset])
 
-            # trim the spectrum at passband limits
-
+            # trim the spectrum at passband limits:
             keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             wl = spc[0][keep]
             fl = spc[1][keep]
@@ -437,10 +436,11 @@ class Passband:
             # make a log-scale copy for boosting and fit a Legendre
             # polynomial to the Imu envelope by way of sigma clipping;
             # then compute a Legendre series derivative to get the
-            # boosting index.
+            # boosting index; we only take positive fluxes to keep the
+            # log well defined.
 
-            lnwl = np.log(wl)
-            lnfl = np.log(fl) + 5*lnwl
+            lnwl = np.log(wl[fl > 0])
+            lnfl = np.log(fl[fl > 0]) + 5*lnwl
 
             # First Legendre fit to the data:
             envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
@@ -481,8 +481,8 @@ class Passband:
             # boosting factors for energy (E) and photon (P) weighted
             # fluxes.
 
-            boostE = (flE*boosting_index).sum()/flEint
-            boostP = (flP*boosting_index).sum()/flPint
+            boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+            boostP = (flP[fl > 0]*boosting_index).sum()/flPint
 
             ImuE[i] = np.log10(flEint/self.ptf_area)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
             ImuP[i] = np.log10(flPint/self.ptf_photon_area)-10 # photon-weighted intensity
