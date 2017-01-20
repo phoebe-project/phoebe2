@@ -4058,7 +4058,7 @@ static PyObject *mesh_visibility(PyObject *self, PyObject *args, PyObject *keywd
   }
   
   if (b_taweights) {
-    PyDict_SetItemStringStealRef(results,"misaligned_transftaweights", PyArray_From3DPointVector(*W));
+    PyDict_SetItemStringStealRef(results,"taweights", PyArray_From3DPointVector(*W));
     delete W; 
   }
 
