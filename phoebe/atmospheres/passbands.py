@@ -199,8 +199,8 @@ class Passband:
         self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
         self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
         self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
-        #~ self.ptf_area = struct['ptf_area']
-        #~ self.ptf_photon_area = struct['ptf_photon_area']
+        self.ptf_area = struct['ptf_area']
+        self.ptf_photon_area = struct['ptf_photon_area']
 
         self.ptf_func = list(struct['ptf_func'])
         self.ptf_func[0] = np.fromstring(self.ptf_func[0])
@@ -208,11 +208,11 @@ class Passband:
         self.ptf_func = tuple(self.ptf_func)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
-        #~ self.ptf_photon_func = list(struct['ptf_photon_func'])
-        #~ self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
-        #~ self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
-        #~ self.ptf_photon_func = tuple(self.ptf_photon_func)
-        #~ self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
+        self.ptf_photon_func = list(struct['ptf_photon_func'])
+        self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
+        self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
+        self.ptf_photon_func = tuple(self.ptf_photon_func)
+        self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
         if 'blackbody' in self.content:
             self._bb_func_energy = list(struct['_bb_func_energy'])
@@ -796,11 +796,11 @@ class Passband:
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
         elif atm == 'extern_planckint':
-            # 10^-8 below is for A -> cm:
-            retval = 10**(self._log10_Inorm_extern_planckint(Teff))
+            # -1 below is for cgs -> SI:
+            retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
         elif atm == 'extern_atmx':
-            # 10^-8 below is for A -> cm:
-            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun))
+            # -1 below is for cgs -> SI:
+            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
         elif atm == 'ck2004':
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
