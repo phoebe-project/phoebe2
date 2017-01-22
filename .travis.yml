@@ -85,7 +85,7 @@ before_install:
     - rvm get head
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then 
         brew update;
-        brew install gcc coreutils gnu-sed gtk libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util;
+        brew install gcc gnu-sed gtk libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util;
       fi;
 
 install:
