@@ -241,9 +241,8 @@ struct Theart {
 template <class T>
 struct Tgen_roche {
   
-  T q, F, delta, Omega0, x0, 
+  T q, F, delta, Omega0, 
     b, f0; // derived constants
-  
   
   Tgen_roche() {}
   

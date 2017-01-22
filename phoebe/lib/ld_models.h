@@ -17,12 +17,22 @@
     
     dOmega = sin(theta) dtheta dphi
   
+  Supporting:
   
+    * 'uniform': D(mu) = 1
+    * 'linear':  D(mu) = 1 - x*(1 - mu)
+    * 'quadratic': D(mu) = 1 - x(1 - mu) - y(1 - mu)^2 
+    * 'nonlinear': D(mu) = 1 - x(1 - mu) - y (1 - mu)^p
+    * 'logarithmic': D(mu) = 1 - x*(1-mu) - y*mu*log(mu)
+    * 'square_root': D(mu) = 1 - x(1 - mu) - y(1 - sqrt(mu))
+    * 'power' ~ claret: 
+      D(mu) = 1 - a0(1 - mu^(1/2)) - a1(1 - mu) - a2(1-mu^(3/2)) - a3(1 - mu^2)
+
   Author: Martin Horvat, August 2016
   
   Ref:
 
-  * Claret, A., Diaz-Cordoves, J., & Gimenez, A., Linear and non-linear limb-darkening coefficients for the photometric bands R I J H K.Astronomy and Astrophysics Supplement, v.114, p.247, 1995.
+  * Claret, A., Diaz-Cordoves, J., & Gimenez, A., Linear and non-linear limb-darkening coefficients for the photometric bands R I J H K. Astronomy and Astrophysics Supplement, v.114, p.247, 1995.
 
   * Claret, A., 2000, A&A, 363, 1081 
 
@@ -44,7 +54,7 @@ enum TLDmodel_type {
   NONLINEAR,
   LOGARITHMIC,
   SQUARE_ROOT,
-  CLARET,
+  POWER,
   NONE
 };
 
@@ -71,7 +81,7 @@ struct TLDmodel {
 
 
 // Uniform limb darkening == plain Labertian (0 parameter)
-// D(x) = 1
+// D(mu) = 1
 template <class T>
 struct TLDuniform: TLDmodel<T> {
   
@@ -90,7 +100,7 @@ struct TLDuniform: TLDmodel<T> {
 };
   
 // Linear limb darkening (1 parameter)
-// D(x) = 1 - x*(1 - mu)
+// D(mu) = 1 - x*(1 - mu)
 template <class T> 
 struct TLDlinear : TLDmodel<T> {
   
@@ -115,7 +125,7 @@ struct TLDlinear : TLDmodel<T> {
 };
 
 // Quadratic limb darkening (2 parameter)  
-// D(x) = 1 - x(1 - mu) - y(1 - mu)^2  
+// D(mu) = 1 - x(1 - mu) - y(1 - mu)^2  
 template <class T>  
 struct TLDquadratic: TLDmodel<T> {
   
@@ -147,8 +157,8 @@ struct TLDquadratic: TLDmodel<T> {
 };
 
 // Nonlinear limb darkening (3 parameters)
-// aka power limb darkening
-// D(x) = 1 - x(1 - mu) - y (1 - mu)^p
+// sometimes called power limb darkening
+// D(mu) = 1 - x(1 - mu) - y (1 - mu)^p
 template <class T>  
 struct TLDnonlinear: TLDmodel<T> {
   
@@ -194,11 +204,11 @@ struct TLDnonlinear: TLDmodel<T> {
 };
 
 // Logarithmic limb darkening (2 parameters)
-// D(x) = 1 - x*(1-mu) - y*mu*log(mu)
+// D(mu) = 1 - x*(1-mu) - y*mu*log(mu)
 template <class T>
 struct TLDlogarithmic: TLDmodel<T> {
   
-  T x, y; 
+  T x, y;
 
   TLDlogarithmic(const T *p) : x(p[0]), y(p[1]) {
     setup();
@@ -227,7 +237,7 @@ struct TLDlogarithmic: TLDmodel<T> {
 
 
 // Square-root limb darkening (2 parameters)
-// D(x) = 1 - x(1 - mu) - y(1 - sqrt(mu))
+// D(mu) = 1 - x(1 - mu) - y(1 - sqrt(mu))
 template <class T>
 struct TLDsquare_root: TLDmodel<T> {
 
@@ -261,26 +271,26 @@ struct TLDsquare_root: TLDmodel<T> {
   }
 };
 
-// Claret's limb darkening (4 parameters)
-// D(x) = 1 - a[0](1 - mu^(1/2)) - a[1](1 - mu) - a[2] (1-mu^(3/2)) - a[3] (1 - mu^2)
+// Claret's or Power limb darkening (4 parameters)
+// D(mu) = 1 - a[0](1 - mu^(1/2)) - a[1](1 - mu) - a[2] (1-mu^(3/2)) - a[3] (1 - mu^2)
 template <class T>
-struct TLDclaret: TLDmodel<T> {
+struct TLDpower: TLDmodel<T> {
 
   T a[4];
 
-  TLDclaret(T *p) {    
+  TLDpower(T *p) {    
     for (int i = 0; i < 4; ++i) a[i] = p[i];
     setup();
   }
 
-  TLDclaret(const T &a0, const T &a1, const T &a2, const T &a3)
+  TLDpower(const T &a0, const T &a1, const T &a2, const T &a3)
   : a{a0, a1, a2, a3} {
     setup();
   }
   
   void setup(){
     this->D0 = utils::m_pi*(1 - (42*a[0] + 70*a[1] + 90*a[2] + 105*a[3])/210);
-    this->type = CLARET;
+    this->type = POWER;
     this->nr_par = 4;
   }
   
@@ -351,7 +361,7 @@ namespace LD {
         return 1 - p[0]*(1 - mu) - p[1]*mu*std::log(mu);
       case SQUARE_ROOT: 
         return 1 - p[0]*(1 - mu) - p[1]*(1 - std::sqrt(mu));
-      case CLARET:
+      case POWER:
       {
         T q = std::sqrt(mu);
         return 1 - p[0]*(1 - q) - p[1]*(1 - mu) - p[2]*(1 - mu*q) - p[3]*(1 - mu*mu); 
@@ -380,13 +390,20 @@ namespace LD {
   T D0(TLDmodel_type choice, T *p) {
     
     switch (choice){
-      case UNIFORM: return utils::m_pi;
-      case LINEAR: return utils::m_pi*(1 - p[0]/3);
-      case QUADRATIC: return utils::m_pi*(1 - p[0]/3 - p[1]/6);
-      case NONLINEAR: return utils::m_pi*(1 - p[0]/3 - p[1]/(1 + p[2]*(3 + p[2])/2));
-      case LOGARITHMIC: return utils::m_pi*(1 - p[0]/3  + 2*p[1]/9);
-      case SQUARE_ROOT: return utils::m_pi*(1 - p[0]/3 - p[1]/5);
-      case CLARET: return utils::m_pi*(1 - (42*p[0] + 70*p[1] + 90*p[2] + 105*p[3])/210);
+      case UNIFORM: 
+        return utils::m_pi;
+      case LINEAR: 
+        return utils::m_pi*(1 - p[0]/3);
+      case QUADRATIC:
+        return utils::m_pi*(1 - p[0]/3 - p[1]/6);
+      case NONLINEAR:
+        return utils::m_pi*(1 - p[0]/3 - p[1]/(1 + p[2]*(3 + p[2])/2));
+      case LOGARITHMIC:
+        return utils::m_pi*(1 - p[0]/3  + 2*p[1]/9);
+      case SQUARE_ROOT:
+        return utils::m_pi*(1 - p[0]/3 - p[1]/5);
+      case POWER: 
+        return utils::m_pi*(1 - (42*p[0] + 70*p[1] + 90*p[2] + 105*p[3])/210);
       default:
         std::cerr << "LD::D0::This model is not supported\n";
         return std::nan("");
@@ -412,7 +429,7 @@ namespace LD {
       case NONLINEAR: return 3;
       case LOGARITHMIC: return 2;
       case SQUARE_ROOT: return 2;
-      case CLARET: return 4;
+      case POWER: return 4;
       case NONE: return -1;
     }
     
@@ -440,7 +457,7 @@ namespace LD {
       case "nonlinear"_hash32: return NONLINEAR;
       case "logarithmic"_hash32: return LOGARITHMIC;
       case "square_root"_hash32: return SQUARE_ROOT;
-      case "claret"_hash32: return CLARET;
+      case "power"_hash32: return POWER;
       
       default:
         std::cerr << "LD::type::This model is not supported\n";
@@ -468,16 +485,27 @@ namespace LD {
     
     switch (choice){
       case UNIFORM: break;
-      case LINEAR: g[0] = mu - 1; break;
-      case QUADRATIC: g[0] = mu - 1; g[1] = -g[0]*g[0]; break;
+      case LINEAR: 
+        g[0] = mu - 1; 
+        break;
+      case QUADRATIC:
+        g[0] = mu - 1;
+        g[1] = -g[0]*g[0]; 
+        break;
       case NONLINEAR:
         g[0] = mu - 1; 
         g[1] = -std::pow(-g[0], p[2]); 
         g[2] = p[1]*g[1]*std::log(-g[0]);
-      break;
-      case LOGARITHMIC: g[0] = mu - 1; g[1] = -mu*std::log(mu); break;
-      case SQUARE_ROOT: g[0] = mu - 1; g[1] = std::sqrt(mu) - 1; break;
-      case CLARET: 
+        break;
+      case LOGARITHMIC: 
+        g[0] = mu - 1; 
+        g[1] = -mu*std::log(mu); 
+        break;
+      case SQUARE_ROOT:
+        g[0] = mu - 1;
+        g[1] = std::sqrt(mu) - 1;
+        break;
+      case POWER: 
       {
         T q = std::sqrt(mu);
         g[0] = q - 1;
@@ -555,7 +583,7 @@ namespace LD {
           p[1] >= (p[0] <= 0 ? -2*p[0] : -p[0]) && 
           p[1] <= (p[0] <= 1 ? 1 - p[0] : 2*(std::sqrt(p[0]) - p[0]));
       
-      case CLARET: 
+      case POWER: 
       {
         if (p[0] + p[1] + p[2] + p[3] > 1) return false;
         
