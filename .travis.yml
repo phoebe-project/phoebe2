@@ -82,10 +82,10 @@ matrix:
 
 
 before_install:
+    - set +e
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then 
-        brew update || travis_terminate 1;
-        brew install gcc coreutils gnu-sed gtk+ || travis_terminate 2;
-        brew install libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util || travis_terminate 3;
+        brew update;
+        brew install gcc coreutils gnu-sed gtk libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util;
       fi;
 
 install:
