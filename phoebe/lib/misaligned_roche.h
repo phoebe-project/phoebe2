@@ -505,20 +505,17 @@ namespace misaligned_roche {
               spin in plane (x, z) 
       m - number of steps in x - direction
       
-      choice -
-        1  - area
-        2  - volume
-        3  - both
+      choice - using as a mask
+        1U  - Area , stored in v[0]
+        2U  - Volume, stored in v[1]
+        4U  - dVolume/dOmega, stored in v[2]
       
     Using: Integrating surface in spherical coordiantes
       a. Gauss-Lagrange integration in phi direction
       b. RK4 in direction of theta
-          
-    Precision:
-      ???
-             
+                      
     Output:
-      av[2] = {area, volume}
+      v[3] = {area, volume, d{volume}/d{Omega}}
   
     Ref: 
       * https://en.wikipedia.org/wiki/Gaussian_quadrature
@@ -527,8 +524,8 @@ namespace misaligned_roche {
   */
   
   template<class T> 
-  void area_volume( 
-    T av[2],
+  void area_volume_integration( 
+    T v[3],
     const unsigned & choice,
     const T & Omega0,
     const T & q,
@@ -544,136 +541,154 @@ namespace misaligned_roche {
     
     bool 
       b_area = (choice & 1u) == 1u,
-      b_volume = (choice & 2u) == 2u;
+      b_vol  = (choice & 2u) == 2u,
+      b_dvol = (choice & 4u) == 4u;
     
-    if (!b_area && !b_volume) return;
+    if (!b_area && !b_vol && !b_dvol) return;
     
-    const int dim = glq_n + 2;
+    unsigned mask = 3;
+    if (b_dvol) mask += 4; 
+    
+    const int dim = glq_n + 3;
     
     T W[3], w[glq_n], y[dim], k[4][dim],
-      d2 = delta*delta,
-      d3 = delta*d2,
+      d2 = delta*delta, 
+      d3 = delta*d2, 
+      d4 = d2*d2,
       b = (1 + q)*F*F*d3,
       dtheta = utils::m_pi/m,
       rt, rp, r,
       s, theta, theta_, r2;
-
+    
+    //
+    // Setting initial values
+    //
+    
     { 
       T tp = poleL_height(Omega0, q, F, delta, th)/delta;
       for (int i = 0; i < glq_n; ++i) {
         y[i] = tp;
         w[i] = dtheta*glq_weights[i];
       }
-      y[glq_n] = y[glq_n + 1] = 0;
+      y[glq_n] = y[glq_n + 1] = y[glq_n + 2] = 0;
     }
+    
+    //
+    // Rk integration 
+    //
     
     theta = 0;
     for (int i = 0; i < m; ++i) {
       
       // 1. step
       s = std::sin(theta);
-      k[0][glq_n] = k[0][glq_n + 1] = 0;
+      k[0][glq_n] = k[0][glq_n + 1] = k[0][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
         r = y[j]; 
-        calc_dOmega(7, W, r, theta, glq_phi[j], q, b, th);
+        calc_dOmega(mask, W, r, theta, glq_phi[j], q, b, th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        rp = -W[2]/W[0];      // partial_phi r
-        
         k[0][j] = dtheta*rt;
         
         r2 = r*r;
         
-        if (b_area) k[0][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
-        if (b_volume) k[0][glq_n + 1] += w[j]*r*r2;
+        if (b_area) {
+          rp = -W[2]/W[0];      // partial_phi r
+          k[0][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+        }
+        if (b_vol)  k[0][glq_n + 1] += w[j]*r*r2;
+        if (b_dvol) k[0][glq_n + 2] += w[j]*r2/W[0];
       }
-      if (b_volume) k[0][glq_n + 1] *= s;
-    
+      if (b_vol)  k[0][glq_n + 1] *= s;
+      if (b_dvol) k[0][glq_n + 2] *= s;
+      
       // 2. step
       theta_ = theta + 0.5*dtheta;
       s = std::sin(theta_);
-      k[1][glq_n] = k[1][glq_n + 1] = 0;
+      k[1][glq_n] = k[1][glq_n + 1] = k[1][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
         r = y[j] + 0.5*k[0][j];
-        calc_dOmega(7, W, r, theta_, glq_phi[j], q, b, th);
+        calc_dOmega(mask, W, r, theta_, glq_phi[j], q, b, th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        rp = -W[2]/W[0];      // partial_phi r
-        
         k[1][j] = dtheta*rt;
     
         r2 = r*r;
         
-        if (b_area) k[1][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
-        if (b_volume) k[1][glq_n + 1] += w[j]*r*r2;
+        if (b_area) {
+          rp = -W[2]/W[0];      // partial_phi r
+          k[1][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+        }
+        if (b_vol)  k[1][glq_n + 1] += w[j]*r*r2;
+        if (b_dvol) k[1][glq_n + 2] += w[j]*r2/W[0];
       }
-      if (b_volume) k[1][glq_n + 1] *= s;
+      if (b_vol)  k[1][glq_n + 1] *= s;
+      if (b_dvol) k[1][glq_n + 2] *= s;
       
       
       // 3. step
-      theta_ = theta + 0.5*dtheta;
-      s = std::sin(theta_);
-      k[2][glq_n] = k[2][glq_n + 1] = 0;
+      //theta_ = theta + 0.5*dtheta;
+      //s = std::sin(theta_);
+      k[2][glq_n] = k[2][glq_n + 1] = k[2][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
         
         r = y[j] + 0.5*k[1][j];
-        calc_dOmega(7, W, r, theta_, glq_phi[j], q, b, th);
+        calc_dOmega(mask, W, r, theta_, glq_phi[j], q, b, th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        rp = -W[2]/W[0];      // partial_phi r
-        
         k[2][j] = dtheta*rt;
 
         r2 = r*r;
         
-        if (b_area) k[2][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
-        if (b_volume) k[2][glq_n + 1] += w[j]*r*r2;
+        if (b_area) {
+          rp = -W[2]/W[0];      // partial_phi r
+          k[2][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+        }
+        if (b_vol)  k[2][glq_n + 1] += w[j]*r*r2;
+        if (b_dvol) k[2][glq_n + 2] += w[j]*r2/W[0];
       }
-      if (b_volume) k[2][glq_n + 1] *= s;
+      if (b_vol)  k[2][glq_n + 1] *= s;
+      if (b_dvol) k[2][glq_n + 2] *= s;
       
       
       // 4. step
       theta_ = theta + dtheta;
       s = std::sin(theta_);
-      k[3][glq_n] = k[3][glq_n + 1] = 0;
+      k[3][glq_n] = k[3][glq_n + 1] = k[3][glq_n + 2] = 0;
       for (int j = 0; j < glq_n; ++j){
+        
         r = y[j] + k[2][j];
-        calc_dOmega(7, W, r, theta_, glq_phi[j], q, b, th);
+        calc_dOmega(mask, W, r, theta_, glq_phi[j], q, b, th);
         
         rt = -W[1]/W[0];      // partial_theta r
-        rp = -W[2]/W[0];      // partial_phi r
-        
         k[3][j] = dtheta*rt;
 
         r2 = r*r;
         
-        if (b_area) k[3][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
-        if (b_volume) k[3][glq_n + 1] += w[j]*r*r2;
+        if (b_area) {
+         rp = -W[2]/W[0];      // partial_phi r
+         k[3][glq_n] += w[j]*r*std::sqrt(rp*rp + s*s*(r2 + rt*rt));
+        }
+        if (b_vol)  k[3][glq_n + 1] += w[j]*r*r2;
+        if (b_dvol) k[3][glq_n + 2] += w[j]*r2/W[0];
       }
-      if (b_volume) k[3][glq_n + 1] *= s;
+      if (b_vol)  k[3][glq_n + 1] *= s;
+      if (b_dvol) k[3][glq_n + 2] *= s;
       
       // final step
       for (int j = 0; j < dim; ++j)
         y[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;  
-      
-      /*
-        std::cerr << "theta=" << theta << '\n';
-      
-      for (int j = 0; j < dim; ++j)
-        std::cerr << j << '\t' << y[j] << '\n';
-      std::cerr << '\n';
-      */
-      
+            
       theta += dtheta;
     }
     
-    if (b_area) av[0] = 2*d2*y[glq_n];
-    if (b_volume) av[1] = 2*d3*y[glq_n + 1]/3;
+    if (b_area) v[0] = 2*d2*y[glq_n];
+    if (b_vol)  v[1] = 2*d3*y[glq_n + 1]/3;
+    if (b_dvol) v[2] = 2*d4*y[glq_n + 2];
   }
-
-
+  
 /*
     Computing volume of the primary generalized Roche lobes with 
     misaligned spin and orbital velocity vector and derivatives of 
@@ -688,150 +703,85 @@ namespace misaligned_roche {
       theta - angle between z axis in spin of the object in [0, pi]
               spin in plane (x, z) 
       choice : composing from mask
-        1  - Volume, stored in av[0]
-        2  - dVolume/dOmega, stored in av[1]
-      
-      m - number of steps in x - direction
-                 
-    Using: Integrating surface in cylindric geometry
-      a. Gauss-Lagrange integration in phi direction
-      b. RK4 in the direction of theta
-    
-    Precision:
-      ????
-       
+        1U  - area , stored in v[0]
+        2U  - volume, stored in v[1]
+        4U  - dVolume/dOmega, stored in v[2]
+                
     Output:
-      v = {Volume, dVolume/dOmega, ...}
+      v = {Area, Volume, dVolume/dOmega, ...}
   
     Ref: 
       * https://en.wikipedia.org/wiki/Gaussian_quadrature
       * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
       * http://mathworld.wolfram.com/LobattoQuadrature.html <-- this would be better  
-  */
+  */  
   
   template<class T> 
-  void volume(
+  void area_volume_asymp(
     T *v,
     const unsigned & choice,
     const T & Omega0,
     const T & q,
     const T & F = 1,
-    const T & delta = 1,
-    const T & th = 1,
-    const int & m = 1 << 14)
-  {
+    const T & d = 1,
+    const T & th = 1) {
+    
     
     //
     // What is calculated
     //
     
     bool 
-      b_vol        = (choice & 1u) == 1u, // calc. Volume
-      b_dvoldomega = (choice & 2u) == 2u; // calc. dVolume/dOmega
+      b_area = (choice & 1u) == 1u,
+      b_vol  = (choice & 2u) == 2u,
+      b_dvol = (choice & 4u) == 4u;
     
-    if (!b_vol && !b_dvoldomega) return;
+    if (!b_area && !b_vol && !b_dvol) return;
     
-    const int dim = glq_n + 2;
-    
-    T W[3], w[glq_n], y[dim], k[4][dim],
-      d3 = delta*delta*delta,
-      d4 = delta*d3,
-      b = (1 + q)*F*F*d3,
-      dtheta = utils::m_pi/m,
-      s, theta, theta_, r, r2;
-
-    { 
-      T tp = poleL_height(Omega0, q, F, delta, th)/delta;
-      for (int i = 0; i < glq_n; ++i) {
-        y[i] = tp;
-        w[i] = dtheta*glq_weights[i];
-      }
-      y[glq_n] = y[glq_n + 1] = 0;
+    T w = d*Omega0, s = 1/w,
+      b = (1 + q)*d*d*d*F*F,
+      q2 = q*q, 
+      b2 = b*b, 
+      b3 = b2*b,
+      cc = std::cos(2*th);
+      
+    // calculate area
+    if (b_area) {
+      
+      T a[10] = {
+          1, 2*q,3*q2, 2*b/3. + 4*q2, q*(10*b/3. + 5*q2), q2*(10*b + 6*q2),
+          b2 + q*(-b/3. + b*cc + q*(2 + q*(70*b/3. + 7*q2))), 
+          q*(8*b2 + q*(-8*b/3. + 8*b*cc + q*(16 + q*(140*b/3. + 8*q2)))),
+          q2*(15./7 + 36*b2 + q*(-12*b + 36*b*cc + q*(72 + q*(84*b + 9*q2)))),
+          68*b3/35. + q*(-41*b2/35. + 123*b2*cc/35. + q*(54*b/7. + 72*b*cc/35. + q*(24.17142857142857 + 120*b2 + q*(-40*b + 120*b*cc + q*(240 + q*(140*b + 10*q2))))))},
+      
+      sumA = a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*(a[7] + s*(a[8] + s*a[9]))))))));
+      
+      v[0] = utils::m_4pi/(Omega0*Omega0)*sumA;
     }
     
-    theta = 0;
-    for (int i = 0; i < m; ++i) {
+    if (b_vol || b_dvol) {
       
-      // 1. step
-      s = std::sin(theta);
-      k[0][glq_n] = k[0][glq_n + 1] = 0;
-      for (int j = 0; j < glq_n; ++j){
-        r = y[j];
-        calc_dOmega(3, W, r, theta, glq_phi[j], q, b, th);
-        
-        k[0][j] = dtheta*(-W[1]/W[0]);
-        
-        r2 = r*r;
-        
-        if (b_vol) k[0][glq_n] += w[j]*r*r2;
-        if (b_dvoldomega) k[0][glq_n+1] += w[j]*r2/W[0];
-      }
-      if (b_vol) k[0][glq_n] *= s;
-      if (b_dvoldomega) k[0][glq_n+1] *= s;
-    
-      // 2. step
-      theta_ = theta + 0.5*dtheta;
-      s = std::sin(theta_);
-      k[1][glq_n] = k[1][glq_n + 1] = 0;
-      for (int j = 0; j < glq_n; ++j){
-        r = y[j] + 0.5*k[0][j];
-        calc_dOmega(3, W, r, theta_, glq_phi[j], q, b, th);
-        
-        k[1][j] = dtheta*(-W[1]/W[0]);
-        
-        r2 = r*r;
-        
-        if (b_vol) k[1][glq_n] += w[j]*r*r2;
-        if (b_dvoldomega) k[1][glq_n+1] += w[j]*r2/W[0];
-      }
-      if (b_vol) k[1][glq_n] *= s;
-      if (b_dvoldomega) k[1][glq_n+1] *= s;
-
-      // 3. step
-      theta_ = theta + 0.5*dtheta;
-      s = std::sin(theta_);
-      k[2][glq_n] = k[2][glq_n + 1] = 0;
-      for (int j = 0; j < glq_n; ++j){
-        r = y[j] + 0.5*k[1][j];
-        calc_dOmega(3, W, r, theta_, glq_phi[j], q, b, th);
-        
-        k[2][j] = dtheta*(-W[1]/W[0]);
-        
-        r2 = r*r;
-        
-        if (b_vol) k[2][glq_n] += w[j]*r*r2;
-        if (b_dvoldomega) k[2][glq_n+1] += w[j]*r2/W[0];
-      }
-      if (b_vol) k[2][glq_n] *= s;
-      if (b_dvoldomega) k[2][glq_n+1] *= s;
+      T a[10] = {
+          1, 3*q, 6*q2, b + 10*q2, q*(6*b + 15*q2), q2*(21*b + 21*q2),
+          8*b2/5. + q*(-2*b/5. + 6*b*cc/5. + q*(2.4 + q*(56*b + 28*q2))),
+          q*(72*b2/5. + q*(-18*b/5. + 54*b*cc/5. + q*(21.6 + q*(126*b + 36*q2)))),
+          q2*(15./7 + 72*b2 + q*(-18*b + 54*b*cc + q*(108 + q*(252*b + 45*q2)))),
+          22*b3/7. + q*(-11*b2/7. + 33*b2*cc/7. + q*(143*b/14. + 33*b*cc/14. + q*(26.714285714285715 + 264*b2 + q*(-66*b + 198*b*cc + q*(396 + q*(462*b + 55*q2))))))};
       
-      // 4. step
-      theta_ = theta + dtheta;
-      s = std::sin(theta_);
-      k[3][glq_n] = k[3][glq_n + 1] = 0;
-      for (int j = 0; j < glq_n; ++j){
-        r = y[j] + k[2][j];
-        calc_dOmega(3, W, r, theta_, glq_phi[j], q, b, th);
-        
-        k[3][j] = dtheta*(-W[1]/W[0]);
-        
-        r2 = r*r;
-        
-        if (b_vol) k[3][glq_n] += w[j]*r*r2;
-        if (b_dvoldomega) k[3][glq_n+1] += w[j]*r2/W[0];
+      // calculate volume 
+      if (b_vol) {
+        T sumV = a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*(a[7] + s*(a[8] + s*a[9]))))))));
+        v[1] = utils::m_4pi/(3*Omega0*Omega0*Omega0)*sumV;
       }
-      if (b_vol) k[3][glq_n] *= s;
-      if (b_dvoldomega) k[3][glq_n+1] *= s;
       
-      // final step
-      for (int j = 0; j < dim; ++j)
-        y[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;  
-      
-      theta += dtheta;
+      // calculate d(volume)/dOmega0
+      if (b_dvol) {
+        T sumdV = 3*a[0] + s*(4*a[1] + s*(5*a[2] + s*(6*a[3] + s*(7*a[4] + s*(8*a[5] + s*(9*a[6] + s*(10*a[7] + s*(11*a[8] + 12*s*a[9]))))))));
+        v[2] = -utils::m_4pi/(3*Omega0*Omega0*Omega0*Omega0)*sumdV;
+      }
     }
     
-    if (b_vol) v[0] = 2*d3*y[glq_n]/3;
-    if (b_dvoldomega) v[1] = 4*d4*y[glq_n + 1]/3;
   }
   
 } // namespace misaligned_roche

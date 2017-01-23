@@ -658,7 +658,7 @@ static PyObject *sphere_pole(PyObject *self, PyObject *args, PyObject *keywds) {
       choice: default 0
         0 - primary star
         1 - secondary star -- not yet supported
-        2 - overcontact -- not permitted
+        2 - contact binary -- not permitted
       
   and returns vector of parameters float
   
@@ -736,7 +736,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
-            2 for discussing overcontact 
+            2 for discussing contact envelope
             
     lvolume: boolean, default True
     larea: boolean, default True
@@ -828,18 +828,17 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   // Posibility of using approximation
   //
   
-  double 
-    w = delta*Omega0,
+  double
     b = (1 + q)*F*F*delta*delta*delta,
     w0 = 5*(q + std::cbrt(b*b)/4) - 29.554 - 5.26235*std::log(std::min(eps[0], eps[1])),
     av[2];                          // for results
     
-  if (choice == 0 && w >= std::max(10., w0)) {
+  if (choice == 0 && delta*Omega0 >= std::max(10., w0)) {
     
     // Approximation by using the series 
     // with empirically derived criterion 
     
-    gen_roche::area_volume_primary_approx_internal(av, res_choice, Omega0, w, q, b);
+    gen_roche::area_volume_primary_asymp(av, res_choice, Omega0, q, F, delta);
     
   } else { 
     
@@ -1159,7 +1158,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
   
   Python:
     
-    dict = misaligned_area_volume(q, F, d, Omega0, <keyword>=<value>)
+    dict = misaligned_area_volume(q, F, d, theta, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -1296,7 +1295,7 @@ static PyObject *misaligned_area_volume(PyObject *self, PyObject *args, PyObject
         gen_roche::area_volume_integration
           (p[i], res_choice, xrange, Omega0, q, F, delta, m);
       else 
-        misaligned_roche::area_volume
+        misaligned_roche::area_volume_integration
           (p[i], res_choice, Omega0, q, F, delta, theta, m);
     
     if (adjust) {
@@ -1377,7 +1376,7 @@ static PyObject *misaligned_area_volume(PyObject *self, PyObject *args, PyObject
     choice: integer, default 0
             0 for discussing left lobe
             1 for discussing right lobe
-            2 for discussing overcontact
+            2 for discussing contact envelope
     precision: float, default 1e-12
       aka relative precision
     accuracy: float, default 1e-12
@@ -1483,7 +1482,7 @@ static PyObject *roche_Omega_at_vol(PyObject *self, PyObject *args, PyObject *ke
        
       // calculate volume and derivate volume w.r.t to Omega
       for (int i = 0, m = m0; i < 2; ++i, m <<= 1) {
-        gen_roche::volume(p[i], 3, xrange, Omega, q, F, delta, m, polish);
+        gen_roche::area_volume_integration(p[i] - 1, 6, xrange, Omega, q, F, delta, m, polish);
         
         #if defined(DEBUG)
         std::cerr << "V:" <<  p[i][0] << '\t' << p[i][1] << '\n';
@@ -1811,9 +1810,9 @@ static PyObject *misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObjec
       // calculate volume and derivate volume w.r.t to Omega
       for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
         if (theta == 0)
-          gen_roche::volume(p[i], 3, xrange, Omega, q, F, delta, m);
+          gen_roche::area_volume_integration(p[i]-1, 6, xrange, Omega, q, F, delta, m);
         else
-          misaligned_roche::volume(p[i], 3, Omega, q, F, delta, theta, m);
+          misaligned_roche::area_volume_integration(p[i]-1, 6, Omega, q, F, delta, theta, m);
           
      
       if (adjust) {
@@ -1872,7 +1871,6 @@ static PyObject *misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObjec
   
   return PyFloat_FromDouble(Omega);
 }
-
 
 
 /*
@@ -4785,7 +4783,7 @@ bool LDmodelFromListOfTuples(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-              "claret"      4 parameters
+              "power"       4 parameters
               "interp"      interpolation data  TODO !!!!
               
     LDidx[]: 1-rank numpy array of indices of LD models used on each triangle/vertex
@@ -5047,7 +5045,7 @@ static PyObject *mesh_radiosity_problem(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-              "claret"      4 parameters
+              "power"       4 parameters
               "interp"      interpolation data  TODO !!!!
               
                
@@ -5306,7 +5304,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
               "nonlinear"   3 parameters
               "logarithmic" 2 parameters
               "square_root" 2 parameters
-              "claret"      4 parameters
+              "power"       4 parameters
               "interp"      interpolation data  TODO !!!!
  
     Dmod = {Dmod1, Dmod2, ...}: list of dictionaries of element of the format
@@ -5533,7 +5531,7 @@ static PyObject *mesh_radiosity_redistrib_problem_nbody_convex(
   //
   // Reading support type
   //
-  
+
   int support; 
   {
     char *s = PyString_AsString(osupport);
@@ -6131,7 +6129,7 @@ static PyObject *roche_reprojecting_vertices(PyObject *self, PyObject *args, PyO
     choice: interr, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
+      2 - searching a point for contact binary case
   Return: 
     H: 2-rank numpy array of 3D point on a horizon
 */
@@ -6444,7 +6442,7 @@ static PyObject *misaligned_horizon(PyObject *self, PyObject *args, PyObject *ke
     choice: integer, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
+      2 - searching a point for contact binary case
   
   Return: 
     xrange: 1-rank numpy array of two numbers p
@@ -6532,7 +6530,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
     choice: integer, default 0:
       0 - searching a point on left lobe
       1 - searching a point on right lobe
-      2 - searching a point for overcontact case
+      2 - searching a point for contact binary case
     
     boundary_list: boolean, default false
       return the list of boundary points
