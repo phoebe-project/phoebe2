@@ -1059,7 +1059,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     #create temporary file
     tmp_file = tempfile.NamedTemporaryFile()
 #   testing
-#    filename = 'check.phoebe'
+ #   filename = 'check.phoebe'
 #   real
     io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
 #   testing
@@ -1076,7 +1076,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    phb1.updateLD()
     # TODO BERT: why are we saving here?
 #   testing
-#    phb1.save('after.phoebe')
+ #   phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
     rvid = None

@@ -99,6 +99,7 @@ _parsect = {'t0':'component',
 
 _bool2to1 = {True:1, False:0}
 
+
 """
 ld_legacy -
 
@@ -417,6 +418,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     mzero = None
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+# determine if luminosities are decoupled and set pblum_ref accordingly
+
+    decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
+#    if decoupled_luminosity == 0:
+#        eb.set_value(qualifier='pblum_ref', component='secondary', value='primary')
+#    else:
+#        eb.set_value(qualifier='pblum_ref', component='secondary', value='self')
 
 #Determin LD law
 
@@ -502,6 +510,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
         eb.set_value_all(check_visible= False, **d)
+
+    #set pblum reference
+
+        if decoupled_luminosity == 0:
+            eb.set_value(qualifier='pblum_ref', component='secondary', value='primary', dataset=dataid)
+        else:
+            eb.set_value(qualifier='pblum_ref', component='secondary', value='self', dataset=dataid)
 
     #get available passbands
 
@@ -956,7 +971,21 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parvals.append('"Time (HJD)"')
     types.append('choice')
 
+    if len(lcs) != 0:
 
+        pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
+        print "pblum_ref", pblum_ref
+        if pblum_ref == 'self':
+
+            decouple_luminosity = '1'
+
+        else:
+
+            decouple_luminosity = '0'
+
+        parnames.append('phoebe_usecla_switch')
+        parvals.append(decouple_luminosity)
+        types.append('boolean')
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
