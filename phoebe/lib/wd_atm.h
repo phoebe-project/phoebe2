@@ -18,6 +18,38 @@
   
   are available from ftp://ftp.astro.ufl.edu/pub/wilson/lcdc2015/
 
+
+  Bandpass Label Assignments for Stellar Atmospheres
+
+  Label   Bandpass   Reference for Response Function
+  (ifil)
+  -----   --------   -------------------------------
+     1        u      Crawford, D.L. and Barnes, J.V. 1974, AJ, 75, 978
+     2        v          "                "           "
+     3        b          "                "           "
+     4        y          "                "           "
+     5        U      Buser, R. 1978, Ang, 62, 411
+     6        B      Azusienis and Straizys 1969, Sov. Astron., 13, 316
+     7        V          "             "                "
+     8        R      Johnson, H.L. 1965, ApJ, 141, 923
+     9        I         "            "    "
+    10        J         "            "    "
+    11        K         "            "    "
+    12        L         "            "    "
+    13        M         "            "    "
+    14        N         "            "    "
+    15        R_c    Bessell, M.S. 1983, PASP, 95, 480
+    16        I_c       "            "    "
+    17      230      Kallrath, J., Milone, E.F., Terrell, D., Young, A.T. 1998, ApJ, 508, 308
+    18      250         "             "             "           "
+    19      270         "             "             "           "
+    20      290         "             "             "           "
+    21      310         "             "             "           "
+    22      330         "             "             "           "
+    23     'TyB'    Tycho catalog B
+    24     'TyV'    Tycho catalog V
+    25     'HIP'    Hipparcos catalog
+
   Author: Martin Horvat, August 2016
 */
 
@@ -170,7 +202,7 @@ namespace wd_atm {
 
   Input:
     t - temperature
-    ifil - index of the filter 1,2, ... 
+    ifil - index of the filter 1,2, ..., 25 
     plcof - array of coefficients 
     
   Output:
@@ -179,13 +211,15 @@ namespace wd_atm {
   
   Return:
     true - if no errors, false - otherwise
-*/
+  */
 
 template <class T>
 bool planckint_onlylog(const T & t, const int & ifil, const T *plcof, T & ylog) {
   
+  const char * fname = "planckint_onlylog::";
+  
   if (t <= 500|| t >= 500300){
-    std::cerr << "planckint_log:: T=" << t << " is illegal.\n";
+    std::cerr << fname << "T=" << t << " is illegal.\n";
     return false;
   }
 
@@ -214,7 +248,7 @@ bool planckint_onlylog(const T & t, const int & ifil, const T *plcof, T & ylog) 
     te=500300;
     ibin=4;
   } else {
-    std::cerr << "planckint:: T=" << t << " is illegal.\n";
+    std::cerr << fname << "T=" << t << " is illegal.\n";
     return false;
   }
  
@@ -317,7 +351,7 @@ bool atmx_onlylog(
     
     const T glog[11] = { 0.,.5,1.,1.5,2.,2.5,3.,3.5,4.,4.5,5. };
   
-    int ifreturn, j, k, m, ib, ii, nj,  it,  
+    int ifreturn, j, k, k_, m, ib, ii, nj,  it,  
         it1, iab, ibb,  iij, kik, njj, ibin, icase, istart, ibinsav;
         
     T  thighrec, ghightol, thighlog, thightol,
@@ -387,7 +421,7 @@ bool atmx_onlylog(
       ib -= 48;
   /* cccccccccccccccccccccccccccccccccccccccccccccccccccc */
 
-      for (ii = 1; ii <= m; ++ii) {
+      for (ii = 0; ii < m; ++ii) {
         
         ib += 48;
         
@@ -416,17 +450,17 @@ bool atmx_onlylog(
         thigh = te + fractol * te;
         ibb = ib + 1 + (ibin - 1) * 12;
         
-        pha[ii - 1] = (tt - tb) / (te - tb);
+        pha[ii] = (tt - tb) / (te - tb);
         
-        yy[ii - 1] = legendre_sum<T,10>((pha[ii - 1] < 0 ? 0. : pha[ii - 1]), grand + ibb);
+        yy[ii] = legendre_sum<T,10>((pha[ii] < 0 ? 0. : pha[ii]), grand + ibb);
         
-        if (pha[ii - 1] < 0.) {
+        if (pha[ii] < 0.) {
           
           tlow = tb - tlowtol;
           planckint_onlylog(tlow, ifil, plcof, yylow);
           
           if (t < tlow) {            
-            planckint_onlylog(t, ifil, plcof, yy[ii - 1]);
+            planckint_onlylog(t, ifil, plcof, yy[ii]);
           } else {
          
             tlowmidlog = std::log10(tb * tlow) * .5;
@@ -434,35 +468,39 @@ bool atmx_onlylog(
             
             if (effwvl[ifil - 1] < wvlmax) {
               tbrec = 1. / tb, tlowrec = 1. / tlow;
-              slope = (yy[ii - 1] - yylow) / (tbrec - tlowrec);
-              yy[ii - 1] = yylow + slope * (trec - tlowrec);
+              slope = (yy[ii] - yylow) / (tbrec - tlowrec);
+              yy[ii] = yylow + slope * (trec - tlowrec);
             } else {
               tblog = std::log10(tb), tlowlog = std::log10(tlow);
-              slope = (yy[ii - 1] - yylow) / (tblog - tlowlog);
-              yy[ii - 1] = yylow + slope * (tlog - tlowlog);
+              slope = (yy[ii] - yylow) / (tblog - tlowlog);
+              yy[ii] = yylow + slope * (tlog - tlowlog);
             }
           }
         }
         ibin = ibinsav;
       }
+      
       /* ccccccccccccccccccccccccccccccccccccccccccccccccccccccc */
       /* Next, do a m-point Lagrange interpolation. */
+      
       xintlog = 0.;
-
-      for (ii = 1; ii <= m; ++ii) {
+      k_ = k - 1;
+      
+      for (ii = 0; ii < m; ++ii) {
         xnum = 1.;
         denom = 1.;
-        nj = k + ii - 1;
+        nj = k_ + ii;
     
-        for (iij = 1; iij <= m; ++iij) {
-          njj = k + iij - 1;
+        for (iij = 0; iij < m; ++iij) {
+          njj = k_ + iij;
           if (ii != iij) {
-            xnum *= gg - glog[njj - 1];
-            denom *= glog[nj - 1] - glog[njj - 1];
+            xnum *= gg - glog[njj];
+            denom *= glog[nj] - glog[njj];
           }
         }
-        xintlog += yy[ii - 1] * xnum / denom;
+        xintlog += yy[ii] * xnum / denom;
       }
+      
       /* ccccccccccccccccccccccccccccccccccccccccccccccc */
       /*  Check if a ramp function will be needed, or if we are */
       /*  close to the border and need to interpolate between less */
@@ -502,12 +540,10 @@ bool atmx_onlylog(
       if (g > 5.) {
         thigh = (fractol + 1.) * 5e4;
         
-        if (t > thigh) return planckint_onlylog(t, ifil, plcof,  xintlog);
+        if (t > thigh) 
+          return planckint_onlylog(t, ifil, plcof,  xintlog);
         
-        if (t > 5e4) {
-          j = 10;
-          break;
-        }
+        if (t > 5e4) { j = 10; break; }
         
         planckint_onlylog(t, ifil, plcof, yyhigh);
         slope = (yyhigh - xintlog) / (ghigh - 5.);
@@ -535,7 +571,7 @@ bool atmx_onlylog(
     ib = icase + (j - 1) * 48;
     ib -= 48;
     
-    for (kik = 1; kik <= 2; ++kik) {
+    for (kik = 0; kik < 2; ++kik) {
       
       ib += 48;
       
@@ -559,12 +595,12 @@ bool atmx_onlylog(
         tb = grand[it - 1];
       }
       te = grand[it1 - 1];
-      tte[kik - 1] = t;
-      if (t > te) tte[kik - 1] = te;
+      tte[kik] = t;
+      if (t > te) tte[kik] = te;
       
       ibb = ib + 1 + (ibin - 1) * 12;
-      pha[kik - 1] = (tte[kik - 1] - tb) / (te - tb);
-      yy[kik - 1] = legendre_sum<T,10>(pha[kik - 1], grand + ibb);
+      pha[kik] = (tte[kik] - tb) / (te - tb);
+      yy[kik] = legendre_sum<T,10>(pha[kik], grand + ibb);
         
       ibin = ibinsav;
     }

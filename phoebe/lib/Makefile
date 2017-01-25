@@ -1,3 +1,4 @@
+#CXX=icpc
 CXX=g++
 #CXX=clang++
 CXXFLAGS=-O3 -Wall -std=c++11

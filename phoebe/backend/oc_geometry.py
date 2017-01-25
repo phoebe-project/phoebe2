@@ -161,7 +161,7 @@ def project_onto_potential(r, pot_name, *args):
         rmag = rmag0 - pot(rmag0*dc, *args)/dpdr(rmag0*dc, *args[:-1])
         n_iter += 1
     if n_iter == 100:
-        print('warning: projection did not converge')
+        logger.warning('projection did not converge')
 
     r = rmag*dc
 
@@ -169,7 +169,7 @@ def project_onto_potential(r, pot_name, *args):
 
 def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
 
-    '''Computes the position of the neck (minimal radius) in an overcontact star1'''
+    '''Computes the position of the neck (minimal radius) in an contact_binary star1'''
 
     def Omega_xz(q,x,z):
             return 1./np.sqrt(x**2+z**2)+q/np.sqrt((1-x)**2+z**2)+(q+1)*x**2/2.-q*x
@@ -227,7 +227,7 @@ def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
 
                     dd = np.dot(DNINV,EN)
                     dxz,dz = dd[0],dd[1]
-                    print dxz,dz
+                    # print dxz,dz
                     xz=xz+dxz
                     z=z+dz
             else:
@@ -257,7 +257,7 @@ def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
 
                     dd = np.dot(DNINV,EN)
                     dxy,dy = dd[0],dd[1]
-                    print dxy,dy
+                    # print dxy,dy
                     xy=xy+dxy
                     y=y+dy
             else:

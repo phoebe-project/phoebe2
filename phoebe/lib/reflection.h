@@ -145,14 +145,14 @@ bool triangle_cuts_line(T n[3], T *v[3], T c1[3], T c2[3]){
   Matrix element of the sparse-matrix F_{i, j} 
 */
 template <class T>
-struct Tmat_elem {  
+struct Tview_factor {  
   int i, j;
               // viewing factor F_{i <- j}
   T F0,       // Lambert viewing factor
     F;        // Limb darkend viewing factor
     
-  Tmat_elem() {}
-  Tmat_elem(int i, int j, const T &F0, const T &F) : i(i), j(j), F0(F0), F(F) {}
+  Tview_factor() {}
+  Tview_factor(int i, int j, const T &F0, const T &F) : i(i), j(j), F0(F0), F(F) {}
 };
 
 /*
@@ -188,7 +188,7 @@ void triangle_mesh_radiosity_matrix_triangles(
   std::vector <TLDmodel<T>*> &LDmodels,           
   std::vector <int> &LDidx,
 
-  std::vector <Tmat_elem<T>> & Fmat,              // output
+  std::vector <Tview_factor<T>> & Fmat,              // output
   const T & epsC = 0.00872654) {
   
   //
@@ -395,7 +395,7 @@ void triangle_mesh_radiosity_matrix_triangles(
   F_{(b_1, i_1), (b_2, i_2)} 
 */
 template <class T>
-struct Tmat_elem_nbody {
+struct Tview_factor_nbody {
   
   int b1, i1,     
       b2, i2;     
@@ -403,8 +403,8 @@ struct Tmat_elem_nbody {
   T F0,             // Lambert
     F;              // Limb darkend
 
-  Tmat_elem_nbody() {}
-  Tmat_elem_nbody(int b1, int i1, int b2, int i2, const T &F0, const T &F) 
+  Tview_factor_nbody() {}
+  Tview_factor_nbody(int b1, int i1, int b2, int i2, const T &F0, const T &F) 
   : b1(b1), i1(i1), b2(b2), i2(i2), F0(F0), F(F) {}
 };
 
@@ -440,7 +440,7 @@ void triangle_mesh_radiosity_matrix_triangles_nbody_convex(
   std::vector <std::vector <T>> & A,
   std::vector <TLDmodel<T>*> & LDmodels,
 
-  std::vector <Tmat_elem_nbody<T>> & Fmat,                  // output
+  std::vector <Tview_factor_nbody<T>> & Fmat,                  // output
   const T & epsC = 0.00872654) {
 
   //
@@ -866,8 +866,7 @@ void triangle_mesh_radiosity_matrix_vertices(
   std::vector <T> & A,
   std::vector <TLDmodel<T>*> & LDmodels,           
   std::vector <int> & LDidx,
-
-  std::vector <Tmat_elem<T>> & Fmat,              // output
+  std::vector <Tview_factor<T>> & Fmat,              // output
   const T & epsC = 0.00872654) {
 
   //
@@ -1120,7 +1119,7 @@ void triangle_mesh_radiosity_matrix_vertices_nbody_convex(
   std::vector <std::vector <T>> & A,
   std::vector <TLDmodel<T>*> & LDmodels,
 
-  std::vector <Tmat_elem_nbody<T>> & Fmat,                  // output
+  std::vector <Tview_factor_nbody<T>> & Fmat,                  // output
   const T & epsC = 0.00872654) {
 
   //
@@ -1490,7 +1489,7 @@ void triangle_mesh_radiosity_matrix_vertices_nbody_convex(
 */
 template <class T>
 bool solve_radiosity_equation_Wilson(
-  std::vector<Tmat_elem<T>> &Fmat,      // input
+  std::vector<Tview_factor<T>> &Fmat,      // input
   std::vector<T> &R,  
   std::vector<T> &M0, 
   std::vector<T> &M,                    // output
@@ -1585,7 +1584,7 @@ Solving the radiosity model proposed by M. Horvat for Phoebe 2b.
 */
 template <class T>
 bool solve_radiosity_equation_Horvat(
-  std::vector<Tmat_elem<T>> &Fmat,      // input
+  std::vector<Tview_factor<T>> &Fmat,      // input
   std::vector<T> &R,  
   std::vector<T> &F0,
   std::vector<T> &S0,
@@ -1694,7 +1693,7 @@ bool solve_radiosity_equation_Horvat(
 
 template <class T>
 bool solve_radiosity_equation_Horvat(
-  std::vector<Tmat_elem<T>> &Fmat,      // input
+  std::vector<Tview_factor<T>> &Fmat,      // input
   std::vector<T> &R,  
   std::vector<T> &F0, 
   std::vector<T> &Fout,                // output
@@ -1749,7 +1748,7 @@ bool solve_radiosity_equation_Horvat(
 
 template <class T>
 bool solve_radiosity_equation_Wilson_nbody(
-  std::vector<Tmat_elem_nbody<T>> &Fmat,      // input
+  std::vector<Tview_factor_nbody<T>> &Fmat,      // input
   std::vector<std::vector<T>> &R,  
   std::vector<std::vector<T>> &M0, 
   std::vector<std::vector<T>> &M,             // output
@@ -1792,10 +1791,8 @@ bool solve_radiosity_equation_Wilson_nbody(
     }
   
     //std::cerr << dM << '\t' << Mmax << '\t' << dM/Mmax << '\n';
-  
   } while (dM > epsM*Mmax && ++it < max_iter);
   
-
   return it < max_iter;  
 }
 
@@ -1846,7 +1843,7 @@ bool solve_radiosity_equation_Wilson_nbody(
 
 template <class T>
 bool solve_radiosity_equation_Horvat_nbody(
-  std::vector<Tmat_elem_nbody<T>> &Fmat,      // input
+  std::vector<Tview_factor_nbody<T>> &Fmat,      // input
   std::vector<std::vector<T>> &R,  
   std::vector<std::vector<T>> &F0, 
   std::vector<std::vector<T>> &S0, 
@@ -1951,7 +1948,7 @@ bool solve_radiosity_equation_Horvat_nbody(
 
 template <class T>
 bool solve_radiosity_equation_Horvat_nbody(
-  std::vector<Tmat_elem_nbody<T>> &Fmat,      // input
+  std::vector<Tview_factor_nbody<T>> &Fmat,      // input
   std::vector<std::vector<T>> &R,  
   std::vector<std::vector<T>> &F0,
   std::vector<std::vector<T>> &Fout,           // output
@@ -1964,7 +1961,7 @@ bool solve_radiosity_equation_Horvat_nbody(
   //
   int nb = F0.size();
   
-  std::vector<std::vector<T>> S0(nb );
+  std::vector<std::vector<T>> S0(nb);
   
   for (int i = 0; i < nb; ++i) S0[i].resize(F0[i].size(), 0);
   

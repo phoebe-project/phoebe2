@@ -1,0 +1,7 @@
+to download additional passbands
+
+>>> import phoebe
+>>> phoebe.list_online_passbands()
+>>> phoebe.download_passband('Johnson:B')
+
+these will be downloaded and installed from https://github.com/phoebe-project/phoebe2-tables

@@ -2,6 +2,7 @@ import numpy as np
 import phoebe as phb
 import os.path
 import logging
+from phoebe import conf
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -15,7 +16,7 @@ _1to2par = {'ld_model':'ld_func',
             'rvcoff': 'ld_coeffs',
             'lccoff':'ld_coeffs',
             'active': 'enabled',
-            'model': 'morphology',
+#            'model': 'morphology',
             'filter': 'passband',
             'hjd0': 't0_supconj',
             'period': 'period',
@@ -27,7 +28,7 @@ _1to2par = {'ld_model':'ld_func',
             'pot':'pot',
             'met':'abun',
             'f': 'syncpar',
-            'alb': 'frac_refl_bol',
+            'alb': 'irrad_frac_refl_bol',
             'grb':'gravb_bol',
             'ecc': 'ecc',
             'perr0':'per0',
@@ -351,7 +352,8 @@ filename - a .phoebe file (from phoebe 1)
 """
 
 def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
-
+    conf_state = conf.interactive
+    conf.interactive_off()
     legacy_file_dir = os.path.dirname(filename)
 
 # load the phoebe file
@@ -363,16 +365,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 # load an empty legacy bundle and initialize obvious parameter sets
     if 'Overcontact' in morphology:
-        overcontact= True
-        eb = phb.Bundle.default_binary(overcontact=True)
+        contact_binary= True
+        eb = phb.Bundle.default_binary(contact_binary=True)
     else:
-        overcontact = False
+        contact_binary = False
         eb = phb.Bundle.default_binary()
     eb.disable_history()
     comid = []
-    if add_compute_phoebe == True:
+#    if add_compute_phoebe == True:
     #    comid.append('phoebe01')
-        eb.add_compute('phoebe')#, compute=comid[0])
+#        eb.add_compute('phoebe')#, compute=comid[0])
     if add_compute_legacy == True:
     #    comid.append('lega1')
         eb.add_compute('legacy')#, compute=comid[-1])
@@ -391,6 +393,19 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 # delete parameters that have already been accounted for and find lc and rv parameters
 
     params = np.delete(params, [list(params[:,0]).index('phoebe_lcno'), list(params[:,0]).index('phoebe_rvno')], axis=0)
+
+
+# check to see if reflection is on
+
+    ref_effect = np.int(params[:,1][list(params[:,0]).index('phoebe_reffect_switch')])
+
+    if ref_effect == 0:
+
+        params[:,1][list(params[:,0]).index('phoebe_reffect_reflections')] = 0
+        logger.warning('Phoebe Legacy reflection effect switch is set to false so refl_num is being set to 0.')
+        
+    if not add_compute_legacy:
+        params = np.delete(params, [list(params[:,0]).index('phoebe_reffect_reflections'), list(params[:,0]).index('phoebe_ie_switch')], axis=0)
 
     if 'Overcontact' in morphology:
         params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
@@ -412,7 +427,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
         params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
-        if overcontact:
+        if contact_binary:
             params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
 #and split into lc and rv and spot parameters
@@ -498,15 +513,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         for k in lc_dict:
             pnew, d = ret_dict(k, lc_dict[k], dataid=dataid)
+#            print d
         # as long as the parameter exists add it
             if len(d) > 0:
-
+#                print d
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
-                if d['qualifier'] == 'pblum' and overcontact:
+#                if d['qualifier'] == 'pblum' and contact_binary:
 
-                    d['component'] = 'common_envelope'
+#                    d['component'] = 'contact_envelope'
 
                 try:
                     eb.set_value_all(check_visible=False, **d)
@@ -516,6 +532,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #Now RVs
     for x in range(1,rvno+1):
         rvs = eb.get_dataset(kind='rv').datasets
+
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
         rvpt = rvpars[rvint]
@@ -631,11 +648,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['kind'] = 'star'
             d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
-            if not overcontact:
+            if not contact_binary:
                 eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
             #print "val", val
             else:
-                d['component'] = 'common_envelope'
+                d['component'] = 'contact_envelope'
             d['value'] = val
             d['qualifier'] = 'pot'
             d['kind'] = None
@@ -654,12 +671,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             val = int(val)
 
             if val == 0:
-                d['value'] = 'blackbody'
+                d['value'] = 'extern_planckint'
             if val == 1:
-                d['value'] = 'kurucz'
+                d['value'] = 'extern_atmx'
             logger.warning('If you would like to use phoebe 1 atmospheres, you must add this manually')
-            d['kind'] = 'legacy'
-            eb.set_value(check_relevant=False, **d)
+            if add_compute_legacy:
+                d['kind'] = 'legacy'
+                eb.set_value(check_relevant=False, **d)
+
             d['kind'] = 'phoebe'
             d['value'] = 'ck2004'
 #            atm_choices = eb.get_compute('detailed').get_parameter('atm', component='primary').choices
@@ -671,16 +690,17 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                     # set gridsize
             d['value'] = val
             eb.set_value_all(check_visible=False, **d)
-            # change parameter and value to delta
-            val = 10**(-0.98359345*np.log10(np.float(val))+0.4713824)
-            d['qualifier'] = 'delta'
+            # change parameter and value to ntriangles
+            val = N_to_Ntriangles(int(np.float(val)))
+            d['qualifier'] = 'ntriangles'
             d['value'] = val
+#        elif pnew == 'refl_num':
         if len(d) > 0:
-            # print d
+#            print d
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
-    if not overcontact:
+    if not contact_binary:
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
         eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
@@ -697,6 +717,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             val = ldcosbol[x].value[0]
             ldcosbol[x].set_value(np.array([val]))
+    if conf_state:
+        eb.run_delayed_constraints()
+        conf.interactive_on()
     #print eb['pot@secondary']
     #print "rpole after", eb['rpole@secondary']
     # turn on relevant switches like heating. If
@@ -793,7 +816,7 @@ Return phoebe1 parameter name from phoebe 2 info
 
 """
 
-def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, index=None):
+def ret_ldparname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=None):
     if 'bol' in param:
         if ptype=='array':
             pnew1 = 'xbol'
@@ -809,10 +832,10 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
         else:
             return ['phoebe_ld_model']
 
-    if component == 'primary':
+    if comp_int == 1:
         pnew = [x + '1' for x in pnew]
 
-    elif component == 'secondary':
+    elif comp_int == 2:
         pnew = [x + '2' for x in pnew]
 
     if dnum != None:
@@ -821,16 +844,16 @@ def ret_ldparname(param, component=None, dtype=None, dnum=None, ptype=None, inde
         dset = ''
     return ['phoebe_ld_'+x+dset for x in pnew]
 
-def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=None):
+def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=None):
 
 # separate lds from everything because they suck
     if 'ld' in param:
 
-        pname = ret_ldparname(param, component=component, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
+        pname = ret_ldparname(param, comp_int=comp_int, dtype=dtype, dnum=dnum, ptype=ptype, index=index)
     else:
     # first determine name of parameters and whether it is associated with a com
 
-        if component == 'primary':
+        if comp_int == 1:
 
             if param == 'pblum':
                 pnew = 'hla'
@@ -841,7 +864,7 @@ def ret_parname(param, component=None, dtype=None, dnum=None, ptype=None, index=
             else:
                 pnew = _2to1par[param]+'1'
 
-        elif component == 'secondary':
+        elif comp_int == 2:
 
             if param == 'pblum':
                 pnew = 'cla'
@@ -901,12 +924,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     # check to make sure you have exactly two stars and exactly one orbit
     stars = eb['hierarchy'].get_stars()
     orbits = eb['hierarchy'].get_orbits()
-
+    primary, secondary = stars
 
     if len(stars) != 2 or len(orbits) != 1:
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
-# check for overcontact
-    overcontact = eb.hierarchy.is_overcontact('primary')
+# check for contact_binary
+    contact_binary = eb.hierarchy.is_contact_binary(primary)
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -932,29 +955,44 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parnames.append('phoebe_indep')
     parvals.append('"Time (HJD)"')
     types.append('choice')
-    primary, secondary = stars
+
+
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
-    if overcontact:
-#        cepars = eb.filter(component='common_envelope', context='component')
+    if contact_binary:
+        #note system morphology
+        parnames.append('phoebe_model')
+        parvals.append('"Overcontact binary not in thermal contact"')
+        types.append('choice')
+
+        comp_int = 1
+        envelope = eb.hierarchy.get_siblings_of(primary)[-1]
+#        cepars = eb.filter(component='contact_envelope', context='component')
 #   potential
-        val = [eb.get_value(qualifier='pot')]
+        val = [eb.get_value(qualifier='pot', component=envelope, context='component')]
         ptype = 'float'
-        pname = ret_parname('pot', component='primary', ptype=ptype)
+        # note here that phoebe1 assigns this to the primary, not envelope
+        pname = ret_parname('pot', comp_int=comp_int, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
 #   pblum
-        val = [eb.get_value(qualifier='pblum')]
-        ptype = 'float'
-        pname = ret_parname('pblum', component='primary', ptype=ptype)
-        parnames.extend(pname)
-        parvals.extend(val)
+        # TODO BERT: need to deal with multiple datasets
+ #       for x in range(len(lcs)):
+ #           val = [eb.get_value(qualifier='pblum', component=primary, context='dataset', dataset=lcs[x])]
+ #           ptype = 'float'
+ #           pname = ret_parname('pblum', comp_int=comp_int, ptype=ptype)
+ #           parnames.extend(pname)
+ #           parvals.extend(val)
     # get primary parameters and convert
+    else:
+        parnames.append('phoebe_model')
+        parvals.append('"Detached binary"')
+        types.append('choice')
 
     for param in prpars.to_list():
 
-
+        comp_int = 1
 #        if isinstance(eb.get_parameter(prpars[x], component='primary'), phoebe.parameters.FloatParameter):
 
 #        param = eb.get_parameter(prpars[x], component='primary')
@@ -971,9 +1009,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
             val, ptype = par_value(param)
 
-            # if param.qualifier == 'frac_refl_bol':
+            # if param.qualifier == 'irrad_frac_refl_bol':
                 # val = [1-float(val[0])]
-            pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
+            pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
             # print val, ptype, pname
             if pname[0] not in parnames:
 
@@ -986,6 +1024,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                     types.append(ptype)
 
     for param in secpars.to_list():
+        comp_int = 2
         # make sure this parameter exists in phoebe 1
 #        param = eb.get_parameter(secpars[x], component= 'secondary')
         try:
@@ -1002,9 +1041,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
 
             val, ptype = par_value(param)
-            # if param.qualifier == 'frac_refl_bol':
+            # if param.qualifier == 'irrad_frac_refl_bol':
                 # val = [1-float(val[0])]
-            pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
+            pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
             if pname[0] not in parnames:
                 parnames.extend(pname)
                 parvals.extend(val)
@@ -1037,6 +1076,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         parnames.append('phoebe_lc_id['+str(x+1)+']')
         parvals.append(lcs[x])
         types.append('choice')
+
         for param in quals.to_list():
 #            if len(eb.filter(qualifier=quals[y], dataset=lcs[x])) == 1:
 #                if isinstance(eb.get_parameter(prpars[0], component='primary'), phoebe.parameters.Float                elif 'ld_' in param.qualifier:
@@ -1044,6 +1084,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #Parameter):
 #                param = eb.get_parameter(quals[y])
 #                ptype = str(type(eb.get_parameter(prpars[x], component='primary'))).split("'")[1].split('.')[-1]
+            if param.component == primary:
+                comp_int = 1
+            elif param.component == secondary:
+                comp_int = 2
+            else:
+                comp_int = None
 
             try:
                 pnew = _2to1par[param.qualifier]
@@ -1060,11 +1106,14 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 val, ptype = par_value(param)
 
                 if param.qualifier == 'pblum':
-                    pname = ret_parname(param.qualifier, component= param.component, dnum = x+1, ptype=ptype)
+                    if contact_binary:
+                        pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
+                    else:
+                        pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
 
                 else:
 
-                    pname = ret_parname(param.qualifier, component=param.component, dtype='lc', dnum = x+1, ptype=ptype)
+                    pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
                 if pname[0] not in parnames:
                     parnames.extend(pname)
                     parvals.extend(val)
@@ -1117,6 +1166,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             parvals.append(rvs[y])
             types.append('choice')
             for param in quals.to_list():
+                if param.component == primary:
+                    comp_int = 1
+                elif param.component == secondary:
+                    comp_int = 2
+                else:
+                    comp_int = None
 
 #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
                 try:
@@ -1158,6 +1213,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                 types.append('choice')
 
                 for param in quals.to_list():
+                    if param.component == primary:
+                        comp_int = 1
+                    elif param.component == secondary:
+                        comp_int = 2
+                    else:
+                        comp_int = None
 
     #            if len(eb.filter(qualifier=quals[y], dataset=rvs[x])) == 1:
                     try:
@@ -1172,7 +1233,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
                     if param != None:
                         val, ptype = par_value(param)
-                        pname = ret_parname(param.qualifier, component = param.component, dtype='rv', dnum = i+1, ptype=ptype)
+                        pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='rv', dnum = i+1, ptype=ptype)
     # if is tries to append a value that already exists...stop that from happening
                         if pname[0] not in parnames:
                             parnames.extend(pname)
@@ -1194,6 +1255,12 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
 
         for param in quals.to_list():
+            if param.component == primary:
+                comp_int = 1
+            elif param.component == secondary:
+                comp_int = 2
+            else:
+                comp_int = None
 
             try:
                 pnew = _2to1par[param.qualifier]
@@ -1205,7 +1272,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
                 val, ptype = par_value(param)
 
-                pname = ret_parname(param.qualifier, component=None, dtype='spots', dnum = y+1, ptype=ptype)
+                pname = ret_parname(param.qualifier, comp_int=None, dtype='spots', dnum = y+1, ptype=ptype)
 
                 parnames.extend(pname)
                 parvals.extend(val)
@@ -1243,6 +1310,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     computeps = eb.get_compute(compute=compute, kind='legacy', check_visible=False)
 
     for param in computeps.to_list():
+        if param.component == primary:
+            comp_int = 1
+        elif param.component == secondary:
+            comp_int = 2
+        else:
+            comp_int = None
+
         if param.component == '_default':
             continue
 
@@ -1286,14 +1360,14 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
             val, ptype = par_value(param, **kwargs)
             if param.qualifier == 'gridsize':
-                pname = ret_parname(param.qualifier, component = param.component, dtype='grid', ptype=ptype)
+                pname = ret_parname(param.qualifier, comp_int = comp_int, dtype='grid', ptype=ptype)
             elif param.qualifier =='atm':
-                atmval = {'kurucz':1, 'blackbody':0}
-                pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
+                atmval = {'extern_atmx':1, 'extern_planckint':0}
+                pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
 
                 val = str(atmval[val[0]])
             else:
-                pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
+                pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
 
             if pname[0] not in parnames:
                 parnames.extend(pname)
@@ -1308,6 +1382,13 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     sysquals = eb.filter('system')
 
     for param in sysquals.to_list():
+        if param.component == primary:
+            comp_int = 1
+        elif param.component == secondary:
+            comp_int = 2
+        else:
+            comp_int = None
+
         try:
             pnew = _2to1par[param.qualifier]
         except:
@@ -1317,7 +1398,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
 
             val, ptype = par_value(param)
-            pname = ret_parname(param.qualifier, component = param.component, ptype=ptype)
+            pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
             if pname[0] not in parnames:
                 parnames.extend(pname)
                 parvals.extend(val)
@@ -1377,3 +1458,19 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #    raise NotImplementedError
 
     return
+
+def N_to_Ntriangles(N):
+    """
+    @N: WD style gridsize
+
+    Converts WD style grid size @N to the number of triangles on the
+    surface.
+
+    Returns: number of triangles.
+    """
+
+    theta = np.array([np.pi/2*(k-0.5)/N for k in range(1, N+1)])
+    phi = np.array([[np.pi*(l-0.5)/Mk for l in range(1, Mk+1)] for Mk in np.array(1 + 1.3*N*np.sin(theta), dtype=int)])
+    Ntri = 2*np.array([len(p) for p in phi]).sum()
+
+    return Ntri

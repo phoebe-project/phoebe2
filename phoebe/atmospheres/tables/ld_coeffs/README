@@ -1,6 +1,0 @@
-To download atmosphere files, run phoebe.download_atm():
-
-$:> python
->>> import phoebe
->>> phoebe.download_atm()
-

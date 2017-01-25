@@ -1,7 +1,7 @@
 
 import numpy as np
 import commands
-
+import tempfile
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet
 from phoebe import dynamics
@@ -569,7 +569,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pblum_copy = {}
-            for component in meshablerefs:
+            # for component in meshablerefs:
+            for component in b.filter(qualifier='pblum_ref', dataset=dataset).components:
                 if component=='_default':
                     continue
                 pblum_ref = b.get_value(qualifier='pblum_ref', component=component, dataset=dataset, context='dataset')
@@ -578,7 +579,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
-                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs)
+                    # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
+
+                    system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
                 else:
                     # then this component wants to copy the scale from another component
                     # in the system.  We'll just store this now so that we make sure the
@@ -589,7 +592,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # now let's copy all the scales for those that are just referencing another component
             for comp, comp_copy in pblum_copy.items():
-                system.get_body(comp)._pblum_scale[dataset] = system.get_body(comp_copy).get_pblum_scale(dataset)
+                pblum_scale = system.get_body(comp_copy).get_pblum_scale(dataset, component=comp_copy)
+                system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
 
     # MAIN COMPUTE LOOP
@@ -901,7 +905,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     """
     p2to1 = {'tloc':'teffs', 'glog':'loggs', 'vcx':'xs', 'vcy':'ys', 'vcz':'zs', 'grx':'nxs', 'gry':'nys', 'grz':'nzs', 'csbt':'cosbetas', 'rad':'rs','Inorm':'abs_normal_intensities'}
 
-    def ret_dict(key):
+    def ret_dict(key, stars):
         """
         Build up dictionary for each phoebe1 parameter, so that they
         correspond to the correct phoebe2 parameter.
@@ -924,9 +928,9 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             # TODO: is this hardcoding component names?  We should really access
             # from the hierarchy instead (we can safely assume a binary) by doing
             # b.hierarchy.get_stars() and b.hierarchy.get_primary_or_secondary()
-            d['component'] = 'primary'
+            d['component'] = stars[0]
         elif comp== 2:
-            d['component'] = 'secondary'
+            d['component'] = stars[1]
         else:
             #This really shouldn't happen
             raise ValueError("All mesh keys should be component specific.")
@@ -939,7 +943,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         return d
 
 
-    def fill_mesh(mesh, type, time=None):
+    def fill_mesh(mesh, type, stars, time=None):
         """
         Fill phoebe2 mesh with values from phoebe1
 
@@ -968,7 +972,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             grtot = [np.sqrt(grtot1),np.sqrt(grtot2)]
 
         for key in keys:
-            d = ret_dict(key)
+            d = ret_dict(key, stars)
      #       key_values =  np.array_split(mesh[key],n)
             if type == 'protomesh':
                 # take care of the protomesh
@@ -981,7 +985,6 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, -prot_val, -prot_val, -prot_val, -prot_val)).flatten()
                 else:
                     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
-
                 if key[:2] =='gr':
                     grtotn = grtot[int(key[-1])-1]
 
@@ -1052,19 +1055,31 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     # print primary, secondary
     #make phoebe 1 file
 
-    # TODO BERT: this really should be a random name (tmpfile) so two instances won't clash
-    io.pass_to_legacy(b, filename='_tmp_legacy_inp', compute=compute, **kwargs)
+
+    #create temporary file
+    tmp_file = tempfile.NamedTemporaryFile()
+#   testing
+#    filename = 'check.phoebe'
+#   real
+    io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
+#   testing
+#    io.pass_to_legacy(b, filename=filename, compute=compute, **kwargs)
     phb1.init()
     try:
         phb1.configure()
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
-    phb1.open('_tmp_legacy_inp')
- #   phb1.updateLD()
+#   real
+    phb1.open(tmp_file.name)
+#   testing
+#    phb1.open(filename)
+#    phb1.updateLD()
     # TODO BERT: why are we saving here?
-    # phb1.save('after.phoebe')
+#   testing
+#    phb1.save('after.phoebe')
     lcnum = 0
     rvnum = 0
+    rvid = None
     infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, protomesh=protomesh, pbmesh=pbmesh)
 
 
@@ -1075,10 +1090,10 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    quit()
     if protomesh:
         time = [perpass]
-        print 'TIME', time
+        # print 'TIME', time
         phb1.setpar('phoebe_lcno', 1)
         flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)
-        fill_mesh(mesh, 'protomesh')
+        fill_mesh(mesh, 'protomesh', stars)
 
     for info in infos:
         info = info[0]
@@ -1102,7 +1117,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
             # take care of the lc first
                 this_syn['fluxes'] = flux
 
-                fill_mesh(mesh, 'pbmesh', time=time)
+                fill_mesh(mesh, 'pbmesh', stars, time=time)
             # now deal with parameters
     #            keys = mesh.keys()
     #            n = len(time)
@@ -1173,32 +1188,68 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #                 time = time[:-1]
 
         elif info['kind'] == 'rv':
-#            print "SYN", this_syn
-            rvid = info['dataset']
-            #print "rvid", info
-#            quit()
 
-            if rvid == phb1.getpar('phoebe_rv_id', 0):
-
+            if rvid == None:
                 dep =  phb1.getpar('phoebe_rv_dep', 0)
-                dep = dep.split(' ')[0].lower()
-           # must account for rv datasets with multiple components
-                if dep != info['component']:
-                    dep = info['component']
-
-            elif rvid == phb1.getpar('phoebe_rv_id', 1):
+            else:
                 dep =  phb1.getpar('phoebe_rv_dep', 1)
-                dep = dep.split(' ')[0].lower()
-           # must account for rv datasets with multiple components
-                if dep != info['component']:
-                    dep = info['component']
+            dep = dep.split(' ')[0].lower()
 
-            proximity = computeparams.filter(qualifier ='rv_method', component='primary', dataset=rvid).get_value()
+            rvid = info['dataset']
 
+            if dep == 'primary':
+                comp = primary
+            elif dep == 'secondary':
+                comp = secondary
+
+            proximity = computeparams.filter(qualifier ='rv_method', component=comp, dataset=rvid).get_value()
             if proximity == 'flux-weighted':
                 rveffects = 1
             else:
                 rveffects = 0
+
+            if dep == 'primary':
+                # print 'primary'
+                phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
+                rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
+                rvnum = rvnum+1
+
+            elif dep == 'secondary':
+                # print 'secondary'
+                phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
+                rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
+                rvnum = rvnum+1
+            else:
+                raise ValueError(str(info['component'])+' is not the primary or the secondary star')
+
+
+                 #print "***", u.solRad.to(u.km)
+            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)
+#########################################################################################################
+#            if rvid == phb1.getpar('phoebe_rv_id', 0):
+
+#                dep =  phb1.getpar('phoebe_rv_dep', 0)
+#                dep = dep.split(' ')[0].lower()
+           # must account for rv datasets with multiple components
+#                if dep == 'primary':
+#                    component = primary
+#                elif dep == 'secondary':
+#                    component = secondary
+
+
+#            elif rvid == phb1.getpar('phoebe_rv_id', 1):
+#                dep =  phb1.getpar('phoebe_rv_dep', 1)
+#                dep = dep.split(' ')[0].lower()
+           # must account for rv datasets with multiple components
+#                if dep != info['component']:
+#                    dep = info['component']
+
+#            proximity = computeparams.filter(qualifier ='rv_method', component=component, dataset=rvid).get_value()
+
+#            if proximity == 'flux-weighted':
+#                rveffects = 1
+#            else:
+#                rveffects = 0
 #            try:
 #                dep2 =  phb1.getpar('phoebe_rv_dep', 1)
 #                dep2 = dep2.split(' ')[0].lower()
@@ -1207,21 +1258,22 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #            print "dep", dep
 #            print "dep2", dep2
 #            print "COMPONENT", info['component']
-            if dep == 'primary':
-                phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
-                rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
-                rvnum = rvnum+1
+#            if dep == 'primary':
+#                phb1.setpar('phoebe_proximity_rv1_switch', rveffects)
+#                rv = np.array(phb1.rv1(tuple(time.tolist()), 0))
+#                rvnum = rvnum+1
 
-            elif dep == 'secondary':
-                phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
-                rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
-                rvnum = rvnum+1
-            else:
-                raise ValueError(str(info['component'])+' is not the primary or the secondary star')
+#            elif dep == 'secondary':
+#                phb1.setpar('phoebe_proximity_rv2_switch', rveffects)
+#                rv = np.array(phb1.rv2(tuple(time.tolist()), 0))
+
+#                rvnum = rvnum+1
+#            else:
+#                raise ValueError(str(info['component'])+' is not the primary or the secondary star')
 
 
             #print "***", u.solRad.to(u.km)
-            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s)
+#            this_syn.set_value(qualifier='rvs', value=rv*u.km/u.s, component = component)
 #            print "INFO", info
 #            print "SYN", this_syn
 
@@ -1589,8 +1641,8 @@ def jktebop(b, compute, times=[], **kwargs):
             logger.warning("ld_coeffs not compatible with jktebop - setting to (0.5,0.5)")
             ldcoeffsB = (0.5,0.5)
 
-        albA = b.get_value('frac_refl_bol', component=starrefs[0], context='component')
-        albB = b.get_value('frac_refl_bol', component=starrefs[1], context='component')
+        albA = b.get_value('irrad_frac_refl_bol', component=starrefs[0], context='component')
+        albB = b.get_value('irrad_frac_refl_bol', component=starrefs[1], context='component')
 
         tratio = b.get_value('teff', component=starrefs[0], context='component', unit=u.K) / b.get_value('teff', component=starrefs[1], context='component', unit=u.K)
 
