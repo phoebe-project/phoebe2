@@ -60,9 +60,8 @@ matrix:
 
         # Try with various versions of python with default numpy/astropy and compiler
         - os: linux
-          python: 3.5
-          compiler: g++
-          env: PYTHON_VERSION=3.5 NUMPY_VERSION=stable ASTROPY_VERSION=stable'
+          compiler: g++-5
+          env: CXX=g++-5 PYTHON_VERSION=3.5 NUMPY_VERSION=stable ASTROPY_VERSION=stable'
 
         # - os: linux
         #   compiler: g++
