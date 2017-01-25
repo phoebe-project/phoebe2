@@ -32,9 +32,9 @@ def test_binary(plot=False):
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)
 
-    print "running phoebe2 model..."
+    print("running phoebe2 model...")
     cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    print "running phoebe1 model..."
+    print("running phoebe1 model...")
     cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
     phoebe2_val_lc = cb.get_value('fluxes@phoebe2model')
@@ -45,9 +45,9 @@ def test_binary(plot=False):
     phoebe1_val_rv2 = cb.get_value('rvs@secondary@phoebe1model')[2:48]
 
     if plot:
-        print "max rtol lc:", np.max((phoebe2_val_lc - phoebe1_val_lc)/phoebe1_val_lc)
-        print "max atol rv1:", np.max(phoebe2_val_rv1 - phoebe1_val_rv1)
-        print "max atol rv2:", np.max(phoebe2_val_rv2 - phoebe1_val_rv2)
+        print("max rtol lc:", np.max((phoebe2_val_lc - phoebe1_val_lc)/phoebe1_val_lc))
+        print("max atol rv1:", np.max(phoebe2_val_rv1 - phoebe1_val_rv1))
+        print("max atol rv2:", np.max(phoebe2_val_rv2 - phoebe1_val_rv2))
 
         cb.plot(dataset='lc01')
         plt.legend()

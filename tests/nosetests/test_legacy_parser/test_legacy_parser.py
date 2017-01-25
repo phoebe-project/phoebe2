@@ -69,14 +69,14 @@ def legacy_test(filename='default.phoebe'):
     prim = 0
     sec = 0
     for x in range(rvno):
-        print 'rvs'
+        print('rvs')
         comp = phb1.getpar('phoebe_rv_dep', x).split(' ')[0].lower()
         if comp == 'primary':
             comp_name = 'cow'
         elif comp == 'secondary':
             comp_name = 'pig'
         a = int(x/2.)
-        print a
+        print(a)
         datafile = phb1.getpar('phoebe_rv_filename', x)
         data = np.loadtxt(os.path.join(dir, datafile))
         time = b.filter(dataset=rvs[a], qualifier='times', component=comp_name).get_value()
@@ -118,7 +118,7 @@ def legacy_test(filename='default.phoebe'):
         lc2 = b.filter('fluxes', context='model', dataset=lcs[x]).get_value()
         time = b.filter('times', context='model', dataset=lcs[x]).get_value()
         print("comparing lightcurve "+str(lcs[x]))
-        print fluxes[x]-lc2
+        print(fluxes[x]-lc2)
         assert(np.allclose(fluxes[x], lc2, atol=1e-5))
 
     for x in range(rvno):
@@ -161,9 +161,9 @@ if __name__ == '__main__':
 #    logger= phb2.logger()
     detached = 'default.phoebe'
 #    contact = 'contact.phoebe'
-#    print "checking detached system"
+#    print("checking detached system")
     legacy_test(detached)
-#    print "checking contact system"
+#    print("checking contact system")
 #    legacy_test(contact)
   
 

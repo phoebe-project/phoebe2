@@ -26,12 +26,12 @@ def _keplerian_v_nbody(b, plot=False):
     for ci in range(len(b.hierarchy.get_stars())):
         # TODO: make atol lower (currently 1e-5 solRad which is awfully big, but 1e-6 currently fails!)
         if plot:
-            print "max atol xs:", nb_xs[ci] - k_xs[ci]
-            print "max atol ys:", nb_ys[ci] - k_ys[ci]
-            print "max atol zs:", nb_zs[ci] - k_zs[ci]
-            print "max atol vxs:", nb_vxs[ci] - k_vxs[ci]
-            print "max atol vys:", nb_vys[ci] - k_vys[ci]
-            print "max atol vzs:", nb_vzs[ci] - k_vzs[ci]
+            print("max atol xs:", nb_xs[ci] - k_xs[ci])
+            print("max atol ys:", nb_ys[ci] - k_ys[ci])
+            print("max atol zs:", nb_zs[ci] - k_zs[ci])
+            print("max atol vxs:", nb_vxs[ci] - k_vxs[ci])
+            print("max atol vys:", nb_vys[ci] - k_vys[ci])
+            print("max atol vzs:", nb_vzs[ci] - k_vzs[ci])
 
         assert(np.allclose(nb_xs[ci], k_xs[ci], atol=1e-5))
         assert(np.allclose(nb_ys[ci], k_ys[ci], atol=1e-5))
@@ -71,7 +71,7 @@ def _phoebe_v_photodynam(b, plot=False):
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='phoeberesults', component=comp), 'r-')
                 plt.plot(b.get_value('times', model='phoeberesults', component=comp, unit=u.d), b.get_value(k, model='pdresults', component=comp), 'b-')
                 diff = abs(b.get_value(k, model='phoeberesults', component=comp) - b.get_value(k, model='pdresults', component=comp))
-                print "*** max abs ({}): {}".format(k, max(diff))
+                print("*** max abs ({}): {}".format(k, max(diff)))
                 plt.xlabel('t')
                 plt.ylabel(k)
                 plt.show()

@@ -38,8 +38,8 @@ def test_binary(plot=False):
                         rp = phoebe.distortions.roche.potential2rpole(pot, q, e, F, component=comp_no)
 
                         if plot:
-                            print "pot", Omega, pot
-                            print "rpole", rpole, rp
+                            print("pot", Omega, pot)
+                            print("rpole", rpole, rp)
 
                         assert(abs(Omega-pot) < 1e-6)
                         assert(abs(rpole-rp)< 1e-6)

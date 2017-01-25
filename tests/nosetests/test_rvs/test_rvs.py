@@ -25,16 +25,16 @@ def _beta_vs_legacy(b):
     b.run_compute('phnum', model='phnumresults')
     b.run_compute('legnum', model='legnumresults')
 
-    print "sma: {}, period: {}, q: {}".format(b.get_value('sma@binary'), b.get_value('period@binary'), b.get_value('q'))
+    print("sma: {}, period: {}, q: {}".format(b.get_value('sma@binary'), b.get_value('period@binary'), b.get_value('q')))
 
     phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')
-    print "rv@primary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
+    print("rv@primary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val))))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
     phoebe2_val = b.get_value('rvs@secondary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@secondary@legnumresults@legnum')
-    print "rv@secondary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
+    print("rv@secondary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val))))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
 
