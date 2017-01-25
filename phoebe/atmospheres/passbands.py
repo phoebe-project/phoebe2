@@ -576,9 +576,9 @@ class Passband:
 
                     if plot_diagnostics:
                         if Tindex == 10 and lindex == 9 and mindex == 5:
-                            print self._ck2004_intensity_axes[0][Tindex], self._ck2004_intensity_axes[1][lindex], self._ck2004_intensity_axes[2][mindex]
-                            print mus, IsE
-                            print cElin, cElog, cEsqrt
+                            print(self._ck2004_intensity_axes[0][Tindex], self._ck2004_intensity_axes[1][lindex], self._ck2004_intensity_axes[2][mindex])
+                            print(mus, IsE)
+                            print(cElin, cElog, cEsqrt)
                             import matplotlib.pyplot as plt
                             plt.plot(mus[fEmask], IsE[fEmask], 'bo')
                             plt.plot(mus[fEmask], self._ldlaw_lin(mus[fEmask], *cElin), 'r-')
@@ -1078,14 +1078,14 @@ if __name__ == '__main__':
     #~ plt.show()
     #~ exit()
 
-    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody')
-    print 'planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint')
-    print 'atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx')
-    print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004')
+    print('blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody'))
+    print('planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint'))
+    print('atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx'))
+    print('kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004'))
 
     # Testing arrays:
 
-    print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody')
-    print 'planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint')
-    print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
-    print 'kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz')
+    print('blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody'))
+    print('planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint'))
+    print('atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx'))
+    print('kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz'))
