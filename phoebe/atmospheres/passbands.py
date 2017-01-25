@@ -26,8 +26,7 @@ try:
 except ImportError:
     # Fall back to Python 2's urllib, urllib2
     from urllib import urlretrieve
-    from urllib2 import urlopen
-    from urllib2 import URLError, HTTPError
+    from urllib2 import urlopen, URLError, HTTPError
     
 import logging
 logger = logging.getLogger("PASSBANDS")
