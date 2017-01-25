@@ -1142,10 +1142,13 @@ class ParameterSet(object):
         # TODO: why the try except here?
         try:
             self.set(twig, value, **kwargs)
-        except ValueError, msg:
+        except ValueError as exc:
             # TODO: custom error type for more than 1 result and mention
             # changing dict_set_all@settings
-            raise ValueError(msg)
+            
+            # this is redundant (could just raise exc), but allows for
+            # us to add more information to the message in the future.
+            raise ValueError(exc.args[0])
 
     def __contains__(self, twig):
         """
