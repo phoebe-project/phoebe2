@@ -16,9 +16,19 @@ import libphoebe
 import os
 import glob
 import shutil
-import urllib, urllib2
 import json
 
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen, urlretrieve
+    from urllib.error import URLError, HTTPError
+    
+except ImportError:
+    # Fall back to Python 2's urllib, urllib2
+    from urllib import urlretrieve
+    from urllib2 import urlopen
+    from urllib2 import URLError, HTTPError
+    
 import logging
 logger = logging.getLogger("PASSBANDS")
 logger.addHandler(logging.NullHandler())
@@ -951,7 +961,7 @@ def download_passband(passband):
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
-        urllib.urlretrieve(url, passband_fname_local)
+        urlretrieve(url, passband_fname_local)
     except IOError:
         raise IOError("unable to download {} passband - check connection".format(passband))
     else:
@@ -975,8 +985,8 @@ def list_online_passbands(refresh=False):
 
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
         try:
-            resp = urllib2.urlopen(url)
-        except urllib2.URLError:
+            resp = urlopen(url)
+        except URLError:
             logger.warning("connection to online passbands lost")
             if _online_passbands is not None:
                 return _online_passbands.keys()
