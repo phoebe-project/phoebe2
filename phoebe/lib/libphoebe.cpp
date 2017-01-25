@@ -69,7 +69,7 @@
   #define PyString_Type PyBytes_Type
   #define PyString_AsString PyBytes_AsString
   #define PyString_Check PyBytes_Check
-  
+  #define PyInt_FromLong PyLong_FromLong
 #else
   #define MOD_ERROR_VAL
   #define MOD_SUCCESS_VAL(val)
