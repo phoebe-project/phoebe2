@@ -1,6 +1,4 @@
 
-from distortions import *
-import roche as roche
-import nbody as nbody
-    
-
+from .distortions import *
+from . import roche as roche
+from . import nbody as nbody

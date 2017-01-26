@@ -84,11 +84,11 @@ from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
 from .backend import *
-import utils as utils
+from . import utils as utils
 
-import dynamics as dynamics
-import distortions as distortions
-import algorithms as algorithms
+from . import dynamics as dynamics
+from . import distortions as distortions
+from . import algorithms as algorithms
 import libphoebe
 
 # Shortcut to building logger

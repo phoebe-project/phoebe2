@@ -9,6 +9,7 @@ from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
 from phoebe.frontend import tabcomplete, plotting, mpl_animate
 
+import sys
 import random
 import string
 import functools
@@ -33,6 +34,10 @@ except ImportError:
     _can_requests = False
 else:
     _can_requests = True
+
+if sys.version_info[0] == 3:
+  unicode = str
+  
 
 # things needed to be imported at top-level for constraints to solve:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
@@ -2805,8 +2810,11 @@ class Parameter(object):
         for attr in _meta_fields_twig + self._dict_fields_other:
             attr = '_{}'.format(attr)
             val = getattr(self, attr)
+            
             if isinstance(val, unicode) and attr not in ['_copy_for']:
-                setattr(self, attr, str(val))
+              setattr(self, attr, str(val))
+  
+              
             #if attr == '_copy_for' and isinstance(self._copy_for, str):
             #    print "***", self._copy_for
             #    self._copy_for = json.loads(self._copy_for)
@@ -3841,9 +3849,10 @@ class FloatParameter(Parameter):
         self.set_limits(limits)
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
-
+        
+        if isinstance(unit, unicode):
+          unit = u.Unit(str(unit))
+          
 
         timederiv = kwargs.get('timederiv', None)
         self.set_timederiv(timederiv)
@@ -3872,11 +3881,11 @@ class FloatParameter(Parameter):
         """
         # TODO: check to make sure isinstance(unit, astropy.u.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
+        if isinstance(unit, unicode):
+          unit = u.Unit(str(unit))
         elif unit is None:
-            unit = u.dimensionless_unscaled
-
+          unit = u.dimensionless_unscaled
+          
         self._default_unit = unit
 
     @property
@@ -4231,9 +4240,10 @@ class FloatArrayParameter(FloatParameter):
         self.set_default_unit(default_unit)
 
         unit = kwargs.get('unit', None)  # will default to default_unit in set_value
-        if isinstance(unit, str) or isinstance(unit, unicode):
-            unit = u.Unit(str(unit))
-
+        
+        if isinstance(unit, unicode):
+          unit = u.Unit(str(unit))
+          
         self.set_value(kwargs.get('value', []), unit)
 
         self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
@@ -4979,7 +4989,7 @@ class ConstraintParameter(Parameter):
         """
         # TODO: check to make sure isinstance(unit, astropy.units.Unit)
         # TODO: check to make sure can convert from current default unit (if exists)
-        if isinstance(unit, str) or isinstance(unit, unicode):
+        if isinstance(unit, unicode):
             unit = u.Unit(str(unit))
 
         self._default_unit = unit

@@ -19,7 +19,7 @@ except (ImportError, TypeError):
     _use_mpl = False
 else:
     _use_mpl = True
-    _mplcolors = colors.cnames.keys() + colors.ColorConverter.colors.keys() + ['None', 'none']
+    _mplcolors = list(colors.cnames.keys()) + list(colors.ColorConverter.colors.keys()) + ['None', 'none']
 
 try:
     from bokeh import plotting as bkh

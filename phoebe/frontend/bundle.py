@@ -1,3 +1,4 @@
+import sys
 import subprocess
 import os
 import re
@@ -824,8 +825,11 @@ class Bundle(ParameterSet):
             func_args = args[1:]
 
             repr_ = func(*func_args)
-
-            kind = func.func_name
+            
+            if sys.version_info[0] == 3:
+              kind = func.__name__
+            else:
+              kind = func.func_name
 
         hier_param = HierarchyParameter(value=repr_,
                                         description='Hierarchy representation')
@@ -1351,24 +1355,30 @@ class Bundle(ParameterSet):
         """
 
         func = _get_add_func(component, kind)
-
+        
+        if sys.version_info[0] == 3:
+          fname = func.__name__
+        else:
+          fname = func.func_name
+        
         kwargs.setdefault('component',
-                          self._default_label(func.func_name,
+                          self._default_label(fname,
                                               **{'context': 'component',
-                                                 'kind': func.func_name}))
+                                                 'kind': fname}))
 
         self._check_label(kwargs['component'])
 
         params, constraints = func(**kwargs)
 
+        
         metawargs = {'context': 'component',
                      'component': kwargs['component'],
-                     'kind': func.func_name}
+                     'kind': fname}
 
         self._attach_params(params, **metawargs)
 
         redo_kwargs = deepcopy(kwargs)
-        redo_kwargs['func'] = func.func_name
+        redo_kwargs['func'] = fname
         self._add_history(redo_func='add_component',
                           redo_kwargs=redo_kwargs,
                           undo_func='remove_component',

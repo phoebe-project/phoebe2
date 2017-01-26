@@ -1,6 +1,11 @@
 
 import numpy as np
-import commands
+
+try:
+  import commands
+except:
+  import subprocess as commands
+  
 import tempfile
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import ParameterSet

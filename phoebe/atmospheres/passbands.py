@@ -238,7 +238,11 @@ class Passband:
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
-            self.wd_data = libphoebe.wd_readdata(atmdir+'/atmcofplanck.dat', atmdir+'/atmcof.dat')
+            
+            planck = (atmdir+'/atmcofplanck.dat').encode('utf8')
+            atm = (atmdir+'/atmcof.dat').encode('utf8')
+            
+            self.wd_data = libphoebe.wd_readdata(planck, atm)
             self.extern_wd_idx = struct['extern_wd_idx']
 
         if 'ck2004' in self.content:
