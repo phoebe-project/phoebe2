@@ -52,6 +52,7 @@ def lc_syn(syn=True, **kwargs):
 def lc_dep(is_lc=True, **kwargs):
     dep_params = []
 
+    # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands.init_passbands()  # NOTE: this only actually does something on the first call
