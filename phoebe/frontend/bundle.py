@@ -1749,15 +1749,15 @@ class Bundle(ParameterSet):
 
         # Now we need to apply any kwargs sent by the user.  There are a few
         # scenarios (and each kwargs could fall into different ones):
-        # time = [0,1,2]
+        # times = [0,1,2]
         #    in this case, we want to apply time across all of the components that
         #    are applicable for this dataset kind AND to _default so that any
         #    future components added to the system are copied appropriately
-        # time = [0,1,2], components=['primary', 'secondary']
+        # times = [0,1,2], components=['primary', 'secondary']
         #    in this case, we want to apply the value for time across components
         #    but time@_default should remain empty (it will not copy for components
         #    added in the future)
-        # time = {'primary': [0,1], 'secondary': [0,1,2]}
+        # times = {'primary': [0,1], 'secondary': [0,1,2]}
         #    here, regardless of the components, we want to apply these to their
         #    individually requested parameters.  We won't touch _default unless
         #    its included in the dictionary
@@ -1785,7 +1785,15 @@ class Bundle(ParameterSet):
                 elif user_provided_components:
                     components_ = components
                 else:
-                    components_ = components+['_default']
+                    # for dataset kinds that include passband dependent AND
+                    # independent parameters, we need to carefully default on
+                    # what component to use when passing the defaults
+                    if kind in ['rv'] and k in ['ld_func', 'ld_coeffs', 'passband', 'intens_weighting']:
+                        # passband-dependent (ie lc_dep) parameters do not have
+                        # assigned components
+                        components_ = None
+                    else:
+                        components_ = components+['_default']
 
                 self.set_value_all(qualifier=k,
                                    dataset=kwargs['dataset'],
