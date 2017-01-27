@@ -979,16 +979,32 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                 prot_val = np.array(mesh[key])#key_values[-1]
 
                 d['dataset'] = 'protomesh'
-                if 'vcy' or 'gry' in key:
-                    key_val = np.array(zip(prot_val, prot_val, -prot_val, -prot_val, prot_val, prot_val, -prot_val, -prot_val)).flatten()
-                if 'vcz' or 'grz' in key:
-                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, -prot_val, -prot_val, -prot_val, -prot_val)).flatten()
+                if ('vcx' in key) or ('grx' in key):
+                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val)).flatten()#, prot_val, prot_val, prot_val)).flatten()#, -prot_val, -prot_val, -prot_val, -prot_val)).flatten()
+            
+                elif ('vcy' in key) or ('gry' in key):
+                    key_val = np.array(zip(prot_val, -1.0*prot_val,prot_val, -1.0*prot_val)).flatten()#, -prot_val, -prot_val, prot_val)).flatten()#, prot_val, -prot_val, -prot_val, prot_val)).flatten()
+            
+                elif ('vcz' in key) or ('grz' in key):
+                    key_val = np.array(zip(prot_val, -1.0*prot_val, -1.0*prot_val, prot_val)).flatten()#, prot_val, -prot_val, -prot_val)).flatten()#, prot_val, -prot_val, -prot_val)).flatten()   
+            
                 else:
-                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
+                    key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val)).flatten()
+                #     grtotn = grtot[int(key[-1])-1]
+
+                #     grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
+
+                # if 'vcx' or 'grx' in keyot_val, -prot_val, -prot_val, -prot_val)).flatten()
+                # if 'vcy' or 'gry' in key:
+                #     key_val = np.array(zip(prot_val, -prot_val, -prot_val, prot_val, prot_val, -prot_val, -prot_val, prot_val)).flatten()
+                # if 'vcz' or 'grz' in key:
+                #     key_val = np.array(zip(prot_val, prot_val, -prot_val, -prot_val, prot_val, prot_val, -prot_val, -prot_val)).flatten()   
+                # else:
+                #     key_val = np.array(zip(prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val, prot_val)).flatten()
                 if key[:2] =='gr':
                     grtotn = grtot[int(key[-1])-1]
 
-                    grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn, grtotn)).flatten()
+                    grtotn = np.array(zip(grtotn, grtotn, grtotn, grtotn)).flatten()#, grtotn, grtotn, grtotn)).flatten()#, grtotn, grtotn, grtotn, grtotn)).flatten()
 
                     # normals should be normalized
                     d['value'] = -key_val /grtotn
@@ -1002,6 +1018,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                     logger.warning('{} has no corresponding value in phoebe 2 protomesh'.format(key))
 
             elif type == 'pbmesh':
+                logger.warning('Only values which do not depend on the stars location are currently reported.')
                 n = len(time)
                 key_values =  np.array_split(mesh[key],n)
                 #TODO change time inserted to time = time[:-1]
@@ -1011,7 +1028,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                     if key in ['Inorm1', 'Inorm2']:
                         d['dataset'] = dataset
 
-                        d['times'] = time[t]
+                        d['time'] = time[t]
                         #prepare data
                         if key[:2] in ['vc', 'gr']:
                             # I need to change coordinates but not yet done
@@ -1025,6 +1042,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
                             param = new_syns.filter(**d)
                             if param:
+
                                 d['value'] = key_val
                                 new_syns.set_value(**d)
                             else:
@@ -1091,9 +1109,11 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     if protomesh:
         time = [perpass]
         # print 'TIME', time
-        phb1.setpar('phoebe_lcno', 1)
+#        rlcno = phb1.getpar('phoebe_lcno')
+#        phb1.setpar('phoebe_lcno', 1)
         flux, mesh = phb1.lc(tuple(time), 0, lcnum+1)
         fill_mesh(mesh, 'protomesh', stars)
+#        phb1.setpar('phoebe_lcno', rlcno)
 
     for info in infos:
         info = info[0]
@@ -1103,6 +1123,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
         if info['kind'] == 'lc':
             if not pbmesh:
+                print "lcnum", lcnum
             # print "*********************", this_syn.qualifiers
                 flux= np.array(phb1.lc(tuple(time.tolist()), lcnum))
                 lcnum = lcnum+1
