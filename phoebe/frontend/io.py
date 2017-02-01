@@ -424,10 +424,11 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
     fti = _bool1to2[int(params[:,1][list(params[:,0]).index('phoebe_cadence_switch')])]
     fti_exp = params[:,1][list(params[:,0]).index('phoebe_cadence')]
-    print fti_exp
     fti_ovs = params[:,1][list(params[:,0]).index('phoebe_cadence_rate')]
-    params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate')], axis=0)
-
+    fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')]
+#    params =  np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch')], axis=0)#, list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
+    params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
+ 
 #    fti_type = params[:,1][list(params[:,0]).index('phoebe_cadenc_rate')]
 # create mzero and grab it if it exists
     mzero = None
@@ -476,10 +477,44 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         lcint = [list(lcpars[:,0]).index(s) for s in lcpars[:,0] if "["+str(x)+"]" in s]
         lcpt = lcpars[lcint]
 
-        #determine whether to use global or individual fti parameters
-        fti_ind = _bool1to2[int(lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_switch['+str(x)+']')])]
+
+
+        #determine whether individual fti parameter exists and add them if not
+ #       print 'phoebe_lc_cadence_switch['+str(x)+']', int(lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_switch['+str(x)+']')])
+ #       fti_ts_ind = lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_timestamp['+str(x)+']')].strip('"')
+
+ #       print fti_ts_ind
+
+#        if fti_ts_ind != 'Mid-exposure':
+#            print "i shouldn't go here"
+
+#            logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
+        try:
+            fti_ind = _bool1to2[int(lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_switch['+str(x)+']')])]
+            fti_ts_ind = lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_timestamp['+str(x)+']')].strip('"')
+
+            if fti_ts_ind != 'Mid-exposure':
+                logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
+
+        #    print 'phoebe_lc_cadence_switch['+str(x)+']', fti_ind 
+        
+        except:
+            print "I SHOULDN'T BE HERE"
+            logger.warning('Your .phoebe file was created using a version of phoebe which does not support dataset dependent finite integration time parameters')
+            fti_val = _bool2to1[fti]
+            ftia = np.array(['phoebe_lc_cadence_switch['+str(x)+']', fti_val])
+            fti_expa = np.array(['phoebe_lc_cadence['+str(x)+']', fti_exp])
+            fti_ovsa = np.array(['phoebe_lc_cadence_rate['+str(x)+']', fti_ovs])
+            fti_tsa = np.array(['phoebe_lc_cadence_timestamp['+str(x)+']', fti_ts])
+            lcpt = np.vstack((lcpt,ftia,fti_expa,fti_ovsa, fti_tsa))
+            
+            fti_ind = False
+
 
         if not fti_ind:
+
+            if fti_ts != 'Mid-exposure':
+                logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
             if fti:
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
         
@@ -487,6 +522,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = 0.0
 
             lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs                
+
+        
 
 
 
@@ -585,8 +622,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         rvpt = rvpars[rvint]
 
     #determine whether to use global or individual fti parameters
-        fti_ind = _bool1to2[int(rvpt[:,1][list(rvpt[:,0]).index('phoebe_rv_cadence_switch['+str(x)+']')])]
-        rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'), axis=0)
+        try:
+            fti_ind = _bool1to2[int(rvpt[:,1][list(rvpt[:,0]).index('phoebe_rv_cadence_switch['+str(x)+']')])]
+            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'), axis=0)
+            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence_rate['+str(x)+']'), axis=0)
+        except:
+            logger.warning('finite integration time is not currently supported for RV datasets in Phoebe 2')
+            
     #    if fti_ind:
     #        if fti:
     #            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'))
@@ -1190,7 +1232,16 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                         pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
                     else:
                         pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
+                elif param.qualifier == 'exptime':
 
+                    logger.warning("Finite integration Time is not fully supported and will be turned off by legacy wrapper before computation")
+                    pname = ['phoebe_cadence_switch']
+                    val = ['0']
+                    ptype='boolean'
+#                    if pname[0] not in parnames:
+#                        parnames.extend(pname)
+#                        parvals.extend(val)
+#                        types.append('boolean')
                 else:
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
