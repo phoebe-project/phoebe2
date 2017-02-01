@@ -52,7 +52,10 @@ _1to2par = {'ld_model':'ld_func',
             'longitude':'colon',
             'radius': 'radius',
             'tempfactor':'relteff',
-            'colatitude':'colat'}
+            'colatitude':'colat',
+            'cadence': 'exptime'}
+#            'rate':'rate'}
+
 #TODO: add back proximity_rv maybe?
 #TODO: add back 'excess': 'extinction',
 
@@ -70,7 +73,8 @@ _units1 = {'incl': 'deg',
            'sigmalc': 'W/m2',
            'sigmarv': 'km/s',
            'vel':'km/s',
-           'time':'d'}
+           'time':'d',
+           'exptime':'s'}
 
 _parsect = {'t0':'component',
             'period':'component',
@@ -98,6 +102,8 @@ _parsect = {'t0':'component',
 #_bool1to2 = {1:True, 0:False}
 
 _bool2to1 = {True:1, False:0}
+
+_bool1to2 = {1:True, 0:False}
 
 """
 ld_legacy -
@@ -413,10 +419,28 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             params[:,1][list(params[:,0]).index('phoebe_teff2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_teff1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_grb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_grb1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_alb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_alb1.VAL')]
+
+#pull out global values for fti
+
+    fti = _bool1to2[int(params[:,1][list(params[:,0]).index('phoebe_cadence_switch')])]
+    fti_exp = params[:,1][list(params[:,0]).index('phoebe_cadence')]
+    fti_ovs = params[:,1][list(params[:,0]).index('phoebe_cadence_rate')]
+    fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')]
+#    params =  np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch')], axis=0)#, list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
+    params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
+ 
+#    fti_type = params[:,1][list(params[:,0]).index('phoebe_cadenc_rate')]
 # create mzero and grab it if it exists
     mzero = None
     if 'phoebe_mnorm' in params:
         mzero = np.float(params[:,1][list(params[:,0]).index('phoebe_mnorm')])
+# determine if luminosities are decoupled and set pblum_ref accordingly
+
+    decoupled_luminosity = np.int(params[:,1][list(params[:,0]).index('phoebe_usecla_switch')])
+#    if decoupled_luminosity == 0:
+#        eb.set_value(qualifier='pblum_ref', component='secondary', value='primary')
+#    else:
+#        eb.set_value(qualifier='pblum_ref', component='secondary', value='self')
 
 #Determin LD law
 
@@ -452,6 +476,57 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
         lcint = [list(lcpars[:,0]).index(s) for s in lcpars[:,0] if "["+str(x)+"]" in s]
         lcpt = lcpars[lcint]
+
+
+
+        #determine whether individual fti parameter exists and add them if not
+ #       print 'phoebe_lc_cadence_switch['+str(x)+']', int(lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_switch['+str(x)+']')])
+ #       fti_ts_ind = lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_timestamp['+str(x)+']')].strip('"')
+
+ #       print fti_ts_ind
+
+#        if fti_ts_ind != 'Mid-exposure':
+#            print "i shouldn't go here"
+
+#            logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
+        try:
+            fti_ind = _bool1to2[int(lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_switch['+str(x)+']')])]
+            fti_ts_ind = lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_timestamp['+str(x)+']')].strip('"')
+
+            if fti_ts_ind != 'Mid-exposure':
+                logger.warning('Phoebe 2 only uses Mid-Exposure for calculating finite exposure times.')
+
+        #    print 'phoebe_lc_cadence_switch['+str(x)+']', fti_ind 
+        
+        except:
+            print "I SHOULDN'T BE HERE"
+            logger.warning('Your .phoebe file was created using a version of phoebe which does not support dataset dependent finite integration time parameters')
+            fti_val = _bool2to1[fti]
+            ftia = np.array(['phoebe_lc_cadence_switch['+str(x)+']', fti_val])
+            fti_expa = np.array(['phoebe_lc_cadence['+str(x)+']', fti_exp])
+            fti_ovsa = np.array(['phoebe_lc_cadence_rate['+str(x)+']', fti_ovs])
+            fti_tsa = np.array(['phoebe_lc_cadence_timestamp['+str(x)+']', fti_ts])
+            lcpt = np.vstack((lcpt,ftia,fti_expa,fti_ovsa, fti_tsa))
+            
+            fti_ind = False
+
+
+        if not fti_ind:
+
+            if fti_ts != 'Mid-exposure':
+                logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
+            if fti:
+                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
+        
+            else:
+                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = 0.0
+
+            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs                
+
+        
+
+
+
 #STARTS HERE
         lc_dict = {}
         for x in range(len(lcpt)):
@@ -503,6 +578,13 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         d ={'qualifier':'enabled', 'dataset':dataid, 'value':enabled}
         eb.set_value_all(check_visible= False, **d)
 
+    #set pblum reference
+
+        if decoupled_luminosity == 0:
+            eb.set_value(qualifier='pblum_ref', component='secondary', value='primary', dataset=dataid)
+        else:
+            eb.set_value(qualifier='pblum_ref', component='secondary', value='self', dataset=dataid)
+
     #get available passbands
 
         choices = lc_dataset.get_parameter('passband').choices
@@ -516,7 +598,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 #            print d
         # as long as the parameter exists add it
             if len(d) > 0:
-#                print d
+            
                 if d['qualifier'] == 'passband' and d['value'] not in choices:
                     d['value'] = 'Johnson:V'
 
@@ -526,21 +608,46 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
                 try:
                     eb.set_value_all(check_visible=False, **d)
+    #                del d['value']
+     #               print "Value", eb.get_value(**d)
                 except ValueError, msg:
                     raise ValueError(msg.message + " ({})".format(d))
-
-#Now RVs
+            
+#Now rvs
     for x in range(1,rvno+1):
         rvs = eb.get_dataset(kind='rv').datasets
 
     #list of parameters related to current dataset
         rvint = [list(rvpars[:,0]).index(s) for s in rvpars[:,0] if "["+str(x)+"]" in s]
         rvpt = rvpars[rvint]
+
+    #determine whether to use global or individual fti parameters
+        try:
+            fti_ind = _bool1to2[int(rvpt[:,1][list(rvpt[:,0]).index('phoebe_rv_cadence_switch['+str(x)+']')])]
+            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'), axis=0)
+            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence_rate['+str(x)+']'), axis=0)
+        except:
+            logger.warning('finite integration time is not currently supported for RV datasets in Phoebe 2')
+            
+    #    if fti_ind:
+    #        if fti:
+    #            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'))
+            #    rvpt[:,1][list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']')] = fti_exp
+        
+    #        else:
+    #            rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'))
+            #    rvpt[:,1][list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']')] = 0.0
+
+    #        rvpt = np.delete(rvpt, list(rvpt[:,0]).index('phoebe_rv_cadence['+str(x)+']'))
+    #        rvpt[:,1][list(rvpt[:,0]).index('phoebe_rv_cadence_rate['+str(x)+']')] = fti_ovs        
+
+
 #create rv dictionary
         rv_dict = {}
         for x in range(len(rvpt)):
 #    parameter = rvpt[x][0].split('_')[-1].split('[')[0]
             parameter = rvpt[x][0].split('[')[0]
+
             rv_dict[parameter] = rvpt[:,1][x].strip('"')
     # grab some parameters we'll need
         passband = rv_dict['phoebe_rv_filter']
@@ -584,6 +691,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         for k  in rv_dict:
 
             pnew, d = ret_dict(k, rv_dict[k], rvdep = comp, dataid=dataid)
+    
             if len(d) > 0:
                 eb.set_value_all(check_visible= False, **d)
 
@@ -956,7 +1064,21 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parvals.append('"Time (HJD)"')
     types.append('choice')
 
+    if len(lcs) != 0:
 
+        pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
+        print "pblum_ref", pblum_ref
+        if pblum_ref == 'self':
+
+            decouple_luminosity = '1'
+
+        else:
+
+            decouple_luminosity = '0'
+
+        parnames.append('phoebe_usecla_switch')
+        parvals.append(decouple_luminosity)
+        types.append('boolean')
 
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
@@ -1110,7 +1232,16 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                         pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
                     else:
                         pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
+                elif param.qualifier == 'exptime':
 
+                    logger.warning("Finite integration Time is not fully supported and will be turned off by legacy wrapper before computation")
+                    pname = ['phoebe_cadence_switch']
+                    val = ['0']
+                    ptype='boolean'
+#                    if pname[0] not in parnames:
+#                        parnames.extend(pname)
+#                        parvals.extend(val)
+#                        types.append('boolean')
                 else:
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
