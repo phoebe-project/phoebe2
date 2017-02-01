@@ -425,7 +425,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     fti = _bool1to2[int(params[:,1][list(params[:,0]).index('phoebe_cadence_switch')])]
     fti_exp = params[:,1][list(params[:,0]).index('phoebe_cadence')]
     fti_ovs = params[:,1][list(params[:,0]).index('phoebe_cadence_rate')]
-    fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')]
+    fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')].strip('"')
 #    params =  np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch')], axis=0)#, list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
     params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
  
@@ -499,7 +499,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         #    print 'phoebe_lc_cadence_switch['+str(x)+']', fti_ind 
         
         except:
-            print "I SHOULDN'T BE HERE"
+
             logger.warning('Your .phoebe file was created using a version of phoebe which does not support dataset dependent finite integration time parameters')
             fti_val = _bool2to1[fti]
             ftia = np.array(['phoebe_lc_cadence_switch['+str(x)+']', fti_val])
