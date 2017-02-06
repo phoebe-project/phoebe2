@@ -71,7 +71,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
             # TODO: handle the hemispheres correctly in the legacy backend and remove this [::8] stuff (also below in plotting)
             if dataset=='protomesh':
-                phoebe1_val = phoebe1_val[::8]
+                phoebe1_val = phoebe1_val[::4]
                 phoebe2_val = phoebe2_val[::8]
 
 
@@ -84,7 +84,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
                     x = x[::8]
 
                 fig, (ax1, ax2) = plt.subplots(1,2)
-
+                print 'comps', len(x), len(phoebe1_val)
                 ax1.plot(x, phoebe1_val, 'bo')
                 ax1.plot(x, phoebe2_val, 'r.')
 

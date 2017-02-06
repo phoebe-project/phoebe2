@@ -304,14 +304,15 @@ class System(object):
 
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
-            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_vertices_nbody_convex(vertices_per_body,
+            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
                                                                                        triangles_per_body,
                                                                                        normals_per_body,
                                                                                        areas_per_body,
                                                                                        irrad_frac_refls_per_body,
                                                                                        fluxes_intrins_per_body,
                                                                                        ld_func_and_coeffs,
-                                                                                       self.irrad_method.title()
+                                                                                       self.irrad_method.title(),
+                                                                                       support=b'vertices'
                                                                                        )
 
             fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
@@ -328,16 +329,17 @@ class System(object):
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
             ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.bodies, fluxes_intrins_per_body)})
 
-            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem_vertices(vertices_flat,
-                                                                                    triangles_flat,
-                                                                                    normals_flat,
-                                                                                    areas_flat,
-                                                                                    irrad_frac_refls_flat,
-                                                                                    fluxes_intrins_flat,
-                                                                                    ld_func_and_coeffs,
-                                                                                    ld_inds_flat,
-                                                                                    self.irrad_method.title()
-                                                                                    )
+            fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
+                                                                            triangles_flat,
+                                                                            normals_flat,
+                                                                            areas_flat,
+                                                                            irrad_frac_refls_flat,
+                                                                            fluxes_intrins_flat,
+                                                                            ld_func_and_coeffs,
+                                                                            ld_inds_flat,
+                                                                            self.irrad_method.title(),
+                                                                            support=b'vertices'
+                                                                            )
 
 
 
