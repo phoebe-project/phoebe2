@@ -790,21 +790,21 @@ class Passband:
             logg = np.array((logg,))
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
-        if atm == 'blackbody':
+        if atm == 'blackbody' and 'blackbody' in self.content:
             if photon_weighted:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
-        elif atm == 'extern_planckint':
+        elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
-        elif atm == 'extern_atmx':
+        elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
-        elif atm == 'ck2004':
+        elif atm == 'ck2004' and 'ck2004' in self.content:
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
         else:
-            raise NotImplementedError('atm={} not supported'.format(atm))
+            raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
@@ -813,10 +813,10 @@ class Passband:
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
-            if atm == 'ck2004':
+            if atm == 'ck2004' and 'ck2004' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
             else:
-                raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
+                raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
         elif ld_func == 'linear':
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
