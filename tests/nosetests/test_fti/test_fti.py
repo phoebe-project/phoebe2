@@ -5,6 +5,7 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 phoebe.devel_on()
 phoebe.interactive_off()
@@ -12,7 +13,10 @@ phoebe.interactive_off()
 def test_binary(plot=False):
     every = 2
 
-    b = phoebe.Bundle.from_legacy('kic12004834.phoebe')
+    dir = os.path.dirname(os.path.realpath(__file__))
+
+
+    b = phoebe.Bundle.from_legacy(os.path.join(dir, 'kic12004834.phoebe'))
     b.set_value_all('atm', 'blackbody')
     b.set_value('irrad_method', 'none')
 
@@ -32,7 +36,7 @@ def test_binary(plot=False):
     # return b
 
     b.run_compute(fti_method='none')
-    fluxes_legacy = np.loadtxt('kic12004834.nofti.data', unpack=True, usecols=(1,))[::every]
+    fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.nofti.data'), unpack=True, usecols=(1,))[::every]
     fluxes = b.get_value('fluxes', context='model')
 
     if plot:
@@ -44,7 +48,7 @@ def test_binary(plot=False):
 
 
     b.run_compute(fti_method='oversample', fti_oversample=5)
-    fluxes_legacy = np.loadtxt('kic12004834.fti.data', unpack=True, usecols=(1,))[::every]
+    fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.fti.data'), unpack=True, usecols=(1,))[::every]
     fluxes = b.get_value('fluxes', context='model')
 
     if plot:
