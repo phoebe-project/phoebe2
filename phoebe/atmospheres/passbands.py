@@ -31,6 +31,14 @@ _pbtable = {}
 _initialized = False
 _online_passbands = None
 
+_pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
+_pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands'))+'/'
+
+if not os.path.exists(_pbdir_local):
+    logger.info("creating directory {}".format(_pbdir_local))
+    os.makedirs(_pbdir_local)
+
+
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
         """
@@ -279,30 +287,30 @@ class Passband:
         """
         Computes monochromatic blackbody intensity in W/m^3 using the
         Planck function.
-        
+
         @lam: wavelength in m
         @Teff: effective temperature in K
-        
+
         Returns: monochromatic blackbody intensity
         """
-        
+
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
 
     def _bb_intensity(self, Teff, photon_weighted=False):
         """
         Computes mean passband intensity using blackbody atmosphere:
-        
+
         I_pb^E = \int_\lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
         I_pb^P = \int_\lambda \lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
-        
+
         Superscripts E and P stand for energy and photon, respectively.
-        
+
         @Teff: effective temperature in K
         @photon_weighted: photon/energy switch
-        
+
         Returns: mean passband intensity using blackbody atmosphere.
         """
-        
+
         if photon_weighted:
             pb = lambda w: w*self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_photon_area
@@ -314,11 +322,11 @@ class Passband:
         """
         Computes blackbody intensities across the entire range of
         effective temperatures.
-        
+
         @Teffs: an array of effective temperatures. If None, a default
         array from ~300K to ~500000K with 97 steps is used. The default
         array is uniform in log10 scale.
-        
+
         Returns: n/a
         """
 
@@ -343,11 +351,11 @@ class Passband:
         """
         Computes Castelli & Kurucz (2004) intensities across the entire
         range of model atmospheres.
-        
+
         @path: path to the directory containing ck2004 SEDs
         @verbose: switch to determine whether computing progress should
         be printed on screen
-        
+
         Returns: n/a
         """
 
@@ -404,7 +412,7 @@ class Passband:
         """
         Computes direction-dependent passband intensities using Castelli
         & Kurucz (2004) model atmospheres.
-        
+
         @path: path to the directory with SEDs
         @particular: particular file in @path to be processed; if None,
                      all files in the directory are processed.
@@ -604,10 +612,10 @@ class Passband:
         Computes integrated limb darkening profiles for ck2004 atmospheres.
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
-        
+
         ldint = 1/pi \int_0^1 Imu mu dmu
         """
-        
+
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
@@ -714,7 +722,7 @@ class Passband:
         # Break up the table along axes and extract a single passband data:
         atmtab = np.reshape(self.wd_data["atm_table"], (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
-        
+
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
@@ -749,7 +757,7 @@ class Passband:
         """
 
         log10_Inorm = libphoebe.wd_atmint(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
-        
+
         return log10_Inorm
 
     def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
@@ -812,7 +820,7 @@ class Passband:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
         elif atm == 'ck2004' and 'ck2004' in self.content:
-            retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
+            retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
 
@@ -920,48 +928,65 @@ def init_passbands(refresh=False):
     global _initialized
 
     if not _initialized or refresh:
+        # load information from online passbands first so that any that are
+        # available locally will override
+        online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
+        for pb, info in online_passbands.items():
+            _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'pb': None}
 
-        path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
-        for f in os.listdir(path):
-            if f=='README':
-                continue
-            init_passband(path+f)
-            # pb = Passband.load(path+f)
-            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.atmlist, 'pb': None}
+        # load global passbands (in install directory) next and then local
+        # (in .phoebe directory) second so that local passbands override
+        # global passbands whenever there is a name conflict
+        for path in [_pbdir_global, _pbdir_local]:
+            for f in os.listdir(path):
+                if f=='README':
+                    continue
+                init_passband(path+f)
 
         _initialized = True
 
-def install_passband(fname):
+def install_passband(fname, local=True):
     """
     Install a passband from a local file.  This simply copies the file into the
     install path - but beware that clearing the installation will clear the
     passband as well
+
+    If local=False, you must have permissions to access the installation directory
     """
-    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
-    shutil.copy(fname, pb_dir)
-    init_passband(os.path.join(pb_dir, fname))
+    pbdir = _pbdir_local if local else _pbdir_global
+    shutil.copy(fname, pbdir)
+    init_passband(os.path.join(pbdir, fname))
 
-def uninstall_all_passbands():
-    path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
-    for f in os.listdir(path):
-        logger.warning("deleting file: {}".format(path+f))
-        os.remove(path+f)
+def uninstall_all_passbands(local=True):
+    """
+    Uninstall all passbands, either globally or locally (need to call twice to
+    delete ALL passbands)
+
+    If local=False, you must have permission to access the installation directory
+    """
+    pbdir = _pbdir_local if local else _pbdir_global
+    for f in os.listdir(pbdir):
+        pbpath = os.path.join(pbdir, f)
+        logger.warning("deleting file: {}".format(pbpath))
+        os.remove(pbpath)
 
 
-def download_passband(passband):
+def download_passband(passband, local=True):
     """
     Download and install a given passband from the repository.
+
+    If local=False, you must have permission to access the installation directory
     """
     if passband not in list_online_passbands():
         raise ValueError("passband '{}' not available".format(passband))
 
-    passband_fname = _online_passbands[passband]
-    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
-    passband_fname_local = os.path.join(pb_dir, passband_fname)
+    pbdir = _pbdir_local if local else _pbdir_global
+
+    passband_fname = _online_passbands[passband]['fname']
+    passband_fname_local = os.path.join(pbdir, passband_fname)
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
-        print url, passband_fname_local
         urllib.urlretrieve(url, passband_fname_local)
     except IOError:
         raise IOError("unable to download {} passband - check connection".format(passband))
@@ -976,35 +1001,45 @@ def list_installed_passbands(refresh=False):
     if refresh:
         init_passbands(True)
 
-    return _pbtable.keys()
+    return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
-def list_online_passbands(refresh=False):
+def list_online_passbands(refresh=False, full_dict=False):
     """
     """
     global _online_passbands
     if _online_passbands is None or refresh:
 
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
         try:
             resp = urllib2.urlopen(url)
         except urllib2.URLError:
-            logger.warning("connection to online passbands lost")
+            url_repo = 'http://github.com/phoebe-project/phoebe2-tables'
+            logger.warning("connection to online passbands at {} could not be established".format(url_repo))
             if _online_passbands is not None:
-                return _online_passbands.keys()
+                if full_dict:
+                    return _online_passbands
+                else:
+                    return _online_passbands.keys()
             else:
-                return []
+                if full_dict:
+                    return {}
+                else:
+                    return []
         else:
             _online_passbands = json.loads(resp.read())
 
-    return _online_passbands.keys()
+    if full_dict:
+        return _online_passbands
+    else:
+        return _online_passbands.keys()
 
 def get_passband(passband):
 
-    if passband not in _pbtable.keys():
+    if passband not in list_installed_passbands():
         if passband in list_online_passbands():
             download_passband(passband)
         else:
-            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands, list_online_passbands))
+            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
 
     if _pbtable[passband]['pb'] is None:
         logger.info("loading {} passband".format(passband))
@@ -1020,12 +1055,12 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     @abun: abundances; not used, for class compatibility only
     @atm: atmosphere model, must be blackbody, otherwise exception is raised
     @photon_weighted: intensity weighting scheme; must be False, otherwise exception is raised
-    
+
     Computes normal bolometric intensity using the Stefan-Boltzmann law,
     Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
     requested, Inorm_bol_bb is multiplied by a conversion factor that
     comes from integrating lambda/hc P(lambda) over all lambda.
-    
+
     Input parameters mimick the Passband class Inorm method for calling
     convenience.
     """
@@ -1037,13 +1072,13 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         factor = 2.6814126821264836e22/Teff
     else:
         factor = 1.0
-    
+
     # convert scalars to vectors if necessary:
     if not hasattr(Teff, '__iter__'):
         Teff = np.array((Teff,))
 
     return factor * sigma_sb.value * Teff**4 / np.pi
-    
+
 
 if __name__ == '__main__':
 
