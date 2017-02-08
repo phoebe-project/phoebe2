@@ -918,7 +918,13 @@ def init_passbands(refresh=False):
     global _initialized
 
     if not _initialized or refresh:
-        # load global passbands (in install directory) first and then local
+        # load information from online passbands first so that any that are
+        # available locally will override
+        online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
+        for pb, info in online_passbands.items():
+            _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'pb': None}
+
+        # load global passbands (in install directory) next and then local
         # (in .phoebe directory) second so that local passbands override
         # global passbands whenever there is a name conflict
         for path in [_pbdir_global, _pbdir_local]:
@@ -966,7 +972,7 @@ def download_passband(passband, local=True):
 
     pbdir = _pbdir_local if local else _pbdir_global
 
-    passband_fname = _online_passbands[passband]
+    passband_fname = _online_passbands[passband]['fname']
     passband_fname_local = os.path.join(pbdir, passband_fname)
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
@@ -985,27 +991,37 @@ def list_installed_passbands(refresh=False):
     if refresh:
         init_passbands(True)
 
-    return _pbtable.keys()
+    return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
-def list_online_passbands(refresh=False):
+def list_online_passbands(refresh=False, full_dict=False):
     """
     """
     global _online_passbands
     if _online_passbands is None or refresh:
 
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
         try:
             resp = urllib2.urlopen(url)
         except urllib2.URLError:
-            logger.warning("connection to online passbands lost")
+            url_repo = 'http://github.com/phoebe-project/phoebe2-tables'
+            logger.warning("connection to online passbands at {} could not be established".format(url_repo))
             if _online_passbands is not None:
-                return _online_passbands.keys()
+                if full_dict:
+                    return _online_passbands
+                else:
+                    return _online_passbands.keys()
             else:
-                return []
+                if full_dict:
+                    return {}
+                else:
+                    return []
         else:
             _online_passbands = json.loads(resp.read())
 
-    return _online_passbands.keys()
+    if full_dict:
+        return _online_passbands
+    else:
+        return _online_passbands.keys()
 
 def get_passband(passband):
 
