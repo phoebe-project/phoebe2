@@ -1,44 +1,44 @@
 import logging
 
-def get_basic_logger(style="default",clevel='WARNING',
-                             flevel='DEBUG',filename=None,filemode='w'):
+def get_basic_logger(clevel='WARNING',flevel='DEBUG',
+                     style="default",filename=None,filemode='w'):
     """
     Return a basic logger via a log file and/or terminal.
-    
+
     Example 1: log only to the console, accepting levels "INFO" and above
-    
+
     >>> logger = utils.get_basic_logger()
-    
+
     Example 2: log only to the console, accepting levels "DEBUG" and above
-    
+
     >>> logger = utils.get_basic_logger(clevel='DEBUG')
-    
+
     Example 3: log only to a file, accepting levels "DEBUG" and above
-    
+
     >>> logger = utils.get_basic_logger(clevel=None,filename='mylog.log')
-    
+
     Example 4: log only to a file, accepting levels "INFO" and above
-    
+
     >>> logger = utils.get_basic_logger(clevel=None,flevel='INFO',filename='mylog.log')
-    
+
     Example 5: log to the terminal (INFO and above) and file (DEBUG and above)
-    
+
     >>> logger = utils.get_basic_logger(filename='mylog.log')
-    
+
     The different logging styles are:
-    
+
     C{style='default'}::
-    
+
         Wed, 13 Feb 2013 08:47 root INFO     Some information
-    
+
     C{style='grandpa'}::
-    
+
         # INFO    Some information
-    
+
     C{style='minimal'}::
-    
+
         Some information
-    
+
     @param style: logger style
     @type style: str, one of 'default','grandpa','minimal'
     """
@@ -53,16 +53,16 @@ def get_basic_logger(style="default",clevel='WARNING',
     elif style=='minimal':
         format = ''
         datefmt = '%a, %d %b %Y %H:%M'
-        
+
     if style=='trace':
         formatter = MyFormatter()
     else:
         formatter = logging.Formatter(fmt=format,datefmt=datefmt)
-    
-    
+
+
     if clevel: clevel = logging.__dict__[clevel.upper()]
     if flevel: flevel = logging.__dict__[flevel.upper()]
-    
+
     #-- set up basic configuration.
     #   The basicConfig sets up one default logger. If you give a filename, it's
     #   a FileHandler, otherwise a StreamHandler.
@@ -80,7 +80,7 @@ def get_basic_logger(style="default",clevel='WARNING',
         fh.setLevel(flevel)
         fh.setFormatter(formatter)
         logging.getLogger(name).addHandler(fh)
-    if filename is not None and clevel:    
+    if filename is not None and clevel:
         # define a Handler which writes INFO messages or higher to the sys.stderr
         ch = logging.StreamHandler()
         ch.setLevel(clevel)
@@ -90,7 +90,7 @@ def get_basic_logger(style="default",clevel='WARNING',
     #-- If we only want a console:
     else:
         logging.basicConfig(level=clevel,format=format,datefmt=datefmt,
-                            filename=filename,filemode=filemode)        
+                            filename=filename,filemode=filemode)
     #-- fix filename logging
     if filename is not None:
         logging.getLogger(name).handlers[0].level = flevel
