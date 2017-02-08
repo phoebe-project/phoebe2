@@ -116,6 +116,11 @@ class Passband:
         # content list.
         self.content = []
 
+        # Initialize atmosphere list; these names match the names of the
+        # atmosphere models in the atm parameter. As above, when an atm
+        # table is added, this list is appended.
+        self.atmlist = []
+
         # Basic passband properties:
         self.pbset = pbset
         self.pbname = pbname
@@ -144,6 +149,7 @@ class Passband:
         struct = dict()
 
         struct['content']         = self.content
+        struct['atmlist']         = self.atmlist
         struct['pbset']           = self.pbset
         struct['pbname']          = self.pbname
         struct['effwl']           = self.effwl
@@ -190,6 +196,7 @@ class Passband:
         self = cls(from_file=True)
 
         self.content = struct['content']
+        self.atmlist = struct['atmlist']
 
         self.pbset = struct['pbset']
         self.pbname = struct['pbname']
@@ -330,6 +337,7 @@ class Passband:
         self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         self.content.append('blackbody')
+        self.atmlist.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
         """
@@ -390,6 +398,7 @@ class Passband:
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('ck2004')
+        self.atmlist.append('ck2004')
 
     def compute_ck2004_intensities(self, path, particular=None, verbose=False):
         """
@@ -710,6 +719,7 @@ class Passband:
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
         self.content += ['extern_planckint', 'extern_atmx']
+        self.atmlist += ['extern_planckint', 'extern_atmx']
 
     def _log10_Inorm_extern_planckint(self, Teff):
         """
@@ -898,7 +908,7 @@ def init_passband(fullpath):
     """
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
-    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.content, 'pb': None}
+    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
 
 def init_passbands(refresh=False):
     """
@@ -917,7 +927,7 @@ def init_passbands(refresh=False):
                 continue
             init_passband(path+f)
             # pb = Passband.load(path+f)
-            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.atmlist, 'pb': None}
 
         _initialized = True
 
@@ -951,6 +961,7 @@ def download_passband(passband):
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
+        print url, passband_fname_local
         urllib.urlretrieve(url, passband_fname_local)
     except IOError:
         raise IOError("unable to download {} passband - check connection".format(passband))
