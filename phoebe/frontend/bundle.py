@@ -17,6 +17,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.backend import backends
 from phoebe.distortions import roche
 from phoebe.frontend import io
+from phoebe.atmospheres.passbands import _pbtable
 import libphoebe
 
 from phoebe import u
@@ -1137,6 +1138,16 @@ class Bundle(ParameterSet):
                     if abs(incl_star - incl_orbit) > 1e-3:
                         return False,\
                             'misaligned orbits are not currently supported.'
+
+        # check to make sure passband supports the selected atm
+        for pbparam in self.filter(qualifier='passband').to_list():
+            pb = pbparam.get_value()
+            pbatms = _pbtable[pb]['atms']
+            # NOTE: atms are not attached to datasets, but per-compute and per-component
+            for atmparam in self.filter(qualifier='atm').to_list():
+                atm = atmparam.get_value()
+                if atm not in pbatms:
+                    return False, "'{}' passband ({}) does not support atm='{}' ({})".format(pb, pbparam.twig, atm, atmparam.twig)
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -2567,7 +2578,7 @@ class Bundle(ParameterSet):
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
                                 times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
+                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
                                 # NOTE: this is hardcoded for LCs which is the
                                 # only dataset that currently supports oversampling,
                                 # but this will need to be generalized if/when
