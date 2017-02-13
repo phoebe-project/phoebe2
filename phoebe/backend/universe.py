@@ -1637,13 +1637,14 @@ class Star(Body):
                     Phi = self.Phi_user # because we don't want to do conversion for secondary
 
 
+                mesh_args = (omega, Phi)
+
                 av = libphoebe.rotstar_area_volume(*mesh_args,
                                                    larea=True,
                                                    lvolume=True)
 
                 delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
-                mesh_args = (omega, Phi)
 
                 # print "*** rotstar_marching_mesh omega: {}, Phi: {}, freq_rot:{}, sma:{}, rpole:{}, delta:{}".format(mesh_args[0], mesh_args[1], self.freq_rot, sma, rpole, delta)
 
