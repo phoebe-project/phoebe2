@@ -1144,7 +1144,7 @@ class Bundle(ParameterSet):
             pb = pbparam.get_value()
             pbatms = _pbtable[pb]['atms']
             # NOTE: atms are not attached to datasets, but per-compute and per-component
-            for atmparam in self.filter(qualifier='atm').to_list():
+            for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
                 atm = atmparam.get_value()
                 if atm not in pbatms:
                     return False, "'{}' passband ({}) does not support atm='{}' ({})".format(pb, pbparam.twig, atm, atmparam.twig)
