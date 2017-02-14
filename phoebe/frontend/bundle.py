@@ -1868,13 +1868,7 @@ class Bundle(ParameterSet):
         if dataset is None and not len(kwargs.items()):
             raise ValueError("must provide some value to filter for datasets")
 
-        kwargs['dataset'] = dataset
-        # Let's avoid the possibility of deleting a single parameter
-        kwargs['qualifier'] = None
-        # Let's also avoid the possibility of accidentally deleting system
-        # parameters, etc
-        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
-        # and lastly, let's handle deps if kind was passed
+        # let's handle deps if kind was passed
         kind = kwargs.get('kind', None)
 
         if kind is not None:
@@ -1887,6 +1881,25 @@ class Bundle(ParameterSet):
                     kind_deps.append(dep)
             kind = kind + kind_deps
         kwargs['kind'] = kind
+
+
+        if dataset is None:
+            # then let's find the list of datasets that match the filter,
+            # we'll then use dataset to do the removing.  This avoids leaving
+            # pararameters behind that don't specifically match the filter
+            # (ie if kind is passed as 'rv' we still want to remove parameters
+            # with datasets that are RVs but belong to a different kind in
+            # another context like compute)
+            dataset = self.filter(**kwargs).datasets
+            kwargs['kind'] = None
+
+
+        kwargs['dataset'] = dataset
+        # Let's avoid the possibility of deleting a single parameter
+        kwargs['qualifier'] = None
+        # Let's also avoid the possibility of accidentally deleting system
+        # parameters, etc
+        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
 
         # ps = self.filter(**kwargs)
         # logger.info('removing {} parameters (this is not undoable)'.\
