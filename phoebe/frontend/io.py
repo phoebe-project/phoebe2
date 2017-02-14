@@ -797,7 +797,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         elif pnew == 'finesize':
                     # set gridsize
             d['value'] = val
-            eb.set_value_all(check_visible=False, **d)
+            if conf.devel:
+                eb.set_value_all(check_visible=False, **d)
             # change parameter and value to ntriangles
             val = N_to_Ntriangles(int(np.float(val)))
             d['qualifier'] = 'ntriangles'

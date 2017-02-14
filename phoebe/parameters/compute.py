@@ -65,6 +65,7 @@ def phoebe(**kwargs):
 
     if conf.devel:
         # TODO: can we have this computed from ntriangles? - and then do the same for the legacy compute options?
+        # NOTE: if removing from developer mode - also need to remove if conf.devel in io.py line ~800
         params += [IntParameter(visible_if='mesh_method:wd', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Number of meshpoints for WD method')]
     # ------------------------------------------------------
 
