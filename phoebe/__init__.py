@@ -42,10 +42,8 @@ class Settings(object):
         # self._interactive = not hasattr(__main__, '__file__') or bool(sys.flags.interactive)
         self._interactive = True
 
-        # Check to see whether developer/testing mode is enabled.
-        self._devel = os.path.isfile(os.path.expanduser('~/.phoebe_devel_enabled'))
-        if self._devel:
-            print("WARNING: developer mode enabled, to disable 'rm ~/.phoebe_devel_enabled' and restart phoebe")
+        # And we'll require explicitly setting developer mode on
+        self._devel = False
 
     def interactive_on(self):
         self._interactive = True
