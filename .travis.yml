@@ -85,6 +85,7 @@ before_install:
     - rvm get head
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
         brew update;
+        brew unlink wget;
         brew install llvm --with-clang --with-clang-extra-tools;
         brew install gcc gnu-sed gtk libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util;
       fi;
