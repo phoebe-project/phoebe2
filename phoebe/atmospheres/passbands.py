@@ -14,6 +14,7 @@ import marshal
 import types
 import libphoebe
 import os
+import sys
 import glob
 import shutil
 import urllib, urllib2
@@ -32,7 +33,14 @@ _initialized = False
 _online_passbands = None
 
 _pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
-_pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands'))+'/'
+
+# if we're in a virtual environment then we want don't want to use the home directory
+# this check may fail for Python 3
+if hasattr(sys, 'real_prefix'):
+    # then we're running in a virtualenv
+    _pbdir_local = os.path.join(sys.prefix, '.phoebe/atmospheres/tables/passbands/')
+else:
+    _pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands'))+'/'
 
 if not os.path.exists(_pbdir_local):
     logger.info("creating directory {}".format(_pbdir_local))
@@ -993,6 +1001,9 @@ def download_passband(passband, local=True):
     else:
         init_passband(passband_fname_local)
 
+
+def list_passband_directories():
+    return _pbdir_global, _pbdir_local
 
 def list_passbands(refresh=False):
     return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
