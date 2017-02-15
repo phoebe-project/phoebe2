@@ -81,7 +81,7 @@ conf = Settings()
 
 
 # make packages available at top-level
-from .atmospheres.passbands import install_passband, download_passband, list_online_passbands, list_installed_passbands, list_passbands, get_passband
+from .atmospheres.passbands import install_passband, download_passband, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .constants import *
 from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
