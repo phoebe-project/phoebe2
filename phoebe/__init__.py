@@ -21,9 +21,14 @@ if os.getcwd().find(os.path.abspath(os.path.split(os.path.split(__file__)[0])[0]
 # unless 'Agg' is used before the import. All X-systems define the
 # 'DISPLAY' environment variable, and all non-X-systems do not. We do make a
 # distinction between windows and unix based system. Hence:
-import matplotlib
-if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
-    matplotlib.use('Agg')
+try:
+    import matplotlib
+except ImportError:
+    pass
+    # we'll catch this later in plotting and throw warnings as necessary
+else:
+    if 'DISPLAY' not in os.environ.keys() and sys.platform not in ['win32','cygwin']:
+        matplotlib.use('Agg')
 
 import logging
 _logger = logging.getLogger("PHOEBE")
