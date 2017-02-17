@@ -483,7 +483,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   
   Python:
     
-    h = misaligned_pole(q, F, d, Omega0)
+    h = misaligned_pole(q, F, d, misalignment, Omega0, sign)
   
   where parameters are
   
@@ -491,9 +491,15 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    misalignment: in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
     Omega: float - value potential 
   
+  optional:
+    sign: float - sign of the pole in {1, -1}, default 1
+      
   and return 
   
     p: 1-rank numpy array - vector position of the pole
@@ -512,23 +518,47 @@ static PyObject *misaligned_pole(PyObject *self, PyObject *args, PyObject *keywd
     (char*)"q",
     (char*)"F",
     (char*)"d",
-    (char*)"theta",
+    (char*)"misalignment",
     (char*)"Omega0",
+    (char*)"sign",
     NULL};
   
-  double q, F, delta, theta, Omega0;
+  double sign = 1, q, F, delta, Omega0;
   
+  PyObject *o_misalignment;
+ 
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds, "ddddd", kwlist, 
-        &q, &F, &delta, &theta, &Omega0)){
+        args, keywds, "dddOd|d", kwlist, 
+        &q, &F, &delta, &o_misalignment, &Omega0, &sign)
+      ){
   
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
+  bool ok;
+  
   double *p = new double[3];
   
-  misaligned_roche::poleL(p, Omega0, q, F, delta, theta);
+  if (PyFloat_Check(o_misalignment)) {
+
+    double theta = PyFloat_AsDouble(o_misalignment);
+    ok = misaligned_roche::poleL(p, Omega0, q, F, delta, theta, sign);
+ 
+  } else if (PyArray_Check(o_misalignment)) {
+    
+    double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
+    ok = misaligned_roche::poleL(p, Omega0, q, F, delta, s, sign);
+
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    return NULL;
+  } 
+  
+  if (!ok) {
+    std::cerr << fname << "::Problems calculating poles.\n";
+    return NULL;
+  }
   
   npy_intp dims[1] = {3};
   
@@ -1158,7 +1188,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
   
   Python:
     
-    dict = misaligned_area_volume(q, F, d, theta, Omega0, <keyword>=<value>)
+    dict = misaligned_area_volume(q, F, d, misalignment, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -1166,7 +1196,10 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    misalignment: in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
     Omega: float - value potential 
   
   keywords:
@@ -1210,7 +1243,7 @@ static PyObject *misaligned_area_volume(PyObject *self, PyObject *args, PyObject
     (char*)"q",
     (char*)"F",
     (char*)"d",
-    (char*)"theta",
+    (char*)"misalignment",
     (char*)"Omega0",
     (char*)"choice",
     (char*)"larea",
@@ -1227,24 +1260,44 @@ static PyObject *misaligned_area_volume(PyObject *self, PyObject *args, PyObject
   
   PyObject *o_av[2] = {0, 0};    // *o_larea = 0, *o_lvolume = 0;
   
-  double q, F, delta, theta, Omega0;
+  double q, F, delta, Omega0;
+  
+  PyObject *o_misalignment;
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddddd|iO!O!dd", kwlist, 
-      &q, &F, &delta, &theta, &Omega0, 
-      &choice,
-      &PyBool_Type, o_av,
-      &PyBool_Type, o_av + 1,
-      eps, eps + 1
-      )) {
+        args, keywds,  "dddOd|iO!O!dd", kwlist, 
+        &q, &F, &delta, &o_misalignment, &Omega0, 
+        &choice,
+        &PyBool_Type, o_av,
+        &PyBool_Type, o_av + 1,
+        eps, eps + 1)
+      ) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
-  if (theta != 0 && choice != 0) {
+  if (choice != 0) {
     std::cerr 
       << fname 
-      << "::choice != 0 && theta !=0 is currently not supported \n";
+      << "::choice != 0 is currently not supported \n";
+    return NULL;
+  }
+  
+  double theta;
+  
+  if (PyFloat_Check(o_misalignment)) {
+ 
+    theta = PyFloat_AsDouble(o_misalignment);
+ 
+  } else if (PyArray_Check(o_misalignment)) {
+ 
+    double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    theta = std::asin(s[0]);
+ 
+  } else {
+    std::cerr 
+      << fname 
+      << ":: This type of misalignment if not supported\n";
     return NULL;
   }
   
@@ -1683,11 +1736,11 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
   The Roche lobe(s) is defined as equipotential of the generalized
   Kopal potential Omega:
 
-      Omega_i = Omega(x,y,z; q, F, d, theta)
+      Omega_i = Omega(x,y,z; q, F, d, misalignment)
   
   Python:
     
-    Omega1 = misaligned_Omega_at_vol(vol, q, F, d, theta, Omega0, <keyword>=<value>)
+    Omega1 = misaligned_Omega_at_vol(vol, q, F, d, misalignment, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -1696,7 +1749,11 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+    
     Omega0: float - guess for value potential Omega1
     
   keywords: (optional)
@@ -1732,7 +1789,7 @@ static PyObject *misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObjec
     (char*)"q",
     (char*)"F",
     (char*)"d",
-    (char*)"theta",
+    (char*)"misalignment",
     (char*)"Omega0",
     (char*)"choice",
     (char*)"precision",
@@ -1745,33 +1802,53 @@ static PyObject *misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObjec
     
   double
     vol, 
-    q, F, delta, theta, 
+    q, F, delta, 
     Omega0 = nan(""),
     precision = 1e-12,
     accuracy = 1e-12;
   
+  PyObject *o_misalignment;
+  
   int max_iter = 100;  
   
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddddd|iddi", kwlist, 
-      &vol, &q, &F, &delta, &theta, &Omega0,
-      &choice,
-      &precision,
-      &accuracy,
-      &max_iter
+        args, keywds,  "ddddOd|iddi", kwlist, 
+        &vol, &q, &F, &delta, &o_misalignment, &Omega0,
+        &choice,
+        &precision,
+        &accuracy,
+        &max_iter
       )
     ) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
 
-  if (theta != 0 && choice != 0) {
+  if (choice != 0) {
     std::cerr 
       << fname 
-      << "::choice != 0 && theta !=0 is currently not supported \n";
+      << "::choice != 0 is currently not supported \n";
     return NULL;
   }
 
+  double theta = 0;
+  
+  if (PyFloat_Check(o_misalignment)) {
+  
+    theta = PyFloat_AsDouble(o_misalignment);
+  
+  } else if (PyArray_Check(o_misalignment)) {
+  
+    double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    theta = std::asin(s[0]);
+  
+  } else {
+    std::cerr 
+      << fname 
+      << ":: This type of misalignment if not supported\n";
+    return NULL;
+  }
+  
   bool b_Omega0 = !std::isnan(Omega0);
   
   if (!b_Omega0) {
@@ -2053,15 +2130,18 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
       -grad Omega (x,y,z)
   
   Python:
-    
-    g = misaligned_gradOmega(q, F, d, theta, r)
+  
+    g = misaligned_gradOmega(q, F, d, misalignment, r)
    
   with parameters
 
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
     r: 1-rank numpy array of length 3 = [x,y,z]
 
   and returns float
@@ -2074,25 +2154,49 @@ static PyObject *misaligned_gradOmega(PyObject *self, PyObject *args) {
   
   const char *fname = "misaligned_gradOmega";
   
-  double p[5];
+  double p[7];
 
-  PyArrayObject *X;  
+  PyObject *o_misalignment;
   
-  if (!PyArg_ParseTuple(args, "ddddO!", 
-        p, p + 1, p + 2, p + 3, 
-        &PyArray_Type, &X)) {
+  PyArrayObject *o_x;  
+  
+  if (!PyArg_ParseTuple(args, "dddOO!", 
+        p, p + 1, p + 2, 
+        &o_misalignment, 
+        &PyArray_Type, &o_x)) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
+ 
+  double 
+    *x = (double*) PyArray_DATA(o_x),
+    *g = new double [4];
+    
+  if (PyFloat_Check(o_misalignment)) {
+    
+    p[3] = PyFloat_AsDouble(o_misalignment);
+    p[4] = 0; // Omega0 = 0
+    
+    Tmisaligned_rotated_roche<double> b(p);
+    b.grad(x, g);
+     
+  } else if (PyArray_Check(o_misalignment)) {
+    
+    double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
   
-  p[4] = 0;
+    p[3] = s[0];
+    p[4] = s[1];
+    p[5] = s[2];
+    p[6] = 0; // Omega0 = 0
+    
+    Tmisaligned_roche<double> b(p);
+    b.grad(x, g);
   
-  Tmisaligned_roche<double> b(p);
-  
-  double *g = new double [4];
-
-  b.grad((double*)PyArray_DATA(X), g);
-
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported\n";
+    return NULL;
+  }
+   
   npy_intp dims[1] = {4};
 
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
@@ -2259,14 +2363,17 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
   
   Python:
     
-    g = misaligned_gradOmega_only(q, F, d, theta, r)
+    g = misaligned_gradOmega_only(q, F, d, misalignment, r)
    
    with parameters
   
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
     r: 1-rank numpy array of length 3 = [x,y,z]
 
   and returns float
@@ -2278,30 +2385,55 @@ static PyObject *misaligned_gradOmega_only(PyObject *self, PyObject *args) {
   
   const char *fname = "misaligned_gradOmega_only";
   
-  double p[5];
+  double p[7];
 
-  PyArrayObject *X;  
+  PyObject *o_misalignment;
   
-  if (!PyArg_ParseTuple(args, "ddddO!", 
-        p, p + 1, p + 2, p + 3, 
-        &PyArray_Type, &X)) {
+  PyArrayObject *o_x;  
+  
+  if (!PyArg_ParseTuple(args, "dddOO!", 
+        p, p + 1, p + 2, 
+        &o_misalignment, 
+        &PyArray_Type, &o_x)
+      ) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
 
-  Tmisaligned_roche<double> b(p);
+  double 
+    *x = (double*) PyArray_DATA(o_x),
+    *g = new double [3];
+    
+  if (PyFloat_Check(o_misalignment)) {
+    
+    p[3] = PyFloat_AsDouble(o_misalignment);
+    p[4] = 0; // Omega0 = 0
+    
+    Tmisaligned_rotated_roche<double> b(p);
+    b.grad_only(x, g);
+  } else if (PyArray_Check(o_misalignment)) {
+    
+    double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
   
-  double *g = new double [3];
-
-  b.grad_only((double*)PyArray_DATA(X), g);
+    p[3] = s[0];
+    p[4] = s[1];
+    p[5] = s[2];
+    p[6] = 0; // Omega0 = 0
+    
+    Tmisaligned_roche<double> b(p);
+    b.grad_only(x, g);
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported\n";
+    return NULL;
+  }
 
   npy_intp dims[1] = {3};
 
-  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+  PyObject *res = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
 
-  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
   
-  return pya;
+  return res;
 }
 
 /*
@@ -2435,17 +2567,20 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
   Calculate the value of the potential of the generalized
   Kopal potential Omega for misaligned binaries at a given point
 
-      Omega (x,y,z; q, F, d, theta)
-  
+      Omega (x,y,z; q, F, d, misalignment)
+
   Python:
+
+    Omega0 = misaligned_Omega(q, F, delta, misalignment, r)
     
-    Omega0 = misaligned_Omega(q, F, delta, r, theta)
-   
    with parameters
       q: float = M2/M1 - mass ratio
       F: float - synchronicity parameter
       d: float - separation between the two objects
-      theta: float - angle between spin and orbital angular velocity vectors [rad]
+      misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
       r: 1-rank numpy array of length 3 = [x,y,z]
    
   and returns a float
@@ -2457,22 +2592,42 @@ static PyObject *misaligned_Omega(PyObject *self, PyObject *args) {
   
   const char * fname = "misaligned_Omega";
   
-  double p[5];
+  double p[7];
 
-  PyArrayObject *X;  
+  PyObject *o_misalignment;
   
-  if (!PyArg_ParseTuple(args, "ddddO!", 
-       p, p + 1, p + 2, p + 3, 
-       &PyArray_Type, &X)){
+  PyArrayObject *o_x;  
+  
+  if (!PyArg_ParseTuple(args, "dddOO!", 
+       p, p + 1, p + 2, 
+       &PyArray_Type, &o_misalignment,
+       &PyArray_Type, &o_x)){
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
   
-  p[4] = 0; // Omega0 = 0
+  double *x = (double*) PyArray_DATA(o_x);
   
-  Tmisaligned_roche<double> b(p);
-
-  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+  if (PyFloat_Check(o_misalignment)) {
+    p[3] = PyFloat_AsDouble(o_misalignment);
+    p[4] = 0; // Omega0 = 0
+    
+    Tmisaligned_rotated_roche<double> b(p);
+    return PyFloat_FromDouble(-b.constrain(x));
+  } else if (PyArray_Check(o_misalignment)) {
+    double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
+  
+    p[3] = s[0];
+    p[4] = s[1];
+    p[5] = s[2];
+    p[6] = 0; // Omega0 = 0
+    
+    Tmisaligned_roche<double> b(p);
+    return PyFloat_FromDouble(-b.constrain(x));
+  }
+  
+  std::cerr << fname << "::This type of misalignment is not supported\n";
+  return NULL;  
 }
 
 /*
@@ -3544,7 +3699,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
     
   Python:
 
-    dict = misaligned_marching_mesh(q, F, d, theta, Omega0, delta, <keyword>=[true,false], ... )
+    dict = misaligned_marching_mesh(q, F, d, misalignment, Omega0, delta, <keyword>=[true,false], ... )
     
   where parameters
   
@@ -3553,7 +3708,10 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
       q: float = M2/M1 - mass ratio
       F: float - synchronicity parameter
       d: float - separation between the two objects
-      theta: float - angle between spin and orbital angular velocity vectors [rad] 
+      misalignment:  in rotated coordinate system:
+          float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+          1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
       Omega0: float - value of the generalized Kopal potential
       delta: float - size of triangles edges projected to tangent space
     
@@ -3654,7 +3812,7 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
     (char*)"q",
     (char*)"F",
     (char*)"d",
-    (char*)"theta",
+    (char*)"misalignment",
     (char*)"Omega0",
     (char*)"delta",
     (char*)"choice",
@@ -3674,11 +3832,15 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
     (char*)"init_phi",
     NULL};
   
-  double q, F, d, theta, Omega0, delta, 
-          init_phi = 0;   
+  PyObject *o_misalignment;
   
-  int choice = 0,               
-      max_triangles = 10000000; // 10^7
+  double 
+    q, F, d, Omega0, delta, 
+    init_phi = 0;   
+  
+  int 
+    choice = 0,               
+    max_triangles = 10000000; // 10^7
       
   bool
     b_full = false,
@@ -3710,23 +3872,23 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
     *o_volume = 0;
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "dddddd|iiO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
-      &q, &F, &d, &theta, &Omega0, &delta,  // neccesary 
-      &choice,                              // optional ...
-      &max_triangles,
-      &PyBool_Type, &o_full,
-      &PyBool_Type, &o_vertices, 
-      &PyBool_Type, &o_vnormals,
-      &PyBool_Type, &o_vnormgrads,
-      &PyBool_Type, &o_triangles, 
-      &PyBool_Type, &o_tnormals,
-      &PyBool_Type, &o_centers,
-      &PyBool_Type, &o_cnormals,
-      &PyBool_Type, &o_cnormgrads,
-      &PyBool_Type, &o_areas,
-      &PyBool_Type, &o_area,
-      &PyBool_Type, &o_volume,
-      &init_phi
+        args, keywds,  "dddOdd|iiO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
+        &q, &F, &d, &o_misalignment, &Omega0, &delta,  // neccesary 
+        &choice,                              // optional ...
+        &max_triangles,
+        &PyBool_Type, &o_full,
+        &PyBool_Type, &o_vertices, 
+        &PyBool_Type, &o_vnormals,
+        &PyBool_Type, &o_vnormgrads,
+        &PyBool_Type, &o_triangles, 
+        &PyBool_Type, &o_tnormals,
+        &PyBool_Type, &o_centers,
+        &PyBool_Type, &o_cnormals,
+        &PyBool_Type, &o_cnormgrads,
+        &PyBool_Type, &o_areas,
+        &PyBool_Type, &o_area,
+        &PyBool_Type, &o_volume,
+        &init_phi
       )) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
@@ -3751,53 +3913,80 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
   //
   PyObject *results = PyDict_New();
   
-  
   if (choice < 0 || choice > 2){
-    std::cerr << fname << "::This choice is not supported\n"; 
+    std::cerr << fname << "::This choice is not supported.\n"; 
     return NULL;
   }
     
   //
   // Choosing the meshing initial point 
   //
+  bool rotated, ok;
   
-  double r[3], g[3];
+  double r[3], g[3], theta, *s;
   
-  if (!misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta)){
-    std::cerr << fname << "::Determining initial meshing point failed\n";
+  if (PyFloat_Check(o_misalignment)) {
+
+    theta = PyFloat_AsDouble(o_misalignment);
+    ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta);
+    rotated = true;
+ 
+  } else if (PyArray_Check(o_misalignment)) {
+    
+    s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
+    ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
+    rotated = false;
+
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    return NULL;
+  }
+  
+  if (!ok){
+    std::cerr << fname << "::Determining initial meshing point failed.\n";
     return NULL;
   }
   
   //
-  //  Marching triangulation of the Roche lobe 
+  //  Marching triangulation of the Roche lobe and calculate central points
   //
-    
-  double params[] = {q, F, d, theta, Omega0};
   
-  #if 0
-  std::cerr.precision(16);
-  std::cerr 
-    << "q=" << q
-    << " F=" << F
-    << " d=" << d
-    << " theta=" << theta
-    << " Omega0=" << Omega0 
-    << " delta=" << delta << '\n';
-  #endif
-    
-  Tmarching<double, Tmisaligned_roche<double>> march(params);  
-  
-  std::vector<T3Dpoint<double>> V, NatV;
+  std::vector<double> *GatC = 0, *GatV = 0;  
+  std::vector<T3Dpoint<double>> V, NatV,  *C = 0, *NatC = 0;
   std::vector<T3Dpoint<int>> Tr; 
-  std::vector<double> *GatV = 0;
-     
+  
+  if (b_centers) C = new std::vector<T3Dpoint<double>>;
+  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
+  if (b_cnormgrads) GatC = new std::vector<double>;
   if (b_vnormgrads) GatV = new std::vector<double>;
+
+  if (rotated) {  
+    double params[] = {q, F, d, theta, Omega0};
+      
+    Tmarching<double, Tmisaligned_rotated_roche<double>> march(params);  
+    
+    ok = (
+      b_full ? 
+        march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+        march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      );
+      
+    if (ok) march.central_points(V, Tr, C, NatC, GatC);      
+  } else {
+    double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
+      
+    Tmarching<double, Tmisaligned_roche<double>> march(params);  
+    
+    ok = (
+      b_full ? 
+        march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+        march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+      );
+    
+    if (ok) march.central_points(V, Tr, C, NatC, GatC);
+  }
   
-  
-  if ((b_full ? 
-       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
-       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      )){
+  if (!ok) {
     std::cerr << fname << "::There are too many triangles\n";
     return NULL;
   }
@@ -3830,24 +4019,7 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
   if (b_volume) p_volume = &volume;
    
   mesh_attributes(V, NatV, Tr, A, NatT, p_area, p_volume, vertex_choice, true);
- 
-  //
-  // Calculte the central points
-  // 
-
-  std::vector<double> *GatC = 0;
-  
-  std::vector<T3Dpoint<double>> *C = 0, *NatC = 0;
-  
-  if (b_centers) C = new std::vector<T3Dpoint<double>>;
- 
-  if (b_cnormals) NatC = new std::vector<T3Dpoint<double>>;
- 
-  if (b_cnormgrads) GatC = new std::vector<double>;
- 
- 
-  march.central_points(V, Tr, C, NatC, GatC);
-  
+   
   
   if (b_vertices)
     PyDict_SetItemStringStealRef(results, "vertices", PyArray_From3DPointVector(V));
@@ -6317,7 +6489,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     
   Python:
 
-    H = misaligned_horizon(v, q, F, d, theta, Omega0, <keywords>=<value>)
+    H = misaligned_horizon(v, q, F, d, misalignment, Omega0, <keywords>=<value>)
     
   with arguments
   
@@ -6326,7 +6498,10 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-    theta: float - angle between spin and orbital angular velocity vectors [rad]
+    misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
     Omega0: float - value of the generalized Kopal potential
   
   keywords:
@@ -6353,46 +6528,67 @@ static PyObject *misaligned_horizon(PyObject *self, PyObject *args, PyObject *ke
     (char*)"q",
     (char*)"F",
     (char*)"d",
-    (char*)"theta",
+    (char*)"misalignment",
     (char*)"Omega0",
     (char*)"length",
     (char*)"choice",
     NULL
   };
   
+  PyObject *o_misalignment;
+  
   PyArrayObject *oV;
   
-  double q, F, d, theta, Omega0;   
+  double q, F, d, Omega0;   
     
   int 
     length = 1000,
     choice  = 0,
     max_iter = 100;
   
-  
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "O!ddddd|ii", kwlist,
-      &PyArray_Type, &oV, 
-      &q, &F, &d, &theta, &Omega0,
-      &length, &choice)){
-    std::cerr << fname << "::Problem reading arguments\n";
+        args, keywds,  "O!dddOd|ii", kwlist,
+        &PyArray_Type, &oV, 
+        &q, &F, &d, &o_misalignment, &Omega0,
+        &length, &choice)
+    ){
+        
+    std::cerr << fname << "::Problem reading arguments.\n";
     return NULL;
   }
+  
+  //
+  // Determine misalignment and find a point on horizon
+  //
+  
+  bool rotated, ok;
   
   double 
-    params[] = {q, F, d, theta, Omega0},
-    *view = (double*) PyArray_DATA(oV);
+    theta = 0, *s = 0, p[3], 
+    *view = (double*)PyArray_DATA(oV);
   
-  double p[3];
+  if (PyFloat_Check(o_misalignment)) {
   
-  //
-  //  Find a point on horizon
-  //
-  if (!misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter)) {
-    std::cerr << fname << "::Convergence to the point on horizon failed\n";
+    theta = PyFloat_AsDouble(o_misalignment);
+    ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter);
+    rotated = true;
+  
+  } else if (PyArray_Check(o_misalignment)) {
+  
+    s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
+    ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, s, max_iter);
+    rotated = false;
+  
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
     return NULL;
   }
   
+  if (!ok) {
+    std::cerr << fname << "::Convergence to the point on horizon failed.\n";
+    return NULL; 
+  } 
+    
   //
   // Estimate the step
   //
@@ -6406,19 +6602,25 @@ static PyObject *misaligned_horizon(PyObject *self, PyObject *args, PyObject *ke
   //
   //  Find the horizon
   //
-  
-  Thorizon<double, Tmisaligned_roche<double>> horizon(params);
-    
   std::vector<T3Dpoint<double>> H;
- 
-  if (!horizon.calc(H, view, p, dt)) {
-   std::cerr << fname << "::Convergence to the point on horizon failed\n";
+  
+  if (rotated) {
+    double params[] = {q, F, d, theta, Omega0};
+    Thorizon<double, Tmisaligned_rotated_roche<double>> horizon(params);
+    ok = horizon.calc(H, view, p, dt);
+  } else {
+    double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
+    Thorizon<double, Tmisaligned_roche<double>> horizon(params);
+    ok = horizon.calc(H, view, p, dt);
+  }
+  
+  if (!ok) {
+    std::cerr << fname << "::Convergence to the point on horizon failed.\n";
     return NULL;
   }
 
   return PyArray_From3DPointVector(H);
 }
-
 
 
 /*
@@ -6958,7 +7160,6 @@ static PyObject *ld_D(PyObject *self, PyObject *args, PyObject *keywds) {
 }
 
 
-
 /*
   C++ wrapper for Python code:
 
@@ -7023,7 +7224,6 @@ static PyObject *ld_D0(PyObject *self, PyObject *args, PyObject *keywds) {
   
   return PyFloat_FromDouble(LD::D0(type, (double*)PyArray_DATA(o_params)));
 }
-
 
 
 /*
@@ -7168,6 +7368,7 @@ static PyObject *ld_nrpar(PyObject *self, PyObject *args, PyObject *keywds) {
     
   return PyInt_FromLong(LD::nrpar(type));
 }
+
 
 /*
   C++ wrapper for Python code:

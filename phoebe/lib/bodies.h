@@ -555,7 +555,8 @@ struct Trot_star {
 
 
 /* ===================================================================
-  Generalizd Roche potential with misaligned binary system
+  Generalizd Roche potential with misaligned binary system in rotated 
+  coordinate system.
   
   Defined of implicitly by a constrain
 
@@ -575,7 +576,7 @@ struct Trot_star {
  =================================================================== */ 
 
 template <class T>
-struct Tmisaligned_roche {
+struct Tmisaligned_rotated_roche {
   
   T q, F, delta, theta, Omega0,
     b, f0, s, c;     // derived
@@ -589,13 +590,16 @@ struct Tmisaligned_roche {
     params[4] = Omega0
   */
   
-  Tmisaligned_roche(void *params) 
-  : q(((T*)params)[0]), 
-    F(((T*)params)[1]),
-    delta(((T*)params)[2]), 
-    theta(((T*)params)[3]),
-    Omega0(((T*)params)[4])
-  { 
+  Tmisaligned_rotated_roche(void *params) { 
+    
+    T *p  = (double *) params;
+    
+    q = p[0]; 
+    F = p[1];
+    delta = p[2]; 
+    theta = p[3];
+    Omega0 = p[4];
+    
     f0 = 1/(delta*delta);
     b = (1 + q)*F*F;
     utils::sincos(theta, &s, &c);
@@ -736,6 +740,217 @@ struct Tmisaligned_roche {
     H[1][1] =  -b + tmp2 - 3*tmp1*y*y;
     H[1][2] = H[2][1] = -3*tmp1*y*z;
     H[2][2] = tmp2 - b*s*s - 3*tmp1*z*z;
+  }
+};
+
+
+/* ===================================================================
+  Generalizd Roche potential with misaligned binary system in canonical 
+  coordinate system.
+  
+  Defined of implicitly by a constrain
+
+    Omega(x,y,z,params) = 
+      1/r1 + q(1/r2 - x/delta^2) + 1/2 (1+q) F^2 [r - s(s.r)] 
+    
+    constrain = Omega0 - Omega(x,y,z,params) = 0
+    r = (x,y,z)
+    r1 = sqrt(x^2 + y^2 + z^2)
+    r2 = sqrt((x - delta)^2 + y^2+z^2)
+    
+ Ref:
+  * Avni Y and Schiller N,
+    Generalized Roche potential for misaligned binary systems - 
+    Properties of the critical lobe,
+    Astrophysical Journal, Part 1, vol. 257, June 15, 1982, p. 703-714.
+ =================================================================== */ 
+
+template <class T>
+struct Tmisaligned_roche {
+  
+  T q, F, delta, s[3], Omega0,
+    b, f0;     // derived
+  
+  /*
+    Reading and storing the parameters
+    params[0] = q  
+    params[1] = F
+    params[2] = delta
+    params[3] = s[0]
+    params[4] = s[1]
+    params[5] = s[2]
+    params[6] = Omega0
+  */
+  
+  Tmisaligned_roche(void *params) { 
+    T *p =  (T*) params;
+    
+    q = p[0]; 
+    F = p[1];
+    delta = p[2]; 
+    s[0] = p[3];
+    s[1] = p[4];
+    s[2] = p[5];
+    Omega0 = p[6];
+    
+    f0 = 1/(delta*delta);
+    b = (1 + q)*F*F;
+  }
+  
+  /*
+    Definition of the potential minus the reference.
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+      Omega0 - Omega(x,y,z)
+  */
+  
+  T constrain(T r[3]) {
+    
+    T x = r[0], y = r[1], z = r[2],
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x - delta, y, z),
+      sr = utils::dot3D(s, r),
+      rp = 0;
+      
+    for (int i = 0; i < 3; ++i) rp += utils::sqr(r[i] - sr*s[i]);  
+      
+    return Omega0 - (1/r1 + q*(1/r2 - f0*x) + 0.5*b*rp);
+  }
+  
+  /*
+    Definition of the potential minus the reference and the 
+    gradient of it:
+      
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[4]:
+        {ret[0], ret[1], ret[2]} = -grad-potential Omega
+        ret[3] = Omega0 - Omega 
+  */
+
+  
+  void grad(T r[3], T ret[4], const bool & precision = false){
+    
+    if (precision) {
+      
+      long double 
+        x = r[0], y = r[1], z = r[2], 
+        sx = s[0], sy = s[1], sz = s[2],
+        r1 = utils::hypot3(r),
+        r2 = utils::hypot3(x - delta, y, z),
+        sr = sx*x + sy*y + sz*z,
+        f1 = 1/r1, f13 = f1*f1*f1,
+        f2 = 1/r2, f23 = f2*f2*f2,
+        tmp = f13 + f23*q,
+        p = 0;
+      
+        for (int i = 0; i < 3; ++i) p += utils::sqr(r[i] - sr*s[i]); 
+        
+      ret[0] = (f0 - delta*f23)*q + b*sr*sx + (-b + tmp)*x;
+      ret[1] = b*sr*sy - b*y + tmp*y;
+      ret[2] = b*sr*sz - b*z + tmp*z;
+      ret[3] = Omega0 - (1/r1 + q*(1/r2 - f0*x) + 0.5*b*p); 
+      
+      return;
+    }
+    
+    T x = r[0], y = r[1], z = r[2],
+      sx = s[0], sy = s[1], sz = s[2],
+      
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x - delta, y, z),
+      
+      sr = sx*x + sy*y + sz*z,
+      
+      f1 = 1/r1, f13 = f1*f1*f1,
+      f2 = 1/r2, f23 = f2*f2*f2,
+      
+      tmp = f13 + f23*q,
+      p = 0;
+    
+      for (int i = 0; i < 3; ++i) p += utils::sqr(r[i] - sr*s[i]); 
+        
+      ret[0] = (f0 - delta*f23)*q + b*sr*sx + (-b + tmp)*x;
+      ret[1] = b*sr*sy - b*y + tmp*y;
+      ret[2] = b*sr*sz - b*z + tmp*z;
+      ret[3] = Omega0 - (f1 + q*(f2 - f0*x) + 0.5*b*p); 
+  }
+    
+  /*
+    Definition of the gradient of the negative potential
+     
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[3]:
+        {ret[0], ret[1], ret[2]} = grad-potential
+  */
+  
+  void grad_only(T r[3], T ret[3]){
+    
+    T x = r[0], y = r[1], z = r[2], 
+      sx = s[0], sy = s[1], sz = s[2],
+      
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x - delta, y, z),
+      
+      sr = sx*x + sy*y + sz*z,
+      
+      f1 = 1/r1, f13 = f1*f1*f1,
+      f2 = 1/r2, f23 = f2*f2*f2,
+      
+      tmp = f13 + f23*q; 
+        
+      ret[0] = (f0 - delta*f23)*q + b*sr*sx + (-b + tmp)*x;
+      ret[1] = b*sr*sy - b*y + tmp*y;
+      ret[2] = b*sr*sz - b*z + tmp*z;
+  }
+
+  
+  /*
+    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    resulting:
+      H_{ij} = - partial_i partial_j Omega
+    
+  */
+  void hessian (T r[3], T H[3][3]){
+    
+    T x1 = r[0], y1 = r[1], z1 = r[2], x2 = x1 - delta,
+      sx = s[0], sy = s[1], sz = s[2],
+           
+      x12 = x1*x1, y12 = y1*y1, z12 = z1*z1, x22 = x2*x2,
+      sx2 = sx*sx, sy2 = sy*sy, sz2 = sz*sz,
+
+      r1 = utils::hypot3(r),
+      r2 = utils::hypot3(x2, y1, z1),
+      
+      f1 = 1/r1, f13 = f1*f1*f1, f15 = f13*f1*f1,
+      f2 = 1/r2, f23 = f2*f2*f2, f25 = f23*f2*f2;
+  
+    H[0][0] = f13 + b*(-1 + sx2) - 3*f15*x12 + f25*q*(-2*x22 + y12 + z12);
+    H[0][1] = H[1][0] = b*sx*sy - 3*(f15*x1 + f25*q*x2)*y1;
+    H[0][2] = H[2][0] = b*sx*sz - 3*(f15*x1 + f25*q*x2)*z1;
+    H[1][1] = b*(-1 + sy2) + f15*(x12 - 2*y12 + z12) + f25*q*(x22 - 2*y12 + z12);
+    H[1][2] = H[2][1] = b*sy*sz - 3*(f15 + f25*q)*y1*z1;
+    H[2][2] = b*(-1 + sz2) + f15*(x12 + y12 - 2*z12) + f25*q*(x22 + y12 - 2*z12);
   }
 };
 

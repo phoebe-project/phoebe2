@@ -46,24 +46,48 @@
 #include "gen_roche.h"
 
 namespace misaligned_roche {
-
+  
+  /*
+    Calculating the pole height of the Roche is positive (sign = 1) or 
+    negative direction  (sign = -1) of the axis of rotation.
+   
+    Solving
+    
+      1/tp + q (1/sqrt(tp^2 - 2*ss*tp + 1) - ss*tp) = delta Omega
+      
+      for tp > 0, ss = sign*s, s = sin(theta) in [-1,1]
+      
+    Input:
+      Omega0 - value of potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      sintheta - sinus of the angle of spin w.r.t. z axis in rotated system 
+              
+    Return:
+      height = delta*tp
+  */
+  
   template <class T>
   T poleL_height(
     const T & Omega0,
     const T & q,
-    const T & F = 1,
-    const T & delta = 1,
-    const T & theta = 0
+    const T & F,
+    const T & delta,
+    const T & sintheta, 
+    const T & sign = 1
   ) {
     
-    if (theta == 0)
+    if (sintheta == 0)
       return gen_roche::poleL(Omega0, q, F, delta);
 
     if (Omega0 < 0 || q < 0)  return -1;
    
-    T w = Omega0*delta, s, c, t;
+    T w = Omega0*delta, 
+      s = sintheta, 
+      t;
     
-    utils::sincos(theta, &s, &c);
+    if (sign < 0) s = -s;
       
     // calculate the estimate of the pole (in direction of the spin)
     // note: there is no symmetry across the equator 
@@ -74,7 +98,10 @@ namespace misaligned_roche {
     } else if (q > 10 && q > w) {
       t = (std::sqrt(w*w + 4*(1+q)*s*q) - w)/(2*q*s); 
     } else { 
-      t = 1;
+      if (w > q) 
+        t = 1/(w - q);
+      else 
+        t = 1;
     }
     
     // Newton-Raphson iteration based on polynomial
@@ -137,25 +164,54 @@ namespace misaligned_roche {
     return delta*t;
   }
 
-
   /*
-    Pole of the first star h = delta*tp: 
-  
-      Omega(d tp s, 0, d*tp*c) = Omega0
-      
-      s = sin(theta')
-      c = cos(theta')
-       
+    Calculating the pole height of the Roche is positive (sign = 1) or 
+    negative direction  (sign = -1) of the axis of rotation.
+   
     Solving
     
-      1/tp + q (1/sqrt(tp^2 - 2 tp*s + 1) - s*tp) = delta Omega
+      1/tp + q (1/sqrt(1 - 2*sign*tp*sx + tp^2) - sx*sign*tp) = delta Omega
+      
+      for tp > 0.
       
     Input:
       Omega0 - value of potential
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
-      theta - angle of spin w.r.t. z axis
+      s - direction of rotating axis = (sx, sy, sz) 
+    
+    Return:
+      height = delta*tp
+  */
+ template <class T>
+  T poleL_height(
+    const T & Omega0,
+    const T & q,
+    const T & F ,
+    const T & delta,
+    T s[3], 
+    const T & sign = 1
+  ) {
+    return poleL_height(Omega0, q, F, delta, s[0], sign);
+  }
+
+  /*
+    Pole of the first star h = delta*tp in rotated coordinate system:
+  
+      Omega(tp*s, 0, tp*c) = Omega0
+      
+      s = sin(theta')             theta' in [-pi/2, pi/2]
+      c = cos(theta')
+      
+      tp is height of the pole
+      
+    Input:
+      Omega0 - value of potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      theta - angle of spin w.r.t. z axis in rotated system
       
     Output:
       p[3] = (d tp s, 0, d*tp*c)
@@ -169,21 +225,66 @@ namespace misaligned_roche {
     T p[3], 
     const T & Omega0,
     const T & q,
-    const T & F = 1,
-    const T & delta = 1,
-    const T & theta = 0
+    const T & F,
+    const T & delta,
+    const T & theta,
+    const T & sign = 1 
   ) {
     
-    T tp = poleL_height(Omega0, q, F, delta, theta);
+    T s, c;
+    
+    utils::sincos(theta, &s, &c);
+    
+    T tp = poleL_height(Omega0, q, F, delta, s, sign);
   
     if (tp > 0) {
-      T s, c;
-      
-      utils::sincos(theta, &s, &c);
-      
-      p[0] = s*tp;
+    
+      p[0] = s*tp*sign;
       p[1] = 0;
-      p[2] = c*tp;
+      p[2] = c*tp*sign;
+      return true;
+    }
+    
+    return false;
+  }
+  
+    /*
+    Pole of the first star h = delta*tp in canonical coordinate system:
+  
+      Omega(sign*delta*tp*s) = Omega0
+      
+      s = (sx,sy,sz)  tp > 0
+       
+    Input:
+      Omega0 - value of potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      s[3] - angle of spin w.r.t. z axis
+      
+    Output:
+      p[3] = sign*delta*tp*s
+    
+    Return: 
+      true: if pole is not found, otherwise false
+  */
+  
+  template <class T>
+  bool poleL(
+    T p[3], 
+    const T & Omega0,
+    const T & q,
+    const T & F,
+    const T & delta,
+    T s[3],
+    const T & sign = 1 
+  ) {
+    
+    T tp = poleL_height(Omega0, q, F, delta, s[0], sign);
+  
+    if (tp > 0) {
+      tp *= sign;
+      for (int i = 0; i < 3; ++i) p[i] = s[i]*tp;
       return true;
     }
     
@@ -216,6 +317,7 @@ namespace misaligned_roche {
       true: if everything is OK
   */
 
+
   template<class T> 
   bool point_on_horizon(
     T r[3], 
@@ -244,7 +346,7 @@ namespace misaligned_roche {
     // estimate of the radius of sphere that is 
     // inside the lobe
     
-    T fac = 0.5*poleL_height(Omega0, q, F, delta, theta);
+    T fac = 0.5*poleL_height(Omega0, q, F, delta, std::sin(theta));
      
     // determine direction of initial point
     if (std::abs(v[0]) >= 0.5 || std::abs(v[1]) >= 0.5){
@@ -264,6 +366,154 @@ namespace misaligned_roche {
     //
     
     T params[] = {q, F, delta, theta, Omega0};
+    
+    Tmisaligned_rotated_roche<T> misaligned(params);
+    
+    // Solving both constrains at the same time
+    //  Omega_0 - Omega(r) = 0
+    //  grad(Omega) n = 0
+    
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+ 
+    int i, it = 0;
+    
+    T dr_max, r_max, t, f, H[3][3], 
+      A[2][2], a[4], b[3], u[2], x[2];
+    
+    do {
+
+      // a = {grad constrain, constrain}   
+      misaligned.grad(r, a);
+      
+      // get the hessian on the constrain
+      misaligned.hessian(r, H);
+      
+      utils::dot3D(H, v, b);
+      
+      // define the matrix of direction that constrains change
+      A[0][0] = utils::dot3D(a, a);
+      A[0][1] = A[1][0] = utils::dot3D(a, b);
+      A[1][1] = utils::dot3D(b, b);
+      
+      // negative remainder in that directions
+      u[0] = -a[3];
+      u[1] = -utils::dot3D(a, v);
+            
+      // solving 2x2 system: 
+      //  A x = u
+      // and  
+      //  making shifts 
+      //  calculating sizes for stopping criteria 
+      //
+      
+      dr_max = r_max = 0;
+    
+      if (utils::solve2D(A, u, x)){ 
+        
+        //shift along the directions that the constrains change
+        for (i = 0; i < 3; ++i) {
+          r[i] += (t = x[0]*a[i] + x[1]*b[i]);
+          
+          // max of dr, max of r
+          if ((t = std::abs(t)) > dr_max) dr_max = t;
+          if ((t = std::abs(r[i])) > r_max) r_max = t;
+        }
+        
+      } else {
+        
+        //alternative path in direction of grad(Omega)
+        f = u[0]/(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
+        
+        for (i = 0; i < 3; ++i) {
+          r[i] += (t = f*a[i]); 
+          
+          // max of dr, max of r
+          if ((t = std::abs(t)) > dr_max) dr_max = t;
+          if ((t = std::abs(r[i])) > r_max) r_max = t;
+        }
+      }
+          
+    } while (dr_max > eps*r_max + min && ++it < max_iter);
+        
+    return (it < max_iter);
+  }
+
+    /* 
+    Find the point on the horizon around individual lobes. Currently only
+    primary lobe is supported for theta != 0, as this is physically 
+    only interesting case.
+  
+    Input:
+      v - direction of the view
+      choice :
+        0 - left -- around (0, 0, 0)
+        1 - right --  not supported
+        2 - overcontact: not supported       
+      Omega0 - reference value of the potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      s - vector of the spin of the object |s| = 1
+      max_iter - maximal number of iteration in search algorithm
+    
+    Output:
+      p - point on the horizon
+    
+    Return:
+      true: if everything is OK
+  */
+
+  
+template<class T> 
+  bool point_on_horizon(
+    T r[3], 
+    T v[3], 
+    int choice,
+    const T & Omega0, 
+    const T & q, 
+    const T & F, 
+    const T & delta,
+    T s[3],  
+    int max_iter = 1000){
+  
+    // if no misalignment 
+    if (std::abs(s[2]) == 1)
+      return gen_roche::point_on_horizon(r, v, choice, Omega0, q, F, delta, max_iter);
+  
+    //
+    // Starting points 
+    //
+      
+    if (choice != 0) {
+      std::cerr 
+        << "point_on_horizon:: choices != 0 not supported yet\n";
+      return false;
+    }
+   
+    // estimate of the radius of sphere that is 
+    // inside the lobe
+    
+    T fac = 0.5*poleL_height(Omega0, q, F, delta, s);
+     
+    // determine direction of initial point
+    if (std::abs(v[0]) >= 0.5 || std::abs(v[1]) >= 0.5){
+      fac /= std::hypot(v[0], v[1]);
+      r[0] = fac*v[1];
+      r[1] = -fac*v[0];
+      r[2] = 0.0;
+    } else {
+      fac /= std::hypot(v[0], v[2]);
+      r[0] = -fac*v[2];
+      r[1] = 0.0;
+      r[2] = fac*v[0];
+    }
+
+    //
+    // Initialize body class
+    //
+    
+    T params[] = {q, F, delta, s[0], s[1], s[2], Omega0};
     
     Tmisaligned_roche<T> misaligned(params);
     
@@ -336,7 +586,6 @@ namespace misaligned_roche {
         
     return (it < max_iter);
   }
-
     
   /*
     Starting point for meshing the misaligned Roche lobe. Currently only
@@ -374,16 +623,7 @@ namespace misaligned_roche {
     
     if (theta == 0)
       return gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, delta);
-    
-    #if 0  
-    
-    // searching point with largest x^2 + z^2 in y-z plane
-    // eventually I can implement, I have equations
-          
-    //??????
-
-    #else
-  
+      
     // only primary lobes for theta != 0 are supported
     if (choice != 0) {
       std::cerr 
@@ -396,10 +636,66 @@ namespace misaligned_roche {
     
     if (!poleL(r, Omega0, q, F, delta, theta)) return false;
   
-    #endif
-    
     // calculating the gradient
     T params[] = {q, F, delta, theta, Omega0};
+    
+    Tmisaligned_rotated_roche<T> misaligned(params);
+    
+    misaligned.grad_only(r, g);
+  
+    return true;
+  } 
+  
+  /*
+    Starting point for meshing the misaligned Roche lobe. Currently only
+    primary lobe is supported for theta != 0, as this is physically 
+    only interesting case.
+    
+    Input:
+      choice :
+        0 - left
+        1 - right
+        2 - overcontact        
+      Omega0 - reference value of the potential
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      delta - separation between the two objects
+      s - axis of rotation |s| = 1 
+
+    Output:
+       r - position
+       g - gradient
+  */
+  
+  template <class T>
+  bool meshing_start_point(
+    T r[3], 
+    T g[3],
+    int choice,
+    const T & Omega0, 
+    const T & q, 
+    const T & F,
+    const T & delta,
+    T s[3]
+  ){
+    
+    if (std::abs(s[2]) == 1)
+      return gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, delta);
+    
+    // only primary lobes for theta != 0 are supported
+    if (choice != 0) {
+      std::cerr 
+        << "meshing_start_point:: choices != 0 not supported yet\n";
+      return false;
+    }
+   
+    // for cases which are not strongy deformed the pole is also 
+    // good point to start
+    
+    if (!poleL(r, Omega0, q, F, delta, s)) return false;
+  
+    // calculating the gradient
+    T params[] = {q, F, delta, s[0], s[1], s[2], Omega0};
     
     Tmisaligned_roche<T> misaligned(params);
     
@@ -565,7 +861,7 @@ namespace misaligned_roche {
     //
     
     { 
-      T tp = poleL_height(Omega0, q, F, delta, th)/delta;
+      T tp = poleL_height(Omega0, q, F, delta, std::sin(th))/delta;
       for (int i = 0; i < glq_n; ++i) {
         y[i] = tp;
         w[i] = dtheta*glq_weights[i];
