@@ -627,9 +627,9 @@ namespace gen_roche {
       return t;
     }
     
-    std::vector<T> roots;
+    std::vector<long double> roots;
 
-    T a[5] = {2, 2*(1 + q - w), 2*(q - w), b + 2*q, b};
+    long double a[5] = {2, 2*(1 + q - w), 2*(q - w), b + 2*q, b};
     
     utils::solve_quartic(a, roots);
     
@@ -734,9 +734,9 @@ namespace gen_roche {
       return t;
     }
     
-    std::vector<T> roots;
+    std::vector<long double> roots;
 
-    T a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
+    long double a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
     
     //for (int i = 0; i < 5; ++i) std::cout << "a=" << a[i] << '\n';
     utils::solve_quartic(a, roots);
@@ -878,9 +878,9 @@ namespace gen_roche {
     }
     
   
-    std::vector<T> roots;
+    std::vector<long double> roots;
     
-    T a[5] = {2, 2*(1 + p - r), 2*(-1 + c - r), -2 + 3*c, c};
+    long double a[5] = {2, 2*(1 + p - r), 2*(-1 + c - r), -2 + 3*c, c};
    
     utils::solve_quartic(a, roots);
       
