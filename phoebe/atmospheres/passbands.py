@@ -394,8 +394,8 @@ class Passband:
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
             flP = fl*wl
-            InormE[i] = np.log10(fl.sum()/self.ptf_area)-10          # energy-weighted intensity; -10 because dlambda = 1AA when we integrate by summing
-            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area)-10  # photon-weighted intensity
+            InormE[i] = np.log10(fl.sum()/self.ptf_area*(wl[1]-wl[0]))             # energy-weighted intensity
+            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area*(wl[1]-wl[0]))     # photon-weighted intensity
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -509,8 +509,8 @@ class Passband:
             boostE = (flE[fl > 0]*boosting_index).sum()/flEint
             boostP = (flP[fl > 0]*boosting_index).sum()/flPint
 
-            ImuE[i] = np.log10(flEint/self.ptf_area)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
-            ImuP[i] = np.log10(flPint/self.ptf_photon_area)-10 # photon-weighted intensity
+            ImuE[i] = np.log10(flEint/self.ptf_area*(wl[1]-wl[0]))        # energy-weighted intensity
+            ImuP[i] = np.log10(flPint/self.ptf_photon_area*(wl[1]-wl[0])) # photon-weighted intensity
             boostingE[i] = boostE
             boostingP[i] = boostP
 
@@ -855,6 +855,9 @@ class Passband:
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
+
+        if atm == 'blackbody':
+            retval /= self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
