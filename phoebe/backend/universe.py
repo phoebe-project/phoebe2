@@ -1993,12 +1993,19 @@ class Star(Body):
             pb = passbands.get_passband(passband)
 
             # abs_normal_intensities are the normal emergent passband intensities:
-            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
-                                              logg=self.mesh.loggs.for_computations,
-                                              abun=self.mesh.abuns.for_computations,
-                                              atm=atm,
-                                              photon_weighted=intens_weighting=='photon')
-
+            #~ abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
+                                              #~ logg=self.mesh.loggs.for_computations,
+                                              #~ abun=self.mesh.abuns.for_computations,
+                                              #~ atm=atm,
+                                              #~ photon_weighted=intens_weighting=='photon')
+            abs_normal_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
+                                            logg=self.mesh.loggs.for_computations,
+                                            abun=self.mesh.abuns.for_computations,
+                                            mu=np.ones(len(self.mesh.teffs.for_computations)),
+                                            atm=atm,
+                                            ld_func=ld_func,
+                                            ld_coeffs=ld_coeffs,
+                                            photon_weighted=intens_weighting=='photon')
 
             # abs_intensities are the projected (limb-darkened) passband intensities
             # TODO: why do we need to use abs(mus) here?
