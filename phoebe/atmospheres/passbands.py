@@ -886,15 +886,15 @@ class Passband:
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
         elif ld_func == 'linear':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
         elif ld_func == 'square_root':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
         elif ld_func == 'quadratic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
         elif ld_func == 'power':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
@@ -1182,14 +1182,14 @@ if __name__ == '__main__':
     #~ plt.show()
     #~ exit()
 
-    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody')
+    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody', ld_func='linear', ld_coeffs=[0.0,])
     print 'planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint')
     print 'atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx')
     print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004')
 
     # Testing arrays:
 
-    print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody')
+    print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody', ld_func='linear', ld_coeffs=[0.0,])
     print 'planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint')
     print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
     print 'kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz')
