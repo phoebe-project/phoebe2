@@ -833,6 +833,7 @@ class Passband:
             logg = np.array((logg,))
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
+
         if atm == 'blackbody' and 'blackbody' in self.content:
             if photon_weighted:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
@@ -841,14 +842,18 @@ class Passband:
             if ldint == None:
                 ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
+
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
+
         elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
+
         elif atm == 'ck2004' and 'ck2004' in self.content:
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+
         else:
             raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
 
