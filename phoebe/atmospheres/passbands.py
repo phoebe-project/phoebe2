@@ -808,7 +808,24 @@ class Passband:
 
         return Imu
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        """
+        @ldint: integral of the limb darkening function, \int_0^1 \mu L(\mu) d\mu.
+                Its general role is to convert intensity to flux. In this
+                function, however, it is only needed for blackbody atmospheres
+                because they are not limb-darkened (i.e. the blackbody
+                intensity is the same irrespective of \mu), so we need to
+                *divide* by ldint to ascertain the correspondence between
+                luminosity, effective temperature and fluxes once limb
+                darkening correction is applied at flux integration time.
+                If None, and if atm=='blackbody', it will be computed from
+                ld_func and ld_coeffs.
+        @ld_func: limb darkening function: linear, sqrt, log, quadratic,
+                  power, interp
+        @ld_coeffs: limb darkening coefficients for the corresponding
+                    limb darkening function.
+        """
+
         # convert scalars to vectors if necessary:
         if not hasattr(Teff, '__iter__'):
             Teff = np.array((Teff,))
@@ -821,6 +838,9 @@ class Passband:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
+            if ldint == None:
+                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            retval /= ldint
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
@@ -837,7 +857,24 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: atm=%s, Teff=%s, logg=%s, abun=%s' % (atm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        """
+        @ldint: integral of the limb darkening function, \int_0^1 \mu L(\mu) d\mu.
+                Its general role is to convert intensity to flux. In this
+                function, however, it is only needed for blackbody atmospheres
+                because they are not limb-darkened (i.e. the blackbody
+                intensity is the same irrespective of \mu), so we need to
+                *divide* by ldint to ascertain the correspondence between
+                luminosity, effective temperature and fluxes once limb
+                darkening correction is applied at flux integration time.
+                If None, and if atm=='blackbody', it will be computed from
+                ld_func and ld_coeffs.
+        @ld_func: limb darkening function: linear, sqrt, log, quadratic,
+                  power, interp
+        @ld_coeffs: limb darkening coefficients for the corresponding
+                    limb darkening function.
+        """
+        
         if ld_func == 'interp':
             if atm == 'ck2004' and 'ck2004' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
@@ -857,7 +894,9 @@ class Passband:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
         if atm == 'blackbody':
-            retval /= self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            if ldint == None:
+                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            retval /= ldint
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
