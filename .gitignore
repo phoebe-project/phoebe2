@@ -1,5 +1,7 @@
 /build
 /dist
+/phoebe/atmospheres/tables/ck2004
+/phoebe/atmospheres/tables/ck2004i
 MANIFEST
 *_tmp*
 *after.phoebe
