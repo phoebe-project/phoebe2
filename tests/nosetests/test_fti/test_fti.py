@@ -21,7 +21,7 @@ def test_binary(plot=False):
     b.set_value('irrad_method', 'none')
 
     period = b.get_value('period', kind='orbit', context='component')
-    times = b.to_time(np.linspace(-0.6, 0.6, 100))[::every]
+    times = b.to_time(np.linspace(-0.5, 0.5, 100))[::every]
     b.set_value('times', times)
 
     b.run_compute(fti_method='none')
