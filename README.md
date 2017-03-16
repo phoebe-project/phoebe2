@@ -1,22 +1,20 @@
 PHOEBE 2.0 RELEASE NOTES
 ------------------------
 
-Hello and thank you for your interest in PHOEBE 2.0! 
+Hello and thank you for your interest in PHOEBE 2.0! PHOEBE is a binary star modeling code, but version 2.0 also supports the modeling of single rotating stars.
 
 
 INTRODUCTION
 ------------
 
-PHOEBE 2.0 is a rewrite of the original PHOEBE code. For most
-up-to-date information please refer to the PHOEBE project webpage:
+PHOEBE stands for PHysics Of Eclipsing BinariEs. PHOEBE is pronounced [fee-bee](https://www.merriam-webster.com/dictionary/phoebe?pronunciation&lang=en_us&file=phoebe01.wav).
 
-    http://phoebe-project.org
+PHOEBE 2.0 is a rewrite of the original PHOEBE code. For most up-to-date information please refer to the PHOEBE project webpage: [http://phoebe-project.org](http://phoebe-project.org)
 
 PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](http://adsabs.harvard.edu/abs/2016ApJS..227...29P).
 
 PHOEBE 2.0 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-PHOEBE is pronounced [fee-bee](https://www.merriam-webster.com/dictionary/phoebe?pronunciation&lang=en_us&file=phoebe01.wav).
 
 The source code is available for download from the [PHOEBE project homepage](http://phoebe-project.org) and from [github](https://github.com/phoebe-project/phoebe2).
 
@@ -26,24 +24,29 @@ The development of PHOEBE 2.0 is funded in part by the [NSF grant #1517474](http
 DOWNLOAD AND INSTALLATION
 -------------------------
 
-To download PHOEBE 2.0, use git:
+The easiest way to download and install PHOEBE 2.0 is by using `pip`:
 
-    git clone https://github.com/phoebe-project/phoebe2.git
+    `pip install phoebe`
 
-To install PHOEBE 2.0 locally, go to phoebe2/ directory and issue:
+To install it site-wide, prefix the `pip` command with `sudo` or run it as root.
 
-    python setup.py build
-    python setup.py install --user
+To download the PHOEBE 2.0 source code, use git:
 
-To install PHOEBE 2.0 site-wide, go to phoebe2/ directory and
-issue:
+    `git clone https://github.com/phoebe-project/phoebe2.git`
 
-    python setup.py build
-    sudo python setup.py install
+To install PHOEBE 2.0 from the source locally, go to the `phoebe2/` directory and issue:
 
-This will install phoebe in the current path and no further action
-should be necessary. For further details on pre-requisites and minimal
-versions of python consult the PHOEBE webpage.
+    `python setup.py build
+    python setup.py install --user`
+
+To install PHOEBE 2.0 from the source site-wide, go to the `phoebe2/` directory and issue:
+
+    `python setup.py build
+    sudo python setup.py install`
+
+This will install PHOEBE 2.0 site-wide.
+
+For further details on pre-requisites and minimal versions of python consult the PHOEBE webpage.
 
 
 GETTING STARTED
