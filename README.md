@@ -44,8 +44,6 @@ To install PHOEBE 2.0 from the source site-wide, go to the `phoebe2/` directory 
     python setup.py build
     sudo python setup.py install
 
-This will install PHOEBE 2.0 site-wide.
-
 For further details on pre-requisites and minimal versions of python consult the PHOEBE webpage.
 
 
@@ -58,7 +56,7 @@ PHOEBE 2.0 has a steep learning curve. There is no graphical front-end as of yet
     >>> import phoebe
     >>>
 
-To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.0b/#Tutorials) hosted on the PHOEBE webpage.
+To understand how to use PHOEBE, please consult the [tutorials, scripts and manuals](http://phoebe-project.org/docs/2.0/#Tutorials) hosted on the PHOEBE webpage.
 
 
 CHANGELOG
