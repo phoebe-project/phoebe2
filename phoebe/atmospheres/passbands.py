@@ -394,8 +394,8 @@ class Passband:
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
             flP = fl*wl
-            InormE[i] = np.log10(fl.sum()/self.ptf_area)-10          # energy-weighted intensity; -10 because dlambda = 1AA when we integrate by summing
-            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area)-10  # photon-weighted intensity
+            InormE[i] = np.log10(fl.sum()/self.ptf_area*(wl[1]-wl[0]))             # energy-weighted intensity
+            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area*(wl[1]-wl[0]))     # photon-weighted intensity
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
@@ -509,8 +509,8 @@ class Passband:
             boostE = (flE[fl > 0]*boosting_index).sum()/flEint
             boostP = (flP[fl > 0]*boosting_index).sum()/flPint
 
-            ImuE[i] = np.log10(flEint/self.ptf_area)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
-            ImuP[i] = np.log10(flPint/self.ptf_photon_area)-10 # photon-weighted intensity
+            ImuE[i] = np.log10(flEint/self.ptf_area*(wl[1]-wl[0]))        # energy-weighted intensity
+            ImuP[i] = np.log10(flPint/self.ptf_photon_area*(wl[1]-wl[0])) # photon-weighted intensity
             boostingE[i] = boostE
             boostingP[i] = boostP
 
@@ -808,7 +808,24 @@ class Passband:
 
         return Imu
 
-    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weighted=False):
+    def Inorm(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        """
+        @ldint: integral of the limb darkening function, \int_0^1 \mu L(\mu) d\mu.
+                Its general role is to convert intensity to flux. In this
+                function, however, it is only needed for blackbody atmospheres
+                because they are not limb-darkened (i.e. the blackbody
+                intensity is the same irrespective of \mu), so we need to
+                *divide* by ldint to ascertain the correspondence between
+                luminosity, effective temperature and fluxes once limb
+                darkening correction is applied at flux integration time.
+                If None, and if atm=='blackbody', it will be computed from
+                ld_func and ld_coeffs.
+        @ld_func: limb darkening function: linear, sqrt, log, quadratic,
+                  power, interp
+        @ld_coeffs: limb darkening coefficients for the corresponding
+                    limb darkening function.
+        """
+
         # convert scalars to vectors if necessary:
         if not hasattr(Teff, '__iter__'):
             Teff = np.array((Teff,))
@@ -816,19 +833,30 @@ class Passband:
             logg = np.array((logg,))
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
+
         if atm == 'blackbody' and 'blackbody' in self.content:
             if photon_weighted:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
+            if ldint == None:
+                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            retval /= ldint
+
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
+            if ldint == None:
+                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            retval /= ldint
+
         elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
+
         elif atm == 'ck2004' and 'ck2004' in self.content:
             retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
+
         else:
             raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
 
@@ -837,22 +865,39 @@ class Passband:
             raise ValueError('atmosphere parameters out of bounds: atm=%s, Teff=%s, logg=%s, abun=%s' % (atm, Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
-    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
+    def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ldint=None, ld_func='interp', ld_coeffs=None, photon_weighted=False):
+        """
+        @ldint: integral of the limb darkening function, \int_0^1 \mu L(\mu) d\mu.
+                Its general role is to convert intensity to flux. In this
+                function, however, it is only needed for blackbody atmospheres
+                because they are not limb-darkened (i.e. the blackbody
+                intensity is the same irrespective of \mu), so we need to
+                *divide* by ldint to ascertain the correspondence between
+                luminosity, effective temperature and fluxes once limb
+                darkening correction is applied at flux integration time.
+                If None, and if atm=='blackbody', it will be computed from
+                ld_func and ld_coeffs.
+        @ld_func: limb darkening function: linear, sqrt, log, quadratic,
+                  power, interp
+        @ld_coeffs: limb darkening coefficients for the corresponding
+                    limb darkening function.
+        """
+
         if ld_func == 'interp':
             if atm == 'ck2004' and 'ck2004' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
         elif ld_func == 'linear':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
         elif ld_func == 'square_root':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
         elif ld_func == 'quadratic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
         elif ld_func == 'power':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
@@ -1135,14 +1180,14 @@ if __name__ == '__main__':
     #~ plt.show()
     #~ exit()
 
-    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody')
+    print 'blackbody:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='blackbody', ld_func='linear', ld_coeffs=[0.0,])
     print 'planckint:', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_planckint')
     print 'atmx:     ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='extern_atmx')
     print 'kurucz:   ', jV.Inorm(Teff=5880., logg=4.43, abun=0.0, atm='ck2004')
 
     # Testing arrays:
 
-    print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody')
+    print 'blackbody:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='blackbody', ld_func='linear', ld_coeffs=[0.0,])
     print 'planckint:', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), atm='extern_planckint')
     print 'atmx:     ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='extern_atmx')
     print 'kurucz:   ', jV.Inorm(Teff=np.array((5550., 5770., 5990.)), logg=np.array((4.40, 4.43, 4.46)), abun=np.array((0.0, 0.0, 0.0)), atm='kurucz')
