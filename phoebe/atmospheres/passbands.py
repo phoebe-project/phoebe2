@@ -846,6 +846,9 @@ class Passband:
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
+            if ldint == None:
+                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            retval /= ldint
 
         elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
             # -1 below is for cgs -> SI:
@@ -879,7 +882,7 @@ class Passband:
         @ld_coeffs: limb darkening coefficients for the corresponding
                     limb darkening function.
         """
-        
+
         if ld_func == 'interp':
             if atm == 'ck2004' and 'ck2004' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
@@ -897,11 +900,6 @@ class Passband:
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
-
-        if atm == 'blackbody':
-            if ldint == None:
-                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
-            retval /= ldint
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
