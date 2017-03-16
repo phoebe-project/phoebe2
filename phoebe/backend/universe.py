@@ -2789,7 +2789,7 @@ class Envelope(Body):
 
         # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        abs_luminosity = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
+        abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
         pbspan = self.get_pbspan(dataset)
