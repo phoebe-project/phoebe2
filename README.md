@@ -1,27 +1,26 @@
-PHOEBE 2.0 RELEASE NOTES &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEPTEMBER 26, 2016
-------------------------------------------------------------------------
+PHOEBE 2.0 RELEASE NOTES
+------------------------
 
-Hello and thank you for your interest in PHOEBE 2.0!
+Hello and thank you for your interest in PHOEBE 2.0! 
 
 
 INTRODUCTION
 ------------
 
-PHOEBE 2.0 is a complete rewrite of the original PHOEBE code. For most
+PHOEBE 2.0 is a rewrite of the original PHOEBE code. For most
 up-to-date information please refer to the PHOEBE project webpage:
 
     http://phoebe-project.org
 
-PHOEBE 2.0 is described by the release paper published in the Astrophysical
-Journal Supplements
+PHOEBE 2.0 is described by the release paper published in the Astrophysical Journal Supplement, [Prša et al. (2016, ApJS 227, 29)](http://adsabs.harvard.edu/abs/2016ApJS..227...29P).
 
-    http://adsabs.harvard.edu/abs/2016ApJS..227...29P
+PHOEBE 2.0 is released under the [GNU General Public License v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-The source code is available for download from github:
+PHOEBE is pronounced [fee-bee](https://www.merriam-webster.com/dictionary/phoebe?pronunciation&lang=en_us&file=phoebe01.wav).
 
-    https://github.com/phoebe-project/phoebe2
+The source code is available for download from the [PHOEBE project homepage](http://phoebe-project.org) and from [github](https://github.com/phoebe-project/phoebe2).
 
-Development of PHOEBE 2.x is funded in part by the NSF grant #1517474.
+The development of PHOEBE 2.0 is funded in part by the [NSF grant #1517474](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1517474).
 
 
 DOWNLOAD AND INSTALLATION
