@@ -1022,11 +1022,11 @@ class Body(object):
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint)*pbspan*np.pi
+        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*pbspan*np.pi
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
-        return total_integrated_intensity * self.get_pblum_scale(dataset)
+        return abs_luminosity * self.get_pblum_scale(dataset)
 
     def compute_pblum_scale(self, dataset, pblum, **kwargs):
         """
@@ -1035,12 +1035,11 @@ class Body(object):
         TODO: add documentation
         """
 
-        total_integrated_intensity = self.compute_luminosity(dataset, **kwargs)
-
+        abs_luminosity = self.compute_luminosity(dataset, **kwargs)
 
         # We now want to remember the scale for all intensities such that the
         # luminosity in relative units gives the provided pblum
-        pblum_scale = pblum / total_integrated_intensity
+        pblum_scale = pblum / abs_luminosity
 
         self.set_pblum_scale(dataset, pblum_scale)
 
@@ -2790,7 +2789,7 @@ class Envelope(Body):
 
         # abs_normal_intensities are directly out of the passbands module and are
         # emergent normal intensities in this dataset's passband/atm in absolute units
-        abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
+        abs_luminosity = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
         pbspan = self.get_pbspan(dataset)
@@ -2815,11 +2814,11 @@ class Envelope(Body):
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint)*pbspan*np.pi
+        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*pbspan*np.pi
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
-        return total_integrated_intensity * self.get_pblum_scale(dataset)
+        return abs_luminosity * self.get_pblum_scale(dataset)
 
 
     def compute_pblum_scale(self, dataset, pblum, component=None, **kwargs):
