@@ -846,6 +846,9 @@ class Passband:
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
+            if ldint == None:
+                ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
+            retval /= ldint
 
         elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
             # -1 below is for cgs -> SI:
