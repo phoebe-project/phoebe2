@@ -734,14 +734,15 @@ namespace gen_roche {
       return t;
     }
     
-    std::vector<T> roots;
+    std::vector<long double> roots;
 
-    T a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
+    long double a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
     
     //for (int i = 0; i < 5; ++i) std::cout << "a=" << a[i] << '\n';
     utils::solve_quartic(a, roots);
 
     // grab the smallest/first root in [0,1]
+    //for (auto && v : roots) std::cerr << "root=" << v << '\n';
 
     for (auto && v : roots) if (0 < v && v < 1) return v;
     
@@ -1011,7 +1012,8 @@ namespace gen_roche {
       xrange[1] = delta*right_lobe_right_xborder(w, q, b);
     }
 
-
+    //std::cerr << "BU:" << xrange[0] << '\t' << xrange[1] << std::endl;
+    
     if (std::isnan(xrange[0])) {
       std::cerr << "lobe_xrange::problems with left boundary\n";
       return false;
