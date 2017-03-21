@@ -2613,7 +2613,6 @@ class Bundle(ParameterSet):
                                     times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
                                     sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
 
-                                    print times_oversampled_this, sample_inds
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
 
                                 params.set_value(qualifier='times', dataset=dataset, value=times_ds)
