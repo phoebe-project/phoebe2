@@ -53,7 +53,8 @@ _1to2par = {'ld_model':'ld_func',
             'radius': 'radius',
             'tempfactor':'relteff',
             'colatitude':'colat',
-            'cadence': 'exptime'}
+            'cadence': 'exptime'
+            }
 #            'rate':'rate'}
 
 #TODO: add back proximity_rv maybe?
@@ -516,12 +517,14 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             if fti_ts != 'Mid-exposure':
                 logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
             if fti:
-                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
-
+                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
+            
             else:
-                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = 0.0
+                lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = 'None'
+            
+            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
 
-            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
+#            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
 
 
 
