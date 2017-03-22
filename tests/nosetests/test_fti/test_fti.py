@@ -11,23 +11,21 @@ phoebe.devel_on()
 phoebe.interactive_off()
 
 def test_binary(plot=False):
-    every = 10
-
     dir = os.path.dirname(os.path.realpath(__file__))
 
-
     b = phoebe.Bundle.from_legacy(os.path.join(dir, 'kic12004834.phoebe'))
+    # this phoebe legacy file uses extern_planckint and with albedos to 0
+    # and exptime already defined
     b.set_value_all('atm', 'blackbody')
     b.set_value('irrad_method', 'none')
 
-    period = b.get_value('period', kind='orbit', context='component')
-    times = b.to_time(np.linspace(-0.6, 0.6, 100))[::every]
+    fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.nofti.data'), unpack=True, usecols=(1,))
+
+    times = np.linspace(55002.04045, 55002.30277, len(fluxes_legacy))
     b.set_value('times', times)
 
     b.run_compute(fti_method='none')
-    fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.nofti.data'), unpack=True, usecols=(1,))[::every]
     fluxes = b.get_value('fluxes', context='model')
-
 
     if plot:
         print "fti off"
@@ -36,11 +34,10 @@ def test_binary(plot=False):
         b.plot()
         plt.legend()
         plt.show()
-    assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-2))
+    assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
 
-
-    b.run_compute(fti_method='oversample', fti_oversample=5)
-    fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.fti.data'), unpack=True, usecols=(1,))[::every]
+    b.run_compute(fti_method='oversample', fti_oversample=10)
+    fluxes_legacy = np.loadtxt(os.path.join(dir, 'kic12004834.fti.data'), unpack=True, usecols=(1,))
     fluxes = b.get_value('fluxes', context='model')
 
     if plot:
@@ -51,7 +48,7 @@ def test_binary(plot=False):
         b.plot()
         plt.legend()
         plt.show()
-    assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-2))
+    assert(np.allclose(fluxes, fluxes_legacy, rtol=0, atol=1e-3))
 
 
 

@@ -2587,7 +2587,8 @@ class Bundle(ParameterSet):
                     # not all dataset-types currently support exposure times.
                     # Once they do, this ugly if statement can be removed
                     if len(self.filter(dataset=dataset, qualifier='exptime')):
-                        if self.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0:
+                        exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                        if exptime > 0:
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
                                 times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
@@ -2597,10 +2598,23 @@ class Bundle(ParameterSet):
                                 # but this will need to be generalized if/when
                                 # we expand that support to other dataset kinds
                                 fluxes = np.zeros(times_ds.shape)
+
+                                # the oversampled times and fluxes will be
+                                # sorted according to times this may cause
+                                # exposures to "overlap" each other, so we'll
+                                # later need to determine which times (and
+                                # therefore fluxes) belong to which datapoint
+                                times_oversampled_sorted = params.get_value('times', dataset=dataset)
                                 fluxes_oversampled = params.get_value('fluxes', dataset=dataset)
+
                                 for i,t in enumerate(times_ds):
-                                    sample_inds = np.arange(i*fti_oversample, (i+1)*fti_oversample, 1)
+                                    # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
+                                    # TODO: try to optimize this by having these indices returned by the backend itself
+                                    times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
+                                    sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
+
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
+
                                 params.set_value(qualifier='times', dataset=dataset, value=times_ds)
                                 params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
 
