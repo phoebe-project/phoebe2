@@ -53,7 +53,7 @@ _1to2par = {'ld_model':'ld_func',
             'radius': 'radius',
             'tempfactor':'relteff',
             'colatitude':'colat',
-            'cadence': 'exptime'
+            'cadence': 'exptime',
             }
 #            'rate':'rate'}
 
@@ -88,7 +88,7 @@ _parsect = {'t0':'component',
             'dperdt':'component',
             'hla': 'component',
             'cla':'component',
-            'el3':'component',
+       #     'el3':'component',
             'reffect':'compute',
             'reflections':'compute',
             'finegrid':'mesh',
@@ -427,6 +427,8 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     fti_exp = params[:,1][list(params[:,0]).index('phoebe_cadence')]
     fti_ovs = params[:,1][list(params[:,0]).index('phoebe_cadence_rate')]
     fti_ts = params[:,1][list(params[:,0]).index('phoebe_cadence_timestamp')].strip('"')
+
+
 #    params =  np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch')], axis=0)#, list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
     params = np.delete(params, [list(params[:,0]).index('phoebe_cadence'), list(params[:,0]).index('phoebe_cadence_switch'), list(params[:,0]).index('phoebe_cadence_rate'), list(params[:,0]).index('phoebe_cadence_timestamp')], axis=0)
 
@@ -452,6 +454,9 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         clain = list(params[:,0]).index('phoebe_cla['+str(x)+'].VAL')
         params[:,0][hlain] = 'phoebe_lc_hla1['+str(x)+'].VAL'
         params[:,0][clain] = 'phoebe_lc_cla2['+str(x)+'].VAL'
+        hla = np.float(params[:,1][hlain]) #pull for possible conversion of l3
+        cla = np.float(params[:,1][clain]) #pull for possible conversion of l3
+
         if contact_binary:
             params = np.delete(params, [list(params[:,0]).index('phoebe_lc_cla2['+str(x)+'].VAL')], axis=0)
 
@@ -530,11 +535,24 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 
 
+
 #STARTS HERE
         lc_dict = {}
-        for x in range(len(lcpt)):
-            parameter = lcpt[x][0].split('[')[0]
-            lc_dict[parameter] = lcpt[:,1][x].strip('"')
+        
+        for y in range(len(lcpt)):
+            parameter = lcpt[y][0].split('[')[0]
+            lc_dict[parameter] = lcpt[:,1][y].strip('"')
+
+        #add third light
+        l3 = np.float(params[:,1][list(params[:,0]).index('phoebe_el3['+str(x)+'].VAL')])
+
+
+        if params[:,1][list(params[:,0]).index('phoebe_el3_units')].strip('"') == 'Total light':
+            logger.warning('l3 as a percentage of total light is currently not supported in phoebe 2')
+            l3=0
+#            l3 = l3/(4.0*np.pi)*(hla+cla)/(1.0-l3)
+
+        lc_dict['phoebe_lc_el3'] = l3
 
     # Determine the correct dataset to open
     # create rv data dictionary
@@ -997,8 +1015,10 @@ def ret_parname(param, comp_int=None, dtype=None, dnum=None, ptype=None, index=N
     #determine the context of the parameter and the number of the dataset
 
         if dtype != None:
-            dtype = dtype+'_'
-
+            if param != 'l3':
+                dtype = dtype+'_'
+            else:
+                dtype = ''
         else:
             dtype = ''
 
@@ -1067,7 +1087,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     parnames.append('phoebe_indep')
     parvals.append('"Time (HJD)"')
     types.append('choice')
-
+    # Force el3 unit to be flux
+    parnames.append('phoebe_el3_units')
+    parvals.append('"Flux"')
+    types.append('choice')   
     if len(lcs) != 0:
 
         pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
@@ -1219,7 +1242,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 
             try:
                 pnew = _2to1par[param.qualifier]
-                if param.qualifier in [ 'alb', 'l3', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
+                if param.qualifier in [ 'alb', 'fluxes', 'sigmas', 'times'] or param.component == '_default':
 
                     param = None
             except:
@@ -1236,6 +1259,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
                         pname = ret_parname(param.qualifier, comp_int= 1, dnum = x+1, ptype=ptype)
                     else:
                         pname = ret_parname(param.qualifier, comp_int= comp_int, dnum = x+1, ptype=ptype)
+
                 elif param.qualifier == 'exptime':
 
                     logger.warning("Finite integration Time is not fully supported and will be turned off by legacy wrapper before computation")
@@ -1246,6 +1270,10 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #                        parnames.extend(pname)
 #                        parvals.extend(val)
 #                        types.append('boolean')
+#                elif param.qualifier == 'l3':
+#                    pname = ['phoebe_el3']
+#                    val = val*4*np.pi
+#                    ptype = 'float'
                 else:
 
                     pname = ret_parname(param.qualifier, comp_int=comp_int, dtype='lc', dnum = x+1, ptype=ptype)
