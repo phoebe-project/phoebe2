@@ -17,18 +17,31 @@
     
     dOmega = sin(theta) dtheta dphi
   
+  Supporting:
   
+    * 'uniform': D(mu) = 1
+    * 'linear':  D(mu) = 1 - x*(1 - mu)
+    * 'quadratic': D(mu) = 1 - x(1 - mu) - y(1 - mu)^2 
+    * 'nonlinear': D(mu) = 1 - x(1 - mu) - y (1 - mu)^p
+    * 'logarithmic': D(mu) = 1 - x*(1-mu) - y*mu*log(mu)
+    * 'square_root': D(mu) = 1 - x(1 - mu) - y(1 - sqrt(mu))
+    * 'power' ~ claret: 
+      D(mu) = 1 - a0(1 - mu^(1/2)) - a1(1 - mu) - a2(1-mu^(3/2)) - a3(1 - mu^2)
+
   Author: Martin Horvat, August 2016
   
   Ref:
 
-  * Claret, A., Diaz-Cordoves, J., & Gimenez, A., Linear and non-linear limb-darkening coefficients for the photometric bands R I J H K.Astronomy and Astrophysics Supplement, v.114, p.247, 1995.
+  * Claret, A., Diaz-Cordoves, J., & Gimenez, A., Linear and non-linear limb-darkening coefficients for the photometric bands R I J H K. Astronomy and Astrophysics Supplement, v.114, p.247, 1995.
+
+  * Claret, A., 2000, A&A, 363, 1081 
 
   * Kallrath, Josef, Milone, Eugene F., Eclipsing Binary Stars: Modeling and Analysis (Spinger Verlag, 2009)
 */
 
 
 #include <cmath>
+#include <limits>
 #include "hash.h"
 
 #include "utils.h"
@@ -41,6 +54,7 @@ enum TLDmodel_type {
   NONLINEAR,
   LOGARITHMIC,
   SQUARE_ROOT,
+  POWER,
   NONE
 };
 
@@ -60,14 +74,14 @@ struct TLDmodel {
    
   virtual ~TLDmodel() = default;
   virtual T D(const T & mu) const = 0;
-  virtual bool check () const = 0;
+  virtual bool check () const = 0;            // check if D(mu) in [0,1]
   
   T F(const T & mu) const { return D(mu)/D0; }
 };
 
 
 // Uniform limb darkening == plain Labertian (0 parameter)
-// D(x) = 1
+// D(mu) = 1
 template <class T>
 struct TLDuniform: TLDmodel<T> {
   
@@ -86,7 +100,7 @@ struct TLDuniform: TLDmodel<T> {
 };
   
 // Linear limb darkening (1 parameter)
-// D(x) = 1 - x*(1 - mu)
+// D(mu) = 1 - x*(1 - mu)
 template <class T> 
 struct TLDlinear : TLDmodel<T> {
   
@@ -106,12 +120,12 @@ struct TLDlinear : TLDmodel<T> {
   }
   
   bool check () const {
-    return (x < 1 && x > 0);
+    return x <= 1 && x >= 0;
   }
 };
 
 // Quadratic limb darkening (2 parameter)  
-// D(x) = 1 - x(1 - mu) - y(1 - mu)^2  
+// D(mu) = 1 - x(1 - mu) - y(1 - mu)^2  
 template <class T>  
 struct TLDquadratic: TLDmodel<T> {
   
@@ -137,14 +151,14 @@ struct TLDquadratic: TLDmodel<T> {
     return 1 - u*(x + y*u);
   }
   
-  bool check() const {
-    return (x + y < 1 && x > 0 && y > 0);
+  bool check() const {    
+    return x >= 0 && y >= -x && y <= (x <= 2 ? 1 - x : -0.25*x*x);
   }
 };
 
 // Nonlinear limb darkening (3 parameters)
-// aka power limb darkening
-// D(x) = 1 - x(1 - mu) - y (1 - mu)^p
+// sometimes called power limb darkening
+// D(mu) = 1 - x(1 - mu) - y (1 - mu)^p
 template <class T>  
 struct TLDnonlinear: TLDmodel<T> {
   
@@ -169,12 +183,28 @@ struct TLDnonlinear: TLDmodel<T> {
   }
   
   bool check() const {
-    return (x + y < 1 && x > 0 && y > 0);  
+    T t;
+    
+    if (p > 1) {
+      return 
+        x >= 0 && y >= -x && 
+        y <= (x <= (t = p/(p - 1)) ? 1 - x : std::pow(x/t,p)/(1 - p));  
+    } else if (p < 1) {
+      T q = 1/p;
+      
+      return 
+        y >= 0 && x >= -y &&
+        x <= (y <= (t = q/(q-1)) ? 1 - y : std::pow(y/t,q)/(1 - q));
+    }
+    
+    // p == 1 (linear case)
+    t = x + y;
+    return t <= 1 && t >= 0;
   }
 };
 
 // Logarithmic limb darkening (2 parameters)
-// D(x) = 1 - x*(1-mu) - y*mu*log(mu)
+// D(mu) = 1 - x*(1-mu) - y*mu*log(mu)
 template <class T>
 struct TLDlogarithmic: TLDmodel<T> {
   
@@ -199,13 +229,15 @@ struct TLDlogarithmic: TLDmodel<T> {
   }
   
   bool check() const {
-    return (x < 1 && x > 0 && y > 0); //???????
+    return 
+      x <= 1 && x >= 0 && y <= x && 
+      y >= (x == 1 ? 0 : -x/utils::lambertW(x/((1 - x)*utils::m_e)));
   }
 };
 
 
 // Square-root limb darkening (2 parameters)
-// D(x) = 1 - x(1 - mu) - y(1 - sqrt(mu))
+// D(mu) = 1 - x(1 - mu) - y(1 - sqrt(mu))
 template <class T>
 struct TLDsquare_root: TLDmodel<T> {
 
@@ -230,18 +262,66 @@ struct TLDsquare_root: TLDmodel<T> {
   }
   
   bool check() const {
-    return (x + y < 1 && x > 0 && y > 0);
+    return 
+      x >= -1 && x <= 4 &&
+      y >= -4 && y <= 2 &&
+      y >= (x <= 0 ? -2*x : -x) &&
+      y <= (x <= 1 ? 1 - x : 2*(std::sqrt(x) -x))
+    ;
   }
+};
+
+// Claret's or Power limb darkening (4 parameters)
+// D(mu) = 1 - a[0](1 - mu^(1/2)) - a[1](1 - mu) - a[2] (1-mu^(3/2)) - a[3] (1 - mu^2)
+template <class T>
+struct TLDpower: TLDmodel<T> {
+
+  T a[4];
+
+  TLDpower(T *p) {    
+    for (int i = 0; i < 4; ++i) a[i] = p[i];
+    setup();
+  }
+
+  TLDpower(const T &a0, const T &a1, const T &a2, const T &a3)
+  : a{a0, a1, a2, a3} {
+    setup();
+  }
+  
+  void setup(){
+    this->D0 = utils::m_pi*(1 - (42*a[0] + 70*a[1] + 90*a[2] + 105*a[3])/210);
+    this->type = POWER;
+    this->nr_par = 4;
+  }
+  
+  T D(const T & mu) const {
+    T q = std::sqrt(mu);
+    return 
+      1 - a[0]*(1 - q) - a[1]*(1 - mu) - a[2]*(1 - mu*q) - a[3]*(1 - mu*mu); 
+  }
+  
+  bool check() const {
+      
+    if (a[0] + a[1] + a[2] + a[3] > 1) return false;
+    
+    // empirical check based on some points
+    T t, dmu = 0.01;
+    
+    for (T mu = 0; mu <= 1; mu += dmu) {
+      t = D(mu);
+      if (t < 0 || t > 1) return false;
+    }
+    
+    return true;
+  }
+
 };
 
 /* ====================================================================
   Interface to the limb darkening models through the function
  ==================================================================== */
 
-
-
-namespace LD{
-
+namespace LD {
 
   /*
     Calculate the value of the LD factor D(mu) in the differential 
@@ -261,19 +341,36 @@ namespace LD{
   template <class T>
   T D(TLDmodel_type choice, const T & mu, T *p) {
     
+    
     switch (choice){
-      case UNIFORM: return 1;
-      case LINEAR:  return 1 - p[0]*(1 - mu);
-      case QUADRATIC: return 1 - (1 - mu)*(p[0] + (1 - mu)*p[1]);
-      case NONLINEAR: return 1 - p[0]*(1 - mu) - p[1]*std::pow(1 - mu, p[2]);
-      case LOGARITHMIC: return 1 - p[0]*(1 - mu) - p[1]*mu*std::log(mu);
-      case SQUARE_ROOT: return 1 - p[0]*(1 - mu) - p[1]*(1- std::sqrt(mu));
+      case UNIFORM: 
+        return 1;
+      case LINEAR:  
+        return 1 - p[0]*(1 - mu);
+      case QUADRATIC: 
+      {
+        T t = 1 - mu;
+        return 1 - t*(p[0] + t*p[1]);
+      }
+      case NONLINEAR:
+      { 
+        T t = 1 - mu;
+        return 1 - p[0]*t - p[1]*std::pow(t, p[2]);
+      }
+      case LOGARITHMIC: 
+        return 1 - p[0]*(1 - mu) - p[1]*mu*std::log(mu);
+      case SQUARE_ROOT: 
+        return 1 - p[0]*(1 - mu) - p[1]*(1 - std::sqrt(mu));
+      case POWER:
+      {
+        T q = std::sqrt(mu);
+        return 1 - p[0]*(1 - q) - p[1]*(1 - mu) - p[2]*(1 - mu*q) - p[3]*(1 - mu*mu); 
+      }
       default:
         std::cerr << "LD::D::This model is not supported\n";
         return std::nan("");
     }
   }
-
 
 
   /*
@@ -293,12 +390,20 @@ namespace LD{
   T D0(TLDmodel_type choice, T *p) {
     
     switch (choice){
-      case UNIFORM: return utils::m_pi;
-      case LINEAR:  return utils::m_pi*(1 - p[0]/3);
-      case QUADRATIC: return utils::m_pi*(1 - p[0]/3 - p[1]/6);
-      case NONLINEAR: return utils::m_pi*(1 - p[0]/3 - p[1]/(1 + p[2]*(3 + p[2])/2));
-      case LOGARITHMIC: return utils::m_pi*(1 - p[0]/3  + 2*p[1]/9);
-      case SQUARE_ROOT: return  utils::m_pi*(1 - p[0]/3 - p[1]/5);
+      case UNIFORM: 
+        return utils::m_pi;
+      case LINEAR: 
+        return utils::m_pi*(1 - p[0]/3);
+      case QUADRATIC:
+        return utils::m_pi*(1 - p[0]/3 - p[1]/6);
+      case NONLINEAR:
+        return utils::m_pi*(1 - p[0]/3 - p[1]/(1 + p[2]*(3 + p[2])/2));
+      case LOGARITHMIC:
+        return utils::m_pi*(1 - p[0]/3  + 2*p[1]/9);
+      case SQUARE_ROOT:
+        return utils::m_pi*(1 - p[0]/3 - p[1]/5);
+      case POWER: 
+        return utils::m_pi*(1 - (42*p[0] + 70*p[1] + 90*p[2] + 105*p[3])/210);
       default:
         std::cerr << "LD::D0::This model is not supported\n";
         return std::nan("");
@@ -319,11 +424,12 @@ namespace LD{
     
     switch (choice){
       case UNIFORM: return 0;
-      case LINEAR:  return 1;
+      case LINEAR: return 1;
       case QUADRATIC: return 2;
       case NONLINEAR: return 3;
       case LOGARITHMIC: return 2;
       case SQUARE_ROOT: return 2;
+      case POWER: return 4;
       case NONE: return -1;
     }
     
@@ -351,13 +457,13 @@ namespace LD{
       case "nonlinear"_hash32: return NONLINEAR;
       case "logarithmic"_hash32: return LOGARITHMIC;
       case "square_root"_hash32: return SQUARE_ROOT;
+      case "power"_hash32: return POWER;
+      
       default:
         std::cerr << "LD::type::This model is not supported\n";
       return NONE;
     }
   }
-
-
 
   /*
     Calculate gradient of LD function D(mu) w.r.t. parameters. The D(mu) is 
@@ -379,22 +485,127 @@ namespace LD{
     
     switch (choice){
       case UNIFORM: break;
-      case LINEAR: g[0] = mu - 1; break;
-      case QUADRATIC: g[0] = mu - 1; g[1] = -g[0]*g[0]; break;
+      case LINEAR: 
+        g[0] = mu - 1; 
+        break;
+      case QUADRATIC:
+        g[0] = mu - 1;
+        g[1] = -g[0]*g[0]; 
+        break;
       case NONLINEAR:
         g[0] = mu - 1; 
         g[1] = -std::pow(-g[0], p[2]); 
         g[2] = p[1]*g[1]*std::log(-g[0]);
+        break;
+      case LOGARITHMIC: 
+        g[0] = mu - 1; 
+        g[1] = -mu*std::log(mu); 
+        break;
+      case SQUARE_ROOT:
+        g[0] = mu - 1;
+        g[1] = std::sqrt(mu) - 1;
+        break;
+      case POWER: 
+      {
+        T q = std::sqrt(mu);
+        g[0] = q - 1;
+        g[1] = mu - 1;
+        g[2] = q*mu - 1;
+        g[3] = mu*mu - 1; 
+      }
       break;
-      case LOGARITHMIC: g[0] = mu - 1; g[1] = -mu*std::log(mu); break;
-      case SQUARE_ROOT: g[0] = mu - 1; g[1] = std::sqrt(mu) - 1; break;
       
       default:
        std::cerr << "LD::gradparD::This model is not supported\n";
     }
-    
   }
   
+
+  /*
+    Checking is the parameters yield D(mu) in [0,1] for mu in [0,1].
+    
+    Input:
+      choice - determine LD model
+      p - pointer to parameters
+      
+    Output:
+      true - is eveything is ok
+  */
+
+  template <class T>
+  bool check(TLDmodel_type choice, T *p) {
+    
+    switch (choice) {
+      
+      case UNIFORM: 
+        return true;
+      
+      case LINEAR: 
+        return p[0] <= 1 && p[0] >= 0;
+      
+      case QUADRATIC: 
+        return 
+          p[0] >= 0 && p[1] >= -p[0] && 
+          p[1] <= (p[0] <= 2 ? 1 - p[0] : -0.25*p[0]*p[0]);
+      
+      case NONLINEAR: 
+      {
+        T t;
+      
+        if (p[2] > 1) {
+        
+          return 
+            p[0] >= 0 && p[1] >= -p[0] && 
+            p[1] <= (p[0] <= (t = p[2]/(p[2] - 1)) ? 1 - p[0] : std::pow(p[0]/t, p[2])/(1 - p[2]));  
+        
+        } else if (p[2] < 1) {
+          T q = 1/p[2];
+      
+          return 
+            p[1] >= 0 && p[0] >= -p[1] &&
+            p[0] <= (p[1] <= (t = q/(q - 1)) ? 1 - p[1] : std::pow(p[1]/t, q)/(1 - q));
+        }
+        
+        // p[2] == 1, linear case
+        t = p[0] + p[1];
+        return t >= 0 && t <= 1;   
+      }
+      
+      case LOGARITHMIC:
+        return 
+          p[0] <= 1 && p[0] >= 0 && p[1] <= p[0] && 
+          p[1] >= (p[0] == 1 ? 0 : -p[0]/utils::lambertW(p[0]/((1 - p[0])*utils::m_e)));
+      
+      case SQUARE_ROOT:
+        return 
+          p[0] >= -1 && p[0] <= 4 &&
+          p[1] >= -4 && p[1] <= 2 &&
+          p[1] >= (p[0] <= 0 ? -2*p[0] : -p[0]) && 
+          p[1] <= (p[0] <= 1 ? 1 - p[0] : 2*(std::sqrt(p[0]) - p[0]));
+      
+      case POWER: 
+      {
+        if (p[0] + p[1] + p[2] + p[3] > 1) return false;
+        
+        // empirical check based on some points
+        T q, t, dmu = 0.01;
+        
+        for (T mu = 0; mu <= 1; mu += dmu) {
+          
+          q = std::sqrt(mu);
+          t = 1 - p[0]*(1 - q) - p[1]*(1 - mu) - p[2]*(1 - mu*q) - p[3]*(1 - mu*mu); 
+          
+          if (t < 0 || t > 1) return false;
+        }
+        
+        return true;
+      }
+      
+      default:
+       std::cerr << "LD::check::This model is not supported\n";
+       return false;
+    }
+  }
 }
 
 #endif

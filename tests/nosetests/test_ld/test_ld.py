@@ -6,6 +6,8 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
+
 def _get_ld_coeffs(ld_coeff, ld_func):
     # length of ld_coeffs depends on ld_func
     if ld_coeff is None:
@@ -27,10 +29,10 @@ def test_binary(plot=False):
     b = phoebe.Bundle.default_binary()
 
 
-    b.add_dataset('lc', times=np.linspace(0,3,101))
-    b.add_compute('phoebe', reflection_method='none', compute='phoebe2')
+    period = b.get_value('period@binary')
+    b.add_dataset('lc', times=np.linspace(0,period,21))
+    b.add_compute('phoebe', irrad_method='none', compute='phoebe2')
     b.add_compute('legacy', refl_num=0, compute='phoebe1')
-
 
 
     # set matching limb-darkening for bolometric
@@ -54,12 +56,12 @@ def test_binary(plot=False):
 
             if ld_func=='interp':
                 atm = 'ck2004'
-                atm_ph1 = 'kurucz'
+                atm_ph1 = 'extern_atmx'
                 exact_comparison = False
 
             else:
                 atm = 'extern_atmx'
-                atm_ph1 = 'kurucz'
+                atm_ph1 = 'extern_atmx'
                 exact_comparison = True
 
 
@@ -109,10 +111,13 @@ def test_binary(plot=False):
                 plt.legend()
                 plt.show()
 
-            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=3e-3 if exact_comparison else 0.3, atol=0.))
+            assert(np.allclose(phoebe2_val, phoebe1_val, rtol=5e-3 if exact_comparison else 0.3, atol=0.))
 
 
     for atm in ['ck2004', 'blackbody']:
+        # don't need much time-resolution at all since we're just using median
+        # to compare
+        b.set_value('times@dataset', np.linspace(0,3,11))
         b.set_value_all('atm@phoebe2', atm)
 
         for ld_func in b.get('ld_func', component='primary').choices:
@@ -130,11 +135,11 @@ def test_binary(plot=False):
 
             med_fluxes = []
             if ld_func == 'power':
-                ld_coeff_loop = [0.0, 0.1, 0.2]
+                ld_coeff_loop = [0.0, 0.2]
             elif ld_func == 'logarithmic':
-                ld_coeff_loop = [0.0, 0.2, 0.4]
+                ld_coeff_loop = [0.0, 0.4]
             else:
-                ld_coeff_loop = [0.0, 0.4, 0.8]
+                ld_coeff_loop = [0.0, 0.8]
 
             for ld_coeff in ld_coeff_loop:
                 ld_coeffs = _get_ld_coeffs(ld_coeff, ld_func)
@@ -155,7 +160,7 @@ def test_binary(plot=False):
             if plot:
                 b.show()
 
-            assert(diff_med_fluxes < 0.02)
+            assert(diff_med_fluxes < 0.035)
 
 
 

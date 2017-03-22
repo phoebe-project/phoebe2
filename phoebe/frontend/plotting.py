@@ -36,7 +36,7 @@ except ImportError:
 else:
     _use_mpld3 = True
 
-from phoebe import _devel_enabled
+from phoebe import conf
 
 import logging
 logger = logging.getLogger("PLOTTING")
@@ -97,28 +97,42 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         _symmetric_colorkeys = ['rvs', 'vxs', 'vys', 'vzs', 'nxs', 'nys', 'nzs']
 
-        try:
-            float(kwargs[colorkey])
-        except:
+        if isinstance(kwargs[colorkey], float):
+            kwargs[colorkey] = str(kwargs[colorkey])
+            is_float = True
+        elif isinstance(kwargs[colorkey], list) or isinstance(kwargs[colorkey], np.ndarray):
+            colorarray = np.asarray(kwargs[colorkey])
             is_float = False
         else:
-            # matplotlib also accepts stringed floats which will be converted to grayscale (ie '0.8')
-            is_float = True
+            try:
+                float(kwargs[colorkey])
+            except ValueError:
+                is_float = False
+                colorarray = None
+            except TypeError:
+                is_float = False
+                colorarray = None
+            else:
+                # matplotlib also accepts stringed floats which will be converted to grayscale (ie '0.8')
+                is_float = True
 
         if kwargs[colorkey] is None or is_float or (kwargs[colorkey] in _mplcolors and kwargs[colorkey].split('@')[0] not in _symmetric_colorkeys):
             colorarray = None
         else:
             color = kwargs.pop(colorkey)
+            if not isinstance(color, str):
+                color = ''
             # print "***", color, ps.qualifiers
             # colorarray = ps.get_value(twig=color)
             # metawargs = {k:v for k,v in ps.meta.items() if k not in ['qualifier', ]
 
             # TODO: can we handle looping over times here?  Or does that belong in animate only?
             #colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
-            if len(ps.times)>1:
-                colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
-            else:
-                colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
+            if colorarray is None:
+                if len(ps.times)>1:
+                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
+                else:
+                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
 
             if make_array is not None:
                 # then we need to alter the value in the kwargs dictionary to be a
@@ -235,6 +249,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         pckwargs = {}
         pckwargs['facecolors'] = kwargs.get('facecolor', 'w')  # note change from singular -> plural
         pckwargs['edgecolors'] = kwargs.get('edgecolor', 'k')  # note change from singular -> plural
+        pckwargs['zorder'] = mplkwargs.get('zorder', 1)
 
         pckwargs, facecolorarray = _process_colorarray(ps, pckwargs, 'facecolors', kwargs.get('facecmap', _default_cmap(ps, pckwargs['facecolors'])), plot_inds)
         pckwargs, edgecolorarray = _process_colorarray(ps, pckwargs, 'edgecolors', kwargs.get('edgecmap', _default_cmap(ps, pckwargs['facecolors'])), plot_inds)
@@ -443,6 +458,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
 
             highlight_kwargs = {}
+            highlight_kwargs['zorder'] = 99 # try to place on top
             highlight_kwargs['marker'] = kwargs['highlight_marker']
             if kwargs['highlight_color'] is not None:
                 highlight_kwargs['color'] = kwargs['highlight_color']
@@ -534,7 +550,7 @@ def save_mpl(fname, **kwargs):
 def mpld3(ps, data, plot_inds, **kwargs):
     """
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
 
@@ -573,7 +589,7 @@ def save_mpld3(fname, **kwargs):
 def mpl2bokeh(ps, data, plot_inds, **kwargs):
     """
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
     if not _use_bkh:
@@ -614,7 +630,7 @@ def bokeh(ps, data, plot_inds, **kwargs):
         title
         linewidth
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
     if not _use_bkh:
@@ -702,7 +718,7 @@ def save_bokeh(fname, **kwargs):
 def lightning(ps, data, plot_inds, **kwargs):
     """
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'mpld3' plotting backend not officially supported for this release.  Enable developer mode to test.")
 
     try:

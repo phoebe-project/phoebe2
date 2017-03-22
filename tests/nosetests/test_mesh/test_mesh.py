@@ -6,6 +6,7 @@ from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
 
+phoebe.devel_on()
 
 def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     """
@@ -16,7 +17,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.add_dataset('lc', times=[0], dataset='lc01')
 
     b.add_compute('legacy', compute='phoebe1')
-    b.add_compute('phoebe', compute='phoebe2', subdiv_num=0)
+    b.add_compute('phoebe', compute='phoebe2')
 
     b.set_value_all('mesh_method', 'wd')
     b.set_value_all('eclipse_method', 'graham')
@@ -26,11 +27,10 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0,0])
     # TODO: also compare phoebe1:kurucz to phoebe:extern_atmx
-    b.set_value_all('atm@phoebe1', 'blackbody')
-    b.set_value_all('atm@phoebe2', 'extern_planckint')
+    b.set_value_all('atm', 'extern_planckint')
 
     b.run_compute('phoebe1', model='phoebe1model', protomesh=True, pbmesh=True, refl_num=0)
-    b.run_compute('phoebe2', model='phoebe2model', protomesh=True, pbmesh=True, reflection_method='none')
+    b.run_compute('phoebe2', model='phoebe2model', protomesh=True, pbmesh=True, irrad_method='none')
 
 
     compares = []
@@ -44,9 +44,9 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
     # compares += [{'qualifier': 'cosbetas', 'dataset': 'protomesh', 'atol': 1e-14}]
 
     compares += [{'qualifier': 'loggs', 'dataset': 'protomesh', 'atol': 2e-4}]
-    compares += [{'qualifier': 'teffs', 'dataset': 'protomesh', 'atol': 1e-6}]
+    compares += [{'qualifier': 'teffs', 'dataset': 'protomesh', 'atol': 1e-5}]
 
-    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 1e5}] # NOTE: these values are of order 1E14
+    compares += [{'qualifier': 'abs_normal_intensities', 'dataset': 'lc01', 'atol': 2e5}] # NOTE: these values are of order 1E14
 
 
     for c in compares:
@@ -71,7 +71,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
 
             # TODO: handle the hemispheres correctly in the legacy backend and remove this [::8] stuff (also below in plotting)
             if dataset=='protomesh':
-                phoebe1_val = phoebe1_val[::8]
+                phoebe1_val = phoebe1_val[::4]
                 phoebe2_val = phoebe2_val[::8]
 
 
@@ -84,7 +84,7 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
                     x = x[::8]
 
                 fig, (ax1, ax2) = plt.subplots(1,2)
-
+                print 'comps', len(x), len(phoebe1_val)
                 ax1.plot(x, phoebe1_val, 'bo')
                 ax1.plot(x, phoebe2_val, 'r.')
 

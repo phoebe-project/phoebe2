@@ -3,7 +3,7 @@ from phoebe.parameters import *
 from phoebe.parameters import constraint
 from phoebe.atmospheres import passbands  # need to load pbtable (dictionary of available passbands)
 from phoebe import u
-from phoebe import _devel_enabled
+from phoebe import conf
 
 _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
@@ -52,14 +52,15 @@ def lc_syn(syn=True, **kwargs):
 def lc_dep(is_lc=True, **kwargs):
     dep_params = []
 
+    # NOTE: these need to be added to the exception in bundle.add_dataset so that the kwargs get applied correctly
     dep_params += [ChoiceParameter(qualifier='ld_func', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_func', 'interp'), choices=_ld_func_choices, description='Limb darkening model')]
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
-    passbands.init_passbands()  # TODO: possibly move to the import of the passbands module
-    dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands._pbtable.keys(), description='Passband')]
+    passbands.init_passbands()  # NOTE: this only actually does something on the first call
+    dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
     dep_params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
     if is_lc:
-        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
-        dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
+        dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
+        dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
         dep_params += [FloatParameter(qualifier='l3', value=kwargs.get('l3', 0.), default_unit=u.W/u.m**3, description='Third light')]
 
     # dep_params += [FloatParameter(qualifier='alb', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('alb', 0.), default_unit=u.dimensionless_unscaled, description='Passband Bond\'s albedo, alb=0 is no reflection')]
@@ -130,7 +131,7 @@ def etv(**kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'etv' dataset not officially supported for this release.  Enable developer mode to test.")
 
     obs_params = []
@@ -189,7 +190,7 @@ def ifm(**kwargs):
     :return: a :class:`phoebe.parameters.parameters.ParameterSet` of all newly
         created :class:`phoebe.parameters.parameters.Parameter`s
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'IFM' dataset not officially supported for this release.  Enable developer mode to test.")
 
 
@@ -405,12 +406,12 @@ def mesh_syn(syn=True, **kwargs):
                     # TODO: descriptions for each column
                     if kind=='rv':
                         indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
-                        # if _devel_enabled:
+                        # if conf.devel:
                         indeps['abs_intensities'] = u.W/u.m**3
                         indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='lc':
                         indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
-                        # if _devel_enabled:
+                        # if conf.devel:
                         indeps['abs_intensities'] = u.W/u.m**3
                         indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='mesh':
@@ -420,7 +421,8 @@ def mesh_syn(syn=True, **kwargs):
 
                     if kind in ['lc', 'rv']:
                         syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
-
+                        syn_params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+                        syn_params += [FloatParameter(qualifier='pbspan', dataset=dataset, time=t, value=kwargs.get('pbspan', 1.0), default_unit=u.m, description='Wavelength span of the passband')]
 
                     for indep, default_unit in indeps.items():
                         syn_params += [FloatArrayParameter(indep, dataset=dataset, time=t, value=[], default_unit=default_unit, description='Per-element value for {} dataset'.format(dataset))]

@@ -38,6 +38,8 @@ else:
 from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 
 from phoebe import u
+from phoebe import conf
+from phoebe import list_passbands, list_installed_passbands, list_online_passbands, download_passband
 
 try:
     import sympy
@@ -1246,7 +1248,7 @@ class ParameterSet(object):
             raise ValueError("0 results found")
         elif len(ps) != 1:
             # TODO: custom exception?
-            raise ValueError("{} results found".format(len(ps)))
+            raise ValueError("{} results found: {}".format(len(ps), ps.twigs))
         else:
             # then only 1 item, so return the parameter
             return ps._params[0]
@@ -1614,7 +1616,7 @@ class ParameterSet(object):
         # TODO: for time derivatives will need to use t instead of time (time
         # gets passed to twig filtering)
 
-        if default is not None is not None:
+        if default is not None:
             # then we need to do a filter first to see if parameter exists
             if not len(self.filter(twig=twig, **kwargs)):
                 return default
@@ -1981,16 +1983,31 @@ class ParameterSet(object):
             # edgecolor, but if either of those two values are provided, they
             # should take precedence.
             color = kwargs.get('color', None)
+            if 'facecolors' in kwargs.keys() and 'facecolor' not in kwargs.keys():
+                logger.warning("assuming you meant 'facecolor' instead of 'facecolors'")
+                kwargs['facecolor'] = kwargs.pop('facecolors')
+            if 'edgecolors' in kwargs.keys() and 'edgecolor' not in kwargs.keys():
+                logger.warning("assuming you meant 'edgecolor' instead of 'edgecolors'")
+                kwargs['edgecolor'] = kwargs.pop('edgecolors')
             kwargs.setdefault('facecolor', 'w' if color is None else color)
             kwargs.setdefault('edgecolor', 'k' if color is None else color)
 
             # TODO: do the same logic with cmap, facecmap, edgecmap as colors
             # above
 
-            kwargs.setdefault('xunit', 'solRad')
-            kwargs.setdefault('yunit', 'solRad')
-            if axes_3d:
-                kwargs.setdefault('zunit', 'solRad')
+            if ps.dataset == 'protomesh':
+                # then the array are dimensionless - which really means in
+                # units of sma
+                kwargs.setdefault('xunit', None)
+                kwargs.setdefault('yunit', None)
+                if axes_3d:
+                    kwargs.setdefault('zunit', None)
+            else:
+                kwargs.setdefault('xunit', 'solRad')
+                kwargs.setdefault('yunit', 'solRad')
+                if axes_3d:
+                    kwargs.setdefault('zunit', 'solRad')
+
             if kwargs['xunit'] != kwargs['yunit']:
                 raise ValueError('xunit and yunit must be the same for mesh plots')
             if axes_3d and kwargs['xunit']!=kwargs['zunit']:
@@ -2272,7 +2289,14 @@ class ParameterSet(object):
             # TODO: include zparam.uniquetwig if axes_3d
             default_label = ''.join(c[2:] for c in list(difflib.ndiff(xparam.uniquetwig, yparam.uniquetwig)) if c[0] == ' ')
             if default_label[0] == '@':
+                # then let's just trim the leading @
                 default_label = default_label[1:]
+            if default_label.split('@')[0] not in xparam.uniquetwig.split('@')+yparam.uniquetwig.split('@'):
+                # then we had some overlap that doesn't form a whole label
+                # this can happen for "times" and "fluxes", for example
+                # leaving the leading "es".  So let's trim this and only
+                # return the rest
+                default_label = '@'.join(default_label.split('@')[1:])
         kwargs.setdefault('label', default_label)
 
         # Now let's try to figure out the plottype (whether to do plot or
@@ -2468,7 +2492,12 @@ class ParameterSet(object):
         if do_plot:
 
             if plotting_backend in ['mpl']:
-                plt.gcf().tight_layout()
+                try:
+                    plt.gcf().tight_layout()
+                except ValueError:
+                    # this can fail sometimes if axes were added via add_axes
+                    # instead of add_subplot
+                    pass
 
             if show:
                 self.show()
@@ -3597,7 +3626,7 @@ class ChoiceParameter(Parameter):
         return str(self._value)
 
     @send_if_client
-    def set_value(self, value, run_checks=True, **kwargs):
+    def set_value(self, value, run_checks=None, **kwargs):
         """
 
         """
@@ -3608,12 +3637,22 @@ class ChoiceParameter(Parameter):
         except:
             raise ValueError("could not cast value to string")
         else:
+            if self.qualifier=='passband':
+                if value not in self.choices:
+                    self._choices = list_passbands(refresh=True)
+
             if value not in self.choices:
                 raise ValueError("value must be one of {}".format(self.choices))
+
+            if self.qualifier=='passband' and value not in list_installed_passbands():
+                # then we need to download and install before setting
+                download_passband(value)
 
             self._value = value
 
             # run_checks if requested (default)
+            if run_checks is None:
+                run_checks = conf.interactive
             if run_checks and self._bundle:
                 passed, msg = self._bundle.run_checks()
                 if not passed:
@@ -3808,7 +3847,13 @@ class FloatParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), unit)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'timederiv'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for'] # TODO: add adjust?  or is that a different subclass?
+        if conf.devel:
+            # NOTE: this check will take place when CREATING the parameter,
+            # so toggling devel after won't affect whether timederiv is included
+            # in string representations.
+            self._dict_fields_other += ['timederiv']
+
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -3983,13 +4028,13 @@ class FloatParameter(Parameter):
             raise ValueError("value could not be cast to float")
 
     #@send_if_client is on the called set_quantity
-    def set_value(self, value, unit=None, force=False, run_checks=True, **kwargs):
+    def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
         """
-        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks)
+        return self.set_quantity(value=value, unit=unit, force=force, run_checks=run_checks, **kwargs)
 
     @send_if_client
-    def set_quantity(self, value, unit=None, force=False, run_checks=True, **kwargs):
+    def set_quantity(self, value, unit=None, force=False, run_checks=None, run_constraints=None, **kwargs):
         """
 
         If unit is not provided, will default to self.default_unit.
@@ -4059,11 +4104,22 @@ class FloatParameter(Parameter):
         else:
             self._value = value
 
-        for constraint_id in self._in_constraints:
-            #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
-            self._bundle.run_constraint(uniqueid=constraint_id)
+        if run_constraints is None:
+            run_constraints = conf.interactive
+        if run_constraints:
+            for constraint_id in self._in_constraints:
+                #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
+                self._bundle.run_constraint(uniqueid=constraint_id)
+        else:
+            # then we want to delay running constraints... so we need to track
+            # which ones need to be run once requested
+            for constraint_id in self._in_constraints:
+                if constraint_id not in self._bundle._delayed_constraints:
+                    self._bundle._delayed_constraints.append(constraint_id)
 
         # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive
         if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:
@@ -4513,6 +4569,16 @@ class HierarchyParameter(StringParameter):
 
         return structure, trace, our_item
 
+    def change_component(self, old_component, new_component):
+        """
+        """
+        kind = self.get_kind_of(old_component)
+        value = self.get_value()
+        # TODO: this could still cause issues if the names of components are
+        # contained in other components (ie starA, starAB)
+        value = value.replace("{}:{}".format(kind, old_component), "{}:{}".format(kind, new_component))
+        self.set_value(value)
+
     def get_components(self):
         """
         """
@@ -4699,7 +4765,7 @@ class HierarchyParameter(StringParameter):
     def get_meshables(self):
         """
         return a list of components that are meshable (generally stars, but handles
-            the envelope for an overcontact)
+            the envelope for an contact_binary)
         """
 
         l = re.findall(r"[\w']+", self.get_value())
@@ -4723,11 +4789,11 @@ class HierarchyParameter(StringParameter):
         return item_kind
 
 
-    def is_overcontact(self, component):
+    def is_contact_binary(self, component):
         """
         especially useful for constraints
 
-        tells whether any component (star, envelope) is part of an overcontact
+        tells whether any component (star, envelope) is part of a contact_binary
         by checking its siblings for an envelope
         """
         if 'envelope' not in self.get_value():
@@ -5080,10 +5146,15 @@ class ConstraintParameter(Parameter):
                     return True
             return False
 
+        def get_values(vars, safe_label=True):
+            # use np.float64 so that dividing by zero will results in a
+            # np.inf
+            return {var.safe_label if safe_label else var.user_label: np.float64(var.get_quantity(t=t).si.value) if var.get_parameter()!=self.constrained_parameter else np.float64(var.get_quantity().si.value) for var in vars}
+
         eq = self.get_value()
 
         if _use_sympy and not eq_needs_builtin(eq):
-            values = {var.safe_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
+            values = get_values(self._vars, safe_label=True)
             values['I'] = 1 # CHEATING MAGIC
             # just to be safe, let's reinitialize the sympy vars
             for v in self._vars:
@@ -5104,7 +5175,7 @@ class ConstraintParameter(Parameter):
                 # the else (which works for np arrays) does not work for the built-in funcs
                 # this means that we can't currently support the built-in funcs WITH arrays
 
-                values = {var.user_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
+                values = get_values(self._vars, safe_label=False)
 
                 from phoebe.constraints.builtin import ecosw2per0, esinw2per0, rochepotential2rpole, rocherpole2potential, rotstarpotential2rpole, rotstarrpole2potential
                 # if len(self.hierarchy.get_meshables())==1:
@@ -5118,7 +5189,7 @@ class ConstraintParameter(Parameter):
 
             else:
                 # the following works for np arrays
-                values = {var.safe_label: var.get_quantity(t=t).si.value if var.get_parameter()!=self.constrained_parameter else var.get_quantity().si.value for var in self._vars}
+                values = get_values(self._vars, safe_label=True)
 
                 # if any of the arrays are empty (except the one we're filling)
                 # then we want to return an empty array as well (the math would fail)
@@ -5209,6 +5280,7 @@ class ConstraintParameter(Parameter):
 
         self._qualifier = newly_constrained_param.qualifier
         self._component = newly_constrained_param.component
+        self._kind = newly_constrained_param.kind
 
         self._value = str(expression)
         self.set_default_unit(newly_constrained_param.default_unit)

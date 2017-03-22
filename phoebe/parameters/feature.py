@@ -3,7 +3,7 @@
 from phoebe.parameters import *
 from phoebe.parameters import constraint
 from phoebe import u
-from phoebe import _devel_enabled
+from phoebe import conf
 
 def spot(**kwargs):
     """
@@ -40,7 +40,7 @@ def pulsation(**kwargs):
     :parameter **kwargs: defaults for the values of any of the parameters
     :return: a :class:`phoebe.parameters.parameters.ParameterSet`
     """
-    if not _devel_enabled:
+    if not conf.devel:
         raise NotImplementedError("'pulsation' feature not officially supported for this release.  Enable developer mode to test.")
 
 

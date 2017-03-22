@@ -106,16 +106,17 @@ struct Ttorus {
 template <class T>
 struct Tsphere {
   
-  double R;
+  double R, R2;
   
   /*
     Reading and storing the parameters
     params [0] = R  -- radius
   */
   
-  Tsphere(void *params, bool init_params =  true){ 
+  Tsphere(void *params){ 
     T *p = (T*) params;
     R = *p; 
+    R2 = R*R;
   }
   
   /* 
@@ -131,11 +132,11 @@ struct Tsphere {
         ret[3] = potential-value 
 
   */
-  void grad(T r[3], T ret[4]){
+  void grad(T r[3], T ret[4], const bool & precision = false){
     
     for (int i = 0; i < 3; ++i) ret[i] = 2*r[i];
      
-    ret[3] = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - R*R;
+    ret[3] = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - R2;
   }
 
   /*
@@ -240,9 +241,8 @@ struct Theart {
 template <class T>
 struct Tgen_roche {
   
-  T q, F, delta, Omega0, x0, 
+  T q, F, delta, Omega0, 
     b, f0; // derived constants
-  
   
   Tgen_roche() {}
   
@@ -298,9 +298,28 @@ struct Tgen_roche {
   */
 
   
-  void grad(T r[3], T ret[4]){
-    
-   T  x1 = r[0], 
+  void grad(T r[3], T ret[4], const bool & precision = false){
+   
+   if (precision) {
+   
+     long double  
+        x1 = r[0], 
+        x2 = x1 - delta, 
+        y = r[1], 
+        z = r[2], 
+        r1 = 1/utils::hypot3(x1, y, z), 
+        r2 = 1/utils::hypot3(x2, y, z), 
+        s = y*y + z*z,
+        f1 = r1/(s + x1*x1),
+        f2 = r2/(s + x2*x2);
+      
+      ret[0] = -x1*(b - f1) + q*(f0 + f2*x2);
+      ret[1] = y*(f1 + q*f2 - b);
+      ret[2] = z*(f1 + q*f2);
+      ret[3] = Omega0 - (r1 + q*(r2 - f0*x1) + b*(x1*x1 + y*y)/2); 
+      return;
+  } 
+  T  x1 = r[0], 
       x2 = r[0] - delta, 
       y = r[1], 
       z = r[2], 
@@ -445,7 +464,22 @@ struct Trot_star {
   */
 
   
-  void grad(T r[3], T ret[4]){
+  void grad(T r[3], T ret[4], const bool & precision = false){
+    
+    if (precision) {
+      
+      long double
+        x = r[0], 
+        y = r[1],
+        z = r[2],
+        f = 1/utils::hypot3(x, y, z),
+        r1 = std::pow(f, 3);
+        
+      ret[0] = (-w2 + r1)*x; 
+      ret[1] = (-w2 + r1)*y;
+      ret[2] = z*r1;
+      ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
+    }
     
     T x = r[0], 
       y = r[1],

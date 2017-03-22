@@ -1,8 +1,13 @@
 /build
+/dist
+/phoebe/atmospheres/tables/ck2004
+/phoebe/atmospheres/tables/ck2004i
+MANIFEST
 *_tmp*
 *after.phoebe
 *.ipynb_checkpoints*
 *.pyc*
 *.active
-/docs/tutorials/*.phoebe
-/docs/tutorials/*.bundle
+*.profile
+*.log
+*.png

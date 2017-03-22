@@ -20,8 +20,11 @@ namespace utils {
   const double m_pi = 3.14159265358979323846264338327950419984;  // pi
   const double m_2pi = 6.2831853071795864769252867665590083999;  // 2 pi
   const double m_4pi = 12.5663706143591729538505735331180167998; // 4 pi
+  const double m_4pi3 = 4.18879020478639098461685784437267226645; // 4 pi/3
   const double m_pi3 = 1.04719755119659774615421446109316806665; // pi/3
-
+  const double m_e = 2.71828182845904523533978449066641588615; // e
+  const double m_1_e = 0.36787944117144232159552377016146086744; // 1/e
+  
   /*
     Return square of the value.
     
@@ -429,65 +432,96 @@ namespace utils {
       roots - vector of polished roots
   */
    template <class T> 
-   void polish(const int & n, T *a, std::vector<T> & roots){
+   void polish(const int & n, T *a, std::vector<T> & roots, const bool multi_roots = true){
       
-      const int iter_max = 10;
+      const int iter_max = 20;
+      
+      const T eps_2 = std::numeric_limits<T>::epsilon()/2;
       const T eps = 10*std::numeric_limits<T>::epsilon();
       const T min = 10*std::numeric_limits<T>::min();
       
-      int it;
-      
-      long double dx;
-      
-      for (auto && x : roots) {
+      int  ir = 0;
+  
+      for (auto && xi: roots) {
         
-        it = 0;  
-        
+        int it = 0;  
+
+        long double dx, x = xi, f, df, d2f, e;
+                
         do {
-          #if 0
-          // Horner algorithm to compute value and derivative
-          // http://www.physics.utah.edu/~detar/lessons/c++/array/node4.html
-          long double f = a[n], df = 0;
-          for (int i = n - 1; i >= 0; --i) { 
-            df = f + x*df;
-            f  = a[i] + x*f;
-          }
           
-          // Newton-Raphson step
-          x -= (dx = f/df); 
-          #else
-          // Horner algorithm to compute value, derivative and second derivative
-          // http://www.ece.rice.edu/dsp/software/FVHDP/horner2.pdf
-          long double f = a[n], df = 0, d2f = 0;
-          for (int i = n - 1; i >= 0; --i) { 
-            d2f = df + x*d2f;
-            df = f + x*df;
-            f  = a[i] + x*f;
-          }
-          d2f *= 2;
-          
-          // Newton-Raphson step for multiple roots
-          // https://www.math.uwaterloo.ca/~wgilbert/Research/GilbertNewtonMultiple.pdf
-          x -= (dx = f*df/(df*df - f*d2f)); 
-          #endif
-          /*
-          std::cout.precision(16);
-          std::cout << std::scientific;
-          std::cout << x << '\t' << dx << '\t' << f  << '\n';
-          */
+          if (multi_roots) {
             
-        } while (std::abs(dx) > eps*std::abs(x) + min && (++it) < iter_max); 
+            // Horner algorithm to compute value, derivative and second derivative
+            // http://www.ece.rice.edu/dsp/software/FVHDP/horner2.pdf
+            f = a[n], df = d2f = e = 0;
+            for (int i = n - 1; i >= 0; --i) { 
+              d2f = df + x*d2f;
+              df = f + x*df;
+              
+              // maximal expected error
+              e = e*std::abs(x) + eps_2*(2*std::abs(x*f) + std::abs(a[i]));
+              f  = a[i] + x*f;
+            }
+            d2f *= 2;
+            
+            // Newton-Raphson step for multiple roots
+            // https://www.math.uwaterloo.ca/~wgilbert/Research/GilbertNewtonMultiple.pdf
+            x -= (dx = f*df/(df*df - f*d2f)); 
+          } else {
+            
+            // Horner algorithm to compute value and derivative
+            // http://www.physics.utah.edu/~detar/lessons/c++/array/node4.html
+            f = a[n], df = e = 0;
+            for (int i = n - 1; i >= 0; --i) { 
+              df = f + x*df;
+              // maximal expected error
+              e = e*std::abs(x) + eps_2*(2*std::abs(x*f) + std::abs(a[i]));
+              f  = a[i] + x*f;
+            }
         
+            // Newton-Raphson step
+            x -= (dx = f/df);           
+          }
+          
+          #if 0
+          std::cerr.precision(16);
+          std::cerr << std::scientific;
+          std::cerr 
+            << "I=:" << it << '\t' << x << '\t' 
+            << dx << '\t' << f << '\t' << df << '\t' << e << '\n';
+          #endif
+            
+            
+        } while (std::abs(f) > 0.5*e && std::abs(dx) > eps*std::abs(x) + min && (++it) < iter_max); 
+                
         //std::cout << "-----\n";
         
-        if (it == iter_max) 
+        if (it == iter_max) { 
           std::cerr << "Warning: Root polishing did not succeed\n";
+          
+          std::cerr.precision(std::numeric_limits<T>::digits10);
+          std::cerr << std::scientific;
+          
+          std::cerr 
+            << "i=" << ir << '\n'
+            << "n=" << n << '\n' 
+            << "x=" << x << '\n'
+            << "xi=" << xi << '\n'
+            << "dx=" << dx << '\n'
+            << "f=" << f << '\n'
+            << "eps=" << eps << '\n'
+            << "min="<< min << '\n';
+            
+          for (int i = 0; i <= n; ++i) std::cerr << a[i] << '\t';
+          std::cerr << '\n'; 
+        }
         
+        xi = x;
+        ++ir;
       }
    }
    
-  
-  
   /*
     Real roots of the quadratic equation
 
@@ -500,8 +534,7 @@ namespace utils {
       roots -- list of real roots sorted ascending order
   */ 
   template <class T> 
-  void solve_quadratic(T a[3], std::vector<T> &roots)
-  {
+  void solve_quadratic(T a[3], std::vector<T> & roots){
     
     roots.clear();
     
@@ -565,8 +598,7 @@ namespace utils {
   */ 
 
   template <class T> 
-  void solve_cubic(T a[4], std::vector<T> & roots)
-  {
+  void solve_cubic(T a[4], std::vector<T> & roots) {
     
     roots.clear();
     
@@ -593,9 +625,17 @@ namespace utils {
         D = p*p*p/27 + q*q/4,
               
         A = 2*std::sqrt(std::abs(p)/3), phi;
-     
-      //std::cerr << "cubic::a=" << d  << ' ' << c << ' ' << b << ' ' << 1 << '\n';
-      //std::cerr << "cubic::D=" << D << " q =" << q << " p=" << p << '\n';
+      
+      #if 0
+      std::cerr.precision(16);
+      std::cerr << std::scientific;
+      
+      std::cerr 
+        << "cubic::\n"
+        << "a=" << d  << ' ' << c << ' ' << b << ' ' << 1 << '\n'
+        << "D=" << D << " A=" << A  << '\n' 
+        << "q=" << q << " p=" << p << '\n';
+      #endif
        
       if (D <= 0 || std::abs(D) < eps){ // 3 real roots, of 1 real roots if (p=q=0)
         
@@ -605,15 +645,22 @@ namespace utils {
           
           T r = 3*q/(A*p);
           
+          #if 0
+          std::cerr 
+            << "cubic::\n"
+            << "r=" << r << '\n';
+          #endif
+          
           phi = (std::abs(r) > 1 ? 0 : std::acos(r));
         
-      
           for (int i = 2; i >= 0; --i) {
-            /*T t;
+            #if 0
+            T t;
             roots.push_back(t = A*std::cos((phi - m_2pi*i)/3) - b/3);
             std::cerr << "cubic::x=" << t << '\n';
-            */
-           roots.push_back(A*std::cos((phi - m_2pi*i)/3) - b/3);
+            #else
+            roots.push_back(A*std::cos((phi - m_2pi*i)/3) - b/3);
+            #endif
           }
         }
       } else {
@@ -823,6 +870,129 @@ namespace utils {
     return low;
   }
   
+  
+  /* 
+   Giving the principal solution -- upper branch of the solution
+   of the Lambert equation
+     
+        W e^W = x
+        
+    for x in [-1/e, infty) and W > -1.  
+     
+    The solution is called Lambert W function or ProductLog
+      
+   Ref:
+    * http://mathworld.wolfram.com/LambertW-Function.html
+    * Robert M. Corless, et.al, A Sequence of Series for The Lambert W Function 
+      
+  */
+  
+  template <class T> 
+  T lambertW(const T & x){
+    
+    // checking limits 
+    if (x == T(0)) return  T(0);
+    
+    if (std::isinf(x) ) {
+      if (x > 0)
+        return std::numeric_limits<T>::infinity();
+      else 
+        return std::nan("");
+    }
+    
+    if (x < -m_1_e || std::isnan(x)) return std::nan("");
+    
+    //
+    // calculating approximation 
+    //
+    
+    T p, w;
+    
+    
+    if (x < -0.25*m_1_e) {
+      // around branching point 
+      p = std::sqrt(2.0*(m_e*x + 1.0));
+      w = -1. + p*(1 + p*(-0.3333333333333333 + p*(0.1527777777777778 + 
+           p*(-0.07962962962962963 + p*(0.044502314814814814 + p*(-0.02598471487360376 + 
+           p*(0.01563563253233392 - 0.009616892024299432*p)))))));
+           
+      if (x + m_1_e < 1e-3) return w;
+      
+    } else if ( x < -0.5*m_1_e){
+      // series around -0.75*m_1_e
+      p = x + 3*m_1_e/4;
+      w = -0.41986860097402295 + p*(2.6231325990041836 + p*(-9.370814155554825 + 
+          p*(53.573090925650874 + p*(-371.14484652831385 + p*(2852.957668395053 + 
+          p*(-23404.79831089446 + p*(200748.5156249781 - 1.7785330276273934e6*p)))))));
+      
+      if (std::abs(p) < 1e-3) return w;
+    } else if (std::abs(x) <= 0.5*m_1_e) {
+      w = x*(1 + x*(-1. + x*(1.5 + x*(-2.6666666666666665 + x*(5.208333333333333 + 
+          x*(-10.8 + (23.343055555555555 - 52.01269841269841*x)*x))))));
+    
+      if (std::abs(x) < 1e-3) return w;
+    } else if (x <= 1.5*m_1_e) {
+      // series around m_1_e
+      p = x - m_1_e;
+      w = 0.2784645427610738 + p*(0.5920736016838016 + p*(-0.31237407786966215 + 
+         p*(0.24090600442965682 + p*(-0.2178832755815021 + p*(0.21532401351646263 + 
+         p*(-0.22520037555300257 + p*(0.24500015392074573 - 0.27439507212836256*p)))))));
+                     
+      if (std::abs(p) < 1e-3) return w;
+   } else if (x <= 2.5*m_1_e) {
+      // series around 2*m_1_e
+      p = x - 2*m_1_e;
+      w = 0.46305551336554884 + p*(0.4301666532987023 + p*(-0.1557603379726202 + 
+          p*(0.08139743653170319 + p*(-0.049609658385920324 + p*(0.032938686466159176 + 
+          p*(-0.02310194185417815 + p*(0.016833472598465127 - 0.012616316325209298*p)))))));
+     
+      if (std::abs(p) < 1e-3) return w;
+    } else if (x <= 20*m_1_e) {
+      // expanding W(exp(p+1)) around p=0
+      p = std::log(x/m_e);
+      w = 1. + p*(0.5 + p*(0.0625 + p*(-0.005208333333333333 + p*(-0.0003255208333333333 + 
+          p*(0.00021158854166666667 + p*(-0.00003187391493055556 + 
+          p*(-1.7680819072420636e-6 + 1.8520960732111855e-6*p)))))));
+    
+    } else { // asymptotic approximation
+      T L1 = std::log(x),
+        L2 = std::log(L1);
+      w = L1 - L2 + L2/L1*(1 + (L2/2 - 1)/L1);
+    }
+    
+    //
+    // Halley’s method
+    // x > 0: log(w) + w = log(x) := z 
+    // x < 0: log(q) - q = log(-x) := z, q = -w 
+    // Ref:
+    //  *  https://en.wikipedia.org/wiki/Halley%27s_method
+    
+    const int max_iter = 20;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+    
+    int iter = 0;
+    
+    T z = std::log(std::abs(x)), dw;
+    
+    if (x > 0) {    
+      do {
+        p = std::log(w) - z;
+        dw = (2*w*(1 + w)*(w + p))/((2 + w)*(1 + 2*w) + p);
+        w -= dw;
+      } while (std::abs(dw) < eps*std::abs(w) + min && ++iter < max_iter );
+    } else {
+      w = -w;
+      do {
+        p = std::log(w) - z;
+        dw = (2*w*(-1 + w)*(w - p))/((-2 + w)*(-1 + 2*w) + p);
+        w -= dw;
+      } while (std::abs(dw) < eps*std::abs(w) + min && ++iter < max_iter );
+      w = -w;
+    }
+    
+    return w;
+  }
 } // namespace utils
 
 #endif  // #if !defined(__utils_h)

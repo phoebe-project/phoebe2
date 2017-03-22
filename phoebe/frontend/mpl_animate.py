@@ -225,7 +225,10 @@ class Animation(object):
 
         self.fig = ax.figure
 
-        self.fig.tight_layout()
+        try:
+            self.fig.tight_layout()
+        except ValueError:
+            pass
 
     def anim_init(self):
 
