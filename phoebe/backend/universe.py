@@ -458,7 +458,7 @@ class System(object):
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
             ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
-            # don't need pbspan because its a float (same for all elements, regardless of component)
+            # don't need ptfarea because its a float (same for all elements, regardless of component)
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
@@ -477,11 +477,11 @@ class System(object):
             ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
 
             # assume that all bodies are using the same passband and therefore
-            # will have the same pbspan.  If this assumption is ever a problem -
+            # will have the same ptfarea.  If this assumption is ever a problem -
             # then we will need to build a flat column based on the component
-            # of each element so that pbspan is an array with the same shape
+            # of each element so that ptfarea is an array with the same shape
             # as those above
-            pbspan = self.bodies[0].get_pbspan(dataset)  # TODO: what to pass for component for contacts?
+            ptfarea = self.bodies[0].get_ptfarea(dataset)  # TODO: what to pass for component for contacts?
 
             # intens_proj is the intensity in the direction of the observer per unit surface area of the triangle
             # areas is the area of each triangle
@@ -494,7 +494,7 @@ class System(object):
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
-            return {'flux': np.sum(intensities*areas*mus*visibilities)*pbspan/(distance**2)+l3}
+            return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
 
 
         elif kind == 'ifm':
@@ -580,7 +580,7 @@ class Body(object):
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
         self._pblum_scale = {}
-        self._pbspan = {}
+        self._ptfarea = {}
 
         # We'll also keep track of a conservative maximum r (from center of star to triangle, in real units).
         # This will be computed and stored when the periastron mesh is added as a standard
@@ -1015,14 +1015,14 @@ class Body(object):
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
-        pbspan = self.get_pbspan(dataset) # just a float
+        ptfarea = self.get_ptfarea(dataset) # just a float
 
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
-        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*pbspan*np.pi
+        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*ptfarea*np.pi
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
@@ -1057,17 +1057,17 @@ class Body(object):
             #logger.warning("no pblum scale found for dataset: {}".format(dataset))
             return 1.0
 
-    def set_pbspan(self, dataset, pbspan, **kwargs):
+    def set_ptfarea(self, dataset, ptfarea, **kwargs):
         """
         """
-        self._pbspan[dataset] = pbspan
+        self._ptfarea[dataset] = ptfarea
 
-    def get_pbspan(self, dataset, **kwargs):
+    def get_ptfarea(self, dataset, **kwargs):
         """
         """
         # kwargs needed just so component can be passed but ignored
 
-        return self._pbspan[dataset]
+        return self._ptfarea[dataset]
 
 
     def populate_observable(self, time, kind, dataset, **kwargs):
@@ -1277,7 +1277,7 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
-        self.set_pbspan(dataset, pbspan)
+        self.set_ptfarea(dataset, ptfarea)
 
         return {'abs_normal_intensities': abs_normal_intensities,
                 'normal_intensities': normal_intensities,
@@ -2018,8 +2018,8 @@ class Star(Body):
 
             pb = passbands.get_passband(passband)
 
-            pbspan = pb.wl[-1]-pb.wl[0]
-            self.set_pbspan(dataset, pbspan)
+            ptfarea = pb.ptf_area
+            self.set_ptfarea(dataset, ptfarea)
 
             ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
                              logg=self.mesh.loggs.for_computations,
@@ -2215,7 +2215,7 @@ class Envelope(Body):
                              label_primary: {},
                              label_secondary: {}}
 
-        self._pbspan      = {}
+        self._ptfarea      = {}
 
 
     @classmethod
@@ -2792,7 +2792,7 @@ class Envelope(Body):
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
-        pbspan = self.get_pbspan(dataset)
+        ptfarea = self.get_ptfarea(dataset)
 
         if component == self.label_envelope:
             areas = areas
@@ -2814,7 +2814,7 @@ class Envelope(Body):
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
-        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*pbspan*np.pi
+        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*ptfarea*np.pi
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
@@ -2922,8 +2922,8 @@ class Envelope(Body):
 
             pb = passbands.get_passband(passband)
 
-            pbspan = pb.wl[-1]-pb.wl[0]
-            self.set_pbspan(dataset, pbspan)
+            ptfarea = pb.wl[-1]-pb.wl[0]
+            self.set_ptfarea(dataset, ptfarea)
 
             ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
                              logg=self.mesh.loggs.for_computations,
