@@ -815,7 +815,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 for infomesh in infolist:
                     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
                         new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
-                        new_syns.set_value(qualifier='pbspan', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.get_pbspan(infomesh['dataset']))
+                        new_syns.set_value(qualifier='ptfarea', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.get_ptfarea(infomesh['dataset']))
 
                         for indep in indeps[infomesh['kind']]:
                             key = "{}:{}".format(indep, infomesh['dataset'])
