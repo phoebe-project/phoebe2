@@ -1258,7 +1258,7 @@ class Meshes(object):
         def get_field(c, field, computed_type):
             if c not in self._dict.keys():
                 # then handle the case where we're requesting a star in an
-                # envelope (ie. request the "primary" half of "common_envelope")
+                # envelope (ie. request the "primary" half of "contact_envelope")
 
                 c_orig = c
                 c = self._parent_envelope_of[c]

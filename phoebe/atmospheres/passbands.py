@@ -14,6 +14,7 @@ import marshal
 import types
 import libphoebe
 import os
+import sys
 import glob
 import shutil
 import urllib, urllib2
@@ -30,6 +31,21 @@ _pbtable = {}
 
 _initialized = False
 _online_passbands = None
+
+_pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
+
+# if we're in a virtual environment then we want don't want to use the home directory
+# this check may fail for Python 3
+if hasattr(sys, 'real_prefix'):
+    # then we're running in a virtualenv
+    _pbdir_local = os.path.join(sys.prefix, '.phoebe/atmospheres/tables/passbands/')
+else:
+    _pbdir_local = os.path.abspath(os.path.expanduser('~/.phoebe/atmospheres/tables/passbands'))+'/'
+
+if not os.path.exists(_pbdir_local):
+    logger.info("creating directory {}".format(_pbdir_local))
+    os.makedirs(_pbdir_local)
+
 
 class Passband:
     def __init__(self, ptf=None, pbset='Johnson', pbname='V', effwl=5500.0, wlunits=u.AA, calibrated=False, reference='', version=1.0, comments='', oversampling=1, from_file=False):
@@ -116,6 +132,11 @@ class Passband:
         # content list.
         self.content = []
 
+        # Initialize atmosphere list; these names match the names of the
+        # atmosphere models in the atm parameter. As above, when an atm
+        # table is added, this list is appended.
+        self.atmlist = []
+
         # Basic passband properties:
         self.pbset = pbset
         self.pbname = pbname
@@ -127,24 +148,34 @@ class Passband:
         ptf_table[0] = ptf_table[0]*wlunits.to(u.m)
         self.ptf_table = {'wl': np.array(ptf_table[0]), 'fl': np.array(ptf_table[1])}
 
-        # Spline fit to the passband transmission function table:
+        # Working (optionally oversampled) wavelength array:
+        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+
+        # Spline fit to the energy-weighted passband transmission function table:
         self.ptf_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl'], s=0)
         self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+        self.ptf_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_func, 0)
 
-        # Working wavelength array:
-        self.wl = np.linspace(self.ptf_table['wl'][0], self.ptf_table['wl'][-1], oversampling*len(self.ptf_table['wl']))
+        # Spline fit to the photon-weighted passband transmission function table:
+        self.ptf_photon_func = interpolate.splrep(self.ptf_table['wl'], self.ptf_table['fl']*self.ptf_table['wl'], s=0)
+        self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
+        self.ptf_photon_area = interpolate.splint(self.wl[0], self.wl[-1], self.ptf_photon_func, 0)
 
     def save(self, archive):
         struct = dict()
 
-        struct['content']       = self.content
-        struct['pbset']         = self.pbset
-        struct['pbname']        = self.pbname
-        struct['effwl']         = self.effwl
-        struct['calibrated']    = self.calibrated
-        struct['ptf_table']     = self.ptf_table
-        struct['ptf_func']      = self.ptf_func
-        struct['ptf_wl']        = self.wl
+        struct['content']         = self.content
+        struct['atmlist']         = self.atmlist
+        struct['pbset']           = self.pbset
+        struct['pbname']          = self.pbname
+        struct['effwl']           = self.effwl
+        struct['calibrated']      = self.calibrated
+        struct['ptf_table']       = self.ptf_table
+        struct['ptf_wl']          = self.wl
+        struct['ptf_func']        = self.ptf_func
+        struct['ptf_area']        = self.ptf_area
+        struct['ptf_photon_func'] = self.ptf_photon_func
+        struct['ptf_photon_area'] = self.ptf_photon_area
         if 'blackbody' in self.content:
             struct['_bb_func_energy'] = self._bb_func_energy
             struct['_bb_func_photon'] = self._bb_func_photon
@@ -181,6 +212,7 @@ class Passband:
         self = cls(from_file=True)
 
         self.content = struct['content']
+        self.atmlist = struct['atmlist']
 
         self.pbset = struct['pbset']
         self.pbname = struct['pbname']
@@ -190,6 +222,20 @@ class Passband:
         self.ptf_table['wl'] = np.fromstring(self.ptf_table['wl'], dtype='float64')
         self.ptf_table['fl'] = np.fromstring(self.ptf_table['fl'], dtype='float64')
         self.wl = np.fromstring(struct['ptf_wl'], dtype='float64')
+        self.ptf_area = struct['ptf_area']
+        self.ptf_photon_area = struct['ptf_photon_area']
+
+        self.ptf_func = list(struct['ptf_func'])
+        self.ptf_func[0] = np.fromstring(self.ptf_func[0])
+        self.ptf_func[1] = np.fromstring(self.ptf_func[1])
+        self.ptf_func = tuple(self.ptf_func)
+        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
+
+        self.ptf_photon_func = list(struct['ptf_photon_func'])
+        self.ptf_photon_func[0] = np.fromstring(self.ptf_photon_func[0])
+        self.ptf_photon_func[1] = np.fromstring(self.ptf_photon_func[1])
+        self.ptf_photon_func = tuple(self.ptf_photon_func)
+        self.ptf_photon = lambda wl: interpolate.splev(wl, self.ptf_photon_func)
 
         if 'blackbody' in self.content:
             self._bb_func_energy = list(struct['_bb_func_energy'])
@@ -203,12 +249,6 @@ class Passband:
             self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
             self._bb_func_photon = tuple(self._bb_func_photon)
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
-
-        self.ptf_func = list(struct['ptf_func'])
-        self.ptf_func[0] = np.fromstring(self.ptf_func[0])
-        self.ptf_func[1] = np.fromstring(self.ptf_func[1])
-        self.ptf_func = tuple(self.ptf_func)
-        self.ptf = lambda wl: interpolate.splev(wl, self.ptf_func)
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
@@ -252,21 +292,55 @@ class Passband:
         return self
 
     def _planck(self, lam, Teff):
+        """
+        Computes monochromatic blackbody intensity in W/m^3 using the
+        Planck function.
+
+        @lam: wavelength in m
+        @Teff: effective temperature in K
+
+        Returns: monochromatic blackbody intensity
+        """
+
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
 
-    def _photplanck(self, lam, Teff):
-        return 2*self.c/lam**4 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
-
     def _bb_intensity(self, Teff, photon_weighted=False):
+        """
+        Computes mean passband intensity using blackbody atmosphere:
+
+        I_pb^E = \int_\lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
+        I_pb^P = \int_\lambda \lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
+
+        Superscripts E and P stand for energy and photon, respectively.
+
+        @Teff: effective temperature in K
+        @photon_weighted: photon/energy switch
+
+        Returns: mean passband intensity using blackbody atmosphere.
+        """
+
         if photon_weighted:
-            pb = lambda w: self._photplanck(w, Teff)*self.ptf(w)
+            pb = lambda w: w*self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_photon_area
         else:
             pb = lambda w: self._planck(w, Teff)*self.ptf(w)
-        return integrate.quad(pb, self.wl[0], self.wl[-1])[0]
+            return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
     def compute_blackbody_response(self, Teffs=None):
+        """
+        Computes blackbody intensities across the entire range of
+        effective temperatures.
+
+        @Teffs: an array of effective temperatures. If None, a default
+        array from ~300K to ~500000K with 97 steps is used. The default
+        array is uniform in log10 scale.
+
+        Returns: n/a
+        """
+
         if Teffs == None:
-            Teffs = np.linspace(3500, 50000, 100)
+            log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
+            Teffs = 10**log10Teffs
 
         # Energy-weighted intensities:
         log10ints_energy = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=False)) for Teff in Teffs])
@@ -274,45 +348,57 @@ class Passband:
         self._log10_Inorm_bb_energy = lambda Teff: interpolate.splev(Teff, self._bb_func_energy)
 
         # Photon-weighted intensities:
-        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=True )) for Teff in Teffs])
+        log10ints_photon = np.array([np.log10(self._bb_intensity(Teff, photon_weighted=True)) for Teff in Teffs])
         self._bb_func_photon = interpolate.splrep(Teffs, log10ints_photon, s=0)
         self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         self.content.append('blackbody')
+        self.atmlist.append('blackbody')
 
     def compute_ck2004_response(self, path, verbose=False):
-        models = glob.glob(path+'/*M1.000.spectrum')
-        Teff, logg, abun = [], [], []
+        """
+        Computes Castelli & Kurucz (2004) intensities across the entire
+        range of model atmospheres.
 
-        InormE = np.empty(len(models))
-        InormP = np.empty(len(models))
+        @path: path to the directory containing ck2004 SEDs
+        @verbose: switch to determine whether computing progress should
+        be printed on screen
+
+        Returns: n/a
+        """
+
+        models = glob.glob(path+'/*M1.000*')
+        Nmodels = len(models)
+
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
+
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        InormE, InormP = np.empty(Nmodels), np.empty(Nmodels)
 
         if verbose:
-            print('Computing Castelli-Kurucz passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+            print('Computing Castelli & Kurucz (2004) passband intensities for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
         for i, model in enumerate(models):
             #~ spc = np.loadtxt(model).T -- waaay slower
             spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
-            Teff.append(float(model[-26:-21]))
-            logg.append(float(model[-20:-18]))
-            sign = 1. if model[-18]=='P' else -1.
-            abun.append(sign*float(model[-17:-15]))
+            Teff[i] = float(model[-17-offset:-12-offset])
+            logg[i] = float(model[-11-offset:-9-offset])/10
+            sign = 1. if model[-9-offset]=='P' else -1.
+            abun[i] = sign*float(model[-8-offset:-6-offset])/10
+
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl *= self.ptf(wl)
             flP = fl*wl
-            InormE[i] = np.log10(fl.sum())-10    # -10 because dlambda = 1AA when we integrate by summing
-            InormP[i] = np.log10(flP.sum())+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
+            InormE[i] = np.log10(fl.sum()/self.ptf_area)-10          # energy-weighted intensity; -10 because dlambda = 1AA when we integrate by summing
+            InormP[i] = np.log10(flP.sum()/self.ptf_photon_area)-10  # photon-weighted intensity
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
-
-        Teff = np.array(Teff)
-        logg = np.array(logg)/10
-        abun = np.array(abun)/10
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
@@ -328,10 +414,25 @@ class Passband:
         # Tried radial basis functions but they were just terrible.
         #~ self._log10_Inorm_ck2004 = interpolate.Rbf(self._ck2004_Teff, self._ck2004_logg, self._ck2004_met, self._ck2004_Inorm, function='linear')
         self.content.append('ck2004')
+        self.atmlist.append('ck2004')
 
-    def compute_ck2004_intensities(self, path, verbose=False):
+    def compute_ck2004_intensities(self, path, particular=None, verbose=False):
+        """
+        Computes direction-dependent passband intensities using Castelli
+        & Kurucz (2004) model atmospheres.
+
+        @path: path to the directory with SEDs
+        @particular: particular file in @path to be processed; if None,
+                     all files in the directory are processed.
+        @verbose: set to True to display progress in the terminal.
+        """
         models = os.listdir(path)
+        if particular != None:
+            models = [particular]
         Nmodels = len(models)
+
+        # Store the length of the filename extensions for parsing:
+        offset = len(models[0])-models[0].rfind('.')
 
         Teff, logg, abun, mu = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
         ImuE, ImuP = np.empty(Nmodels), np.empty(Nmodels)
@@ -346,14 +447,13 @@ class Passband:
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
 
-            Teff[i] = float(model[-26:-21])
-            logg[i] = float(model[-20:-18])/10
-            sign = 1. if model[-18]=='P' else -1.
-            abun[i] = sign*float(model[-17:-15])/10
-            mu[i] = float(model[-14:-9])
+            Teff[i] = float(model[-17-offset:-12-offset])
+            logg[i] = float(model[-11-offset:-9-offset])/10
+            sign = 1. if model[-9-offset]=='P' else -1.
+            abun[i] = sign*float(model[-8-offset:-6-offset])/10
+            mu[i] = float(model[-5-offset:-offset])
 
-            # trim the spectrum at passband limits
-
+            # trim the spectrum at passband limits:
             keep = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             wl = spc[0][keep]
             fl = spc[1][keep]
@@ -361,10 +461,11 @@ class Passband:
             # make a log-scale copy for boosting and fit a Legendre
             # polynomial to the Imu envelope by way of sigma clipping;
             # then compute a Legendre series derivative to get the
-            # boosting index.
+            # boosting index; we only take positive fluxes to keep the
+            # log well defined.
 
-            lnwl = np.log(wl)
-            lnfl = np.log(fl) + 5*lnwl
+            lnwl = np.log(wl[fl > 0])
+            lnfl = np.log(fl[fl > 0]) + 5*lnwl
 
             # First Legendre fit to the data:
             envelope = np.polynomial.legendre.legfit(lnwl, lnfl, 5)
@@ -379,7 +480,14 @@ class Passband:
                 envelope = np.polynomial.legendre.legfit(lnwl[clipped], lnfl[clipped], 5)
                 continuum = np.polynomial.legendre.legval(lnwl, envelope)
                 diff = lnfl-continuum
-                clipped = (diff > -sigma)
+
+                # clipping will sometimes unclip already clipped points
+                # because the fit is slightly different, which can lead
+                # to infinite loops. To prevent that, we never allow
+                # clipped points to be resurrected, which is achieved
+                # by the following bitwise condition (array comparison):
+                clipped = clipped & (diff > -sigma)
+
                 if clipped.sum() == Npts:
                     break
 
@@ -398,11 +506,11 @@ class Passband:
             # boosting factors for energy (E) and photon (P) weighted
             # fluxes.
 
-            boostE = (flE*boosting_index).sum()/flEint
-            boostP = (flP*boosting_index).sum()/flPint
+            boostE = (flE[fl > 0]*boosting_index).sum()/flEint
+            boostP = (flP[fl > 0]*boosting_index).sum()/flPint
 
-            ImuE[i] = np.log10(flEint)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
-            ImuP[i] = np.log10(flPint)+14.701923274753138 # photon-weighted intensity; the constant is log10(1e-10/h/c)
+            ImuE[i] = np.log10(flEint/self.ptf_area)-10  # energy-weighted intensity; -10 because of the 1AA dispersion
+            ImuP[i] = np.log10(flPint/self.ptf_photon_area)-10 # photon-weighted intensity
             boostingE[i] = boostE
             boostingP[i] = boostP
 
@@ -508,6 +616,14 @@ class Passband:
         self.content.append('ck2004_ld')
 
     def compute_ck2004_ldints(self):
+        """
+        Computes integrated limb darkening profiles for ck2004 atmospheres.
+        These are used for intensity-to-flux transformations. The evaluated
+        integral is:
+
+        ldint = 1/pi \int_0^1 Imu mu dmu
+        """
+
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
@@ -540,8 +656,8 @@ class Passband:
                         pni = pImu[a,b,c,i]-pki*mu[i]
                         pldint += pki/3*(mu[i+1]**3-mu[i]**3) + pni/2*(mu[i+1]**2-mu[i]**2)
 
-                    self._ck2004_ldint_energy_grid[a,b,c] = 2*np.pi*ldint
-                    self._ck2004_ldint_photon_grid[a,b,c] = 2*np.pi*pldint
+                    self._ck2004_ldint_energy_grid[a,b,c] = 2*ldint
+                    self._ck2004_ldint_photon_grid[a,b,c] = 2*pldint
 
         self.content.append('ck2004_ldint')
 
@@ -614,11 +730,12 @@ class Passband:
         # Break up the table along axes and extract a single passband data:
         atmtab = np.reshape(self.wd_data["atm_table"], (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
-        
+
         # Finally, reverse the metallicity axis because it is sorted in
         # reverse order in atmcof:
         self.extern_wd_atmx = atmtab[::-1, :, :, :]
         self.content += ['extern_planckint', 'extern_atmx']
+        self.atmlist += ['extern_planckint', 'extern_atmx']
 
     def _log10_Inorm_extern_planckint(self, Teff):
         """
@@ -648,7 +765,7 @@ class Passband:
         """
 
         log10_Inorm = libphoebe.wd_atmint(Teff, logg, abun, self.extern_wd_idx, self.wd_data["planck_table"], self.wd_data["atm_table"])
-        
+
         return log10_Inorm
 
     def _log10_Inorm_ck2004(self, Teff, logg, abun, photon_weighted=False):
@@ -699,21 +816,21 @@ class Passband:
             logg = np.array((logg,))
         if not hasattr(abun, '__iter__'):
             abun = np.array((abun,))
-        if atm == 'blackbody':
+        if atm == 'blackbody' and 'blackbody' in self.content:
             if photon_weighted:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
-        elif atm == 'extern_planckint':
-            # The factor 0.1 is from erg/s/cm^3/sr -> W/m^3/sr:
+        elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
+            # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
-        elif atm == 'extern_atmx':
-            # The factor 1e-8 is from erg/s/cm^2/A/sr -> W/m^3/sr:
-            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-8)
-        elif atm == 'ck2004':
-            retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)     
+        elif atm == 'extern_atmx' and 'extern_atmx' in self.content:
+            # -1 below is for cgs -> SI:
+            retval = 10**(self._log10_Inorm_extern_atmx(Teff, logg, abun)-1)
+        elif atm == 'ck2004' and 'ck2004' in self.content:
+            retval = self._Inorm_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
         else:
-            raise NotImplementedError('atm={} not supported'.format(atm))
+            raise NotImplementedError('atm={} not supported by {}:{}'.format(atm, self.pbset, self.pbname))
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
@@ -722,20 +839,20 @@ class Passband:
 
     def Imu(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
-            if atm == 'ck2004':
+            if atm == 'ck2004' and 'ck2004' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
             else:
-                raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
+                raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
         elif ld_func == 'linear':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_lin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_log(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
         elif ld_func == 'square_root':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_sqrt(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_sqrt(mu, *ld_coeffs)
         elif ld_func == 'quadratic':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_quad(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_quad(mu, *ld_coeffs)
         elif ld_func == 'power':
-            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm) * self._ldlaw_nonlin(mu, *ld_coeffs)
+            retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, photon_weighted=photon_weighted) * self._ldlaw_nonlin(mu, *ld_coeffs)
         else:
             raise NotImplementedError('ld_func={} not supported'.format(ld_func))
 
@@ -752,7 +869,7 @@ class Passband:
             req = np.vstack((Teff, logg, abun)).T
             ldint = libphoebe.interp(req, self._ck2004_axes, self._ck2004_ldint_photon_grid if photon_weighted else self._ck2004_ldint_energy_grid).T[0]
 
-        return ldint / np.pi
+        return ldint
 
     def ldint(self, Teff=5772., logg=4.43, abun=0.0, atm='ck2004', ld_func='interp', ld_coeffs=None, photon_weighted=False):
         if ld_func == 'interp':
@@ -807,7 +924,7 @@ def init_passband(fullpath):
     """
     logger.info("initializing passband at {}".format(fullpath))
     pb = Passband.load(fullpath)
-    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.content, 'pb': None}
+    _pbtable[pb.pbset+':'+pb.pbname] = {'fname': fullpath, 'atms': pb.atmlist, 'pb': None}
 
 def init_passbands(refresh=False):
     """
@@ -819,44 +936,62 @@ def init_passbands(refresh=False):
     global _initialized
 
     if not _initialized or refresh:
+        # load information from online passbands first so that any that are
+        # available locally will override
+        online_passbands = list_online_passbands(full_dict=True, refresh=refresh)
+        for pb, info in online_passbands.items():
+            _pbtable[pb] = {'fname': None, 'atms': info['atms'], 'pb': None}
 
-        path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
-        for f in os.listdir(path):
-            if f=='README':
-                continue
-            init_passband(path+f)
-            # pb = Passband.load(path+f)
-            # _pbtable[pb.pbset+':'+pb.pbname] = {'fname': path+f, 'atms': pb.content, 'pb': None}
+        # load global passbands (in install directory) next and then local
+        # (in .phoebe directory) second so that local passbands override
+        # global passbands whenever there is a name conflict
+        for path in [_pbdir_global, _pbdir_local]:
+            for f in os.listdir(path):
+                if f=='README':
+                    continue
+                init_passband(path+f)
 
         _initialized = True
 
-def install_passband(fname):
+def install_passband(fname, local=True):
     """
     Install a passband from a local file.  This simply copies the file into the
     install path - but beware that clearing the installation will clear the
     passband as well
+
+    If local=False, you must have permissions to access the installation directory
     """
-    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
-    shutil.copy(fname, pb_dir)
-    init_passband(os.path.join(pb_dir, fname))
+    pbdir = _pbdir_local if local else _pbdir_global
+    shutil.copy(fname, pbdir)
+    init_passband(os.path.join(pbdir, fname))
 
-def uninstall_all_passbands():
-    path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
-    for f in os.listdir(path):
-        logger.warning("deleting file: {}".format(path+f))
-        os.remove(path+f)
+def uninstall_all_passbands(local=True):
+    """
+    Uninstall all passbands, either globally or locally (need to call twice to
+    delete ALL passbands)
+
+    If local=False, you must have permission to access the installation directory
+    """
+    pbdir = _pbdir_local if local else _pbdir_global
+    for f in os.listdir(pbdir):
+        pbpath = os.path.join(pbdir, f)
+        logger.warning("deleting file: {}".format(pbpath))
+        os.remove(pbpath)
 
 
-def download_passband(passband):
+def download_passband(passband, local=True):
     """
     Download and install a given passband from the repository.
+
+    If local=False, you must have permission to access the installation directory
     """
     if passband not in list_online_passbands():
         raise ValueError("passband '{}' not available".format(passband))
 
-    passband_fname = _online_passbands[passband]
-    pb_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tables/passbands'))
-    passband_fname_local = os.path.join(pb_dir, passband_fname)
+    pbdir = _pbdir_local if local else _pbdir_global
+
+    passband_fname = _online_passbands[passband]['fname']
+    passband_fname_local = os.path.join(pbdir, passband_fname)
     url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/{}'.format(passband_fname)
     logger.info("downloading from {} and installing to {}...".format(url, passband_fname_local))
     try:
@@ -867,6 +1002,9 @@ def download_passband(passband):
         init_passband(passband_fname_local)
 
 
+def list_passband_directories():
+    return _pbdir_global, _pbdir_local
+
 def list_passbands(refresh=False):
     return list(set(list_installed_passbands(refresh) + list_online_passbands(refresh)))
 
@@ -874,35 +1012,45 @@ def list_installed_passbands(refresh=False):
     if refresh:
         init_passbands(True)
 
-    return _pbtable.keys()
+    return [k for k,v in _pbtable.items() if v['fname'] is not None]
 
-def list_online_passbands(refresh=False):
+def list_online_passbands(refresh=False, full_dict=False):
     """
     """
     global _online_passbands
     if _online_passbands is None or refresh:
 
-        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands'
+        url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
         try:
             resp = urllib2.urlopen(url)
         except urllib2.URLError:
-            logger.warning("connection to online passbands lost")
+            url_repo = 'http://github.com/phoebe-project/phoebe2-tables'
+            logger.warning("connection to online passbands at {} could not be established".format(url_repo))
             if _online_passbands is not None:
-                return _online_passbands.keys()
+                if full_dict:
+                    return _online_passbands
+                else:
+                    return _online_passbands.keys()
             else:
-                return []
+                if full_dict:
+                    return {}
+                else:
+                    return []
         else:
             _online_passbands = json.loads(resp.read())
 
-    return _online_passbands.keys()
+    if full_dict:
+        return _online_passbands
+    else:
+        return _online_passbands.keys()
 
 def get_passband(passband):
 
-    if passband not in _pbtable.keys():
+    if passband not in list_installed_passbands():
         if passband in list_online_passbands():
             download_passband(passband)
         else:
-            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands, list_online_passbands))
+            raise ValueError("passband: {} not found. Try one of: {} (local) or {} (available for download)".format(passband, list_installed_passbands(), list_online_passbands()))
 
     if _pbtable[passband]['pb'] is None:
         logger.info("loading {} passband".format(passband))
@@ -918,15 +1066,16 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
     @abun: abundances; not used, for class compatibility only
     @atm: atmosphere model, must be blackbody, otherwise exception is raised
     @photon_weighted: intensity weighting scheme; must be False, otherwise exception is raised
-    
+
     Computes normal bolometric intensity using the Stefan-Boltzmann law,
     Inorm_bol_bb = 1/\pi \sigma T^4. If photon-weighted intensity is
     requested, Inorm_bol_bb is multiplied by a conversion factor that
     comes from integrating lambda/hc P(lambda) over all lambda.
-    
+
     Input parameters mimick the Passband class Inorm method for calling
     convenience.
     """
+
     if atm != 'blackbody':
         raise ValueError('atmosphere must be set to blackbody for Inorm_bol_bb.')
 
@@ -934,13 +1083,13 @@ def Inorm_bol_bb(Teff=5772., logg=4.43, abun=0.0, atm='blackbody', photon_weight
         factor = 2.6814126821264836e22/Teff
     else:
         factor = 1.0
-    
+
     # convert scalars to vectors if necessary:
     if not hasattr(Teff, '__iter__'):
         Teff = np.array((Teff,))
 
     return factor * sigma_sb.value * Teff**4 / np.pi
-    
+
 
 if __name__ == '__main__':
 

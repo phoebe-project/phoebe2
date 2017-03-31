@@ -169,7 +169,7 @@ def project_onto_potential(r, pot_name, *args):
 
 def nekmin(omega_in,q,x0=0.5,y0=0.05,z0=0.5):
 
-    '''Computes the position of the neck (minimal radius) in an overcontact star1'''
+    '''Computes the position of the neck (minimal radius) in an contact_binary star1'''
 
     def Omega_xz(q,x,z):
             return 1./np.sqrt(x**2+z**2)+q/np.sqrt((1-x)**2+z**2)+(q+1)*x**2/2.-q*x

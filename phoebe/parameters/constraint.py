@@ -587,22 +587,14 @@ def irrad_frac(b, component, solve_for=None, **kwargs):
     comp_ps = b.get_component(component=component)
 
     irrad_frac_refl_bol = comp_ps.get_parameter(qualifier='irrad_frac_refl_bol')
-    irrad_frac_redist_local_bol = comp_ps.get_parameter(qualifier='irrad_frac_redist_local_bol')
-    irrad_frac_redist_horiz_bol = comp_ps.get_parameter(qualifier='irrad_frac_redist_horiz_bol')
-    irrad_frac_redist_global_bol = comp_ps.get_parameter(qualifier='irrad_frac_redist_global_bol')
+    irrad_frac_lost_bol = comp_ps.get_parameter(qualifier='irrad_frac_lost_bol')
 
-    if solve_for in [irrad_frac_redist_global_bol, None]:
-        lhs = irrad_frac_redist_global_bol
-        rhs = 1.0 - irrad_frac_refl_bol - irrad_frac_redist_local_bol - irrad_frac_redist_horiz_bol
-    elif solve_for in [irrad_frac_redist_horiz_bol]:
-        lhs = irrad_frac_redist_horiz_bol
-        rhs = 1.0 - irrad_frac_refl_bol - irrad_frac_redist_local_bol - irrad_frac_redist_global_bol
-    elif solve_for in [irrad_frac_redist_local_bol]:
-        lhs = irrad_frac_redist_local_bol
-        rhs = 1.0 - irrad_frac_refl_bol - irrad_frac_redist_horiz_bol - irrad_frac_redist_global_bol
+    if solve_for in [irrad_frac_lost_bol, None]:
+        lhs = irrad_frac_lost_bol
+        rhs = 1.0 - irrad_frac_refl_bol
     elif solve_for in [irrad_frac_refl_bol]:
         lhs = irrad_frac_refl_bol
-        rhs = 1.0 - irrad_frac_redist_horiz_bol - irrad_frac_redist_local_bol - irrad_frac_redist_global_bol
+        rhs = 1.0 - irrad_frac_lost_bol
     else:
         raise NotImplementedError
 

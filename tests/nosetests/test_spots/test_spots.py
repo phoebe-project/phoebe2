@@ -18,8 +18,7 @@ def test_binary(plot=False):
     b.add_compute('legacy', compute='phoebe1')
 
     # set matching atmospheres
-    b.set_value_all('atm@phoebe2', 'extern_planckint')
-    b.set_value_all('atm@phoebe1', 'blackbody')
+    b.set_value_all('atm', 'extern_planckint')
 
     # set matching limb-darkening, both bolometric and passband
     b.set_value_all('ld_func_bol', 'logarithmic')
@@ -37,11 +36,13 @@ def test_binary(plot=False):
     phoebe1_val = b.get_value('fluxes@phoebe1model')
 
     if plot:
+        print "rel: ", ((phoebe2_val-phoebe1_val)/phoebe2_val).max()
+
         b.plot(dataset='lc01')
         plt.legend()
         plt.show()
 
-    assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-3, atol=0.))
+    assert(np.allclose(phoebe2_val, phoebe1_val, rtol=2e-3, atol=0.))
 
     return b
 

@@ -175,7 +175,7 @@ class System(object):
         if component in self._bodies.keys():
             return self._bodies[component]
         else:
-            # then hopefully we're a child star of an overcontact envelope
+            # then hopefully we're a child star of an contact_binary envelope
             parent_component = self._parent_envelope_of[component]
             return self._bodies[parent_component]
 
@@ -246,21 +246,7 @@ class System(object):
 
 
         if self.irrad_method is not 'none' and not ignore_effects:  # and kinds includes a kind that requires fluxes
-            for starref, body in self.items():
-                # TODO: is photon_weighted = False always safe here even if the
-                # passband observables are requested in photon_weighted=True?
-                abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
-                                                                atm='blackbody',
-                                                                photon_weighted=False)
-
-                body.mesh.update_columns_dict({'abs_normal_intensities:bol': abs_normal_intensities})
-                # ldint will be assumed to be pi since we're using blackbody bolometric for reflection
-                # TODO: could optimize a bit by assuming this within reflection or handle_reflection
-                # rather than filling the mesh with pis
-                body.mesh.update_columns_dict({'ldint:bol': np.full(abs_normal_intensities.shape, np.pi)})
-
             self.handle_reflection()
-
 
         for kind, dataset in zip(kinds, datasets):
             for starref, body in self.items():
@@ -272,15 +258,39 @@ class System(object):
         if self.irrad_method == 'none':
             return
 
+        if 'wd' in [body.mesh_method for body in self.bodies]:
+            raise NotImplementedError("reflection not yet supported for WD-style meshing")
+
+            # TODO: to support this, each call to libphoebe (both for convex
+            # and general case) needs to have an if statement to be replaced by
+            # something like the following:
+
+            # fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_triangles_nbody_convex(vertices_per_body,
+            #                                                                            triangles_per_body,
+            #                                                                            normals_per_body,
+            #                                                                            areas_per_body,
+            #                                                                            frac_refls_per_body,
+            #                                                                            fluxes_intrins_per_body,
+            #                                                                            ld_func_and_coeffs,
+            #                                                                            self.reflection_method.title()
+            #                                                                            )
+
 
         # meshes is an object which allows us to easily access and update columns
-        # in the meshes *in memory*.  That is meshes.update_columns will propogate
+        # in the meshes *in memory*.  That is meshes.update_columns will propagate
         # back to the current mesh for each body.
         meshes = self.meshes
 
+        # reflection needs bolometric, energy weighted, normal intensities.
+        fluxes_intrins_per_body = []
+        for starref, body in self.items():
+            abs_normal_intensities = passbands.Inorm_bol_bb(Teff=body.mesh.teffs.for_computations,
+                                                            atm='blackbody',
+                                                            photon_weighted=False)
 
-        if 'wd' in [body.mesh_method for body in self.bodies]:
-            raise NotImplementedError("reflection not yet supported for WD-style meshing")
+            fluxes_intrins_per_body.append(abs_normal_intensities * np.pi)
+
+        fluxes_intrins_flat = meshes.pack_column_flat(fluxes_intrins_per_body)
 
         if np.all([body.is_convex for body in self.bodies]):
             logger.info("handling reflection (convex case), method='{}'".format(self.irrad_method))
@@ -292,53 +302,23 @@ class System(object):
             irrad_frac_refls_per_body = meshes.get_column('irrad_frac_refl', computed_type='for_computations').values()
             teffs_intrins_per_body = meshes.get_column('teffs', computed_type='for_computations').values()
 
-            intens_intrins_per_body = meshes.get_column('abs_normal_intensities:bol', computed_type='for_computations').values()
-            ldint_per_body = meshes.get_column('ldint:bol', computed_type='for_computations').values()
-
-            fluxes_intrins_per_body = [intens_intrins * ldint for intens_intrins, ldint in zip(intens_intrins_per_body, ldint_per_body)]
-
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
 
-            # TODO: add support for wd meshes by changing support to 'triangles'
-            # and once implemented for convex and general case remove error statement above
+            fluxes_intrins_and_refl_per_body = libphoebe.mesh_radiosity_problem_nbody_convex(vertices_per_body,
+                                                                                       triangles_per_body,
+                                                                                       normals_per_body,
+                                                                                       areas_per_body,
+                                                                                       irrad_frac_refls_per_body,
+                                                                                       fluxes_intrins_per_body,
+                                                                                       ld_func_and_coeffs,
+                                                                                       self.irrad_method.title(),
+                                                                                       support=b'vertices'
+                                                                                       )
 
-            # TODO: need to get the correct rotation axis for each star
-            distribution_models_per_body = [{'local': np.array([body.redist_local_radius]),
-                                             'horiz': np.array(list(body.mesh.pole_normal) + [body.redist_horiz_width]),
-                                             'global': np.array([])} for body in self.bodies]
-            # distribution_models_per_body = [{'linear': np.array([0.5])}, {}]
-            # need to sum to 1 per-body (need to check either here or higher in the frontend)
-            total_heatings = [1-body.irrad_frac_refl for body in self.bodies]
-            distribution_weights_per_body = [{'local': body.irrad_frac_redist_local/total_heating if total_heating > 0 else 0.0,
-                                              'horiz': body.irrad_frac_redist_horiz/total_heating if total_heating > 0 else 0.0,
-                                              'global': body.irrad_frac_redist_global/total_heating if total_heating > 0 else 0.0} for body,total_heating in zip(self.bodies, total_heatings)]
-
-            stuff = libphoebe.mesh_radiosity_redistrib_problem_nbody_convex(vertices_per_body,
-                                                                            triangles_per_body,
-                                                                            normals_per_body,
-                                                                            areas_per_body,
-                                                                            irrad_frac_refls_per_body,
-                                                                            fluxes_intrins_per_body,
-                                                                            ld_func_and_coeffs,
-                                                                            distribution_models_per_body,
-                                                                            distribution_weights_per_body,
-                                                                            self.irrad_method.title(),
-                                                                            support=b'vertices'
-                                                                            )
-
-
-            fluxes_intrins_and_refl_per_body = stuff['radiosity']
-            # exitance_intrins_and_refl_per_body = stuff['update-exitance']
-
-            intens_intrins_and_refl_per_body = [fluxes_intrins_and_refl / ldint for fluxes_intrins_and_refl, ldint in zip(fluxes_intrins_and_refl_per_body, ldint_per_body)]
-
-            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
-            intens_intrins_and_refl_flat = meshes.pack_column_flat(intens_intrins_and_refl_per_body)
-
+            fluxes_intrins_and_refl_flat = meshes.pack_column_flat(fluxes_intrins_and_refl_per_body)
 
         else:
             logger.info("handling reflection (general case), method='{}'".format(self.irrad_method))
-            raise NotImplementedError("passing ld_func_bol and ld_coeffs_bol to reflection for general case not yet supported")
 
             vertices_flat = meshes.get_column_flat('vertices')
             triangles_flat = meshes.get_column_flat('triangles')
@@ -346,19 +326,9 @@ class System(object):
             areas_flat = meshes.get_column_flat('areas')
             irrad_frac_refls_flat = meshes.get_column_flat('irrad_frac_refl', computed_type='for_computations')
 
-            intens_intrins_flat = meshes.get_column_flat('abs_normal_intensities:bol', computed_type='for_computations')
-            ldint_flat = meshes.get_column_flat('ldint:bol', computed_type='for_computations')
-            fluxes_intrins_flat = intens_intrins_flat * ldint_flat
-
             ld_func_and_coeffs = [tuple([body.ld_func['bol']] + [np.asarray(body.ld_coeffs['bol'])]) for body in self.bodies]
+            ld_inds_flat = meshes.pack_column_flat({body.comp_no: np.full(fluxes.shape, body.comp_no-1) for body, fluxes in zip(self.bodies, fluxes_intrins_per_body)})
 
-            # TODO: get the correct index for each vertex - maybe something like meshes.get_column_flat('comp'),
-            # then remove the NotImplementedError and test
-            ld_inds = np.zeros(irrad_frac_refls_flat.shape)
-            # ld_inds = meshes.pack_column_flat({body.name: body.comp_no for body in self.bodies})
-
-            # TODO: add support for wd meshes by changing support to 'triangles'
-            # and once implemented for convex and general case remove error statement above
             fluxes_intrins_and_refl_flat = libphoebe.mesh_radiosity_problem(vertices_flat,
                                                                             triangles_flat,
                                                                             normals_flat,
@@ -366,24 +336,22 @@ class System(object):
                                                                             irrad_frac_refls_flat,
                                                                             fluxes_intrins_flat,
                                                                             ld_func_and_coeffs,
-                                                                            ld_inds,
+                                                                            ld_inds_flat,
                                                                             self.irrad_method.title(),
                                                                             support=b'vertices'
                                                                             )
 
-            intens_intrins_and_refl_flat = fluxes_intrins_and_refl_flat / ldint_flat
+
 
         teffs_intrins_flat = meshes.get_column_flat('teffs', computed_type='for_computations')
 
-        # TODO: set to triangles if WD mesh_method
-        meshes.set_column_flat('abs_normal_intensities:bol', intens_intrins_and_refl_flat)
+        # update the effective temperatures to give this same bolometric
+        # flux under stefan-boltzmann. These effective temperatures will
+        # then be used for all passband intensities.
+        teffs_intrins_and_refl_flat = teffs_intrins_flat * (fluxes_intrins_and_refl_flat / fluxes_intrins_flat) ** (1./4)
 
-        # update the effective temperatures to gives this same bolometric
-        # intensity under stefan-boltzmann these effective temperatures will
-        # then be used for all passband intensities
-        teffs_intrins_and_refl_flat = teffs_intrins_flat * (intens_intrins_and_refl_flat / intens_intrins_flat) ** (1./4)
-
-        # TODO: set to triangles if WD mesh_method
+        # TODO: set to triangles if WD mesh_method (note: WD mesh will
+        # currently raise NotImplementedError)
         meshes.set_column_flat('teffs', teffs_intrins_and_refl_flat)
 
     def handle_eclipses(self, expose_horizon=True, **kwargs):
@@ -749,17 +717,6 @@ class Body(object):
 
 
         N = len(new_mesh_dict['triangles'])
-
-        # if mesh_method == 'marching':
-        #     maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
-        #     if N>=(maxpoints-1):
-        #         raise ValueError(("Maximum number of triangles reached ({}). "
-        #                           "Consider raising the value of the parameter "
-        #                           "'maxpoints', or "
-        #                           "decrease the mesh density. It is also "
-        #                           "possible that the equipotential surface is "
-        #                           "not closed.").format(N))
-
 
         logger.info("covered surface with %d triangles"%(N))
 
@@ -1305,8 +1262,7 @@ class CustomBody(Body):
 
 class Star(Body):
     def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                 abun, irrad_frac_refl, irrad_frac_redist_local, irrad_frac_redist_horiz, irrad_frac_redist_global,
-                 redist_local_radius, redist_horiz_width,
+                 abun, irrad_frac_refl,
                  mesh_method='marching',
                  dynamics_method='keplerian',
                  mesh_init_phi=0.0,
@@ -1340,8 +1296,7 @@ class Star(Body):
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
-        self.delta = kwargs.get('delta', 0.1)                               # Marching
-        self.maxpoints = kwargs.get('maxpoints', 1e5)                       # Marching
+        self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
         self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
 
@@ -1368,11 +1323,6 @@ class Star(Body):
         # self.gravb_law = gravb_law
         self.abun = abun
         self.irrad_frac_refl = irrad_frac_refl
-        self.irrad_frac_redist_local = irrad_frac_redist_local
-        self.irrad_frac_redist_horiz = irrad_frac_redist_horiz
-        self.irrad_frac_redist_global = irrad_frac_redist_global
-        self.redist_local_radius = redist_local_radius
-        self.redist_horiz_width = redist_horiz_width
 
         # self.frac_heat = frac_heat
         # self.frac_scatt = frac_scatt
@@ -1454,11 +1404,6 @@ class Star(Body):
 
         abun = b.get_value('abun', component=component, context='component')
         irrad_frac_refl = b.get_value('irrad_frac_refl_bol', component=component, context='component')
-        irrad_frac_redist_local = b.get_value('irrad_frac_redist_local_bol', component=component, context='component')
-        irrad_frac_redist_horiz = b.get_value('irrad_frac_redist_horiz_bol', component=component, context='component')
-        irrad_frac_redist_global = b.get_value('irrad_frac_redist_global_bol', component=component, context='component')
-        redist_local_radius = b.get_value('redist_local_radius', component=component, context='component', unit=u.rad, check_visible=False)
-        redist_horiz_width  = b.get_value('redist_horiz_width', component=component, context='component', unit=u.rad, check_visible=False)
 
         try:
             do_rv_grav = b.get_value('rv_grav', component=component, compute=compute, check_visible=False, **kwargs) if compute is not None else False
@@ -1471,8 +1416,7 @@ class Star(Body):
 
         mesh_kwargs = {}
         if mesh_method == 'marching':
-            mesh_kwargs['delta'] = b.get_value('delta', component=component, compute=compute, **kwargs) if compute is not None else 0.1
-            mesh_kwargs['maxpoints'] = b.get_value('maxpoints', component=component, compute=compute, **kwargs) if compute is not None else 1e5
+            mesh_kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute, **kwargs) if compute is not None else 1000
             mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute, **kwargs) if compute is not None else 'roche'
         elif mesh_method == 'wd':
             mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute, **kwargs) if compute is not None else 30
@@ -1502,8 +1446,7 @@ class Star(Body):
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
         return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
-                abun, irrad_frac_refl, irrad_frac_redist_local, irrad_frac_redist_horiz, irrad_frac_redist_global,
-                redist_local_radius, redist_horiz_width,
+                abun, irrad_frac_refl,
                 mesh_method, dynamics_method,
                 mesh_init_phi, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
@@ -1584,14 +1527,16 @@ class Star(Body):
         mesh_args = (q, F, d, Phi)
 
         if mesh_method == 'marching':
-            delta = kwargs.get('delta', self.delta)
-            maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
 
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
-                rpole = libphoebe.roche_pole(*mesh_args)
-                #delta *= rpole
+                av = libphoebe.roche_area_volume(*mesh_args,
+                                                 choice=0,
+                                                 larea=True,
+                                                 lvolume=True)
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 # print "*** libphoebe.roche_marching_mesh args: {}, rpole: {}, delta: {}".format(mesh_args, rpole, delta)
 
@@ -1599,7 +1544,7 @@ class Star(Body):
                                                          delta=delta,
                                                          choice=0,
                                                          full=True,
-                                                         max_triangles=maxpoints,
+                                                         max_triangles=ntriangles*2,
                                                          vertices=True,
                                                          triangles=True,
                                                          centers=True,
@@ -1617,10 +1562,7 @@ class Star(Body):
                 # itself (not the mesh).
                 # TODO: which volume(s) do we want to report?  Either way, make
                 # sure to do the same for the OC case and rotstar
-                av = libphoebe.roche_area_volume(*mesh_args,
-                                                 choice=0,
-                                                 larea=True,
-                                                 lvolume=True)
+
 
                 new_mesh['volume'] = av['lvolume']
 
@@ -1695,17 +1637,21 @@ class Star(Body):
                     Phi = self.Phi_user # because we don't want to do conversion for secondary
 
 
-                rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)
-                delta *= rpole
-
                 mesh_args = (omega, Phi)
+
+                av = libphoebe.rotstar_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
+
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
+
 
                 # print "*** rotstar_marching_mesh omega: {}, Phi: {}, freq_rot:{}, sma:{}, rpole:{}, delta:{}".format(mesh_args[0], mesh_args[1], self.freq_rot, sma, rpole, delta)
 
                 new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
                                                delta=delta,
                                                full=True,
-                                               max_triangles=maxpoints,
+                                               max_triangles=ntriangles*2,
                                                vertices=True,
                                                triangles=True,
                                                centers=True,
@@ -1718,9 +1664,7 @@ class Star(Body):
                                                volume=True,
                                                init_phi=self.mesh_init_phi)
 
-                av = libphoebe.rotstar_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
+
 
                 new_mesh['volume'] = av['lvolume']
 
@@ -1773,18 +1717,21 @@ class Star(Body):
                     # TODO: need to use rpole directly?
 
                 rpole = libphoebe.roche_pole(*mesh_args)
-                delta *= rpole
-
                 omega = 1./rpole
-
                 mesh_args = (omega,)
+
+                av = libphoebe.sphere_area_volume(*mesh_args,
+                                                   larea=True,
+                                                   lvolume=True)
+
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 # print "*** sphere_marching_mesh rpole:{} omega:{} delta:{}".format(rpole, mesh_args[0], delta)
 
                 new_mesh = libphoebe.sphere_marching_mesh(*mesh_args,
                                                delta=delta,
                                                full=True,
-                                               max_triangles=maxpoints,
+                                               max_triangles=ntriangles*2,
                                                vertices=True,
                                                triangles=True,
                                                centers=True,
@@ -1797,9 +1744,7 @@ class Star(Body):
                                                volume=True,
                                                init_phi=self.mesh_init_phi)
 
-                av = libphoebe.sphere_area_volume(*mesh_args,
-                                                   larea=True,
-                                                   lvolume=True)
+
 
                 new_mesh['volume'] = av['lvolume']
 
@@ -1845,6 +1790,7 @@ class Star(Body):
 
                 scale = sma
 
+            elif self.distortion_method == 'sphere':
 
             elif self.distortion_method == 'nbody':
                 # TODO: implement this (discretize and save mesh_args)
@@ -2156,7 +2102,7 @@ class Envelope(Body):
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
             ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True,
-            label_envelope='common_envelope', label_primary='primary',
+            label_envelope='contact_envelope', label_primary='primary',
             label_secondary='secondary', **kwargs):
         """
         [NOT IMPLEMENTED]
@@ -2166,9 +2112,9 @@ class Envelope(Body):
         :type masses: list of floats
         :parameter float sma: sma of this component's parent orbit (solRad)
         :parameter float abun: abundance of this star
-        :parameter int ind_self: index in all arrays (positions, masses, etc) for the primary star in this overcontact envelope
+        :parameter int ind_self: index in all arrays (positions, masses, etc) for the primary star in this contact_binary envelope
         :parameter int ind_sibling: index in all arrays (positions, masses, etc)
-            for the secondary star in this overcontact envelope
+            for the secondary star in this contact_binary envelope
         :return: instantiated :class:`Envelope` object
         """
         super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
@@ -2184,8 +2130,7 @@ class Envelope(Body):
 
         # Remember how to compute the mesh
         self.mesh_method = mesh_method
-        self.delta = kwargs.get('delta', 0.1)                               # Marching
-        self.maxpoints = kwargs.get('maxpoints', 1e5)                       # Marching
+        self.ntriangles = kwargs.get('ntriangles', 1000)                    # Marching
         self.distortion_method = kwargs.get('distortion_method', 'roche')   # Marching (WD assumes roche)
         self.gridsize = kwargs.get('gridsize', 90)                          # WD
 
@@ -2195,7 +2140,7 @@ class Envelope(Body):
         # as defaults if they are not passed in future calls.  If for some reason
         # they are time dependent, then the instantaneous values need to be passed
         # for each call to update_position
-        self.F = 1.0 # by definition for an overcontact
+        self.F = 1.0 # by definition for an contact_binary
         self.freq_rot = freq_rot   # TODO: change to just pass period and compute freq_rot here?
         self.sma = sma
 
@@ -2246,7 +2191,7 @@ class Envelope(Body):
         """
         [NOT IMPLEMENTED]
 
-        Build an overcontact from the :class:`phoebe.frontend.bundle.Bundle` and its
+        Build an contact_binary from the :class:`phoebe.frontend.bundle.Bundle` and its
         hierarchy.
 
         Usually it makes more sense to call :meth:`System.from_bundle` directly.
@@ -2266,7 +2211,7 @@ class Envelope(Body):
         hier = b.hierarchy
 
         if not len(hier.get_value()):
-            raise NotImplementedError("Overcontact envelope meshing requires a hierarchy to exist")
+            raise NotImplementedError("Contact envelope meshing requires a hierarchy to exist")
 
 
         label_envelope = component
@@ -2285,7 +2230,7 @@ class Envelope(Body):
         # meshing for BRS needs d,q,F,Phi
         # d is instantaneous based on x,y,z of self and sibling
         # q is instantaneous based on masses of self and sibling
-        # F we will assume is always 1 for an overcontact
+        # F we will assume is always 1 for an contact_binary
         # Phi we can get now
 
         env_ps = b.filter(component=component, context='component')
@@ -2329,8 +2274,7 @@ class Envelope(Body):
 
         mesh_kwargs = {}
         if mesh_method == 'marching':
-            mesh_kwargs['delta'] = b.get_value('delta', component=component, compute=compute) if compute is not None else 0.1
-            mesh_kwargs['maxpoints'] = b.get_value('maxpoints', component=component, compute=compute) if compute is not None else 1e5
+            mesh_kwargs['ntriangles'] = b.get_value('ntriangles', component=component, compute=compute) if compute is not None else 1000
             mesh_kwargs['distortion_method'] = b.get_value('distortion_method', component=component, compute=compute) if compute is not None else 'roche'
         elif mesh_method == 'wd':
             mesh_kwargs['gridsize'] = b.get_value('gridsize', component=component, compute=compute) if compute is not None else 30
@@ -2345,7 +2289,11 @@ class Envelope(Body):
             feature_cls = globals()[feature_ps.kind.title()]
             features.append(feature_cls.from_bundle(b, feature))
 
-        do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        if conf.devel:
+            do_mesh_offset = b.get_value('mesh_offset', compute=compute, **kwargs)
+        else:
+            do_mesh_offset = True
+
 
         datasets_intens = [ds for ds in b.filter(kind=['lc', 'rv', 'ifm'], context='dataset').datasets if ds != '_default']
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
@@ -2431,21 +2379,24 @@ class Envelope(Body):
             # Phi = kwargs.get('Phi', self.Phi_user)  # NOTE: self.Phi_user is not corrected for the secondary star, but that's fine because we pass primary vs secondary as choice
             # q = 1./self.q if self.comp_no == 2 else self.q  # NOTE: undo the inversion so this is ALWAYS Mp/Ms
 
-            delta = kwargs.get('delta', self.delta)
-            maxpoints = int(kwargs.get('maxpoints', self.maxpoints))
+            ntriangles = kwargs.get('ntriangles', self.ntriangles)
 
 
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
-                rpole = libphoebe.roche_pole(*mesh_args)
-                delta *= rpole
+                av = libphoebe.roche_area_volume(*mesh_args,
+                                                 choice=2,
+                                                 larea=True,
+                                                 lvolume=True)
+
+                delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
                 new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
                                                          delta=delta,
                                                          choice=2,
                                                          full=True,
-                                                         max_triangles=maxpoints,
+                                                         max_triangles=ntriangles*2,
                                                          vertices=True,
                                                          triangles=True,
                                                          centers=True,
@@ -2462,11 +2413,6 @@ class Envelope(Body):
                 # itself (not the mesh).
                 # TODO: which volume(s) do we want to report?  Either way, make
                 # sure to do the same for the OC case and rotstar
-                av = libphoebe.roche_area_volume(*mesh_args,
-                                                 choice=2,
-                                                 larea=True,
-                                                 lvolume=True)
-
                 new_mesh['volume'] = av['lvolume']
 
                 if self._do_mesh_offset:

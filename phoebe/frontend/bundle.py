@@ -17,6 +17,7 @@ from phoebe.parameters import feature as _feature
 from phoebe.backend import backends
 from phoebe.distortions import roche
 from phoebe.frontend import io
+from phoebe.atmospheres.passbands import _pbtable
 import libphoebe
 
 from phoebe import u
@@ -241,7 +242,7 @@ class Bundle(ParameterSet):
         return cls()
 
     @classmethod
-    def from_legacy(cls, filename):
+    def from_legacy(cls, filename, add_compute_legacy=False, add_compute_phoebe=True):
         """Load a bundle from a PHOEBE 1.0 Legacy file.
 
         This is a constructor so should be called as:
@@ -251,7 +252,7 @@ class Bundle(ParameterSet):
         :parameter str filename: relative or full path to the file
         :return: instantiated :class:`Bundle` object
         """
-        return io.load_legacy(filename)
+        return io.load_legacy(filename, add_compute_legacy, add_compute_phoebe)
 
     @classmethod
     def default_star(cls, starA='starA'):
@@ -268,11 +269,12 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
+        b.add_compute()
         return b
 
     @classmethod
     def default_binary(cls, starA='primary', starB='secondary', orbit='binary',
-                       overcontact=False):
+                       contact_binary=False):
         """Load a bundle with a default binary as the system.
 
         primary - secondary
@@ -287,26 +289,29 @@ class Bundle(ParameterSet):
         b.add_star(component=starA)
         b.add_star(component=starB)
         b.add_orbit(component=orbit)
-        if overcontact:
-            b.add_component('envelope', component='common_envelope')
+        if contact_binary:
+            b.add_component('envelope', component='contact_envelope')
             b.set_hierarchy(_hierarchy.binaryorbit,
                             b[orbit],
                             b[starA],
                             b[starB],
-                            b['common_envelope'])
+                            b['contact_envelope'])
         else:
             b.set_hierarchy(_hierarchy.binaryorbit,
                             b[orbit],
                             b[starA],
                             b[starB])
 
+        b.add_compute()
+
         return b
+
 
     @classmethod
     def default_triple(cls, inner_as_primary=True, inner_as_overcontact=False,
                        starA='starA', starB='starB', starC='starC',
                        inner='inner', outer='outer',
-                       common_envelope='common_envelope'):
+                       contact_envelope='contact_envelope'):
         """Load a bundle with a default triple system.
 
         Set inner_as_primary based on what hierarchical configuration you want.
@@ -338,11 +343,11 @@ class Bundle(ParameterSet):
         b.add_orbit(component=outer, period=10)
 
         if inner_as_overcontact:
-            b.add_envelope(component=common_envelope)
+            b.add_envelope(component=contact_envelope)
             inner_hier = _hierarchy.binaryorbit(b[inner],
                                            b[starA],
                                            b[starB],
-                                           b[common_envelope])
+                                           b[contact_envelope])
         else:
             inner_hier = _hierarchy.binaryorbit(b[inner], b[starA], b[starB])
 
@@ -357,6 +362,8 @@ class Bundle(ParameterSet):
 
         # TODO: does this constraint need to be rebuilt when things change?
         # (ie in set_hierarchy)
+
+        b.add_compute()
 
         return b
 
@@ -572,12 +579,19 @@ class Bundle(ParameterSet):
         # TODO: raise error if old_component not found?
 
         self._check_label(new_component)
+        # changing hierarchy must be called first since it needs to access
+        # the kind of old_component
+        if len([c for c in self.components if new_component in c]):
+            logger.warning("hierarchy may not update correctly with new component")
+        self.hierarchy.change_component(old_component, new_component)
         for param in self.filter(component=old_component).to_list():
             param._component = new_component
         for param in self.filter(context='constraint').to_list():
-            for k, v in param.constraint_kwargs:
+            for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+
+
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -865,7 +879,7 @@ class Bundle(ParameterSet):
                                         constraint=self._default_label('comp_sma', context='constraint'))
 
 
-                if not self.hierarchy.is_overcontact(component):
+                if not self.hierarchy.is_contact_binary(component):
 
                     logger.info('re-creating rotation_period constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
@@ -901,7 +915,7 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('incl_aligned', context='constraint'))
 
 
-            if not self.hierarchy.is_overcontact(component) or self.hierarchy.get_kind_of(component)=='envelope':
+            if not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope':
                 # potential constraint shouldn't be done for STARS in OVERCONTACTS
 
                 logger.info('re-creating potential constraint for {}'.format(component))
@@ -1088,6 +1102,10 @@ class Bundle(ParameterSet):
                 ecc = self.get_value(qualifier='ecc', component=orbitref, context='component')
 
                 starrefs = hier.get_children_of(orbitref)
+                if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
+                    # print "***", hier.get_kind_of(starrefs[0]), hier.get_kind_of(starrefs[1])
+                    continue
+
                 comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
                 comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
                 q0 = roche.q_for_component(q, comp0)
@@ -1120,6 +1138,16 @@ class Bundle(ParameterSet):
                     if abs(incl_star - incl_orbit) > 1e-3:
                         return False,\
                             'misaligned orbits are not currently supported.'
+
+        # check to make sure passband supports the selected atm
+        for pbparam in self.filter(qualifier='passband').to_list():
+            pb = pbparam.get_value()
+            pbatms = _pbtable[pb]['atms']
+            # NOTE: atms are not attached to datasets, but per-compute and per-component
+            for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
+                atm = atmparam.get_value()
+                if atm not in pbatms:
+                    return False, "'{}' passband ({}) does not support atm='{}' ({})".format(pb, pbparam.twig, atm, atmparam.twig)
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1158,6 +1186,13 @@ class Bundle(ParameterSet):
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
 
+        # mesh-consistency checks
+        for compute in self.computes:
+            mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
+            if 'wd' in mesh_methods:
+                if len(set(mesh_methods)) > 1:
+                    return False, "all (or none) components must use mesh_method='wd'"
+
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
         for component in self.hierarchy.get_stars():
@@ -1165,11 +1200,11 @@ class Bundle(ParameterSet):
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
 
             if teff >= 8000. and gravb_bol < 0.9:
-                return None, 'Object probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}'.format(teff, gravb_bol)
+                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
             elif teff <= 6600. and gravb_bol >= 0.9:
-                return None, 'Object probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}'.format(teff, gravb_bol)
+                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
-                return None, 'Object has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}'.format(teff, gravb_bol)
+                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}".format(component, teff, gravb_bol)
 
         # TODO: add other checks
         # - make sure all ETV components are legal
@@ -1725,15 +1760,15 @@ class Bundle(ParameterSet):
 
         # Now we need to apply any kwargs sent by the user.  There are a few
         # scenarios (and each kwargs could fall into different ones):
-        # time = [0,1,2]
+        # times = [0,1,2]
         #    in this case, we want to apply time across all of the components that
         #    are applicable for this dataset kind AND to _default so that any
         #    future components added to the system are copied appropriately
-        # time = [0,1,2], components=['primary', 'secondary']
+        # times = [0,1,2], components=['primary', 'secondary']
         #    in this case, we want to apply the value for time across components
         #    but time@_default should remain empty (it will not copy for components
         #    added in the future)
-        # time = {'primary': [0,1], 'secondary': [0,1,2]}
+        # times = {'primary': [0,1], 'secondary': [0,1,2]}
         #    here, regardless of the components, we want to apply these to their
         #    individually requested parameters.  We won't touch _default unless
         #    its included in the dictionary
@@ -1761,7 +1796,15 @@ class Bundle(ParameterSet):
                 elif user_provided_components:
                     components_ = components
                 else:
-                    components_ = components+['_default']
+                    # for dataset kinds that include passband dependent AND
+                    # independent parameters, we need to carefully default on
+                    # what component to use when passing the defaults
+                    if kind in ['rv'] and k in ['ld_func', 'ld_coeffs', 'passband', 'intens_weighting']:
+                        # passband-dependent (ie lc_dep) parameters do not have
+                        # assigned components
+                        components_ = None
+                    else:
+                        components_ = components+['_default']
 
                 self.set_value_all(qualifier=k,
                                    dataset=kwargs['dataset'],
@@ -1825,13 +1868,7 @@ class Bundle(ParameterSet):
         if dataset is None and not len(kwargs.items()):
             raise ValueError("must provide some value to filter for datasets")
 
-        kwargs['dataset'] = dataset
-        # Let's avoid the possibility of deleting a single parameter
-        kwargs['qualifier'] = None
-        # Let's also avoid the possibility of accidentally deleting system
-        # parameters, etc
-        kwargs.setdefault('context', ['dataset', 'model', 'constraint'])
-        # and lastly, let's handle deps if kind was passed
+        # let's handle deps if kind was passed
         kind = kwargs.get('kind', None)
 
         if kind is not None:
@@ -1844,6 +1881,25 @@ class Bundle(ParameterSet):
                     kind_deps.append(dep)
             kind = kind + kind_deps
         kwargs['kind'] = kind
+
+
+        if dataset is None:
+            # then let's find the list of datasets that match the filter,
+            # we'll then use dataset to do the removing.  This avoids leaving
+            # pararameters behind that don't specifically match the filter
+            # (ie if kind is passed as 'rv' we still want to remove parameters
+            # with datasets that are RVs but belong to a different kind in
+            # another context like compute)
+            dataset = self.filter(**kwargs).datasets
+            kwargs['kind'] = None
+
+
+        kwargs['dataset'] = dataset
+        # Let's avoid the possibility of deleting a single parameter
+        kwargs['qualifier'] = None
+        # Let's also avoid the possibility of accidentally deleting system
+        # parameters, etc
+        kwargs.setdefault('context', ['dataset', 'model', 'constraint', 'compute'])
 
         # ps = self.filter(**kwargs)
         # logger.info('removing {} parameters (this is not undoable)'.\
@@ -2037,6 +2093,14 @@ class Bundle(ParameterSet):
         :parameter **kwargs: any other tags to do the filter
             (except twig or context)
         """
+        # let's run delayed constraints first to ensure that we get the same
+        # results in interactive and non-interactive modes as well as to make
+        # sure we don't have delayed constraints for the constraint we're
+        #  about to remove.  This could perhaps be optimized by searching
+        #  for this/these constraints and only running/removing those, but
+        #  probably isn't worth the savings.
+        self.run_delayed_constraints()
+
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
 
@@ -2359,6 +2423,13 @@ class Bundle(ParameterSet):
         # have been run before running system checks or computing the model
         self.run_delayed_constraints()
 
+        # any kwargs that were used just to filter for get_compute should  be
+        # removed so that they aren't passed on to all future get_value(...
+        # **kwargs) calls
+        for k in parameters._meta_fields_filter:
+            if k in kwargs.keys():
+                dump = kwargs.pop(k)
+
         # we'll wait to here to run kwargs and system checks so that
         # add_compute is already called if necessary
         self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
@@ -2520,7 +2591,7 @@ class Bundle(ParameterSet):
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
                                 times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', **kwargs)
+                                fti_oversample = self.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
                                 # NOTE: this is hardcoded for LCs which is the
                                 # only dataset that currently supports oversampling,
                                 # but this will need to be generalized if/when

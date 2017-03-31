@@ -60,12 +60,13 @@ def phoebe(**kwargs):
     params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
     params += [BoolParameter(qualifier='horizon', value=kwargs.get('horizon', False), description='Store horizon for all meshes (except protomeshes)')]
     params += [ChoiceParameter(copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='mesh_method', value=kwargs.get('mesh_method', 'marching'), choices=['marching', 'wd'] if conf.devel else ['marching'], descriptio='Which method to use for discretizing the surface')]
-    params += [FloatParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='delta', value=kwargs.get('delta', 0.1), limits=(1e-9,None), default_unit=u.dimensionless_unscaled, description='Stepsize for mesh generation via marching method')]
-    params += [IntParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='maxpoints', value=kwargs.get('maxpoints', 100000), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Maximum number of triangles for marching method')]
+    params += [IntParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='ntriangles', value=kwargs.get('ntriangles', 1000), limits=(100,None), default_unit=u.dimensionless_unscaled, description='Requested number of triangles (won\'t be exact).')]
     params += [ChoiceParameter(visible_if='mesh_method:marching', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='distortion_method', value=kwargs.get('distortion_method', 'roche'), choices=['roche', 'rotstar', 'nbody', 'sphere'] if conf.devel else ['roche', 'rotstar'], description='Method to use for distorting stars')]
 
     if conf.devel:
-        params += [IntParameter(visible_if='mesh_method:wd', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 40), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Number of meshpoints for WD method')]
+        # TODO: can we have this computed from ntriangles? - and then do the same for the legacy compute options?
+        # NOTE: if removing from developer mode - also need to remove if conf.devel in io.py line ~800
+        params += [IntParameter(visible_if='mesh_method:wd', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10,None), default_unit=u.dimensionless_unscaled, description='Number of meshpoints for WD method')]
     # ------------------------------------------------------
 
     #params += [ChoiceParameter(qualifier='subdiv_alg', value=kwargs.get('subdiv_alg', 'edge'), choices=['edge'], description='Subdivision algorithm')]
@@ -96,8 +97,8 @@ def phoebe(**kwargs):
     # means that this should exist for each component/dataset pair with the
     # rv_dep kind
     params += [ChoiceParameter(qualifier='lc_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('lc_method', 'numerical'), choices=['numerical', 'analytical'] if conf.devel else ['numerical'], description='Method to use for computing LC fluxes')]
-    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'None'), choices=['None', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
-    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('fti_oversample', 5), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
+    params += [ChoiceParameter(qualifier='fti_method', copy_for = {'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_method', 'none'), choices=['none', 'oversample'], description='How to handle finite-time integration (when non-zero exptime)')]
+    params += [IntParameter(visible_if='fti_method:oversample', qualifier='fti_oversample', copy_for={'kind': ['lc'], 'dataset': '*'}, dataset='_default', value=kwargs.get('fti_oversample', 5), default_unit=u.dimensionless_unscaled, description='Number of times to sample per-datapoint for finite-time integration')]
     params += [ChoiceParameter(qualifier='rv_method', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_method', 'flux-weighted'), choices=['flux-weighted', 'dynamical'], description='Method to use for computing RVs (must be flux-weighted for Rossiter-McLaughlin)')]
     params += [BoolParameter(visible_if='rv_method:flux-weighted', qualifier='rv_grav', copy_for = {'kind': ['rv'], 'component': '*', 'dataset': '*'}, component='_default', dataset='_default', value=kwargs.get('rv_grav', False), description='Whether gravitational redshift effects are enabled for RVs')]
 
@@ -134,12 +135,13 @@ def legacy(**kwargs):
     # TODO: include MORE meshing options
     params += [BoolParameter(qualifier='protomesh', value=kwargs.get('protomesh', False), description='Store a protomesh (reference frame of stars) at t0 (periastron)')]
     params += [BoolParameter(qualifier='pbmesh', value=kwargs.get('pbmesh', False), description='Store all meshes created for other datasets (warning: can get memory intensive)')]
-    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
-    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary', 'Overcontact binary of the W UMa type', 'Overcontact binary not in thermal contact'], description='System type constraint')]
-    params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
+    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'extern_atmx'), choices=['extern_atmx', 'extern_planckint'], description='Atmosphere table')]
+#    params += [ChoiceParameter(copy_for = {'kind': ['star'], 'component': '*'}, component='_default', qualifier='atm', value=kwargs.get('atm', 'kurucz'), choices=['kurucz', 'blackbody'], description='Atmosphere table')]
+#    params += [ChoiceParameter(qualifier='morphology', value=kwargs.get('morphology','Detached binary'), choices=['Unconstrained binary system', 'Detached binary', 'Overcontact binary of the W UMa type', 'Overcontact binary not in thermal contact'], description='System type constraint')]
+#    params += [BoolParameter(qualifier='cindex', value=kwargs.get('cindex', False), description='Color index constraint')]
 #    params += [IntParameter(visible_if='cindex_switch:True', qualifier='cindex', value=kwargs.get('cindex', np.array([1.0])), description='Number of reflections')]
 #    params += [BoolParameter(qualifier='heating', value=kwargs.get('heating', True), description='Allow irradiators to heat other components')]
-    params += [IntParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 40), limits=(10,None), description='Number of meshpoints for WD')]
+    params += [IntParameter(copy_for={'kind': ['star'], 'component': '*'}, component='_default', qualifier='gridsize', value=kwargs.get('gridsize', 60), limits=(10,None), description='Number of meshpoints for WD')]
 
 #    params += [BoolParameter(qualifier='mult_refl', value=kwargs.get('mult_refl', False), description='Allow irradiated bodies to reflect light (for heating only) multiple times')]
     params += [IntParameter(qualifier='refl_num', value=kwargs.get('refl_num', 1), limits=(0,None), description='Number of reflections')]

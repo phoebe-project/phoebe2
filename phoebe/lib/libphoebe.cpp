@@ -71,7 +71,7 @@
   #define PyString_Type PyBytes_Type
   #define PyString_AsString PyBytes_AsString
   #define PyString_Check PyBytes_Check
-  
+  #define PyInt_FromLong PyLong_FromLong
 #else
   #define MOD_ERROR_VAL
   #define MOD_SUCCESS_VAL(val)
@@ -2201,6 +2201,61 @@ static PyObject *misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
 
+  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  
+  return pya;
+}
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the gradient and the value of the potential spherical object
+  at a given point
+
+      -grad Omega (x,y,z) = r/|r|^3 r =[x,y,z]
+  
+  which is outwards the lobe.
+  
+  
+  Python:
+    
+    g = sphere_gradOmega(r)
+   
+  with parameters
+   
+    r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns float
+  
+    g : 1-rank numpy array 
+      = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
+*/
+
+
+static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
+  
+  const char *fname = "sphere_gradOmega";
+  
+  PyArrayObject *X;
+
+  if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &X)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  double 
+    *x = (double*) PyArray_DATA(X),
+    *g = new double [4],
+    R = utils::hypot3(x),
+    F = 1/(R*R*R);
+  
+  for (int i = 0; i < 3; ++i) g[i] = F*x[i];  
+  g[3] = -1/R;
+  
+  npy_intp dims[1] = {4};
+
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
+    
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
   
   return pya;
@@ -5323,7 +5378,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
   // Check is there is interpolation is used
   //
   
-  bool st_interp = false;
+  int n = LDmod.size();   
   
   for (auto && pld : LDmod) if (pld == 0) {
     st_interp = true;

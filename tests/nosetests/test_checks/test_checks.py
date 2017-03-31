@@ -14,14 +14,13 @@ def test_checks():
 
 
     b.add_dataset('lc')
-    b.add_compute()
 
     # test overflow
     passed, msg = b.run_checks()
     if not passed:
         raise AssertionError(msg)
 
-    b.set_value('rpole', component='primary', value=8)
+    b.set_value('rpole', component='primary', value=9.0)
     passed, msg = b.run_checks()
     if passed:
         raise AssertionError

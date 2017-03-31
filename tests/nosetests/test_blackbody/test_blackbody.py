@@ -22,8 +22,7 @@ def test_binary(plot=False):
     b.add_compute('legacy', compute='phoebe1')
 
     # set matching atmospheres
-    b.set_value_all('atm@phoebe2', 'extern_planckint')
-    b.set_value_all('atm@phoebe1', 'blackbody')
+    b.set_value_all('atm', 'extern_planckint')
 
     # turn off limb-darkening:
     b.set_value_all('ld_func_bol', 'logarithmic')
