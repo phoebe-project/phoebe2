@@ -772,7 +772,7 @@ class Bundle(ParameterSet):
         """
         """
 
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         hier = self.get_hierarchy()
         # Handle choice parameters that need components as choices
@@ -803,7 +803,7 @@ class Bundle(ParameterSet):
         """
 
         # need to run any constraints since some may be deleted and rebuilt
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
 
         _old_param = self.get_hierarchy()
@@ -1024,7 +1024,7 @@ class Bundle(ParameterSet):
         """
 
         # make sure all constraints have been run
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         hier = self.hierarchy
         if hier is None:
@@ -2099,7 +2099,7 @@ class Bundle(ParameterSet):
         #  about to remove.  This could perhaps be optimized by searching
         #  for this/these constraints and only running/removing those, but
         #  probably isn't worth the savings.
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
@@ -2149,7 +2149,7 @@ class Bundle(ParameterSet):
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
 
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         param = self.get_constraint(**kwargs)
 
@@ -2173,7 +2173,7 @@ class Bundle(ParameterSet):
 
         return param
 
-    def run_constraint(self, twig=None, **kwargs):
+    def run_constraint(self, twig=None, return_parameter=False, **kwargs):
         """
         Run a given 'constraint' now and set the value of the constrained
         parameter.  In general, there shouldn't be any need to manually
@@ -2213,14 +2213,20 @@ class Bundle(ParameterSet):
 
         logger.info("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
-        return result
+        if return_parameter:
+            return constrained_param
+        else:
+            return result
 
     def run_delayed_constraints(self):
         """
         """
+        changes = []
         for constraint_id in self._delayed_constraints:
-            self.run_constraint(uniqueid=constraint_id)
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
+            changes.append(param)
         self._delayed_constraints = []
+        return list(set(changes))
 
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
@@ -2421,7 +2427,7 @@ class Bundle(ParameterSet):
 
         # if interactive mode was ever off, let's make sure all constraints
         # have been run before running system checks or computing the model
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
