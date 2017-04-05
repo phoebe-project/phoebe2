@@ -36,13 +36,6 @@ def test_binary(plot=False):
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
-    # for a fair comparison with legacy, we need to break the constraint which
-    # sets redistribution
-    b.remove_constraint('irrad_frac_redist_global_bol', component='primary')
-    b.remove_constraint('irrad_frac_redist_global_bol', component='secondary')
-
-    b.set_value_all('irrad_frac_redist_global_bol', 0.0)
-
     for alb in [0, 0.5, 1.0]:
         print "alb = {}".format(alb)
         b.set_value_all('irrad_frac_refl_bol', alb)
