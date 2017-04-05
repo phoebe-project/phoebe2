@@ -1791,7 +1791,7 @@ class Star(Body):
                 scale = sma
 
             elif self.distortion_method == 'sphere':
-
+                pass
             elif self.distortion_method == 'nbody':
                 # TODO: implement this (discretize and save mesh_args)
                 raise NotImplementedError("'nbody' distortion_method not yet supported - try roche")
