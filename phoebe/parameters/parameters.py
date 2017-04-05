@@ -1344,13 +1344,13 @@ class ParameterSet(object):
                     (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
+        # handle hiding _default (cheaper than visible_if so let's do first)
+        if check_default:
+            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
+
         # handle visible_if
         if check_visible:
             params = [pi for pi in params if pi.is_visible]
-
-        # handle hiding _default
-        if check_default:
-            params = [pi for pi in params if pi.component != '_default' and pi.dataset != '_default']
 
         if isinstance(twig, int):
             # then act as a list index
@@ -3196,6 +3196,7 @@ class Parameter(object):
                     # metawargs['component'] = None
 
                 try:
+                    # this call is quite expensive and bloats every get_parameter(check_visible=True)
                     param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
                 except ValueError:
                     # let's not let this hold us up - sometimes this can happen when copying
@@ -4520,6 +4521,18 @@ class HierarchyParameter(StringParameter):
 
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+        self._update_cache()
+
+    def _update_cache(self):
+        """
+        """
+        # update cache for is_binary and is_contact_binary
+        self._is_binary = {}
+        self._is_contact_binary = {}
+        if self._bundle is not None:
+            for comp in self.get_components():
+                self._is_binary[comp] = self._compute_is_binary(comp)
+                self._is_contact_binary[comp] = self._compute_is_contact_binary(comp)
 
 
     def _parse_repr(self):
@@ -4789,12 +4802,8 @@ class HierarchyParameter(StringParameter):
         return item_kind
 
 
-    def is_contact_binary(self, component):
+    def _compute_is_contact_binary(self, component):
         """
-        especially useful for constraints
-
-        tells whether any component (star, envelope) is part of a contact_binary
-        by checking its siblings for an envelope
         """
         if 'envelope' not in self.get_value():
             return False
@@ -4806,12 +4815,20 @@ class HierarchyParameter(StringParameter):
 
         return self.get_kind_of(component)=='envelope' or (self.get_sibling_of(component, kind='envelope') is not None)
 
-    def is_binary(self, component):
+    def is_contact_binary(self, component):
         """
         especially useful for constraints
 
-        tells whether any component (star, envelope) is part of a binary
-        by checking its parent
+        tells whether any component (star, envelope) is part of a contact_binary
+        by checking its siblings for an envelope
+        """
+        if component not in self._is_contact_binary.keys():
+            self._update_cache()
+
+        return self._is_contact_binary.get(component)
+
+    def _compute_is_binary(self, component):
+        """
         """
         if component not in self.get_components():
             # TODO: is this the best fallback?
@@ -4819,6 +4836,17 @@ class HierarchyParameter(StringParameter):
 
         return self.get_kind_of(self.get_parent_of(component))=='orbit'
 
+    def is_binary(self, component):
+        """
+        especially useful for constraints
+
+        tells whether any component (star, envelope) is part of a binary
+        by checking its parent
+        """
+        if component not in self._is_binary.keys():
+            self._update_cache()
+
+        return self._is_binary.get(component)
 
 
 
@@ -4850,6 +4878,7 @@ class ConstraintParameter(Parameter):
             default_unit = kwargs.get('default_unit', u.dimensionless_unscaled)
 
         self._vars = []
+        self._var_params = None
         self._constraint_func = kwargs.get('constraint_func', None)
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
         self.set_value(value)
@@ -4878,8 +4907,10 @@ class ConstraintParameter(Parameter):
         """
         return all the variables in a PS
         """
-
-        return ParameterSet([var.get_parameter() for var in self._vars])
+        # cache _var_params
+        if self._var_params is None:
+            self._var_params = ParameterSet([var.get_parameter() for var in self._vars])
+        return self._var_params
 
     def _get_var(self, param=None, **kwargs):
         if not isinstance(param, Parameter):
@@ -4995,6 +5026,8 @@ class ConstraintParameter(Parameter):
         # if the user wants to see the expression, we'll replace all
         # var.safe_label with var.curly_label
         self._value, self._vars = self._parse_expr(value)
+        # reset the cached version of the PS - will be recomputed on next request
+        self._var_params = None
         #~ print "***", self.uniquetwig, self.uniqueid
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
