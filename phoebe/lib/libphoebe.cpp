@@ -572,6 +572,79 @@ static PyObject *misaligned_pole(PyObject *self, PyObject *args, PyObject *keywd
 /*
   C++ wrapper for Python code:
   
+  Calculate the minimal value of the Kopal potential permitted in order to have
+  compact primary Roche lobe:
+      
+      Omega_{min} (x,y,z; q, F, d, misalignment) = 
+        min {Omega(L1(misaligment)), Omega(L2(misalignment)) }
+
+  Python:
+
+    Omega_{min} = misaligned_Omega_min(q, F, delta, misalignment)
+    
+   with parameters
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+   
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+
+static PyObject *misaligned_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "misaligned_Omega_min";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    (char*)"misalignment",
+    NULL};
+  
+  double q, F, d;
+  
+  PyObject *o_misalignment;
+ 
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "dddO", kwlist, 
+        &q, &F, &d, &o_misalignment)
+      ){
+  
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double Omega_min;
+  
+  if (PyFloat_Check(o_misalignment)) {
+    double theta = PyFloat_AsDouble(o_misalignment);
+    Omega_min = misaligned_roche::calc_Omega_min(q, F, d, theta);    
+  } else if (PyArray_Check(o_misalignment)) {
+    double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
+    Omega_min = misaligned_roche::calc_Omega_min(q, F, d, std::asin(s[0]));
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported\n";
+    return NULL;
+  }
+  
+  if (std::isnan(Omega_min)) return NULL; 
+  
+  return PyFloat_FromDouble(Omega_min);  
+}
+
+/*
+  C++ wrapper for Python code:
+  
   Calculate height h the rotating star
     
     (0,0,h) 
@@ -2600,7 +2673,7 @@ static PyObject *misaligned_Omega(PyObject *self, PyObject *args) {
   
   if (!PyArg_ParseTuple(args, "dddOO!", 
        p, p + 1, p + 2, 
-       &PyArray_Type, &o_misalignment,
+       &o_misalignment,
        &PyArray_Type, &o_x)){
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
@@ -5323,7 +5396,7 @@ static PyObject *mesh_radiosity_problem_nbody_convex(
   // Check is there is interpolation is used
   //
   
-  bool st_interp = false; 
+  bool st_interp = false;
   
   for (auto && pld : LDmod) if (pld == 0) {
     st_interp = true;
@@ -8224,9 +8297,19 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the postion of the pole of generalized Roche lobes with "
     "misaligned angular spin-orbital angular velocity vectors for given "
-    "values of q, F, d, theta and Omega0"},
+    "values of q, F, d, misalignment(theta or direction) and Omega0."},
 
 // --------------------------------------------------------------------
+  
+  { "misaligned_Omega_min", 
+    (PyCFunction)misaligned_Omega_min,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the minimal posible value of the Kopal potential that" 
+    "permits existance of the compact Roche lobe for given "
+    "values of q, F, d and misalignment (theta or direction)."},
+
+// --------------------------------------------------------------------
+
   { "rotstar_from_roche", 
     (PyCFunction)rotstar_from_roche,   
     METH_VARARGS|METH_KEYWORDS, 
@@ -8257,7 +8340,7 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the area and volume of the generalized Roche lobes with "
     "misaligned spin and orbtal angular velocity vectors for given "
-    "values of q, F, d, theta and Omega0."},
+    "values of q, F, d, misalignment(theta or direction) and Omega0."},
         
 // --------------------------------------------------------------------
  
@@ -8279,7 +8362,8 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the value of the generalized Kopal potential of "
     "Roche lobes with with misaligned spin and orbtal angular "
-    "velocity vectors at values of q, F, d, theta and volume."},
+    "velocity vectors at values of q, F, d, misalignment(theta or direction) "
+    "and volume."},
      
 // --------------------------------------------------------------------
 
@@ -8306,7 +8390,7 @@ static PyMethodDef Methods[] = {
     METH_VARARGS, 
     "Calculate the gradient of the generalized Kopal potential with "
     " misaligned angular momenta at given point [x,y,z] for given "
-    " values of q, F, d and theta"},  
+    " values of q, F, d and misalignment(theta or direction)"},  
 
 // --------------------------------------------------------------------
 
@@ -8333,7 +8417,7 @@ static PyMethodDef Methods[] = {
     METH_VARARGS, 
     "Calculate the value of the generalized Kopal potential with "
     " misaligned angular velocity vectors at given point [x,y,z] for given "
-    " values of q, F, d and theta"}, 
+    " values of q, F, d and misalignment(theta or direction)"}, 
     
 // --------------------------------------------------------------------
     
@@ -8360,7 +8444,7 @@ static PyMethodDef Methods[] = {
     METH_VARARGS, 
     "Calculate the gradient of the generalized Kopal potential with "
     " misaligned angular momenta at given point [x,y,z] for given "
-    " values of q, F, d and theta"},   
+    " values of q, F, d and misalignment(theta or direction)"},   
 
 // --------------------------------------------------------------------
   
@@ -8389,8 +8473,9 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the triangular meshing of generalized Roche lobes with " 
     "misaligned spin and orbital angular velocity vectors for "
-    "given values of q, F, d, theta and value of the generalized Kopal potential "
-    "Omega0. The edge of triangles used in the mesh are approximately delta."},
+    "given values of q, F, d, misalignment(theta or direction) and value"
+    "of the generalized Kopal potential Omega0. The edge of triangles "
+    "used in the mesh are approximately delta."},
     
 // --------------------------------------------------------------------    
   

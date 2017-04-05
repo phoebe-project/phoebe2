@@ -91,17 +91,35 @@ namespace misaligned_roche {
       
     // calculate the estimate of the pole (in direction of the spin)
     // note: there is no symmetry across the equator 
-    // TODO: improve the estimate of the poles
     if (w >= 10 && w > q) {  
       t = 1/w;
       t *= 1 + q*t*(1 + t*(q + (-1 + 2*q*q + 3*s*s)*t/2));
     } else if (q > 10 && q > w) {
       t = (std::sqrt(w*w + 4*(1+q)*s*q) - w)/(2*q*s); 
     } else { 
-      if (w > q) 
-        t = 1/(w - q);
-      else 
-        t = 1;
+      // using RK4 integration to get an estimate of r-pole      
+      int n = 20;
+      
+      T du = 1.0/(n*w), t1, r, r2, r3, k[4];
+      
+      t = 0;
+      
+      do {
+        t1 = t, r2 = 1 - (2*s - t1)*t1, r = std::sqrt(r2), r3 = r*r2;
+        k[0] = du*(r*utils::sqr(r + q*t1*(1 - r*s*t1)))/(r3 + q*t1*t1*(s*(r3 - 1) + t1));
+       
+        t1 = t + 0.5*k[0], r2 = 1 - (2*s - t1)*t1, r = std::sqrt(r2), r3 = r*r2;
+        k[1] = du*(r*utils::sqr(r + q*t1*(1 - r*s*t1)))/(r3 + q*t1*t1*(s*(r3 - 1) + t1));  
+        
+        t1 = t + 0.5*k[1], r2 = 1 - (2*s - t1)*t1, r = std::sqrt(r2), r3 = r*r2;
+        k[2] = du*(r*utils::sqr(r + q*t1*(1 - r*s*t1)))/(r3 + q*t1*t1*(s*(r3 - 1) + t1));  
+       
+        t1 = t + k[2], r2 = 1 - (2*s - t1)*t1, r = std::sqrt(r2), r3 = r*r2;
+        k[3] = du*(r*utils::sqr(r + q*t1*(1 - r*s*t1)))/(r3 + q*t1*t1*(s*(r3 - 1) + t1));  
+         
+        t += (k[0] + 2*(k[1] + k[2]) + k[3])/6;
+        
+      } while (--n);
     }
     
     // Newton-Raphson iteration based on polynomial
@@ -260,7 +278,7 @@ namespace misaligned_roche {
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
-      s[3] - angle of spin w.r.t. z axis
+      s[3] - direction of spin w.r.t. z axis
       
     Output:
       p[3] = sign*delta*tp*s
@@ -293,8 +311,7 @@ namespace misaligned_roche {
   
   /* 
     Find the point on the horizon around individual lobes. Currently only
-    primary lobe is supported for theta != 0, as this is physically 
-    only interesting case.
+    primary lobe is supported, as this is physically only interesting case.
   
     Input:
       v - direction of the view
@@ -995,8 +1012,8 @@ template<class T>
       Omega0 -value of the potential 
       q - mass ratio M2/M1
       F - synchronicity parameter
-      delta - separation between the two objects
-      theta - angle between z axis in spin of the object in [0, pi]
+      d - separation between the two objects
+      th - angle between z axis in spin of the object in [0, pi]
               spin in plane (x, z) 
       choice : composing from mask
         1U  - area , stored in v[0]
@@ -1020,7 +1037,7 @@ template<class T>
     const T & q,
     const T & F = 1,
     const T & d = 1,
-    const T & th = 1) {
+    const T & th = 0) {
     
     
     //
@@ -1080,6 +1097,270 @@ template<class T>
     
   }
   
+  /*
+    Calculate the value of the Kopal potential of misaligned Roche lobes 
+    at given point r.
+  
+    Omega (r, q,f,d, theta) = 
+      1/Sqrt[x^2 + y^2 + z^2] + 
+      q (1/Sqrt[(d - x)^2 + y^2 + z^2] - x/d^2) + 
+      1/2 F^2 (1 + q) (y^2 + (x Cos[theta] - z Sin[theta])^2)
+  
+    Input:
+      r - point
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      d - separation between the two objects
+      th - angle between z axis in spin of the object
+    Return:
+      value of Omega
+  */
+  template <class T> T calc_Omega(
+    T r[3],
+    const T &q,
+    const T &F,
+    const T &d,
+    const T &th
+  ){
+    T s, c;
+    utils::sincos(th, &s, &c);
+    
+    T x = r[0], y = r[1], z = r[2], x1 = x*c - s*z,
+      r1 = utils::hypot3(x, y, z),
+      r2 = utils::hypot3(x - d, y, z);
+      
+    return 1/r1 + q*(1/r2 - x/(d*d)) + 0.5*F*F*(1 + q)*(x1*x1 + y*y);
+  }
+  
+  /*
+    Calculate 
+      choice = 0:
+        derivative of Lagrange point w.r.t. to theta: 
+        dx/(dtheta)= (nabla g)^-1(x) .dg/dtheta(x)
+      choice = 1:
+        Newton-Rapson step 
+        dx(x) = -(nabla g)^-1(x) .g(x)
+    
+    where g = nabla Omega 
+    
+    Input:
+      choice: 0 or 1
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      d - separation between the two objects
+      th - value of the parameter theta
+      x[2] - point (x,z)
+
+    Output:
+       k[2] = dx/(dtheta) or dx(x)
+    
+    Return:
+      true - success, false - othewise
+  */
+  template <class T> 
+  bool lag_point_deriv(
+    const int & choice,
+    const T & q, 
+    const T & F,
+    const T & d, 
+    const T & th, 
+    T x[2], 
+    T k[2]){
+    
+    T a = (1 + q)*F*F,
+      t1, t2, f03, f05, f13, f15, h[2][2];
+  
+    t1 = 1/(x[0]*x[0] + x[1]*x[1]), 
+    f03 = t1*std::sqrt(t1),
+    f05 = f03*t1;
+
+    t1 = 1/((x[0] - d)*(x[0] - d) + x[1]*x[1]), 
+    f13 = t1*std::sqrt(t1), 
+    f15 = f13*t1;
+    
+    // Hessian h = nabla_{xz} o nabla_{xz} Omega
+    T s, c;
+    utils::sincos(th, &s, &c);
+    
+    t1 = f03 + q*f13, t2 = 3*(f05 + f15*q)*x[1]*x[1];
+    
+    h[0][0] = 2*t1 - t2 + a*c*c;
+    h[0][1] = 3*(f05*x[0] + f15*q*(x[0] - d))*x[1] - a*s*c;
+    h[1][1] = -t1 + t2 + a*s*s;
+    
+    T det = h[0][0]*h[1][1] - utils::sqr(h[0][1]); 
+    
+    if (det == 0) return false; // TODO: this should be more robust
+    
+    T g[2];
+      
+    if (choice == 0){
+      utils::sincos(2*th, &s, &c);
+      
+      // dg = d/d(theta) nabla_{xz} Omega
+      g[0] = -a*(x[1]*c + x[0]*s);
+      g[1] = -a*(x[0]*c - x[1]*s);
+    } else {
+      // g = nabla_{xz} Omega
+      t1 = f03 + f13*q, t2 = a*(x[0]*c - x[1]*s);
+      g[0] = (-1/(d*d) + d*f13)*q - t1*x[0] + c*t2;
+      g[1] = -t1*x[1] - s*t2;
+    }
+    
+    // k = - h^-1 g  
+    k[0] = (-g[0]*h[1][1] + g[1]*h[0][1])/det;
+    k[1] = (+g[0]*h[0][1] - g[1]*h[0][0])/det;
+    
+    return true;
+  }
+  
+  /*
+  Calculate Lagrange points of misaligned Roche lobes in xz-plane
+  as analytical continuations of Lagrange points of aligned Roche lobes 
+  located on x-axis:
+    L1 in [0,d],  L2 < 0,   L3 > d
+  
+  Input:
+    choice - 1 for L1, 2 for L2 and 3 for L3 
+    q - mass ratio M2/M1
+    F - synchronicity parameter
+    d - separation between the two objects
+    theta - angle between z axis in spin of the object
+  
+  Output:
+    L - point in xy plane
+  Return:
+    true - if calculation succeeded, false - otherwise
+  */
+  
+  template<class T> 
+  bool lagrange_point( 
+    int choice,
+    const T & q,
+    const T & F,
+    const T & d,
+    const T & theta,
+    T x[2]){
+    
+    //
+    // Lagrange points for aligned case
+    //
+    T L0;
+      
+    switch (choice) {
+      case 1: L0 = gen_roche::lagrange_point_L1(q, F, d); break;
+      case 2: L0 = gen_roche::lagrange_point_L2(q, F, d); break;
+      case 3: L0 = gen_roche::lagrange_point_L3(q, F, d); break;
+      default: return false;
+    }
+    
+    //
+    // Approximating fixed point using RK4 integration from 
+    // position at aligned case
+    //
+    x[0] = L0;
+    x[1] = 0;
+    
+    if (theta == 0) return true;
+      
+    {
+      int n = int(theta/0.1);
+      
+      bool ok = true; 
+         
+      T th = 0, dth = theta/n, k[4][2], x1[2];
+        
+      for (int i = 0; i < n; ++i) {
+        
+        if (!(ok = lag_point_deriv(0, q, F, d, th, x, k[0]))) break;
+        
+        for (int j = 0; j < 2; ++j) x1[j] = x[j] + 0.5*(k[0][j] *= dth);
+        if (!(ok = lag_point_deriv(0, q, F, d, th + 0.5*dth, x1, k[1]))) break;
+        
+        for (int j = 0; j < 2; ++j) x1[j] = x[j] + 0.5*(k[1][j] *= dth);
+        if (!(ok = lag_point_deriv(0, q, F, d, th + 0.5*dth, x1, k[2]))) break;
+
+        for (int j = 0; j < 2; ++j) x1[j] = x[j] + (k[2][j] *= dth);
+        if (!(ok = lag_point_deriv(0, q, F, d, th + dth, x1, k[3]))) break;
+       
+        for (int j = 0; j < 2; ++j) {
+          k[3][j] *= dth;
+          x[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
+        }
+        th += dth;
+      }
+      
+      if (!ok){
+        std::cerr 
+          << "misaligned_roche::lagrange_point: hit singularity\n";
+        return false;
+      }    
+    }
+    
+    //
+    // Polish the value of the fixed point via 2D Newton-Raphson
+    //
+    {
+      const T epsR = 100*std::numeric_limits<T>::epsilon();
+      const T epsA = 100*std::numeric_limits<T>::min();
+      
+      T dx[2];
+      
+      do {
+                
+        if (!lag_point_deriv(1, q, F, d, theta, x, dx)) {
+          std::cerr 
+            << "misaligned_roche::lagrange_point: hit singularity2\n";
+          return false;
+        }
+
+        for (int i = 0; i < 2; ++i) x[i] += dx[i];
+
+      } while (std::abs(dx[0]) > epsR*std::abs(x[0]) + epsA ||
+               std::abs(dx[1]) > epsR*std::abs(x[1]) + epsA);
+    }
+    return true;  
+  }
+  
+  /*
+    Calculate the minimal value of the Kopal potential for which the 
+    primary Roche lobe exists.
+    
+    Input:
+      q - mass ratio M2/M1
+      F - synchronicity parameter
+      d - separation between the two objects
+      th - angle between z axis in spin of the object
+    
+    Return:
+      minimal permitted Omega, if NaN is returned we have some error
+  */
+  
+  template<class T> 
+  T calc_Omega_min( 
+    const T & q,
+    const T & F,
+    const T & d, 
+    const T & th = 0){
+    
+    T W[2], r[3], 
+      th1 = utils::m_pi*std::abs(std::fmod(th/utils::m_pi + 0.5, 1) - 0.5);
+     
+    for (int i = 0; i < 2; ++i) {
+      
+      if (!lagrange_point(i + 1, q, F, d, th1, r)) return std::nan("");
+      
+      r[2] = r[1];
+      r[1] = 0;
+      
+      W[i] = calc_Omega(r, q, F, d, th1);
+    }
+    
+    
+    return std::max(W[0], W[1]);  
+  }
+
+
 } // namespace misaligned_roche
 
 #endif //#if !defined(__misaligned_roche_h)
