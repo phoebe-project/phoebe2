@@ -4506,7 +4506,7 @@ class HierarchyParameter(StringParameter):
             return json.dumps(self._parse_repr(), indent=4).replace(',','').replace('[','').replace(']','').replace('"', '').replace('\n\n','\n')
 
     @send_if_client
-    def set_value(self, value, **kwargs):
+    def set_value(self, value, update_cache=True, **kwargs):
 
         # TODO: check to make sure valid
 
@@ -4521,14 +4521,20 @@ class HierarchyParameter(StringParameter):
 
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
-        self._update_cache()
+        if update_cache:
+            self._update_cache()
+
+    def _clear_cache(self):
+        """
+        """
+        self._is_binary = {}
+        self._is_contact_binary = {}
 
     def _update_cache(self):
         """
         """
         # update cache for is_binary and is_contact_binary
-        self._is_binary = {}
-        self._is_contact_binary = {}
+        self._clear_cache()
         if self._bundle is not None:
             for comp in self.get_components():
                 self._is_binary[comp] = self._compute_is_binary(comp)
@@ -4590,7 +4596,9 @@ class HierarchyParameter(StringParameter):
         # TODO: this could still cause issues if the names of components are
         # contained in other components (ie starA, starAB)
         value = value.replace("{}:{}".format(kind, old_component), "{}:{}".format(kind, new_component))
-        self.set_value(value)
+        # delay updating cache until after the bundle
+        # has had a chance to also change its component tags
+        self.set_value(value, update_cache=False)
 
     def get_components(self):
         """
