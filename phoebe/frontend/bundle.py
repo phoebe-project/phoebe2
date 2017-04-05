@@ -772,7 +772,7 @@ class Bundle(ParameterSet):
         """
         """
 
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         hier = self.get_hierarchy()
         # Handle choice parameters that need components as choices
@@ -803,7 +803,7 @@ class Bundle(ParameterSet):
         """
 
         # need to run any constraints since some may be deleted and rebuilt
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
 
         _old_param = self.get_hierarchy()
@@ -1024,7 +1024,7 @@ class Bundle(ParameterSet):
         """
 
         # make sure all constraints have been run
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         hier = self.hierarchy
         if hier is None:
@@ -2099,7 +2099,7 @@ class Bundle(ParameterSet):
         #  about to remove.  This could perhaps be optimized by searching
         #  for this/these constraints and only running/removing those, but
         #  probably isn't worth the savings.
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         kwargs['twig'] = twig
         redo_kwargs = deepcopy(kwargs)
@@ -2149,7 +2149,7 @@ class Bundle(ParameterSet):
         redo_kwargs = deepcopy(kwargs)
         undo_kwargs = deepcopy(kwargs)
 
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         param = self.get_constraint(**kwargs)
 
@@ -2173,7 +2173,7 @@ class Bundle(ParameterSet):
 
         return param
 
-    def run_constraint(self, twig=None, **kwargs):
+    def run_constraint(self, twig=None, return_parameter=False, **kwargs):
         """
         Run a given 'constraint' now and set the value of the constrained
         parameter.  In general, there shouldn't be any need to manually
@@ -2213,14 +2213,20 @@ class Bundle(ParameterSet):
 
         logger.info("setting '{}'={} from '{}' constraint".format(constrained_param.uniquetwig, result, expression_param.uniquetwig))
 
-        return result
+        if return_parameter:
+            return constrained_param
+        else:
+            return result
 
     def run_delayed_constraints(self):
         """
         """
+        changes = []
         for constraint_id in self._delayed_constraints:
-            self.run_constraint(uniqueid=constraint_id)
+            param = self.run_constraint(uniqueid=constraint_id, return_parameter=True)
+            changes.append(param)
         self._delayed_constraints = []
+        return list(set(changes))
 
 
     def add_compute(self, kind=compute.phoebe, **kwargs):
@@ -2421,7 +2427,7 @@ class Bundle(ParameterSet):
 
         # if interactive mode was ever off, let's make sure all constraints
         # have been run before running system checks or computing the model
-        self.run_delayed_constraints()
+        changed_params = self.run_delayed_constraints()
 
         # any kwargs that were used just to filter for get_compute should  be
         # removed so that they aren't passed on to all future get_value(...
@@ -2587,7 +2593,8 @@ class Bundle(ParameterSet):
                     # not all dataset-types currently support exposure times.
                     # Once they do, this ugly if statement can be removed
                     if len(self.filter(dataset=dataset, qualifier='exptime')):
-                        if self.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0:
+                        exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
+                        if exptime > 0:
                             if self.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
                                 times_ds = self.get_value(qualifier='times', dataset=dataset, context='dataset')
                                 # exptime = self.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
@@ -2597,10 +2604,23 @@ class Bundle(ParameterSet):
                                 # but this will need to be generalized if/when
                                 # we expand that support to other dataset kinds
                                 fluxes = np.zeros(times_ds.shape)
+
+                                # the oversampled times and fluxes will be
+                                # sorted according to times this may cause
+                                # exposures to "overlap" each other, so we'll
+                                # later need to determine which times (and
+                                # therefore fluxes) belong to which datapoint
+                                times_oversampled_sorted = params.get_value('times', dataset=dataset)
                                 fluxes_oversampled = params.get_value('fluxes', dataset=dataset)
+
                                 for i,t in enumerate(times_ds):
-                                    sample_inds = np.arange(i*fti_oversample, (i+1)*fti_oversample, 1)
+                                    # rebuild the unsorted oversampled times - see backends._extract_from_bundle_by_time
+                                    # TODO: try to optimize this by having these indices returned by the backend itself
+                                    times_oversampled_this = np.linspace(t-exptime/2., t+exptime/2., fti_oversample)
+                                    sample_inds = np.searchsorted(times_oversampled_sorted, times_oversampled_this)
+
                                     fluxes[i] = np.mean(fluxes_oversampled[sample_inds])
+
                                 params.set_value(qualifier='times', dataset=dataset, value=times_ds)
                                 params.set_value(qualifier='fluxes', dataset=dataset, value=fluxes)
 

@@ -421,7 +421,8 @@ def mesh_syn(syn=True, **kwargs):
 
                     if kind in ['lc', 'rv']:
                         syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
-
+                        syn_params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+                        syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
 
                     for indep, default_unit in indeps.items():
                         syn_params += [FloatArrayParameter(indep, dataset=dataset, time=t, value=[], default_unit=default_unit, description='Per-element value for {} dataset'.format(dataset))]

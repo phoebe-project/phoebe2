@@ -131,8 +131,9 @@ def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, time
                 # if we want to allow more flexibility, we'll need a parameter
                 # that gives this option and different logic for each case.
                 exptime = b.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                exp_oversample = b.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
-                this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., exp_oversample) for t in this_times]).flatten()
+                fti_oversample = b.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
+                # NOTE: if changing this, also change in bundle.run_compute
+                this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., fti_oversample) for t in this_times]).flatten()
 
             if len(this_times):
                 if component is None and obs_ps.kind in ['mesh']:
@@ -354,6 +355,12 @@ def _create_syns(b, needed_syns, protomesh=False, pbmesh=False):
         if needed_syn['kind']=='mesh':
             # parameters.dataset.mesh will handle creating the necessary columns
             needed_syn['dataset_fields'] = needs_mesh
+
+        # phoebe will compute everything sorted - even if the input times array
+        # is out of order, so let's make sure the exposed times array is in
+        # the correct (sorted) order
+        if 'times' in needed_syn.keys():
+            needed_syn['times'].sort()
 
         these_params, these_constraints = getattr(_dataset, "{}_syn".format(syn_kind.lower()))(**needed_syn)
         # TODO: do we need to handle constraints?
@@ -803,11 +810,12 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # Dataset-dependent quantities
                 indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
                 # if conf.devel:
-                indeps['rv'] += ['abs_intensities', 'abs_normal_intensities']
-                indeps['lc'] += ['abs_intensities', 'abs_normal_intensities']
+                indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
+                indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
                 for infomesh in infolist:
                     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
                         new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
+                        new_syns.set_value(qualifier='ptfarea', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.get_ptfarea(infomesh['dataset']))
 
                         for indep in indeps[infomesh['kind']]:
                             key = "{}:{}".format(indep, infomesh['dataset'])

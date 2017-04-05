@@ -457,10 +457,12 @@ class System(object):
             # be weighted by the visibility of the triangle
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
+            ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
+            # don't need ptfarea because its a float (same for all elements, regardless of component)
 
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
-            return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*visibilities)}
+            return {'rv': np.average(rvs, weights=abs_intensities*areas*mus*ldint*visibilities)}
 
         elif kind=='lc':
             visibilities = meshes.get_column_flat('visibilities')
@@ -472,6 +474,14 @@ class System(object):
             intensities = meshes.get_column_flat("intensities:{}".format(dataset), components)
             mus = meshes.get_column_flat('mus', components)
             areas = meshes.get_column_flat('areas_si', components)
+            ldint = meshes.get_column_flat('ldint:{}'.format(dataset), components)
+
+            # assume that all bodies are using the same passband and therefore
+            # will have the same ptfarea.  If this assumption is ever a problem -
+            # then we will need to build a flat column based on the component
+            # of each element so that ptfarea is an array with the same shape
+            # as those above
+            ptfarea = self.bodies[0].get_ptfarea(dataset)  # TODO: what to pass for component for contacts?
 
             # intens_proj is the intensity in the direction of the observer per unit surface area of the triangle
             # areas is the area of each triangle
@@ -484,7 +494,7 @@ class System(object):
             # note that the intensities are already projected but are per unit area
             # so we need to multiply by the /projected/ area of each triangle (thus the extra mu)
 
-            return {'flux': np.sum(intensities*areas*mus*visibilities)/(distance**2)+l3}
+            return {'flux': np.sum(intensities*areas*mus*visibilities)*ptfarea/(distance**2)+l3}
 
 
         elif kind == 'ifm':
@@ -570,6 +580,7 @@ class Body(object):
         # Let's create a dictionary to handle how each dataset should scale between
         # absolute and relative intensities.
         self._pblum_scale = {}
+        self._ptfarea = {}
 
         # We'll also keep track of a conservative maximum r (from center of star to triangle, in real units).
         # This will be computed and stored when the periastron mesh is added as a standard
@@ -1004,17 +1015,18 @@ class Body(object):
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
+        ptfarea = self.get_ptfarea(dataset) # just a float
 
         # Our total integrated intensity in absolute units (luminosity) is now
         # simply the sum of the normal emergent intensities times pi (to account
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint) * np.pi
+        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*ptfarea*np.pi
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
-        return total_integrated_intensity * self.get_pblum_scale(dataset)
+        return abs_luminosity * self.get_pblum_scale(dataset)
 
     def compute_pblum_scale(self, dataset, pblum, **kwargs):
         """
@@ -1023,12 +1035,11 @@ class Body(object):
         TODO: add documentation
         """
 
-        total_integrated_intensity = self.compute_luminosity(dataset, **kwargs)
-
+        abs_luminosity = self.compute_luminosity(dataset, **kwargs)
 
         # We now want to remember the scale for all intensities such that the
         # luminosity in relative units gives the provided pblum
-        pblum_scale = pblum / total_integrated_intensity
+        pblum_scale = pblum / abs_luminosity
 
         self.set_pblum_scale(dataset, pblum_scale)
 
@@ -1045,6 +1056,18 @@ class Body(object):
         else:
             #logger.warning("no pblum scale found for dataset: {}".format(dataset))
             return 1.0
+
+    def set_ptfarea(self, dataset, ptfarea, **kwargs):
+        """
+        """
+        self._ptfarea[dataset] = ptfarea
+
+    def get_ptfarea(self, dataset, **kwargs):
+        """
+        """
+        # kwargs needed just so component can be passed but ignored
+
+        return self._ptfarea[dataset]
 
 
     def populate_observable(self, time, kind, dataset, **kwargs):
@@ -1254,10 +1277,13 @@ class CustomBody(Body):
 
         raise NotImplementedError
 
+        self.set_ptfarea(dataset, ptfarea)
+
         return {'abs_normal_intensities': abs_normal_intensities,
                 'normal_intensities': normal_intensities,
                 'abs_intensities': abs_intensities,
-                'intensities': intensities}
+                'intensities': intensities,
+                'ldint': ldint}
 
 
 class Star(Body):
@@ -1993,24 +2019,8 @@ class Star(Body):
 
             pb = passbands.get_passband(passband)
 
-            # abs_normal_intensities are the normal emergent passband intensities:
-            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
-                                              logg=self.mesh.loggs.for_computations,
-                                              abun=self.mesh.abuns.for_computations,
-                                              atm=atm,
-                                              photon_weighted=intens_weighting=='photon')
-
-
-            # abs_intensities are the projected (limb-darkened) passband intensities
-            # TODO: why do we need to use abs(mus) here?
-            abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
-                                     logg=self.mesh.loggs.for_computations,
-                                     abun=self.mesh.abuns.for_computations,
-                                     mu=abs(self.mesh.mus_for_computations),
-                                     atm=atm,
-                                     ld_func=ld_func,
-                                     ld_coeffs=ld_coeffs,
-                                     photon_weighted=intens_weighting=='photon')
+            ptfarea = pb.ptf_area
+            self.set_ptfarea(dataset, ptfarea)
 
             ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
                              logg=self.mesh.loggs.for_computations,
@@ -2019,6 +2029,28 @@ class Star(Body):
                              ld_func=ld_func,
                              ld_coeffs=ld_coeffs,
                              photon_weighted=intens_weighting=='photon')
+
+
+            # abs_normal_intensities are the normal emergent passband intensities:
+            abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
+                                              logg=self.mesh.loggs.for_computations,
+                                              abun=self.mesh.abuns.for_computations,
+                                              atm=atm,
+                                              ldint=ldint,
+                                              photon_weighted=intens_weighting=='photon')
+
+            # abs_intensities are the projected (limb-darkened) passband intensities
+            # TODO: why do we need to use abs(mus) here?
+            abs_intensities = pb.Imu(Teff=self.mesh.teffs.for_computations,
+                                     logg=self.mesh.loggs.for_computations,
+                                     abun=self.mesh.abuns.for_computations,
+                                     mu=abs(self.mesh.mus_for_computations),
+                                     atm=atm,
+                                     ldint=ldint,
+                                     ld_func=ld_func,
+                                     ld_coeffs=ld_coeffs,
+                                     photon_weighted=intens_weighting=='photon')
+
 
             # Beaming/boosting
             if boosting_method == 'none':
@@ -2183,6 +2215,8 @@ class Envelope(Body):
         self._pblum_scale = {label_envelope: {},
                              label_primary: {},
                              label_secondary: {}}
+
+        self._ptfarea      = {}
 
 
     @classmethod
@@ -2755,6 +2789,7 @@ class Envelope(Body):
         abs_normal_intensities = self.mesh['abs_normal_intensities:{}'.format(dataset)].centers
 
         ldint = self.mesh['ldint:{}'.format(dataset)].centers
+        ptfarea = self.get_ptfarea(dataset)
 
         if component == self.label_envelope:
             areas = areas
@@ -2776,11 +2811,11 @@ class Envelope(Body):
         # for intensities emitted in all directions across the solid angle),
         # limbdarkened as if they were at mu=1, and multiplied by their respective areas
 
-        total_integrated_intensity = np.sum(abs_normal_intensities*areas*ldint) * np.pi
+        abs_luminosity = np.sum(abs_normal_intensities*areas*ldint)*ptfarea*np.pi
 
         # NOTE: when this is computed the first time (for the sake of determining
         # pblum_scale), get_pblum_scale will return 1.0
-        return total_integrated_intensity * self.get_pblum_scale(dataset)
+        return abs_luminosity * self.get_pblum_scale(dataset)
 
 
     def compute_pblum_scale(self, dataset, pblum, component=None, **kwargs):
@@ -2884,11 +2919,23 @@ class Envelope(Body):
 
             pb = passbands.get_passband(passband)
 
+            ptfarea = pb.wl[-1]-pb.wl[0]
+            self.set_ptfarea(dataset, ptfarea)
+
+            ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
+                             logg=self.mesh.loggs.for_computations,
+                             abun=self.mesh.abuns.for_computations,
+                             atm=atm,
+                             ld_func=ld_func,
+                             ld_coeffs=ld_coeffs,
+                             photon_weighted=intens_weighting=='photon')
+
             # abs_normal_intensities are the normal emergent passband intensities:
             abs_normal_intensities = pb.Inorm(Teff=self.mesh.teffs.for_computations,
                                               logg=self.mesh.loggs.for_computations,
                                               abun=self.mesh.abuns.for_computations,
                                               atm=atm,
+                                              ldint=ldint,
                                               photon_weighted=intens_weighting=='photon')
 
 
@@ -2899,17 +2946,11 @@ class Envelope(Body):
                                      abun=self.mesh.abuns.for_computations,
                                      mu=abs(self.mesh.mus_for_computations),
                                      atm=atm,
+                                     ldint=ldint,
                                      ld_func=ld_func,
                                      ld_coeffs=ld_coeffs,
                                      photon_weighted=intens_weighting=='photon')
 
-            ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,
-                             logg=self.mesh.loggs.for_computations,
-                             abun=self.mesh.abuns.for_computations,
-                             atm=atm,
-                             ld_func=ld_func,
-                             ld_coeffs=ld_coeffs,
-                             photon_weighted=intens_weighting=='photon')
 
             # Beaming/boosting
             if boosting_method == 'none':
