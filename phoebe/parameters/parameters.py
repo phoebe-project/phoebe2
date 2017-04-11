@@ -357,6 +357,17 @@ class ParameterSet(object):
                     setattr(param, '_{}'.format(k), v)
 
     @property
+    def tags(self):
+        """Returns a dictionary that lists all available tags that can be used
+        for further filtering
+        """
+        ret = {}
+        for typ in _meta_fields_twig:
+            ret[typ] = getattr(self, '{}s'.format(typ))
+
+        return ret
+
+    @property
     def uniqueids(self):
         """Return a list of all uniqueids in this ParameterSet.
 
@@ -674,7 +685,7 @@ class ParameterSet(object):
             else:
                 setattr(self, '_'+field, None)
 
-    def _unique_twig(self, twig, force_levels=[]):
+    def _uniquetwig(self, twig, force_levels=[]):
         """
         get the least unique twig for the parameter given by twig that
         will return this single result for THIS PS
@@ -3127,7 +3138,7 @@ class Parameter(object):
 
         if ps is None:
             return self.twig
-        return ps._unique_twig(self.twig)
+        return ps._uniquetwig(self.twig)
 
     @property
     def twig(self):
@@ -5293,7 +5304,7 @@ class ConstraintParameter(Parameter):
             # except NotImplementedError:
             #     pass
             # else:
-                # TODO: this needs to be smarter and match to self._get_var().user_label instead of the current unique_twig
+                # TODO: this needs to be smarter and match to self._get_var().user_label instead of the current uniquetwig
 
                 expression = rhs._value # safe expression
                 #~ print "*** flip by recalling method success!", expression
