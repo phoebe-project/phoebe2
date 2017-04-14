@@ -2019,7 +2019,11 @@ class Star(Body):
 
             pb = passbands.get_passband(passband)
 
-            ptfarea = pb.ptf_area
+            if intens_weighting=='photon':
+                ptfarea = pb.ptf_photon_area/pb.h/pb.c
+            else:
+                ptfarea = pb.ptf_area
+
             self.set_ptfarea(dataset, ptfarea)
 
             ldint = pb.ldint(Teff=self.mesh.teffs.for_computations,

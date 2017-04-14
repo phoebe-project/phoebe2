@@ -101,7 +101,6 @@ if 'benchmark' in do or 'benchmarks' in do:
         ax = fig.add_subplot(111)
         for branch, benchmark_ts in branches.items():
             ax.plot(range(len(benchmark_ts)), benchmark_ts, 'o-', label=branch)
-        plt.legend()
         ax.set_title(f_py.split('.py')[0])
         ax.set_xlabel('commit')
         ax.set_ylabel('benchmark time (s)')
@@ -112,4 +111,3 @@ if 'benchmark' in do or 'benchmarks' in do:
     print "PROFILE TIMES (see individual .profile files for details)"
     for f_py, time in times.items():
         print "{}: {}".format(f_py, time)
-

@@ -130,6 +130,7 @@ class Bundle(ParameterSet):
         # by self._bundle, in this case we just need to fake that to refer to
         # self
         self._bundle = self
+        self._hierarchy_param = None
 
         # set to be not a client by default
         self._is_client = False
@@ -836,6 +837,10 @@ class Bundle(ParameterSet):
         metawargs = {'context': 'system'}
         self._attach_params([hier_param], **metawargs)
 
+        # cache hierarchy param so we don't need to do a filter everytime we
+        # want to access it in is_visible, etc
+        self._hierarchy_param = hier_param
+
         self._handle_pblum_defaults()
 
         # Handle inter-PS constraints
@@ -990,10 +995,7 @@ class Bundle(ParameterSet):
         :return: the hierarcy :class:`phoebe.parameters.parameters.Parameter`
             or None (if no hierarchy exists)
         """
-        try:
-            return self.get_parameter(qualifier='hierarchy', context='system')
-        except ValueError:
-            return None
+        return self._hierarchy_param
 
     def _kwargs_checks(self, kwargs, additional_allowed_keys=[],
                        warning_only=False):
