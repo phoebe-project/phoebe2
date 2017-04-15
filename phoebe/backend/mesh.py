@@ -716,8 +716,13 @@ class ProtoMesh(object):
 
         # TODO: ditch the list comprehension... I know I figured out how to do
         # this (ie along an axis) with np.dot somewhere else
-        cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
-
+        # cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
+        
+        cosbetas = libphoebe.scalproj_cosangle(
+          np.ascontiguousarray(coords), 
+          np.ascontiguousarray(norms)
+        )
+        
         return ComputedColumn(self, cosbetas)
 
     @property
