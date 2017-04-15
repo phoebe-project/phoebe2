@@ -6393,6 +6393,62 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
 }
 
 /*
+  Calculate cosine of the angle of scalar projections
+  
+    r[i] = x[i].y[i]/(|x[i]| |y[i]|)    i = 0, ..., n -1
+  
+  Input:
+    x : 2-rank numpy array
+    y : 2-rank numpy array
+   
+  Return:
+    r: 1- rank numpy array
+*/ 
+static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
+  
+  const char *fname = "vec_proj";
+  
+  PyArrayObject *o_x, *o_y;  
+  
+  if  (!PyArg_ParseTuple(args, 
+        "O!O!",  
+        &PyArray_Type, &o_x, 
+        &PyArray_Type, &o_y)
+      ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  int n = PyArray_DIM(o_x, 0);
+  
+  npy_intp dims = n;
+	
+  double 
+    *r = new double [n],
+    s, x, y,
+    *px = (double*)PyArray_DATA(o_x),
+    *py = (double*)PyArray_DATA(o_y);
+    
+  for (double *p = r, *pe = r + n; pe != p; ++p) {
+   
+    s = x = y = 0;
+    for (int i = 0; i < 3; ++i, ++px, ++py) {
+     s += (*px)*(*py);
+     x += (*px)*(*px);
+     y += (*py)*(*py);
+    }
+
+    *p = s/std::sqrt(x*y);
+  }  
+  
+  PyObject *o_r = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, r);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_r, NPY_ARRAY_OWNDATA);
+  
+  return o_r;
+}
+
+/*
   Define functions in module
    
   Some modification in declarations due to use of keywords
