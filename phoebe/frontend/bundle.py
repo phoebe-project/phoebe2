@@ -198,8 +198,6 @@ class Bundle(ParameterSet):
         :parameter bool as_client: whether to attach in client mode
             (default: True)
         """
-        if not conf.devel:
-            raise NotImplementedError("'from_server' not officially supported for this release.  Enable developer mode to test.")
 
         # TODO: run test message on server, if localhost and fails, attempt to
         # launch?
@@ -437,17 +435,17 @@ class Bundle(ParameterSet):
         # TODO: handle added parameters
         # TODO: handle removed (isDeleted) parameters
 
-        for item in resp['data']:
-            if item['id'] in self.uniqueids:
+        for uniqueid, info in resp['data']['changes'].items():
+            if uniqueid in self.uniqueids:
                 # then we're updating something in the parameter (or deleting)
-                param = self.get_parameter(uniqueid=item['id'])
-                for attr, value in item['attributes'].items():
+                param = self.get_parameter(uniqueid=uniqueid)
+                for attr, value in info['attributes'].items():
                     if hasattr(param, "_{}".format(attr)):
                         logger.info("updates from server: setting {}@{}={}".
                                     format(attr, param.twig, value))
                         setattr(param, "_{}".format(attr), value)
             else:
-                self._attach_param_from_server(item)
+                self._attach_param_from_server(info)
 
     def _attach_param_from_server(self, item):
         """
@@ -486,6 +484,7 @@ class Bundle(ParameterSet):
             self._socketio.on('connect', self._on_socket_connect)
             self._socketio.on('disconnect', self._on_socket_disconnect)
 
+            self._socketio.on('set_value', self._on_socket_push_updates)
             self._socketio.on('push updates', self._on_socket_push_updates)
 
             if not bundleid:

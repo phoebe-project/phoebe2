@@ -138,12 +138,12 @@ def send_if_client(fctn):
             # TODO: args???
             method = fctn_map.get(fctn.__name__, fctn.__name__)
             d = self._filter if hasattr(self, '_filter') \
-                else {'twig': self.twig}
+                else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
             for k, v in kwargs.items():
                 d[k] = v
 
-            logger.info('emitting to {}({}) to server'.format(method, d))
+            logger.info('emitting {} ({}) to server'.format(method, d))
             b._socketio.emit(method, d)
 
             if fctn.__name__ in ['run_compute', 'run_fitting']:
