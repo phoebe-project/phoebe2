@@ -115,6 +115,9 @@ def load(*args, **kwargs):
 def from_legacy(*args, **kwargs):
     return Bundle.from_legacy(*args, **kwargs)
 
+def from_server(*args, **kwargs):
+    return Bundle.from_server(*args, **kwargs)
+
 def default_star(*args, **kwargs):
     return Bundle.default_star(*args, **kwargs)
 
@@ -141,6 +144,3 @@ def devel_on():
 
 def devel_off():
     conf.devel_off()
-
-
-
