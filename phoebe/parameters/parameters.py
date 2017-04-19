@@ -3180,7 +3180,7 @@ class Parameter(object):
                 # TODO: set specific syntax (hierarchy.get_meshables:2)
                 # then this needs to do some logic on the hierarchy
                 hier = self._bundle.hierarchy
-                if not len(hier.get_value()):
+                if not hier or not len(hier.get_value()):
                     # then hierarchy hasn't been set yet, so we can't do any
                     # of these tests
                     return True
