@@ -1,6 +1,6 @@
 """Import PHOEBE 2.0."""
 
-__version__ = 'devel'
+__version__ = '2.0.0'
 
 import os
 import sys
