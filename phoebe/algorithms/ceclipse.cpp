@@ -1,107 +1,100 @@
 #include <iostream>
 #include <vector>
+
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
 #include "Python.h"
 #include "numpy/arrayobject.h"
+
+//typedef int8_t npy_bool;
 
 void convex_hull(double const* const points, int n_points,
                  std::vector<double>& myhull, int& h_points,
                  int& turn_index);
+                 
 void inside_hull(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
-                 int& turn_index, bool *inside);
+                 int& turn_index, npy_bool *inside);
 
 void inside_hull_iterative(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
-                 int& turn_index, bool *inside);
+                 int& turn_index, npy_bool *inside);
  
 void inside_hull_sorted(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
-                 int& turn_index, bool *inside);
+                 int& turn_index, npy_bool *inside);
 
+
+/* Perform a Graham scan and check which points are inside the hull
+
+  Input: to-hull points, test points
+  Output: hull, npy_bools if inside
+*/
 static PyObject *graham_scan_inside_hull(PyObject *dummy, PyObject *args)
 {
-    /* Perform a Graham scan and check which points are inside the hull
-     * 
-     * Input: to-hull points, test points
-     * Output: hull, bools if inside
-     */
-    
-    /* Variable declaration:
-     * 
-     */
-    // SIGNAL
-    double *points;
-    double *testpoints;
-    bool *inside;
-    int n_points;
-    int t_points;
-    int dims_inside[2];
-    int dims_hull[2];
-    PyArrayObject *hull_arr;
-    PyArrayObject *inside_arr;
-    
-    PyObject *arg1=NULL, *arg2=NULL;
-    PyObject *arr1=NULL, *arr2=NULL;
-    
-    /* Argument parsing:
-     * We need to parse the arguments, and then put the data
-     * in arrays.
-     */
-    // Parse arguments
-    if (!PyArg_ParseTuple(args, "OO", &arg1, &arg2)) return NULL;
 
-    // Put the arguments in arrays
-    arr1 = PyArray_FROM_OTF(arg1, NPY_DOUBLE, NPY_IN_ARRAY);
-    if (arr1 == NULL) return NULL;
-    arr2 = PyArray_FROM_OTF(arg2, NPY_DOUBLE, NPY_IN_ARRAY);
-    if (arr2 == NULL) return NULL;
-    
-    
-    points = (double *)PyArray_DATA(arr1); // pointer to data.
-    testpoints = (double *)PyArray_DATA(arr2); // pointer to data.
-    n_points = PyArray_DIM(arr1, 0);
+  // 
+  // Variable declaration
+  //
+
+  PyArrayObject *arr1, *arr2;
+  
+  // 
+  // Argument parsing:
+  // We need to parse the arguments, and then put the data
+ 
+  if (!PyArg_ParseTuple(args, "O!O!", 
+        &PyArray_Type, &arr1, 
+        &PyArray_Type, &arr2) ) 
+  {
+    std::cerr << "graham_scan_inside_hull::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double 
+    *points = (double *)PyArray_DATA(arr1),     // pointer to data.
+    *testpoints = (double *)PyArray_DATA(arr2); // pointer to data.
+  
+  int 
+    n_points = PyArray_DIM(arr1, 0),
     t_points = PyArray_DIM(arr2, 0);
-     
-    // Create convex hull
-    std::vector<double> myhull;
-    int h_points = 100;
-    int turn_index = 0;
-    
-    inside = new bool[t_points];
-    
-    convex_hull(points, n_points, myhull, h_points, turn_index);    
-    
-    // The following are different versions of the algorithm
-    //inside_hull(testpoints, t_points, myhull, h_points, turn_index, inside);
-    //inside_hull_iterative(testpoints, t_points, myhull, h_points, turn_index, inside);
-    inside_hull_sorted(testpoints, t_points, myhull, h_points, turn_index, inside);
-    
-    // Create the output arrays: hull and boolean inside
-    dims_hull[0] = h_points;
-    dims_hull[1] = 2;
-    hull_arr = (PyArrayObject *)PyArray_FromDims(2, dims_hull, PyArray_DOUBLE);
-    dims_inside[0] = t_points;
-    inside_arr = (PyArrayObject *)PyArray_FromDims(1, dims_inside, PyArray_BOOL);
-    
-    for (int i=0;i<t_points;i++){
-        ((bool *)inside_arr->data)[i] = inside[i];
-    }
-    for (int i=0;i<h_points;i++){
-        ((double *)hull_arr->data)[2*i] = myhull[2*i];
-        ((double *)hull_arr->data)[2*i+1] = myhull[2*i+1];
-    }
-    
-    delete inside;
-    Py_XDECREF(arr1);
-    Py_XDECREF(arr2);
-    
-    // Return tuple of arrays
-    PyObject *tupleresult = PyTuple_New(2);
-    PyTuple_SetItem(tupleresult, 0, PyArray_Return(hull_arr));
-    PyTuple_SetItem(tupleresult, 1, PyArray_Return(inside_arr));
-    return tupleresult;
-    //return Py_BuildValue("OO", hull_arr, inside_arr);
-    //return Py_BuildValue("dd", 3.0, 2.0);
+   
+  // Create convex hull
+  std::vector<double> myhull;
+  
+  int 
+    h_points = 100,
+    turn_index = 0;
+  
+  npy_bool *inside = new npy_bool [t_points];
+  
+  convex_hull(points, n_points, myhull, h_points, turn_index);    
+  
+  // The following are different versions of the algorithm
+  //inside_hull(testpoints, t_points, myhull, h_points, turn_index, inside);
+  //inside_hull_iterative(testpoints, t_points, myhull, h_points, turn_index, inside);
+  inside_hull_sorted(testpoints, t_points, myhull, h_points, turn_index, inside);
+  
+  // Store results 
+  npy_intp 
+    dims_hull[2] = {h_points, 2},
+    dims_inside[1] = {t_points};
+  
+  double *_hull = new double [2*h_points];
+  memcpy(_hull, &(myhull[0]), 2*h_points*sizeof(double));
+      
+  PyObject 
+    *hull_arr = PyArray_SimpleNewFromData(2, dims_hull, NPY_DOUBLE, _hull),
+    *inside_arr = PyArray_SimpleNewFromData(1, dims_inside, NPY_BOOL, inside);
+ 
+  PyArray_ENABLEFLAGS((PyArrayObject *)hull_arr, NPY_ARRAY_OWNDATA);
+  PyArray_ENABLEFLAGS((PyArrayObject *)inside_arr, NPY_ARRAY_OWNDATA);
+  
+  PyObject *res = PyTuple_New(2);
+  PyTuple_SetItem(res, 0, hull_arr);
+  PyTuple_SetItem(res, 1, inside_arr);
+
+  return res;
 }
 
 
@@ -260,7 +253,7 @@ void convex_hull(double const* const points, int n_points,
 
 void inside_hull(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
-                 int& turn_index, bool *inside)
+                 int& turn_index, npy_bool *inside)
 /* Check which testpoints are inside a convex hull.
  * 
  */
@@ -268,7 +261,7 @@ void inside_hull(double const* const testpoints, int n_points,
     int xp = 0;
     int yp = 0;
     int myturn = 0;
-    bool skip = false;
+    npy_bool skip = 0;
     int current_index = 0;
     int current_index2 = 0;
     double miny_hull =1e300;
@@ -289,17 +282,17 @@ void inside_hull(double const* const testpoints, int n_points,
     for (int i=0; i<n_points; i++){
         xp = 2*i;
         yp = 2*i+1;
-        inside[i] = true;
+        inside[i] = 1;
         
         // entirely on the left or right: the test point is outside the hull
         if ((testpoints[xp]<myhull[0]) || (myhull[2*turn_index-2]<testpoints[xp])){
             //std::cout << "#"<< myhull[0] << "<" << testpoints[xp] << "<" << myhull[2*turn_index-2] << std::endl;
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         if ((testpoints[yp]<miny_hull) || (maxy_hull<testpoints[yp])){
             //std::cout << "#"<< myhull[0] << "<" << testpoints[xp] << "<" << myhull[2*turn_index-2] << std::endl;
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         
@@ -314,13 +307,13 @@ void inside_hull(double const* const testpoints, int n_points,
                     testpoints[xp], testpoints[yp]);
             //std::cout << "# .. " << myhull[2*(j-2)] << " "<< myhull[2*(j-2)+1]<< " "<<myhull[2*(j-1)]<< " "<<myhull[2*(j-1)+1] << " // "<<myturn << std::endl;
             if (myturn<1){
-                inside[i] = false;
-                skip = true;
+                inside[i] = 0;
+                skip = 1;
                 break;
             }
         }
         if (skip){
-            skip = false;
+            skip = 0;
             continue;
         }
         
@@ -330,7 +323,7 @@ void inside_hull(double const* const testpoints, int n_points,
                     myhull[0], myhull[1],
                     testpoints[xp], testpoints[yp]);
         if (myturn<1){
-            inside[i] = false;
+            inside[i] = 0;
         }
     }
     
@@ -373,7 +366,7 @@ int binary_search(std::vector<double>& A, int npoints, double key, int imin)
 
 void inside_hull_sorted(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
-                 int& turn_index, bool *inside)
+                 int& turn_index, npy_bool *inside)
 /* Check which testpoints are inside a convex hull.
  * 
  */
@@ -413,17 +406,17 @@ void inside_hull_sorted(double const* const testpoints, int n_points,
     for (int i=0; i<n_points; i++){
         xp = 2*i;
         yp = 2*i+1;
-        inside[i] = true;
+        inside[i] = 1;
         
         // entirely on the left or right: the test point is outside the hull
         if ((testpoints[xp]<=myhull[0]) || (myhull[2*turn_index-2]<=testpoints[xp])){
             //std::cout << "#"<< myhull[0] << "<" << testpoints[xp] << "<" << myhull[2*turn_index-2] << std::endl;
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         if ((testpoints[yp]<=miny_hull) || (maxy_hull<=testpoints[yp])){
             //std::cout << "#"<< myhull[0] << "<" << testpoints[xp] << "<" << myhull[2*turn_index-2] << std::endl;
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         
@@ -437,7 +430,7 @@ void inside_hull_sorted(double const* const testpoints, int n_points,
                       myhull[current_index2], myhull[current_index2+1],
                       testpoints[xp], testpoints[yp]);
         if (myturn<1){
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         
@@ -449,7 +442,7 @@ void inside_hull_sorted(double const* const testpoints, int n_points,
                       imyhull[current_index2], imyhull[current_index2+1],
                       testpoints[xp], testpoints[yp]);
         if (myturn>-1){
-            inside[i] = false;
+            inside[i] = 0;
         }
     }
     
@@ -457,7 +450,7 @@ void inside_hull_sorted(double const* const testpoints, int n_points,
 
 void inside_hull_iterative(double const* const testpoints, int n_points,
                  std::vector<double>& myhull, int& h_points,
-                 int& turn_index, bool *inside)
+                 int& turn_index, npy_bool *inside)
 /* Check which testpoints are inside a convex hull.
  * 
  */
@@ -465,8 +458,8 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
     int xp = 0;
     int yp = 0;
     int myturn = 0;
-    bool skip = false;
-    bool *inside_treated;
+    npy_bool skip = 0;
+    npy_bool *inside_treated;
     int resolution = 0;
     int current_index = 0;
     int current_index2 = 0;
@@ -475,7 +468,7 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
     double maxy_hull = -1e300;
     int total = 0;
     
-    inside_treated = new bool[n_points];
+    inside_treated = new npy_bool[n_points];
     
     // look for minimum and maximum y value, for chop-offs
     for (int i=0; i<h_points;i++){
@@ -489,8 +482,8 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
     }
     
     for (int i=0; i<n_points; i++){
-        inside[i] = true;
-        inside_treated[i] = false;
+        inside[i] = 1;
+        inside_treated[i] = 0;
     }
     
     
@@ -513,13 +506,13 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
                     myhull[current_index2], myhull[current_index2+1],
                     testpoints[xp], testpoints[yp]);
             if (myturn<1){
-                skip = true;
+                skip = 1;
                 break;
             }                        
         }
 
         if (skip){
-            skip = false;
+            skip = 0;
             continue;
         }
         // last points closes in on itself
@@ -532,14 +525,10 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
             continue;
         }
         // If we arrived here, the point is inside the hull!
-        inside_treated[i] = true;
+        inside_treated[i] = 1;
         total = total+1;
         //std::cout << "split c" << split << std::endl;
     }
-    
-    
-    
-    
     
     for (int i=0; i<n_points; i++){
         xp = 2*i;
@@ -552,12 +541,12 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
         // entirely on the left or right: the test point is outside the hull
         if ((testpoints[xp]<myhull[0]) || (myhull[2*turn_index-2]<testpoints[xp])){
             //std::cout << "#"<< myhull[0] << "<" << testpoints[xp] << "<" << myhull[2*turn_index-2] << std::endl;
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         if ((testpoints[yp]<miny_hull) || (maxy_hull<testpoints[yp])){
             //std::cout << "#"<< myhull[0] << "<" << testpoints[xp] << "<" << myhull[2*turn_index-2] << std::endl;
-            inside[i] = false;
+            inside[i] = 0;
             continue;
         }
         
@@ -572,13 +561,13 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
                     testpoints[xp], testpoints[yp]);
             //std::cout << "# .. " << myhull[2*(j-2)] << " "<< myhull[2*(j-2)+1]<< " "<<myhull[2*(j-1)]<< " "<<myhull[2*(j-1)+1] << " // "<<myturn << std::endl;
             if (myturn<1){
-                inside[i] = false;
-                skip = true;
+                inside[i] = 0;
+                skip = 1;
                 break;
             }
         }
         if (skip){
-            skip = false;
+            skip = 0;
             continue;
         }
         
@@ -588,7 +577,7 @@ void inside_hull_iterative(double const* const testpoints, int n_points,
                     myhull[0], myhull[1],
                     testpoints[xp], testpoints[yp]);
         if (myturn<1){
-            inside[i] = false;
+            inside[i] = 0;
         }
     }
     delete inside_treated;
@@ -603,7 +592,7 @@ int main()
      double array[2000];
      double testarray[2000];
      double x, y, u, v;
-     bool inside[1000];
+     npy_bool inside[1000];
      std::string line;
      std::ifstream myfile;
      myfile.open("test_random.txt");
