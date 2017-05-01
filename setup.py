@@ -17,8 +17,8 @@ ext_modules = [
 ]
 
 setup (name = 'phoebe',
-       version = '2.0.0',
-       description = 'PHOEBE 2.0.0',
+       version = 'devel',
+       description = 'PHOEBE devel',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
        url = 'http://github.com/phoebe-project/phoebe2',
