@@ -294,7 +294,7 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     if indweight:
 
         if ncol >= 3:
-            d['phoebe_rv_sigmarv'] = rvdata[:,2]
+            d['phoebe_lc_sigmarv'] = rvdata[:,2]
         else:
             logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
  
