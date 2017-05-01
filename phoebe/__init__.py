@@ -1,6 +1,6 @@
 """Import PHOEBE 2.0."""
 
-__version__ = '2.0.0'
+__version__ = '2.0.1'
 
 import os
 import sys
@@ -141,6 +141,3 @@ def devel_on():
 
 def devel_off():
     conf.devel_off()
-
-
-
