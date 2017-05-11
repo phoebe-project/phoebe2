@@ -13,6 +13,7 @@ try:
     from matplotlib.collections import LineCollection, PolyCollection
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     from matplotlib import colors
+    from matplotlib import colorbar as mplcolorbar
     from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
     from mpl_toolkits.mplot3d import Axes3D
 except (ImportError, TypeError):
@@ -97,7 +98,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         _symmetric_colorkeys = ['rvs', 'vxs', 'vys', 'vzs', 'nxs', 'nys', 'nzs']
 
-        colorunitkey = '{}unit'.format(colorkey)
+        colorunitkey = '{}unit'.format(colorkey[:-1] if colorkey in ['facecolors', 'edgecolors'] else colorkey)
 
         if isinstance(kwargs[colorkey], float):
             kwargs[colorkey] = str(kwargs[colorkey])
@@ -120,10 +121,14 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         if kwargs[colorkey] is None or is_float or (kwargs[colorkey] in _mplcolors and kwargs[colorkey].split('@')[0] not in _symmetric_colorkeys):
             colorarray = None
+            colornorm = None
             colorunit = None
         else:
             color = kwargs.pop(colorkey)
-            colorunit = kwargs.pop(colorunitkey)
+            colorunit = kwargs.pop(colorunitkey, None)
+
+            # print "***", colorkey, color, colorunitkey, colorunit, kwargs.keys()
+
             if not isinstance(color, str):
                 color = ''
             # print "***", color, ps.qualifiers
@@ -160,20 +165,27 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                     # now half_range is 20
 
                     # actual color-range needs to go from -half_range to +half_range
-                    colorarray += half_range
+                    # colorarray += half_range
                     # now colorarray is 10 ... 20 ... 40
-                    colorarray /= half_range*2
+                    # colorarray /= half_range*2
                     # now colorarray is 0.25 ... 0.5 ... 1.0
                     # perfect!
 
+                    colornorm = colors.Normalize(-1*half_range, half_range)
+
                 else:
-                    colorarray -= np.nanmin(colorarray)
-                    colorarray /= np.nanmax(colorarray)
+                    valmin = np.nanmin(colorarray)
+                    valmax = np.nanmax(colorarray)
 
-                kwargs[colorkey] = plt.get_cmap(make_array)(colorarray)[array_inds]
+                    colornorm = colors.Normalize(valmin, valmax)
+
+                kwargs[colorkey] = plt.get_cmap(make_array)(colornorm(colorarray))[array_inds]
+
+            else:
+                colornorm = None
 
 
-        return kwargs, colorarray, colorunit
+        return kwargs, colorarray, colornorm, colorunit
 
     def _default_cmap(ps, colorkey):
 
@@ -216,6 +228,9 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
     ylabel = kwargs.pop('ylabel', '')
     zlabel = kwargs.pop('zlabel', '')
     colorbar = kwargs.pop('colorbar', False)
+    facecolorbar = kwargs.pop('facecolorbar', colorbar)
+    edgecolorbar = kwargs.pop('edgecolorbar', colorbar)
+
 
     ax = kwargs.pop('ax', None)
     if ax is None:
@@ -255,12 +270,16 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         pckwargs['facecolors'] = kwargs.get('facecolor', 'w')  # note change from singular -> plural
         pckwargs['edgecolors'] = kwargs.get('edgecolor', 'k')  # note change from singular -> plural
         pckwargs['zorder'] = mplkwargs.get('zorder', 1)
+        pckwargs['facecolorunit'] = kwargs.get('facecolorunit', None)
+        pckwargs['edgecolorunit'] = kwargs.get('edgecolorunit', None)
 
-        pckwargs, facecolorarray = _process_colorarray(ps, pckwargs, 'facecolors', kwargs.get('facecmap', _default_cmap(ps, pckwargs['facecolors'])), plot_inds)
-        pckwargs, edgecolorarray = _process_colorarray(ps, pckwargs, 'edgecolors', kwargs.get('edgecmap', _default_cmap(ps, pckwargs['facecolors'])), plot_inds)
+        facecmap = kwargs.get('facecmap', _default_cmap(ps, pckwargs['facecolors']))
+        edgecmap = kwargs.get('edgecmap', _default_cmap(ps, pckwargs['edgecolors']))
+        pckwargs, facecolorarray, facecolornorm, facecolorunit = _process_colorarray(ps, pckwargs, 'facecolors', facecmap, plot_inds)
+        pckwargs, edgecolorarray, edgecolornorm, edgecolorunit = _process_colorarray(ps, pckwargs, 'edgecolors', edgecmap, plot_inds)
 
         if pckwargs['edgecolors'] in ['none', 'None', None] and pckwargs['facecolors'] not in ['none', 'None', None]:
-            # we should set linewidths to 0 so that colors from background triangles
+            # TODO: we should set linewidths to 0 so that colors from background triangles
             # don't show through the gaps
             pckwargs['edgecolors'] = pckwargs['facecolors']
 
@@ -278,8 +297,22 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 #coordinate_inds = [['x', 'y', 'z'].index(q) for q in [xqualifier, yqualifier]]
                 pc = PolyCollection(data[plot_inds], **pckwargs)
 
+            # if facecolorbar:
+                # pc.set_array(facecolorarray)
+
+            if facecolorbar:
+                cbax, cbkwargs = mplcolorbar.make_axes((ax,), location='right', fraction=0.15, shrink=1.0, aspect=20, panchor=False)
+                cb = mplcolorbar.ColorbarBase(cbax, cmap=facecmap, norm=facecolornorm, **cbkwargs)
+                cb.set_label(kwargs['facecolorlabel'])
+
+            if edgecolorbar:
+                cbax, cbkwargs = mplcolorbar.make_axes((ax,), location='right', fraction=0.15, shrink=1.0, aspect=20, panchor=False)
+                cb = mplcolorbar.ColorbarBase(cbax, cmap=edgecmap, norm=edgecolornorm, **cbkwargs)
+                cb.set_label(kwargs['edgecolorlabel'])
+
             return_artists.append(pc)
             ax.add_collection(pc)
+
         else:
             # collections don't support set_data, so in order to animate we'll need
             # to delete and recreate the collection.  We'll get the data if do_plot=False,
@@ -342,7 +375,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         xarray, yarray, zarray, tarray = data
 
         # Handle color
-        mplkwargs, colorarray, colorunit = _process_colorarray(ps, mplkwargs, 'color')
+        mplkwargs, colorarray, colornorm, colorunit = _process_colorarray(ps, mplkwargs, 'color')
 
         # Handle errorbars by making a separate plot call (with no marker)
         if kwargs['xerrors'] not in [None, False] or kwargs['yerrors'] not in [None, False]:
