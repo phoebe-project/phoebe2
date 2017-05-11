@@ -99,6 +99,9 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         _symmetric_colorkeys = ['rvs', 'vxs', 'vys', 'vzs', 'nxs', 'nys', 'nzs']
 
         colorunitkey = '{}unit'.format(colorkey[:-1] if colorkey in ['facecolors', 'edgecolors'] else colorkey)
+        colorlimkey = '{}lim'.format(colorkey[:-1] if colorkey in ['facecolors', 'edgecolors'] else colorkey)
+
+        colorlim = kwargs.get(colorlimkey, None)
 
         if isinstance(kwargs[colorkey], float):
             kwargs[colorkey] = str(kwargs[colorkey])
@@ -143,7 +146,12 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 else:
                     colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, unit=colorunit)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
 
-            if make_array is not None:
+            if colorlim is not None:
+                colornorm = colors.Normalize(colorlim[0], colorlim[1], clip=True)
+
+                kwargs[colorkey] = plt.get_cmap(make_array)(colornorm(colorarray))[array_inds]
+
+            elif make_array is not None:
                 # then we need to alter the value in the kwargs dictionary to be a
                 # normalized array that can be sent to the cmap
 
@@ -177,7 +185,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                     valmin = np.nanmin(colorarray)
                     valmax = np.nanmax(colorarray)
 
-                    colornorm = colors.Normalize(valmin, valmax)
+                    colornorm = colors.Normalize(valmin, valmax, clip=True)
 
                 kwargs[colorkey] = plt.get_cmap(make_array)(colornorm(colorarray))[array_inds]
 
@@ -272,11 +280,16 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         pckwargs['zorder'] = mplkwargs.get('zorder', 1)
         pckwargs['facecolorunit'] = kwargs.get('facecolorunit', None)
         pckwargs['edgecolorunit'] = kwargs.get('edgecolorunit', None)
+        pckwargs['facecolorlim'] = kwargs.get('facecolorlim', None)
+        pckwargs['edgecolorlim'] = kwargs.get('edgecolorlim', None)
 
         facecmap = kwargs.get('facecmap', _default_cmap(ps, pckwargs['facecolors']))
         edgecmap = kwargs.get('edgecmap', _default_cmap(ps, pckwargs['edgecolors']))
         pckwargs, facecolorarray, facecolornorm, facecolorunit = _process_colorarray(ps, pckwargs, 'facecolors', facecmap, plot_inds)
         pckwargs, edgecolorarray, edgecolornorm, edgecolorunit = _process_colorarray(ps, pckwargs, 'edgecolors', edgecmap, plot_inds)
+
+        for k in ['facecolorunit', 'edgecolorunit', 'facecolorlim', 'edgecolorlim']:
+            dump = pckwargs.pop(k, None)
 
         if pckwargs['edgecolors'] in ['none', 'None', None] and pckwargs['facecolors'] not in ['none', 'None', None]:
             # TODO: we should set linewidths to 0 so that colors from background triangles
@@ -375,6 +388,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         xarray, yarray, zarray, tarray = data
 
         # Handle color
+        cmap = kwargs.get('cmap', _default_cmap(ps, mplkwargs.get('color', None)))
         mplkwargs, colorarray, colornorm, colorunit = _process_colorarray(ps, mplkwargs, 'color')
 
         # Handle errorbars by making a separate plot call (with no marker)
@@ -460,19 +474,21 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             if do_plot:
                 if axes_3d:
                     artist = ax.scatter(xarray[plot_inds], yarray[plot_inds], zarray[plot_inds], c=colorarray[plot_inds],
-                        cmap=plt.get_cmap(kwargs.get('cmap', _default_cmap(ps, mplkwargs.get('color', None)))),
+                        cmap=plt.get_cmap(cmap),
                         norm=plt.Normalize(min(colorarray), max(colorarray)),
                         marker=kwargs['marker'],
                         linewidths=0) # linewidths=0 removes the black edge
                 else:
                     artist = ax.scatter(xarray[plot_inds], yarray[plot_inds], c=colorarray[plot_inds],
-                        cmap=plt.get_cmap(kwargs.get('cmap', _default_cmap(ps, mplkwargs.get('color', None)))),
+                        cmap=plt.get_cmap(cmap),
                         norm=plt.Normalize(min(colorarray), max(colorarray)),
                         marker=kwargs['marker'],
                         linewidths=0) # linewidths=0 removes the black edge
 
                 if colorbar:
-                    cb = plt.colorbar(artist)
+                    # cb = plt.colorbar(artist, norm=colornorm)
+                    cbax, cbkwargs = mplcolorbar.make_axes((ax,), location='right', fraction=0.15, shrink=1.0, aspect=20, panchor=False)
+                    cb = mplcolorbar.ColorbarBase(cbax, cmap=cmap, norm=colornorm, **cbkwargs)
                     cb.set_label(kwargs['colorlabel'])
 
                 return_artists.append(artist)

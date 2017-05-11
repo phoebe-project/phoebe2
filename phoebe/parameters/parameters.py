@@ -2011,6 +2011,10 @@ class ParameterSet(object):
                 kwargs.setdefault('facecolorunit', kwargs['colorunit'])
                 kwargs.setdefault('edgecolorunit', kwargs['colorunit'])
 
+            if kwargs.get('colorlim', None):
+                kwargs.setdefault('facecolorlim', kwargs['colorlim'])
+                kwargs.setdefault('edgecolorlim', kwargs['colorlim'])
+
             facecolorqualifier = kwargs['facecolor'] if kwargs['facecolor'] in ps.qualifiers else None
             edgecolorqualifier = kwargs['edgecolor'] if kwargs['edgecolor'] in ps.qualifiers else None
 
@@ -2459,8 +2463,7 @@ class ParameterSet(object):
         :type yunit: str or astropy.unit.Unit
         :parameter xunit: unit to plot the z-array (will default based on z if not provided)
         :type zunit: str or astropy.unit.Unit
-        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
-        :type colorunit: str or astropy.unit.Unit
+
 
         :parameter str xlabel: label for the x-axis (will default based on x if not provided, but
             will not set if ax already has an xlabel)
@@ -2483,6 +2486,9 @@ class ParameterSet(object):
         :parameter str cmap: matplotlib recognized cmap to use if color is
             a qualifier pointing to an array (will be ignored otherwise)
         :parameter bool colorbar: whether to display the colorbar (will default to False)
+        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
+        :type colorunit: str or astropy.unit.Unit
+        :parameter tuple colorlim: limit for the colorbar (in same units as colorunit)
         :parameter str colorlabel: label for the colorbar, if applicable (will default based on
             color if not provided)
 
@@ -2491,6 +2497,9 @@ class ParameterSet(object):
         :parameter str facecmap: matplotlib recognized cmap to use if facecolor is
             a qualifier pointing to an array (will be ignored otherwise)
         :parameter facecolorbar: whether to display the facecolorbar (will default to False - takes precedence over colorbar)
+        :parameter facecolorunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
+        :type facecolorunit: str or astropy.unit.Unit
+        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
         :parameter str facecolorlabel: label for the facecolorbar, if applicable (will default based on
             facecolor if not provided)
 
@@ -2498,6 +2507,9 @@ class ParameterSet(object):
             of an array to use for edgecolor (mesh plots only - takes precedence over color)
         :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
             a qualifier pointing to an array (will be ignored otherwise
+        :parameter edgecolorunit: unit to plot the edgecolor-array (will default based on edgecolor if not provided)
+        :type edgecolorunit: str or astropy.unit.Unit
+        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
         :parameter str edgecolorlabel: label for the edgecolorbar, if applicable (will default based on
             edgecolor if not provided)
 
