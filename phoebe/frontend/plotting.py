@@ -97,6 +97,8 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         _symmetric_colorkeys = ['rvs', 'vxs', 'vys', 'vzs', 'nxs', 'nys', 'nzs']
 
+        colorunitkey = '{}unit'.format(colorkey)
+
         if isinstance(kwargs[colorkey], float):
             kwargs[colorkey] = str(kwargs[colorkey])
             is_float = True
@@ -118,8 +120,10 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         if kwargs[colorkey] is None or is_float or (kwargs[colorkey] in _mplcolors and kwargs[colorkey].split('@')[0] not in _symmetric_colorkeys):
             colorarray = None
+            colorunit = None
         else:
             color = kwargs.pop(colorkey)
+            colorunit = kwargs.pop(colorunitkey)
             if not isinstance(color, str):
                 color = ''
             # print "***", color, ps.qualifiers
@@ -130,9 +134,9 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
             #colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
             if colorarray is None:
                 if len(ps.times)>1:
-                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t)) for c in ps.components for t in ps.times])
+                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, time=t, unit=colorunit)) for c in ps.components for t in ps.times])
                 else:
-                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
+                    colorarray = np.concatenate([_value(ps.get_value(twig=color, component=c, unit=colorunit)) for c in ps.components]) if len(ps.components) else _value(ps.get_value(twig=color))
 
             if make_array is not None:
                 # then we need to alter the value in the kwargs dictionary to be a
@@ -169,7 +173,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 kwargs[colorkey] = plt.get_cmap(make_array)(colorarray)[array_inds]
 
 
-        return kwargs, colorarray
+        return kwargs, colorarray, colorunit
 
     def _default_cmap(ps, colorkey):
 
@@ -211,6 +215,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
     xlabel = kwargs.pop('xlabel', '')
     ylabel = kwargs.pop('ylabel', '')
     zlabel = kwargs.pop('zlabel', '')
+    colorbar = kwargs.pop('colorbar', False)
 
     ax = kwargs.pop('ax', None)
     if ax is None:
@@ -337,7 +342,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         xarray, yarray, zarray, tarray = data
 
         # Handle color
-        mplkwargs, colorarray = _process_colorarray(ps, mplkwargs, 'color')
+        mplkwargs, colorarray, colorunit = _process_colorarray(ps, mplkwargs, 'color')
 
         # Handle errorbars by making a separate plot call (with no marker)
         if kwargs['xerrors'] not in [None, False] or kwargs['yerrors'] not in [None, False]:
@@ -432,6 +437,10 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                         norm=plt.Normalize(min(colorarray), max(colorarray)),
                         marker=kwargs['marker'],
                         linewidths=0) # linewidths=0 removes the black edge
+
+                if colorbar:
+                    cb = plt.colorbar(artist)
+                    cb.set_label(kwargs['colorlabel'])
 
                 return_artists.append(artist)
             else:

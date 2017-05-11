@@ -2030,6 +2030,9 @@ class ParameterSet(object):
             if axes_3d:
                 kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
 
+            # TODO: handle facecolorlabel and edgecolorlabel from facecolor and edgecolor (first check to see if a qualifier or color itself)
+
+
             # vertices_xyz are the REAL x, y, z coordinates.  Later we'll convert
             # to the quantities we want to plot along the x and y axes
 
@@ -2131,6 +2134,8 @@ class ParameterSet(object):
         kwargs.setdefault('highlight_ms', None)
         kwargs.setdefault('highlight_color', None)
         kwargs.setdefault('uncover', False)
+
+        colorqualifier = kwargs['color'] if kwargs['color'] in ps.qualifiers else None
 
         # Now let's get the parameters
 
@@ -2251,11 +2256,21 @@ class ParameterSet(object):
             zparam = None
             zarray = None
 
+        if colorqualifier is not None:
+            colorparam, colorarray, default_colorunit = _get_param_array(ps,
+                                                                         colorqualifier,
+                                                                         kwargs.get('colorunit', None))
+
+            kwargs.setdefault('colorunit', default_colorunit)
+
         # and finally, build the label (if it hasn't been already)
         kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
         kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
         if axes_3d:
             kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
+
+        if kwargs.get('colorbar', False):
+            kwargs.setdefault('colorlabel', r"{} ({})".format(_qualifier_to_label(colorqualifier), _unit_to_str(kwargs['colorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['colorunit'] not in [None, u.dimensionless_unscaled] else colorqualifier)
 
         if phased:
             # then we need to sort all arrays according to phase (xarray)
@@ -2405,35 +2420,48 @@ class ParameterSet(object):
             default based on y if not provided)
         :parameter str zerrors: qualifier of the array to plot as z-errors (will
             default based on z if not provided)
+
         :parameter xunit: unit to plot the x-array (will default based on x if not provided)
         :type xunit: str or astropy.unit.Unit
         :parameter xunit: unit to plot the y-array (will default based on y if not provided)
         :type yunit: str or astropy.unit.Unit
         :parameter xunit: unit to plot the z-array (will default based on z if not provided)
         :type zunit: str or astropy.unit.Unit
+        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
+        :type colorunit: str or astropy.unit.Unit
+
         :parameter str xlabel: label for the x-axis (will default based on x if not provided, but
             will not set if ax already has an xlabel)
         :parameter str ylabel: label for the y-axis (will default based on y if not provided, but
             will not set if ax already has an ylabel)
         :parameter str zlabel: label for the z-axis (will default based on z if not provided, but
             will not set if ax already has an zlabel)
+        :parameter str colorlabel: label for the colorbar, if applicable (will default based on
+            color if not provided)
+
         :parameter tuple xlim: limits for the x-axis (will default based on data if not provided)
         :parameter tuple ylim: limits for the x-axis (will default based on data if not provided)
         :parameter tuple zlim: limits for the x-axis (will default based on data if not provided)
         :parameter str label: label to give to ALL lines in this single plotting call (each
             line with get automatic default labels if not provided)
+
         :parameter str color: matplotlib recognized color string or the qualifier/twig
-            of an array to use for color
+            of an array to use for color (will apply to facecolor and edgecolor for meshes
+            unless those are provided)
         :parameter str cmap: matplotlib recognized cmap to use if color is
             a qualifier pointing to an array (will be ignored otherwise)
+        :parameter bool colorbar: whether to display the colorbar (will default to False)
+
         :parameter str facecolor: matplotlib recognized color string or the qualifier/twig
-            of an array to use for facecolor (mesh plots only)
+            of an array to use for facecolor (mesh plots only - takes precedence over color)
         :parameter str facecmap: matplotlib recognized cmap to use if facecolor is
             a qualifier pointing to an array (will be ignored otherwise)
+
         :parameter str edgecolor: matplotlib recognized color string or the qualifier/twig
-            of an array to use for edgecolor (mesh plots only)
+            of an array to use for edgecolor (mesh plots only - takes precedence over color)
         :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
-            a qualifier pointing to an array (will be ignored otherwise)
+            a qualifier pointing to an array (will be ignored otherwise
+
 
 
         :parameter str save: filename of the resulting animation.  If provided,
