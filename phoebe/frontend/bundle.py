@@ -165,7 +165,7 @@ class Bundle(ParameterSet):
     def open(cls, filename):
         """Open a new bundle.
 
-        Open a bundle from a JSON-formatted PHOEBE 2.0 (beta) file.
+        Open a bundle from a JSON-formatted PHOEBE 2 file.
         This is a constructor so should be called as:
 
 
