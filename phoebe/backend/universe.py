@@ -3106,18 +3106,18 @@ class Feature(object):
         return teffs
 
 class Spot(Feature):
-    def __init__(self, colat, colon, radius, relteff, **kwargs):
+    def __init__(self, colat, longitude, radius, relteff, **kwargs):
         """
         Initialize a Spot feature
         """
         super(Spot, self).__init__(**kwargs)
         self._colat = colat
-        self._colon = colon
+        self._longitude = longitude
         self._radius = radius
         self._relteff = relteff
 
-        x = np.sin(colat)*np.cos(colon)
-        y = np.sin(colat)*np.sin(colon)
+        x = np.sin(colat)*np.cos(longitude)
+        y = np.sin(colat)*np.sin(longitude)
         z = np.cos(colat)
         self._pointing_vector = np.array([x,y,z])
 
@@ -3129,10 +3129,10 @@ class Spot(Feature):
 
         feature_ps = b.get_feature(feature)
         colat = feature_ps.get_value('colat', unit=u.rad)
-        colon = feature_ps.get_value('colon', unit=u.rad)
+        longitude = feature_ps.get_value('long', unit=u.rad)
         radius = feature_ps.get_value('radius', unit=u.rad)
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
-        return cls(colat, colon, radius, relteff)
+        return cls(colat, longitude, radius, relteff)
 
     @property
     def proto_coords(self):

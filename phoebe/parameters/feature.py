@@ -5,7 +5,7 @@ from phoebe.parameters import constraint
 from phoebe import u
 from phoebe import conf
 
-def spot(**kwargs):
+def spot(feature, **kwargs):
     """
     Create parameters for a spot
 
@@ -19,7 +19,7 @@ def spot(**kwargs):
     params = []
 
     params += [FloatParameter(qualifier="colat", value=kwargs.get('colat', 0.0), default_unit=u.deg, description='Colatitude of the center of the spot')]
-    params += [FloatParameter(qualifier="colon", value=kwargs.get('colon', 0.0), default_unit=u.deg, description='Colongitude of the center of the spot')]
+    params += [FloatParameter(qualifier="long", value=kwargs.get('long', 0.0), default_unit=u.deg, description='Longitude of the center of the spot')]
     params += [FloatParameter(qualifier='radius', value=kwargs.get('radius', 1.0), default_unit=u.deg, description='Angular radius of the spot')]
     # params += [FloatParameter(qualifier='area', value=kwargs.get('area', 1.0), default_unit=u.solRad, description='Surface area of the spot')]
 
@@ -30,7 +30,7 @@ def spot(**kwargs):
 
     return ParameterSet(params), constraints
 
-def pulsation(**kwargs):
+def pulsation(feature, **kwargs):
     """
     Create parameters for a pulsation feature
 
