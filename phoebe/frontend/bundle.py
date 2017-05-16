@@ -2199,7 +2199,7 @@ class Bundle(ParameterSet):
         kwargs = {}
         kwargs['twig'] = None
         # TODO: this might not be the case, we just know its not in constraint
-        kwargs['context'] = ['component', 'dataset']
+        kwargs['context'] = ['component', 'dataset', 'feature']
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset

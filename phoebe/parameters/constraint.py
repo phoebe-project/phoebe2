@@ -10,7 +10,7 @@ logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
 
-def _get_system_ps(b, item):
+def _get_system_ps(b, item, context='component'):
     """
     parses the input arg (either twig or PS) to retrieve the actual parametersets
     """
@@ -19,7 +19,7 @@ def _get_system_ps(b, item):
     if isinstance(item, ParameterSet):
         return item
     elif isinstance(item, str):
-        return b.filter(item, context='component', check_visible=False)
+        return b.filter(item, context=context, check_visible=False)
     else:
         raise NotImplementedError
 
@@ -1036,4 +1036,3 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component, 'dataset': dataset}
 
 #}
-
