@@ -4070,10 +4070,10 @@ class FloatParameter(Parameter):
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
-        if isinstance(value, str):
+        if isinstance(value, str) or isinstance(value, unicode):
             value = float(value)
 
-        if isinstance(unit, str):
+        if isinstance(unit, str) or isinstance(unit, unicode):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
         elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit)):
@@ -4359,7 +4359,7 @@ class FloatArrayParameter(FloatParameter):
         """
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
-        elif isinstance(value, str):
+        elif isinstance(value, str) or isinstance(value, unicode):
             value = float(value)
         #else:
             #value = value*self.default_unit
