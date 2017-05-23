@@ -4067,6 +4067,10 @@ class FloatParameter(Parameter):
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
+        if isinstance(value, list) and len(value)==2 and unit is None and self.__class__.__name__=='FloatParameter':
+            # don't do this for subclasses (FloatArrayParameter)
+            value, unit = value
+
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
