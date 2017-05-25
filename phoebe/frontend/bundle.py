@@ -153,13 +153,17 @@ class Bundle(ParameterSet):
             for param in self._params:
                 param._bundle = self
 
+            # cache the hierarchy now
+            try:
+                self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+            except ValueError:
+                # then fallback on a blank hierarchy
+                self.set_hierarchy(_hierarchy.blank)
+
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
         for constraint in self.filter(context='constraint').to_list():
             constraint._update_bookkeeping()
-
-        # TODO: is this the correct place to do this? is blank hierarchy still
-        # ok for loading from file??
 
     @classmethod
     def open(cls, filename):
