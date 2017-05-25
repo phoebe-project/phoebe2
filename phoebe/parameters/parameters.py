@@ -131,7 +131,11 @@ def send_if_client(fctn):
     """Intercept and send to the server if bundle is in client mode."""
     @functools.wraps(fctn)
     def _send_if_client(self, *args, **kwargs):
-        fctn_map = {'set_quantity': 'set_value'}
+        fctn_map = {'set_quantity': 'set_value',
+                    'add_component': 'add_*',
+                    'add_dataset': 'add_*',
+                    'add_compute': 'add_*',
+                    'add_fitting': 'add_*'}
         b = self._bundle
         if b is not None and b.is_client:
             # TODO: self._filter???
@@ -141,6 +145,7 @@ def send_if_client(fctn):
                 else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
             d['args'] = args
+            d['fctn'] = fctn.__name__
             for k, v in kwargs.items():
                 d[k] = v
 

@@ -41,6 +41,9 @@ else:
 
 
 def _get_add_func(mod, func, return_none_if_not_found=False):
+    if isinstance(func, unicode):
+        func = str(func)
+
     if isinstance(func, str) and hasattr(mod, func):
         func = getattr(mod, func)
 
@@ -1333,6 +1336,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'spot')
         return self.remove_feature(feature, **kwargs)
 
+    @send_if_client
     def add_component(self, kind, **kwargs):
         """
         Add a new component (star or orbit) to the system.  If not provided,
@@ -1635,6 +1639,7 @@ class Bundle(ParameterSet):
 
         return time
 
+    @send_if_client
     def add_dataset(self, kind, component=None, **kwargs):
         """
         Add a new dataset to the bundle.  If not provided,
@@ -2234,6 +2239,7 @@ class Bundle(ParameterSet):
         return list(set(changes))
 
 
+    @send_if_client
     def add_compute(self, kind=compute.phoebe, **kwargs):
         """
         Add a set of computeoptions for a given backend to the bundle.
@@ -2387,7 +2393,7 @@ class Bundle(ParameterSet):
         :return: :class:`phoebe.parameters.parameters.ParameterSet` of the
             newly-created model containing the synthetic data.
         """
-        if isinstance(detach, str):
+        if isinstance(detach, str) or isinstance(detach, unicode):
             # then we want to temporarily go in to client mode
             self.as_client(server=detach)
             self.run_compute(compute=compute, model=model, time=time, **kwargs)
@@ -2425,7 +2431,7 @@ class Bundle(ParameterSet):
 
         # handle the ability to send multiple compute options/backends - here
         # we'll just always send a list of compute options
-        if isinstance(compute, str):
+        if isinstance(compute, str) or isinstance(compute, unicode):
             computes = [compute]
         else:
             computes = compute
@@ -2749,6 +2755,7 @@ class Bundle(ParameterSet):
         # TODO: don't forget add_history
         raise NotImplementedError
 
+    @send_if_client
     def add_fitting(self):
         """
         [NOT IMPLEMENTED]
