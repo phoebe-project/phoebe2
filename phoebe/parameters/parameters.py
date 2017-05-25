@@ -140,6 +140,7 @@ def send_if_client(fctn):
             d = self._filter if hasattr(self, '_filter') \
                 else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
+            d['args'] = args
             for k, v in kwargs.items():
                 d[k] = v
 
