@@ -1695,6 +1695,12 @@ class Bundle(ParameterSet):
                                               **{'context': 'dataset',
                                                  'kind': func.func_name}))
 
+        if not isinstance(kwargs['dataset'], str):
+            # if dataset is a unicode, that conflicts with copy-for
+            # TODO: this really should be replaced with a more elegant handling
+            # of unicode within parameters.ParameterSet._check_copy_for
+            kwargs['dataset'] = str(kwargs['dataset'])
+
         self._check_label(kwargs['dataset'])
 
         kind = func.func_name
