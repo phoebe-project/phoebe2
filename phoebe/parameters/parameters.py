@@ -132,15 +132,13 @@ def send_if_client(fctn):
     @functools.wraps(fctn)
     def _send_if_client(self, *args, **kwargs):
         fctn_map = {'set_quantity': 'set_value',
-                    'add_component': 'add_*',
-                    'add_dataset': 'add_*',
-                    'add_compute': 'add_*',
-                    'add_fitting': 'add_*'}
+                    'set_value': 'set_value',
+                    'set_default_unit': 'set_default_unit'}
         b = self._bundle
         if b is not None and b.is_client:
             # TODO: self._filter???
             # TODO: args???
-            method = fctn_map.get(fctn.__name__, fctn.__name__)
+            method = fctn_map.get(fctn.__name__, 'bundle_method')
             d = self._filter if hasattr(self, '_filter') \
                 else {'uniqueid': self.uniqueid}
             d['bundleid'] = b._bundleid
