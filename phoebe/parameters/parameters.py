@@ -145,6 +145,8 @@ def send_if_client(fctn):
             d['args'] = args
             d['fctn'] = fctn.__name__
             for k, v in kwargs.items():
+                if hasattr(v, 'to_json'):
+                    v = v.to_json()
                 d[k] = v
 
             logger.info('emitting {} ({}) to server'.format(method, d))
@@ -4092,6 +4094,9 @@ class FloatParameter(Parameter):
 
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
+
+        if isinstance(value, str) or isinstance(value, unicode):
+            value = json.loads(value)
 
         if isinstance(value, list) and len(value)==2 and unit is None and self.__class__.__name__=='FloatParameter':
             # don't do this for subclasses (FloatArrayParameter)

@@ -16,7 +16,7 @@ from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
 from phoebe.backend import backends
 from phoebe.distortions import roche
-from phoebe.frontend import io
+from phoebe.frontend import io, nphelpers
 from phoebe.atmospheres.passbands import _pbtable
 import libphoebe
 
@@ -450,6 +450,14 @@ class Bundle(ParameterSet):
                     if hasattr(param, "_{}".format(attr)):
                         logger.info("updates from server: setting {}@{}={}".
                                     format(attr, param.twig, value))
+
+                        # we cannot call param.set_value because that will
+                        # emit another signal to the server.  So we do need
+                        # to hardcode some special cases here
+                        if isinstance(value, dict):
+                            if 'nphelper' in value.keys():
+                                value = nphelpers.from_json(value)
+
                         setattr(param, "_{}".format(attr), value)
             else:
                 self._attach_param_from_server(info)
