@@ -90,6 +90,7 @@ from .constants import *
 from .parameters import *
 from .parameters import hierarchy, component, compute, constraint, dataset
 from .frontend.bundle import Bundle
+from .frontend import nphelpers
 from .backend import *
 import utils as utils
 
@@ -141,3 +142,10 @@ def devel_on():
 
 def devel_off():
     conf.devel_off()
+
+# functional shortcuts to numpy helpers
+def arange(start, stop, step):
+    return nphelpers.Arange(start, stop, step)
+
+def linspace(start, stop, num):
+    return nphelpers.Linspace(start, stop, num)
