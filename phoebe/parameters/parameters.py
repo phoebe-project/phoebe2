@@ -2459,9 +2459,9 @@ class ParameterSet(object):
 
         :parameter xunit: unit to plot the x-array (will default based on x if not provided)
         :type xunit: str or astropy.unit.Unit
-        :parameter xunit: unit to plot the y-array (will default based on y if not provided)
+        :parameter yunit: unit to plot the y-array (will default based on y if not provided)
         :type yunit: str or astropy.unit.Unit
-        :parameter xunit: unit to plot the z-array (will default based on z if not provided)
+        :parameter zunit: unit to plot the z-array (will default based on z if not provided)
         :type zunit: str or astropy.unit.Unit
 
 
