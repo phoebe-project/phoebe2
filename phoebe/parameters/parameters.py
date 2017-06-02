@@ -4444,7 +4444,11 @@ class FloatArrayParameter(FloatParameter):
         if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
             raise ValueError("can only set start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
 
-        self._value.set_start(start)
+        # this needs to go through set_value to ensure all checks and signals
+        # are run correctly
+        value = self._value
+        value.set_start(start)
+        self.set_value(value)
 
     @property
     def stop(self):
@@ -4463,7 +4467,11 @@ class FloatArrayParameter(FloatParameter):
         if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
             raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
 
-        self._value.set_stop(stop)
+        # this needs to go through set_value to ensure all checks and signals
+        # are run correctly
+        value = self._value
+        value.set_stop(stop)
+        self.set_value(value)
 
     @property
     def step(self):
@@ -4482,7 +4490,11 @@ class FloatArrayParameter(FloatParameter):
         if not isinstance(self._value, nphelpers.Arange):
             raise ValueError("can only set step if value is phoebe.frontend.nphelpers.Arange")
 
-        self._value.set_step(step)
+        # this needs to go through set_value to ensure all checks and signals
+        # are run correctly
+        value = self._value
+        value.set_step(step)
+        self.set_value(value)
 
     @property
     def num(self):
@@ -4501,7 +4513,11 @@ class FloatArrayParameter(FloatParameter):
         if not isinstance(self._value, nphelpers.Linspace):
             raise ValueError("can only set num if value is phoebe.frontend.nphelpers.Linspace")
 
-        self._value.set_num(num)
+        # this needs to go through set_value to ensure all checks and signals
+        # are run correctly
+        value = self._value
+        value.set_num(num)
+        self.set_value(value)
 
     def convert_to_arange(self):
         """
