@@ -81,7 +81,7 @@ _parameter_class_that_require_bundle = ['HistoryParameter', 'TwigParameter',
 
 _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
                      'dataset', 'constraint', 'compute', 'model', 'fitting',
-                     'feedback', 'plugin', 'kind',
+                     'feedback', 'plugin', 'figure', 'kind',
                      'context']
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
@@ -89,7 +89,7 @@ _meta_fields_filter = _meta_fields_all + ['constraint_func']
 
 _contexts = ['history', 'system', 'component',
              'dataset', 'constraint', 'compute', 'model', 'fitting',
-             'feedback', 'plugin', 'setting']
+             'feedback', 'plugin', 'figure', 'setting']
 
 # define a list of default_forbidden labels
 # an individual ParameterSet may build on this list with components, datasets,
@@ -280,6 +280,7 @@ class ParameterSet(object):
         self._fitting = None
         self._feedback = None
         self._plugin = None
+        self._figure = None
         self._kind = None
         self._context = None
 
@@ -636,6 +637,26 @@ class ParameterSet(object):
         :return: list of strings
         """
         return self.to_dict(field='plugin').keys()
+
+
+    @property
+    def figure(self):
+        """Return the value for figure if shared by ALL Parameters.
+
+        If the value is not shared by ALL, then None will be returned.  To see
+        all the figures of all parameters, see :func:`figures`.
+
+        :return: str or None
+        """
+        return self._figure
+
+    @property
+    def figures(self):
+        """Return a list of all the plots of the Parameters.
+
+        :return: list of strings
+        """
+        return self.to_dict(field='figure').keys()
 
     @property
     def kind(self):
@@ -2768,6 +2789,7 @@ class Parameter(object):
         :parameter str fitting: (optional) label for the fitting tag
         :parameter str feedback: (optional) label for the feedback tag
         :parameter str plugin: (optional) label for the plugin tag
+        :parameter str figure: (optional) label for the figure tag
         :parameter str kind: (optional) label for the kind tag
         :parameter str context: (optional) which context this parameter belongs in
 
@@ -2801,6 +2823,7 @@ class Parameter(object):
         self._fitting = kwargs.get('fitting', None)
         self._feedback = kwargs.get('feedback', None)
         self._plugin = kwargs.get('plugin', None)
+        self._figure = kwargs.get('figure', None)
         self._kind = kwargs.get('kind', None)
         self._context = kwargs.get('context', None)
 
@@ -2972,6 +2995,8 @@ class Parameter(object):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
                     v = v.tolist()
+                if isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit) or isinstance(v, u.IrreducibleUnit):
+                    v = str(v.to_string())
                 return v
             elif k=='limits':
                 return [vi.value if hasattr(vi, 'value') else vi for vi in v]
@@ -2983,7 +3008,7 @@ class Parameter(object):
                 return v
             elif isinstance(v, float) or isinstance(v, int) or isinstance(v, list):
                 return v
-            elif isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit):
+            elif isinstance(v, u.Unit) or isinstance(v, u.CompositeUnit) or isinstance(v, u.IrreducibleUnit):
                 return str(v.to_string())
             else:
                 try:
@@ -3108,6 +3133,13 @@ class Parameter(object):
         :return: plugin tag of this Parameter
         """
         return self._plugin
+
+    @property
+    def figure(self):
+        """
+        :return: figure tag of this Parameter
+        """
+        return self._figure
 
     @property
     def kind(self):
@@ -3739,6 +3771,54 @@ class BoolParameter(Parameter):
             if self.context not in ['setting', 'history']:
                 self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+class UnitParameter(Parameter):
+    def __init__(self, *args, **kwargs):
+        """
+        see :meth:`Parameter.__init__`
+        """
+        super(UnitParameter, self).__init__(*args, **kwargs)
+
+        value = kwargs.get('value')
+        value = self._check_type(value)
+        self._value = value
+
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    def _check_type(self, value):
+        if isinstance(value, u.Unit) or isinstance(value, u.CompositeUnit) or isinstance(value, u.IrreducibleUnit):
+            return value
+
+        if isinstance(value, str) or isinstance(value, unicode):
+            try:
+                value = u.Unit(str(value))
+            except:
+                raise ValueError("{} not supported Unit".format(value))
+            else:
+                return value
+
+    @send_if_client
+    def set_value(self, value):
+        """
+        """
+        _orig_value = deepcopy(self.get_value())
+
+        value = self._check_type(value)
+
+        # the following line will raise an error if units are not compatible
+        _orig_value.to(value)
+
+        self._value = value
+
+        if self.context not in ['setting', 'history']:
+            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+
+    @update_if_client
+    def get_value(self):
+        """
+        """
+        return self._value
 
 class DictParameter(Parameter):
     def __init__(self, *args, **kwargs):
@@ -4115,7 +4195,7 @@ class FloatParameter(Parameter):
         if isinstance(unit, str) or isinstance(unit, unicode):
             # print "*** converting string to unit"
             unit = u.Unit(unit)  # should raise error if not a recognized unit
-        elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit)):
+        elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
         self._check_type(value)

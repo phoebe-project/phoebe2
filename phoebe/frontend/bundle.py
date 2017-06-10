@@ -9,11 +9,13 @@ from datetime import datetime
 from phoebe.parameters import *
 from phoebe.parameters import hierarchy as _hierarchy
 from phoebe.parameters import system as _system
+from phoebe.parameters import component as _component
 from phoebe.parameters import setting as _setting
 from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
+from phoebe.parameters import figure as _figure
 from phoebe.backend import backends
 from phoebe.distortions import roche
 from phoebe.frontend import io, nphelpers
@@ -1378,7 +1380,7 @@ class Bundle(ParameterSet):
         :raises NotImplementedError: if required constraint is not implemented
         """
 
-        func = _get_add_func(component, kind)
+        func = _get_add_func(_component, kind)
 
         kwargs.setdefault('component',
                           self._default_label(func.func_name,
@@ -2906,3 +2908,83 @@ class Bundle(ParameterSet):
         :raises NotImplementedError: because it isn't
         """
         raise NotImplementedError
+
+    @send_if_client
+    def add_figure(self, kind, figure=None, **kwargs):
+        """
+        Add a new figure to the bundle.  If not provided,
+        'figure' (the name of the new plot options) will be created for
+        you and can be accessed by the 'figure' attribute of the returned
+        ParameterSet.
+
+        Available kinds include:
+            * :func:`phoebe.parameters.figure.lc`
+            * :func:`phoebe.parameters.figure.rv`
+            * :func:`phoebe.parameters.figure.etv`
+            * :func:`phoebe.parameters.figure.orb`
+            * :func:`phoebe.parameters.figure.mesh`
+
+        :parameter kind: function to call that returns a
+            ParameterSet or list of parameters.  This must either be
+            a callable function that accepts nothing but default
+            values, or the name of a function (as a string) that can
+            be found in the :mod:`phoebe.parameters.figure` module
+        :type kind: str or callable
+        :parameter str figure: (optional) name of the newly-created figure optiosn
+        :parameter **kwargs: default values for any of the newly-created
+            parameters
+        :return: :class:`phoebe.parameters.parameters.ParameterSet` of
+            all parameters that have been added
+        :raises NotImplementedError: if required constraint is not implemented
+        """
+
+        func = _get_add_func(_figure, kind.lower()
+                             if isinstance(kind, str)
+                             else kind)
+
+        kwargs.setdefault('figure',
+                          self._default_label(func.func_name,
+                                              **{'context': 'figure',
+                                                 'kind': func.func_name}))
+
+        self._check_label(kwargs['figure'])
+
+        kind = func.func_name
+
+        metawargs = {'context': 'figure',
+                     'kind': kind,
+                     'figure': kwargs['figure']}
+        _params = func(**kwargs)
+        self._attach_params(_params, **metawargs)
+
+
+        redo_kwargs = deepcopy(kwargs)
+        redo_kwargs['func'] = func.func_name
+        self._add_history(redo_func='add_figure',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='remove_figure',
+                          undo_kwargs={'figure': kwargs['figure']})
+
+        # since we've already processed (so that we can get the new qualifiers),
+        # we'll only raise a warning
+        self._kwargs_checks(kwargs, warning_only=True)
+
+        return self.filter(figure=kwargs['figure'])
+
+    def get_figure(self, figure=None, **kwargs):
+        """
+        """
+        if figure is not None:
+            kwargs['figure'] = figure
+        kwargs['context'] = 'figure'
+        return self.filter(**kwargs)
+
+    def remove_figure(self):
+        """
+        """
+        raise NotImplementedError
+
+    def run_figure(self, *args, **kwargs):
+        """
+        """
+        return self.plot(*args, **kwargs)
