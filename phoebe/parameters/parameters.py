@@ -3798,7 +3798,7 @@ class UnitParameter(Parameter):
                 return value
 
     @send_if_client
-    def set_value(self, value):
+    def set_value(self, value, **kwargs):
         """
         """
         _orig_value = deepcopy(self.get_value())
