@@ -2943,9 +2943,8 @@ class Bundle(ParameterSet):
                              else kind)
 
         kwargs.setdefault('figure',
-                          self._default_label(func.func_name,
-                                              **{'context': 'figure',
-                                                 'kind': func.func_name}))
+                          self._default_label('figure',
+                                              **{'context': 'figure'}))
 
         self._check_label(kwargs['figure'])
 
