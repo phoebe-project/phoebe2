@@ -4215,9 +4215,11 @@ class FloatParameter(Parameter):
             value = value * self.default_unit
 
         # handle wrapping for angle measurements
-        if value.unit.physical_type == 'angle':
+        # TODO: make this work for FloatArrayParameters
+        if value.unit.physical_type == 'angle' and self.__class__.__name__ == 'FloatParameter':
             # NOTE: this may fail for nphelpers.Arange or nphelpers.Linspace
-            if value > (360*u.deg) or value < (0*u.deg):
+
+            if not np.isnan(value) and value > (360*u.deg) or value < (0*u.deg):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
 
