@@ -11,7 +11,7 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=False, **k
 
     params += [StringParameter(qualifier='{}label'.format(axis), visible_if=visible_if, value=kwargs.get('{}label'.format(axis), '<auto>'), description='Label for the {}-axis (or <auto> to base on {} and {}unit)'.format(axis, axis, axis))]
     params += [UnitParameter(qualifier='{}unit'.format(axis), visible_if=visible_if, value=kwargs.get('{}unit'.format(axis), default_unit), description='Unit for {}-axis'.format(axis))]
-    params += [FloatArrayParameter(qualifier='{}lim'.format(axis), visible_if=visible_if, value=kwargs.get('{}lim'.format(axis), [np.nan, np.nan]), default_unit=default_unit, description='Limit for the {}-axis'.format(axis))]
+    params += [FloatArrayParameter(qualifier='{}lim'.format(axis), visible_if=visible_if, value=kwargs.get('{}lim'.format(axis), []), default_unit=default_unit, description='Limit for the {}-axis'.format(axis))]
 
     return params
 

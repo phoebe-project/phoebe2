@@ -2983,7 +2983,40 @@ class Bundle(ParameterSet):
         """
         raise NotImplementedError
 
-    def run_figure(self, *args, **kwargs):
+    def run_figure(self, figure=None, **kwargs):
         """
         """
-        return self.plot(*args, **kwargs)
+        # handle case where figure is not provided
+        if figure is None:
+            figures = self.get_figure(**kwargs).figures
+            if len(figures)==0:
+                raise ValueError("no figure options exist, call add_figure first")
+            if len(figures)==1:
+                figure = figures[0]
+            elif len(figures)>1:
+                raise ValueError("must provide label of figure options since more than one are attached")
+
+        figure_ps = self.get_figure(figure=figure)
+
+        plot_kwargs = {'kind': figure_ps.kind}
+
+        # now apply all values from figure options
+        for param in figure_ps.to_list():
+            if 'lim' in param.qualifier:
+                if len(param.get_value()) == 2:
+                    value = param.get_value().tolist()
+                else:
+                    value = None
+            elif 'label' in param.qualifier and param.get_value()=='<auto>':
+                value = None
+            else:
+                value = param.get_value()
+
+            if value is not None:
+                plot_kwargs[param.qualifier] = value
+
+        # and lastly override with kwargs
+        for k,v in kwargs.items():
+            plot_kwargs[k] = v
+
+        return self.plot(**plot_kwargs)

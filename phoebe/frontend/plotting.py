@@ -509,17 +509,24 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         # now let's handle setting the axes limits, but only if the user sent values
         # TODO: should we handle ax._phoebe_xlim and friends here?
         if kwargs.get('xlim', False):
-            if axes_3d:
+            if len(kwargs['xlim'])!=2:
+                logger.warning("xlim must have length 2 - ignoring")
+            elif axes_3d:
                 ax.set_xlim3d(kwargs['xlim'])
             else:
                 ax.set_xlim(kwargs['xlim'])
         if kwargs.get('ylim', False):
-            if axes_3d:
+            if len(kwargs['ylim'])!=2:
+                logger.warning("ylim must have length 2 - ignoring")
+            elif axes_3d:
                 ax.set_ylim3d(kwargs['ylim'])
             else:
                 ax.set_ylim(kwargs['ylim'])
         if axes_3d and kwargs.get('zlim', False):
-            ax.set_zlim3d(kwargs['zlim'])
+            if len(kwargs['zlim'])!=2:
+                logger.warning("zlim must have length 2 - ignoring")
+            else:
+                ax.set_zlim3d(kwargs['zlim'])
 
 
 
