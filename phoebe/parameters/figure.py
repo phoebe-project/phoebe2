@@ -80,18 +80,18 @@ def _add_component(**kwargs):
 def _add_dataset(allow_per_component=False, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<component>' if allow_per_component else None)), choices=['<component>']+mplcolorcycler.options if allow_per_component else mplcolorcycler.options, description='Default color when plotted via run_figure')]
-    params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', '<component>' if allow_per_component else None)), choices=['<component>']+mplmarkercycler.options if allow_per_component else mplmarkercycler.options, description='Default marker when plotted via run_figure')]
-    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=['<component>']+mpllinestylecycler.options if allow_per_component else mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<component>' if allow_per_component else None)), choices=['<component>']+mplcolorcycler.options if allow_per_component else mplcolorcycler.options, description='Default color when plotted, overrides component value unless set to <component>')]
+    params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', '<component>' if allow_per_component else None)), choices=['<component>']+mplmarkercycler.options if allow_per_component else mplmarkercycler.options, description='Default marker when plotted, overrides component value unless set to <component>')]
+    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=['<component>']+mpllinestylecycler.options if allow_per_component else mpllinestylecycler.options, description='Default linestyle when plotted, overrides component value unless set to <component>')]
 
     return ParameterSet(params)
 
 def _run_compute(**kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<dataset>')), choices=['<dataset>']+mplcolorcycler.options, description='Default color when plotted via run_figure')]
-    # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', '.'), choices=['.', 'o', '+'], description='Default marker when plotted via run_figure')]
-    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', '<dataset>')), choices=['<dataset>']+mpllinestylecycler.options, description='Default linestyle when plotted via run_figure, overrides dataset value')]
+    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<dataset>')), choices=['<dataset>']+mplcolorcycler.options, description='Default color when plotted, overrides dataset value unless set to <dataset>')]
+    # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', '.'), choices=['.', 'o', '+'], description='Default marker when plotted, overrides dataset value unless set to <dataset>')]
+    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', '<dataset>')), choices=['<dataset>']+mpllinestylecycler.options, description='Default linestyle when plotted, overrides dataset value unless set to <dataset>')]
 
     return ParameterSet(params)
 
