@@ -88,7 +88,7 @@ conf = Settings()
 from .atmospheres.passbands import install_passband, download_passband, list_online_passbands, list_installed_passbands, list_passbands, list_passband_directories, get_passband
 from .constants import *
 from .parameters import *
-from .parameters import hierarchy, component, compute, constraint, dataset
+from .parameters import hierarchy, component, compute, constraint, dataset, figure
 from .frontend.bundle import Bundle
 from .frontend import nphelpers
 from .backend import *

@@ -10,7 +10,8 @@ except (ImportError, TypeError):
     _mpllinestyles = []
 else:
     _use_mpl = True
-    _mplcolors = colors.ColorConverter.colors.keys() + colors.cnames.keys()
+    _mplcolors = ['k', 'b', 'r', 'g', 'p']
+    _mplcolors = _mplcolors + [c for c in colors.ColorConverter.colors.keys() + colors.cnames.keys() if c not in _mplcolors]
     _mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
     # could do matplotlib.markers.MarkerStyle.markers.keys()
     _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
@@ -43,8 +44,12 @@ class MPLPropCycler(object):
 
 
     def add_to_used(self, option):
-        if option not in self._used:
+        if option not in self._used and option not in ['<dataset>', '<component>']:
             self._used.append(option)
+
+        if len(self._used) == len(self._options):
+            # then start cycle over
+            self._used = []
 
 mplcolorcycler = MPLPropCycler(_mplcolors)
 mplmarkercycler = MPLPropCycler(_mplmarkers)
@@ -63,12 +68,21 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=False, **k
 
     return params
 
-def _add_dataset(**kwargs):
+def _add_component(**kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', None)), choices=mplcolorcycler.options, description='Default color when plotted via run_figure')]
     params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', None)), choices=mplmarkercycler.options, description='Default marker when plotted via run_figure')]
     params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
+
+    return ParameterSet(params)
+
+def _add_dataset(allow_per_component=False, **kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<component>' if allow_per_component else None)), choices=['<component>']+mplcolorcycler.options if allow_per_component else mplcolorcycler.options, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', '<component>' if allow_per_component else None)), choices=['<component>']+mplmarkercycler.options if allow_per_component else mplmarkercycler.options, description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=['<component>']+mpllinestylecycler.options if allow_per_component else mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
 
     return ParameterSet(params)
 

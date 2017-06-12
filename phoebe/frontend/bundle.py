@@ -275,7 +275,7 @@ class Bundle(ParameterSet):
         :return: instatiated :class`Bundle` object
         """
         b = cls()
-        b.add_star(component=starA)
+        b.add_star(component=starA, color='b')
         b.set_hierarchy(_hierarchy.component(b[starA]))
         b.add_compute()
         return b
@@ -294,8 +294,8 @@ class Bundle(ParameterSet):
         :return: instantiated :class:`Bundle` object
         """
         b = cls()
-        b.add_star(component=starA)
-        b.add_star(component=starB)
+        b.add_star(component=starA, color='b')
+        b.add_star(component=starB, color='r')
         b.add_orbit(component=orbit)
         if contact_binary:
             b.add_component('envelope', component='contact_envelope')
@@ -344,9 +344,9 @@ class Bundle(ParameterSet):
             raise NotImplementedError("'default_triple' not officially supported for this release.  Enable developer mode to test.")
 
         b = cls()
-        b.add_star(component=starA)
-        b.add_star(component=starB)
-        b.add_star(component=starC)
+        b.add_star(component=starA, color='b')
+        b.add_star(component=starB, color='r')
+        b.add_star(component=starC, color='g')
         b.add_orbit(component=inner, period=1)
         b.add_orbit(component=outer, period=10)
 
@@ -1407,6 +1407,15 @@ class Bundle(ParameterSet):
         for constraint in constraints:
             self.add_constraint(*constraint)
 
+        # Figure options for this dataset
+        if kind in ['star']:
+            fig_params = _figure._add_component(**kwargs)
+
+            fig_metawargs = {'context': 'figure',
+                             'kind': kind,
+                             'component': kwargs['component']}
+            self._attach_params(fig_params, **fig_metawargs)
+
         # since we've already processed (so that we can get the new qualifiers),
         # we'll only raise a warning
         self._kwargs_checks(kwargs, warning_only=True)
@@ -1785,7 +1794,7 @@ class Bundle(ParameterSet):
         self._attach_params(dep_params, **dep_metawargs)
 
         # Figure options for this dataset
-        fig_params = _figure._add_dataset(**kwargs)
+        fig_params = _figure._add_dataset(allow_per_component=kind in ['rv', 'orb', 'etv'], **kwargs)
 
         fig_metawargs = {'context': 'figure',
                          'kind': kind,

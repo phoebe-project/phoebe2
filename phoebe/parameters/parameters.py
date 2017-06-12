@@ -2356,6 +2356,17 @@ class ParameterSet(object):
                 default_color = self._bundle.get_value('color', dataset=ps.dataset, context='figure')
             if default_linestyle=='<dataset>':
                 default_linestyle = self._bundle.get_value('linestyle', dataset=ps.dataset, context='figure')
+            if default_marker=='<dataset>':
+                default_marker = self._bundle.get_value('marker', component=ps.componet, context='figure')
+            if default_color=='<component>':
+                default_color = self._bundle.get_value('color', component=ps.component, context='figure')
+            if default_linestyle=='<component>':
+                default_linestyle = self._bundle.get_value('linestyle', component=ps.component, context='figure')
+            if default_marker=='<component>':
+                default_marker = self._bundle.get_value('marker', component=ps.component, context='figure')
+
+            # print "***", default_color, default_linestyle, default_marker
+
 
             kwargs.setdefault('color', default_color)
             kwargs.setdefault('linestyle', default_linestyle)
