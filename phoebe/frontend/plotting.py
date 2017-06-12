@@ -17,6 +17,7 @@ try:
     from mpl_toolkits.mplot3d import Axes3D
 except (ImportError, TypeError):
     _use_mpl = False
+    _mplcolors = []
 else:
     _use_mpl = True
     _mplcolors = colors.cnames.keys() + colors.ColorConverter.colors.keys() + ['None', 'none']

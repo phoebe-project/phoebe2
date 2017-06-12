@@ -2151,7 +2151,7 @@ class ParameterSet(object):
         # color = kwargs.get('color', None)
         # kwargs.setdefault('linecolor', color)
         # kwargs.setdefault('markercolor', color)
-        kwargs.setdefault('color', None)
+        # kwargs.setdefault('color', None)
         kwargs.setdefault('time', None)
         kwargs.setdefault('highlight', True)
         kwargs.setdefault('highlight_marker', 'o')
@@ -2342,6 +2342,29 @@ class ParameterSet(object):
         # to mplkwargs. These defaults are obviously designed with matplotlib
         # in mind, but other backends can either rewrite their own defaults or
         # try to interpret these
+        if kwargs.pop('use_figure_params', True) and self._bundle is not None:
+            # then we'll pull color/marker/linestyle from the bundle
+            if ps.context=='model':
+                default_color = self._bundle.get_value('color', model=ps.model, context='figure')
+                default_linestyle = self._bundle.get_value('linestyle', model=ps.model, context='figure')
+                default_marker = 'None'
+            else:
+                default_color = self._bundle.get_value('color', dataset=ps.dataset, context='figure')
+                default_linestyle = 'None'
+                default_marker = self._bundle.get_value('marker', dataset=ps.dataset, context='figure')
+            if default_color=='<dataset>':
+                default_color = self._bundle.get_value('color', dataset=ps.dataset, context='figure')
+            if default_linestyle=='<dataset>':
+                default_linestyle = self._bundle.get_value('linestyle', dataset=ps.dataset, context='figure')
+
+            kwargs.setdefault('color', default_color)
+            kwargs.setdefault('linestyle', default_linestyle)
+            kwargs.setdefault('marker', default_marker)
+        else:
+            kwargs.setdefault('color', None)
+
+
+
         if ps.context=='model':
             plottype = 'line'
             if ps.kind in ['mesh'] and \
@@ -3711,7 +3734,7 @@ class ChoiceParameter(Parameter):
                     self._choices = list_passbands(refresh=True)
 
             if value not in self.choices:
-                raise ValueError("value must be one of {}".format(self.choices))
+                raise ValueError("value {} not one of {}".format(value, self.choices))
 
             if self.qualifier=='passband' and value not in list_installed_passbands():
                 # then we need to download and install before setting

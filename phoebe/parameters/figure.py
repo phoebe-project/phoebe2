@@ -1,6 +1,54 @@
 from phoebe.parameters import *
 import numpy as np
 
+try:
+    from matplotlib import colors, markers
+except (ImportError, TypeError):
+    _use_mpl = False
+    _mplcolors = []
+    _mplmarkers = []
+    _mpllinestyles = []
+else:
+    _use_mpl = True
+    _mplcolors = colors.ColorConverter.colors.keys() + colors.cnames.keys()
+    _mplmarkers = ['.', 'o', '+', 's', '*', 'v', '^', '<', '>', 'p', 'h', 'o', 'D']
+    # could do matplotlib.markers.MarkerStyle.markers.keys()
+    _mpllinestyles = ['solid', 'dashed', 'dotted', 'dashdot', 'None']
+    # could also do matplotlib.lines.lineStyles.keys()
+
+
+class MPLPropCycler(object):
+    def __init__(self, options=[]):
+        self._options = options
+        self._used = []
+        self._index = 0
+
+    @property
+    def options(self):
+        return self._options
+
+    @property
+    def next(self):
+        for option in self._options:
+            if option not in self._used:
+                self.add_to_used(option)
+                return option
+
+    def get(self, option=None):
+        if option is not None:
+            self.add_to_used(option)
+            return option
+        else:
+            return self.next
+
+
+    def add_to_used(self, option):
+        if option not in self._used:
+            self._used.append(option)
+
+mplcolorcycler = MPLPropCycler(_mplcolors)
+mplmarkercycler = MPLPropCycler(_mplmarkers)
+mpllinestylecycler = MPLPropCycler(_mpllinestyles)
 
 def _label_units_lims(axis, default_unit, visible_if=None, is_default=False, **kwargs):
     params = []
@@ -14,6 +62,24 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=False, **k
     params += [FloatArrayParameter(qualifier='{}lim'.format(axis), visible_if=visible_if, value=kwargs.get('{}lim'.format(axis), []), default_unit=default_unit, description='Limit for the {}-axis'.format(axis))]
 
     return params
+
+def _add_dataset(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', None)), choices=mplcolorcycler.options, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', None)), choices=mplmarkercycler.options, description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
+
+    return ParameterSet(params)
+
+def _run_compute(**kwargs):
+    params = []
+
+    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<dataset>')), choices=['<dataset>']+mplcolorcycler.options, description='Default color when plotted via run_figure')]
+    # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', '.'), choices=['.', 'o', '+'], description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', '<dataset>')), choices=['<dataset>']+mpllinestylecycler.options, description='Default linestyle when plotted via run_figure, overrides dataset value')]
+
+    return ParameterSet(params)
 
 def lc(**kwargs):
     params = []

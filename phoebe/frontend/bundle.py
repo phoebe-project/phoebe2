@@ -1784,6 +1784,15 @@ class Bundle(ParameterSet):
         dep_params = dep_func()
         self._attach_params(dep_params, **dep_metawargs)
 
+        # Figure options for this dataset
+        fig_params = _figure._add_dataset(**kwargs)
+
+        fig_metawargs = {'context': 'figure',
+                         'kind': kind,
+                         'dataset': kwargs['dataset']}
+        self._attach_params(fig_params, **fig_metawargs)
+
+
         # Now we need to apply any kwargs sent by the user.  There are a few
         # scenarios (and each kwargs could fall into different ones):
         # times = [0,1,2]
@@ -2654,6 +2663,13 @@ class Bundle(ParameterSet):
 
             self._attach_params(params, **metawargs)
 
+        # Figure options for this model
+        fig_params = _figure._run_compute(**kwargs)
+
+        fig_metawargs = {'context': 'figure',
+                         'model': model}
+        self._attach_params(fig_params, **fig_metawargs)
+
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
         redo_kwargs['model'] = model
@@ -3019,4 +3035,4 @@ class Bundle(ParameterSet):
         for k,v in kwargs.items():
             plot_kwargs[k] = v
 
-        return self.plot(**plot_kwargs)
+        return self.plot(use_figure_params=True, **plot_kwargs)
