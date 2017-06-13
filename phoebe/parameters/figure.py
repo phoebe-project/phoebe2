@@ -51,9 +51,7 @@ class MPLPropCycler(object):
             # then start cycle over
             self._used = []
 
-mplcolorcycler = MPLPropCycler(_mplcolors)
-mplmarkercycler = MPLPropCycler(_mplmarkers)
-mpllinestylecycler = MPLPropCycler(_mpllinestyles)
+
 
 def _label_units_lims(axis, default_unit, visible_if=None, is_default=False, **kwargs):
     params = []
@@ -68,34 +66,34 @@ def _label_units_lims(axis, default_unit, visible_if=None, is_default=False, **k
 
     return params
 
-def _add_component(**kwargs):
+def _add_component(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', None)), choices=mplcolorcycler.options, description='Default color when plotted via run_figure')]
-    params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', None)), choices=mplmarkercycler.options, description='Default marker when plotted via run_figure')]
-    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', None)), choices=b._mplcolorcycler.options, description='Default color when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', None)), choices=b._mplmarkercycler.options, description='Default marker when plotted via run_figure')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', None)), choices=b._mpllinestylecycler.options, description='Default linestyle when plotted via run_figure')]
 
     return ParameterSet(params)
 
-def _add_dataset(allow_per_component=False, **kwargs):
+def _add_dataset(b, allow_per_component=False, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<component>' if allow_per_component else None)), choices=['<component>']+mplcolorcycler.options if allow_per_component else mplcolorcycler.options, description='Default color when plotted, overrides component value unless set to <component>')]
-    params += [ChoiceParameter(qualifier='marker', value=mplmarkercycler.get(kwargs.get('marker', '<component>' if allow_per_component else None)), choices=['<component>']+mplmarkercycler.options if allow_per_component else mplmarkercycler.options, description='Default marker when plotted, overrides component value unless set to <component>')]
-    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=['<component>']+mpllinestylecycler.options if allow_per_component else mpllinestylecycler.options, description='Default linestyle when plotted, overrides component value unless set to <component>')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', '<component>' if allow_per_component else None)), choices=['<component>']+b._mplcolorcycler.options if allow_per_component else b._mplcolorcycler.options, description='Default color when plotted, overrides component value unless set to <component>')]
+    params += [ChoiceParameter(qualifier='marker', value=b._mplmarkercycler.get(kwargs.get('marker', '<component>' if allow_per_component else None)), choices=['<component>']+b._mplmarkercycler.options if allow_per_component else b._mplmarkercycler.options, description='Default marker when plotted, overrides component value unless set to <component>')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', 'solid')), choices=['<component>']+b._mpllinestylecycler.options if allow_per_component else b._mpllinestylecycler.options, description='Default linestyle when plotted, overrides component value unless set to <component>')]
 
     return ParameterSet(params)
 
-def _run_compute(**kwargs):
+def _run_compute(b, **kwargs):
     params = []
 
-    params += [ChoiceParameter(qualifier='color', value=mplcolorcycler.get(kwargs.get('color', '<dataset>')), choices=['<dataset>']+mplcolorcycler.options, description='Default color when plotted, overrides dataset value unless set to <dataset>')]
+    params += [ChoiceParameter(qualifier='color', value=b._mplcolorcycler.get(kwargs.get('color', '<dataset>')), choices=['<dataset>']+b._mplcolorcycler.options, description='Default color when plotted, overrides dataset value unless set to <dataset>')]
     # params += [ChoiceParameter(qualifier='marker', value=kwargs.get('marker', '.'), choices=['.', 'o', '+'], description='Default marker when plotted, overrides dataset value unless set to <dataset>')]
-    params += [ChoiceParameter(qualifier='linestyle', value=mpllinestylecycler.get(kwargs.get('linestyle', '<dataset>')), choices=['<dataset>']+mpllinestylecycler.options, description='Default linestyle when plotted, overrides dataset value unless set to <dataset>')]
+    params += [ChoiceParameter(qualifier='linestyle', value=b._mpllinestylecycler.get(kwargs.get('linestyle', '<dataset>')), choices=['<dataset>']+b._mpllinestylecycler.options, description='Default linestyle when plotted, overrides dataset value unless set to <dataset>')]
 
     return ParameterSet(params)
 
-def lc(**kwargs):
+def lc(b, **kwargs):
     params = []
 
     # TODO: set hierarchy needs to update choices of any x,y,z in context='figure' to include phases:* a la pblum_ref
@@ -111,7 +109,7 @@ def lc(**kwargs):
     return ParameterSet(params)
 
 
-def rv(**kwargs):
+def rv(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'times'), choices=['times', 'phases'], description='Array to plot along x-axis')]
@@ -125,7 +123,7 @@ def rv(**kwargs):
     return ParameterSet(params)
 
 
-def etv(**kwargs):
+def etv(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'time_ephems'), choices=['time_ephems', 'Ns'], description='Array to plot along x-axis')]
@@ -140,10 +138,10 @@ def etv(**kwargs):
     return ParameterSet(params)
 
 
-def ifm(**kwargs):
+def ifm(b, **kwargs):
     raise NotImplementedError
 
-def orb(**kwargs):
+def orb(b, **kwargs):
     params = []
 
     params += [ChoiceParameter(qualifier='x', value=kwargs.get('x', 'xs'), choices=['times', 'phases', 'xs', 'ys', 'zs', 'vxs', 'vys', 'vzs'], description='Array to plot along x-axis')]
@@ -168,7 +166,7 @@ def orb(**kwargs):
 
     return ParameterSet(params)
 
-def mesh(**kwargs):
+def mesh(b, **kwargs):
     raise NotImplementedError
 
     params = []

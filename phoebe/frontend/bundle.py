@@ -170,6 +170,10 @@ class Bundle(ParameterSet):
         for constraint in self.filter(context='constraint').to_list():
             constraint._update_bookkeeping()
 
+        self._mplcolorcycler = _figure.MPLPropCycler(_figure._mplcolors)
+        self._mplmarkercycler = _figure.MPLPropCycler(_figure._mplmarkers)
+        self._mpllinestylecycler = _figure.MPLPropCycler(_figure._mpllinestyles)
+
     @classmethod
     def open(cls, filename):
         """Open a new bundle.
@@ -1409,7 +1413,7 @@ class Bundle(ParameterSet):
 
         # Figure options for this dataset
         if kind in ['star']:
-            fig_params = _figure._add_component(**kwargs)
+            fig_params = _figure._add_component(self, **kwargs)
 
             fig_metawargs = {'context': 'figure',
                              'kind': kind,
@@ -1794,7 +1798,7 @@ class Bundle(ParameterSet):
         self._attach_params(dep_params, **dep_metawargs)
 
         # Figure options for this dataset
-        fig_params = _figure._add_dataset(allow_per_component=kind in ['rv', 'orb', 'etv'], **kwargs)
+        fig_params = _figure._add_dataset(self, allow_per_component=kind in ['rv', 'orb', 'etv'], **kwargs)
 
         fig_metawargs = {'context': 'figure',
                          'kind': kind,
@@ -2673,7 +2677,7 @@ class Bundle(ParameterSet):
             self._attach_params(params, **metawargs)
 
         # Figure options for this model
-        fig_params = _figure._run_compute(**kwargs)
+        fig_params = _figure._run_compute(self, **kwargs)
 
         fig_metawargs = {'context': 'figure',
                          'model': model}
