@@ -886,7 +886,7 @@ class ParameterSet(object):
 
         return
 
-    def _check_label(self, label):
+    def _check_label(self, label, allow_latest_exception=False):
         """Check to see if the label is allowed."""
 
         if not isinstance(label, str):
@@ -897,8 +897,10 @@ class ParameterSet(object):
                              .format(label))
         if not re.match("^[a-z,A-Z,0-9,_]*$", label):
             raise ValueError("label '{}' is forbidden - only alphabetic, numeric, and '_' characters are allowed in labels".format(label))
-        if len(self.filter(twig=label, check_visible=False)):
-            raise ValueError("label '{}' is already in use".format(label))
+        if len(self.filter(twig=label, check_visible=False, check_default=False)):
+            # with the one exception of 'latest@model' where we allow overwriting
+            if not (allow_latest_exception and label=='latest'):
+                raise ValueError("label '{}' is already in use".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
 

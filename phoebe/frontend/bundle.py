@@ -2445,7 +2445,11 @@ class Bundle(ParameterSet):
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
 
-        self._check_label(model)
+            do_create_fig_params = False
+        else:
+            do_create_fig_params = True
+
+        self._check_label(model, allow_latest_exception=True)
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]
@@ -2677,11 +2681,12 @@ class Bundle(ParameterSet):
             self._attach_params(params, **metawargs)
 
         # Figure options for this model
-        fig_params = _figure._run_compute(self, **kwargs)
+        if do_create_fig_params:
+            fig_params = _figure._run_compute(self, **kwargs)
 
-        fig_metawargs = {'context': 'figure',
-                         'model': model}
-        self._attach_params(fig_params, **fig_metawargs)
+            fig_metawargs = {'context': 'figure',
+                             'model': model}
+            self._attach_params(fig_params, **fig_metawargs)
 
         redo_kwargs = deepcopy(kwargs)
         redo_kwargs['compute'] = computes if len(computes)>1 else computes[0]
@@ -2717,7 +2722,7 @@ class Bundle(ParameterSet):
             (except twig or context)
         """
         kwargs['model'] = model
-        # kwargs['context'] = 'model'
+        kwargs['context'] = 'model'
         self.remove_parameters_all(**kwargs)
 
     # TODO: ability to copy a posterior to a prior or have a prior reference an attached posterior (for drawing in fitting)
