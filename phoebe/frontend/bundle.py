@@ -2717,7 +2717,7 @@ class Bundle(ParameterSet):
             (except twig or context)
         """
         kwargs['model'] = model
-        kwargs['context'] = 'model'
+        # kwargs['context'] = 'model'
         self.remove_parameters_all(**kwargs)
 
     # TODO: ability to copy a posterior to a prior or have a prior reference an attached posterior (for drawing in fitting)
@@ -2982,7 +2982,7 @@ class Bundle(ParameterSet):
         metawargs = {'context': 'figure',
                      'kind': kind,
                      'figure': kwargs['figure']}
-        _params = func(**kwargs)
+        _params = func(self, **kwargs)
         self._attach_params(_params, **metawargs)
 
 
