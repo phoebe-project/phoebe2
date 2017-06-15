@@ -2944,7 +2944,7 @@ class Bundle(ParameterSet):
         raise NotImplementedError
 
     @send_if_client
-    def add_figure(self, kind, figure=None, **kwargs):
+    def add_figure(self, kind, **kwargs):
         """
         Add a new figure to the bundle.  If not provided,
         'figure' (the name of the new plot options) will be created for
