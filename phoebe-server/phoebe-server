@@ -1,0 +1,635 @@
+#!/usr/bin/python
+
+"""
+pip install flask
+pip install flask-sqlalchemy
+pip install flask-socketio
+pip install gevent-websocket
+"""
+
+try:
+    from flask import Flask, jsonify, request, redirect, make_response, send_from_directory
+    from flask.ext.socketio import SocketIO, emit, join_room, leave_room
+    import flask.ext.sqlalchemy
+except ImportError:
+    raise ImportError("dependencies not met: pip install flask flask-sqlalchemy flask-socketio gevent-websocket")
+
+################################ SERVER/APP SETUP ##############################
+
+
+app = Flask(__name__)
+app._bundles = {}
+app._clients = []
+app._verbose = True
+app._killable = False
+
+# Create the Flask-SQLAlchemy object and an SQLite database
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///phoebe.db'
+# db = flask.ext.sqlalchemy.SQLAlchemy(app)
+
+# Configure socket.io
+app.config['SECRET_KEY'] = 'phoebesecret'
+socketio = SocketIO(app)
+
+def _uniqueid(N=30):
+    """
+    :parameter int N: number of character in the uniqueid
+    :return: the uniqueid
+    :rtype: str
+    """
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase) for _ in range(N))
+
+################################## ADDITIONAL IMPORTS ##########################
+
+import phoebe
+import numpy as np
+import mpltracker  # https://www.github.com/kecnry/mpltracker
+import matplotlib.pyplot as plt
+import json
+import random
+import string
+import os
+import sys
+import StringIO
+from collections import OrderedDict
+from datetime import datetime # debug only
+
+
+phoebe.interactive_off()
+phoebe.parameters._is_server = True
+
+# logger = phoebe.logger('INFO')
+_dir_tmpimages = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'phoebe-server-tmpimages'))
+
+if not os.path.exists(_dir_tmpimages):
+    os.makedirs(_dir_tmpimages)
+
+
+# TODO: can we also process and emit logger signals (https://docs.python.org/2/library/logging.handlers.html#sockethandler)?  Or at the least we could call b.run_checks after each command manually and broadcast those messages
+
+###############################################################################
+# We need to tell clients that its ok to accept API information from an external
+# server since this will almost always be running from a different URL/port
+# than the client.
+# The following code that accomplishes this is taken (borrowed) almost entirely
+# from http://flask.pocoo.org/snippets/56/
+from datetime import timedelta
+from flask import make_response, request, current_app
+from functools import update_wrapper
+
+
+def crossdomain(origin=None, methods=None, headers=None,
+                max_age=21600, attach_to_all=True,
+                automatic_options=True):
+    if methods is not None:
+        methods = ', '.join(sorted(x.upper() for x in methods))
+    if headers is not None and not isinstance(headers, basestring):
+        headers = ', '.join(x.upper() for x in headers)
+    if not isinstance(origin, basestring):
+        origin = ', '.join(origin)
+    if isinstance(max_age, timedelta):
+        max_age = max_age.total_seconds()
+
+    def get_methods():
+        if methods is not None:
+            return methods
+
+        options_resp = current_app.make_default_options_response()
+        return options_resp.headers['allow']
+
+    def decorator(f):
+        def wrapped_function(*args, **kwargs):
+            if automatic_options and request.method == 'OPTIONS':
+                resp = current_app.make_default_options_response()
+            else:
+                resp = make_response(f(*args, **kwargs))
+            if not attach_to_all and request.method != 'OPTIONS':
+                return resp
+
+            h = resp.headers
+
+            h['Access-Control-Allow-Origin'] = origin
+            h['Access-Control-Allow-Methods'] = get_methods()
+            h['Access-Control-Max-Age'] = str(max_age)
+            if headers is not None:
+                h['Access-Control-Allow-Headers'] = headers
+            return resp
+
+        f.provide_automatic_options = False
+        return update_wrapper(wrapped_function, f)
+    return decorator
+
+
+############################ HTTP ROUTES ######################################
+def _get_response(data, status_code=200, included=None, api=False, **metawargs):
+    d = {}
+    d['data'] = data
+    d['meta'] = metawargs
+    if included is not None:
+        d['included'] = included
+    if api:
+        resp = jsonify(d)
+        resp.status_code = status_code
+        return resp
+    else:
+        return d
+
+@app.route("/test", methods=['GET'])
+@crossdomain(origin='*')
+def test():
+    # TODO: include version info?
+    if app._verbose:
+        print("test", phoebe.__version__, app._parent)
+    return _get_response({'success': True, 'phoebe_version': phoebe.__version__, 'parentid': app._parent}, api=True)
+
+@app.route("/clients", methods=['GET'])
+@crossdomain(origin='*')
+def clients():
+    if app._verbose:
+        print("clients", app._clients)
+
+    return _get_response({'success': True, 'clients': app._clients}, api=True)
+
+@app.route("/<string:bundleid>/json", methods=['GET'])
+@crossdomain(origin='*')
+def get_json(bundleid):
+    if app._verbose:
+        print("GET request for json")
+
+    b = app._bundles[bundleid]
+
+    data = b.to_json(incl_uniqueid=True)
+
+    #print "returning json response"
+    return _get_response(data, bundleid=bundleid, api=True)
+
+@app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
+def serve_figure(bundleid, figure):
+    fname = '{}_{}.png'.format(bundleid, figure)
+    return send_from_directory(_dir_tmpimages, fname)
+
+@app.route("/<string:bundleid>/figure_mpl/<string:figure>", methods=['GET'])
+def serve_figure_mpl(bundleid, figure):
+    fname = '{}_{}.mpl'.format(bundleid, figure)
+    return send_from_directory(_dir_tmpimages, fname)
+
+
+############################# WEBSOCKET ROUTES ################################
+def _value(param):
+
+    if isinstance(param._value, phoebe.nphelpers.Arange) or isinstance(param._value, phoebe.nphelpers.Linspace):
+        value = param._value.to_json()
+    elif isinstance(param, phoebe.parameters.UnitParameter):
+        value = str(param.get_value().to_string())
+    else:
+        value = param.get_value()
+
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+
+    return value
+
+def _value_string(param):
+    param_type = param.__class__.__name__
+
+    if param_type in ['StringParameter', 'ChoiceParameter', 'HierarchyParameter']:
+        return param.get_value()
+    elif param_type in ['ConstraintParameter']:
+        return "(Constraint)"
+    elif param_type in ['UnitParameter']:
+        return str(param.get_value().to_string())
+    elif param_type in ['IntParameter', 'DictParameter', 'BoolParameter']:
+        return str(param.get_value())
+    elif param_type in ['FloatParameter']:
+        return str(param.get_value())
+    elif param_type in ['FloatArrayParameter']:
+        if isinstance(param._value, phoebe.nphelpers.Arange):
+            return "arange({}, {}, {})".format(param.start, param.stop, param.step)
+        elif isinstance(param._value, phoebe.nphelpers.Linspace):
+            return "linspace({}, {}, {})".format(param.start, param.stop, param.num)
+        else:
+            arr = param.get_value()
+            # unit = str(param.get_default_unit())
+            if len(arr):
+                return "[{} ... {} ({})]".format(arr[0], arr[-1], len(arr))
+            else:
+                return "[] (empty)"
+    else:
+        return '({})'.format(param_type)
+
+def _params(b, includeids=[], **filter_):
+    def _unitchoices(unit):
+        physical_type = unit.physical_type
+
+        if physical_type == 'dimensionless':
+            if unit.to_string() in ['', 'dimensionless']:
+                pass
+            else:
+                physical_types = [un.physical_type for un in unit.bases]
+                if all([pt=='time' for pt in physical_types]):
+                    # then we're time/time, eg. s / yr
+                    # NOTE: doing same units on numerator and denominator will force this to be dimensionless
+                    # and then we won't know that its time at all.
+                    return ['d / yr', 'h / d', 'h / yr', 'min / d', 'min / h', 'min / yr', 's / min', 's / h', 's / d', 's / yr']
+                else:
+                    return [unit.to_string()]
+        elif physical_type == 'time':
+            return ['yr', 'd', 'h', 'min', 's']
+        elif physical_type == 'mass':
+            return ['solMass', 'jupiterMass', 'earthMass', 'kg', 'g']
+        elif physical_type == 'length':
+            return ['solRad', 'jupiterRad', 'earthRad', 'AU', 'pc', 'km', 'm', 'cm']
+        elif physical_type == 'speed':
+            return ['solRad / d', 'solRad / s', 'km / h', 'km / s', 'm / h', 'm / s']
+        elif physical_type == 'angle':
+            return ['rad', 'deg']
+        elif physical_type == 'angular speed':
+            return ['rad / yr', 'rad / d', 'rad / h', 'rad / s', 'deg / yr', 'deg / d', 'deg / h', 'deg / s']
+        elif physical_type == 'temperature':
+            # astropy cannot convert to u.deg_C or u.imperial.deg_F
+            return ['K']
+        else:
+            return [unit.to_string()]
+
+    def _choices(parameter):
+        if hasattr(parameter, 'choices'):
+            return parameter.choices
+        elif parameter.__class__.__name__ == 'BoolParameter':
+            return ['True', 'False']
+        elif parameter.__class__.__name__ == 'UnitParameter':
+            return _unitchoices(parameter.get_value())
+        else:
+            return None
+
+    ps = b.filter(check_default=False, **filter_)
+
+    if len(includeids):
+        ps += b.filter(uniqueid=includeids)
+
+    ps = ps.to_list()
+
+    ps += b.run_delayed_constraints()
+
+    params = {}
+    for p in ps:
+        typ = p.__class__.__name__
+        pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p)}}
+
+        pdict['choices'] = _choices(p)
+
+        if hasattr(p, 'is_constraint'):
+            pdict['constrained'] = p.is_constraint is not None
+
+        if hasattr(p, 'default_unit'):
+            pdict['valueunit'] = p.default_unit.to_string()
+
+            # NOTE: if any of these should be converted to an html form in the
+            # desktop app, those cases need to be explicitly defined in parameters.jsx
+            pdict['unitchoices'] = _unitchoices(p.default_unit)
+        else:
+            pdict['valueunit'] = None
+            # pdict['unitchoices'] = False
+
+        # if app._verbose:
+            # print pdict
+
+        params[p.uniqueid] = pdict
+
+    return params
+
+
+########## CLIENT MANAGEMENT
+@socketio.on('connect')
+def connect():
+    if app._verbose:
+        print('Client connected')
+
+    # emit('connect', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}})
+
+@socketio.on('disconnect')
+def disconnect():
+    if app._verbose:
+        print('Client disconnected')
+
+    # emit('disconnect', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}})
+
+@socketio.on('test')
+def ping(msg=None):
+    if app._verbose:
+        print("received test msg:", msg)
+
+    emit('test response', {'success': True, 'data': 'pong'}, broadcast=False)
+
+@socketio.on('echo')
+def echo(msg=None):
+    if app._verbose:
+        print("echo", msg)
+
+    echo = msg.pop('echo', 'echo')
+    emit(echo, msg, broadcast=False)
+
+@socketio.on('register client')
+def register_client(msg):
+    clientid = msg.get('clientid', None)
+    if app._verbose:
+        print("Client registered: ", clientid)
+
+    if clientid is not None and clientid not in app._clients:
+        app._clients.append(clientid)
+
+    emit('clients changed', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}}, broadcast=True)
+
+@socketio.on('deregister client')
+def deregister_client(msg):
+    clientid = msg.get('clientid', None)
+    if app._verbose:
+        print("Client deregisterd: ", clientid)
+
+    if clientid is not None:
+        app._clients.remove(clientid)
+
+    emit('clients changed', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}}, broadcast=True)
+
+########## BUNDLE CREATION
+@socketio.on('default_binary')
+def default_binary(msg):
+    if app._verbose:
+        print("default_binary")
+
+    id_ = msg.pop('id', None)
+
+    try:
+        b = phoebe.default_binary()
+    except Exception as err:
+        emit('bundle', {'success': False, 'id': id_, 'error': err.message}, broadcast=False)
+    else:
+        b.add_dataset('lc', times=phoebe.linspace(0,1,11))
+        b.add_figure('lc')
+        bundleid = _uniqueid()
+        app._bundles[bundleid] = b
+        emit('bundle', {'success': True, 'id': id_, 'data': {'bundleid': bundleid}}, broadcast=False)
+
+########## TAGS/FILTERING
+@socketio.on('tags')
+def tags(msg):
+    if app._verbose:
+        start = datetime.now()
+        print("tags")
+
+    ALLOW_OR = True
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    filter_ = msg.get('filter', {})
+
+    tags = {}
+    tags_nselected = {}
+    ps_tags = b.filter(check_default=False, **filter_).tags
+    for section, section_tags in b.tags.items():
+        nselected = 0
+        tags[section] = OrderedDict()
+        if ALLOW_OR and section in filter_.keys():
+            # then let's store the filtered PS without this key,value pair
+            section_available_for_or = b.filter(check_default=False, **{k:v for k,v in filter_.items() if k!=section})
+        else:
+            section_available_for_or = []
+
+        for tag in sorted(section_tags):
+            selected = tag in filter_.get(section, [])
+            if ALLOW_OR and section in filter_.keys():
+                # then we want available to be if the filtered PS without sending
+                # this key-value would still allow other entries to be added (ie by OR)
+                available = tag in section_available_for_or
+            else:
+                available = tag in ps_tags[section]
+
+            if selected:
+                nselected += 1
+            tags[section][tag] = {'selected': selected,
+                                  'available': available}
+
+        tags_nselected[section] = nselected
+
+    nparams = len(b)
+    nhidden = nparams - len(b.filter(check_default=False, check_visible=True))
+
+    if app._verbose:
+        print("tags microseconds:", (datetime.now()-start).microseconds)
+
+    emit('tags', {'success': True, 'data': {'bundleid': bundleid, 'tags': tags, 'tagsnselected': tags_nselected, 'nparams': nparams, 'nhidden': nhidden}}, broadcast=False)
+
+@socketio.on('figures')
+def figures(msg):
+    if app._verbose:
+        print("figures")
+
+    packetid = msg.pop('id', None)
+
+    bundleid = msg.get('bundleid')
+    b = app._bundles[bundleid]
+
+    figures = b.figures
+
+    emit('figures', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'figures': figures}}, broadcast=False)
+
+
+@socketio.on('filter')
+def filter(msg):
+    if app._verbose:
+        start = datetime.now()
+        print("filter")
+
+    bundleid = msg.get('bundleid')
+    b = app._bundles[bundleid]
+
+    filter_ = msg.get('filter', {})
+
+    print("filter: {}".format(filter_))
+
+    params = _params(b, includeids=msg.get('includeids', []), **filter_)
+
+    if app._verbose:
+        print("filter microseconds:", (datetime.now()-start).microseconds)
+
+    emit('filter', {'success': True, 'data': {'bundleid': bundleid, 'params': params}}, broadcast=False)
+
+@socketio.on('information')
+def information(msg):
+    if app._verbose:
+        print("information", msg)
+
+    id_ = msg.pop('id', None)
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    param = b.get_parameter(uniqueid=msg.get('uniqueid', None))
+
+    data = {}
+    data['description'] = param.description
+    data['meta'] = param.meta
+    if param.__class__.__name__ == 'ConstraintParameter':
+        data['related_to'] = {p.uniqueid: p.twig for p in param.vars.to_list()}
+        data['constrains'] = {p.uniqueid: p.twig for p in [param.constrained_parameter]}
+        data['constraint'] = {}
+    else:
+        data['related_to'] = {p.uniqueid: p.twig for p in param.related_to} if hasattr(param, 'related_to') else {}
+        data['constraint'] = {p.uniqueid: p.twig for p in [param.is_constraint]} if hasattr(param, 'is_constraint') and param.is_constraint is not None else {}
+        data['constrains'] = {p.uniqueid: p.twig for p in param.constrains} if hasattr(param, 'constrains') else {}
+
+    if hasattr(param, 'limits'):
+        if hasattr(param, 'default_unit'):
+            data['limits'] = [l.to(param.default_unit).value if l is not None else None for l in param.limits] + [param.default_unit.to_string()]
+        else:
+            data['limits'] = param.limits + [None]
+    else:
+        data['limits'] = None
+
+    if app._verbose:
+        print(data)
+
+    emit('information', {'success': True, 'id': id_, 'data': data}, broadcast=False)
+
+########## PARAMETERS
+@socketio.on('set_value')
+def set_value(msg):
+    if app._verbose:
+        print("set_value: ", msg)
+
+    packetid = msg.pop('id', None)
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    try:
+        b.set_value_all(**msg)
+    except Exception as err:
+        if app._verbose:
+            print("set_value {} error: {}".format(msg, err.message))
+        emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+    else:
+
+        # now let's send a broadcast message to all subscribed clients with a list of ALL changes (note the redundancy for the original client)
+        changes = _params(b, **msg)
+
+        filteredps = b.filter(**msg)
+        figureschanged = b.figures if filteredps.context=='figure' and not len(filteredps.figures) else b.filter(**msg).figures
+
+        emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'figureschanged': figureschanged}}, broadcast=True)
+
+@socketio.on('set_default_unit')
+def set_default_unit(msg):
+    if app._verbose:
+        print("set_default_unit: ", msg)
+
+    packetid = msg.pop('id', None)
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    try:
+        b.set_default_unit_all(**msg)
+    except Exception as err:
+        if app._verbose:
+            print("set_default_unit {} error: {}".format(msg, err.message))
+        emit("set_default_unit", {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+    else:
+        # params = b.filter(**msg).to_list()
+
+        changes = _params(b, **msg)
+
+        # TODO: this may be overkill
+        emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes}}, broadcast=True)
+
+@socketio.on('bundle_method')
+def bundle_method(msg):
+    if app._verbose:
+        print("bundle_method: ", msg)
+
+    packetid = msg.pop('id', None)
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    fctn = msg.pop('fctn')
+    args = msg.pop('args', [])
+
+    try:
+        # let's not pass None on in kwargs as that can conflict with setdefault within phoebe
+        method_kwargs = {k:v for k,v in msg.items() if v not in [None, '']}
+        if app._verbose:
+            print("running b.{}(*{}, **{})".format(fctn, args, method_kwargs))
+        params = getattr(b, fctn)(*args, **method_kwargs)
+    except Exception as err:
+        if app._verbose:
+            print("bundle_method fctn={} args={} kwargs={} error={}".format(fctn, args, msg, err.message))
+        emit("bundle_method", {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+    else:
+        # print("params.length", len(params))
+        # print("params.meta", params.meta)
+
+        newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None}
+        changes = _params(b, **newparamsfilter)
+
+        if 'add_' in fctn or 'run_' in fctn:
+            if 'run_' in fctn:
+                newcontext = {'compute': 'model', 'fitting': 'feedback'}[fctn.split('_')[1]]
+            else:
+                newcontext = fctn.split('_')[1]
+
+            newparamsfilter = {newcontext: [params.meta[newcontext]]}
+
+        if app._verbose:
+            print("bundle_method newparamsfilter: ", newparamsfilter)
+
+        # TODO: this may be overkill
+        emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': True, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter}}, broadcast=True)
+
+@socketio.on('run_figure')
+def run_figure(msg):
+    if app._verbose:
+        print("run_figure: ", msg)
+
+    packetid = msg.pop('id', None)
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    figure = msg.pop('figure')
+
+    fig = mpltracker.figure()
+    b.run_figure(figure, ax=fig.gca())
+
+    fname = '{}_{}.png'.format(bundleid, figure)
+    fig.savefig(os.path.join(_dir_tmpimages, fname))
+    furl = '{}/figure/{}'.format(bundleid, figure)
+
+    tracker_fname = '{}_{}.mpl'.format(bundleid, figure)
+    mpltracker.gct(fig).save(os.path.join(_dir_tmpimages, tracker_fname))
+    tracker_furl = '{}/figure_mpl/{}'.format(bundleid, figure)
+    mpltracker.close(fig)
+
+
+    emit('figureimage', {'success': True, 'id': packetid, 'data': {'url': furl, 'mplurl': tracker_furl}}, broadcast=False)
+
+
+if __name__ == "__main__":
+    #phoebe_server.py port, parent, host
+    if len(sys.argv) >= 2:
+        port = int(float(sys.argv[1]))
+    else:
+        port = 5555
+
+    if len(sys.argv) >= 3:
+        parent = sys.argv[2]
+    else:
+        parent = 'notprovided'
+
+    if len(sys.argv) >=4:
+        host = sys.argv[3]
+    else:
+        host = '127.0.0.1'
+
+    app._parent = parent
+    socketio.run(app, host=host, port=port)

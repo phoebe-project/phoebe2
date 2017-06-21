@@ -27,4 +27,5 @@ setup (name = 'phoebe',
        install_requires=['numpy>=1.10','scipy>=0.18','astropy>=1.0'],
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                     },
-       ext_modules = ext_modules)
+       ext_modules = ext_modules,
+       scripts=['phoebe-server/phoebe-server'],)
