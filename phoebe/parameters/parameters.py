@@ -828,7 +828,11 @@ class ParameterSet(object):
                 # attrs is a list of the attributes for which we need a copy of
                 # this parameter for any pair
 
-                ps = self._bundle.filter(check_visible=False, check_default=False, force_ps=True, **param.copy_for)
+                ps = self._bundle.filter(check_visible=False,
+                                         check_default=False,
+                                         check_advanced=False,
+                                         check_single=False,
+                                         force_ps=True, **param.copy_for)
                 metawargs = {k:v for k,v in ps.meta.items() if v is not None and k in attrs}
                 for k,v in param.meta.items():
                     if k not in ['twig', 'uniquetwig'] and k not in attrs:
@@ -873,7 +877,11 @@ class ParameterSet(object):
 
                         param_constraint = param.is_constraint
 
-                        copied_param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
+                        copied_param = self._bundle.get_parameter(check_visible=False,
+                                                                  check_default=False,
+                                                                  check_advanced=False,
+                                                                  check_single=False,
+                                                                  **metawargs)
 
                         if not copied_param.is_constraint:
                             constraint_kwargs = param_constraint.constraint_kwargs.copy()
@@ -897,7 +905,8 @@ class ParameterSet(object):
                              .format(label))
         if not re.match("^[a-z,A-Z,0-9,_]*$", label):
             raise ValueError("label '{}' is forbidden - only alphabetic, numeric, and '_' characters are allowed in labels".format(label))
-        if len(self.filter(twig=label, check_visible=False, check_default=False)):
+        if len(self.filter(twig=label, check_visible=False, check_default=False,
+                           check_advanced=False, check_single=False)):
             # with the one exception of 'latest@model' where we allow overwriting
             if not (allow_latest_exception and label=='latest'):
                 raise ValueError("label '{}' is already in use".format(label))
@@ -1217,7 +1226,8 @@ class ParameterSet(object):
         return lst
         # return {k: v.to_json() for k,v in self.to_flat_dict().items()}
 
-    def filter(self, twig=None, check_visible=True, check_default=True, **kwargs):
+    def filter(self, twig=None, check_visible=True, check_default=True,
+               check_advanced=False, check_single=False, **kwargs):
         """
         Filter the ParameterSet based on the meta-tags of the Parameters
         and return another ParameterSet.
@@ -1241,16 +1251,23 @@ class ParameterSet(object):
                 to provide defaults for when new parameters or datasets are
                 added and the parameter needs to be copied appropriately).
                 Defaults to True.
+        :parameter bool check_advanced: whether to exclude parameters which
+                are considered 'advanced parameters'.  Defaults to False.
+        :parameter bool check_single: whether to exclude ChoiceParameters
+                with only a single choiced.  Defaults to False
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`ParameterSet`
         """
         kwargs['check_visible'] = check_visible
         kwargs['check_default'] = check_default
+        kwargs['check_advanced'] = check_advanced
+        kwargs['check_single'] = check_single
         kwargs['force_ps'] = True
         return self.filter_or_get(twig=twig, **kwargs)
 
-    def get(self, twig=None, check_visible=True, check_default=True, **kwargs):
+    def get(self, twig=None, check_visible=True, check_default=True,
+            check_advanced=False, check_single=False, **kwargs):
         """
         Get a single parameter from this ParameterSet.  This works exactly the
         same as filter except there must be only a single result, and the Parameter
@@ -1272,6 +1289,10 @@ class ParameterSet(object):
                 to provide defaults for when new parameters or datasets are
                 added and the parameter needs to be copied appropriately).
                 Defaults to True.
+        :parameter bool check_advanced: whether to exclude parameters which
+                are considered 'advanced parameters'.  Defaults to False.
+        :parameter bool check_single: whether to exclude ChoiceParameters
+                with only a single choiced.  Defaults to False
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: the resulting :class:`Parameter`
@@ -1281,6 +1302,8 @@ class ParameterSet(object):
         """
         kwargs['check_visible'] = check_visible
         kwargs['check_default'] = check_default
+        kwargs['check_advanced'] = check_advanced
+        kwargs['check_single'] = check_single
         # print "***", kwargs
         ps = self.filter(twig=twig, **kwargs)
         if not len(ps):
@@ -1294,7 +1317,8 @@ class ParameterSet(object):
             return ps._params[0]
 
     def filter_or_get(self, twig=None, autocomplete=False, force_ps=False,
-                      check_visible=True, check_default=True, **kwargs):
+                      check_visible=True, check_default=True,
+                      check_advanced=False, check_single=False, **kwargs):
         """
 
         Filter the :class:`ParameterSet` based on the meta-tags of its
@@ -1327,6 +1351,10 @@ class ParameterSet(object):
                 to provide defaults for when new parameters or datasets are
                 added and the parameter needs to be copied appropriately).
                 Defaults to True.
+        :parameter bool check_advanced: whether to exclude parameters which
+                are considered 'advanced parameters'.  Defaults to False.
+        :parameter bool check_single: whether to exclude ChoiceParameters
+                with only a single choiced.  Defaults to False
         :parameter **kwargs: meta-tags to search (ie. 'context', 'component',
                 'model', etc).  See :func:`meta` for all possible options.
         :return: :class:`Parameter` if length of results is exactly 1 and
@@ -1357,6 +1385,8 @@ class ParameterSet(object):
             kwargs['force_ps'] = force_ps
             kwargs['check_visible'] = check_visible
             kwargs['check_default'] = check_default
+            kwargs['check_advanced'] = check_advanced
+            kwargs['check_single'] = check_single
             return_ = ParameterSet()
             for t in time:
                 kwargs['time'] = t
@@ -1391,6 +1421,14 @@ class ParameterSet(object):
         # handle visible_if
         if check_visible:
             params = [pi for pi in params if pi.is_visible]
+
+        # handle hiding advanced parameters
+        if check_advanced:
+            params = [pi for pi in params if not pi.is_advanced]
+
+        # handle hiding choice parameters with a single option
+        if check_single:
+            params = [pi for pi in params if not hasattr(pi, 'choices') or len(pi.choices) > 1]
 
         if isinstance(twig, int):
             # then act as a list index
@@ -2842,6 +2880,7 @@ class Parameter(object):
         bundle = kwargs.get('bundle', None)
 
         self._description = description
+        self._advanced = kwargs.get('advanced', False)
         self._bundle = bundle
         self._value = None
 
@@ -3087,6 +3126,13 @@ class Parameter(object):
         return OrderedDict([(k, getattr(self, k)) for k in _meta_fields_all if k not in ignore])
 
     @property
+    def is_advanced(self):
+        """
+        Whether the parameter is considered an advanced parameter
+        """
+        return self._advanced
+
+    @property
     def qualifier(self):
         """
         :return: qualifier tag of this Parameter
@@ -3301,7 +3347,11 @@ class Parameter(object):
 
                 try:
                     # this call is quite expensive and bloats every get_parameter(check_visible=True)
-                    param = self._bundle.get_parameter(check_visible=False, check_default=False, **metawargs)
+                    param = self._bundle.get_parameter(check_visible=False,
+                                                       check_default=False,
+                                                       check_advanced=False,
+                                                       check_single=False,
+                                                       **metawargs)
                 except ValueError:
                     # let's not let this hold us up - sometimes this can happen when copying
                     # parameters (from copy_for) in order that the visible_if parameter
@@ -4768,7 +4818,7 @@ class HierarchyParameter(StringParameter):
         see :meth:`Parameter.__init__`
         """
         dump = kwargs.pop('qualifier', None)
-        super(HierarchyParameter, self).__init__(qualifier='hierarchy', value=value, **kwargs)
+        super(HierarchyParameter, self).__init__(qualifier='hierarchy', value=value, advanced=True, **kwargs)
 
     def __repr__(self):
         return "<HierarchyParameter: {}>".format(self.get_value())
@@ -5247,7 +5297,10 @@ class ConstraintParameter(Parameter):
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
             ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
-                constrained_parameter = ps.get_parameter(check_visible=False, check_default=False)
+                constrained_parameter = ps.get_parameter(check_visible=False,
+                                                         check_default=False,
+                                                         check_advanced=False,
+                                                         check_single=False)
             else:
                 raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
 
@@ -5280,9 +5333,12 @@ class ConstraintParameter(Parameter):
         kwargs['twig'] = twig
         kwargs['check_default'] = False
         kwargs['check_visible'] = False
+        kwargs['check_advanced'] = False
+        kwargs['check_single'] = False
         ps = self.vars.filter(**kwargs)
         if len(ps)==1:
-            return ps.get(check_visible=False, check_default=False)
+            return ps.get(check_visible=False, check_default=False,
+                          check_advanced=False, check_single=False)
         elif len(ps) > 1:
             # TODO: is this safe?  Some constraints may have a parameter listed
             # twice, so we can do this then, but maybe should check to make sure

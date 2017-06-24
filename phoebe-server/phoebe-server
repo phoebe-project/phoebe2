@@ -5,6 +5,8 @@ pip install flask
 pip install flask-sqlalchemy
 pip install flask-socketio
 pip install gevent-websocket
+
+mpltracker https://github.com/kecnry/mpltracker
 """
 
 try:
@@ -217,7 +219,9 @@ def _value_string(param):
     else:
         return '({})'.format(param_type)
 
-def _params(b, includeids=[], **filter_):
+def _params(b, includeids=[], check_visible=True, check_default=False,
+            check_advanced=False, check_single=False,
+            subtract_constraint=False, **filter_):
     def _unitchoices(unit):
         physical_type = unit.physical_type
 
@@ -261,10 +265,16 @@ def _params(b, includeids=[], **filter_):
         else:
             return None
 
-    ps = b.filter(check_default=False, **filter_)
+    ps = b.filter(check_visible=check_visible, check_default=check_default,
+                  check_advanced=check_advanced, check_single=check_single, **filter_)
+
+    if subtract_constraint:
+        ps -= ps.filter(context='constraint')
 
     if len(includeids):
-        ps += b.filter(uniqueid=includeids)
+        ps += b.filter(check_visible=False, check_default=False,
+                       check_advanced=False, check_single=False,
+                       uniqueid=includeids)
 
     ps = ps.to_list()
 
@@ -363,8 +373,8 @@ def default_binary(msg):
     except Exception as err:
         emit('bundle', {'success': False, 'id': id_, 'error': err.message}, broadcast=False)
     else:
-        b.add_dataset('lc', times=phoebe.linspace(0,1,11))
-        b.add_figure('lc')
+        # b.add_dataset('lc', times=phoebe.linspace(0,1,11))
+        # b.add_figure('lc')
         bundleid = _uniqueid()
         app._bundles[bundleid] = b
         emit('bundle', {'success': True, 'id': id_, 'data': {'bundleid': bundleid}}, broadcast=False)
@@ -383,15 +393,48 @@ def tags(msg):
 
     filter_ = msg.get('filter', {})
 
+    checks = msg.get('checks', {})
+    check_visible = checks.get('check_visible', True)
+    check_default = checks.get('check_default', False)
+    check_advanced = checks.get('check_advanced', False)
+    check_single = checks.get('check_single', False)
+    subtract_constraint = checks.get('subtract_constraint', False)
+
     tags = {}
     tags_nselected = {}
-    ps_tags = b.filter(check_default=False, **filter_).tags
-    for section, section_tags in b.tags.items():
+
+    params_visible = b.filter(check_default=check_default,
+                              check_visible=check_visible,
+                              check_advanced=check_advanced,
+                              check_single=check_single)
+
+    params_selected = params_visible.filter(**filter_)
+
+    if subtract_constraint:
+        params_visible -= params_visible.filter(context='constraint')
+        params_selected -= params_selected.filter(context='constraint')
+
+    ps_tags = params_selected.tags
+    for section, section_tags in b.filter(check_default=check_default,
+                                          check_visible=check_visible,
+                                          check_advanced=check_advanced,
+                                          check_single=check_single).tags.items():
+
+        if subtract_constraint:
+            if section=='constraint':
+                continue
+            if section=='context':
+                section_tags.remove('constraint')
+
         nselected = 0
         tags[section] = OrderedDict()
         if ALLOW_OR and section in filter_.keys():
             # then let's store the filtered PS without this key,value pair
-            section_available_for_or = b.filter(check_default=False, **{k:v for k,v in filter_.items() if k!=section})
+            section_available_for_or = b.filter(check_default=check_default,
+                                                check_visible=check_visible,
+                                                check_advanced=check_advanced,
+                                                check_single=check_single,
+                                                **{k:v for k,v in filter_.items() if k!=section})
         else:
             section_available_for_or = []
 
@@ -411,8 +454,11 @@ def tags(msg):
 
         tags_nselected[section] = nselected
 
-    nparams = len(b)
-    nhidden = nparams - len(b.filter(check_default=False, check_visible=True))
+    nparams = len(params_visible)
+    nhidden = len(b.filter(check_default=False,
+                           check_visible=False,
+                           check_advanced=False,
+                           check_single=False)) - nparams
 
     if app._verbose:
         print("tags microseconds:", (datetime.now()-start).microseconds)
@@ -445,9 +491,20 @@ def filter(msg):
 
     filter_ = msg.get('filter', {})
 
-    print("filter: {}".format(filter_))
+    checks = msg.get('checks', {})
+    check_visible = checks.get('check_visible', True)
+    check_default = checks.get('check_default', False)
+    check_advanced = checks.get('check_advanced', False)
+    check_single = checks.get('check_single', False)
+    subtract_constraint = checks.get('subtract_constraint', False)
 
-    params = _params(b, includeids=msg.get('includeids', []), **filter_)
+
+    print("filter: {}, check_default: {}, check_visible: {}, check_advanced: {}, check_single: {}, subtract_constraint: {}".format(filter_, check_default, check_visible, check_advanced, check_single, subtract_constraint))
+
+    params = _params(b, includeids=msg.get('includeids', []),
+                     check_visible=check_visible, check_default=check_default,
+                     check_advanced=check_advanced, check_single=check_single,
+                     subtract_constraint=subtract_constraint, **filter_)
 
     if app._verbose:
         print("filter microseconds:", (datetime.now()-start).microseconds)
@@ -513,8 +570,9 @@ def set_value(msg):
         # now let's send a broadcast message to all subscribed clients with a list of ALL changes (note the redundancy for the original client)
         changes = _params(b, **msg)
 
-        filteredps = b.filter(**msg)
-        figureschanged = b.figures if filteredps.context=='figure' and not len(filteredps.figures) else b.filter(**msg).figures
+        filteredps = b.filter(check_visible=False, check_default=False,
+                              check_advanced=False, check_single=False, **msg)
+        figureschanged = b.figures if filteredps.context=='figure' and not len(filteredps.figures) else filteredps.figures
 
         emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'figureschanged': figureschanged}}, broadcast=True)
 
