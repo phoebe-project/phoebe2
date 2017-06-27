@@ -338,7 +338,7 @@ class Passband:
         Returns: n/a
         """
 
-        if Teffs == None:
+        if Teffs is None:
             log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
             Teffs = 10**log10Teffs
 
@@ -839,14 +839,14 @@ class Passband:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
-            if ldint == None:
+            if ldint is None:
                 ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
-            if ldint == None:
+            if ldint is None:
                 ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
@@ -894,11 +894,11 @@ class Passband:
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
 
-        if ld_coeffs == None:
+        if ld_coeffs is None:
             # LD function can be passed without coefficients; in that
             # case we need to interpolate them from the tables.
             ld_coeffs = self.interpolate_ck2004_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
-        
+
         if ld_func == 'linear':
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
@@ -938,9 +938,9 @@ class Passband:
                 raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
             return retval
 
-        if ld_coeffs == None:
+        if ld_coeffs is None:
             ld_coeffs = self.interpolate_ck2004_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
-        
+
         if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
         elif ld_func == 'logarithmic':
