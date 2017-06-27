@@ -626,239 +626,264 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     if _use_mpi and myrank == 0:
         print('*** phoebe-mpi: %d cores allocated.' % (nprocs))
-        
     
+    if _use_mpi and nprocs == 1:
+        print('*** please use mpirun to run this version of phoebe.')
+        exit()
+
+
+
+    if myrank == 0:
     # MAIN COMPUTE LOOP
     # the outermost loop will be over times.  infolist will be a list of dictionaries
     # with component, kind, and dataset as keys applicable for that current time.
-    for i,time,infolist in zip(range(len(times)),times,infos):
-        # Check to see what we might need to do that requires a mesh
-        # TOOD: make sure to use the requested distortion_method
+        for i,time,infolist in zip(range(len(times)),times,infos):
+
+            node = comm.recv(source = MPI.ANY_SOURCE, tag=TAG_REQ)
+            comm.send(i, node, tag=TAG_DATA)
+            
+            # break temporarily, to test mpi communication
+            continue
+            
+            # Check to see what we might need to do that requires a mesh
+            # TODO: make sure to use the requested distortion_method
 
 
-        # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
-        if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
-            xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
-        else:
-            xi, yi, zi = [0.], [0.], [0.]
-            vxi, vyi, vzi = [0.], [0.], [0.]
-            # TODO: star needs long_an (yaw?)
-
-            ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', component=meshablerefs[0], unit=u.rad)]
-
-        if True in [info['needs_mesh'] for info in infolist]:
-
-            if dynamics_method in ['nbody', 'rebound']:
-                di = dynamics.at_i(inst_ds, i)
-                Fi = dynamics.at_i(inst_Fs, i)
-                # by passing these along to update_positions, volume conservation will
-                # handle remeshing the stars
+            # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
+            if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
+                xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
             else:
-                # then allow d to be determined from orbit and original sma
-                # and F to remain fixed
-                di = None
-                Fi = None
+                xi, yi, zi = [0.], [0.], [0.]
+                vxi, vyi, vzi = [0.], [0.], [0.]
+                # TODO: star needs long_an (yaw?)
 
+                ethetai, elongani, eincli = [0.], [0.], [b.get_value('incl', component=meshablerefs[0], unit=u.rad)]
 
+            if True in [info['needs_mesh'] for info in infolist]:
 
-            # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
-            # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
-            # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
-
-            system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
-
-            # Now we need to determine which triangles are visible and handle subdivision
-            # NOTE: this should come after populate_observables so that each subdivided triangle
-            # will have identical local quantities.  The only downside to this is that we can't
-            # make a shortcut and only populate observables at known-visible triangles - but
-            # frankly that wouldn't save much time anyways and would then be annoying when
-            # inspecting or plotting the mesh
-            # NOTE: this has been moved before populate observables now to make use
-            # of per-vertex weights which are used to determine the physical quantities
-            # (ie teff, logg) that should be used in computing observables (ie intensity)
-
-            expose_horizon =  'mesh' in [info['kind'] for info in infolist] and do_horizon
-            horizons = system.handle_eclipses(expose_horizon=expose_horizon)
-
-            # Now we can fill the observables per-triangle.  We'll wait to integrate
-            # until we're ready to fill the synthetics
-            # print "*** system.populate_observables", [info['kind'] for info in infolist if info['needs_mesh']], [info['dataset'] for info in infolist if info['needs_mesh']]
-            # kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], kind='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()+b.filter(qualifier='passband', dataset=info['dataset'], kind='*dep').to_list()} for info in infolist if info['needs_mesh']]
-
-            system.populate_observables(time,
-                    [info['kind'] for info in infolist if info['needs_mesh']],
-                    [info['dataset'] for info in infolist if info['needs_mesh']])
-
-
-        # now let's loop through and fill any synthetics at this time step
-        # TODO: make this MPI ready by ditching appends and instead filling with all nans and then filling correct index
-        for info in infolist:
-            # i, time, info['kind'], info['component'], info['dataset']
-            cind = starrefs.index(info['component']) if info['component'] in starrefs else None
-            # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
-            kind = info['kind']
-
-
-            if kind in ['mesh', 'sp']:
-                # print "*** new_syns", new_syns.twigs
-                # print "*** filtering new_syns", info['component'], info['dataset'], kind, time
-                # print "*** this_syn.twigs", new_syns.filter(kind=kind, time=time).twigs
-                this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind, time=time)
-            else:
-                # print "*** new_syns", new_syns.twigs
-                # print "*** filtering new_syns", info['component'], info['dataset'], kind
-                # print "*** this_syn.twigs", new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind).twigs
-                this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
-
-            # now check the kind to see what we need to fill
-            if kind=='rv':
-                ### this_syn['times'].append(time) # time array was set when initializing the syns
-                if info['needs_mesh']:
-                    # TODO: we have to call get here because twig access will trigger on kind=rv and qualifier=rv
-                    # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').kinds, this_syn.filter(qualifier='rv').components
-                    # if len(this_syn.filter(qualifier='rv').twigs)>1:
-                        # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
-                    rv = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)['rv']
-                    this_syn['rvs'].append(rv*u.solRad/u.d)
+                if dynamics_method in ['nbody', 'rebound']:
+                    di = dynamics.at_i(inst_ds, i)
+                    Fi = dynamics.at_i(inst_Fs, i)
+                    # by passing these along to update_positions, volume conservation will
+                    # handle remeshing the stars
                 else:
-                    # then rv_method == 'dynamical'
-                    this_syn['rvs'].append(-1*vzi[cind]*u.solRad/u.d)
+                    # then allow d to be determined from orbit and original sma
+                    # and F to remain fixed
+                    di = None
+                    Fi = None
 
-            elif kind=='lc':
 
-                # print "***", info['component']
-                # print "***", system.observe(info['dataset'], kind=kind, components=info['component'])
-                l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-                this_syn['fluxes'].append(system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux'])
 
-            elif kind=='etv':
+                # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
+                # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
+                # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
 
-                # TODO: add support for other etv kinds (barycentric, robust, others?)
-                time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value('etv_tol', u.d, dataset=info['dataset'], component=info['component']))
+                system.update_positions(time, xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli, ds=di, Fs=Fi)
 
-                this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
-                this_syn['Ns'].append(this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time))  # TODO: there must be a better/cleaner way to do this
-                this_syn['time_ephems'].append(time)  # NOTE: no longer under constraint control
-                this_syn['time_ecls'].append(time_ecl)
-                this_syn['etvs'].append(time_ecl-time)  # NOTE: no longer under constraint control
+                # Now we need to determine which triangles are visible and handle subdivision
+                # NOTE: this should come after populate_observables so that each subdivided triangle
+                # will have identical local quantities.  The only downside to this is that we can't
+                # make a shortcut and only populate observables at known-visible triangles - but
+                # frankly that wouldn't save much time anyways and would then be annoying when
+                # inspecting or plotting the mesh
+                # NOTE: this has been moved before populate observables now to make use
+                # of per-vertex weights which are used to determine the physical quantities
+                # (ie teff, logg) that should be used in computing observables (ie intensity)
 
-            elif kind=='ifm':
-                observables_ifm = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)
-                for key in observables_ifm.keys():
-                    this_syn[key] = observables_ifm[key]
+                expose_horizon =  'mesh' in [info['kind'] for info in infolist] and do_horizon
+                horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
-            elif kind=='orb':
+                # Now we can fill the observables per-triangle.  We'll wait to integrate
+                # until we're ready to fill the synthetics
+                # print "*** system.populate_observables", [info['kind'] for info in infolist if info['needs_mesh']], [info['dataset'] for info in infolist if info['needs_mesh']]
+                # kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], kind='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()+b.filter(qualifier='passband', dataset=info['dataset'], kind='*dep').to_list()} for info in infolist if info['needs_mesh']]
+
+                system.populate_observables(time,
+                        [info['kind'] for info in infolist if info['needs_mesh']],
+                        [info['dataset'] for info in infolist if info['needs_mesh']])
+
+
+            # now let's loop through and fill any synthetics at this time step
+            # TODO: make this MPI ready by ditching appends and instead filling with all nans and then filling correct index
+            for info in infolist:
+                # i, time, info['kind'], info['component'], info['dataset']
+                cind = starrefs.index(info['component']) if info['component'] in starrefs else None
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
-
-                ### this_syn['times'].append(ts[i])  # time array was set when initializing the syns
-                this_syn['xs'].append(xi[cind])
-                this_syn['ys'].append(yi[cind])
-                this_syn['zs'].append(zi[cind])
-                this_syn['vxs'].append(vxi[cind])
-                this_syn['vys'].append(vyi[cind])
-                this_syn['vzs'].append(vzi[cind])
-
-            elif kind=='mesh':
-                # print "*** info['component']", info['component'], " info['dataset']", info['dataset']
-                # print "*** this_syn.twigs", this_syn.twigs
-                body = system.get_body(info['component'])
-
-                this_syn['pot'] = body._instantaneous_pot
-                this_syn['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
-                this_syn['volume'] = body.volume
-
-                # TODO: should x, y, z be computed columns of the vertices???
-                # could easily have a read-only property at the ProtoMesh level
-                # that returns a ComputedColumn for xs, ys, zs (like rs)
-                # (also do same for protomesh)
-                this_syn['xs'] = body.mesh.centers[:,0]# * u.solRad
-                this_syn['ys'] = body.mesh.centers[:,1]# * u.solRad
-                this_syn['zs'] = body.mesh.centers[:,2]# * u.solRad
-                this_syn['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
-                this_syn['vys'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
-                this_syn['vzs'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
-                this_syn['vertices'] = body.mesh.vertices_per_triangle
-                this_syn['areas'] = body.mesh.areas # * u.solRad**2
-                # TODO remove this 'normals' vector now that we have nx,ny,nz?
-                this_syn['normals'] = body.mesh.tnormals
-                this_syn['nxs'] = body.mesh.tnormals[:,0]
-                this_syn['nys'] = body.mesh.tnormals[:,1]
-                this_syn['nzs'] = body.mesh.tnormals[:,2]
-                this_syn['mus'] = body.mesh.mus
-
-                this_syn['loggs'] = body.mesh.loggs.centers
-                this_syn['teffs'] = body.mesh.teffs.centers
-                # TODO: include abun? (body.mesh.abuns.centers)
-
-                # NOTE: these are computed columns, so are not based on the
-                # "center" coordinates provided by x, y, z, etc, but rather are
-                # the average value across each triangle.  For this reason,
-                # they are less susceptible to a coarse grid.
-                this_syn['rs'] = body.mesh.rs.centers
-                this_syn['r_projs'] = body.mesh.rprojs.centers
-
-                this_syn['visibilities'] = body.mesh.visibilities
-
-                vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
-                for i,vc in enumerate(vcs):
-                    if np.all(vc==np.array([0,0,0])):
-                        vcs[i] = np.full(3, np.nan)
-                this_syn['visible_centroids'] = vcs
-
-                # Eclipse horizon
-                if do_horizon and horizons is not None:
-                    this_syn['horizon_xs'] = horizons[cind][:,0]
-                    this_syn['horizon_ys'] = horizons[cind][:,1]
-                    this_syn['horizon_zs'] = horizons[cind][:,2]
-
-                # Analytic horizon
-                if do_horizon:
-                    if body.distortion_method == 'roche':
-                        if body.mesh_method == 'marching':
-                            q, F, d, Phi = body._mesh_args
-                            scale = body._scale
-                            euler = [ethetai[cind], elongani[cind], eincli[cind]]
-                            pos = [xi[cind], yi[cind], zi[cind]]
-                            ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
-                        elif body.mesh_method == 'wd':
-                            scale = body._scale
-                            pos = [xi[cind], yi[cind], zi[cind]]
-                            ha = horizon_analytic.wd(b, time, scale, pos)
-                        else:
-                            raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
-
-                        this_syn['horizon_analytic_xs'] = ha['xs']
-                        this_syn['horizon_analytic_ys'] = ha['ys']
-                        this_syn['horizon_analytic_zs'] = ha['zs']
+                kind = info['kind']
 
 
-                # Dataset-dependent quantities
-                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
-                # if conf.devel:
-                indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
-                indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
-                for infomesh in infolist:
-                    if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
-                        new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
-                        new_syns.set_value(qualifier='ptfarea', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.get_ptfarea(infomesh['dataset']))
+                if kind in ['mesh', 'sp']:
+                    # print "*** new_syns", new_syns.twigs
+                    # print "*** filtering new_syns", info['component'], info['dataset'], kind, time
+                    # print "*** this_syn.twigs", new_syns.filter(kind=kind, time=time).twigs
+                    this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind, time=time)
+                else:
+                    # print "*** new_syns", new_syns.twigs
+                    # print "*** filtering new_syns", info['component'], info['dataset'], kind
+                    # print "*** this_syn.twigs", new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind).twigs
+                    this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
-                        for indep in indeps[infomesh['kind']]:
-                            key = "{}:{}".format(indep, infomesh['dataset'])
-                            # print "***", key, indep, new_syns.qualifiers
-                            # print "***", indep, time, infomesh['dataset'], info['component'], 'mesh', new_syns.filter(time=time, kind='mesh').twigs
-                            try:
-                                new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.mesh[key].centers)
-                            except ValueError:
-                                # print "***", key, indep, info['component'], infomesh['dataset'], new_syns.filter(time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs
-                                raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs)))
+                # now check the kind to see what we need to fill
+                if kind=='rv':
+                    ### this_syn['times'].append(time) # time array was set when initializing the syns
+                    if info['needs_mesh']:
+                        # TODO: we have to call get here because twig access will trigger on kind=rv and qualifier=rv
+                        # print "***", this_syn.filter(qualifier='rv').twigs, this_syn.filter(qualifier='rv').kinds, this_syn.filter(qualifier='rv').components
+                        # if len(this_syn.filter(qualifier='rv').twigs)>1:
+                            # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
+                        rv = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)['rv']
+                        this_syn['rvs'].append(rv*u.solRad/u.d)
+                    else:
+                        # then rv_method == 'dynamical'
+                        this_syn['rvs'].append(-1*vzi[cind]*u.solRad/u.d)
+
+                elif kind=='lc':
+
+                    # print "***", info['component']
+                    # print "***", system.observe(info['dataset'], kind=kind, components=info['component'])
+                    l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
+                    this_syn['fluxes'].append(system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux'])
+
+                elif kind=='etv':
+
+                    # TODO: add support for other etv kinds (barycentric, robust, others?)
+                    time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value('etv_tol', u.d, dataset=info['dataset'], component=info['component']))
+
+                    this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
+                    this_syn['Ns'].append(this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time))  # TODO: there must be a better/cleaner way to do this
+                    this_syn['time_ephems'].append(time)  # NOTE: no longer under constraint control
+                    this_syn['time_ecls'].append(time_ecl)
+                    this_syn['etvs'].append(time_ecl-time)  # NOTE: no longer under constraint control
+
+                elif kind=='ifm':
+                    observables_ifm = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)
+                    for key in observables_ifm.keys():
+                        this_syn[key] = observables_ifm[key]
+
+                elif kind=='orb':
+                    # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
+
+                    ### this_syn['times'].append(ts[i])  # time array was set when initializing the syns
+                    this_syn['xs'].append(xi[cind])
+                    this_syn['ys'].append(yi[cind])
+                    this_syn['zs'].append(zi[cind])
+                    this_syn['vxs'].append(vxi[cind])
+                    this_syn['vys'].append(vyi[cind])
+                    this_syn['vzs'].append(vzi[cind])
+
+                elif kind=='mesh':
+                    # print "*** info['component']", info['component'], " info['dataset']", info['dataset']
+                    # print "*** this_syn.twigs", this_syn.twigs
+                    body = system.get_body(info['component'])
+
+                    this_syn['pot'] = body._instantaneous_pot
+                    this_syn['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
+                    this_syn['volume'] = body.volume
+
+                    # TODO: should x, y, z be computed columns of the vertices???
+                    # could easily have a read-only property at the ProtoMesh level
+                    # that returns a ComputedColumn for xs, ys, zs (like rs)
+                    # (also do same for protomesh)
+                    this_syn['xs'] = body.mesh.centers[:,0]# * u.solRad
+                    this_syn['ys'] = body.mesh.centers[:,1]# * u.solRad
+                    this_syn['zs'] = body.mesh.centers[:,2]# * u.solRad
+                    this_syn['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
+                    this_syn['vys'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
+                    this_syn['vzs'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
+                    this_syn['vertices'] = body.mesh.vertices_per_triangle
+                    this_syn['areas'] = body.mesh.areas # * u.solRad**2
+                    # TODO remove this 'normals' vector now that we have nx,ny,nz?
+                    this_syn['normals'] = body.mesh.tnormals
+                    this_syn['nxs'] = body.mesh.tnormals[:,0]
+                    this_syn['nys'] = body.mesh.tnormals[:,1]
+                    this_syn['nzs'] = body.mesh.tnormals[:,2]
+                    this_syn['mus'] = body.mesh.mus
+
+                    this_syn['loggs'] = body.mesh.loggs.centers
+                    this_syn['teffs'] = body.mesh.teffs.centers
+                    # TODO: include abun? (body.mesh.abuns.centers)
+
+                    # NOTE: these are computed columns, so are not based on the
+                    # "center" coordinates provided by x, y, z, etc, but rather are
+                    # the average value across each triangle.  For this reason,
+                    # they are less susceptible to a coarse grid.
+                    this_syn['rs'] = body.mesh.rs.centers
+                    this_syn['r_projs'] = body.mesh.rprojs.centers
+
+                    this_syn['visibilities'] = body.mesh.visibilities
+
+                    vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
+                    for i,vc in enumerate(vcs):
+                        if np.all(vc==np.array([0,0,0])):
+                            vcs[i] = np.full(3, np.nan)
+                    this_syn['visible_centroids'] = vcs
+
+                    # Eclipse horizon
+                    if do_horizon and horizons is not None:
+                        this_syn['horizon_xs'] = horizons[cind][:,0]
+                        this_syn['horizon_ys'] = horizons[cind][:,1]
+                        this_syn['horizon_zs'] = horizons[cind][:,2]
+
+                    # Analytic horizon
+                    if do_horizon:
+                        if body.distortion_method == 'roche':
+                            if body.mesh_method == 'marching':
+                                q, F, d, Phi = body._mesh_args
+                                scale = body._scale
+                                euler = [ethetai[cind], elongani[cind], eincli[cind]]
+                                pos = [xi[cind], yi[cind], zi[cind]]
+                                ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
+                            elif body.mesh_method == 'wd':
+                                scale = body._scale
+                                pos = [xi[cind], yi[cind], zi[cind]]
+                                ha = horizon_analytic.wd(b, time, scale, pos)
+                            else:
+                                raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
+
+                            this_syn['horizon_analytic_xs'] = ha['xs']
+                            this_syn['horizon_analytic_ys'] = ha['ys']
+                            this_syn['horizon_analytic_zs'] = ha['zs']
 
 
-            else:
-                raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
+                    # Dataset-dependent quantities
+                    indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
+                    # if conf.devel:
+                    indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
+                    indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
+                    for infomesh in infolist:
+                        if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
+                            new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
+                            new_syns.set_value(qualifier='ptfarea', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.get_ptfarea(infomesh['dataset']))
 
-        if as_generator:
-            # this is mainly used for live-streaming animation support
-            yield (new_syns, time)
+                            for indep in indeps[infomesh['kind']]:
+                                key = "{}:{}".format(indep, infomesh['dataset'])
+                                # print "***", key, indep, new_syns.qualifiers
+                                # print "***", indep, time, infomesh['dataset'], info['component'], 'mesh', new_syns.filter(time=time, kind='mesh').twigs
+                                try:
+                                    new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.mesh[key].centers)
+                                except ValueError:
+                                    # print "***", key, indep, info['component'], infomesh['dataset'], new_syns.filter(time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs
+                                    raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs)))
+
+
+                else:
+                    raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
+
+            if as_generator:
+                # this is mainly used for live-streaming animation support
+                yield (new_syns, time)
+
+        for i in range(1, nprocs):
+            node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
+            comm.send(-1, node, tag=TAG_DATA)
+
+    else: # if myrank != 0:
+        while True:
+            comm.send(myrank, 0, tag=TAG_REQ)
+            idx = comm.recv(tag=TAG_DATA)
+            print('work order %d received by processor %d' % (idx, myrank))
+            if idx == -1:
+                break
 
     if not as_generator:
         yield new_syns
