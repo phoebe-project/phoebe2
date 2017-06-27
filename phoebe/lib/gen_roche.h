@@ -615,11 +615,14 @@ namespace gen_roche {
           
         //std::cerr << it << '\t' << t << '\t' << dt << '\n';
           
-      } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
       
-      if (!(it < iter_max))
-        std::cerr << "left_lobe_left_xborder::slow convergence\n";
-      
+      if (it >= iter_max){
+        std::cerr.precision(std::numeric_limits<T>::digits10+1);
+        std::cerr 
+          << "left_lobe_left_xborder::slow convergence\n"
+          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
+      }
       #if 0
       std::cerr << "t1=" << t  << '\n';
       #endif
@@ -724,9 +727,12 @@ namespace gen_roche {
         //std::cerr << it << '\t' << t << '\t' << dt << '\n';
       } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
       
-      if (!(it < iter_max))
-        std::cerr << "left_lobe_right_xborder::slow convergence\n";
-      
+      if (it >= iter_max){
+        std::cerr.precision(std::numeric_limits<T>::digits10+1);
+        std::cerr 
+          << "left_lobe_right_xborder::slow convergence\n"
+          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
+      }
       #if 0
       std::cerr << "t1=" << t  << '\n';
       #endif
@@ -740,8 +746,6 @@ namespace gen_roche {
     
     //for (int i = 0; i < 5; ++i) std::cout << "a=" << a[i] << '\n';
     utils::solve_quartic(a, roots);
-
-    // grab the smallest/first root in [0,1]
 
     for (auto && v : roots) if (0 < v && v < 1) return v;
     
@@ -790,26 +794,29 @@ namespace gen_roche {
        
        t = 1 - t;
        
-       do {
-          // note: working with 
-          rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-          t -= (dt = (v[0] - w)/v[1]); 
-          
-          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-       } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      do {
+        // note: working with 
+        rescaled_potential_on_x_axis(v, 3, t, q, b);
+        
+        t -= (dt = (v[0] - w)/v[1]); 
+        
+        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+        
+      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
       
-      if (!(it < iter_max))
-        std::cerr << "right_lobe_left_xborder::slow convergence\n";
-
+      if (it >= iter_max){
+        std::cerr.precision(std::numeric_limits<T>::digits10+1);
+        std::cerr 
+          << "right_lobe_left_xborder::slow convergence\n"
+          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
+      }
       return t;
     }
     
   
-    std::vector<T> roots;
+    std::vector<long double> roots;
     
-    T a[5] = {2, 2*(-1 + p - r), 2*(1 - c + r), 2 + 3*c, -c};
+    long double a[5] = {2, 2*(-1 + p - r), 2*(1 - c + r), 2 + 3*c, -c};
    
     utils::solve_quartic(a, roots);
       
@@ -861,23 +868,26 @@ namespace gen_roche {
        
        t = 1 + t;
        
-       do {
-          // note: working with 
-          rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-          t -= (dt = (v[0] - w)/v[1]); 
-          
-          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-       } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+      do {
+        // note: working with 
+        rescaled_potential_on_x_axis(v, 3, t, q, b);
+        
+        t -= (dt = (v[0] - w)/v[1]); 
+        
+        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
+        
+      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
       
-      if (!(it < iter_max))
-        std::cerr << "right_lobe_right_xborder::slow convergence\n";
-
+      if (it >= iter_max){
+        std::cerr.precision(std::numeric_limits<T>::digits10+1);
+        std::cerr 
+          << "right_lobe_right_xborder::slow convergence\n"
+          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
+      }
+      
       return t;
     }
     
-  
     std::vector<long double> roots;
     
     long double a[5] = {2, 2*(1 + p - r), 2*(-1 + c - r), -2 + 3*c, c};
