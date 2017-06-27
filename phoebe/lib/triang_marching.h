@@ -142,7 +142,9 @@ struct Tmarching: public Tbody {
       true: nr. of steps < max_iter
       false: otherwise
   */
-  bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter){
+  
+  //#define DEBUG
+  bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter, T *ni = 0){
     
     //
     // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
@@ -163,6 +165,12 @@ struct Tmarching: public Tbody {
         // g = (grad F, F) 
         this->grad(r, g, precision);
         
+        if (ni) {
+          T sum = 0;
+          for (int i = 0; i < 3; ++i) sum += ni[i]*g[i];
+          if (sum < 0) return false;
+        }
+        
         // fac = F/|grad(F)|^2
         fac = g[3]/utils::norm2(g);
         
@@ -181,7 +189,14 @@ struct Tmarching: public Tbody {
         }
         
       } while (dr1 > eps*r1 + min && ++n < max_iter);
-    
+      
+      #if defined(DEBUG)
+      std::cerr 
+        << "PROJ: g=(" << g[0] << "," << g[1]<< "," << g[2] <<  "," << g[3] << ")"
+        << " r=(" << r[0] << "," << r[1]<< "," << r[2] << ")"
+        << " " << dr1 <<" "<< precision << '\n'; 
+      #endif
+      
       if (!precision && n >= max_iter) {
         precision = true;
         n = 0;
@@ -194,6 +209,9 @@ struct Tmarching: public Tbody {
     
     return (n < max_iter);
   }
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Projecting a point r positioned near the surface onto surface anc 
@@ -214,6 +232,7 @@ struct Tmarching: public Tbody {
       false: otherwise
   */
   
+  // #define DEBUG
   bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0){
     
     //
@@ -229,11 +248,12 @@ struct Tmarching: public Tbody {
     const T min = 10*std::numeric_limits<T>::min();
 
     if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
+    
       
     do {      
       
       do {
-      
+        
         // g = (grad F, F) 
         this->grad(r, g, precision);
         
@@ -256,6 +276,13 @@ struct Tmarching: public Tbody {
         
       } while (dr1 > eps*r1 + min && ++nr_iter < max_iter);
       
+      #if defined(DEBUG)
+      std::cerr 
+        << "PROJ: g=(" << g[0] << "," << g[1]<< "," << g[2] <<  "," << g[3] << ")"
+        << " r=(" << r[0] << "," << r[1]<< "," << r[2] << ")"
+        << " " << dr1 <<" "<< precision << '\n'; 
+      #endif
+      
       if (!precision && nr_iter >= max_iter) {
         precision = true;
         nr_iter = 0;
@@ -275,7 +302,9 @@ struct Tmarching: public Tbody {
     
     return (nr_iter < max_iter);
   }
-  
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Distance between the two 3D vectors.
@@ -394,7 +423,7 @@ struct Tmarching: public Tbody {
       for (int i = 0; i < 3; ++i) 
         qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
         
-      if (!project_onto_potential(qk, vk, max_iter)){
+      if (!project_onto_potential(qk, vk, max_iter, v.b[2])){
         std::cerr << "Warning: Projection did not converge\n";
       }  
       
@@ -551,7 +580,7 @@ struct Tmarching: public Tbody {
           for (int i = 0; i < 3; ++i)
             qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
 
-          if (!project_onto_potential(qk, *vp, max_iter)){
+          if (!project_onto_potential(qk, *vp, max_iter, it_min->b[2])){
             
             T g[4];
             
@@ -697,7 +726,7 @@ struct Tmarching: public Tbody {
         for (int i = 0; i < 3; ++i) 
           qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
           
-        if (!project_onto_potential(qk, vk, max_iter)){
+        if (!project_onto_potential(qk, vk, max_iter, v.b[2])){
           std::cerr << "Warning: Projection did not converge\n";
         }  
         
@@ -966,7 +995,7 @@ struct Tmarching: public Tbody {
               for (int i = 0; i < 3; ++i)
                 qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
 
-              if (!project_onto_potential(qk, *vp, max_iter)){
+              if (!project_onto_potential(qk, *vp, max_iter, it_min->b[2])){
                 
                 T g[4];
                 
@@ -1295,7 +1324,7 @@ struct Tmarching: public Tbody {
         for (int i = 0; i < 3; ++i) 
           qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
           
-        if (!project_onto_potential(qk, vk, max_iter)){
+        if (!project_onto_potential(qk, vk, max_iter,v.b[2])){
           std::cerr << "Warning: Projection did not converge\n";
         }  
         
@@ -1512,7 +1541,7 @@ struct Tmarching: public Tbody {
               for (int i = 0; i < 3; ++i)
                 qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
 
-              if (!project_onto_potential(qk, *vp, max_iter)){
+              if (!project_onto_potential(qk, *vp, max_iter, it_min->b[2])){
                 
                 T g[4];
                 
