@@ -221,7 +221,7 @@ def _value_string(param):
 
 def _params(b, includeids=[], check_visible=True, check_default=False,
             check_advanced=False, check_single=False,
-            subtract_constraint=False, **filter_):
+            subtract_constraint=False, sort_by='qualifier', **filter_):
     def _unitchoices(unit):
         physical_type = unit.physical_type
 
@@ -276,36 +276,39 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
                        check_advanced=False, check_single=False,
                        uniqueid=includeids)
 
-    ps = ps.to_list()
+    ps += phoebe.ParameterSet(b.run_delayed_constraints())
+    nparams = len(ps)
+    params = ps.to_dict(field=sort_by, include_none=True)  # key, PS
 
-    ps += b.run_delayed_constraints()
+    for k, ps in params.items():
+        this_params = {}
+        for p in ps.to_list():
+            typ = p.__class__.__name__
+            pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p)}}
 
-    params = {}
-    for p in ps:
-        typ = p.__class__.__name__
-        pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p)}}
+            pdict['choices'] = _choices(p)
 
-        pdict['choices'] = _choices(p)
+            if hasattr(p, 'is_constraint'):
+                pdict['constrained'] = p.is_constraint is not None
 
-        if hasattr(p, 'is_constraint'):
-            pdict['constrained'] = p.is_constraint is not None
+            if hasattr(p, 'default_unit'):
+                pdict['valueunit'] = p.default_unit.to_string()
 
-        if hasattr(p, 'default_unit'):
-            pdict['valueunit'] = p.default_unit.to_string()
+                # NOTE: if any of these should be converted to an html form in the
+                # desktop app, those cases need to be explicitly defined in parameters.jsx
+                pdict['unitchoices'] = _unitchoices(p.default_unit)
+            else:
+                pdict['valueunit'] = None
+                # pdict['unitchoices'] = False
 
-            # NOTE: if any of these should be converted to an html form in the
-            # desktop app, those cases need to be explicitly defined in parameters.jsx
-            pdict['unitchoices'] = _unitchoices(p.default_unit)
-        else:
-            pdict['valueunit'] = None
-            # pdict['unitchoices'] = False
+            # if app._verbose:
+                # print pdict
 
-        # if app._verbose:
-            # print pdict
+            this_params[p.uniqueid] = pdict
 
-        params[p.uniqueid] = pdict
+        params[k] = this_params
 
-    return params
+    return params, nparams
 
 
 ########## CLIENT MANAGEMENT
@@ -491,6 +494,8 @@ def filter(msg):
 
     filter_ = msg.get('filter', {})
 
+    sort_by = msg.get('sort_by', 'qualifier')
+
     checks = msg.get('checks', {})
     check_visible = checks.get('check_visible', True)
     check_default = checks.get('check_default', False)
@@ -499,17 +504,18 @@ def filter(msg):
     subtract_constraint = checks.get('subtract_constraint', False)
 
 
-    print("filter: {}, check_default: {}, check_visible: {}, check_advanced: {}, check_single: {}, subtract_constraint: {}".format(filter_, check_default, check_visible, check_advanced, check_single, subtract_constraint))
+    print("filter: {}, sort_by: {}, check_default: {}, check_visible: {}, check_advanced: {}, check_single: {}, subtract_constraint: {}".format(filter_, sort_by, check_default, check_visible, check_advanced, check_single, subtract_constraint))
 
-    params = _params(b, includeids=msg.get('includeids', []),
-                     check_visible=check_visible, check_default=check_default,
-                     check_advanced=check_advanced, check_single=check_single,
-                     subtract_constraint=subtract_constraint, **filter_)
+    params, nparams = _params(b, includeids=msg.get('includeids', []),
+                              check_visible=check_visible, check_default=check_default,
+                              check_advanced=check_advanced, check_single=check_single,
+                              subtract_constraint=subtract_constraint, sort_by=sort_by,
+                              **filter_)
 
     if app._verbose:
         print("filter microseconds:", (datetime.now()-start).microseconds)
 
-    emit('filter', {'success': True, 'data': {'bundleid': bundleid, 'params': params}}, broadcast=False)
+    emit('filter', {'success': True, 'data': {'bundleid': bundleid, 'params': params, 'nparams': nparams}}, broadcast=False)
 
 @socketio.on('information')
 def information(msg):

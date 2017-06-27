@@ -1047,7 +1047,7 @@ class ParameterSet(object):
             return self.filter(**kwargs).to_flat_dict()
         return {param.uniquetwig: param for param in self._params}
 
-    def to_dict(self, field=None, **kwargs):
+    def to_dict(self, field=None, include_none=False, **kwargs):
         """
         Convert the ParameterSet to a structured (nested) dictionary
         to allow traversing the structure from the bottom up
@@ -1065,7 +1065,13 @@ class ParameterSet(object):
             keys_for_this_field = set([getattr(p, field)
                                        for p in self.to_list()
                                        if getattr(p, field) is not None])
-            return {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
+            d = {k: self.filter(check_visible=False, **{field: k}) for k in keys_for_this_field}
+            if include_none:
+                d_None = ParameterSet([p for p in self.to_list() if getattr(p, field) is None])
+                if len(d_None):
+                    d[None] = d_None
+
+            return d
 
         # we want to find the first level (from the bottom) in which filtering
         # further would shorten the list (ie there are more than one unique
