@@ -257,35 +257,38 @@ struct Tmarching: public Tbody {
       for (int i = 0; i < N; ++i) {
         
         // 1. step
-        this->grad(r, g, precision);
+        this->grad_only(r, g, precision);
         utils::cross3D(n, g, t);
         fac = da/utils::hypot3(t);
         for (int j = 0; j < 3; ++j) k[0][j] = fac*t[j];  
         
         // 2. step
         for (int j = 0; j < 3; ++j) r1[j] = r[j] + 0.5*k[0][j]; 
-        this->grad(r1, g, precision);
+        this->grad_only(r1, g, precision);
         utils::cross3D(n, g, t);
         fac = da/utils::hypot3(t);
         for (int j = 0; j < 3; ++j) k[1][j] = fac*t[j];  
         
         // 3. step
         for (int j = 0; j < 3; ++j) r1[j] = r[j] + 0.5*k[1][j]; 
-        this->grad(r1, g, precision);
+        this->grad_only(r1, g, precision);
         utils::cross3D(n, g, t);
         fac = da/utils::hypot3(t);
         for (int j = 0; j < 3; ++j) k[2][j] = fac*t[j];
-
+        
         // 4. step
         for (int j = 0; j < 3; ++j) r1[j] = r[j] + k[2][j]; 
-        this->grad(r1, g, precision);
+        this->grad_only(r1, g, precision);
         utils::cross3D(n, g, t);
         fac = da/utils::hypot3(t);
         for (int j = 0; j < 3; ++j) k[3][j] = fac*t[j];
-        
+                
         // joining steps together
         for (int j = 0; j < 3; ++j) 
           r[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
+        
+        //this->grad(r, g, precision);
+        //std::cerr << "g=" << g[3] << '\n';
       }
     }
    
@@ -393,7 +396,6 @@ struct Tmarching: public Tbody {
 
     if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
     
-      
     do {      
       
       do {
@@ -894,7 +896,6 @@ struct Tmarching: public Tbody {
       Tr.emplace_back(0, 6, 1);      
     }
 
-    
     //
     //  Triangulization of genus 0 surfaces
     //
@@ -1472,7 +1473,7 @@ struct Tmarching: public Tbody {
         for (int i = 0; i < 3; ++i) 
           qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
           
-        if (!project_onto_potential(qk, vk, max_iter,v.b[2])&&
+        if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
             !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
           std::cerr << "Warning: Projection did not converge\n";
         }  
