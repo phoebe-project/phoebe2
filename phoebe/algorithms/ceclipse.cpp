@@ -213,7 +213,7 @@ void convex_hull(double const* const points, int n_points,
             // if we turn the wrong way, we need to remove the point
             // from the hull. Then we need to check the turn for the
             // following two last points of the hull, untill exhaustion
-            while (myhull.size()>=h_points){
+            while ((int) myhull.size()>=h_points){
                 xhi1 = myhull.size()-4;
                 yhi1 = myhull.size()-3;
                 xhi2 = myhull.size()-2;
