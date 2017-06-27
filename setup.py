@@ -1,4 +1,11 @@
 from numpy.distutils.core import setup, Extension
+import platform
+
+platform = platform.system()
+
+if platform == 'Windows':
+  import os
+  os.environ['VS90COMNTOOLS'] = os.environ['VS140COMNTOOLS']
 
 # Set to true if you want to link against electric fence:
 CDEBUG = False
