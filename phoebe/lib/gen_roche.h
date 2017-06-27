@@ -519,6 +519,40 @@ namespace gen_roche {
       v[2] = 2*(1/(t1*t1*t1) + q/(t2*t2*t2)) + b;
   }
   
+  template <class T, class F>
+  T polish_xborder(
+    const T & w1, 
+    const T & q1, 
+    const T & b1,
+    const T & t1,
+    const char * message) {
+  
+    const int iter_max = 10;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+            
+    int it = 0;
+    
+    F t = t1, w = w1, q = q1, b = b1, dt, v[2]; 
+
+    do {
+      rescaled_potential_on_x_axis(v, 3, t, q, b);
+        
+      t -= (dt = (v[0] - w)/v[1]); 
+        
+    } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+    
+    if (it >= iter_max){
+      std::cerr.precision(std::numeric_limits<F>::digits10+1);
+      std::cerr 
+        << message << '\n'
+        <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t 
+        << std::endl;
+    }
+
+    return T(t);
+  }
+   
   /*
     Finding range on x-axis for each lobe separately
     
@@ -590,45 +624,7 @@ namespace gen_roche {
       direct = false;
     }
     
-    #if 0
-    std::cerr << "D" << direct << '\n';
-    #endif
-     
-    if (!direct) {
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-            
-      int it = 0;
-      
-      T dt, v[2]; 
-      
-      #if 0
-      std::cerr << "t0=" << t  << '\n';
-      #endif
-      
-      do {
-        // note: working with 
-        rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-        t -= (dt = (v[0] - w)/v[1]); 
-          
-        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
-      
-      if (it >= iter_max){
-        std::cerr.precision(std::numeric_limits<T>::digits10+1);
-        std::cerr 
-          << "left_lobe_left_xborder::slow convergence\n"
-          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
-      }
-      #if 0
-      std::cerr << "t1=" << t  << '\n';
-      #endif
-      
-      return t;
-    }
+    if (!direct) return polish_xborder<T,long double>(w, q, b, t, "left_lobe_left_xborder::slow convergence" );
     
     std::vector<long double> roots;
 
@@ -700,45 +696,9 @@ namespace gen_roche {
       
       direct = false;
     }
-    
-    #if 0
-    std::cerr << "D" << direct << '\n';
-    #endif
-    
-    if (!direct) {
-    
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-      
-      int it = 0;
-       
-      T dt, v[2]; 
-      
-      #if 0
-      std::cerr << "t0=" << t  << '\n';
-      #endif
-      
-      do {
-        rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-        t -= (dt = (v[0] - w)/v[1]); 
-          
-        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
-      
-      if (it >= iter_max){
-        std::cerr.precision(std::numeric_limits<T>::digits10+1);
-        std::cerr 
-          << "left_lobe_right_xborder::slow convergence\n"
-          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
-      }
-      #if 0
-      std::cerr << "t1=" << t  << '\n';
-      #endif
-      
-      return t;
-    }
+   
+    if (!direct)
+      return polish_xborder<T,long double>(w, q, b, t, "left_lobe_right_xborder::slow convergence");
     
     std::vector<long double> roots;
 
@@ -773,11 +733,6 @@ namespace gen_roche {
        r = p*(w - b/2) + 1;
      
      if (r > 100 && r > 2*p){  // w->infty
-      
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-      
       T p2 = p*p,
         s = 1/r,
         a[8] = {1, p, 1 - c + p*(1 + p), c*(0.5 - 3*p) + p*(4 + p*(3 + p)),
@@ -787,33 +742,10 @@ namespace gen_roche {
           c*(10.5 + c*(-21 + c*(10.5 - 35*p) + p*(110.25 + p*(52.5 + 70*p))) + p*(-129.5 + p*(-210 + p*(-297.5 + (-122.5 - 21*p)*p)))) + p*(64 + p*(210 + p*(385 + p*(315 + p*(126 + p*(21 + p))))))
         },
         t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
-        
-       int it = 0;
-       
-       T dt, v[2]; 
-       
-       t = 1 - t;
-       
-      do {
-        // note: working with 
-        rescaled_potential_on_x_axis(v, 3, t, q, b);
-        
-        t -= (dt = (v[0] - w)/v[1]); 
-        
-        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-        
-      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
-      
-      if (it >= iter_max){
-        std::cerr.precision(std::numeric_limits<T>::digits10+1);
-        std::cerr 
-          << "right_lobe_left_xborder::slow convergence\n"
-          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
-      }
-      return t;
+    
+        return polish_xborder<T,long double>(w, q, b, 1 - t, "right_lobe_left_xborder::slow convergence");
     }
     
-  
     std::vector<long double> roots;
     
     long double a[5] = {2, 2*(-1 + p - r), 2*(1 - c + r), 2 + 3*c, -c};
@@ -848,10 +780,6 @@ namespace gen_roche {
      
      if (r > 100 && r > 2*p){  // w->infty
       
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-      
       T p2 = p*p,
         s = 1/r,
         a[8] = {1, p, -1 + c + (-1 + p)*p, c*(0.5 + 3*p) + p*(-2 + (-3 + p)*p),
@@ -862,30 +790,7 @@ namespace gen_roche {
         },
         t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
         
-       int it = 0;
-       
-       T dt, v[2]; 
-       
-       t = 1 + t;
-       
-      do {
-        // note: working with 
-        rescaled_potential_on_x_axis(v, 3, t, q, b);
-        
-        t -= (dt = (v[0] - w)/v[1]); 
-        
-        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-        
-      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
-      
-      if (it >= iter_max){
-        std::cerr.precision(std::numeric_limits<T>::digits10+1);
-        std::cerr 
-          << "right_lobe_right_xborder::slow convergence\n"
-          <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t << "\n";
-      }
-      
-      return t;
+      return polish_xborder<T,long double>(w, q, b, 1 + t, "right_lobe_right_xborder::slow convergence");
     }
     
     std::vector<long double> roots;
