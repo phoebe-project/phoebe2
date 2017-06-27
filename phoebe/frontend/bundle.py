@@ -2449,7 +2449,7 @@ class Bundle(ParameterSet):
         else:
             do_create_fig_params = True
 
-        self._check_label(model, allow_latest_exception=True)
+        self._check_label(model, allow_overwrite_in_context='model')
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]

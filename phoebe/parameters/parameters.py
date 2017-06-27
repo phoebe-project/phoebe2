@@ -894,7 +894,7 @@ class ParameterSet(object):
 
         return
 
-    def _check_label(self, label, allow_latest_exception=False):
+    def _check_label(self, label, allow_overwrite_in_context=False):
         """Check to see if the label is allowed."""
 
         if not isinstance(label, str):
@@ -908,7 +908,7 @@ class ParameterSet(object):
         if len(self.filter(twig=label, check_visible=False, check_default=False,
                            check_advanced=False, check_single=False)):
             # with the one exception of 'latest@model' where we allow overwriting
-            if not (allow_latest_exception and label=='latest'):
+            if not (allow_overwrite_in_context and self.filter(twig=label).context!=allow_overwrite_in_context):
                 raise ValueError("label '{}' is already in use".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
