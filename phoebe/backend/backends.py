@@ -18,6 +18,19 @@ except ImportError:
 else:
     _use_phb1 = True
 
+try:
+    from mpi4py import MPI
+except ImportError:
+    _use_mpi = False
+else:
+    _use_mpi = True
+    comm   = MPI.COMM_WORLD
+    myrank = comm.Get_rank()
+    nprocs = comm.Get_size()
+    
+    TAG_REQ  = 41
+    TAG_DATA = 42
+
 import logging
 logger = logging.getLogger("BACKENDS")
 logger.addHandler(logging.NullHandler())
@@ -603,6 +616,18 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 system.get_body(comp).set_pblum_scale(dataset, component=comp, pblum_scale=pblum_scale)
 
 
+
+
+
+
+
+
+#######################################################################################################################################################
+
+    if _use_mpi and myrank == 0:
+        print('*** phoebe-mpi: %d cores allocated.' % (nprocs))
+        
+    
     # MAIN COMPUTE LOOP
     # the outermost loop will be over times.  infolist will be a list of dictionaries
     # with component, kind, and dataset as keys applicable for that current time.
