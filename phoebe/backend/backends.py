@@ -27,7 +27,7 @@ else:
     comm   = MPI.COMM_WORLD
     myrank = comm.Get_rank()
     nprocs = comm.Get_size()
-    
+
     TAG_REQ  = 41
     TAG_DATA = 42
 
@@ -375,6 +375,8 @@ def _create_syns(b, needed_syns, protomesh=False, pbmesh=False):
         if 'times' in needed_syn.keys():
             needed_syn['times'].sort()
 
+            needed_syn['empty_arrays_len'] = len(needed_syn['times'])
+
         these_params, these_constraints = getattr(_dataset, "{}_syn".format(syn_kind.lower()))(**needed_syn)
         # TODO: do we need to handle constraints?
         these_params = these_params.to_list()
@@ -630,7 +632,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     if _use_mpi and myrank == 0:
         print('*** phoebe-mpi: %d cores allocated.' % (nprocs))
-    
+
     if _use_mpi and nprocs == 1:
         print('*** please use mpirun to run this version of phoebe.')
         exit()
@@ -648,7 +650,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             node = comm.recv(source = MPI.ANY_SOURCE, tag=TAG_REQ)
             packet = {'i': i, 'time': time, 'infolist': infolist}
             comm.send(packet, node, tag=TAG_DATA)
-            
+
         for i in range(1, nprocs):
             node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
             comm.send({'i': -1}, node, tag=TAG_DATA)
@@ -659,7 +661,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             i = r['i']
             packet = r['packet']
             infolist = infos[i]
-            
+
             for packet_i, info in zip(packet, infolist):
                 kind = info['kind']
 
@@ -669,31 +671,27 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
                 for qualifier, value in packet_i.items():
-                    #~ this_syn.get_parameter(qualifier).set_index_value(i, value)
-                    # info['dataset'], info['component']
-                    print info['dataset'], info['component'], kind, qualifier
+                    this_syn.get_parameter(qualifier).set_index_value(i, value)
 
-                    pass
-      
             if as_generator:
                 # this is mainly used for live-streaming animation support
                 yield (new_syns, times[i])
 
         if not as_generator:
             yield new_syns
-            
+
     else: # if myrank != 0:
         while True:
             comm.send(myrank, 0, tag=TAG_REQ)
             packet = comm.recv(tag=TAG_DATA)
-            
+
             i = packet['i']
             if i == -1:
                 break
 
             time = packet['time']
             infolist = packet['infolist']
-            
+
             print('work order %d received by processor %d' % (i, myrank))
 
             # Check to see what we might need to do that requires a mesh
@@ -758,7 +756,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             for k, info in enumerate(infolist):
                 packet[k] = dict()
-                
+
                 # i, time, info['kind'], info['component'], info['dataset']
                 cind = starrefs.index(info['component']) if info['component'] in starrefs else None
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
@@ -913,7 +911,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
             comm.send({'i': i, 'packet': packet}, 0, tag=TAG_DATA)
-            
+
         yield ParameterSet([])
 
 
