@@ -739,7 +739,24 @@ struct Tmisaligned_rotated_roche {
         {ret[0], ret[1], ret[2]} = grad-potential
   */
   
-  void grad_only(T r[3], T ret[3]){
+  void grad_only(T r[3], T ret[3], const bool & precision = false){
+    
+    if (precision) {
+      long double 
+        x = r[0], y = r[1], z = r[2], 
+        x1 = x - delta, 
+        x_ = x*c - z*s,
+        r1 = utils::hypot3(x, y, z),
+        r2 = utils::hypot3(x1, y, z),
+        f13 = 1/(r1*r1*r1),
+        f23 = 1/(r2*r2*r2), 
+        tmp = f13 + f23*q;
+     
+      ret[0] = f13*x + q*(f0 + f23*x1) - b*c*x_, 
+      ret[1] = (tmp - b)*y;
+      ret[2] = tmp*z + b*s*x_;
+      return;
+    }
     
     T x = r[0], y = r[1], z = r[2], 
       x1 = x - delta, 
@@ -886,7 +903,7 @@ struct Tmisaligned_roche {
       long double 
         x = r[0], y = r[1], z = r[2], 
         sx = s[0], sy = s[1], sz = s[2],
-        r1 = utils::hypot3(r),
+        r1 = utils::hypot3(x, y, z),
         r2 = utils::hypot3(x - delta, y, z),
         sr = sx*x + sy*y + sz*z,
         f1 = 1/r1, f13 = f1*f1*f1,
@@ -943,7 +960,29 @@ struct Tmisaligned_roche {
         {ret[0], ret[1], ret[2]} = grad-potential
   */
   
-  void grad_only(T r[3], T ret[3]){
+  void grad_only(T r[3], T ret[3], const bool & precision = false){
+    
+    if (precision) {
+      long double
+        x = r[0], y = r[1], z = r[2], 
+        sx = s[0], sy = s[1], sz = s[2],
+        
+        r1 = utils::hypot3(x, y, z),
+        r2 = utils::hypot3(x - delta, y, z),
+        
+        sr = sx*x + sy*y + sz*z,
+        
+        f1 = 1/r1, f13 = f1*f1*f1,
+        f2 = 1/r2, f23 = f2*f2*f2,
+        
+        tmp = f13 + f23*q; 
+          
+      ret[0] = (f0 - delta*f23)*q + b*sr*sx + (-b + tmp)*x;
+      ret[1] = b*sr*sy - b*y + tmp*y;
+      ret[2] = b*sr*sz - b*z + tmp*z;
+      
+      return;
+    }
     
     T x = r[0], y = r[1], z = r[2], 
       sx = s[0], sy = s[1], sz = s[2],

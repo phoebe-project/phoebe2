@@ -57,6 +57,8 @@ namespace misaligned_roche {
       
       for tp > 0, ss = sign*s, s = sin(theta) in [-1,1]
       
+      if sign = 0: return (tp (s > 0) + tp(s < 0))/2
+      
     Input:
       Omega0 - value of potential
       q - mass ratio M2/M1
@@ -75,13 +77,24 @@ namespace misaligned_roche {
     const T & F,
     const T & delta,
     const T & sintheta, 
-    const T & sign = 1
+    const int & sign = 1
   ) {
     
     if (sintheta == 0)
       return gen_roche::poleL(Omega0, q, F, delta);
-
+    
     if (Omega0 < 0 || q < 0)  return -1;
+   
+   
+    if (sign == 0) {
+    
+      T p1 = poleL_height(Omega0, q, F, delta, sintheta, sign),
+        p2 = poleL_height(Omega0, q, F, delta, sintheta, -sign);
+      
+      if (p1 > 0 && p2 > 0) return (p1 + p2)/2;
+      
+      return -1;
+    }
    
     T w = Omega0*delta, 
       s = sintheta, 
@@ -209,7 +222,7 @@ namespace misaligned_roche {
     const T & F ,
     const T & delta,
     T s[3], 
-    const T & sign = 1
+    const int & sign = 1
   ) {
     return poleL_height(Omega0, q, F, delta, s[0], sign);
   }
@@ -777,7 +790,6 @@ template<class T>
     // partial_phi W
     if ((mask & 4U) == 4U) 
       W[2] = q*r*c1*sp*st*(-1 + t3);
-  
   }
   
   //

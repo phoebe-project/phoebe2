@@ -480,7 +480,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 /*
   C++ wrapper for Python code:
   
-  Calculate pole of the primary star in the misaligned Roche potential.
+  Calculate pole height of the primary star in the misaligned Roche potential.
   
   Python:
     
@@ -499,11 +499,13 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
     Omega: float - value potential 
   
   optional:
-    sign: float - sign of the pole in {1, -1}, default 1
+    sign: float - sign of the pole in {1, 0, -1}, default 0
       
-  and return 
-  
-    p: 1-rank numpy array - vector position of the pole
+  and return
+    p: float - height of the pole:
+      p_+   for sign = +1
+      p_-   for sign = -1
+      (p_+ + p_-)/2 for sign = 0
 
 */
 
@@ -524,12 +526,14 @@ static PyObject *misaligned_pole(PyObject *self, PyObject *args, PyObject *keywd
     (char*)"sign",
     NULL};
   
-  double sign = 1, q, F, delta, Omega0;
+  int sign = 0;
+  
+  double q, F, delta, Omega0;
   
   PyObject *o_misalignment;
  
   if (!PyArg_ParseTupleAndKeywords(
-        args, keywds, "dddOd|d", kwlist, 
+        args, keywds, "dddOd|i", kwlist, 
         &q, &F, &delta, &o_misalignment, &Omega0, &sign)
       ){
   
@@ -537,37 +541,84 @@ static PyObject *misaligned_pole(PyObject *self, PyObject *args, PyObject *keywd
     return NULL;
   }
   
-  bool ok;
+  double p, s;
   
-  double *p = new double[3];
-  
-  if (PyFloat_Check(o_misalignment)) {
-
-    double theta = PyFloat_AsDouble(o_misalignment);
-    ok = misaligned_roche::poleL(p, Omega0, q, F, delta, theta, sign);
- 
+  if (PyFloat_Check(o_misalignment)) {    
+    s = std::sin(PyFloat_AsDouble(o_misalignment));
   } else if (PyArray_Check(o_misalignment)) {
-    
-    double *s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
-    ok = misaligned_roche::poleL(p, Omega0, q, F, delta, s, sign);
-
+    s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
   } else {
     std::cerr << fname << "::This type of misalignment is not supported.\n";
     return NULL;
-  } 
+  }
+
+  p = misaligned_roche::poleL_height(Omega0, q, F, delta, s, sign);
   
-  if (!ok) {
+  if (p < 0) {
     std::cerr << fname << "::Problems calculating poles.\n";
     return NULL;
   }
+
+  return PyFloat_FromDouble(p);
+}
+
+/*
+  C++ wrapper for Python code:
   
-  npy_intp dims[1] = {3};
-  
-  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, p);
-  
-  PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);   
+  Calculate the minimal value of the Kopal potential permitted in order to have
+  compact primary Roche lobe:
       
-  return pya;
+      Omega_{min} (x,y,z; q, F, d, misalignment) = 
+        min {Omega(L1(misaligment)), Omega(L2(misalignment)) }
+
+  Python:
+
+    Omega_{min} = misaligned_Omega_min(q, F, delta, misalignment)
+    
+   with parameters
+      q: float = M2/M1 - mass ratio
+      F: float - synchronicity parameter
+      d: float - separation between the two objects
+      misalignment:  in rotated coordinate system:
+        float - angle between spin and orbital angular velocity vectors [rad]
+      or in canonical coordinate system:
+        1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+   
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+
+static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
+  
+  const char *fname = "roche_Omega_min";
+  
+  //
+  // Reading arguments
+  //
+  
+  char *kwlist[] = {
+    (char*)"q",
+    (char*)"F",
+    (char*)"d",
+    NULL};
+  
+  double q, F, d;
+   
+  if (!PyArg_ParseTupleAndKeywords(
+        args, keywds, "ddd", kwlist, 
+        &q, &F, &d)
+      ){
+  
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  double omega[2], L[2];
+  
+  gen_roche::critical_potential(omega, L, 3, q, F, d);
+  
+  return PyFloat_FromDouble(std::min(omega[0], omega[1]));  
 }
 
 /*
@@ -4047,7 +4098,7 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
   //
   bool rotated, ok;
   
-  double r[3], g[3], theta, *s;
+  double r[3], g[3], theta, *s = 0;
   
   if (PyFloat_Check(o_misalignment)) {
 
@@ -4066,7 +4117,7 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
     return NULL;
   }
   
-  if (!ok){
+  if (!ok || s == 0){
     std::cerr << fname << "::Determining initial meshing point failed.\n";
     return NULL;
   }
@@ -8430,62 +8481,6 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
 }
 
 /*
-  Calculate cosine of the angle of scalar projections
-  
-    r[i] = x[i].y[i]/(|x[i]| |y[i]|)    i = 0, ..., n -1
-  
-  Input:
-    x : 2-rank numpy array
-    y : 2-rank numpy array
-   
-  Return:
-    r: 1- rank numpy array
-*/ 
-static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
-  
-  const char *fname = "vec_proj";
-  
-  PyArrayObject *o_x, *o_y;  
-  
-  if  (!PyArg_ParseTuple(args, 
-        "O!O!",  
-        &PyArray_Type, &o_x, 
-        &PyArray_Type, &o_y)
-      ){
-    std::cerr << fname << "::Problem reading arguments\n";
-    return NULL;
-  }
-  
-  int n = PyArray_DIM(o_x, 0);
-  
-  npy_intp dims = n;
-	
-  double 
-    *r = new double [n],
-    s, x, y,
-    *px = (double*)PyArray_DATA(o_x),
-    *py = (double*)PyArray_DATA(o_y);
-    
-  for (double *p = r, *pe = r + n; pe != p; ++p) {
-   
-    s = x = y = 0;
-    for (int i = 0; i < 3; ++i, ++px, ++py) {
-     s += (*px)*(*py);
-     x += (*px)*(*px);
-     y += (*py)*(*py);
-    }
-
-    *p = s/std::sqrt(x*y);
-  }  
-  
-  PyObject *o_r = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, r);
-  
-  PyArray_ENABLEFLAGS((PyArrayObject *)o_r, NPY_ARRAY_OWNDATA);
-  
-  return o_r;
-}
-
-/*
   Define functions in module
    
   Some modification in declarations due to use of keywords
@@ -8541,6 +8536,14 @@ static PyMethodDef Methods[] = {
     "values of q, F, d, misalignment(theta or direction) and Omega0."},
 
 // --------------------------------------------------------------------
+  
+  {"roche_Omega_min", 
+    (PyCFunction)roche_Omega_min,   
+    METH_VARARGS|METH_KEYWORDS, 
+    "Determine the minimal posible value of the Kopal potential that" 
+    "permits existance of the compact Roche lobe for given "
+    "values of q, F and d."},
+  
   
   { "misaligned_Omega_min", 
     (PyCFunction)misaligned_Omega_min,   
