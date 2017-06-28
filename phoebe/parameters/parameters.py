@@ -7,7 +7,7 @@ framework of the PHOEBE 2.0 frontend.
 from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
-from phoebe.frontend import tabcomplete, plotting, mpl_animate
+from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
 
 import random
 import string
@@ -2003,6 +2003,21 @@ class ParameterSet(object):
             kwargs.setdefault('facecolor', 'w' if color is None else color)
             kwargs.setdefault('edgecolor', 'k' if color is None else color)
 
+            if kwargs.get('colorlabel', None):
+                kwargs.setdefault('facecolorlabel', kwargs['colorlabel'])
+                kwargs.setdefault('edgecolorlabel', kwargs['colorlabel'])
+
+            if kwargs.get('colorunit', None):
+                kwargs.setdefault('facecolorunit', kwargs['colorunit'])
+                kwargs.setdefault('edgecolorunit', kwargs['colorunit'])
+
+            if kwargs.get('colorlim', None):
+                kwargs.setdefault('facecolorlim', kwargs['colorlim'])
+                kwargs.setdefault('edgecolorlim', kwargs['colorlim'])
+
+            facecolorqualifier = kwargs['facecolor'] if kwargs['facecolor'] in ps.qualifiers else None
+            edgecolorqualifier = kwargs['edgecolor'] if kwargs['edgecolor'] in ps.qualifiers else None
+
             # TODO: do the same logic with cmap, facecmap, edgecmap as colors
             # above
 
@@ -2025,10 +2040,30 @@ class ParameterSet(object):
                 raise ValueError('xunit, yunit, and zunit must be the same for 3d mesh plots')
 
 
-            kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
-            kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
+            if facecolorqualifier is not None:
+                facecolorparam, facecolorarray, default_facecolorunit = _get_param_array(ps,
+                                                                             facecolorqualifier,
+                                                                             kwargs.get('facecolorunit', None))
+
+                kwargs.setdefault('facecolorunit', default_facecolorunit)
+
+            if edgecolorqualifier is not None:
+                edgecolorparam, edgecolorarray, default_edgecolorunit = _get_param_array(ps,
+                                                                             edgecolorqualifier,
+                                                                             kwargs.get('edgecolorunit', None))
+
+                kwargs.setdefault('edgecolorunit', default_edgecolorunit)
+
+            kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(xqualifier))
+            kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(yqualifier))
             if axes_3d:
-                kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
+                kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(zqualifier))
+
+            if kwargs.get('facecolorbar', False) or kwargs.get('colorbar', False):
+                kwargs.setdefault('facecolorlabel', r"{} ({})".format(_qualifier_to_label(facecolorqualifier), _unit_to_str(kwargs['facecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['facecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(facecolorqualifier))
+
+            if kwargs.get('edgecolorbar', False) or kwargs.get('colorbar', False):
+                kwargs.setdefault('edgecolorlabel', r"{} ({})".format(_qualifier_to_label(edgecolorqualifier), _unit_to_str(kwargs['edgecolorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['edgecolorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(edgecolorqualifier))
 
             # vertices_xyz are the REAL x, y, z coordinates.  Later we'll convert
             # to the quantities we want to plot along the x and y axes
@@ -2131,6 +2166,8 @@ class ParameterSet(object):
         kwargs.setdefault('highlight_ms', None)
         kwargs.setdefault('highlight_color', None)
         kwargs.setdefault('uncover', False)
+
+        colorqualifier = kwargs['color'] if kwargs['color'] in ps.qualifiers else None
 
         # Now let's get the parameters
 
@@ -2251,11 +2288,21 @@ class ParameterSet(object):
             zparam = None
             zarray = None
 
+        if colorqualifier is not None:
+            colorparam, colorarray, default_colorunit = _get_param_array(ps,
+                                                                         colorqualifier,
+                                                                         kwargs.get('colorunit', None))
+
+            kwargs.setdefault('colorunit', default_colorunit)
+
         # and finally, build the label (if it hasn't been already)
-        kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else xqualifier)
-        kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else yqualifier)
+        kwargs.setdefault('xlabel', r"{} ({})".format(_qualifier_to_label(xqualifier), _unit_to_str(kwargs['xunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['xunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(xqualifier))
+        kwargs.setdefault('ylabel', r"{} ({})".format(_qualifier_to_label(yqualifier), _unit_to_str(kwargs['yunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['yunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(yqualifier))
         if axes_3d:
-            kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else zqualifier)
+            kwargs.setdefault('zlabel', r"{} ({})".format(_qualifier_to_label(zqualifier), _unit_to_str(kwargs['zunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['zunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(zqualifier))
+
+        if kwargs.get('colorbar', False):
+            kwargs.setdefault('colorlabel', r"{} ({})".format(_qualifier_to_label(colorqualifier), _unit_to_str(kwargs['colorunit'], use_latex=plotting_backend in ['mpl'])) if kwargs['colorunit'] not in [None, u.dimensionless_unscaled] else _qualifier_to_label(colorqualifier))
 
         if phased:
             # then we need to sort all arrays according to phase (xarray)
@@ -2378,6 +2425,7 @@ class ParameterSet(object):
         :parameter str backend: Plotting backend to use.  Will default to
             'plotting_backend' from the :class:`phoebe.frontend.bundle.Bundle`
             settings if not provided.
+
         :parameter bool highlight: whether to highlight the current time
             (defaults to True)
         :parameter str highlight_marker: if highlight==True - what marker-type
@@ -2388,8 +2436,10 @@ class ParameterSet(object):
             to use for highlighting the current time
         :parameter bool uncover: whether to only show data up to the current time
             (defaults to False)
+
         :parameter ax: axes to plot on (defaults to plt.gca())
         :type ax: mpl.axes
+
         :parameter str x: qualifier or twig of the array to plot on the x-axis (will
             default based on the kind if not provided).  Must be a valid
             qualifier with the exception of phase.  To plot phase along the
@@ -2399,42 +2449,69 @@ class ParameterSet(object):
             (see details for x above)
         :parameter str z: qualifier or twig of the array to plot on the z-axis if both
             the backend and ax support 3d plotting (see details for x above)
+
         :parameter str xerrors: qualifier of the array to plot as x-errors (will
             default based on x if not provided)
         :parameter str yerrors: qualifier of the array to plot as y-errors (will
             default based on y if not provided)
         :parameter str zerrors: qualifier of the array to plot as z-errors (will
             default based on z if not provided)
+
         :parameter xunit: unit to plot the x-array (will default based on x if not provided)
         :type xunit: str or astropy.unit.Unit
-        :parameter xunit: unit to plot the y-array (will default based on y if not provided)
+        :parameter yunit: unit to plot the y-array (will default based on y if not provided)
         :type yunit: str or astropy.unit.Unit
-        :parameter xunit: unit to plot the z-array (will default based on z if not provided)
+        :parameter zunit: unit to plot the z-array (will default based on z if not provided)
         :type zunit: str or astropy.unit.Unit
+
+
         :parameter str xlabel: label for the x-axis (will default based on x if not provided, but
             will not set if ax already has an xlabel)
         :parameter str ylabel: label for the y-axis (will default based on y if not provided, but
             will not set if ax already has an ylabel)
         :parameter str zlabel: label for the z-axis (will default based on z if not provided, but
             will not set if ax already has an zlabel)
+
+
         :parameter tuple xlim: limits for the x-axis (will default based on data if not provided)
         :parameter tuple ylim: limits for the x-axis (will default based on data if not provided)
         :parameter tuple zlim: limits for the x-axis (will default based on data if not provided)
+
         :parameter str label: label to give to ALL lines in this single plotting call (each
             line with get automatic default labels if not provided)
+
         :parameter str color: matplotlib recognized color string or the qualifier/twig
-            of an array to use for color
+            of an array to use for color (will apply to facecolor and edgecolor for meshes
+            unless those are provided)
         :parameter str cmap: matplotlib recognized cmap to use if color is
             a qualifier pointing to an array (will be ignored otherwise)
+        :parameter bool colorbar: whether to display the colorbar (will default to False)
+        :parameter colorunit: unit to plot the color-array (will default based on color if not provided)
+        :type colorunit: str or astropy.unit.Unit
+        :parameter tuple colorlim: limit for the colorbar (in same units as colorunit)
+        :parameter str colorlabel: label for the colorbar, if applicable (will default based on
+            color if not provided)
+
         :parameter str facecolor: matplotlib recognized color string or the qualifier/twig
-            of an array to use for facecolor (mesh plots only)
+            of an array to use for facecolor (mesh plots only - takes precedence over color)
         :parameter str facecmap: matplotlib recognized cmap to use if facecolor is
             a qualifier pointing to an array (will be ignored otherwise)
-        :parameter str edgecolor: matplotlib recognized color string or the qualifier/twig
-            of an array to use for edgecolor (mesh plots only)
-        :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
-            a qualifier pointing to an array (will be ignored otherwise)
+        :parameter facecolorbar: whether to display the facecolorbar (will default to False - takes precedence over colorbar)
+        :parameter facecolorunit: unit to plot the facecolor-array (will default based on facecolor if not provided)
+        :type facecolorunit: str or astropy.unit.Unit
+        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
+        :parameter str facecolorlabel: label for the facecolorbar, if applicable (will default based on
+            facecolor if not provided)
 
+        :parameter str edgecolor: matplotlib recognized color string or the qualifier/twig
+            of an array to use for edgecolor (mesh plots only - takes precedence over color)
+        :parameter str edgecmap: matplotlib recognized cmap to use if edgecolor is
+            a qualifier pointing to an array (will be ignored otherwise
+        :parameter edgecolorunit: unit to plot the edgecolor-array (will default based on edgecolor if not provided)
+        :type edgecolorunit: str or astropy.unit.Unit
+        :parameter tuple facecolorlim: limit for the facecolorbar (in same units as facecolorunit)
+        :parameter str edgecolorlabel: label for the edgecolorbar, if applicable (will default based on
+            edgecolor if not provided)
 
         :parameter str save: filename of the resulting animation.  If provided,
             the animation will be saved automatically.  Either way, the animation
@@ -2502,7 +2579,8 @@ class ParameterSet(object):
 
         if do_plot:
 
-            if plotting_backend in ['mpl']:
+            if plotting_backend in ['mpl'] and not kwargs.get('colorbar', False) and not kwargs.get('facecolorbar', False) and not kwargs.get('edgecolorbar', False):
+                # tight_layout can conflict with colorbar placement
                 try:
                     plt.gcf().tight_layout()
                 except ValueError:
@@ -2836,18 +2914,32 @@ class Parameter(object):
     def __repr__(self):
         """
         """
-        if hasattr(self, 'constraint') and self.constraint is not None:
-            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, self.get_quantity() if hasattr(self, 'quantity') else self.get_value(), ', '.join(self._dict_fields_other))
+        if (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+            quantity = self._value
+        elif hasattr(self, 'quantity'):
+            quantity = self.get_quantity()
         else:
-            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, self.get_quantity() if hasattr(self, 'quantity') else self.get_value(), ', '.join(self._dict_fields_other))
+            quantity = self.get_value()
+
+        if hasattr(self, 'constraint') and self.constraint is not None:
+            return "<Parameter: {}={} (constrained) | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
+        else:
+            return "<Parameter: {}={} | keys: {}>".format(self.qualifier, quantity, ', '.join(self._dict_fields_other))
 
     def __str__(self):
         """
         """
+        if (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+            quantity = self._value
+        elif hasattr(self, 'quantity'):
+            quantity = self.get_quantity()
+        else:
+            quantity = self.get_value()
+
         str_ = "{}: {}\n".format("Parameter", self.uniquetwig)
         str_ += "{:>32}: {}\n".format("Qualifier", self.qualifier)
         str_ += "{:>32}: {}\n".format("Description", self.description)
-        str_ += "{:>32}: {}\n".format("Value", self.get_quantity() if hasattr(self, 'quantity') else self.get_value())
+        str_ += "{:>32}: {}\n".format("Value", quantity)
 
         if hasattr(self, 'choices'):
             str_ += "{:>32}: {}\n".format("Choices", ", ".join(self.choices))
@@ -2943,6 +3035,11 @@ class Parameter(object):
             """
             """
             if k=='value':
+                if isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace):
+                    if self._value.unit is not None and hasattr(self, 'default_unit'):
+                        v = self._value.to(self.default_unit).to_json()
+                    else:
+                        v = self._value.to_json()
                 if isinstance(v, u.Quantity):
                     v = self.get_value() # force to be in default units
                 if isinstance(v, np.ndarray):
@@ -3985,6 +4082,9 @@ class FloatParameter(Parameter):
         else:
             value = self._value
 
+        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+            value = value.to_array()
+
         if t is not None:
             raise NotImplementedError("timederiv is currently disabled until it can be tested thoroughly")
 
@@ -4072,6 +4172,10 @@ class FloatParameter(Parameter):
             value, unit = value
         if isinstance(value, str):
             value = float(value)
+        if isinstance(value, dict) and 'nphelper' in value.keys():
+            # then we're loading the JSON version of an Arange or Linspace
+            value = nphelpers.from_json(value)
+            print value
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
@@ -4082,11 +4186,16 @@ class FloatParameter(Parameter):
         self._check_type(value)
 
         # check to make sure value and unit don't clash
-        if isinstance(value, u.Quantity):
+        if isinstance(value, u.Quantity) or ((isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)) and value.unit is not None):
             if unit is not None:
                 # check to make sure they're the same
                 if value.unit != unit:
                     raise ValueError("value and unit do not agree")
+
+        elif value is None:
+            # allowed for FloatArrayParameter if self.allow_none.  This should
+            # already have been checked by self._check_type
+            value = value
 
         elif unit is not None:
             # print "*** converting value to quantity"
@@ -4096,7 +4205,8 @@ class FloatParameter(Parameter):
             value = value * self.default_unit
 
         # handle wrapping for angle measurements
-        if value.unit.physical_type == 'angle':
+        if value is not None and value.unit.physical_type == 'angle':
+            # NOTE: this may fail for nphelpers.Arange or nphelpers.Linspace
             if value > (360*u.deg) or value < (0*u.deg):
                 value = value % (360*u.deg)
                 logger.warning("wrapping value of {} to {}".format(self.qualifier, value))
@@ -4107,7 +4217,7 @@ class FloatParameter(Parameter):
 
         # make sure we can convert back to the default_unit
         try:
-            if self.default_unit is not None:
+            if self.default_unit is not None and value is not None:
                 test = value.to(self.default_unit)
         except u.core.UnitsError:
             raise ValueError("cannot convert provided unit ({}) to default unit ({})".format(value.unit, self.default_unit))
@@ -4233,6 +4343,7 @@ class FloatArrayParameter(FloatParameter):
         """
         see :meth:`Parameter.__init__`
         """
+        self._allow_none = kwargs.get('allow_none', False)
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
         default_unit = kwargs.get('default_unit', None)
@@ -4245,7 +4356,7 @@ class FloatArrayParameter(FloatParameter):
 
         self.set_value(kwargs.get('value', []), unit)
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -4271,6 +4382,12 @@ class FloatArrayParameter(FloatParameter):
         str_ = super(FloatArrayParameter, self).__str__()
         np.set_printoptions(**opt)
         return str_
+
+    @property
+    def allow_none(self):
+        """
+        """
+        return self._allow_none
 
     def to_string_short(self):
         """
@@ -4351,6 +4468,9 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(value, u.Quantity):
             value = value.to(self.default_unit).value
 
+        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+            value = value.to_array()
+
         new_value = np.append(self.get_value(), value) * self.default_unit
         self.set_value(new_value)
 
@@ -4376,18 +4496,117 @@ class FloatArrayParameter(FloatParameter):
     def _check_type(self, value):
         """
         """
-        if isinstance(value, u.Quantity):
+        if self.allow_none and value is None:
+            value = None
+
+        elif isinstance(value, u.Quantity):
             value = value.value
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
 
-        if isinstance(value, float):
+        elif isinstance(value, float):
             value = np.array([value])
 
-        if not (isinstance(value, list) or isinstance(value, np.ndarray)):
+        elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
+
+        return value
+
+    @property
+    def start(self):
+        """
+        Access the 'start' value of an array if set as phoebe.arange or phoebe.linspace
+        """
+        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
+
+        return self._value.start
+
+    def set_start(self, start):
+        """
+        Change the 'start' value of an array if set as phoebe.arange or phoebe.linspace
+        """
+        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+            raise ValueError("can only set start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
+
+        self._value.set_start(start)
+
+    @property
+    def stop(self):
+        """
+        Access the 'stop' value of an array if set as phoebe.arange or phoebe.linspace
+        """
+        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
+
+        return self._value.stop
+
+    def set_stop(self, stop):
+        """
+        Change the 'stop' value of an array if set as phoebe.arange or phoebe.linspace
+        """
+        if not (isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace)):
+            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange or phoebe.frontend.nphelpers.Linspace")
+
+        self._value.set_stop(stop)
+
+    @property
+    def step(self):
+        """
+        Access the 'step' value of an array if set as phoebe.arange
+        """
+        if not isinstance(self._value, nphelpers.Arange):
+            raise ValueError("can only access step if value is phoebe.frontend.nphelpers.Arange")
+
+        return self._value.step
+
+    def set_step(self, step):
+        """
+        Change the 'stop' value of an array if set as phoebe.arange
+        """
+        if not isinstance(self._value, nphelpers.Arange):
+            raise ValueError("can only set step if value is phoebe.frontend.nphelpers.Arange")
+
+        self._value.set_step(step)
+
+    @property
+    def num(self):
+        """
+        Access the 'num' value of an array if set as phoebe.linspace
+        """
+        if not isinstance(self._value, nphelpers.Linspace):
+            raise ValueError("can only access start if value is phoebe.frontend.nphelpers.Linspace")
+
+        return self._value.num
+
+    def set_num(self, num):
+        """
+        Change the 'stop' value of an array if set as phoebe.linspace
+        """
+        if not isinstance(self._value, nphelpers.Linspace):
+            raise ValueError("can only set num if value is phoebe.frontend.nphelpers.Linspace")
+
+        self._value.set_num(num)
+
+    def convert_to_arange(self):
+        """
+        Convert a value stored as phoebe.linspace to phoebe.arange
+        """
+        if not isinstance(self._value, nphelpers.Linspace):
+            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Linspace")
+
+        self._value = self._value.to_arange()
+
+    def convert_to_linspace(self):
+        """
+        Convert a value stored as phoebe.arange to phoebe.linspace
+        """
+        if not isinstance(self._value, nphelpers.Arange):
+            raise ValueError("can only set stop if value is phoebe.frontend.nphelpers.Arange")
+
+        self._value = self._value.to_linspace()
 
 
 class ArrayParameter(Parameter):
@@ -4405,6 +4624,9 @@ class ArrayParameter(Parameter):
     def append(self, value):
         """
         """
+        if isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace):
+            value = value.to_array()
+
         new_value = np.append(self.get_value(), value)
         self.set_value(new_value)
 
@@ -4421,7 +4643,11 @@ class ArrayParameter(Parameter):
         """
         default = super(ArrayParameter, self).get_value(**kwargs)
         if default is not None: return default
-        return self._value
+
+        if isinstance(self._value, nphelpers.Arange) or isinstance(self._value, nphelpers.Linspace):
+            return self._value.to_array()
+        else:
+            return self._value
 
     @send_if_client
     def set_value(self, value, **kwargs):
