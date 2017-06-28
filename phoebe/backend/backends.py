@@ -624,6 +624,10 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
 #######################################################################################################################################################
 
+    if _use_mpi == False:
+        print("*** this version of phoebe requires mpi4py and openmpi-dev installed.")
+        exit()
+
     if _use_mpi and myrank == 0:
         print('*** phoebe-mpi: %d cores allocated.' % (nprocs))
     
@@ -640,14 +644,33 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         for i,time,infolist in zip(range(len(times)),times,infos):
 
             node = comm.recv(source = MPI.ANY_SOURCE, tag=TAG_REQ)
-            comm.send(i, node, tag=TAG_DATA)
+            packet = {'i': i, 'time': time, 'infolist': infolist}
+            comm.send(packet, node, tag=TAG_DATA)
             
             # break temporarily, to test mpi communication
             continue
             
+
+        for i in range(1, nprocs):
+            node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
+            comm.send({'i': -1, 'time': None, 'infolist': None}, node, tag=TAG_DATA)
+
+    else: # if myrank != 0:
+        while True:
+            comm.send(myrank, 0, tag=TAG_REQ)
+            packet = comm.recv(tag=TAG_DATA)
+            
+            i = packet['i']
+            if i == -1:
+                break
+
+            time = packet['time']
+            infolist = packet['infolist']
+            
+            print('work order %d received by processor %d' % (i, myrank))
+
             # Check to see what we might need to do that requires a mesh
             # TODO: make sure to use the requested distortion_method
-
 
             # we need to extract positions, velocities, and euler angles of ALL bodies at THIS TIME (i)
             if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
@@ -673,7 +696,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     Fi = None
 
 
-
                 # TODO: eventually we can pass instantaneous masses and sma as kwargs if they're time dependent
                 # masses = [b.get_value('mass', component=star, context='component', time=time, unit=u.solMass) for star in starrefs]
                 # sma = b.get_value('sma', component=starrefs[body.ind_self], context='component', time=time, unit=u.solRad)
@@ -690,7 +712,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # of per-vertex weights which are used to determine the physical quantities
                 # (ie teff, logg) that should be used in computing observables (ie intensity)
 
-                expose_horizon =  'mesh' in [info['kind'] for info in infolist] and do_horizon
+                expose_horizon = 'mesh' in [info['kind'] for info in infolist] and do_horizon
                 horizons = system.handle_eclipses(expose_horizon=expose_horizon)
 
                 # Now we can fill the observables per-triangle.  We'll wait to integrate
@@ -873,17 +895,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # this is mainly used for live-streaming animation support
                 yield (new_syns, time)
 
-        for i in range(1, nprocs):
-            node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
-            comm.send(-1, node, tag=TAG_DATA)
-
-    else: # if myrank != 0:
-        while True:
-            comm.send(myrank, 0, tag=TAG_REQ)
-            idx = comm.recv(tag=TAG_DATA)
-            print('work order %d received by processor %d' % (idx, myrank))
-            if idx == -1:
-                break
 
     if not as_generator:
         yield new_syns
