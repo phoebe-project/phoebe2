@@ -153,6 +153,8 @@ class Bundle(ParameterSet):
             for param in self._params:
                 param._bundle = self
 
+            self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
         for constraint in self.filter(context='constraint').to_list():
