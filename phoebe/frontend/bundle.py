@@ -2469,7 +2469,7 @@ class Bundle(ParameterSet):
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
-        if detach:
+        if detach or conf.mpi:
             logger.warning("detach support is EXPERIMENTAL")
 
             if times is not None:
@@ -2498,7 +2498,8 @@ class Bundle(ParameterSet):
             f.close()
 
             script_fname = os.path.abspath(script_fname)
-            cmd = 'python {} &>/dev/null &'.format(script_fname)
+            cmd = conf.detach_cmd.format(script_fname)
+            # cmd = 'python {} &>/dev/null &'.format(script_fname)
             subprocess.call(cmd, shell=True)
 
             # create model parameter and attach (and then return that instead of None)
@@ -2515,6 +2516,9 @@ class Bundle(ParameterSet):
 
             if isinstance(detach, str):
                 self.save(detach)
+
+            if not detach:
+                return job_param.attach()
 
             # return self.get_model(model)
             return job_param

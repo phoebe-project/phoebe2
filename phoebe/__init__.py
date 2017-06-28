@@ -54,6 +54,9 @@ class Settings(object):
         # And we'll require explicitly setting developer mode on
         self._devel = False
 
+        self._do_mpirun = False
+        self._mpi_np = 2
+
     def interactive_on(self):
         self._interactive = True
 
@@ -76,6 +79,16 @@ class Settings(object):
     def devel(self):
         return self._devel
 
+    @property
+    def mpi(self):
+        return self._do_mpirun
+
+    @property
+    def detach_cmd(self):
+        if self._do_mpirun:
+            return 'mpirun -np %d python {} &>/dev/null &' % self._mpi_np
+        else:
+            return 'python {} &>/dev/null &'
 
 
 conf = Settings()
@@ -142,6 +155,17 @@ def devel_on():
 
 def devel_off():
     conf.devel_off()
+
+def mpi_on(np=None):
+    conf._do_mpirun = True
+    if np is not None:
+        conf._mpi_np = np
+
+def mpi_off():
+    conf._do_mpirun = False
+
+def set_np(np):
+    conf._mpi_np = np
 
 # functional shortcuts to numpy helpers
 def arange(start, stop, step):
