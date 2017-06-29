@@ -4197,6 +4197,11 @@ class FloatParameter(Parameter):
                 if value.unit != unit:
                     raise ValueError("value and unit do not agree")
 
+        elif value is None:
+            # allowed for FloatArrayParameter if self.allow_none.  This should
+            # already have been checked by self._check_type
+            value = value
+
         elif unit is not None:
             # print "*** converting value to quantity"
             value = value * unit
@@ -4205,7 +4210,7 @@ class FloatParameter(Parameter):
             value = value * self.default_unit
 
         # handle wrapping for angle measurements
-        if value.unit.physical_type == 'angle':
+        if value is not None and value.unit.physical_type == 'angle':
             # NOTE: this may fail for nphelpers.Arange or nphelpers.Linspace
             if value > (360*u.deg) or value < (0*u.deg):
                 value = value % (360*u.deg)
@@ -4217,7 +4222,7 @@ class FloatParameter(Parameter):
 
         # make sure we can convert back to the default_unit
         try:
-            if self.default_unit is not None:
+            if self.default_unit is not None and value is not None:
                 test = value.to(self.default_unit)
         except u.core.UnitsError:
             raise ValueError("cannot convert provided unit ({}) to default unit ({})".format(value.unit, self.default_unit))
@@ -4343,6 +4348,7 @@ class FloatArrayParameter(FloatParameter):
         """
         see :meth:`Parameter.__init__`
         """
+        self._allow_none = kwargs.get('allow_none', False)
         super(FloatArrayParameter, self).__init__(*args, **kwargs)
 
         default_unit = kwargs.get('default_unit', None)
@@ -4355,7 +4361,7 @@ class FloatArrayParameter(FloatParameter):
 
         self.set_value(kwargs.get('value', []), unit)
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -4381,6 +4387,12 @@ class FloatArrayParameter(FloatParameter):
         str_ = super(FloatArrayParameter, self).__str__()
         np.set_printoptions(**opt)
         return str_
+
+    @property
+    def allow_none(self):
+        """
+        """
+        return self._allow_none
 
     def to_string_short(self):
         """
@@ -4489,18 +4501,23 @@ class FloatArrayParameter(FloatParameter):
     def _check_type(self, value):
         """
         """
-        if isinstance(value, u.Quantity):
+        if self.allow_none and value is None:
+            value = None
+
+        elif isinstance(value, u.Quantity):
             value = value.value
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
 
-        if isinstance(value, float):
+        elif isinstance(value, float):
             value = np.array([value])
 
-        if not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
+        elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
+
+        return value
 
     @property
     def start(self):

@@ -1180,9 +1180,10 @@ class Bundle(ParameterSet):
                     continue
                 ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
-                check = ld_coeffs_len(ld_func, ld_coeffs)
-                if not check[0]:
-                    return check
+                if ld_coeffs is not None:
+                    check = ld_coeffs_len(ld_func, ld_coeffs)
+                    if not check[0]:
+                        return check
 
                 if ld_func=='interp':
                     for compute in kwargs.get('computes', self.computes):
