@@ -821,16 +821,6 @@ class Body(object):
         #-- Get current position/euler information
         # TODO: remove this if/else if all dynamics method now support eulerian elements
         if self.dynamics_method in ['keplerian', 'nbody', 'rebound', 'bs']:
-            # if we can't get the polar direction, assume it's in the negative Z-direction
-            try:
-                # TODO: implement get_polar_direction (see below for alpha version)
-                # this will currently ALWAYS fail and follow the except - meaning
-                # misaligned orbits are not yet supported
-                polar_dir = -self.get_polar_direction(norm=True)
-            except:
-                #logger.warning("assuming polar direction - misaligned orbits not yet supported")
-                polar_dir = default_polar_dir
-
             # TODO: get rid of this ugly _value stuff
             pos = (_value(xs[self.ind_self]), _value(ys[self.ind_self]), _value(zs[self.ind_self]))
             vel = (_value(vxs[self.ind_self]), _value(vys[self.ind_self]), _value(vzs[self.ind_self]))
@@ -839,12 +829,12 @@ class Body(object):
             raise NotImplementedError("update_position does not support dynamics_method={}".format(self.dynamics_method))
 
 
+        q, F, d, s, Phi = self._mesh_args
+
         #-- Volume Conservation
         if self.needs_volume_conservation and self.distortion_method in ['roche']:
 
             # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
-
-            q, F, d, Phi = self._mesh_args
 
             # override d to be the current value
             if ds is not None:
@@ -867,8 +857,9 @@ class Body(object):
             # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi, self.Phi
 
             # TODO: need to send a better guess for Omega0
-            Phi = libphoebe.roche_Omega_at_vol(target_volume,
-                                               q, F, d,
+            # TODO: replace s with s(true_anom=0, yaw, pitch)
+            Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
+                                               q, F, d, s,
                                                Omega0=Phi if Phi>self.Phi else self.Phi)
             # if Phi < self.Phi:
                 # then for some reason we passed the value defined at periastron...
@@ -957,7 +948,7 @@ class Body(object):
         # TODO NOW [OPTIMIZE]: get rid of the deepcopy here - but without it the mesh velocities build-up and do terrible things
         self._mesh = mesh.Mesh.from_scaledproto(scaledprotomesh.copy(),
                                                 pos, vel, euler,
-                                                polar_dir*self.freq_rot)
+                                                s*self.freq_rot)
 
         # print "time: {}\npos: {}\nvel: {}\neuler: {}".format(time, pos, vel, euler)
         # print "*** mesh.vz", self._mesh.velocities.for_computations[:,2].min(), self._mesh.velocities.for_computations[:,2].max(), self._mesh.velocities.for_computations[:,2].mean()
@@ -1534,6 +1525,10 @@ class Star(Body):
             # return self.volume_at_periastron
             return self.volume_at_periastron*self._scale**3
 
+    def get_polar_direction(self, norm=True):
+        # TODO: implement getting from pitch, yaw, and true anomaly
+        return np.array([0,0,1])
+
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
         this function takes mesh_method and kwargs that came from the generic Body.intialize_mesh and returns
@@ -1550,7 +1545,10 @@ class Star(Body):
         Phi = kwargs.get('Phi', self.Phi)  # NOTE: self.Phi automatically corrects for the secondary star
         q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
 
-        mesh_args = (q, F, d, Phi)
+        # if we can't get the polar direction, assume it's in the negative Z-direction
+        s = self.get_polar_direction(norm=True)
+
+        mesh_args = (q, F, d, s, Phi)
 
         if mesh_method == 'marching':
             ntriangles = kwargs.get('ntriangles', self.ntriangles)
@@ -1558,30 +1556,30 @@ class Star(Body):
             if self.distortion_method == 'roche':
                 # TODO: check whether roche or misaligned roche from values of incl, etc!!!!
 
-                av = libphoebe.roche_area_volume(*mesh_args,
-                                                 choice=0,
-                                                 larea=True,
-                                                 lvolume=True)
+                av = libphoebe.roche_misaligned_area_volume(*mesh_args,
+                                                            choice=0,
+                                                            larea=True,
+                                                            lvolume=True)
                 delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
-                # print "*** libphoebe.roche_marching_mesh args: {}, rpole: {}, delta: {}".format(mesh_args, rpole, delta)
+                print "*** libphoebe.roche_misaligned_marching_mesh args: {}, delta: {}".format(mesh_args, delta)
 
-                new_mesh = libphoebe.roche_marching_mesh(*mesh_args,
-                                                         delta=delta,
-                                                         choice=0,
-                                                         full=True,
-                                                         max_triangles=ntriangles*2,
-                                                         vertices=True,
-                                                         triangles=True,
-                                                         centers=True,
-                                                         vnormals=True,
-                                                         tnormals=True,
-                                                         cnormals=False,
-                                                         vnormgrads=True,
-                                                         cnormgrads=False,
-                                                         areas=True,
-                                                         volume=False,
-                                                         init_phi=self.mesh_init_phi)
+                new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
+                                                                    delta=delta,
+                                                                    choice=0,
+                                                                    full=True,
+                                                                    max_triangles=ntriangles*2,
+                                                                    vertices=True,
+                                                                    triangles=True,
+                                                                    centers=True,
+                                                                    vnormals=True,
+                                                                    tnormals=True,
+                                                                    cnormals=False,
+                                                                    vnormgrads=True,
+                                                                    cnormgrads=False,
+                                                                    areas=True,
+                                                                    volume=False,
+                                                                    init_phi=self.mesh_init_phi)
 
 
                 # Now we'll get the area and volume of the Roche potential
@@ -1742,7 +1740,7 @@ class Star(Body):
                     raise NotImplementedError()
                     # TODO: need to use rpole directly?
 
-                rpole = libphoebe.roche_pole(*mesh_args)
+                rpole = libphoebe.roche_misaligned_pole(*mesh_args)
                 omega = 1./rpole
                 mesh_args = (omega,)
 
@@ -1841,8 +1839,8 @@ class Star(Body):
         """
         TODO: add documentation
         """
-        pole_func = getattr(libphoebe, '{}_pole'.format(self.distortion_method))
-        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format(self.distortion_method))
+        pole_func = getattr(libphoebe, '{}_pole'.format('roche_misaligned' if self.distortion_method=='roche' else self.distortion_method))
+        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format('roche_misaligned' if self.distortion_method=='roche' else self.distortion_method))
 
         r_pole = pole_func(*self._mesh_args)
         r_pole_ = np.array([0., 0., r_pole])

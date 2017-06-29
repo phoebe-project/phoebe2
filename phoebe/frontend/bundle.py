@@ -1074,12 +1074,13 @@ class Bundle(ParameterSet):
                     d = 1 - parent_ps.get_value('ecc')
 
                     # TODO: this needs to be generalized once other potentials are supported
-                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True)
+                    # TODO: replace s with s(true_anom=0, yaw, pitch)
+                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, np.array([0,0,1]))
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
-                    if pot < critical_pots['L1'] or pot < critical_pots['L2']:
+                    if pot < critical_pot:
                         return False,\
-                            '{} is overflowing at periastron (L1={L1:.02f}, L2={L2:.02f})'.format(component, **critical_pots)
+                            '{} is overflowing at periastron (critical_pot={})'.format(component, critical_pot)
 
             elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
@@ -1096,6 +1097,7 @@ class Bundle(ParameterSet):
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
                 d = 1 + parent_ps.get_value('ecc')
+                # NOTE: we use the aligned case here so we can access L1 vs L2 and L3
                 critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True)
 
                 if pot > critical_pots['L1']:
@@ -1104,6 +1106,7 @@ class Bundle(ParameterSet):
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc')
+                # NOTE: we use the aligned case here so we can access L1 vs L2 and L3
                 critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True)
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
@@ -1124,6 +1127,13 @@ class Bundle(ParameterSet):
                 if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
                     # print "***", hier.get_kind_of(starrefs[0]), hier.get_kind_of(starrefs[1])
                     continue
+                if self.get_value(qualifier='pitch', component=starrefs[0])!=0.0 or \
+                        self.get_value(qualifier='pitch', component=starrefs[1])!=0.0 or \
+                        self.get_value(qualifier='yaw', component=starrefs[0])!=0.0 or \
+                        self.get_value(qualifier='yaw', component=starrefs[1])!=0.0:
+
+                    # we cannot run this test for misaligned cases
+                   continue
 
                 comp0 = hier.get_primary_or_secondary(starrefs[0], return_ind=True)
                 comp1 = hier.get_primary_or_secondary(starrefs[1], return_ind=True)
@@ -1139,6 +1149,7 @@ class Bundle(ParameterSet):
                 pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component')
                 pot1 = roche.pot_for_component(pot1, q1, comp1)
 
+                # there is no misaligned version of xrange, so here we assume the aligned case
                 xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0, choice=0)
                 xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1, choice=0)
 
@@ -1146,17 +1157,6 @@ class Bundle(ParameterSet):
                     return False,\
                         'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
-        # check to make sure all stars are aligned (remove this once we support
-        # misaligned roche binaries)
-        if len(hier.get_stars()) > 1:
-            for starref in hier.get_meshables():
-                orbitref = hier.get_parent_of(starref)
-                if len(hier.get_children_of(orbitref)) == 2:
-                    incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
-                    incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
-                    if abs(incl_star - incl_orbit) > 1e-3:
-                        return False,\
-                            'misaligned orbits are not currently supported.'
 
         # check to make sure passband supports the selected atm
         for pbparam in self.filter(qualifier='passband').to_list():
