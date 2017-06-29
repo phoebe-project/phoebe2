@@ -11,7 +11,7 @@ import numpy as np
 
 phoebe.mpi_on(np=8)
 
-def test_mpi(detach=True, plot=False):
+def test_mpi(plot=False):
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=np.linspace(0,1,1001))

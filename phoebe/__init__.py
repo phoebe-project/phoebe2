@@ -55,8 +55,16 @@ class Settings(object):
         # And we'll require explicitly setting developer mode on
         self._devel = False
 
-        self._do_mpirun = False
-        self._mpi_np = 2
+        def _to_bool(value):
+            if isinstance(value, bool):
+                return value
+            elif value.upper()=='TRUE':
+                return True
+            else:
+                return False
+
+        self._do_mpirun = _to_bool(os.getenv('PHOEBE_ENABLE_MPI', False))
+        self._mpi_np = int(os.getenv('PHOEBE_MPI_NP', 2))
 
     def interactive_on(self):
         self._interactive = True
