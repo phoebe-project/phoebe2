@@ -709,7 +709,7 @@ template<class T>
     T s[3]
   ){
     
-    if (std::abs(s[2]) == 1)
+    if (s[0] == 0 && s[1] == 0)
       return gen_roche::meshing_start_point(r, g, choice, Omega0, q, F, delta);
     
     // only primary lobes for theta != 0 are supported

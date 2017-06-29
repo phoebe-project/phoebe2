@@ -326,9 +326,9 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
       theta' - new angle between S and new z-axis ^k'
 */
 
-static PyObject *misaligned_transf(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_transf(PyObject *self, PyObject *args) {
   
-  const char *fname = "misaligned_trans";
+  const char *fname = "roche_misaligned_trans";
 
   PyObject *o_type;
   PyArrayObject *o_S;  
@@ -484,7 +484,7 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   
   Python:
     
-    h = misaligned_pole(q, F, d, misalignment, Omega0, sign)
+    h = roche_misaligned_pole(q, F, d, misalignment, Omega0, sign)
   
   where parameters are
   
@@ -509,9 +509,9 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 
 */
 
-static PyObject *misaligned_pole(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char *fname = "misaligned_pole";
+  const char *fname = "roche_misaligned_pole";
   
   //
   // Reading arguments
@@ -632,7 +632,7 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
 
   Python:
 
-    Omega_{min} = misaligned_Omega_min(q, F, delta, misalignment)
+    Omega_{min} = roche_misaligned_Omega_min(q, F, delta, misalignment)
     
    with parameters
       q: float = M2/M1 - mass ratio
@@ -648,9 +648,9 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *misaligned_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char *fname = "misaligned_Omega_min";
+  const char *fname = "roche_misaligned_Omega_min";
   
   //
   // Reading arguments
@@ -1336,7 +1336,7 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
   
   Python:
     
-    dict = misaligned_area_volume(q, F, d, misalignment, Omega0, <keyword>=<value>)
+    dict = roche_misaligned_area_volume(q, F, d, misalignment, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -1379,9 +1379,9 @@ static PyObject *sphere_area_volume(PyObject *self, PyObject *args, PyObject *ke
 */
 
 //#define DEBUG
-static PyObject *misaligned_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char *fname = "misaligned_area_volume";
+  const char *fname = "roche_misaligned_area_volume";
   
   //
   // Reading arguments
@@ -1888,7 +1888,7 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
   
   Python:
     
-    Omega1 = misaligned_Omega_at_vol(vol, q, F, d, misalignment, Omega0, <keyword>=<value>)
+    Omega1 = roche_misaligned_Omega_at_vol(vol, q, F, d, misalignment, Omega0, <keyword>=<value>)
   
   where parameters are
   
@@ -1924,9 +1924,9 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 */
 
 //#define DEBUG
-static PyObject *misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char * fname = "misaligned_Omega_at_vol";
+  const char * fname = "roche_misaligned_Omega_at_vol";
   
   //
   // Reading arguments
@@ -2287,7 +2287,7 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
   
   Python:
   
-    g = misaligned_gradOmega(q, F, d, misalignment, r)
+    g = roche_misaligned_gradOmega(q, F, d, misalignment, r)
    
   with parameters
 
@@ -2306,9 +2306,9 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
         = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
 */
 
-static PyObject *misaligned_gradOmega(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
   
-  const char *fname = "misaligned_gradOmega";
+  const char *fname = "roche_misaligned_gradOmega";
   
   double p[7];
 
@@ -2526,7 +2526,7 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
   
   Python:
     
-    g = misaligned_gradOmega_only(q, F, d, misalignment, r)
+    g = roche_misaligned_gradOmega_only(q, F, d, misalignment, r)
    
    with parameters
   
@@ -2544,9 +2544,9 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
 
-static PyObject *misaligned_gradOmega_only(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args) {
   
-  const char *fname = "misaligned_gradOmega_only";
+  const char *fname = "roche_misaligned_gradOmega_only";
   
   double p[7];
 
@@ -2734,7 +2734,7 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
 
   Python:
 
-    Omega0 = misaligned_Omega(q, F, delta, misalignment, r)
+    Omega0 = roche_misaligned_Omega(q, F, delta, misalignment, r)
     
    with parameters
       q: float = M2/M1 - mass ratio
@@ -2751,9 +2751,9 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
     Omega0 - value of the Omega at (x,y,z)
 */
 
-static PyObject *misaligned_Omega(PyObject *self, PyObject *args) {
+static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
   
-  const char * fname = "misaligned_Omega";
+  const char * fname = "roche_misaligned_Omega";
   
   double p[7];
 
@@ -3874,7 +3874,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
     
   Python:
 
-    dict = misaligned_marching_mesh(q, F, d, misalignment, Omega0, delta, <keyword>=[true,false], ... )
+    dict = roche_misaligned_marching_mesh(q, F, d, misalignment, Omega0, delta, <keyword>=[true,false], ... )
     
   where parameters
   
@@ -3975,9 +3975,9 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char *fname = "misaligned_marching_mesh";
+  const char *fname = "roche_misaligned_marching_mesh";
   
   //
   // Reading arguments
@@ -4096,19 +4096,23 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
   //
   // Choosing the meshing initial point 
   //
-  bool rotated, ok;
+  bool rotated, ok, aligned = false;
   
   double r[3], g[3], theta, *s = 0;
   
   if (PyFloat_Check(o_misalignment)) {
 
     theta = PyFloat_AsDouble(o_misalignment);
+    aligned = (theta == 0);
+    
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta);
     rotated = true;
  
   } else if (PyArray_Check(o_misalignment)) {
     
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
+    aligned  = (s[0] == 0 && s[1] == 0);
+    
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
     rotated = false;
 
@@ -4135,30 +4139,45 @@ static PyObject *misaligned_marching_mesh(PyObject *self, PyObject *args, PyObje
   if (b_cnormgrads) GatC = new std::vector<double>;
   if (b_vnormgrads) GatV = new std::vector<double>;
 
-  if (rotated) {  
-    double params[] = {q, F, d, theta, Omega0};
-      
-    Tmarching<double, Tmisaligned_rotated_roche<double>> march(params);  
+  if (aligned) {
     
-    ok = (
-      b_full ? 
-        march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
-        march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      );
-      
-    if (ok) march.central_points(V, Tr, C, NatC, GatC);      
+    double params[4] = {q, F, d, Omega0};
+  
+    Tmarching<double, Tgen_roche<double>> march(params);  
+    
+    ok = (b_full ? 
+         !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+         !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+        );
+    
+    if (ok) march.central_points(V, Tr, C, NatC, GatC);   
+  
   } else {
-    double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
+    if (rotated) {
+      double params[] = {q, F, d, theta, Omega0};
+        
+      Tmarching<double, Tmisaligned_rotated_roche<double>> march(params);  
       
-    Tmarching<double, Tmisaligned_roche<double>> march(params);  
-    
-    ok = (
-      b_full ? 
-        march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
-        march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
-      );
-    
-    if (ok) march.central_points(V, Tr, C, NatC, GatC);
+      ok = (
+        b_full ? 
+          march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+          march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+        );
+        
+      if (ok) march.central_points(V, Tr, C, NatC, GatC);      
+    } else {
+      double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
+        
+      Tmarching<double, Tmisaligned_roche<double>> march(params);  
+      
+      ok = (
+        b_full ? 
+          march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
+          march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+        );
+      
+      if (ok) march.central_points(V, Tr, C, NatC, GatC);
+    }
   }
   
   if (!ok) {
@@ -6666,7 +6685,7 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     
   Python:
 
-    H = misaligned_horizon(v, q, F, d, misalignment, Omega0, <keywords>=<value>)
+    H = roche_misaligned_horizon(v, q, F, d, misalignment, Omega0, <keywords>=<value>)
     
   with arguments
   
@@ -6692,9 +6711,9 @@ static PyObject *rotstar_horizon(PyObject *self, PyObject *args, PyObject *keywd
     H: 2-rank numpy array of 3D point on a horizon
 */
 
-static PyObject *misaligned_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
+static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObject *keywds) {
   
-  const char *fname = "misaligned_horizon";
+  const char *fname = "roche_misaligned_horizon";
   
   //
   // Reading arguments
@@ -8489,8 +8508,8 @@ static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
 */ 
 static PyMethodDef Methods[] = {
   
- { "misaligned_transf", 
-    misaligned_transf,   
+ { "roche_misaligned_transf", 
+    roche_misaligned_transf,   
     METH_VARARGS, 
     "Determine angle parameters of the misaligned Roche lobes from "
     "the spin angular velocity in the rotating binary system "},
@@ -8528,8 +8547,8 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the height of the pole of sphere for given a R."},
 
-  { "misaligned_pole", 
-    (PyCFunction)misaligned_pole,   
+  { "roche_misaligned_pole", 
+    (PyCFunction)roche_misaligned_pole,   
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the postion of the pole of generalized Roche lobes with "
     "misaligned angular spin-orbital angular velocity vectors for given "
@@ -8545,8 +8564,8 @@ static PyMethodDef Methods[] = {
     "values of q, F and d."},
   
   
-  { "misaligned_Omega_min", 
-    (PyCFunction)misaligned_Omega_min,   
+  { "roche_misaligned_Omega_min", 
+    (PyCFunction)roche_misaligned_Omega_min,   
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the minimal posible value of the Kopal potential that" 
     "permits existance of the compact Roche lobe for given "
@@ -8579,8 +8598,8 @@ static PyMethodDef Methods[] = {
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the area and volume of the sphere for given a R."},
 
-  { "misaligned_area_volume", 
-    (PyCFunction)misaligned_area_volume,   
+  { "roche_misaligned_area_volume", 
+    (PyCFunction)roche_misaligned_area_volume,   
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the area and volume of the generalized Roche lobes with "
     "misaligned spin and orbtal angular velocity vectors for given "
@@ -8601,8 +8620,8 @@ static PyMethodDef Methods[] = {
     "Determine the value of the rotating star potential at "
     "values of omega and volume."},
     
-   { "misaligned_Omega_at_vol", 
-    (PyCFunction)misaligned_Omega_at_vol,   
+   { "roche_misaligned_Omega_at_vol", 
+    (PyCFunction)roche_misaligned_Omega_at_vol,   
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the value of the generalized Kopal potential of "
     "Roche lobes with with misaligned spin and orbtal angular "
@@ -8629,8 +8648,8 @@ static PyMethodDef Methods[] = {
     "Calculate the gradient of the potential of the sphere"
     " at given point [x,y,z]."},  
 
-  { "misaligned_gradOmega", 
-    misaligned_gradOmega,   
+  { "roche_misaligned_gradOmega", 
+    roche_misaligned_gradOmega,   
     METH_VARARGS, 
     "Calculate the gradient of the generalized Kopal potential with "
     " misaligned angular momenta at given point [x,y,z] for given "
@@ -8656,8 +8675,8 @@ static PyMethodDef Methods[] = {
     "Calculate the value of the potential of the sphere "
     " at given point [x,y,z]."},  
 
-  { "misaligned_Omega", 
-    misaligned_Omega,   
+  { "roche_misaligned_Omega", 
+    roche_misaligned_Omega,   
     METH_VARARGS, 
     "Calculate the value of the generalized Kopal potential with "
     " misaligned angular velocity vectors at given point [x,y,z] for given "
@@ -8683,8 +8702,8 @@ static PyMethodDef Methods[] = {
     "Calculate the gradient of the potential of the sphere"
     " at given point [x,y,z]."},  
 
-  { "misaligned_gradOmega_only", 
-    misaligned_gradOmega_only,   
+  { "roche_misaligned_gradOmega_only", 
+    roche_misaligned_gradOmega_only,   
     METH_VARARGS, 
     "Calculate the gradient of the generalized Kopal potential with "
     " misaligned angular momenta at given point [x,y,z] for given "
@@ -8712,8 +8731,8 @@ static PyMethodDef Methods[] = {
     "Determine the triangular meshing of a sphere for given radius R."
     "The edge of triangles used in the mesh are approximately delta."},
 
-  { "misaligned_marching_mesh", 
-    (PyCFunction)misaligned_marching_mesh,   
+  { "roche_misaligned_marching_mesh", 
+    (PyCFunction)roche_misaligned_marching_mesh,   
     METH_VARARGS|METH_KEYWORDS, 
     "Determine the triangular meshing of generalized Roche lobes with " 
     "misaligned spin and orbital angular velocity vectors for "
@@ -8805,8 +8824,8 @@ static PyMethodDef Methods[] = {
     "Calculating the horizon on the rotating star defined by view direction,"
     "omega, and the value of the potential"},
     
-  { "misaligned_horizon",
-    (PyCFunction)misaligned_horizon,
+  { "roche_misaligned_horizon",
+    (PyCFunction)roche_misaligned_horizon,
     METH_VARARGS|METH_KEYWORDS, 
     "Calculating the horizon on the Roche lobe with misaligned spin and orbital "
     "angular velocity vectors defined by the view direction,"
