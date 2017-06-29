@@ -31,17 +31,17 @@ if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     else:
         _use_bkh = True
 
+    try:
+        import mpld3 as _mpld3
+    except ImportError:
+        _use_mpld3 = False
+    else:
+        _use_mpld3 = True
+
 else:
     _use_mpl = False
     _use_bkh = False
-
-
-try:
-    import mpld3 as _mpld3
-except ImportError:
     _use_mpld3 = False
-else:
-    _use_mpld3 = True
 
 from phoebe import conf
 

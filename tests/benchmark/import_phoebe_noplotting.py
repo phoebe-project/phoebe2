@@ -1,3 +1,4 @@
 import os
-os.environ['phoebe_enable_plotting'] = 'false'
+os.environ['PHOEBE_ENABLE_PLOTTING'] = 'false'
+os.environ['PHOEBE_ENABLE_SYMPY'] = 'false'
 import phoebe
