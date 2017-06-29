@@ -508,7 +508,7 @@ template<class T>
     int max_iter = 1000){
   
     // if no misalignment 
-    if (std::abs(s[2]) == 1)
+    if (s[0] == 0 && s[1] == 0)
       return gen_roche::point_on_horizon(r, v, choice, Omega0, q, F, delta, max_iter);
   
     //

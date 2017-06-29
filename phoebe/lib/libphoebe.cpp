@@ -2944,7 +2944,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       max_triangles = 10000000; // 10^7
       
   bool
-    b_full = false,
+    b_full = true,
     b_vertices = false, 
     b_vnormals = false, 
     b_vnormgrads = false,
@@ -3062,7 +3062,6 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   std::vector<double> *GatV = 0;
      
   if (b_vnormgrads) GatV = new std::vector<double>;
-  
   
   if ((b_full ? 
        !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
@@ -4018,7 +4017,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     max_triangles = 10000000; // 10^7
       
   bool
-    b_full = false,
+    b_full = true,
     b_vertices = false, 
     b_vnormals = false, 
     b_vnormgrads = false,
@@ -4140,14 +4139,13 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   if (b_vnormgrads) GatV = new std::vector<double>;
 
   if (aligned) {
-    
-    double params[4] = {q, F, d, Omega0};
+    double params[] = {q, F, d, Omega0};
   
     Tmarching<double, Tgen_roche<double>> march(params);  
     
     ok = (b_full ? 
-         !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
-         !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
+         march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi) :
+         march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
         );
     
     if (ok) march.central_points(V, Tr, C, NatC, GatC);   

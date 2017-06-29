@@ -692,7 +692,7 @@ struct Tmisaligned_rotated_roche {
         x = r[0], y = r[1], z = r[2], 
         x1 = x - delta, 
         x_ = x*c - z*s,
-        r1 = utils::hypot3(r),
+        r1 = utils::hypot3(x, y, z),
         r2 = utils::hypot3(x1, y, z),
         f1 = 1/r1, f13 = f1*f1*f1,
         f2 = 1/r2, f23 = f2*f2*f2,

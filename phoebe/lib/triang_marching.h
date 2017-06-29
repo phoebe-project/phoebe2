@@ -237,6 +237,10 @@ struct Tmarching: public Tbody {
   //#define DEBUG
   bool slide_over_potential(T ri[3], T gi[3], T ui[3], T a, Tvertex & v, const int & max_iter){
     
+    #if defined(DEBUG)
+    std::cerr << "Sliding...";
+    #endif
+    
     //
     // Plane of sliding
     //
