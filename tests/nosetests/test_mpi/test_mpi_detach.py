@@ -9,7 +9,7 @@ phoebe.mpi_on(np=8)
 def test_mpi(detach=True, plot=False):
     b = phoebe.Bundle.default_binary()
 
-    b.add_dataset('lc', times=np.linspace(0,1,101))
+    b.add_dataset('lc', times=np.linspace(0,1,1001))
 
     print "calling compute"
     b.run_compute(irrad_method='none', model='phoebe2model', detach=detach)
