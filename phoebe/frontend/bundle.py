@@ -2487,7 +2487,7 @@ class Bundle(ParameterSet):
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
             f = open(script_fname, 'w')
-            f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'false'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'false';\n")
+            f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
             f.write("import phoebe; import json\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
