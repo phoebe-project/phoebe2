@@ -66,6 +66,9 @@ class Settings(object):
         self._do_mpirun = _to_bool(os.getenv('PHOEBE_ENABLE_MPI', False))
         self._mpi_np = int(os.getenv('PHOEBE_MPI_NP', 2))
 
+    def reset(self):
+        self.__init__()
+
     def interactive_on(self):
         self._interactive = True
 
@@ -146,6 +149,10 @@ def default_binary(*args, **kwargs):
 
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
+
+
+def reset_settings():
+    conf.reset()
 
 def is_interactive():
     return conf.interactive

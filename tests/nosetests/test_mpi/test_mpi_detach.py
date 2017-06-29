@@ -10,9 +10,9 @@ os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE'
 import phoebe
 import numpy as np
 
-phoebe.mpi_on(np=8)
-
 def test_mpi(plot=False):
+    phoebe.mpi_on(np=4)
+
     b = phoebe.Bundle.default_binary()
 
     b.add_dataset('lc', times=np.linspace(0,1,1001))
@@ -28,6 +28,8 @@ def test_mpi(plot=False):
 
     if plot:
         b.plot(show=True)
+
+    phoebe.reset_settings()
 
     return b
 
