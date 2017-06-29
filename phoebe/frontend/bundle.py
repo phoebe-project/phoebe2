@@ -902,22 +902,39 @@ class Bundle(ParameterSet):
                         self.add_constraint(constraint.rotation_period, component,
                                             constraint=self._default_label('rotation_period', context='constraint'))
 
-                    logger.info('re-creating incl_aligned constraint for {}'.format(component))
+                    logger.info('re-creating pitch constraint for {}'.format(component))
                     # TODO: will this cause problems if the constraint has been flipped?
                     # TODO: what if the user disabled/removed this constraint?
                     if len(self.filter(context='constraint',
-                                       constraint_func='incl_aligned',
-                                    component=component)):
-                        constraint_param = self.get_constraint(constraint_func='incl_aligned',
+                                       constraint_func='pitch',
+                                       component=component)):
+                        constraint_param = self.get_constraint(constraint_func='pitch',
                                                                component=component)
-                        self.remove_constraint(constraint_func='incl_aligned',
+                        self.remove_constraint(constraint_func='pitch',
                                                component=component)
-                        self.add_constraint(constraint.incl_aligned, component,
+                        self.add_constraint(constraint.pitch, component,
                                             solve_for=constraint_param.constrained_parameter.uniquetwig,
                                             constraint=constraint_param.constraint)
                     else:
-                        self.add_constraint(constraint.incl_aligned, component,
-                                            constraint=self._default_label('incl_aligned', context='constraint'))
+                        self.add_constraint(constraint.pitch, component,
+                                            constraint=self._default_label('pitch', context='constraint'))
+
+                    logger.info('re-creating yaw constraint for {}'.format(component))
+                    # TODO: will this cause problems if the constraint has been flipped?
+                    # TODO: what if the user disabled/removed this constraint?
+                    if len(self.filter(context='constraint',
+                                       constraint_func='yaw',
+                                    component=component)):
+                        constraint_param = self.get_constraint(constraint_func='yaw',
+                                                               component=component)
+                        self.remove_constraint(constraint_func='yaw',
+                                               component=component)
+                        self.add_constraint(constraint.yaw, component,
+                                            solve_for=constraint_param.constrained_parameter.uniquetwig,
+                                            constraint=constraint_param.constraint)
+                    else:
+                        self.add_constraint(constraint.yaw, component,
+                                            constraint=self._default_label('yaw', context='constraint'))
 
 
             if not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope':

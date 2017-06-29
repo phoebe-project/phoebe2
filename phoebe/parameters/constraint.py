@@ -884,17 +884,16 @@ def rotation_period(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
-def incl_aligned(b, component, solve_for=None, **kwargs):
+def pitch(b, component, solve_for=None, **kwargs):
     """
-    Create a constraint for the inclination of a star to be the same as its
-    parent orbit (ie aligned).
+    Create a constraint for the inclination of a star relative to its parent orbit
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
     :parameter str solve_for:  if 'incl@star' should not be the derived/constrained
         parameter, provide which other parameter should be derived
-        (ie 'incl@orbit')
+        (ie 'incl@orbit', 'pitch@star')
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
     """
@@ -903,7 +902,7 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
     if not len(hier.get_value()):
         # TODO: change to custom error type to catch in bundle.add_component
         # TODO: check whether the problem is 0 hierarchies or more than 1
-        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+        raise NotImplementedError("constraint for pitch requires hierarchy")
 
     component_ps = _get_system_ps(b, component)
 
@@ -911,21 +910,71 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
     incl_comp = component_ps.get_parameter(qualifier='incl')
+    pitch_comp = component_ps.get_parameter(qualifier='pitch')
     incl_orb = parentorbit_ps.get_parameter(qualifier='incl')
 
     if solve_for in [None, incl_comp]:
         lhs = incl_comp
-        rhs = incl_orb.to_constraint()
+        rhs = incl_orb - pitch_comp
 
     elif solve_for == incl_orb:
         lhs = incl_orb
-        rhs = incl_comp.to_constraint()
+        rhs = incl_comp + pitch_comp
+
+    elif solve_for == pitch_comp:
+        lhs = pitch_comp
+        rhs = incl_orb - incl_comp
 
     else:
         raise NotImplementedError
 
     return lhs, rhs, {'component': component}
 
+def yaw(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the inclination of a star relative to its parent orbit
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'long_ae@star' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+        (ie 'long_an@orbit', 'yaw@star')
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for yaw requires hierarchy")
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    long_ae_comp = component_ps.get_parameter(qualifier='long_ae')
+    yaw_comp = component_ps.get_parameter(qualifier='yaw')
+    long_an_orb = parentorbit_ps.get_parameter(qualifier='long_an')
+
+    if solve_for in [None, long_ae_comp]:
+        lhs = long_ae_comp
+        rhs = long_an_orb - yaw_comp
+
+    elif solve_for == long_an_orb:
+        lhs = long_an_orb
+        rhs = long_ae_comp + yaw_comp
+
+    elif solve_for == yaw_comp:
+        lhs = yaw_comp
+        rhs = long_an_orb - yaw_comp
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
 
 
 #}
@@ -1015,4 +1064,3 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component, 'dataset': dataset}
 
 #}
-
