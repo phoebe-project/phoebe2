@@ -638,7 +638,19 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
             for qualifier, value in packet_i.items():
-                this_syn.get_parameter(qualifier).set_index_value(i, value)
+                if qualifier=='pbmesh':
+                    # then we need to loop through the actual parameter, where
+                    # each "value" is a dictionary which contains all the information
+                    # to access the parameter and set the value
+                    for pbmeshpacket in value:
+                        new_syns.set_value(**pbmeshpacket)
+                else:
+                    if kind in ['mesh', 'sp']:
+                        # then we're setting the whole array for this given time
+                        this_syn.get_parameter(qualifier).set_value(value)
+                    else:
+                        this_syn.get_parameter(qualifier).set_index_value(i, value)
+
 
         return new_syns
 
@@ -835,27 +847,22 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                         packet[k]['horizon_analytic_ys'] = ha['ys']
                         packet[k]['horizon_analytic_zs'] = ha['zs']
 
-                ##### BROKEN, FIX THIS PART!
-                if False:
-                    # Dataset-dependent quantities
-                    indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
-                    # if conf.devel:
-                    indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
-                    indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
-                    for infomesh in infolist:
-                        if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
-                            new_syns.set_value(qualifier='pblum', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.compute_luminosity(infomesh['dataset']))
-                            new_syns.set_value(qualifier='ptfarea', time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.get_ptfarea(infomesh['dataset']))
+                # Dataset-dependent quantities
+                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors']}
+                # if conf.devel:
+                indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
+                indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
 
-                            for indep in indeps[infomesh['kind']]:
-                                key = "{}:{}".format(indep, infomesh['dataset'])
-                                # print "***", key, indep, new_syns.qualifiers
-                                # print "***", indep, time, infomesh['dataset'], info['component'], 'mesh', new_syns.filter(time=time, kind='mesh').twigs
-                                try:
-                                    new_syns.set_value(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh', value=body.mesh[key].centers)
-                                except ValueError:
-                                    # print "***", key, indep, info['component'], infomesh['dataset'], new_syns.filter(time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs
-                                    raise ValueError("more than 1 result found: {}".format(",".join(new_syns.filter(qualifier=indep, time=time, dataset=infomesh['dataset'], component=info['component'], kind='mesh').twigs)))
+                packet[k]['pbmesh'] = []
+                for infomesh in infolist:
+                    if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
+                        ### so that we can do new_syns.set_value(**packet[k]['pbmesh'][n])
+                        packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
+                        packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+
+                        for indep in indeps[infomesh['kind']]:
+                            key = "{}:{}".format(indep, infomesh['dataset'])
+                            packet[k]['pbmesh'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
 
 
             else:
