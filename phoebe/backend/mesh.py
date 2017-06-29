@@ -32,8 +32,34 @@ def compute_volume(sizes, centers, normals):
 
 def euler_trans_matrix(etheta, elongan, eincl):
     """
-    Get the transformation matrix to translate/rotate a mesh according to
-    euler angles
+    Get the transformation matrix R to translate/rotate a mesh according to
+    euler angles.
+    
+    The matrix is
+    
+      R(long,incl,theta) = Rz(pi).Rz(long).Rx(incl).Rz(theta)
+    
+    where
+    
+      Rx(u) = 1,  0,        0
+              0,  cos(u),   -sin(u)
+              0,  sin(u),   cos(u)
+
+      Ry(u) = cos(u),   0,  sin(u)
+              0,        1,  0
+              -sin(u),  0,  cos(u)
+       
+      Rz(u) = cos(u),   -sin(u),  0
+              sin(u),   cos(u),   0
+              0,        0,        1
+
+    Rz(pi) = reflection across z-axis
+    
+    Note:
+    
+      R(0,0,0) = -1,  0,  0
+                  0,  -1, 0
+                  0,  0,  1
 
     :parameter float etheta: euler theta angle
     :parameter float elongan: euler long of asc node angle
