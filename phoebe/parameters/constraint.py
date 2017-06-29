@@ -955,21 +955,21 @@ def yaw(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
     parentorbit_ps = _get_system_ps(b, parentorbit)
 
-    long_ae_comp = component_ps.get_parameter(qualifier='long_ae')
+    long_an_comp = component_ps.get_parameter(qualifier='long_an')
     yaw_comp = component_ps.get_parameter(qualifier='yaw')
     long_an_orb = parentorbit_ps.get_parameter(qualifier='long_an')
 
-    if solve_for in [None, long_ae_comp]:
-        lhs = long_ae_comp
+    if solve_for in [None, long_an_comp]:
+        lhs = long_an_comp
         rhs = long_an_orb - yaw_comp
 
     elif solve_for == long_an_orb:
         lhs = long_an_orb
-        rhs = long_ae_comp + yaw_comp
+        rhs = long_an_comp + yaw_comp
 
     elif solve_for == yaw_comp:
         lhs = yaw_comp
-        rhs = long_an_orb - yaw_comp
+        rhs = long_an_orb - long_an_comp
 
     else:
         raise NotImplementedError
