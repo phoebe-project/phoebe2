@@ -3299,7 +3299,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   int max_triangles = 10000000; // 10^7
       
   bool 
-    b_full = false,
+    b_full = true,
     b_vertices = false, 
     b_vnormals = false, 
     b_vnormgrads = false,
@@ -3629,7 +3629,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   int max_triangles = 10000000; // 10^7
       
   bool
-    b_full = false,
+    b_full = true,
     b_vertices = false, 
     b_vnormals = false, 
     b_vnormgrads = false,
