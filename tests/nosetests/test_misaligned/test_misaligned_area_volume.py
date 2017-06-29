@@ -17,7 +17,7 @@ def test_area_volume():
   area0 = 1.5542549932711638e-01
   volume0 = 5.7617852701434746e-03
 
-  av = ph.misaligned_area_volume(q, F, d, theta, Omega0, choice, larea=True, lvolume=True)
+  av = ph.roche_misaligned_area_volume(q, F, d, theta, Omega0, choice, larea=True, lvolume=True)
 
   assert(m.fabs(av["larea"] - area0) < 1e-8*area0)
   assert(m.fabs(av["lvolume"] - volume0) < 1e-8*volume0)
