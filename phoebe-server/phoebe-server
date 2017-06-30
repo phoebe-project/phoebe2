@@ -199,6 +199,8 @@ def _value_string(param):
         return param.get_value()
     elif param_type in ['ConstraintParameter']:
         return "(Constraint)"
+    elif param_type in ['JobParameter']:
+        return param.get_status()
     elif param_type in ['UnitParameter']:
         return str(param.get_value().to_string())
     elif param_type in ['IntParameter', 'DictParameter', 'BoolParameter']:
@@ -640,6 +642,8 @@ def bundle_method(msg):
     try:
         # let's not pass None on in kwargs as that can conflict with setdefault within phoebe
         method_kwargs = {k:v for k,v in msg.items() if v not in [None, '']}
+        if fctn in ['run_compute', 'run_fitting']:
+            method_kwargs.setdefault('detach', True)
         if app._verbose:
             print("running b.{}(*{}, **{})".format(fctn, args, method_kwargs))
         params = getattr(b, fctn)(*args, **method_kwargs)
@@ -652,7 +656,7 @@ def bundle_method(msg):
         # print("params.length", len(params))
         # print("params.meta", params.meta)
 
-        newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None}
+        newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None and k not in ['twig', 'uniquetwig']}
         changes = _params(b, **newparamsfilter)
 
         if 'add_' in fctn or 'run_' in fctn:
