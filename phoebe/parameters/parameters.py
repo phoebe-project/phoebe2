@@ -1435,7 +1435,7 @@ class ParameterSet(object):
 
         # handle hiding advanced parameters
         if check_advanced:
-            params = [pi for pi in params if not pi.is_advanced]
+            params = [pi for pi in params if not pi.advanced]
 
         # handle hiding choice parameters with a single option
         if check_single:
@@ -2245,7 +2245,7 @@ class ParameterSet(object):
         kwargs.setdefault('highlight_color', None)
         kwargs.setdefault('uncover', False)
 
-        colorqualifier = kwargs['color'] if kwargs['color'] in ps.qualifiers else None
+        colorqualifier = kwargs['color'] if kwargs.get('color', False) in ps.qualifiers else None
 
         # Now let's get the parameters
 
@@ -2998,7 +2998,7 @@ class Parameter(object):
 
         self._visible_if = kwargs.get('visible_if', None)
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
         # loading from json can result in unicodes instead of strings - this then
@@ -3215,7 +3215,7 @@ class Parameter(object):
         return OrderedDict([(k, getattr(self, k)) for k in _meta_fields_all if k not in ignore])
 
     @property
-    def is_advanced(self):
+    def advanced(self):
         """
         Whether the parameter is considered an advanced parameter
         """
@@ -3742,7 +3742,7 @@ class StringParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3789,7 +3789,7 @@ class TwigParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def get_parameter(self):
@@ -3850,7 +3850,7 @@ class ChoiceParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''))
 
-        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -3914,7 +3914,7 @@ class BoolParameter(Parameter):
 
         self.set_value(kwargs.get('value', True))
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -3957,7 +3957,7 @@ class UnitParameter(Parameter):
         value = self._check_type(value)
         self._value = value
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def _check_type(self, value):
@@ -4004,7 +4004,7 @@ class DictParameter(Parameter):
 
         self.set_value(kwargs.get('value', {}))
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @update_if_client
@@ -4045,7 +4045,7 @@ class IntParameter(Parameter):
 
         self.set_value(kwargs.get('value', 1))
 
-        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'limits', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -4139,7 +4139,7 @@ class FloatParameter(Parameter):
 
         self.set_value(kwargs.get('value', ''), unit)
 
-        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for'] # TODO: add adjust?  or is that a different subclass?
+        self._dict_fields_other = ['description', 'value', 'quantity', 'default_unit', 'limits', 'visible_if', 'copy_for', 'advanced'] # TODO: add adjust?  or is that a different subclass?
         if conf.devel:
             # NOTE: this check will take place when CREATING the parameter,
             # so toggling devel after won't affect whether timederiv is included
@@ -4548,7 +4548,7 @@ class FloatArrayParameter(FloatParameter):
 
         self.set_value(kwargs.get('value', []), unit)
 
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -4810,7 +4810,7 @@ class ArrayParameter(Parameter):
 
         self.set_value(kwargs.get('value', []))
 
-        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for']
+        self._dict_fields_other = ['description', 'value', 'visible_if', 'copy_for', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def append(self, value):
@@ -4908,7 +4908,8 @@ class HierarchyParameter(StringParameter):
         see :meth:`Parameter.__init__`
         """
         dump = kwargs.pop('qualifier', None)
-        super(HierarchyParameter, self).__init__(qualifier='hierarchy', value=value, advanced=True, **kwargs)
+        kwargs.setdefault('advanced', True)
+        super(HierarchyParameter, self).__init__(qualifier='hierarchy', value=value, **kwargs)
 
     def __repr__(self):
         return "<HierarchyParameter: {}>".format(self.get_value())
@@ -5323,7 +5324,7 @@ class ConstraintParameter(Parameter):
         self._constraint_kwargs = kwargs.get('constraint_kwargs', {})
         self.set_value(value)
         self.set_default_unit(default_unit)
-        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs']
+        self._dict_fields_other = ['description', 'value', 'default_unit', 'constraint_func', 'constraint_kwargs', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     @property
@@ -5806,7 +5807,7 @@ class HistoryParameter(Parameter):
 
         # TODO: how can we hold other parameters affect (ie. if the user calls set_value('incl', 80) and there is a constraint on asini that changes a... how do we log that here)
 
-        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs']
+        self._dict_fields_other = ['redo_func', 'redo_kwargs', 'undo_func', 'undo_kwargs', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __repr__(self):
@@ -5945,7 +5946,7 @@ class JobParameter(Parameter):
 
         # TODO: add a description?
 
-        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid']
+        self._dict_fields_other = ['description', 'value', 'server_status', 'location', 'status_method', 'retrieve_method', 'uniqueid', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
 
     def __str__(self):
