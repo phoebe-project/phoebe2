@@ -6061,7 +6061,7 @@ class JobParameter(Parameter):
         result_ps = ParameterSet.open(self._results_fname)
         return result_ps
 
-    def attach(self, sleep=5, cleanup=True):
+    def attach(self, wait=True, sleep=5, cleanup=True):
         """
 
         :parameter int sleep: number of seconds to sleep between status checks
@@ -6079,11 +6079,15 @@ class JobParameter(Parameter):
 
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
+        status = self.get_status()
+        if not wait and status not in ['complete', 'loaded']:
+            logger.info("current status: {}, check again or use wait=True".format(status))
+            return status
 
 
         while self.get_status() not in ['complete', 'loaded']:
             # TODO: any way we can not make 2 calls to self.status here?
-            logger.info("current status: {}".format(self.get_status()))
+            logger.info("current status: {}, trying again in {}s".format(self.get_status(), sleep))
             time.sleep(sleep)
 
         if self._server_status is not None and not _is_server:
@@ -6105,7 +6109,7 @@ class JobParameter(Parameter):
 
 
         else:
-
+            logger.info("current status: {}, pulling job results".format(self.status))
             result_ps = self._retrieve_results()
 
             # now we need to attach result_ps to self._bundle
