@@ -178,7 +178,7 @@ class Bundle(ParameterSet):
     def open(cls, filename):
         """Open a new bundle.
 
-        Open a bundle from a JSON-formatted PHOEBE 2.0 (beta) file.
+        Open a bundle from a JSON-formatted PHOEBE 2 file.
         This is a constructor so should be called as:
 
 
@@ -281,7 +281,7 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA, color='b')
         b.set_hierarchy(_hierarchy.component(b[starA]))
-        b.add_compute()
+        b.add_compute(distortion_method='rotstar')
         return b
 
     @classmethod
@@ -940,8 +940,9 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('incl_aligned', context='constraint'))
 
 
-            if not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope':
+            if (not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope'):
                 # potential constraint shouldn't be done for STARS in OVERCONTACTS
+                # but DOES need to be done for single stars
 
                 logger.info('re-creating potential constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
@@ -1058,7 +1059,7 @@ class Bundle(ParameterSet):
             parent_ps = self.get_component(parent)
             if kind in ['star']:
                     # ignore the single star case
-                if parent != 'component':
+                if parent:
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
                     # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
                     # TODO: only do this if distortion_method == 'roche'
@@ -1198,9 +1199,10 @@ class Bundle(ParameterSet):
                     continue
                 ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
                 ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
-                check = ld_coeffs_len(ld_func, ld_coeffs)
-                if not check[0]:
-                    return check
+                if ld_coeffs is not None:
+                    check = ld_coeffs_len(ld_func, ld_coeffs)
+                    if not check[0]:
+                        return check
 
                 if ld_func=='interp':
                     for compute in kwargs.get('computes', self.computes):
@@ -2518,7 +2520,11 @@ class Bundle(ParameterSet):
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
-        if detach:
+        if detach and backends._use_mpi:
+            logger.warning("cannot detach when within mpirun, ignoring")
+            detach = False
+
+        if (detach or conf.mpi) and not backends._use_mpi:
             logger.warning("detach support is EXPERIMENTAL")
 
             if times is not None:
@@ -2536,6 +2542,7 @@ class Bundle(ParameterSet):
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
             f = open(script_fname, 'w')
+            f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
             f.write("import phoebe; import json\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
@@ -2547,7 +2554,8 @@ class Bundle(ParameterSet):
             f.close()
 
             script_fname = os.path.abspath(script_fname)
-            cmd = 'python {} &>/dev/null &'.format(script_fname)
+            cmd = conf.detach_cmd.format(script_fname)
+            # cmd = 'python {} &>/dev/null &'.format(script_fname)
             subprocess.call(cmd, shell=True)
 
             # create model parameter and attach (and then return that instead of None)
@@ -2564,6 +2572,9 @@ class Bundle(ParameterSet):
 
             if isinstance(detach, str):
                 self.save(detach)
+
+            if not detach:
+                return job_param.attach()
 
             # return self.get_model(model)
             return job_param

@@ -799,7 +799,7 @@ def potential(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
 
 
-    if parentorbit == 'component':
+    if parentorbit is None:
         # then single star (rotstar) case
         pot = component_ps.get_parameter(qualifier='pot')
         rpole = component_ps.get_parameter(qualifier='rpole')
@@ -1036,4 +1036,3 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component, 'dataset': dataset}
 
 #}
-
