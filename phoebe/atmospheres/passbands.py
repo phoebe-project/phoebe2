@@ -30,7 +30,7 @@ logger.addHandler(logging.NullHandler())
 _pbtable = {}
 
 _initialized = False
-_online_passbands = None
+_online_passbands = {}
 
 _pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
 
@@ -1082,7 +1082,7 @@ def list_online_passbands(refresh=False, full_dict=False):
     """
     """
     global _online_passbands
-    if _online_passbands is None or refresh:
+    if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
         try:

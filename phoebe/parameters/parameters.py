@@ -41,26 +41,31 @@ from phoebe import u
 from phoebe import conf
 from phoebe import list_passbands, list_installed_passbands, list_online_passbands, download_passband
 
-try:
-    import sympy
-except ImportError:
-    _use_sympy = False
+if os.getenv('PHOEBE_ENABLE_SYMPY', 'TRUE').upper() == 'TRUE':
+    try:
+        import sympy
+    except ImportError:
+        _use_sympy = False
+    else:
+        _use_sympy = True
 else:
-    _use_sympy = True
-
+    _use_sympy = False
 
 _use_sympy = False
 _is_server = False
 
-try:
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    from matplotlib.collections import LineCollection, PolyCollection
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-except (ImportError, TypeError):
-    _use_mpl = False
+if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
+    try:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib.collections import LineCollection, PolyCollection
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    except (ImportError, TypeError):
+        _use_mpl = False
+    else:
+        _use_mpl = True
 else:
-    _use_mpl = True
+    _use_mpl = False
 
 import logging
 logger = logging.getLogger("PARAMETERS")

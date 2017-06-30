@@ -8,34 +8,40 @@ from time import sleep
 # import phoebe.parameters as parameters
 
 
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.collections import LineCollection, PolyCollection
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-    from matplotlib import colors
-    from matplotlib import colorbar as mplcolorbar
-    from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
-    from mpl_toolkits.mplot3d import Axes3D
-except (ImportError, TypeError):
+if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.collections import LineCollection, PolyCollection
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from matplotlib import colors
+        from matplotlib import colorbar as mplcolorbar
+        from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
+        from mpl_toolkits.mplot3d import Axes3D
+    except (ImportError, TypeError):
+        _use_mpl = False
+    else:
+        _use_mpl = True
+        _mplcolors = colors.cnames.keys() + colors.ColorConverter.colors.keys() + ['None', 'none']
+
+    try:
+        from bokeh import plotting as bkh
+        from bokeh import mpl as bkhmpl
+    except ImportError:
+        _use_bkh = False
+    else:
+        _use_bkh = True
+
+    try:
+        import mpld3 as _mpld3
+    except ImportError:
+        _use_mpld3 = False
+    else:
+        _use_mpld3 = True
+
+else:
     _use_mpl = False
-else:
-    _use_mpl = True
-    _mplcolors = colors.cnames.keys() + colors.ColorConverter.colors.keys() + ['None', 'none']
-
-try:
-    from bokeh import plotting as bkh
-    from bokeh import mpl as bkhmpl
-except ImportError:
     _use_bkh = False
-else:
-    _use_bkh = True
-
-try:
-    import mpld3 as _mpld3
-except ImportError:
     _use_mpld3 = False
-else:
-    _use_mpld3 = True
 
 from phoebe import conf
 
