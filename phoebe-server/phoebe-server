@@ -53,6 +53,7 @@ import string
 import os
 import sys
 import StringIO
+from time import sleep
 from collections import OrderedDict
 from datetime import datetime # debug only
 
@@ -566,11 +567,16 @@ def set_value(msg):
     bundleid = msg.pop('bundleid')
     b = app._bundles[bundleid]
 
+    while b._lock:
+        sleep(0.25)
+    b._lock = True
+
     try:
         b.set_value_all(**msg)
     except Exception as err:
         if app._verbose:
             print("set_value {} error: {}".format(msg, err.message))
+        b._lock=False
         emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
     else:
 
@@ -581,6 +587,7 @@ def set_value(msg):
                               check_advanced=False, check_single=False, **msg)
         figureschanged = b.figures if filteredps.context=='figure' and not len(filteredps.figures) else filteredps.figures
 
+        b._lock=False
         emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'figureschanged': figureschanged}}, broadcast=True)
 
 @socketio.on('set_default_unit')
@@ -593,17 +600,23 @@ def set_default_unit(msg):
     bundleid = msg.pop('bundleid')
     b = app._bundles[bundleid]
 
+    while b._lock:
+        sleep(0.25)
+    b._lock = True
+
     try:
         b.set_default_unit_all(**msg)
     except Exception as err:
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, err.message))
+        b._lock = False
         emit("set_default_unit", {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
     else:
         # params = b.filter(**msg).to_list()
 
         changes = _params(b, **msg)
 
+        b._lock = False
         # TODO: this may be overkill
         emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes}}, broadcast=True)
 
@@ -617,6 +630,10 @@ def bundle_method(msg):
     bundleid = msg.pop('bundleid')
     b = app._bundles[bundleid]
 
+    while b._lock:
+        sleep(0.25)
+    b._lock = True
+
     fctn = msg.pop('fctn')
     args = msg.pop('args', [])
 
@@ -629,6 +646,7 @@ def bundle_method(msg):
     except Exception as err:
         if app._verbose:
             print("bundle_method fctn={} args={} kwargs={} error={}".format(fctn, args, msg, err.message))
+        b._lock = False
         emit("bundle_method", {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
     else:
         # print("params.length", len(params))
@@ -648,6 +666,7 @@ def bundle_method(msg):
         if app._verbose:
             print("bundle_method newparamsfilter: ", newparamsfilter)
 
+        b._lock = False
         # TODO: this may be overkill
         emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': True, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter}}, broadcast=True)
 

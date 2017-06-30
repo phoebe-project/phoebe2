@@ -140,6 +140,7 @@ class Bundle(ParameterSet):
         # set to be not a client by default
         self._is_client = False
         self._last_client_update = None
+        self._lock = False
 
         # handle delayed constraints when interactive mode is off
         self._delayed_constraints = []
