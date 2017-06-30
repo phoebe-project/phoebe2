@@ -935,7 +935,7 @@ class Passband:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
             nanmask = np.isnan(retval)
             if np.any(nanmask):
-                raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+                raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
             return retval
 
         if ld_coeffs is None:

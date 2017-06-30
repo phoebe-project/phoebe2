@@ -5009,7 +5009,7 @@ class HierarchyParameter(StringParameter):
         component in its parent orbit
         """
         parent = self.get_parent_of(component)
-        if parent=='component':
+        if parent is None:
             # then this is a single component, not in a binary
             return 'primary'
 
@@ -5083,6 +5083,9 @@ class HierarchyParameter(StringParameter):
         if component not in self.get_components():
             # TODO: is this the best fallback?
             return True
+
+        if len(self.get_stars())==1:
+            return False
 
         return self.get_kind_of(self.get_parent_of(component))=='orbit'
 

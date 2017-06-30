@@ -272,7 +272,7 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
-        b.add_compute()
+        b.add_compute(distortion_method='rotstar')
         return b
 
     @classmethod
@@ -922,8 +922,9 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('incl_aligned', context='constraint'))
 
 
-            if not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope':
+            if (not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope'):
                 # potential constraint shouldn't be done for STARS in OVERCONTACTS
+                # but DOES need to be done for single stars
 
                 logger.info('re-creating potential constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
@@ -1040,7 +1041,7 @@ class Bundle(ParameterSet):
             parent_ps = self.get_component(parent)
             if kind in ['star']:
                     # ignore the single star case
-                if parent != 'component':
+                if parent:
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
                     # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
                     # TODO: only do this if distortion_method == 'roche'

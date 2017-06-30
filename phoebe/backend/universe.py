@@ -1413,7 +1413,7 @@ class Star(Body):
 
 
         masses = [b.get_value('mass', component=star, context='component', unit=u.solMass) for star in starrefs]
-        if b.hierarchy.get_parent_of(component) != 'component':
+        if b.hierarchy.get_parent_of(component) is not None:
             sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
             ecc = b.get_value('ecc', component=label_orbit, context='component')
             is_single = False
@@ -1657,7 +1657,6 @@ class Star(Body):
                 else:
                     # then we used the rotstar pot<->rpole constraint and
                     # can directly pass Phi and omega (from freq_rot)
-
                     # freq_rot (1./d)
                     omega = rotstar.rotfreq_to_omega(self.freq_rot, scale=sma, solar_units=True)
                     Phi = self.Phi_user # because we don't want to do conversion for secondary
