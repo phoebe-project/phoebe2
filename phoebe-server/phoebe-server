@@ -364,15 +364,16 @@ def deregister_client(msg):
     emit('clients changed', {'success': True, 'data': {'clients': app._clients, 'parentid': app._parent}}, broadcast=True)
 
 ########## BUNDLE CREATION
-@socketio.on('default_binary')
-def default_binary(msg):
+@socketio.on('new_bundle')
+def new_bundle(msg):
     if app._verbose:
-        print("default_binary")
+        print("new_bundle")
 
     id_ = msg.pop('id', None)
+    constructor = msg.pop('constructor')
 
     try:
-        b = phoebe.default_binary()
+        b = getattr(phoebe, constructor)()
     except Exception as err:
         emit('bundle', {'success': False, 'id': id_, 'error': err.message}, broadcast=False)
     else:

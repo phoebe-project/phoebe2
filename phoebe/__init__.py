@@ -150,6 +150,9 @@ def default_star(*args, **kwargs):
 def default_binary(*args, **kwargs):
     return Bundle.default_binary(*args, **kwargs)
 
+def default_contact_binary(*args, **kwargs):
+    return Bundle.default_binary(contact_binary=True, *args, **kwargs)
+
 def default_triple(*args, **kwargs):
     return Bundle.default_triple(*args, **kwargs)
 
