@@ -2550,8 +2550,8 @@ class Bundle(ParameterSet):
             f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
-            f.write("model_ps = b.run_compute(compute='{}', model='{}')\n".format(compute, model))  # TODO: support other kwargs
-            f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
+            f.write("b.run_compute(compute='{}', model='{}')\n".format(compute, model))  # TODO: support other kwargs
+            f.write("b.filter(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(model, jobid))
             f.close()
 
             script_fname = os.path.abspath(script_fname)
@@ -2709,6 +2709,7 @@ class Bundle(ParameterSet):
                           undo_func='remove_model',
                           undo_kwargs={'model': model})
 
+        # TODO: should we also return the figure parameters?
         return self.get_model(model)
 
     def get_model(self, model=None, **kwargs):

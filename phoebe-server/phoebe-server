@@ -169,11 +169,15 @@ def get_json(bundleid):
 @app.route("/<string:bundleid>/figure/<string:figure>", methods=['GET'])
 def serve_figure(bundleid, figure):
     fname = '{}_{}.png'.format(bundleid, figure)
+    if app._verbose:
+        print("serve_figure", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
 @app.route("/<string:bundleid>/figure_mpl/<string:figure>", methods=['GET'])
 def serve_figure_mpl(bundleid, figure):
     fname = '{}_{}.mpl'.format(bundleid, figure)
+    if app._verbose:
+        print("serve_figure_mpl", fname)
     return send_from_directory(_dir_tmpimages, fname)
 
 
@@ -671,8 +675,64 @@ def bundle_method(msg):
             print("bundle_method newparamsfilter: ", newparamsfilter)
 
         b._lock = False
+        # if fctn in ['run_compute', 'run_fitting']:
+            # newparamsattach  = params.uniqueid
+        # else:
+            # newparamsattach = False
+
         # TODO: this may be overkill
         emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': True, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter}}, broadcast=True)
+
+@socketio.on('attach')
+def attach(msg):
+    if app._verbose:
+        print("attach: ", msg)
+
+    packetid = msg.pop('id', None)
+
+    bundleid = msg.pop('bundleid')
+    b = app._bundles[bundleid]
+
+    uniqueid = msg.pop('uniqueid')
+
+    status_param = b.get_parameter(uniqueid=uniqueid)
+
+    # now enter status loop
+    # while status_param.status not in ['complete', 'loaded']:
+        # if app._verbose:
+            # print "checking job status..."
+        # changes = _params(b, **newparamsfilter)
+        # emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': False}}, broadcast=False)
+        # sleep(5)
+
+    while b._lock:
+        sleep(0.25)
+    b._lock = True
+
+    params = status_param.attach(wait=False)
+
+    if isinstance(params, str):
+        # then update the status of the job parameter
+        newparamsfilter = {'uniqueid': uniqueid}
+        changes = _params(b, **newparamsfilter)
+        newparams = False
+        newcontext = False
+        newparamsfilter = False
+
+    else:
+        # then update with the new model
+        newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None and k not in ['twig', 'uniquetwig']}
+        newparams = True
+        newcontext = status_param.context
+        changes = _params(b, **newparamsfilter)
+
+    b._lock = False
+
+    print b.filter(context='model').twigs
+
+    emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': newparams, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter}}, broadcast=True)
+
+
 
 @socketio.on('run_figure')
 def run_figure(msg):
@@ -697,7 +757,6 @@ def run_figure(msg):
     mpltracker.gct(fig).save(os.path.join(_dir_tmpimages, tracker_fname))
     tracker_furl = '{}/figure_mpl/{}'.format(bundleid, figure)
     mpltracker.close(fig)
-
 
     emit('figureimage', {'success': True, 'id': packetid, 'data': {'url': furl, 'mplurl': tracker_furl}}, broadcast=False)
 
