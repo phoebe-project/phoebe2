@@ -165,9 +165,11 @@ def update_if_client(fctn):
     @functools.wraps(fctn)
     def _update_if_client(self, *args, **kwargs):
         b = self._bundle
-        if b is not None and b.is_client and \
+        if b is None or not hasattr(b, 'is_client'):
+            return fctn(self, *args, **kwargs)
+        elif b.is_client and \
                 (b._last_client_update is None or
-                 (datetime.now() - b._last_client_update).seconds > 1):
+                (datetime.now() - b._last_client_update).seconds > 1):
 
             b.client_update()
         return fctn(self, *args, **kwargs)
@@ -4180,7 +4182,6 @@ class FloatParameter(Parameter):
         if isinstance(value, dict) and 'nphelper' in value.keys():
             # then we're loading the JSON version of an Arange or Linspace
             value = nphelpers.from_json(value)
-            print value
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
@@ -4491,6 +4492,16 @@ class FloatArrayParameter(FloatParameter):
         lst =self.get_value()#.value
         lst[index] = value
         self.set_value(lst)
+
+    # def set_value_at_time(self, time, value, **kwargs):
+    #     """
+    #     """
+    #     parent_ps = self.get_parent_ps()
+    #     times_param = parent_ps.get_parameter(qualifier='times')
+    #     index = np.where(times_param.get_value()==time)[0][0]
+    #
+    #     self.set_index_value(index, value, **kwargs)
+
 
     #~ def at_time(self, time):
         #~ """
