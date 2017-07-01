@@ -649,8 +649,14 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                         # then we're setting the whole array for this given time
                         this_syn.get_parameter(qualifier).set_value(value)
                     else:
-                        this_syn.get_parameter(qualifier).set_index_value(i, value)
-
+                        # now we need to find the index in the dataset that corresponds
+                        # to this time (we can't rely on the index of the computation
+                        # because not all datasets have the same time array).
+                        # Hopefully the time only occurs once in the times array,
+                        # but in case it occurs more than once, we'll set this up
+                        # as a for loop anyways.
+                        for index in np.where(info['times']==time)[0]:
+                            this_syn.get_parameter(qualifier).set_index_value(index, value)
 
         return new_syns
 
@@ -897,6 +903,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 i = r['i']
                 packet = r['packet']
                 infolist = infos[i]
+                time = times[i]
 
                 new_syns = master_populate_syns(new_syns, time, infolist, packet)
 
