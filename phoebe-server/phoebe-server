@@ -7,6 +7,10 @@ pip install flask-socketio
 pip install gevent-websocket
 
 mpltracker https://github.com/kecnry/mpltracker
+
+
+to launch with MPI enabled:
+PHOEBE_ENABLE_MPI=TRUE PHOEBE_MPI_NP=8 phoebe-server
 """
 
 try:
@@ -647,6 +651,8 @@ def bundle_method(msg):
         # let's not pass None on in kwargs as that can conflict with setdefault within phoebe
         method_kwargs = {k:v for k,v in msg.items() if v not in [None, '']}
         if fctn in ['run_compute', 'run_fitting']:
+            if app._verbose:
+                print "detach cmd: ", phoebe.conf.detach_cmd
             method_kwargs.setdefault('detach', True)
         if app._verbose:
             print("running b.{}(*{}, **{})".format(fctn, args, method_kwargs))
@@ -680,8 +686,15 @@ def bundle_method(msg):
         # else:
             # newparamsattach = False
 
+        if 'run_' in fctn:
+            # then we have a new pending job
+            pendingjob = params.uniqueid
+        else:
+            pendingjob = None
+
         # TODO: this may be overkill
-        emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': True, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter}}, broadcast=True)
+        emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': True, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter, 'addjob': pendingjob}}, broadcast=True)
+
 
 @socketio.on('attach')
 def attach(msg):
@@ -718,6 +731,8 @@ def attach(msg):
         newparams = False
         newcontext = False
         newparamsfilter = False
+        status = params
+        removejob = None
 
     else:
         # then update with the new model
@@ -725,12 +740,12 @@ def attach(msg):
         newparams = True
         newcontext = status_param.context
         changes = _params(b, **newparamsfilter)
+        status = 'loaded'
+        removejob = status_param.uniqueid
 
     b._lock = False
 
-    print b.filter(context='model').twigs
-
-    emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': newparams, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter}}, broadcast=True)
+    emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': newparams, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter, 'removejob': removejob}}, broadcast=status=='loaded')
 
 
 

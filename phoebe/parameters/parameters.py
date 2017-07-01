@@ -6081,8 +6081,11 @@ class JobParameter(Parameter):
         #if self._value == 'loaded':
         #    raise ValueError("results have already been loaded")
         status = self.get_status()
-        if not wait and status not in ['complete', 'loaded']:
-            logger.info("current status: {}, check again or use wait=True".format(status))
+        if not wait and status!='complete':
+            if status in ['loaded']:
+                logger.info("job already loaded")
+            else:
+                logger.info("current status: {}, check again or use wait=True".format(status))
             return status
 
 
