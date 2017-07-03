@@ -3106,7 +3106,7 @@ class Feature(object):
         return teffs
 
 class Spot(Feature):
-    def __init__(self, colat, longitude, radius, relteff, **kwargs):
+    def __init__(self, colat, longitude, dlongdt, radius, relteff, **kwargs):
         """
         Initialize a Spot feature
         """
@@ -3115,11 +3115,7 @@ class Spot(Feature):
         self._longitude = longitude
         self._radius = radius
         self._relteff = relteff
-
-        x = np.sin(colat)*np.cos(longitude)
-        y = np.sin(colat)*np.sin(longitude)
-        z = np.cos(colat)
-        self._pointing_vector = np.array([x,y,z])
+        self._dlongdt = dlongdt
 
     @classmethod
     def from_bundle(cls, b, feature):
@@ -3128,17 +3124,31 @@ class Spot(Feature):
         """
 
         feature_ps = b.get_feature(feature)
+        star_ps = b.get_component(feature_ps.component)
+        orbit_ps = b.get_component(b.hierarchy.get_parent_of(feature_ps.component))
         colat = feature_ps.get_value('colat', unit=u.rad)
         longitude = feature_ps.get_value('long', unit=u.rad)
+
+        syncpar = star_ps.get_value('syncpar')
+        period = orbit_ps.get_value('period')
+        dlongdt = (syncpar - 1) / period * 2 * np.pi
+
         radius = feature_ps.get_value('radius', unit=u.rad)
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
-        return cls(colat, longitude, radius, relteff)
+
+        return cls(colat, longitude, dlongdt, radius, relteff)
 
     @property
     def proto_coords(self):
         """
         """
         return True
+
+    def pointing_vector(self, time):
+        x = np.sin(self._colat)*np.cos(self._longitude + self._dlongdt * time)
+        y = np.sin(self._colat)*np.sin(self._longitude + self._dlongdt * time)
+        z = np.cos(self._colat)
+        return np.array([x,y,z])
 
     def process_teffs(self, teffs, coords, t=None):
         """
@@ -3151,12 +3161,12 @@ class Spot(Feature):
         :t float: current time
         """
 
-        cos_alpha_coords = np.dot(coords, self._pointing_vector) / np.linalg.norm(coords, axis=1)
+        cos_alpha_coords = np.dot(coords, self.pointing_vector(t)) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
 
-        filter = cos_alpha_coords > cos_alpha_spot
+        filter_ = cos_alpha_coords > cos_alpha_spot
 
-        teffs[filter] = teffs[filter] * self._relteff
+        teffs[filter_] = teffs[filter_] * self._relteff
 
         return teffs
 

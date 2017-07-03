@@ -21,7 +21,7 @@ def _get_system_ps(b, item, context='component'):
     elif isinstance(item, str):
         return b.filter(item, context=context, check_visible=False)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("do not support item with type: {}".format(type(item)))
 
 #{ Mathematical expressions
 
