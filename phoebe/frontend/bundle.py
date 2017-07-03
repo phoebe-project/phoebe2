@@ -2449,6 +2449,8 @@ class Bundle(ParameterSet):
             model = 'latest'
 
         if model in self.models:
+            if self.get_value(qualifier='detached_job', model=model, context='model', default='loaded') != 'loaded':
+                raise ValueError("model '{}' cannot be overwritten until it is complete and loaded.")
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
 
@@ -2456,7 +2458,7 @@ class Bundle(ParameterSet):
         else:
             do_create_fig_params = True
 
-        self._check_label(model, allow_overwrite_in_context='model')
+        self._check_label(model, allow_overwrite_in_context='figure')
 
         if isinstance(times, float) or isinstance(times, int):
             times = [times]

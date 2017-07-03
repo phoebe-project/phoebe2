@@ -915,7 +915,7 @@ class ParameterSet(object):
         if len(self.filter(twig=label, check_visible=False, check_default=False,
                            check_advanced=False, check_single=False)):
             # with the one exception of 'latest@model' where we allow overwriting
-            if not (allow_overwrite_in_context and self.filter(twig=label).context!=allow_overwrite_in_context):
+            if not (allow_overwrite_in_context and self.filter(twig=label).context==allow_overwrite_in_context):
                 raise ValueError("label '{}' is already in use".format(label))
         if label[0] in ['_']:
             raise ValueError("first character of label is a forbidden character")
@@ -5970,7 +5970,7 @@ class JobParameter(Parameter):
         return "qualifier: {}\nstatus: {}".format(self.qualifier, self.status)
 
     #@update_if_client # get_status will make API call if JobParam points to a server
-    def get_value(self):
+    def get_value(self, **kwargs):
         """
         JobParameter doesn't really have a value, but for the sake of Parameter
         representations, we'll provide the current status.
