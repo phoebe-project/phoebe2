@@ -3124,14 +3124,20 @@ class Spot(Feature):
         """
 
         feature_ps = b.get_feature(feature)
-        star_ps = b.get_component(feature_ps.component)
-        orbit_ps = b.get_component(b.hierarchy.get_parent_of(feature_ps.component))
+
         colat = feature_ps.get_value('colat', unit=u.rad)
         longitude = feature_ps.get_value('long', unit=u.rad)
 
-        syncpar = star_ps.get_value('syncpar')
-        period = orbit_ps.get_value('period')
-        dlongdt = (syncpar - 1) / period * 2 * np.pi
+        if len(b.hierarchy.get_stars())>=2:
+            star_ps = b.get_component(feature_ps.component)
+            orbit_ps = b.get_component(b.hierarchy.get_parent_of(feature_ps.component))
+            syncpar = star_ps.get_value('syncpar')
+            period = orbit_ps.get_value('period')
+            dlongdt = (syncpar - 1) / period * 2 * np.pi
+        else:
+            star_ps = b.get_component(feature_ps.component)
+            dlongdt = star_ps.get_value('freq', unit=u.rad/u.d)
+            longitude = np.pi/2
 
         radius = feature_ps.get_value('radius', unit=u.rad)
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
