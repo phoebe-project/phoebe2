@@ -4789,7 +4789,10 @@ class HierarchyParameter(StringParameter):
         # update cache for is_binary and is_contact_binary
         self._clear_cache()
         if self._bundle is not None:
-            for comp in self.get_components():
+            # for comp in self.get_components():
+            for comp in self._bundle.components:
+                if comp == '_default':
+                    continue
                 self._is_binary[comp] = self._compute_is_binary(comp)
                 self._is_contact_binary[comp] = self._compute_is_contact_binary(comp)
 
