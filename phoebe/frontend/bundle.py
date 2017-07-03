@@ -1251,6 +1251,10 @@ class Bundle(ParameterSet):
         """
         func = _get_add_func(_feature, kind)
 
+        if kwargs.get('feature', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('feature')
+
         kwargs.setdefault('feature',
                           self._default_label(func.func_name,
                                               **{'context': 'feature',
