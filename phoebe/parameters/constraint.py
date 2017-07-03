@@ -521,8 +521,8 @@ def freq(b, component, solve_for=None, **kwargs):
     #metawargs = component_ps.meta
     #metawargs.pop('qualifier')
 
-    period = component_ps.get_parameter(qualifier='period')
-    freq = component_ps.get_parameter(qualifier='freq')
+    period = component_ps.get_parameter(qualifier='period', check_visible=False)
+    freq = component_ps.get_parameter(qualifier='freq', check_visible=False)
 
     if solve_for in [None, freq]:
         lhs = freq
