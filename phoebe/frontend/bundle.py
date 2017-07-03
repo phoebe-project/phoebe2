@@ -269,7 +269,7 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
-        b.add_compute()
+        b.add_compute(distortion_method='rotstar', irrad_method='none')
         return b
 
     @classmethod
