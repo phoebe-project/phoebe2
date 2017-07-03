@@ -1369,6 +1369,10 @@ class Bundle(ParameterSet):
 
         func = _get_add_func(component, kind)
 
+        if kwargs.get('component', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('component')
+
         kwargs.setdefault('component',
                           self._default_label(func.func_name,
                                               **{'context': 'component',
