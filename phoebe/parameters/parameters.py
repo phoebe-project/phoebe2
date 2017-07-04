@@ -2230,6 +2230,12 @@ class ParameterSet(object):
             yqualifier = kwargs.get('y', 'etvs')
             zqualifier = kwargs.get('z', 0)
             timequalifier = 'time_ecls'
+        elif ps.kind is None:
+            logger.warning("could not find any data")
+            xqualifier = ''
+            yqualifier = ''
+            zqualifier = ''
+            timequalifier = ''
         else:
             raise NotImplementedError("plotting for dataset '{}' with kind '{}' is not yet implemented".format(ps.dataset, ps.kind))
 

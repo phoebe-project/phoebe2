@@ -138,9 +138,6 @@ def etv(b, **kwargs):
     return ParameterSet(params)
 
 
-def ifm(b, **kwargs):
-    raise NotImplementedError
-
 def orb(b, **kwargs):
     params = []
 
@@ -167,7 +164,7 @@ def orb(b, **kwargs):
     return ParameterSet(params)
 
 def mesh(b, **kwargs):
-    raise NotImplementedError
+    raise NotImplementedError("mesh figures not yet supported")
 
     params = []
 
