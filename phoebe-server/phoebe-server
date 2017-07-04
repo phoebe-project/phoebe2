@@ -386,7 +386,8 @@ def new_bundle(msg):
     try:
         b = getattr(phoebe, constructor)()
     except Exception as err:
-        emit('bundle', {'success': False, 'id': id_, 'error': err.message}, broadcast=False)
+        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
+
     else:
         # b.add_dataset('lc', times=phoebe.linspace(0,1,11))
         # b.add_figure('lc')
@@ -587,7 +588,7 @@ def set_value(msg):
         if app._verbose:
             print("set_value {} error: {}".format(msg, err.message))
         b._lock=False
-        emit('set_value', {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
     else:
 
         # now let's send a broadcast message to all subscribed clients with a list of ALL changes (note the redundancy for the original client)
@@ -599,6 +600,10 @@ def set_value(msg):
 
         b._lock=False
         emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'figureschanged': figureschanged}}, broadcast=True)
+
+        passing, warning = b.run_checks()
+        if not passing:
+            emit('msg', {'success': True, 'id': packetid, 'level': 'warning', 'msg': warning}, broadcast=False)
 
 @socketio.on('set_default_unit')
 def set_default_unit(msg):
@@ -620,7 +625,7 @@ def set_default_unit(msg):
         if app._verbose:
             print("set_default_unit {} error: {}".format(msg, err.message))
         b._lock = False
-        emit("set_default_unit", {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
     else:
         # params = b.filter(**msg).to_list()
 
@@ -661,7 +666,7 @@ def bundle_method(msg):
         if app._verbose:
             print("bundle_method fctn={} args={} kwargs={} error={}".format(fctn, args, msg, err.message))
         b._lock = False
-        emit("bundle_method", {'success': False, 'id': packetid, 'error': err.message}, broadcast=False)
+        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
     else:
         # print("params.length", len(params))
         # print("params.meta", params.meta)
