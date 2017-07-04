@@ -82,6 +82,38 @@ def euler_trans_matrix(etheta, elongan, eincl):
                         [s1*s3, s1*c3, c1]
                     ])
 
+
+def general_rotation_matrix(theta, phi, alpha):
+  """
+  Rotation around vector 
+    u = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+  by an angle
+    alpha
+  Ref:
+    http://ksuweb.kennesaw.edu/~plaval//math4490/rotgen.pdf
+    
+  :parameter float theta: 
+  :parameter float phi:
+  :parameter float alpha: rotation angle
+  
+  :return: 3x3 matrix of floats
+  """
+
+  C = cos(alpha)
+  S = sin(alpha)
+  t  = 1 - C
+  
+  ux = sin(theta)*cos(phi)
+  uy = sin(theta)*sin(phi)
+  uz = cos(theta)
+  
+  return np.array([
+                    [t*ux**2 + C, t*ux*uy - S*uz, t*ux*uz + S*uy],
+                    [t*ux*uy + S*uz, t*uy**2 + C, t*uy*uz - S*ux],
+                    [t*ux*uz - S*uy, t*uy*uz + S*ux, t*uz**2 + C]
+                  ])
+  
+
 def transform_position_array(array, pos, euler, is_normal, reverse=False):
     """
     Transform any Nx3 position array by translating to a center-of-mass 'pos'
