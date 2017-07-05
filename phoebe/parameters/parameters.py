@@ -1999,6 +1999,54 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
+        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
+        if plotting_backend in ['mpl'] and _use_mpl:
+            axes_3d = isinstance(kwargs.get('ax', plt.gca()), Axes3D)
+            # axes_3d = kwargs.get('ax', plt.gca()).__class__.__name__ in ['Axes3DSubplot', 'Axes3D']
+        else:
+            axes_3d = False
+
+        if ps.kind=='mesh':
+            # then we care about ordering from front to back, both for looping
+            # through components and ordering triangles
+            # NOTE: even though we are calling these x, y, z - we really mean
+            # to get those components from the triangles array
+            xqualifier = kwargs.get('x', 'xs')
+            yqualifier = kwargs.get('y', 'ys')
+            if axes_3d:
+                zqualifier = kwargs.get('z', 'zs')
+
+
+            # All our arrays will need to be sorted front to back, so we need
+            # the centers from the coordinates not covered by xqualifier,
+            # yqualifier. We don't really care the units here, but in case the
+            # user has changed the default units on some of the components to
+            # be different than others, we'll request them all in the same
+            # units.
+            # TODO: should we skip this for axes_3d?
+            sortqualifier = ['xs', 'ys', 'zs']
+            sortqualifier.remove(xqualifier)
+            sortqualifier.remove(yqualifier)
+            sortqualifier = sortqualifier[0]
+
+            components = ps.components
+            if len(ps.times)==1 and len(components) > 1:
+                # otherwise we'll handle this later within the time loop
+                # or if plotting multiple times on the same plot, we just give up on sorting
+                components_sortqualifiers = [np.mean(ps.get_value(sortqualifier, component=c)) for c in components]
+
+                # now get components ordered from back to front
+                components = [components[i] for i in np.argsort(components_sortqualifiers)]
+        else:
+            components = ps.components
+
+        if len(components) > 1:
+            return_ = []
+            for component in components:
+                this_return = ps.filter(component=component).get_plotting_info(**kwargs)
+                return_ += this_return
+            return return_
+
         if len(ps.times) > 1 and kwargs.get('loop_times', False):
             # only meshes (and spectra) will be able to iterate over times
             return_ = []
@@ -2007,17 +2055,18 @@ class ParameterSet(object):
                 return_ += this_return
             return return_
 
+        if len(ps.times) > 1 and not kwargs.get('time', False):
+            # TODO: we /could/ allow plotting mesh at multiple times simultaneously
+            # but then we need to be a lot smarter with sorting and pulling the
+            # color arrays by concatenation.  Some of the work needed to do this
+            # is already in place (like concatenating the vertex arrays), but
+            # is far from stable and frankly isn't terribly useful.
+            raise NotImplementedError("cannot plot over multiple times")
+
         if ps.kind in ['mesh', 'mesh_syn', 'orb', 'orb_syn'] and \
                 ps.context == 'dataset':
             # nothing to plot here... at least for now
             return []
-
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-        if plotting_backend in ['mpl'] and _use_mpl:
-            axes_3d = isinstance(kwargs.get('ax', plt.gca()), Axes3D)
-            # axes_3d = kwargs.get('ax', plt.gca()).__class__.__name__ in ['Axes3DSubplot', 'Axes3D']
-        else:
-            axes_3d = False
 
         # We need to handle plotting meshes differently... but only if x, y,
         # and z are all the coordinates (then we'll plot the triangles).
@@ -2034,41 +2083,41 @@ class ParameterSet(object):
             # backend dependent, so perhaps there will be a plotting.mpl_mesh
             # function which will handle the output from preparing the arrays
 
-            # NOTE: even though we are calling these x, y, z - we really mean
-            # to get those components from the triangles array
-            xqualifier = kwargs.get('x', 'xs')
-            yqualifier = kwargs.get('y', 'ys')
-            if axes_3d:
-                zqualifier = kwargs.get('z', 'zs')
-
-
-            # All our arrays will need to be sorted front to back, so we need
-            # the centers from the coordinates not covered by xqualifier,
-            # yqualifier. We don't really care the units here, but in case the
-            # user has changed the default units on some of the components to
-            # be different than others, we'll request them all in the same
-            # units.
-
-            # TODO: should we skip this for axes_3d?
-            sortqualifier = ['xs', 'ys', 'zs']
-            sortqualifier.remove(xqualifier)
-            sortqualifier.remove(yqualifier)
-            sortqualifier = sortqualifier[0]
 
             if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                center_sort = np.concatenate([ps.get_value(sortqualifier,
-                                                           component=c,
-                                                           unit=u.solRad)
-                                              for c in ps.components if c != '_default'])
+                center_sort = ps.get_value(sortqualifier,
+                                           component=ps.component,
+                                           unit=u.solRad)
             else:
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
-                                                           component=c,
+                                                           component=ps.component,
                                                            time=t,
                                                            unit=u.solRad)
-                                              for c in ps.components if c != '_default'
                                               for t in ps.times])
 
             plot_inds = np.argsort(center_sort)
+
+
+            # Now let's set some defaults which will be passed on
+            # to mplkwargs. These defaults are obviously designed with matplotlib
+            # in mind, but other backends can either rewrite their own defaults or
+            # try to interpret these
+            if kwargs.pop('use_figure_params', True) and self._bundle is not None:
+                # then we'll pull color/marker/linestyle from the bundle
+                facecolor = kwargs.get('facecolor', None)
+                edgecolor = kwargs.get('edgecolor', None)
+
+                # TODO: this doesn't currently work because all components are plotted in one call.
+                # in order to make this work, we'll need to loop over components according to sortorder
+
+                if facecolor=='<component>':
+                    # raise NotImplementedError("coloring by component not yet supported")
+                    kwargs['facecolor'] = self._bundle.get_value('color', component=ps.component, context='figure')
+                if edgecolor=='<component>':
+                    # raise NotImplementedError("coloring by component not yet supported")
+                    kwargs['edgecolor'] = self._bundle.get_value('color', component=ps.component, context='figure')
+
+
 
             # if color is provided, it should be used for facecolor and
             # edgecolor, but if either of those two values are provided, they
@@ -2191,13 +2240,6 @@ class ParameterSet(object):
             return [kwargs]
 
             # return func(ps, data, plot_inds, polycollection=True, **kwargs)
-
-        if len(ps.components) > 1:
-            return_ = []
-            for component in ps.components:
-                this_return = ps.filter(component=component).get_plotting_info(**kwargs)
-                return_ += this_return
-            return return_
 
         # now we can use ps.kind to guess what columns need plotting
         if ps.kind in ['orb', 'orb_syn']:

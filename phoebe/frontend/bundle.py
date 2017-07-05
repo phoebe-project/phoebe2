@@ -3041,9 +3041,12 @@ class Bundle(ParameterSet):
         """
         # handle case where figure is not provided
         if figure is None:
-            figures = self.get_figure(**kwargs).figures
+            figures = self.get_figure(**{k:v for k,v in kwargs.items() if k!='time'}).figures
             if len(figures)==0:
-                raise ValueError("no figure options exist, call add_figure first")
+                if len(self.figures)==0:
+                    raise ValueError("no figure options exist, call add_figure first")
+                else:
+                    raise ValueError("no matching figure found")
             if len(figures)==1:
                 figure = figures[0]
             elif len(figures)>1:
