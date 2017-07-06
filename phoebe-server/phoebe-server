@@ -186,7 +186,7 @@ def serve_figure_mpl(bundleid, figure):
 
 
 ############################# WEBSOCKET ROUTES ################################
-def _value(param):
+def _value(param, exclude_model=False):
 
     if isinstance(param._value, phoebe.nphelpers.Arange) or isinstance(param._value, phoebe.nphelpers.Linspace):
         value = param._value.to_json()
@@ -196,7 +196,13 @@ def _value(param):
         value = param.get_value()
 
     if isinstance(value, np.ndarray):
-        value = value.tolist()
+        # TODO: for now we always truncate the values for these big arrays... but
+        # the python client will need the actual data or a way to poll for it
+        if (exclude_model or True) and param.context == 'model':
+            #then it'll be read only (for the desktop-client)
+            value = None
+        else:
+            value = value.tolist()
 
     return value
 
@@ -232,7 +238,8 @@ def _value_string(param):
 
 def _params(b, includeids=[], check_visible=True, check_default=False,
             check_advanced=False, check_single=False,
-            subtract_constraint=False, sort_by='qualifier', **filter_):
+            subtract_constraint=False, sort_by='qualifier', exclude_model=False,
+            **filter_):
     def _unitchoices(unit):
         physical_type = unit.physical_type
 
@@ -322,6 +329,12 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
         params[k] = this_params
 
     return params, nparams
+
+########## SOCKET ERRORS
+@socketio.on_error()
+def error_handler(e):
+    print("websocket error:", e)
+
 
 
 ########## CLIENT MANAGEMENT
@@ -525,6 +538,7 @@ def filter(msg):
                               check_visible=check_visible, check_default=check_default,
                               check_advanced=check_advanced, check_single=check_single,
                               subtract_constraint=subtract_constraint, sort_by=sort_by,
+                              exclude_model = True,
                               **filter_)
 
     if app._verbose:
@@ -594,7 +608,7 @@ def set_value(msg):
     else:
 
         # now let's send a broadcast message to all subscribed clients with a list of ALL changes (note the redundancy for the original client)
-        changes = _params(b, **msg)
+        changes, nparams = _params(b, **msg)
 
         filteredps = b.filter(check_visible=False, check_default=False,
                               check_advanced=False, check_single=False, **msg)
@@ -631,7 +645,7 @@ def set_default_unit(msg):
     else:
         # params = b.filter(**msg).to_list()
 
-        changes = _params(b, **msg)
+        changes, nparams = _params(b, **msg)
 
         b._lock = False
         # TODO: this may be overkill
@@ -674,7 +688,7 @@ def bundle_method(msg):
         # print("params.meta", params.meta)
 
         newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None and k not in ['twig', 'uniquetwig']}
-        changes = _params(b, **newparamsfilter)
+        changes, nparams = _params(b, **newparamsfilter)
 
         if 'add_' in fctn or 'run_' in fctn:
             if 'run_' in fctn:
@@ -715,7 +729,11 @@ def attach(msg):
 
     uniqueid = msg.pop('uniqueid')
 
-    status_param = b.get_parameter(uniqueid=uniqueid)
+    try:
+        status_param = b.get_parameter(uniqueid=uniqueid)
+    except Exception as err:
+        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
+        return
 
     # now enter status loop
     # while status_param.status not in ['complete', 'loaded']:
@@ -729,31 +747,42 @@ def attach(msg):
         sleep(0.25)
     b._lock = True
 
-    params = status_param.attach(wait=False)
+    try:
+        params = status_param.attach(wait=False)
+    except Exception as err:
+        b._lock = False
+        emit('msg', {'success': False, 'id': packetid, 'level': 'error', 'msg': err.message}, broadcast=False)
+        return
 
     if isinstance(params, str):
         # then update the status of the job parameter
         newparamsfilter = {'uniqueid': uniqueid}
-        changes = _params(b, **newparamsfilter)
+        changes, nparams = _params(b, **newparamsfilter)
         newparams = False
         newcontext = False
         newparamsfilter = False
         status = params
         removejob = None
+        broadcast = False
 
     else:
         # then update with the new model
         newparamsfilter = {k: [v] for k,v in params.meta.items() if v is not None and k not in ['twig', 'uniquetwig']}
         newparams = True
         newcontext = status_param.context
-        changes = _params(b, **newparamsfilter)
+        changes, nparams = _params(b, **newparamsfilter)
         status = 'loaded'
+        broadcast = True
+
+
+    if status == 'loaded':
         removejob = status_param.uniqueid
 
     b._lock = False
 
-    emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': newparams, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter, 'removejob': removejob}}, broadcast=status=='loaded')
+    print "*** attach set_value sending:", status, nparams, removejob
 
+    emit('set_value', {'success': True, 'id': packetid, 'data': {'bundleid': bundleid, 'changes': changes, 'newparams': newparams, 'newparamscontext': newcontext, 'newparamsfilter': newparamsfilter, 'removejob': removejob}}, broadcast=broadcast)
 
 
 @socketio.on('run_figure')
