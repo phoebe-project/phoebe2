@@ -336,8 +336,9 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
 
 ########## SOCKET ERRORS
 @socketio.on_error()
-def error_handler(e):
-    print("websocket error:", e)
+def error_handler(err):
+    print("websocket error:", err)
+    emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+err.message}, broadcast=False)
 
 
 
