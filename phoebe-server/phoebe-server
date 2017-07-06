@@ -261,6 +261,10 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
             return ['solMass', 'jupiterMass', 'earthMass', 'kg', 'g']
         elif physical_type == 'length':
             return ['solRad', 'jupiterRad', 'earthRad', 'AU', 'pc', 'km', 'm', 'cm']
+        elif physical_type == 'area':
+            return ['solRad2', 'jupiterRad2', 'earthRad2', 'AU2', 'pc2', 'km2', 'm2', 'cm2']
+        elif physical_type == 'volume':
+            return ['solRad3', 'jupiterRad3', 'earthRad3', 'AU3', 'pc3', 'km3', 'm3', 'cm3']
         elif physical_type == 'speed':
             return ['solRad / d', 'solRad / s', 'km / h', 'km / s', 'm / h', 'm / s']
         elif physical_type == 'angle':
