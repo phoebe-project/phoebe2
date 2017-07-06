@@ -295,7 +295,9 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
         this_params = {}
         for p in ps.to_list():
             typ = p.__class__.__name__
-            pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p)}}
+            pdict = {'twig': p.uniquetwig, 'uniqueid': p.uniqueid, 'valuestr': _value_string(p), 'type': typ, 'attributes': {'value': _value(p, exclude_model=exclude_model)}}
+
+            pdict['readonly'] = p.context in ['model'] or p.qualifier in ['phoebe_version']
 
             pdict['choices'] = _choices(p)
 
