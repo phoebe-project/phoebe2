@@ -828,8 +828,12 @@ class Body(object):
         else:
             raise NotImplementedError("update_position does not support dynamics_method={}".format(self.dynamics_method))
 
-
-        q, F, d, s, Phi = self._mesh_args
+        if isinstance(self, Envelope):
+            q, F, d, Phi = self._mesh_args
+            # envelopes MUST be aligned
+            s = np.array([0,0,-1])
+        else:
+            q, F, d, s, Phi = self._mesh_args
 
         #-- Volume Conservation
         if self.needs_volume_conservation and self.distortion_method in ['roche']:
@@ -1562,7 +1566,7 @@ class Star(Body):
                                                             lvolume=True)
                 delta = np.sqrt(4./np.sqrt(3) * av['larea'] / ntriangles)
 
-                print "*** libphoebe.roche_misaligned_marching_mesh args: {}, delta: {}".format(mesh_args, delta)
+                # print "*** libphoebe.roche_misaligned_marching_mesh args: {}, delta: {}".format(mesh_args, delta)
 
                 new_mesh = libphoebe.roche_misaligned_marching_mesh(*mesh_args,
                                                                     delta=delta,
@@ -1826,7 +1830,7 @@ class Star(Body):
 
             N = int(kwargs.get('gridsize', self.gridsize))
 
-            the_grid = potentials.discretize_wd_style(N, *mesh_args)
+            the_grid = potentials.discretize_wd_style(N, q, F, d, Phi)
             new_mesh = mesh.wd_grid_to_mesh_dict(the_grid, q, F, d)
             scale = sma
 
