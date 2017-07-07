@@ -47,15 +47,16 @@ def _uniqueid(N=30):
 
 ################################## ADDITIONAL IMPORTS ##########################
 
+import mpltracker  # https://www.github.com/kecnry/mpltracker
 import phoebe
 import numpy as np
-import mpltracker  # https://www.github.com/kecnry/mpltracker
 import matplotlib.pyplot as plt
 import json
 import random
 import string
 import os
 import sys
+import traceback
 import StringIO
 from time import sleep
 from collections import OrderedDict
@@ -338,6 +339,11 @@ def _params(b, includeids=[], check_visible=True, check_default=False,
 @socketio.on_error()
 def error_handler(err):
     print("websocket error:", err)
+
+    if app._verbose:
+        ex_type, ex, tb = sys.exc_info()
+        print traceback.print_tb(tb)
+
     emit('msg', {'success': False, 'id': None, 'level': 'error', 'msg': 'websocket: '+err.message}, broadcast=False)
 
 
@@ -809,10 +815,15 @@ def run_figure(msg):
     fig.savefig(os.path.join(_dir_tmpimages, fname))
     furl = '{}/figure/{}'.format(bundleid, figure)
 
-    tracker_fname = '{}_{}.mpl'.format(bundleid, figure)
-    mpltracker.gct(fig).save(os.path.join(_dir_tmpimages, tracker_fname))
-    tracker_furl = '{}/figure_mpl/{}'.format(bundleid, figure)
-    mpltracker.close(fig)
+    try:
+        tracker_fname = '{}_{}.mpl'.format(bundleid, figure)
+        mpltracker.gct(fig).save(os.path.join(_dir_tmpimages, tracker_fname))
+        tracker_furl = '{}/figure_mpl/{}'.format(bundleid, figure)
+        mpltracker.close(fig)
+    except:
+        emit('msg', {'level': 'warning', 'msg': 'failed to build interactive plot'}, broadcast=False)
+        tracker_furl = None
+
 
     emit('figureimage', {'success': True, 'id': packetid, 'data': {'url': furl, 'mplurl': tracker_furl}}, broadcast=False)
 
