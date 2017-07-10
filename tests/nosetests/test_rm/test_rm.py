@@ -18,8 +18,11 @@ def _beta_vs_legacy(b, plot=False):
     b.run_compute('legnum', model='legnumresults')
 
 
-
-
+    if plot:
+        plt.cla()
+        b.plot()
+        plt.show()
+        
     phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')
     print "rv@primary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val)))
@@ -29,12 +32,6 @@ def _beta_vs_legacy(b, plot=False):
     phoebe1_val = b.get_value('rvs@secondary@legnumresults@legnum')
     print "rv@secondary max abs diff: {}".format(max(np.abs(phoebe1_val-phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=0., atol=2.0))
-
-    if plot:
-        plt.cla()
-        b.plot()
-        plt.show()
-
 
 def test_binary(plot=False):
 

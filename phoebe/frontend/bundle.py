@@ -1075,7 +1075,7 @@ class Bundle(ParameterSet):
 
                     # TODO: this needs to be generalized once other potentials are supported
                     # TODO: replace s with s(true_anom=0, yaw, pitch)
-                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, np.array([0,0,1]))
+                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, np.array([0.,0.,1.]))
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
                     if pot < critical_pot:

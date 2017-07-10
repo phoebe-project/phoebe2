@@ -1431,17 +1431,23 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
     return NULL;
   }
   
+  bool aligned = false;
+  
   double theta;
   
   if (PyFloat_Check(o_misalignment)) {
  
     theta = PyFloat_AsDouble(o_misalignment);
- 
+    
+    aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
+    
   } else if (PyArray_Check(o_misalignment)) {
  
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    
+    aligned = (s[0] == 0);
+    
     theta = std::asin(s[0]);
- 
   } else {
     std::cerr 
       << fname 
@@ -1478,7 +1484,7 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   // Choosing boundaries on x-axis or calculating the pole
   //
   
-  if (theta == 0) {      // Non-misaligned Roche lobes 
+  if (aligned) {      // Non-misaligned Roche lobes 
     if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, delta, true)){
       std::cerr << "roche_area_volume:Determining lobe's boundaries failed\n";
       return NULL;
@@ -1978,16 +1984,20 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
       << "::choice != 0 is currently not supported \n";
     return NULL;
   }
-
+  
+  bool aligned = false;
+  
   double theta = 0;
   
   if (PyFloat_Check(o_misalignment)) {
   
     theta = PyFloat_AsDouble(o_misalignment);
-  
+    aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
+    
   } else if (PyArray_Check(o_misalignment)) {
   
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
+    aligned = (s[0] == 0);
     theta = std::asin(s[0]);
   
   } else {
@@ -2020,7 +2030,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   
   do {
     
-    if (theta == 0) {      // Non-misaligned Roche lobes
+    if (aligned) {      // Non-misaligned Roche lobes
       if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta)){
         std::cerr << fname << "::Determining lobe's boundaries failed\n";
         return NULL;
@@ -2034,7 +2044,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
        
       // calculate volume and derivate volume w.r.t to Omega
       for (int i = 0, m = m0; i < 2; ++i, m <<= 1)
-        if (theta == 0)
+        if (aligned)
           gen_roche::area_volume_integration(p[i]-1, 6, xrange, Omega, q, F, delta, m);
         else
           misaligned_roche::area_volume_integration(p[i]-1, 6, Omega, q, F, delta, theta, m);
@@ -4102,7 +4112,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   if (PyFloat_Check(o_misalignment)) {
 
     theta = PyFloat_AsDouble(o_misalignment);
-    aligned = (theta == 0);
+    aligned = (std::sin(theta) == 0);     // theta ~0, pi => aligned
     
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, theta);
     rotated = true;
@@ -4111,7 +4121,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
     aligned  = (s[0] == 0 && s[1] == 0);
-    
+    // we could work with s[0]==0, calculate aligned case make simple
+    // rotation around x-axis
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
     rotated = false;
 
@@ -6755,7 +6766,7 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
   // Determine misalignment and find a point on horizon
   //
   
-  bool rotated, ok;
+  bool rotated, ok, aligned;
   
   double 
     theta = 0, *s = 0, p[3], 
@@ -6764,15 +6775,18 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
   if (PyFloat_Check(o_misalignment)) {
   
     theta = PyFloat_AsDouble(o_misalignment);
+    aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, theta, max_iter);
     rotated = true;
-  
+    
   } else if (PyArray_Check(o_misalignment)) {
   
-    s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
+    s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment);
+    aligned = (s[0] == 0 && s[1] == 0); 
+    // we could work with s[0]==0, calculate aligned case make simple
+    // rotation around x-axis
     ok = misaligned_roche::point_on_horizon(p, view, choice, Omega0, q, F, d, s, max_iter);
     rotated = false;
-  
   } else {
     std::cerr << fname << "::This type of misalignment is not supported.\n";
     return NULL;
@@ -6797,17 +6811,21 @@ static PyObject *roche_misaligned_horizon(PyObject *self, PyObject *args, PyObje
   //  Find the horizon
   //
   std::vector<T3Dpoint<double>> H;
-  
-  if (rotated) {
-    double params[] = {q, F, d, theta, Omega0};
-    Thorizon<double, Tmisaligned_rotated_roche<double>> horizon(params);
+  if (aligned) {
+    double params[] = {q, F, d, Omega0};
+    Thorizon<double, Tgen_roche<double>> horizon(params);
     ok = horizon.calc(H, view, p, dt);
   } else {
-    double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
-    Thorizon<double, Tmisaligned_roche<double>> horizon(params);
-    ok = horizon.calc(H, view, p, dt);
+    if (rotated) {
+      double params[] = {q, F, d, theta, Omega0};
+      Thorizon<double, Tmisaligned_rotated_roche<double>> horizon(params);
+      ok = horizon.calc(H, view, p, dt);
+    } else {
+      double params[] = {q, F, d, s[0], s[1], s[2], Omega0};
+      Thorizon<double, Tmisaligned_roche<double>> horizon(params);
+      ok = horizon.calc(H, view, p, dt);
+    }
   }
-  
   if (!ok) {
     std::cerr << fname << "::Convergence to the point on horizon failed.\n";
     return NULL;

@@ -18,9 +18,9 @@ import logging
 logger = logging.getLogger("UNIVERSE")
 logger.addHandler(logging.NullHandler())
 
-default_polar_dir = np.array([0,0,-1.0])
-default_los_dir = np.array([0,0,+1.0])
-default_zeros = np.array([0,0,0.0])
+default_polar_dir = np.array([0.,0.,-1.0])
+default_los_dir = np.array([0.,0.,+1.0])
+default_zeros = np.array([0.,0.,0.0])
 
 _basedir = os.path.dirname(os.path.abspath(__file__))
 _pbdir = os.path.abspath(os.path.join(_basedir, '..', 'atmospheres', 'tables', 'passbands'))
@@ -831,7 +831,7 @@ class Body(object):
         if isinstance(self, Envelope):
             q, F, d, Phi = self._mesh_args
             # envelopes MUST be aligned
-            s = np.array([0,0,-1])
+            s = np.array([0.,0.,-1.])
         else:
             q, F, d, s, Phi = self._mesh_args
 
@@ -1531,7 +1531,7 @@ class Star(Body):
 
     def get_polar_direction(self, norm=True):
         # TODO: implement getting from pitch, yaw, and true anomaly
-        return np.array([0,0,1])
+        return np.array([0.,0.,-1.])
 
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
