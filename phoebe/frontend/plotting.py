@@ -64,6 +64,18 @@ _meta_fields_twig = ['time', 'qualifier', 'history', 'component',
 
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 
+def _is_none(value):
+    if isinstance(value, list) or isinstance(value, np.ndarray):
+        return False
+
+    if value is None:
+        return True
+
+    if isinstance(value, str) and value.lower()=='none':
+        return True
+
+    return False
+
 def _mpl_append_axes(fig, **kwargs):
     def determine_grid(N):
         cols = np.floor(np.sqrt(N))
@@ -128,7 +140,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 # matplotlib also accepts stringed floats which will be converted to grayscale (ie '0.8')
                 is_float = True
 
-        if kwargs[colorkey] is None or is_float or (kwargs[colorkey] in _mplcolors and kwargs[colorkey].split('@')[0] not in _symmetric_colorkeys):
+        if _is_none(kwargs[colorkey]) or is_float or (kwargs[colorkey] in _mplcolors and kwargs[colorkey].split('@')[0] not in _symmetric_colorkeys):
             colorarray = None
             colornorm = None
             colorunit = None
@@ -297,7 +309,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         for k in ['facecolorunit', 'edgecolorunit', 'facecolorlim', 'edgecolorlim']:
             dump = pckwargs.pop(k, None)
 
-        if pckwargs['edgecolors'] in ['none', 'None', None] and pckwargs['facecolors'] not in ['none', 'None', None]:
+        if _is_none(pckwargs['edgecolors']) and not _is_none(pckwargs['facecolors']):
             # TODO: we should set linewidths to 0 so that colors from background triangles
             # don't show through the gaps
             pckwargs['edgecolors'] = pckwargs['facecolors']
@@ -442,7 +454,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
 
         # NOTE that these are separate ifs (rather than elifs) because they may
         # both need to be called if asking for a linestyle and marker
-        if colorarray is not None and kwargs['linestyle'] not in [None, 'none', 'None']:
+        if colorarray is not None and not _is_none(kwargs['linestyle']):
             # then we have to do this the hard way
             # see: http://matplotlib.org/examples/pylab_examples/multicolored_line.html
             if axes_3d:
@@ -474,7 +486,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 # TODO: test this in animation - what about colorarray[plot_inds]???
 
 
-        if colorarray is not None and kwargs['marker'] not in [None, 'none', 'None']:
+        if colorarray is not None and not _is_none(kwargs['marker']):
             # we could loop through ax.plot calls... but let's just call ax.scatter
             # TODO: take s for sizes
             if do_plot:
@@ -720,11 +732,11 @@ def bokeh(ps, data, plot_inds, **kwargs):
         bkh.output_file('_bkh.html', title=title)
 
 
-    if kwargs['linestyle'] not in [None, 'none', 'None']:
+    if not is_none(kwargs['linestyle']):
         # TODO: handle color
         ax.line(xarray[plot_inds], yarray[plot_inds], legend=kwargs.get('label', ''), line_width=kwargs.get('linewidth', 2))
 
-    if kwargs['marker'] not in [None, 'none', 'None']:
+    if not is_none(kwargs['marker']):
         # Then let's try to get the closest match
         if kwargs['marker'] in ['o', '.', ',']:
             marker = 'circle'
