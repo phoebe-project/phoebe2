@@ -3106,7 +3106,7 @@ class Feature(object):
         return teffs
 
 class Spot(Feature):
-    def __init__(self, colat, longitude, dlongdt, radius, relteff, **kwargs):
+    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
         """
         Initialize a Spot feature
         """
@@ -3116,6 +3116,7 @@ class Spot(Feature):
         self._radius = radius
         self._relteff = relteff
         self._dlongdt = dlongdt
+        self._t0 = t0
 
     @classmethod
     def from_bundle(cls, b, feature):
@@ -3142,7 +3143,9 @@ class Spot(Feature):
         radius = feature_ps.get_value('radius', unit=u.rad)
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
 
-        return cls(colat, longitude, dlongdt, radius, relteff)
+        t0 = b.get_value('t0', context='system', unit=u.d)
+
+        return cls(colat, longitude, dlongdt, radius, relteff, t0)
 
     @property
     def proto_coords(self):
@@ -3151,8 +3154,9 @@ class Spot(Feature):
         return True
 
     def pointing_vector(self, time):
-        x = np.sin(self._colat)*np.cos(self._longitude + self._dlongdt * time)
-        y = np.sin(self._colat)*np.sin(self._longitude + self._dlongdt * time)
+        t = time - self._t0
+        x = np.sin(self._colat)*np.cos(self._longitude + self._dlongdt * t)
+        y = np.sin(self._colat)*np.sin(self._longitude + self._dlongdt * t)
         z = np.cos(self._colat)
         return np.array([x,y,z])
 
@@ -3166,6 +3170,9 @@ class Spot(Feature):
         :parameter array coords: array of coords for computations
         :t float: current time
         """
+        if t is None:
+            # then assume at t0
+            t = self._t0
 
         cos_alpha_coords = np.dot(coords, self.pointing_vector(t)) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
