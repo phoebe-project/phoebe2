@@ -1314,10 +1314,16 @@ class Bundle(ParameterSet):
         # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
         raise NotImplementedError
 
-    def add_spot(self, component, feature=None, **kwargs):
+    def add_spot(self, component=None, feature=None, **kwargs):
         """
         Shortcut to :meth:`add_feature` but with kind='spot'
         """
+        if component is None:
+            if len(self.hierarchy.get_stars())==1:
+                component = self.hierarchy.get_stars()[0]
+            else:
+                raise ValueError("must provide component for spot")
+
         kwargs.setdefault('component', component)
         kwargs.setdefault('feature', feature)
         return self.add_feature('spot', **kwargs)
@@ -2213,7 +2219,7 @@ class Bundle(ParameterSet):
         kwargs = {}
         kwargs['twig'] = None
         # TODO: this might not be the case, we just know its not in constraint
-        kwargs['context'] = ['component', 'dataset']
+        kwargs['context'] = ['component', 'dataset', 'feature']
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset

@@ -92,7 +92,7 @@ _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func']
 
-_contexts = ['history', 'system', 'component',
+_contexts = ['history', 'system', 'component', 'feature',
              'dataset', 'constraint', 'compute', 'model', 'fitting',
              'feedback', 'plugin', 'setting']
 
