@@ -161,8 +161,9 @@ def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0))
     """
 
     trans_matrix = euler_trans_matrix(*euler)
-
-    rotation_component = np.cross(pos_array, rotation_vel, axisa=1)
+    
+    # v_{rot,i} = omega x r_i    with  omega = rotation_vel
+    rotation_component = np.cross(rotation_vel, pos_array, axisb=1)
     orbital_component = np.asarray(vel)
 
     if isinstance(array, ComputedColumn):
