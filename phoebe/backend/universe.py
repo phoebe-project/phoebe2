@@ -3106,20 +3106,17 @@ class Feature(object):
         return teffs
 
 class Spot(Feature):
-    def __init__(self, colat, colon, radius, relteff, **kwargs):
+    def __init__(self, colat, longitude, dlongdt, radius, relteff, t0, **kwargs):
         """
         Initialize a Spot feature
         """
         super(Spot, self).__init__(**kwargs)
         self._colat = colat
-        self._colon = colon
+        self._longitude = longitude
         self._radius = radius
         self._relteff = relteff
-
-        x = np.sin(colat)*np.cos(colon)
-        y = np.sin(colat)*np.sin(colon)
-        z = np.cos(colat)
-        self._pointing_vector = np.array([x,y,z])
+        self._dlongdt = dlongdt
+        self._t0 = t0
 
     @classmethod
     def from_bundle(cls, b, feature):
@@ -3128,17 +3125,40 @@ class Spot(Feature):
         """
 
         feature_ps = b.get_feature(feature)
+
         colat = feature_ps.get_value('colat', unit=u.rad)
-        colon = feature_ps.get_value('colon', unit=u.rad)
+        longitude = feature_ps.get_value('long', unit=u.rad)
+
+        if len(b.hierarchy.get_stars())>=2:
+            star_ps = b.get_component(feature_ps.component)
+            orbit_ps = b.get_component(b.hierarchy.get_parent_of(feature_ps.component))
+            syncpar = star_ps.get_value('syncpar')
+            period = orbit_ps.get_value('period')
+            dlongdt = (syncpar - 1) / period * 2 * np.pi
+        else:
+            star_ps = b.get_component(feature_ps.component)
+            dlongdt = star_ps.get_value('freq', unit=u.rad/u.d)
+            longitude = np.pi/2
+
         radius = feature_ps.get_value('radius', unit=u.rad)
         relteff = feature_ps.get_value('relteff', unit=u.dimensionless_unscaled)
-        return cls(colat, colon, radius, relteff)
+
+        t0 = b.get_value('t0', context='system', unit=u.d)
+
+        return cls(colat, longitude, dlongdt, radius, relteff, t0)
 
     @property
     def proto_coords(self):
         """
         """
         return True
+
+    def pointing_vector(self, time):
+        t = time - self._t0
+        x = np.sin(self._colat)*np.cos(self._longitude + self._dlongdt * t)
+        y = np.sin(self._colat)*np.sin(self._longitude + self._dlongdt * t)
+        z = np.cos(self._colat)
+        return np.array([x,y,z])
 
     def process_teffs(self, teffs, coords, t=None):
         """
@@ -3150,13 +3170,16 @@ class Spot(Feature):
         :parameter array coords: array of coords for computations
         :t float: current time
         """
+        if t is None:
+            # then assume at t0
+            t = self._t0
 
-        cos_alpha_coords = np.dot(coords, self._pointing_vector) / np.linalg.norm(coords, axis=1)
+        cos_alpha_coords = np.dot(coords, self.pointing_vector(t)) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
 
-        filter = cos_alpha_coords > cos_alpha_spot
+        filter_ = cos_alpha_coords > cos_alpha_spot
 
-        teffs[filter] = teffs[filter] * self._relteff
+        teffs[filter_] = teffs[filter_] * self._relteff
 
         return teffs
 
