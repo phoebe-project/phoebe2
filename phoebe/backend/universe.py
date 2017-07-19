@@ -514,7 +514,7 @@ class System(object):
 
 
 class Body(object):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc,
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, t0,
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
                  ld_func={}, ld_coeffs={},
@@ -556,7 +556,9 @@ class Body(object):
         self._mesh = None
 
         # TODO: double check to see if these are still used or can be removed
+        self.t0 = t0   # t0@system
         self.time = None
+        self.true_anom = 0.0
         self.populated_at_time = []
 
         # Let's create a dictionary to store "standard" protomeshes at different "phases"
@@ -780,12 +782,13 @@ class Body(object):
 
         # return mesh
 
-    def reset_time(self, time):
+    def reset_time(self, time, true_anom):
         """
         TODO: add documentation
         """
         self._mesh = None
         self.time = time
+        self.true_anom = true_anom
         self.populated_at_time = []
 
         return
@@ -811,8 +814,7 @@ class Body(object):
         if not self.mesh_initialized:
             self.initialize_mesh()
 
-        self.reset_time(time)
-
+        self.reset_time(time, ethetas[self.ind_self])
 
         #-- Get current position/euler information
         # TODO: remove this if/else if all dynamics method now support eulerian elements
@@ -827,9 +829,10 @@ class Body(object):
         if isinstance(self, Envelope):
             q, F, d, Phi = self._mesh_args
             # envelopes MUST be aligned
-            s = np.array([0.,0., 1.])
+            s = np.array([0. ,0., 1.])
         else:
             q, F, d, s, Phi = self._mesh_args
+            s = self.polar_direction
 
         #-- Volume Conservation
         if self.needs_volume_conservation and self.distortion_method in ['roche']:
@@ -857,7 +860,6 @@ class Body(object):
             # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi, self.Phi
 
             # TODO: need to send a better guess for Omega0
-            # TODO: replace s with s(true_anom=0, yaw, pitch)
             Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
                                                q, F, d, s,
                                                Omega0=Phi if Phi>self.Phi else self.Phi)
@@ -1095,7 +1097,7 @@ class Body(object):
     #             'intensities': intensities}
 
 class CustomBody(Body):
-    def __init__(self, masses, sma, ecc, freq_rot, teff, abun,
+    def __init__(self, masses, sma, ecc, t0, freq_rot, teff, abun,
                  dynamics_method='keplerian',
                  ind_self=0, ind_sibling=1, comp_no=1,
                  atm='blackbody', datasets=[], passband={},
@@ -1115,7 +1117,7 @@ class CustomBody(Body):
         :raises NotImplementedError: because it isn't
         """
         super(CustomBody, self).__init__(comp_no, ind_self, ind_sibling,
-                                         masses, ecc,
+                                         masses, ecc, t0,
                                          atm, datasets, passband,
                                          intens_weighting,
                                          ld_func, ld_coeffs,
@@ -1177,7 +1179,7 @@ class CustomBody(Body):
         passband = {}
         intens_weighting = {}
 
-        return cls(masses, sma, ecc, freq_rot, teff, abun, dynamics_method,
+        return cls(masses, sma, ecc, t0, freq_rot, teff, abun, dynamics_method,
                    ind_self, ind_sibling, comp_no,
                    atm, datasets, passband, intens_weighting, ld_func, ld_coeffs)
 
@@ -1278,7 +1280,9 @@ class CustomBody(Body):
 
 
 class Star(Body):
-    def __init__(self, F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
+    def __init__(self, F, Phi, masses, sma, ecc, t0,
+                 freq_rot, pitch, yaw,
+                 teff, gravb_bol,
                  abun, irrad_frac_refl,
                  mesh_method='marching',
                  dynamics_method='keplerian',
@@ -1297,13 +1301,15 @@ class Star(Body):
         :type masses: list of floats
         :parameter float sma: sma of this component's parent orbit (solRad)
         :parameter float freq_rot: rotation frequency (rad/d)
+        :parameter float pitch: pitch of star relative to orbit (rad)
+        :parameter float yaw: yaw of star relative to orbit (rad)
         :parameter float abun: abundance of this star
         :parameter int ind_self: index in all arrays (positions, masses, etc) for this object
         :parameter int ind_sibling: index in all arrays (positions, masses, etc)
             for the sibling of this object
         :return: instantiated :class:`Star` object
         """
-        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
+        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, t0,
                                    atm, datasets, passband,
                                    intens_weighting, ld_func, ld_coeffs,
                                    dynamics_method=dynamics_method,
@@ -1334,6 +1340,9 @@ class Star(Body):
         self._instantaneous_pot = Phi  # this is again the value set by the user but will be updated for eccentric orbits at each time
         # NOTE: self.q may be flipped her for the secondary
         self.Phi = roche.pot_for_component(Phi, self.q, self.comp_no)
+
+        self.pitch = pitch
+        self.yaw = yaw
 
         self.teff = teff
         self.gravb_bol = gravb_bol
@@ -1407,13 +1416,19 @@ class Star(Body):
         if b.hierarchy.get_parent_of(component) != 'component':
             sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
             ecc = b.get_value('ecc', component=label_orbit, context='component')
+            pitch = self_ps.get_value('pitch', unit=u.rad)
+            yaw = self_ps.get_value('yaw', unit=u.rad)
             is_single = False
         else:
             # single star case
             # here sma is meaningless, but we'll compute the mesh using the polar radius as the scaling factor
             sma = 1.0 #b.get_value('rpole', component=star, context='component', unit=u.solRad)
             ecc = 0.0
+            pitch = 0.0
+            yaw = 0.0
             is_single = True
+
+        t0 = b.get_value('t0', context='system', unit=u.d)
 
         teff = b.get_value('teff', component=component, context='component', unit=u.K)
         # gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
@@ -1462,7 +1477,9 @@ class Star(Body):
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
-        return cls(F, Phi, masses, sma, ecc, freq_rot, teff, gravb_bol,
+        return cls(F, Phi, masses, sma, ecc, t0,
+                freq_rot, pitch, yaw,
+                teff, gravb_bol,
                 abun, irrad_frac_refl,
                 mesh_method, dynamics_method,
                 mesh_init_phi, ind_self, ind_sibling, comp_no,
@@ -1525,9 +1542,11 @@ class Star(Body):
             # return self.volume_at_periastron
             return self.volume_at_periastron*self._scale**3
 
-    def get_polar_direction(self, norm=True):
-        # TODO: implement getting from pitch, yaw, and true anomaly
-        return np.array([0.0, 0.0, 1.0])
+    @property
+    def polar_direction(self):
+        # print "*** polar_direction", self.true_anom, self.pitch, self.yaw
+        # print "*** polar_direction return", mesh.get_polar_direction(self.true_anom, self.pitch, self.yaw)
+        return mesh.get_polar_direction(self.true_anom, self.pitch, self.yaw)
 
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
@@ -1545,8 +1564,8 @@ class Star(Body):
         Phi = kwargs.get('Phi', self.Phi)  # NOTE: self.Phi automatically corrects for the secondary star
         q = self.q  # NOTE: this is automatically flipped to be 1./q for secondary components
 
-        # if we can't get the polar direction, assume it's in the negative Z-direction
-        s = self.get_polar_direction(norm=True)
+        # polar direction is instantaneous based on current true_anom
+        s = self.polar_direction
 
         mesh_args = (q, F, d, s, Phi)
 
@@ -2130,7 +2149,7 @@ class Star(Body):
 
 
 class Envelope(Body):
-    def __init__(self, Phi, masses, sma, ecc, freq_rot, teff1, teff2,
+    def __init__(self, Phi, masses, sma, ecc, t0, freq_rot, teff1, teff2,
             abun, irrad_frac_refl1, irrad_frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
@@ -2152,7 +2171,7 @@ class Envelope(Body):
         :return: instantiated :class:`Envelope` object
         """
         super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
-                                       ecc, atm, datasets, passband,
+                                       ecc, t0, atm, datasets, passband,
                                        intens_weighting,
                                        ld_func, ld_coeffs,
                                        dynamics_method=dynamics_method,
@@ -2281,6 +2300,8 @@ class Envelope(Body):
         sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
         ecc = b.get_value('ecc', component=label_orbit, context='component')
 
+        t0 = b.get_value('t0', context='system', unit=u.d)
+
         #teff = b.get_value('teff', component=component, context='component', unit=u.K)
         #gravb_law = b.get_value('gravblaw_bol', component=component, context='component')
         #gravb_bol= b.get_value('gravb_bol', component=component, context='component')
@@ -2340,7 +2361,8 @@ class Envelope(Body):
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
-        return cls(Phi, masses, sma, ecc, freq_rot, teff1, teff2, abun, irrad_frac_refl1, irrad_frac_refl2,
+        return cls(Phi, masses, sma, ecc, t0,
+                freq_rot, teff1, teff2, abun, irrad_frac_refl1, irrad_frac_refl2,
                 gravb_bol1, gravb_bol2, mesh_method, dynamics_method,
                 mesh_init_phi, ind_self, ind_sibling, comp_no,
                 atm=atm,
@@ -2361,6 +2383,9 @@ class Envelope(Body):
         if self.ecc != 0.0:
             # for eccentric orbits we need to recompute values at every time-step
             return True
+        elif self.pitch != 0.0 or self.yaw != 0.0:
+            # for misaligned orbits, the polar direction changes at each time-step
+            return True
         else:
             # In circular orbits we should be safe to assume these quantities
             # remain constant
@@ -2376,7 +2401,7 @@ class Envelope(Body):
 
         we can skip volume conservation only for circular orbits
         """
-        return self.ecc != 0
+        return self.ecc != 0.0 or self.pitch != 0.0 or self.yaw != 0.0
 
     def get_target_volume(self, etheta):
         """

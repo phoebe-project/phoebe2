@@ -14,7 +14,7 @@ from phoebe.parameters import dataset as _dataset
 from phoebe.parameters import compute as _compute
 from phoebe.parameters import constraint as _constraint
 from phoebe.parameters import feature as _feature
-from phoebe.backend import backends
+from phoebe.backend import backends, mesh
 from phoebe.distortions import roche
 from phoebe.frontend import io
 from phoebe.atmospheres.passbands import _pbtable
@@ -1074,8 +1074,10 @@ class Bundle(ParameterSet):
                     d = 1 - parent_ps.get_value('ecc')
 
                     # TODO: this needs to be generalized once other potentials are supported
-                    # TODO: replace s with s(true_anom=0, yaw, pitch)
-                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, np.array([0.,0.,1.]))
+                    pitch = comp_ps.get_value('pitch', unit=u.rad)
+                    yaw = comp_ps.get_value('yaw', unit=u.rad)
+                    s = mesh.get_polar_direction(0.0, pitch, yaw)
+                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, s)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
                     if pot < critical_pot:

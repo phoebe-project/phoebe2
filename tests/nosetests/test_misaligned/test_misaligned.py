@@ -14,9 +14,11 @@ def test_binary(plot=False):
 
     b.add_dataset('lc', times=np.linspace(0,1,21))
 
-    b.run_compute()
+    b.run_compute(irrad_method='none')
 
     # TODO: add comparisons????
+    if plot:
+        b.plot(show=True)
 
     return b
 

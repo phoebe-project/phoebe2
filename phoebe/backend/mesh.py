@@ -34,13 +34,13 @@ def euler_trans_matrix(etheta, elongan, eincl):
     """
     Get the transformation matrix R to translate/rotate a mesh according to
     euler angles.
-    
+
     The matrix is
-    
+
       R(long,incl,theta) = Rz(pi).Rz(long).Rx(incl).Rz(theta)
-    
+
     where
-    
+
       Rx(u) = 1,  0,        0
               0,  cos(u),   -sin(u)
               0,  sin(u),   cos(u)
@@ -48,15 +48,15 @@ def euler_trans_matrix(etheta, elongan, eincl):
       Ry(u) = cos(u),   0,  sin(u)
               0,        1,  0
               -sin(u),  0,  cos(u)
-       
+
       Rz(u) = cos(u),   -sin(u),  0
               sin(u),   cos(u),   0
               0,        0,        1
 
     Rz(pi) = reflection across z-axis
-    
+
     Note:
-    
+
       R(0,0,0) = -1,  0,  0
                   0,  -1, 0
                   0,  0,  1
@@ -85,34 +85,34 @@ def euler_trans_matrix(etheta, elongan, eincl):
 
 def general_rotation_matrix(theta, phi, alpha):
   """
-  Rotation around vector 
+  Rotation around vector
     u = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
   by an angle
     alpha
   Ref:
     http://ksuweb.kennesaw.edu/~plaval//math4490/rotgen.pdf
-    
-  :parameter float theta: 
+
+  :parameter float theta:
   :parameter float phi:
   :parameter float alpha: rotation angle
-  
+
   :return: 3x3 matrix of floats
   """
 
   C = cos(alpha)
   S = sin(alpha)
   t  = 1 - C
-  
+
   ux = sin(theta)*cos(phi)
   uy = sin(theta)*sin(phi)
   uz = cos(theta)
-  
+
   return np.array([
                     [t*ux**2 + C, t*ux*uy - S*uz, t*ux*uz + S*uy],
                     [t*ux*uy + S*uz, t*uy**2 + C, t*uy*uz - S*ux],
                     [t*ux*uz - S*uy, t*uy*uz + S*ux, t*uz**2 + C]
                   ])
-  
+
 
 def transform_position_array(array, pos, euler, is_normal, reverse=False):
     """
@@ -161,7 +161,7 @@ def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0))
     """
 
     trans_matrix = euler_trans_matrix(*euler)
-    
+
     # v_{rot,i} = omega x r_i    with  omega = rotation_vel
     rotation_component = np.cross(rotation_vel, pos_array, axisb=1)
     orbital_component = np.asarray(vel)
@@ -172,6 +172,11 @@ def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0))
     new_vel = np.dot(np.asarray(array)+rotation_component, trans_matrix.T) + orbital_component
 
     return new_vel
+
+def get_polar_direction(true_anom, pitch, yaw):
+    z = np.array([0.0, 0.0, 1.0])
+    trans_matrix = euler_trans_matrix(true_anom, pitch, yaw).T
+    return np.dot(z, trans_matrix)
 
 
 def wd_grid_to_mesh_dict(the_grid, q, F, d):
@@ -776,12 +781,12 @@ class ProtoMesh(object):
         # TODO: ditch the list comprehension... I know I figured out how to do
         # this (ie along an axis) with np.dot somewhere else
         # cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
-        
+
         cosbetas = libphoebe.scalproj_cosangle(
-          np.ascontiguousarray(coords), 
+          np.ascontiguousarray(coords),
           np.ascontiguousarray(norms)
         )
-        
+
         return ComputedColumn(self, cosbetas)
 
     @property
