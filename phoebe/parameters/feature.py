@@ -5,6 +5,13 @@ from phoebe.parameters import constraint
 from phoebe import u
 from phoebe import conf
 
+def _component_allowed_for_feature(feature_kind, component_kind):
+    _allowed = {}
+    _allowed['spot'] = ['star', 'envelope']
+    _allowed['pulsation'] = ['star', 'envelope']
+
+    return component_kind in _allowed[feature_kind]
+
 def spot(feature, **kwargs):
     """
     Create parameters for a spot

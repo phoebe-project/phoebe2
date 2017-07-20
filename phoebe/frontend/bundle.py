@@ -1284,6 +1284,10 @@ class Bundle(ParameterSet):
         if component not in self.components:
             raise ValueError('component not recognized')
 
+        component_kind = self.filter(component=component, context='component').kind
+        if not _feature._component_allowed_for_feature(func.func_name, component_kind):
+            raise ValueError("{} does not support component with kind {}".format(func.func_name, component_kind))
+
         params, constraints = func(**kwargs)
 
         metawargs = {'context': 'feature',
