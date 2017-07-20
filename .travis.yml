@@ -50,8 +50,11 @@ matrix:
           compiler: clang
           env: CXX=clang++ PYTHON_VERSION=2.7 NUMPY_VERSION=1.10 ASTROPY_VERSION=1.0 NOSETESTS=0'
 
-
         # Try with various versions of numpy/astropy with default compiler
+        - os: linux
+          compiler: g++-5
+          env: CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=2.0 NOSETESTS=1'
+
         - os: linux
           compiler: g++-5
           env: CXX=g++-5 PYTHON_VERSION=2.7 NUMPY_VERSION=stable ASTROPY_VERSION=stable NOSETESTS=1'

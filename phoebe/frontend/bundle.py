@@ -282,7 +282,7 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA, color='b')
         b.set_hierarchy(_hierarchy.component(b[starA]))
-        b.add_compute(distortion_method='rotstar')
+        b.add_compute(distortion_method='rotstar', irrad_method='none')
         return b
 
     @classmethod
@@ -1270,6 +1270,10 @@ class Bundle(ParameterSet):
         """
         func = _get_add_func(_feature, kind)
 
+        if kwargs.get('feature', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('feature')
+
         kwargs.setdefault('feature',
                           self._default_label(func.func_name,
                                               **{'context': 'feature',
@@ -1329,10 +1333,16 @@ class Bundle(ParameterSet):
         # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
         raise NotImplementedError
 
-    def add_spot(self, component, feature=None, **kwargs):
+    def add_spot(self, component=None, feature=None, **kwargs):
         """
         Shortcut to :meth:`add_feature` but with kind='spot'
         """
+        if component is None:
+            if len(self.hierarchy.get_stars())==1:
+                component = self.hierarchy.get_stars()[0]
+            else:
+                raise ValueError("must provide component for spot")
+
         kwargs.setdefault('component', component)
         kwargs.setdefault('feature', feature)
         return self.add_feature('spot', **kwargs)
@@ -1388,6 +1398,10 @@ class Bundle(ParameterSet):
         """
 
         func = _get_add_func(_component, kind)
+
+        if kwargs.get('component', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('component')
 
         if kwargs.get('component', False) is None:
             # then we want to apply the default below, so let's pop for now
@@ -2254,7 +2268,7 @@ class Bundle(ParameterSet):
         kwargs = {}
         kwargs['twig'] = None
         # TODO: this might not be the case, we just know its not in constraint
-        kwargs['context'] = ['component', 'dataset']
+        kwargs['context'] = ['component', 'dataset', 'feature']
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
