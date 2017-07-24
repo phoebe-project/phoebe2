@@ -354,6 +354,96 @@ class Passband:
 
         self.content.append('blackbody')
         self.atmlist.append('blackbody')
+        
+    def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
+		"""
+    	Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
+       
+       @Teffs: an array of effective temperatures. If None, a default
+        array from ~300K to ~500000K with 97 steps is used. The default
+        array is uniform in log10 scale.
+    	@Ebv: colour discrepancies E(b-v), taken to be Av/Rv where Rv is 3.1 and Av is the visual extinction in magnitudes
+    	
+    	Returns: n/a
+		"""
+		
+		if Teffs == None:
+			log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
+			Teffs = 10**log10Teffs
+
+		if Ebv == None:
+			Ebv=np.linspace(0.,3.,30) 
+		
+		if Rv == None:
+			Rv=np.linspace(2.,6.,40)
+			
+		#Make it so that Teffs and Ebv step through a la the CK2004 models
+		NTeffs=len(Teffs)
+		NEbv=len(Ebv)
+		NRv=len(Rv)
+		combos=NTeffs*NEbv*NRv
+		Teffs=np.repeat(Teffs,combos/NTeffs)
+		Ebv=np.tile(np.repeat(Ebv,NRv),NTeffs)
+		Rv=np.tile(Rv,combos/NRv)
+
+		extinctE, extinctP = np.empty(combos), np.empty(combos)
+		if verbose:
+			print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+    	
+		for j in range(0,combos):
+			Alambda, flux_frac, pb = np.empty(len(self.wl)), np.empty(len(self.wl)), np.empty(len(self.wl))
+			pbP,pbE = np.empty(len(self.wl)), np.empty(len(self.wl))
+	
+			for i in range(0,len(self.wl)):	
+			
+				pbP[i] = self.wl[i]*self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
+				pbE[i] = self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
+				#wl must be in microns
+				x=1/self.wl[i]*10**(-6)
+				if x > 10 or x < 0.3:
+					print "Reddening undefined for wavelength range"
+				elif x <= 1.1:
+					ax=0.574*x**1.61
+					bx=-0.527*x**1.61
+				elif x <= 3.3:
+					y=x-1.82
+					ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+					bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+				elif x <= 5.9:
+					ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
+					bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
+				elif x <= 8.0:
+					ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
+					bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
+				elif x <= 10:
+					ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
+					bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
+		
+				Alambda[i]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
+				flux_frac[i]=10**(-0.4*Alambda[i])
+				
+			if verbose:
+				if 100*j % combos == 0:
+					print('%d%% done.' % (100*j/(combos-1)))
+	
+			extinctE[j]=np.average(flux_frac,weights=pbE)
+			extinctP[j]=np.average(flux_frac,weights=pbP)
+        
+		self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
+			
+		self._bb_extinct_photon_grid=np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+		self._bb_extinct_energy_grid= np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+
+		for i, red in enumerate(extinctE):
+			self._bb_extinct_energy_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
+		for i, red in enumerate(extinctP):
+			self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
+		
+		self.content.append('bb_ext')
+		
+    def test():
+    	print('test')
+
 
     def compute_ck2004_response(self, path, verbose=False):
         """
@@ -694,6 +784,29 @@ class Passband:
             return ld_coeffs[7:11]
 
         return ld_coeffs
+        
+    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='bb',  extinct=0.0, Rv=3.1, photon_weighted=False):
+    	"""
+    	Interpolates the passband-stored tables of extinction corrections
+    	Returns not implemented error for ck2004 atmospheres
+    	"""
+    	
+    	if atm != 'bb':
+    		raise  NotImplementedError("atm='{}' not currently supported".format(self.atm))
+    	else :
+    		if 'bb_ext' not in self.content:
+    			print('Extinction factors are not computed yet. Please compute those first.')
+    			return None
+    			
+    		if photon_weighted:
+    			table = self._bb_extinct_photon_grid
+    		else:
+    			table = self._bb_extinct_energy_grid
+    		
+    		req = np.vstack((Teff, extinct, Rv)).T
+    		extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0][0]
+    		
+    		return extinct_factor
 
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
