@@ -179,6 +179,9 @@ class Passband:
         if 'blackbody' in self.content:
             struct['_bb_func_energy'] = self._bb_func_energy
             struct['_bb_func_photon'] = self._bb_func_photon
+            struct['_bb_extinct_axes']= self._bb_extinct_axes
+            struct['_bb_extinct_energy_grid'] = self._bb_extinct_energy_grid
+            struct['_bb_extinct_photon_grid'] = self._bb_extinct_energy_grid
         if 'ck2004' in self.content:
             struct['_ck2004_axes'] = self._ck2004_axes
             struct['_ck2004_energy_grid'] = self._ck2004_energy_grid
@@ -249,6 +252,14 @@ class Passband:
             self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
             self._bb_func_photon = tuple(self._bb_func_photon)
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
+            
+        if 'bb_ext' in self.content:
+        	self._bb_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
+        	self._bb_extinct_energy_grid = np.fromstring(struct['_bb_extinct_energy_grid'], dtype='float64')
+        	self._bb_extinct_energy_grid = self._bb_extinct_energy_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), 1)
+        	self._bb_extinct_photon_grid = np.fromstring(struct['_bb_extinct_photon_grid'], dtype='float64')
+        	self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), 1)
+
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
             atmdir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/wd'))
