@@ -440,9 +440,7 @@ class Passband:
 			self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
 		
 		self.content.append('bb_ext')
-		
-    def test():
-    	print('test')
+
 
 
     def compute_ck2004_response(self, path, verbose=False):
