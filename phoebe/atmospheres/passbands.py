@@ -373,7 +373,8 @@ class Passband:
        @Teffs: an array of effective temperatures. If None, a default
         array from ~300K to ~500000K with 97 steps is used. The default
         array is uniform in log10 scale.
-    	@Ebv: colour discrepancies E(b-v), taken to be Av/Rv where Rv is 3.1 and Av is the visual extinction in magnitudes
+    	@Ebv: colour discrepancies E(B-V)
+    	@Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
     	
     	Returns: n/a
 		"""
@@ -383,7 +384,7 @@ class Passband:
 			Teffs = 10**log10Teffs
 
 		if Ebv == None:
-			Ebv=np.linspace(0.,3.,30) 
+			Ebv=np.linspace(0.,3.,90) 
 		
 		if Rv == None:
 			Rv=np.linspace(2.,6.,40)
