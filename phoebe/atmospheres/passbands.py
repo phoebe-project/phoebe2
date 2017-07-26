@@ -252,7 +252,7 @@ class Passband:
             self._bb_func_photon[1] = np.fromstring(self._bb_func_photon[1])
             self._bb_func_photon = tuple(self._bb_func_photon)
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
-            
+
         if 'bb_ext' in self.content:
         	self._bb_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
         	self._bb_extinct_energy_grid = np.fromstring(struct['_bb_extinct_energy_grid'], dtype='float64')
@@ -365,30 +365,30 @@ class Passband:
 
         self.content.append('blackbody')
         self.atmlist.append('blackbody')
-        
+
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
 		"""
     	Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
-       
+
        @Teffs: an array of effective temperatures. If None, a default
         array from ~300K to ~500000K with 97 steps is used. The default
         array is uniform in log10 scale.
     	@Ebv: colour discrepancies E(B-V)
     	@Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
-    	
+
     	Returns: n/a
 		"""
-		
+
 		if Teffs == None:
 			log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
 			Teffs = 10**log10Teffs
 
 		if Ebv == None:
-			Ebv=np.linspace(0.,3.,90) 
-		
+			Ebv=np.linspace(0.,3.,90)
+
 		if Rv == None:
 			Rv=np.linspace(2.,6.,40)
-			
+
 		#Make it so that Teffs and Ebv step through a la the CK2004 models
 		NTeffs=len(Teffs)
 		NEbv=len(Ebv)
@@ -401,13 +401,13 @@ class Passband:
 		extinctE, extinctP = np.empty(combos), np.empty(combos)
 		if verbose:
 			print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-    	
+
 		for j in range(0,combos):
 			Alambda, flux_frac, pb = np.empty(len(self.wl)), np.empty(len(self.wl)), np.empty(len(self.wl))
 			pbP,pbE = np.empty(len(self.wl)), np.empty(len(self.wl))
-	
-			for i in range(0,len(self.wl)):	
-			
+
+			for i in range(0,len(self.wl)):
+
 				pbP[i] = self.wl[i]*self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
 				pbE[i] = self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
 				#wl must be in microns
@@ -430,19 +430,19 @@ class Passband:
 				elif x <= 10:
 					ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
 					bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
-		
+
 				Alambda[i]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
 				flux_frac[i]=10**(-0.4*Alambda[i])
-				
+
 			if verbose:
 				if 100*j % combos == 0:
 					print('%d%% done.' % (100*j/(combos-1)))
-	
+
 			extinctE[j]=np.average(flux_frac,weights=pbE)
 			extinctP[j]=np.average(flux_frac,weights=pbP)
-        
+
 		self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
-			
+
 		self._bb_extinct_photon_grid=np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
 		self._bb_extinct_energy_grid= np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
 
@@ -450,7 +450,7 @@ class Passband:
 			self._bb_extinct_energy_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
 		for i, red in enumerate(extinctP):
 			self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
-		
+
 		self.content.append('bb_ext')
 
 
@@ -794,28 +794,27 @@ class Passband:
             return ld_coeffs[7:11]
 
         return ld_coeffs
-        
-    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='bb',  extinct=0.0, Rv=3.1, photon_weighted=False):
+
+    def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
     	"""
     	Interpolates the passband-stored tables of extinction corrections
     	Returns not implemented error for ck2004 atmospheres
     	"""
-    	
-    	if atm != 'bb':
+
+    	if atm != 'blackbody':
     		raise  NotImplementedError("atm='{}' not currently supported".format(self.atm))
     	else :
     		if 'bb_ext' not in self.content:
-    			print('Extinction factors are not computed yet. Please compute those first.')
-    			return None
-    			
+    			raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
     		if photon_weighted:
     			table = self._bb_extinct_photon_grid
     		else:
     			table = self._bb_extinct_energy_grid
-    		
+
     		req = np.vstack((Teff, extinct, Rv)).T
     		extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0][0]
-    		
+
     		return extinct_factor
 
 

@@ -57,7 +57,9 @@ def lc_dep(is_lc=True, **kwargs):
     dep_params += [FloatArrayParameter(qualifier='ld_coeffs', visible_if='ld_func:!interp', copy_for={'kind': ['star', 'envelope'], 'component': '*'}, component='_default', value=kwargs.get('ld_coeffs', [0.5, 0.5]), default_unit=u.dimensionless_unscaled, description='Limb darkening coefficients')]
     passbands.init_passbands()  # NOTE: this only actually does something on the first call
     dep_params += [ChoiceParameter(qualifier='passband', value=kwargs.get('passband', 'Johnson:V'), choices=passbands.list_passbands(), description='Passband')]
+    dep_params += [FloatParameter(qualifier='ebv', value=kwargs.get('ebv', 0.0), default_unit=u.dimensionless_unscaled, limits=(None, None), description='Passband extinction')]
     dep_params += [ChoiceParameter(qualifier='intens_weighting', value=kwargs.get('intens_weighting', 'energy'), choices=['energy', 'photon'], description='Whether passband intensities are weighted by energy of photons')]
+
     if is_lc:
         dep_params += [ChoiceParameter(qualifier='pblum_ref', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum_ref', ''), choices=['self', '']+kwargs.get('starrefs', []), description='Whether to use this components pblum or to couple to that from another component in the system')]
         dep_params += [FloatParameter(qualifier='pblum', visible_if='pblum_ref:self', copy_for={'kind': ['star'], 'component': '*'}, component='_default', value=kwargs.get('pblum', 4*np.pi), default_unit=u.W, description='Passband luminosity (defined at t0)')]
@@ -405,12 +407,12 @@ def mesh_syn(syn=True, **kwargs):
                 for dataset, kind in kwargs.get('dataset_fields', {}).items():
                     # TODO: descriptions for each column
                     if kind=='rv':
-                        indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
+                        indeps = {'rvs': u.solRad/u.d, 'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled, 'extinct_factors': u.dimensionless_unscaled}
                         # if conf.devel:
                         indeps['abs_intensities'] = u.W/u.m**3
                         indeps['abs_normal_intensities'] = u.W/u.m**3
                     elif kind=='lc':
-                        indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled}
+                        indeps = {'normal_intensities': u.W/u.m**3, 'intensities': u.W/u.m**3, 'boost_factors': u.dimensionless_unscaled, 'extinct_factors': u.dimensionless_unscaled}
                         # if conf.devel:
                         indeps['abs_intensities'] = u.W/u.m**3
                         indeps['abs_normal_intensities'] = u.W/u.m**3

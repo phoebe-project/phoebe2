@@ -521,6 +521,7 @@ class Body(object):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc,
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
+                 extinct={},
                  ld_func={}, ld_coeffs={},
                  dynamics_method='keplerian',
                  mesh_init_phi=0.0):
@@ -574,6 +575,7 @@ class Body(object):
         # DATSET-DEPENDENT DICTS
         self.passband = passband
         self.intens_weighting = intens_weighting
+        self.extinct = extinct
         self.ld_coeffs = ld_coeffs
         self.ld_func = ld_func
 
@@ -1108,7 +1110,8 @@ class CustomBody(Body):
                  dynamics_method='keplerian',
                  ind_self=0, ind_sibling=1, comp_no=1,
                  atm='blackbody', datasets=[], passband={},
-                 intens_weighting={}, ld_func={}, ld_coeffs={}, **kwargs):
+                 intens_weighting={}, extinct={},
+                 ld_func={}, ld_coeffs={}, **kwargs):
         """
         [NOT IMPLEMENTED]
 
@@ -1127,6 +1130,7 @@ class CustomBody(Body):
                                          masses, ecc,
                                          atm, datasets, passband,
                                          intens_weighting,
+                                         extinct,
                                          ld_func, ld_coeffs,
                                          dynamics_method=dynamics_method)
 
@@ -1185,10 +1189,12 @@ class CustomBody(Body):
         ld_coeffs = {}
         passband = {}
         intens_weighting = {}
+        extinct = {}
 
         return cls(masses, sma, ecc, freq_rot, teff, abun, dynamics_method,
                    ind_self, ind_sibling, comp_no,
-                   atm, datasets, passband, intens_weighting, ld_func, ld_coeffs)
+                   atm, datasets, passband, intens_weighting, extinct,
+                   ld_func, ld_coeffs)
 
 
     @property
@@ -1295,7 +1301,7 @@ class Star(Body):
                  ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False,
                  atm='blackbody', datasets=[], passband={},
-                 intens_weighting={}, ld_func={}, ld_coeffs={},
+                 intens_weighting={}, extinct={}, ld_func={}, ld_coeffs={},
                  do_rv_grav=False,
                  features=[], do_mesh_offset=True, **kwargs):
         """
@@ -1314,7 +1320,7 @@ class Star(Body):
         """
         super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
                                    atm, datasets, passband,
-                                   intens_weighting, ld_func, ld_coeffs,
+                                   intens_weighting, extinct, ld_func, ld_coeffs,
                                    dynamics_method=dynamics_method,
                                    mesh_init_phi=mesh_init_phi)
 
@@ -1466,6 +1472,7 @@ class Star(Body):
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
+        extinct = {ds: b.get_value('ebv', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
@@ -1477,6 +1484,7 @@ class Star(Body):
                 mesh_init_phi, ind_self, ind_sibling, comp_no,
                 is_single=is_single, atm=atm, datasets=datasets,
                 passband=passband, intens_weighting=intens_weighting,
+                extinct=extinct,
                 ld_func=ld_func, ld_coeffs=ld_coeffs,
                 do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
@@ -2007,6 +2015,7 @@ class Star(Body):
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
+        extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -2074,6 +2083,21 @@ class Star(Body):
             # normal intensities
             abs_intensities *= boost_factors
 
+            if extinct == 0.0:
+                extinct_factors = 1.0
+            else:
+                extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
+                                                         logg=self.mesh.loggs.for_computations,
+                                                         abun=self.mesh.abuns.for_computations,
+                                                         extinct=extinct,
+                                                         atm=atm,
+                                                         photon_weighted=intens_weighting=='photon')
+
+                # extinction is NOT aspect dpeendent, so we'll correct both
+                # normal and directional intensities
+                abs_intensities *= extinct_factors
+                abs_normal_intensities *= extinct_factors
+
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
@@ -2095,39 +2119,13 @@ class Star(Body):
         else:
             raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
 
-
-        # Take reddening into account (if given), but only for non-bolometric
-        # passbands and nonzero extinction
-
-        # TODO: reddening
-        #logger.warning("reddening for fluxes not yet ported to beta")
-        # if dataset != '__bol':
-
-        #     # if there is a global reddening law
-        #     red_parset = system.get_globals('reddening')
-        #     if (red_parset is not None) and (red_parset['extinction'] > 0):
-        #         ebv = red_parset['extinction'] / red_parset['Rv']
-        #         proj_intens = reddening.redden(proj_intens,
-        #                      passbands=[idep['passband']], ebv=ebv, rtype='flux',
-        #                      law=red_parset['law'])[0]
-        #         logger.info("Projected intensity is reddened with E(B-V)={} following {}".format(ebv, red_parset['law']))
-
-        #     # if there is passband reddening
-        #     if 'extinction' in idep and (idep['extinction'] > 0):
-        #         extinction = idep['extinction']
-        #         proj_intens = proj_intens / 10**(extinction/2.5)
-        #         logger.info("Projected intensity is reddened with extinction={} (passband reddening)".format(extinction))
-
-
-
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
             'ldint': ldint,
-            'boost_factors': boost_factors}
-
-
+            'boost_factors': boost_factors,
+            'extinct_factors': extinct_factors}
 
 
 class Envelope(Body):
@@ -2135,7 +2133,7 @@ class Envelope(Body):
             abun, irrad_frac_refl1, irrad_frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
-            ld_func={}, ld_coeffs={},
+            extinct={}, ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True,
             label_envelope='contact_envelope', label_primary='primary',
             label_secondary='secondary', **kwargs):
@@ -2154,7 +2152,7 @@ class Envelope(Body):
         """
         super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
                                        ecc, atm, datasets, passband,
-                                       intens_weighting,
+                                       intens_weighting, extinct,
                                        ld_func, ld_coeffs,
                                        dynamics_method=dynamics_method,
                                        mesh_init_phi=mesh_init_phi)
@@ -2340,6 +2338,7 @@ class Envelope(Body):
         atm = b.get_value('atm', compute=compute, component=component, **kwargs) if compute is not None else 'blackbody'
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
+        extinct = {ds: b.get_value('ebv', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
@@ -2914,6 +2913,7 @@ class Envelope(Body):
 
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
+        extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -2977,6 +2977,21 @@ class Envelope(Body):
             # TODO: does this make sense to boost proj but not norm?
             abs_intensities *= boost_factors
 
+            if extinct == 0.0:
+                extinct_factors = 1.0
+            else:
+                extinct_factors = pb.interpolate_extinct(Teff=self.mesh.teffs.for_computations,
+                                                         logg=self.mesh.loggs.for_computations,
+                                                         abun=self.mesh.abuns.for_computations,
+                                                         extinct=extinct,
+                                                         atm=atm,
+                                                         photon_weighted=intens_weighting=='photon')
+
+                # extinction is NOT aspect dpeendent, so we'll correct both
+                # normal and directional intensities
+                abs_intensities *= extinct_factors
+                abs_normal_intensities *= extinct_factors
+
             # Handle pblum - distance and l3 scaling happens when integrating (in observe)
             # we need to scale each triangle so that the summed normal_intensities over the
             # entire star is equivalent to pblum / 4pi
@@ -3004,37 +3019,13 @@ class Envelope(Body):
         else:
             raise NotImplementedError("lc_method '{}' not recognized".format(lc_method))
 
-
-        # Take reddening into account (if given), but only for non-bolometric
-        # passbands and nonzero extinction
-
-        # TODO: reddening
-        #logger.warning("reddening for fluxes not yet ported to beta")
-        # if dataset != '__bol':
-
-        #     # if there is a global reddening law
-        #     red_parset = system.get_globals('reddening')
-        #     if (red_parset is not None) and (red_parset['extinction'] > 0):
-        #         ebv = red_parset['extinction'] / red_parset['Rv']
-        #         proj_intens = reddening.redden(proj_intens,
-        #                      passbands=[idep['passband']], ebv=ebv, rtype='flux',
-        #                      law=red_parset['law'])[0]
-        #         logger.info("Projected intensity is reddened with E(B-V)={} following {}".format(ebv, red_parset['law']))
-
-        #     # if there is passband reddening
-        #     if 'extinction' in idep and (idep['extinction'] > 0):
-        #         extinction = idep['extinction']
-        #         proj_intens = proj_intens / 10**(extinction/2.5)
-        #         logger.info("Projected intensity is reddened with extinction={} (passband reddening)".format(extinction))
-
-
-
         # TODO: do we really need to store all of these if store_mesh==False?
         # Can we optimize by only returning the essentials if we know we don't need them?
         return {'abs_normal_intensities': abs_normal_intensities, 'normal_intensities': normal_intensities,
             'abs_intensities': abs_intensities, 'intensities': intensities,
             'ldint': ldint,
-            'boost_factors': boost_factors}
+            'boost_factors': boost_factors,
+            'extinct_factors': extinct_factors}
 
 class Feature(object):
     """
