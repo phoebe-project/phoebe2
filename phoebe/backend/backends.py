@@ -808,7 +808,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
 
                 # Dataset-dependent quantities
-                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors'], 'ifm': []}
+                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors', 'extinct_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors', 'extinct_factors'], 'ifm': []}
                 # if conf.devel:
                 indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
                 indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
