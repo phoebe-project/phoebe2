@@ -11,3 +11,4 @@ MANIFEST
 *.profile
 *.log
 *.png
+.DS_Store
