@@ -2057,6 +2057,7 @@ class Bundle(ParameterSet):
                                                qualifier=lhs.qualifier,
                                                component=lhs.component,
                                                dataset=lhs.dataset,
+                                               feature=lhs.feature,
                                                kind=lhs.kind,
                                                model=lhs.model,
                                                constraint_func=func.__name__,
@@ -2217,6 +2218,7 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
+        kwargs['feature'] = expression_param.feature
         kwargs['check_visible'] = False
         kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)
