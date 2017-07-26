@@ -802,7 +802,7 @@ class Passband:
     	"""
 
     	if atm != 'blackbody':
-    		raise  NotImplementedError("atm='{}' not currently supported".format(self.atm))
+    		raise  NotImplementedError("atm='{}' not currently supported".format(atm))
     	else :
     		if 'bb_ext' not in self.content:
     			raise ValueError('Extinction factors are not computed yet. Please compute those first.')
