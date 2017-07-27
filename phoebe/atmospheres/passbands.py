@@ -560,9 +560,9 @@ class Passband:
 
 		self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
 		self._ck2004_extinct_photon_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
-		for i, red in enumerate(exinctE):
+		for i, red in enumerate(extinctE):
 			self._ck2004_extinct_energy_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
-		for i, red in enumerate(exinctP):
+		for i, red in enumerate(extinctP):
 			self._ck2004_extinct_photon_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
 
 
