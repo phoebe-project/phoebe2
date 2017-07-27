@@ -521,7 +521,7 @@ class Body(object):
     def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc,
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
-                 extinct={},
+                 extinct={}, Rv={},
                  ld_func={}, ld_coeffs={},
                  dynamics_method='keplerian',
                  mesh_init_phi=0.0):
@@ -576,6 +576,7 @@ class Body(object):
         self.passband = passband
         self.intens_weighting = intens_weighting
         self.extinct = extinct
+        self.Rv = Rv
         self.ld_coeffs = ld_coeffs
         self.ld_func = ld_func
 
@@ -1110,7 +1111,7 @@ class CustomBody(Body):
                  dynamics_method='keplerian',
                  ind_self=0, ind_sibling=1, comp_no=1,
                  atm='blackbody', datasets=[], passband={},
-                 intens_weighting={}, extinct={},
+                 intens_weighting={}, extinct={}, Rv={},
                  ld_func={}, ld_coeffs={}, **kwargs):
         """
         [NOT IMPLEMENTED]
@@ -1130,7 +1131,7 @@ class CustomBody(Body):
                                          masses, ecc,
                                          atm, datasets, passband,
                                          intens_weighting,
-                                         extinct,
+                                         extinct, Rv,
                                          ld_func, ld_coeffs,
                                          dynamics_method=dynamics_method)
 
@@ -1190,10 +1191,11 @@ class CustomBody(Body):
         passband = {}
         intens_weighting = {}
         extinct = {}
+        Rv = {}
 
         return cls(masses, sma, ecc, freq_rot, teff, abun, dynamics_method,
                    ind_self, ind_sibling, comp_no,
-                   atm, datasets, passband, intens_weighting, extinct,
+                   atm, datasets, passband, intens_weighting, extinct, Rv,
                    ld_func, ld_coeffs)
 
 
@@ -1301,7 +1303,7 @@ class Star(Body):
                  ind_self=0, ind_sibling=1,
                  comp_no=1, is_single=False,
                  atm='blackbody', datasets=[], passband={},
-                 intens_weighting={}, extinct={}, ld_func={}, ld_coeffs={},
+                 intens_weighting={}, extinct={}, Rv={}, ld_func={}, ld_coeffs={},
                  do_rv_grav=False,
                  features=[], do_mesh_offset=True, **kwargs):
         """
@@ -1320,7 +1322,7 @@ class Star(Body):
         """
         super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
                                    atm, datasets, passband,
-                                   intens_weighting, extinct, ld_func, ld_coeffs,
+                                   intens_weighting, extinct, Rv, ld_func, ld_coeffs,
                                    dynamics_method=dynamics_method,
                                    mesh_init_phi=mesh_init_phi)
 
@@ -1473,6 +1475,7 @@ class Star(Body):
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
         extinct = {ds: b.get_value('ebv', dataset=ds, **kwargs) for ds in datasets_intens}
+        Rv = {ds: b.get_value('Rv', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
@@ -1485,6 +1488,7 @@ class Star(Body):
                 is_single=is_single, atm=atm, datasets=datasets,
                 passband=passband, intens_weighting=intens_weighting,
                 extinct=extinct,
+                Rv=Rv,
                 ld_func=ld_func, ld_coeffs=ld_coeffs,
                 do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset, **mesh_kwargs)
@@ -2016,6 +2020,7 @@ class Star(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
+        Rv = kwargs.get('Rv', self.Rv.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -2090,10 +2095,11 @@ class Star(Body):
                                                          logg=self.mesh.loggs.for_computations,
                                                          abun=self.mesh.abuns.for_computations,
                                                          extinct=extinct,
+                                                         Rv=Rv,
                                                          atm=atm,
                                                          photon_weighted=intens_weighting=='photon')
 
-                # extinction is NOT aspect dpeendent, so we'll correct both
+                # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities
                 abs_intensities *= extinct_factors
                 abs_normal_intensities *= extinct_factors
@@ -2339,6 +2345,7 @@ class Envelope(Body):
         passband = {ds: b.get_value('passband', dataset=ds, **kwargs) for ds in datasets_intens}
         intens_weighting = {ds: b.get_value('intens_weighting', dataset=ds, **kwargs) for ds in datasets_intens}
         extinct = {ds: b.get_value('ebv', dataset=ds, **kwargs) for ds in datasets_intens}
+        Rv = {ds: b.get_value('Rv', dataset=ds, **kwargs) for ds in datasets_intens}
         ld_func = {ds: b.get_value('ld_func', dataset=ds, component=component, **kwargs) for ds in datasets_intens}
         ld_coeffs = {ds: b.get_value('ld_coeffs', dataset=ds, component=component, check_visible=False, **kwargs) for ds in datasets_intens}
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
@@ -2914,6 +2921,7 @@ class Envelope(Body):
         passband = kwargs.get('passband', self.passband.get(dataset, None))
         intens_weighting = kwargs.get('intens_weighting', self.intens_weighting.get(dataset, None))
         extinct = kwargs.get('extinct', self.extinct.get(dataset, None))
+        Rv = kwargs.get('Rv', self.Rv.get(dataset, None))
         ld_func = kwargs.get('ld_func', self.ld_func.get(dataset, None))
         ld_coeffs = kwargs.get('ld_coeffs', self.ld_coeffs.get(dataset, None)) if ld_func != 'interp' else None
         atm = kwargs.get('atm', self.atm)
@@ -2984,10 +2992,11 @@ class Envelope(Body):
                                                          logg=self.mesh.loggs.for_computations,
                                                          abun=self.mesh.abuns.for_computations,
                                                          extinct=extinct,
+                                                         Rv=Rv,
                                                          atm=atm,
                                                          photon_weighted=intens_weighting=='photon')
 
-                # extinction is NOT aspect dpeendent, so we'll correct both
+                # extinction is NOT aspect dependent, so we'll correct both
                 # normal and directional intensities
                 abs_intensities *= extinct_factors
                 abs_normal_intensities *= extinct_factors

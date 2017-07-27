@@ -811,9 +811,16 @@ class Passband:
     			table = self._bb_extinct_photon_grid
     		else:
     			table = self._bb_extinct_energy_grid
+    			
+    		if not hasattr(Teff, '__iter__'):
+    			req = np.array(((Teff, extinct, Rv),))
+    			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table)[0][0]
+    		else:
+    			extinct=extinct*np.ones(len(Teff))
+    			Rv=Rv*np.ones(len(Teff))
+    			req = np.vstack((Teff, extinct, Rv)).T
+    			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0][0]
 
-    		req = np.vstack((Teff, extinct, Rv)).T
-    		extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0][0]
 
     		return extinct_factor
 
