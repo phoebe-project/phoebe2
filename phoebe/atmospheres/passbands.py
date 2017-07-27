@@ -517,7 +517,7 @@ class Passband:
 			fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
 			fl *= self.ptf(wl)
 			flP = fl*wl
-			for j in range(i,i+NEbv*NRv):
+			for j in range(i*NEbv*NRv,i*NEbv*NRv+NEbv*NRv):
 				Alambda, flux_frac = np.empty(len(wl)), np.empty(len(wl))
 				for k in range(0,len(wl)):
 					x=1/wl[k]*10**(-6) #wl in microns
