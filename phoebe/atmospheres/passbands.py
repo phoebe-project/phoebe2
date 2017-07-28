@@ -200,9 +200,9 @@ class Passband:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
         if 'ck2004_ext' in self.content:
-            struct['_ck2004_extinct_axes']= self._ck_extinct_axes
-            struct['_ck2004_extinct_energy_grid'] = self._ck_extinct_energy_grid
-            struct['_ck2004_extinct_photon_grid'] = self._ck_extinct_energy_grid
+            struct['_ck2004_extinct_axes']= self._ck2004_extinct_axes
+            struct['_ck2004_extinct_energy_grid'] = self._ck2004_extinct_energy_grid
+            struct['_ck2004_extinct_photon_grid'] = self._ck2004_extinct_energy_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -426,7 +426,7 @@ class Passband:
 				#wl must be in microns
 				x=1/self.wl[i]*10**(-6)
 				if x > 10 or x < 0.3:
-					print "Reddening undefined for wavelength range"
+					raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
 				elif x <= 1.1:
 					ax=0.574*x**1.61
 					bx=-0.527*x**1.61
@@ -522,7 +522,7 @@ class Passband:
 				for k in range(0,len(wl)):
 					x=1/wl[k]*10**(-6) #wl in microns
 					if x > 10 or x < 0.3:
-						print "Reddening undefined for wavelength range"
+						raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
 					elif x <= 1.1:
 						ax=0.574*x**1.61
 						bx=-0.527*x**1.61
