@@ -1131,7 +1131,7 @@ class Mesh(ScaledProtoMesh):
         self._pos = pos
 
         # NOTE: this assumes aligned orbits (original rotation of [0,0,1])
-        self._pole_normal = np.array(transform_position_array(np.array([0,0,1]), pos, euler, True))
+        self._pole_normal = np.array(transform_position_array(np.array([0.,0., 1.]), pos, euler, True))
 
     @property
     def pole_normal(self):
