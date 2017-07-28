@@ -200,9 +200,9 @@ class Passband:
             struct['_ck2004_ldint_energy_grid'] = self._ck2004_ldint_energy_grid
             struct['_ck2004_ldint_photon_grid'] = self._ck2004_ldint_photon_grid
         if 'ck2004_ext' in self.content:
-            struct['_ck2004_extinct_axes']= self._bb_extinct_axes
-            struct['_ck2004_extinct_energy_grid'] = self._bb_extinct_energy_grid
-            struct['_ck2004_extinct_photon_grid'] = self._bb_extinct_energy_grid
+            struct['_ck2004_extinct_axes']= self._ck_extinct_axes
+            struct['_ck2004_extinct_energy_grid'] = self._ck_extinct_energy_grid
+            struct['_ck2004_extinct_photon_grid'] = self._ck_extinct_energy_grid
         if 'extern_planckint' in self.content and 'extern_atmx' in self.content:
             struct['extern_wd_idx'] = self.extern_wd_idx
 
@@ -266,7 +266,7 @@ class Passband:
         	self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
         	
         if 'ck2004_ext' in self.content:
-        	self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
+        	self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_extinct_axes']))
         	self._ck2004_extinct_energy_grid = np.fromstring(struct['_ck2004_extinct_energy_grid'], dtype='float64')
         	self._ck2004_extinct_energy_grid = self._ck2004_extinct_energy_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
         	self._ck2004_extinct_photon_grid = np.fromstring(struct['_ck2004_extinct_photon_grid'], dtype='float64')
