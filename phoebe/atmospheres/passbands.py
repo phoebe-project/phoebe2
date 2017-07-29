@@ -924,16 +924,17 @@ class Passband:
 			if photon_weighted:
 				table = self._ck2004_extinct_photon_grid
 			else:
-				table = self._ck2004_exinct_energy_grid
+				table = self._ck2004_extinct_energy_grid
 				
 			if not hasattr(Teff, '__iter__'):
 				req = np.array(((Teff, logg, abun, extinct, Rv),))
-				extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:5], table)[0][0]
+				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table)[0][0]
 			else:
 				extinct=extinct*np.ones(len(Teff))
 				Rv=Rv*np.ones(len(Teff))
 				req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-				extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:5], table).T[0][0]
+				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0][0]
+			return extinct_factor
 
 
 		
