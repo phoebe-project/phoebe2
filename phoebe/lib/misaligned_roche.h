@@ -79,7 +79,16 @@ namespace misaligned_roche {
     const T & sintheta, 
     const int & sign = 1
   ) {
-    
+    #if 0
+    std::cerr 
+      << "Omega0=" << Omega0 
+      << " q=" << q 
+      << " F=" << F
+      << " delta=" << delta
+      << " sintheta=" << sintheta 
+      << " sign=" << sign << '\n';
+    #endif
+      
     if (sintheta == 0)
       return gen_roche::poleL(Omega0, q, F, delta);
     
@@ -88,8 +97,8 @@ namespace misaligned_roche {
    
     if (sign == 0) {
     
-      T p1 = poleL_height(Omega0, q, F, delta, sintheta, sign),
-        p2 = poleL_height(Omega0, q, F, delta, sintheta, -sign);
+      T p1 = poleL_height(Omega0, q, F, delta, sintheta, 1),
+        p2 = poleL_height(Omega0, q, F, delta, sintheta, -1);
       
       if (p1 > 0 && p2 > 0) return (p1 + p2)/2;
       
