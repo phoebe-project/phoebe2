@@ -877,7 +877,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         return packet
 
 
-    if _use_mpi:
+    if _use_mpi and not conf.force_serial:
         if myrank == 0:
         # MAIN COMPUTE LOOP
         # the outermost loop will be over times.  infolist will be a list of dictionaries
