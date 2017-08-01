@@ -1517,7 +1517,7 @@ class Star(Body):
         we can skip volume conservation only for circular orbits
         even for circular orbits - if we're using nbody but roche distortion, we must remesh to handle instantaneous changes to d or F
         """
-        return self.ecc != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche')
+        return self.ecc != 0 or self.pitch != 0 or self.yaw != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche')
 
 
     def get_target_volume(self, etheta, scaled=False):
@@ -2401,7 +2401,7 @@ class Envelope(Body):
 
         we can skip volume conservation only for circular orbits
         """
-        return self.ecc != 0.0 or self.pitch != 0.0 or self.yaw != 0.0
+        return self.ecc != 0.0
 
     def get_target_volume(self, etheta):
         """
