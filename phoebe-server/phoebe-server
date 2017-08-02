@@ -689,6 +689,11 @@ def bundle_method(msg):
         if app._verbose:
             print("running b.{}(*{}, **{})".format(fctn, args, method_kwargs))
         params = getattr(b, fctn)(*args, **method_kwargs)
+
+        # handle the case where there are no changes by mocking an empty PS
+        if params is None:
+            params = phoebe.ParameterSet([])
+
     except Exception as err:
         if app._verbose:
             print("bundle_method fctn={} args={} kwargs={} error={}".format(fctn, args, msg, err.message))
@@ -708,6 +713,10 @@ def bundle_method(msg):
                 newcontext = fctn.split('_')[1]
 
             newparamsfilter = {newcontext: [params.meta[newcontext]]}
+        else:
+            # TODO: check to see if this is what we want
+            newcontext = None
+            newparamsfilter = {}
 
         if app._verbose:
             print("bundle_method newparamsfilter: ", newparamsfilter)

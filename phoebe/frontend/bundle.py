@@ -613,7 +613,15 @@ class Bundle(ParameterSet):
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
 
+        redo_kwargs = {'old_component': old_component, 'new_component': new_component}
+        undo_kwargs = {'old_component': new_component, 'new_component': old_component}
 
+        self._add_history(redo_func='change_component',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='change_component',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(component=new_component)
 
     def get_setting(self, twig=None, **kwargs):
         """
@@ -1325,17 +1333,35 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'feature'
         return self.filter(**kwargs)
 
+    def rename_feature(self, old_feature, new_feature):
+        """
+        Rename a 'feature' in the bundle
+
+        :parameter old_feature: current label for the feature
+        :parameter new_feature: new label for the feature
+        """
+        for param in self.filter(feature=old_feature).to_list():
+            param._feature = new_feature
+
+        redo_kwargs = {'old_feature': old_feature, 'new_feature': new_feature}
+        undo_kwargs = {'old_feature': new_feature, 'new_feature': old_feature}
+
+        self._add_history(redo_func='rename_feature',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='rename_feature',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(feature=new_feature)
+
     def remove_feature(self, feature=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
         Remove a 'feature' from the bundle
 
-        :raises NotImplementedError: because this isn't implemented yet
+        :parameter feature: name of the feature
+        :parameter **kwargs: any other tags to do the filter
         """
-        # TODO: don't forget to add_history
-        # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        # TODO: add_history??
+        self.remove_parameters_all(feature=feature, **kwargs)
 
     def add_spot(self, component=None, feature=None, **kwargs):
         """
@@ -1358,11 +1384,15 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'spot')
         return self.get_feature(feature, **kwargs)
 
+    def rename_spot(self, old_feature, new_feature):
+        """
+        Shortcut to :meth:`rename_feature`
+        """
+        return self.rename_feature(old_feature, new_feature)
+
     def remove_spot(self, feature=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
-        Shortcut to :meth:`remove_feature` but with kind='spot'
+        Shortcut to :meth:`remove_feature`
         """
         kwargs.setdefault('kind', 'spot')
         return self.remove_feature(feature, **kwargs)
@@ -1466,17 +1496,41 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'component'
         return self.filter(**kwargs)
 
+    def rename_component(self, old_component, new_component):
+        """
+        See :meth:`change_component`
+        """
+        # add_history is handled in change_component
+        return self.change_component(old_component, new_component)
+
     def remove_component(self, component=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
+        Remove a 'component' from the bundle.  Note: this does NOT remove the
+        component from the hierarchy if it is already included in the hierarchy.
+        The hierarchy must be updated by hand accordingly.
 
-        Remove a 'component' from the bundle
-
-        :raises NotImplementedError: because this isn't implemented yet
+        :parameter component: label of the component to be removed
+        :parameter **kwargs: any other tags to do the filter
         """
-        # TODO: don't forget to add_history
+        if component is not None:
+            kwargs['component'] = component
+        # TODO: don't forget to add_history??
+
         # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
-        raise NotImplementedError
+        # TODO: what do we do if the component is in the hierarchy?
+        if kwargs.get('component', None) is None:
+            if len(self.components) == 1:
+                kwargs['component'] = self.components[0]
+            else:
+                # TODO: should we raise the error here or remove ALL components
+                raise ValueError("more than one component available: must provide component")
+
+        if kwargs['component'] in self.hierarchy.get_components():
+            logger.warning("component '{}' should also be removed from hierarchy".format(kwargs['component']))
+
+        # TODO: add_history
+
+        self.remove_parameters_all(**kwargs)
 
     def add_orbit(self, component=None, **kwargs):
         """
@@ -1492,11 +1546,15 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'orbit')
         return self.get_component(component, **kwargs)
 
+    def rename_orbit(self, old_orbit, new_orbit):
+        """
+        Shortcut to :meth:`rename_component`
+        """
+        return self.rename_component(old_orbit, new_orbit)
+
     def remove_orbit(self, component=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
-        Shortcut to :meth:`remove_component` but with kind='star'
+        Shortcut to :meth:`remove_component` but with kind='orbit'
         """
         kwargs.setdefault('kind', 'orbit')
         return self.remove_component(component, **kwargs)
@@ -1515,10 +1573,14 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'star')
         return self.get_component(component, **kwargs)
 
+    def rename_star(self, old_star, new_star):
+        """
+        Shortcut to :meth:`rename_component`
+        """
+        return self.rename_component(old_star, new_star)
+
     def remove_star(self, component=None, **kwargs):
         """
-        [NOT IMPLEMENTED]
-
         Shortcut to :meth:`remove_component` but with kind='star'
         """
         kwargs.setdefault('kind', 'star')
@@ -1542,11 +1604,14 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.get_component(component, **kwargs)
 
+    def rename_envelope(self, old_envelope, new_envelope):
+        """
+        Shortcut to :meth:`rename_component`
+        """
+        return self.rename_component(old_envelope, new_envelope)
+
     def remove_envelope(self, component=None, **kwargs):
         """
-        [NOT SUPPORTED]
-        [NOT IMPLEMENTED]
-
         Shortcut to :meth:`remove_component` but with kind='envelope'
         """
         kwargs.setdefault('kind', 'envelope')
@@ -1919,6 +1984,26 @@ class Bundle(ParameterSet):
             # automatically handle switching to lowercase
             kwargs['kind'] = kwargs['kind'].lower()
         return self.filter(**kwargs)
+
+    def rename_dataset(self, old_dataset, new_dataset):
+        """
+        Rename a 'dataset' in the bundle
+
+        :parameter old_dataset: current label for the dataset
+        :parameter new_dataset: new label for the dataset
+        """
+        for param in self.filter(dataset=old_dataset).to_list():
+            param._dataset = new_dataset
+
+        redo_kwargs = {'old_dataset': old_dataset, 'new_dataset': new_dataset}
+        undo_kwargs = {'old_dataset': new_dataset, 'new_dataset': old_dataset}
+
+        self._add_history(redo_func='rename_dataset',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='rename_dataset',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(dataset=new_dataset)
 
     def remove_dataset(self, dataset=None, **kwargs):
         """ Remove a dataset from the Bundle.
@@ -2381,18 +2466,46 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'compute'
         return self.filter(**kwargs)
 
-    def remove_compute(self, compute, **kwargs):
+    def rename_compute(self, old_compute, new_compute):
         """
-        [NOT IMPLEMENTED]
-        Remove a 'constraint' from the bundle
+        Rename a 'compute' in the bundle
 
-        :parameter str twig: twig to filter for the compute options
-        :parameter **kwargs: any other tags to do the filter
-            (except twig or context)
-        :raise NotImplementedError: because it isn't
+        :parameter old_compute: current label for the compute options
+        :parameter new_compute: new label for the compute options
         """
-        # TODO: don't forget add_history
-        raise NotImplementedError
+        for param in self.filter(compute=old_compute).to_list():
+            param._compute = new_compute
+
+        redo_kwargs = {'old_compute': old_compute, 'new_compute': new_compute}
+        undo_kwargs = {'old_compute': new_compute, 'new_compute': old_compute}
+
+        self._add_history(redo_func='rename_compute',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='rename_compute',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(compute=new_compute)
+
+    def remove_compute(self, compute=None, **kwargs):
+        """
+        Remove a 'compute' from the bundle.
+
+        :parameter compute: label of the compute to be removed
+        :parameter **kwargs: any other tags to do the filter
+        """
+        if compute is not None:
+            kwargs['compute'] = compute
+
+        if kwargs.get('compute', None) is None:
+            if len(self.computes) == 1:
+                kwargs['compute'] = self.computes[0]
+            else:
+                # TODO: should we raise the error here or remove ALL components
+                raise ValueError("more than one compute available: must provide compute label")
+
+        # TODO: add_history
+
+        self.remove_parameters_all(**kwargs)
 
     @send_if_client
     def run_compute(self, compute=None, model=None, detach=False,
@@ -2750,6 +2863,26 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'model'
         return self.filter(**kwargs)
 
+    def rename_model(self, old_model, new_model):
+        """
+        Rename a 'model' in the bundle
+
+        :parameter old_model: current label for the model
+        :parameter new_model: new label for the model
+        """
+        for param in self.filter(model=old_model).to_list():
+            param._model = new_model
+
+        redo_kwargs = {'old_model': old_model, 'new_model': new_model}
+        undo_kwargs = {'old_model': new_model, 'new_model': old_model}
+
+        self._add_history(redo_func='rename_model',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='rename_model',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(model=new_model)
+
     def remove_model(self, model, **kwargs):
         """
         Remove a 'model' from the bundle
@@ -3049,10 +3182,46 @@ class Bundle(ParameterSet):
         kwargs['context'] = 'figure'
         return self.filter(**kwargs)
 
-    def remove_figure(self):
+    def rename_figure(self, old_figure, new_figure):
         """
+        Rename a 'figure' in the bundle
+
+        :parameter old_figure: current label for the figure options
+        :parameter new_figure: new label for the figure options
         """
-        raise NotImplementedError
+        for param in self.filter(figure=old_figure).to_list():
+            param._figure = new_figure
+
+        redo_kwargs = {'old_figure': old_figure, 'new_figure': new_figure}
+        undo_kwargs = {'old_figure': new_figure, 'new_figure': old_figure}
+
+        self._add_history(redo_func='rename_figure',
+                          redo_kwargs=redo_kwargs,
+                          undo_func='rename_figure',
+                          undo_kwargs=undo_kwargs)
+
+        return self.filter(figure=new_figure)
+
+    def remove_figure(self, figure=None, **kwargs):
+        """
+        Remove a 'figure' from the bundle.
+
+        :parameter figure: label of the figure to be removed
+        :parameter **kwargs: any other tags to do the filter
+        """
+        if figure is not None:
+            kwargs['figure'] = figure
+
+        if kwargs.get('figure', None) is None:
+            if len(self.figures) == 1:
+                kwargs['figure'] = self.figures[0]
+            else:
+                # TODO: should we raise the error here or remove ALL components
+                raise ValueError("more than one figure available: must provide figure label")
+
+        # TODO: add_history
+
+        self.remove_parameters_all(**kwargs)
 
     def run_figure(self, figure=None, **kwargs):
         """
