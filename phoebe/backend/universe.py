@@ -2139,7 +2139,7 @@ class Envelope(Body):
             abun, irrad_frac_refl1, irrad_frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
-            extinct={}, ld_func={}, ld_coeffs={},
+            extinct={}, Rv={}, ld_func={}, ld_coeffs={},
             do_rv_grav=False, features=[], do_mesh_offset=True,
             label_envelope='contact_envelope', label_primary='primary',
             label_secondary='secondary', **kwargs):
@@ -2158,7 +2158,7 @@ class Envelope(Body):
         """
         super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
                                        ecc, atm, datasets, passband,
-                                       intens_weighting, extinct,
+                                       intens_weighting, extinct, Rv,
                                        ld_func, ld_coeffs,
                                        dynamics_method=dynamics_method,
                                        mesh_init_phi=mesh_init_phi)
@@ -2357,6 +2357,7 @@ class Envelope(Body):
                 atm=atm,
                 datasets=datasets, passband=passband,
                 intens_weighting=intens_weighting,
+                extinct=extinct, Rv=Rv,
                 ld_func=ld_func, ld_coeffs=ld_coeffs,
                 do_rv_grav=do_rv_grav,
                 features=features, do_mesh_offset=do_mesh_offset,
