@@ -264,7 +264,7 @@ class Passband:
         	self._bb_extinct_energy_grid = self._bb_extinct_energy_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
         	self._bb_extinct_photon_grid = np.fromstring(struct['_bb_extinct_photon_grid'], dtype='float64')
         	self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
-        	
+
         if 'ck2004_ext' in self.content:
         	self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_extinct_axes']))
         	self._ck2004_extinct_energy_grid = np.fromstring(struct['_ck2004_extinct_energy_grid'], dtype='float64')
@@ -465,7 +465,7 @@ class Passband:
 			self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
 
 		self.content.append('bb_ext')
-		
+
     def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
 		"""
     	Computes mean effect of reddening (a weighted average) on passband using ck2004 atmospheres and CCM89 prescription of extinction
@@ -502,7 +502,7 @@ class Passband:
 
 		if verbose:
 			print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a loooooong time.' % (self.pbset, self.pbname))
-				
+
 		for i, model in enumerate(models):
 			spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
@@ -545,11 +545,11 @@ class Passband:
 
 				extinctE[j]=np.average(flux_frac,weights=fl)
 				extinctP[j]=np.average(flux_frac,weights=flP)
-            		
+
 			if verbose:
 				if 100*i % (len(models)) == 0:
 					print('%d%% done.' % (100*i/(len(models)-1)))
-            
+
 		Teff=np.repeat(Teff,NEbv*NRv)
 		logg=np.repeat(logg,NEbv*NRv)
 		abun=np.repeat(abun,NEbv*NRv)
@@ -916,16 +916,16 @@ class Passband:
     	Interpolates the passband-stored tables of extinction corrections
     	Returns not implemented error for ck2004 atmospheres
     	"""
-		
+
     	if atm == 'ck2004':
 			if 'ck2004_ext' not in self.content:
 				raise ValueError('Extinction factors are not computed yet. Please compute those first.')
-			
+
 			if photon_weighted:
 				table = self._ck2004_extinct_photon_grid
 			else:
 				table = self._ck2004_extinct_energy_grid
-				
+
 			if not hasattr(Teff, '__iter__'):
 				req = np.array(((Teff, logg, abun, extinct, Rv),))
 				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table)[0][0]
@@ -933,11 +933,11 @@ class Passband:
 				extinct=extinct*np.ones(len(Teff))
 				Rv=Rv*np.ones(len(Teff))
 				req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0][0]
+				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
 			return extinct_factor
 
 
-		
+
     	elif atm != 'blackbody':
     		raise  NotImplementedError("atm='{}' not currently supported".format(atm))
     	else :
@@ -948,7 +948,7 @@ class Passband:
     			table = self._bb_extinct_photon_grid
     		else:
     			table = self._bb_extinct_energy_grid
-    			
+
     		if not hasattr(Teff, '__iter__'):
     			req = np.array(((Teff, extinct, Rv),))
     			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table)[0][0]
@@ -956,7 +956,7 @@ class Passband:
     			extinct=extinct*np.ones(len(Teff))
     			Rv=Rv*np.ones(len(Teff))
     			req = np.vstack((Teff, extinct, Rv)).T
-    			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0][0]
+    			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0]
 
 
     		return extinct_factor
