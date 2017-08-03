@@ -2571,8 +2571,9 @@ class Bundle(ParameterSet):
         """
         if isinstance(detach, str) or isinstance(detach, unicode):
             # then we want to temporarily go in to client mode
+            raise NotImplementedError("detach currently must be a bool")
             self.as_client(server=detach)
-            self.run_compute(compute=compute, model=model, time=time, **kwargs)
+            self.run_compute(compute=compute, model=model, times=times, **kwargs)
             self.as_client(False)
             return self.get_model(model)
 
@@ -2862,6 +2863,24 @@ class Bundle(ParameterSet):
             kwargs['model'] = model
         kwargs['context'] = 'model'
         return self.filter(**kwargs)
+
+    def rerun_model(self, model=None, **kwargs):
+        """
+        Rerun run_compute for a given model.  This simply retrieves the current
+        compute parameters given the same compute label used to create the original
+        model.  This does not, therefore, necessarily ensure that the exact
+        same compute options are used.
+
+        :parameter model: label of the model (will be overwritten)
+        :return: :class:`phoebe.parameters.parameters.ParameterSet` of the
+            newly-created model containing the synthetic data.
+        """
+        model_ps = self.get_model(model=model)
+
+        compute = model_ps.compute
+        kwargs.setdefault('compute', compute)
+
+        return self.run_compute(model=model, **kwargs)
 
     def rename_model(self, old_model, new_model):
         """

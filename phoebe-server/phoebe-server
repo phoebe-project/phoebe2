@@ -682,7 +682,7 @@ def bundle_method(msg):
     try:
         # let's not pass None on in kwargs as that can conflict with setdefault within phoebe
         method_kwargs = {k:v for k,v in msg.items() if v not in [None, '']}
-        if fctn in ['run_compute', 'run_fitting']:
+        if 'run_' in fctn:
             if app._verbose:
                 print "detach cmd: ", phoebe.conf.detach_cmd
             method_kwargs.setdefault('detach', True)
@@ -690,8 +690,12 @@ def bundle_method(msg):
             print("running b.{}(*{}, **{})".format(fctn, args, method_kwargs))
         params = getattr(b, fctn)(*args, **method_kwargs)
 
+        print "***", params
+
         # handle the case where there are no changes by mocking an empty PS
         if params is None:
+            if app._verbose:
+                print("return was None, mocking empty PS")
             params = phoebe.ParameterSet([])
 
     except Exception as err:
@@ -708,7 +712,7 @@ def bundle_method(msg):
 
         if 'add_' in fctn or 'run_' in fctn:
             if 'run_' in fctn:
-                newcontext = {'compute': 'model', 'fitting': 'feedback'}[fctn.split('_')[1]]
+                newcontext = {'compute': 'model', 'model': 'model', 'fitting': 'feedback', 'feedback': 'feedback'}[fctn.split('_')[1]]
             else:
                 newcontext = fctn.split('_')[1]
 
