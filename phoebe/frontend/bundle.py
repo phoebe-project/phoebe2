@@ -1033,7 +1033,7 @@ class Bundle(ParameterSet):
         """
         allowed_keys = self.qualifiers +\
                         parameters._meta_fields_filter +\
-                        ['skip_checks', 'check_default', 'check_visible'] +\
+                        ['skip_checks', 'check_default', 'check_visible', 'do_create_fig_params'] +\
                         additional_allowed_keys
 
         for key in kwargs.keys():
@@ -2586,9 +2586,9 @@ class Bundle(ParameterSet):
             logger.warning("overwriting model: {}".format(model))
             self.remove_model(model)
 
-            do_create_fig_params = False
+            do_create_fig_params = kwargs.get('do_create_fig_params', False)
         else:
-            do_create_fig_params = True
+            do_create_fig_params = kwargs.get('do_create_fig_params', True)
 
         self._check_label(model, allow_overwrite_in_context='figure')
 
@@ -2688,8 +2688,12 @@ class Bundle(ParameterSet):
             f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
-            f.write("b.run_compute(compute='{}', model='{}')\n".format(compute, model))  # TODO: support other kwargs
-            f.write("b.filter(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(model, jobid))
+            f.write("b.run_compute(compute='{}', model='{}', do_create_fig_params={})\n".format(compute, model, do_create_fig_params))  # TODO: support other kwargs
+            if do_create_fig_params:
+                f.write("b.filter(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(model, jobid))
+            else:
+                f.write("b.get_model(model='{}').save('_{}.out', incl_uniqueid=True)\n".format(model, jobid))
+
             f.close()
 
             script_fname = os.path.abspath(script_fname)
