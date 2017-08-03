@@ -259,18 +259,18 @@ class Passband:
             self._log10_Inorm_bb_photon = lambda Teff: interpolate.splev(Teff, self._bb_func_photon)
 
         if 'bb_ext' in self.content:
-        	self._bb_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
-        	self._bb_extinct_energy_grid = np.fromstring(struct['_bb_extinct_energy_grid'], dtype='float64')
-        	self._bb_extinct_energy_grid = self._bb_extinct_energy_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
-        	self._bb_extinct_photon_grid = np.fromstring(struct['_bb_extinct_photon_grid'], dtype='float64')
-        	self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
+            self._bb_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_bb_extinct_axes']))
+            self._bb_extinct_energy_grid = np.fromstring(struct['_bb_extinct_energy_grid'], dtype='float64')
+            self._bb_extinct_energy_grid = self._bb_extinct_energy_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
+            self._bb_extinct_photon_grid = np.fromstring(struct['_bb_extinct_photon_grid'], dtype='float64')
+            self._bb_extinct_photon_grid = self._bb_extinct_photon_grid.reshape(len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1)
 
         if 'ck2004_ext' in self.content:
-        	self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_extinct_axes']))
-        	self._ck2004_extinct_energy_grid = np.fromstring(struct['_ck2004_extinct_energy_grid'], dtype='float64')
-        	self._ck2004_extinct_energy_grid = self._ck2004_extinct_energy_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
-        	self._ck2004_extinct_photon_grid = np.fromstring(struct['_ck2004_extinct_photon_grid'], dtype='float64')
-        	self._ck2004_extinct_photon_grid = self._ck2004_extinct_photon_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
+            self._ck2004_extinct_axes  = tuple(map(lambda x: np.fromstring(x, dtype='float64'), struct['_ck2004_extinct_axes']))
+            self._ck2004_extinct_energy_grid = np.fromstring(struct['_ck2004_extinct_energy_grid'], dtype='float64')
+            self._ck2004_extinct_energy_grid = self._ck2004_extinct_energy_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
+            self._ck2004_extinct_photon_grid = np.fromstring(struct['_ck2004_extinct_photon_grid'], dtype='float64')
+            self._ck2004_extinct_photon_grid = self._ck2004_extinct_photon_grid.reshape(len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1)
 
 
         if 'extern_atmx' in self.content and 'extern_planckint' in self.content:
@@ -379,195 +379,195 @@ class Passband:
         self.atmlist.append('blackbody')
 
     def compute_bb_reddening(self, Teffs=None, Ebv=None, Rv=None, verbose=False):
-		"""
-    	Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
+        """
+        Computes mean effect of reddening (a weighted average) on passband using blackbody atmosphere and CCM89 prescription of extinction
 
         @Teffs: an array of effective temperatures. If None, a default
         array from ~300K to ~500000K with 97 steps is used. The default
         array is uniform in log10 scale.
-    	@Ebv: colour discrepancies E(B-V)
-    	@Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        @Ebv: colour discrepancies E(B-V)
+        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
         @verbose: switch to determine whether computing progress should
         be printed on screen
-    	Returns: n/a
-		"""
+        Returns: n/a
+        """
 
-		if Teffs == None:
-			log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
-			Teffs = 10**log10Teffs
+        if Teffs == None:
+            log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
+            Teffs = 10**log10Teffs
 
-		if Ebv == None:
-			Ebv=np.linspace(0.,3.,90)
+        if Ebv == None:
+            Ebv=np.linspace(0.,3.,90)
 
-		if Rv == None:
-			Rv=np.linspace(2.,6.,40)
+        if Rv == None:
+            Rv=np.linspace(2.,6.,40)
 
-		#Make it so that Teffs and Ebv step through a la the CK2004 models
-		NTeffs=len(Teffs)
-		NEbv=len(Ebv)
-		NRv=len(Rv)
-		combos=NTeffs*NEbv*NRv
-		Teffs=np.repeat(Teffs,combos/NTeffs)
-		Ebv=np.tile(np.repeat(Ebv,NRv),NTeffs)
-		Rv=np.tile(Rv,combos/NRv)
+        #Make it so that Teffs and Ebv step through a la the CK2004 models
+        NTeffs=len(Teffs)
+        NEbv=len(Ebv)
+        NRv=len(Rv)
+        combos=NTeffs*NEbv*NRv
+        Teffs=np.repeat(Teffs,combos/NTeffs)
+        Ebv=np.tile(np.repeat(Ebv,NRv),NTeffs)
+        Rv=np.tile(Rv,combos/NRv)
 
-		extinctE, extinctP = np.empty(combos), np.empty(combos)
-		if verbose:
-			print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
+        extinctE, extinctP = np.empty(combos), np.empty(combos)
+        if verbose:
+            print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
 
-		for j in range(0,combos):
-			Alambda, flux_frac, pb = np.empty(len(self.wl)), np.empty(len(self.wl)), np.empty(len(self.wl))
-			pbP,pbE = np.empty(len(self.wl)), np.empty(len(self.wl))
+        for j in range(0,combos):
+            Alambda, flux_frac, pb = np.empty(len(self.wl)), np.empty(len(self.wl)), np.empty(len(self.wl))
+            pbP,pbE = np.empty(len(self.wl)), np.empty(len(self.wl))
 
-			for i in range(0,len(self.wl)):
+            for i in range(0,len(self.wl)):
 
-				pbP[i] = self.wl[i]*self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
-				pbE[i] = self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
-				#wl must be in microns
-				x=1/self.wl[i]*10**(-6)
-				if x > 10 or x < 0.3:
-					raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
-				elif x <= 1.1:
-					ax=0.574*x**1.61
-					bx=-0.527*x**1.61
-				elif x <= 3.3:
-					y=x-1.82
-					ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
-					bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
-				elif x <= 5.9:
-					ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
-					bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
-				elif x <= 8.0:
-					ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
-					bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
-				elif x <= 10:
-					ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
-					bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
+                pbP[i] = self.wl[i]*self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
+                pbE[i] = self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
+                #wl must be in microns
+                x=1/self.wl[i]*10**(-6)
+                if x > 10 or x < 0.3:
+                    raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
+                elif x <= 1.1:
+                    ax=0.574*x**1.61
+                    bx=-0.527*x**1.61
+                elif x <= 3.3:
+                    y=x-1.82
+                    ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+                    bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+                elif x <= 5.9:
+                    ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
+                    bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
+                elif x <= 8.0:
+                    ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
+                    bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
+                elif x <= 10:
+                    ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
+                    bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
 
-				Alambda[i]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
-				flux_frac[i]=10**(-0.4*Alambda[i])
+                Alambda[i]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
+                flux_frac[i]=10**(-0.4*Alambda[i])
 
-			if verbose:
-				if 100*j % combos == 0:
-					print('%d%% done.' % (100*j/(combos-1)))
+            if verbose:
+                if 100*j % combos == 0:
+                    print('%d%% done.' % (100*j/(combos-1)))
 
-			extinctE[j]=np.average(flux_frac,weights=pbE)
-			extinctP[j]=np.average(flux_frac,weights=pbP)
+            extinctE[j]=np.average(flux_frac,weights=pbE)
+            extinctP[j]=np.average(flux_frac,weights=pbP)
 
-		self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
+        self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
 
-		self._bb_extinct_photon_grid=np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
-		self._bb_extinct_energy_grid= np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+        self._bb_extinct_photon_grid=np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+        self._bb_extinct_energy_grid= np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
 
-		for i, red in enumerate(extinctE):
-			self._bb_extinct_energy_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
-		for i, red in enumerate(extinctP):
-			self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
+        for i, red in enumerate(extinctE):
+            self._bb_extinct_energy_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
+        for i, red in enumerate(extinctP):
+            self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
 
-		self.content.append('bb_ext')
+        self.content.append('bb_ext')
 
     def compute_ck2004_reddening(self, path, Ebv=None, Rv=None, verbose=False):
-		"""
-    	Computes mean effect of reddening (a weighted average) on passband using ck2004 atmospheres and CCM89 prescription of extinction
+        """
+        Computes mean effect of reddening (a weighted average) on passband using ck2004 atmospheres and CCM89 prescription of extinction
 
         @path: path to the directory containing ck2004 SEDs
         @verbose: switch to determine whether computing progress should
         be printed on screen
-    	@Ebv: colour discrepancies E(B-V)
-    	@Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
+        @Ebv: colour discrepancies E(B-V)
+        @Rv: Extinction factor (defined at Av / E(B-V) where Av is the visual extinction in magnitudes)
 
-    	Returns: n/a
-		"""
+        Returns: n/a
+        """
 
-		if Ebv == None:
-			Ebv=np.linspace(0.,3.,90)
+        if Ebv == None:
+            Ebv=np.linspace(0.,3.,90)
 
-		if Rv == None:
-			Rv=np.linspace(2.,6.,40)
+        if Rv == None:
+            Rv=np.linspace(2.,6.,40)
 
 
-		models = glob.glob(path+'/*M1.000*')
-		Nmodels = len(models)
-		NEbv=len(Ebv)
-		NRv=len(Rv)
-		combos=Nmodels*NEbv*NRv
-		Ebv=np.tile(np.repeat(Ebv,NRv),Nmodels)
-		Rv=np.tile(Rv,combos/NRv)
+        models = glob.glob(path+'/*M1.000*')
+        Nmodels = len(models)
+        NEbv=len(Ebv)
+        NRv=len(Rv)
+        combos=Nmodels*NEbv*NRv
+        Ebv=np.tile(np.repeat(Ebv,NRv),Nmodels)
+        Rv=np.tile(Rv,combos/NRv)
 
         # Store the length of the filename extensions for parsing:
-		offset = len(models[0])-models[0].rfind('.')
+        offset = len(models[0])-models[0].rfind('.')
 
-		Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
-		extinctE, extinctP = np.empty(combos), np.empty(combos)
+        Teff, logg, abun = np.empty(Nmodels), np.empty(Nmodels), np.empty(Nmodels)
+        extinctE, extinctP = np.empty(combos), np.empty(combos)
 
-		if verbose:
-			print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a loooooong time.' % (self.pbset, self.pbname))
+        if verbose:
+            print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a loooooong time.' % (self.pbset, self.pbname))
 
-		for i, model in enumerate(models):
-			spc = np.fromfile(model, sep=' ').reshape(-1,2).T
+        for i, model in enumerate(models):
+            spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
-			Teff[i] = float(model[-17-offset:-12-offset])
-			logg[i] = float(model[-11-offset:-9-offset])/10
-			sign = 1. if model[-9-offset]=='P' else -1.
-			abun[i] = sign*float(model[-8-offset:-6-offset])/10
+            Teff[i] = float(model[-17-offset:-12-offset])
+            logg[i] = float(model[-11-offset:-9-offset])/10
+            sign = 1. if model[-9-offset]=='P' else -1.
+            abun[i] = sign*float(model[-8-offset:-6-offset])/10
 
-			spc[0] /= 1e10 # AA -> m
-			spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
-			wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-			fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-			fl *= self.ptf(wl)
-			flP = fl*wl
-			for j in range(i*NEbv*NRv,i*NEbv*NRv+NEbv*NRv):
-				Alambda, flux_frac = np.empty(len(wl)), np.empty(len(wl))
-				for k in range(0,len(wl)):
-					x=1/wl[k]*10**(-6) #wl in microns
-					if x > 10 or x < 0.3:
-						raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
-					elif x <= 1.1:
-						ax=0.574*x**1.61
-						bx=-0.527*x**1.61
-					elif x <= 3.3:
-						y=x-1.82
-						ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
-						bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
-					elif x <= 5.9:
-						ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
-						bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
-					elif x <= 8.0:
-						ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
-						bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
-					elif x <= 10:
-						ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
-						bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
+            spc[0] /= 1e10 # AA -> m
+            spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            fl *= self.ptf(wl)
+            flP = fl*wl
+            for j in range(i*NEbv*NRv,i*NEbv*NRv+NEbv*NRv):
+                Alambda, flux_frac = np.empty(len(wl)), np.empty(len(wl))
+                for k in range(0,len(wl)):
+                    x=1/wl[k]*10**(-6) #wl in microns
+                    if x > 10 or x < 0.3:
+                        raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
+                    elif x <= 1.1:
+                        ax=0.574*x**1.61
+                        bx=-0.527*x**1.61
+                    elif x <= 3.3:
+                        y=x-1.82
+                        ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+                        bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+                    elif x <= 5.9:
+                        ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
+                        bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
+                    elif x <= 8.0:
+                        ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
+                        bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
+                    elif x <= 10:
+                        ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
+                        bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
 
-					Alambda[k]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
-					flux_frac[k]=10**(-0.4*Alambda[k])
+                    Alambda[k]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
+                    flux_frac[k]=10**(-0.4*Alambda[k])
 
-				extinctE[j]=np.average(flux_frac,weights=fl)
-				extinctP[j]=np.average(flux_frac,weights=flP)
+                extinctE[j]=np.average(flux_frac,weights=fl)
+                extinctP[j]=np.average(flux_frac,weights=flP)
 
-			if verbose:
-				if 100*i % (len(models)) == 0:
-					print('%d%% done.' % (100*i/(len(models)-1)))
+            if verbose:
+                if 100*i % (len(models)) == 0:
+                    print('%d%% done.' % (100*i/(len(models)-1)))
 
-		Teff=np.repeat(Teff,NEbv*NRv)
-		logg=np.repeat(logg,NEbv*NRv)
-		abun=np.repeat(abun,NEbv*NRv)
+        Teff=np.repeat(Teff,NEbv*NRv)
+        logg=np.repeat(logg,NEbv*NRv)
+        abun=np.repeat(abun,NEbv*NRv)
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
-		self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
+        self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
 
-		self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
-		self._ck2004_extinct_photon_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
-		for i, red in enumerate(extinctE):
-			self._ck2004_extinct_energy_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
-		for i, red in enumerate(extinctP):
-			self._ck2004_extinct_photon_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
+        self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
+        self._ck2004_extinct_photon_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
+        for i, red in enumerate(extinctE):
+            self._ck2004_extinct_energy_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
+        for i, red in enumerate(extinctP):
+            self._ck2004_extinct_photon_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
 
 
-		self.content.append('ck2004_ext')
-		self.atmlist.append('ck2004_ext')
+        self.content.append('ck2004_ext')
+        self.atmlist.append('ck2004_ext')
 
 
 
@@ -912,54 +912,54 @@ class Passband:
         return ld_coeffs
 
     def interpolate_extinct(self, Teff=5772., logg=4.43, abun=0.0, atm='blackbody',  extinct=0.0, Rv=3.1, photon_weighted=False):
-    	"""
-    	Interpolates the passband-stored tables of extinction corrections
-    	Returns not implemented error for ck2004 atmospheres
-    	"""
+        """
+        Interpolates the passband-stored tables of extinction corrections
+        Returns not implemented error for ck2004 atmospheres
+        """
 
-    	if atm == 'ck2004':
-			if 'ck2004_ext' not in self.content:
-				raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+        if atm == 'ck2004':
+            if 'ck2004_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
 
-			if photon_weighted:
-				table = self._ck2004_extinct_photon_grid
-			else:
-				table = self._ck2004_extinct_energy_grid
+            if photon_weighted:
+                table = self._ck2004_extinct_photon_grid
+            else:
+                table = self._ck2004_extinct_energy_grid
 
-			if not hasattr(Teff, '__iter__'):
-				req = np.array(((Teff, logg, abun, extinct, Rv),))
-				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table)[0][0]
-			else:
-				extinct=extinct*np.ones(len(Teff))
-				Rv=Rv*np.ones(len(Teff))
-				req = np.vstack((Teff, logg, abun, extinct, Rv)).T
-				extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
-			return extinct_factor
-
-
-
-    	elif atm != 'blackbody':
-    		raise  NotImplementedError("atm='{}' not currently supported".format(atm))
-    	else :
-    		if 'bb_ext' not in self.content:
-    			raise ValueError('Extinction factors are not computed yet. Please compute those first.')
-
-    		if photon_weighted:
-    			table = self._bb_extinct_photon_grid
-    		else:
-    			table = self._bb_extinct_energy_grid
-
-    		if not hasattr(Teff, '__iter__'):
-    			req = np.array(((Teff, extinct, Rv),))
-    			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table)[0][0]
-    		else:
-    			extinct=extinct*np.ones(len(Teff))
-    			Rv=Rv*np.ones(len(Teff))
-    			req = np.vstack((Teff, extinct, Rv)).T
-    			extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0]
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, logg, abun, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table)[0][0]
+            else:
+                extinct=extinct*np.ones(len(Teff))
+                Rv=Rv*np.ones(len(Teff))
+                req = np.vstack((Teff, logg, abun, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._ck2004_extinct_axes[0:5], table).T[0]
+            return extinct_factor
 
 
-    		return extinct_factor
+
+        elif atm != 'blackbody':
+            raise  NotImplementedError("atm='{}' not currently supported".format(atm))
+        else :
+            if 'bb_ext' not in self.content:
+                raise ValueError('Extinction factors are not computed yet. Please compute those first.')
+
+            if photon_weighted:
+                table = self._bb_extinct_photon_grid
+            else:
+                table = self._bb_extinct_energy_grid
+
+            if not hasattr(Teff, '__iter__'):
+                req = np.array(((Teff, extinct, Rv),))
+                extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table)[0][0]
+            else:
+                extinct=extinct*np.ones(len(Teff))
+                Rv=Rv*np.ones(len(Teff))
+                req = np.vstack((Teff, extinct, Rv)).T
+                extinct_factor = libphoebe.interp(req, self._bb_extinct_axes[0:3], table).T[0]
+
+
+            return extinct_factor
 
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
