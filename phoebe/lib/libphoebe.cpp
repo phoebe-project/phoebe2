@@ -3984,6 +3984,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
+#define DEBUG
 static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "roche_misaligned_marching_mesh";
@@ -4121,8 +4122,19 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     
     s = (double*) PyArray_DATA((PyArrayObject*)o_misalignment); 
     aligned  = (s[0] == 0 && s[1] == 0);
+    
     // we could work with s[0]==0, calculate aligned case make simple
     // rotation around x-axis
+    
+    #if defined(DEBUG)
+    std::cerr << "spin:"
+      << s[0] << ' ' << s[1] << ' ' << s[2]
+      << " Omega:" <<  Omega0
+      << " q=" << q
+      << " F=" << F
+      << " d=" << d << '\n';
+    #endif
+    
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
     rotated = false;
 
@@ -4271,6 +4283,9 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   
   return results;
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
