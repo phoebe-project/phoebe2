@@ -739,7 +739,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 body = system.get_body(info['component'])
 
                 this_syn['pot'] = body._instantaneous_pot
-                this_syn['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
+                rpole = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
+                this_syn['rpole'] = rpole
+                this_syn['north_pole'] = body.get_north_pole(rpole=rpole)
                 this_syn['volume'] = body.volume
 
                 # TODO: should x, y, z be computed columns of the vertices???

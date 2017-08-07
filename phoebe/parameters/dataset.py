@@ -360,6 +360,7 @@ def mesh_syn(syn=True, **kwargs):
                 # skip these for protomeshes
                 syn_params += [FloatParameter(qualifier='pot', time=t, value=kwargs.get('pot', 0.0), default_unit=u.dimensionless_unscaled, description='Equipotential of the stellar surface')]
                 syn_params += [FloatParameter(qualifier='rpole', time=t, value=kwargs.get('rpole', 0.0), default_unit=u.solRad, description='Polar radius of the stellar surface')]
+                syn_params += [FloatArrayParameter(qualifier='north_pole', time=t, value=kwargs.get('north_pole', [0,0,1]), default_unit=u.solRad, description='Location of the north pole on the surface')]
                 syn_params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
 
 

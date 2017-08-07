@@ -1544,9 +1544,14 @@ class Star(Body):
 
     @property
     def polar_direction(self):
-        # print "*** polar_direction", self.true_anom, self.pitch, self.yaw
-        # print "*** polar_direction return", mesh.get_polar_direction(self.true_anom, self.pitch, self.yaw)
+        """polar direction in the roche frame"""
         return mesh.get_polar_direction(self.true_anom, self.pitch, self.yaw)
+
+    def get_north_pole(self, rpole=1.0):
+        """location of the north pole in the global/system frame"""
+        roche_polar_direction = self.polar_direction
+        print "***", self.polar_direction, self.pitch, self.yaw
+        return mesh.transform_position_array(roche_polar_direction*rpole, self.mesh._pos, self.mesh._euler, is_normal=False)
 
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
