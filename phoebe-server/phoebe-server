@@ -56,6 +56,7 @@ import random
 import string
 import os
 import sys
+import tempfile
 import traceback
 import StringIO
 from time import sleep
@@ -67,7 +68,7 @@ phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
 # logger = phoebe.logger('INFO')
-_dir_tmpimages = '/tmp/phoebe-server-tmpimages'
+_dir_tmpimages = os.path.join(tempfile.gettempdir(), 'phoebe-server-tmpimages')
 
 if not os.path.exists(_dir_tmpimages):
     os.makedirs(_dir_tmpimages)
