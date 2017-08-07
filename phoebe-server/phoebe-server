@@ -67,7 +67,7 @@ phoebe.interactive_off()
 phoebe.parameters._is_server = True
 
 # logger = phoebe.logger('INFO')
-_dir_tmpimages = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'phoebe-server-tmpimages'))
+_dir_tmpimages = '/tmp/phoebe-server-tmpimages'
 
 if not os.path.exists(_dir_tmpimages):
     os.makedirs(_dir_tmpimages)
