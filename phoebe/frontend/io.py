@@ -264,7 +264,7 @@ def load_lc_data(filename, indep, dep, indweight=None, mzero=None, dir='./'):
         if ncol >= 3:
             d['phoebe_lc_sigmalc'] = lcdata[:,2]
         else:
-            logger.warning('A sigma column was is mentioned in the .phoebe file but is not present in the data file')
+            logger.warning('A sigma column was mentioned in the .phoebe file but is not present in the lc data file')
 
 
 
@@ -289,8 +289,15 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
     d ={}
     d['phoebe_rv_time'] = rvdata[:,0]
     d['phoebe_rv_vel'] = rvdata[:,1]
+    ncol = len(rvdata[0])
+
     if indweight:
-        d['phoebe_rv_sigmarv'] = rvdata[:,2]
+
+        if ncol >= 3:
+            d['phoebe_rv_sigmarv'] = rvdata[:,2]
+        else:
+            logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
+ 
 
     return d
 
@@ -558,7 +565,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     # create rv data dictionary
         indweight = lc_dict['phoebe_lc_indweight']
 
-        if indweight == 'Undefined':
+        if indweight == 'Unavailable':
             indweight = None
 
         if mzero != None and lc_dict['phoebe_lc_filename'] != 'Undefined':
@@ -681,7 +688,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     # create rv data dictionary
         indweight = rv_dict['phoebe_rv_indweight']
 
-        if indweight == 'Undefined':
+        if indweight == 'Unavailable':
             indweight = None
 
         if rv_dict['phoebe_rv_filename'] != 'Undefined':

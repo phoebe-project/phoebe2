@@ -3,5 +3,6 @@ python -m cProfile -o myscript.profile myscript.py
 
 Or, alternatively, to run all at once, use 'run_tests.py benchmarks' in the tests directory
 
-2. look at profile using runsnakerun
+2. look at profile using runsnakerun or snakeviz
 runsnake myscript.profile
+snakeviz myscript.profile

@@ -139,6 +139,13 @@ struct Tsphere {
     ret[3] = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - R2;
   }
 
+
+  void grad_only(T r[3], T ret[3], const bool & precision = false){
+    
+    for (int i = 0; i < 3; ++i) ret[i] = 2*r[i];
+     
+  }
+  
   /*
     Initial point
   */   
@@ -352,7 +359,25 @@ struct Tgen_roche {
         {ret[0], ret[1], ret[2]} = grad-potential
   */
   
-  void grad_only(T r[3], T ret[3]){
+  void grad_only(T r[3], T ret[3], const bool & precision = false){
+    
+    if (precision) {
+      long double 
+        x1 = r[0], 
+        x2 = r[0] - delta, 
+        y = r[1], 
+        z = r[2], 
+        r1 = 1/utils::hypot3(x1, y, z), 
+        r2 = 1/utils::hypot3(x2, y, z), 
+        s = y*y + z*z,
+        f1 = r1/(s + x1*x1),
+        f2 = r2/(s + x2*x2);
+      
+      ret[0] = -x1*(b - f1) + q*(f0 + f2*x2);
+      ret[1] = y*(f1 + q*f2 - b);
+      ret[2] = z*(f1 + q*f2);
+      return;
+    }
     
     T x1 = r[0], 
       x2 = r[0] - delta, 
@@ -510,7 +535,21 @@ struct Trot_star {
         {ret[0], ret[1], ret[2]} = grad-potential
   */
   
-  void grad_only(T r[3], T ret[3]){
+  void grad_only(T r[3], T ret[3], const bool & precision = false){
+    
+    if (precision){
+      long double
+        x = r[0], 
+        y = r[1],
+        z = r[2],
+        f = 1/utils::hypot3(x, y, z),
+        r1 = std::pow(f, 3);
+      
+      ret[0] = (-w2 + r1)*x; 
+      ret[1] = (-w2 + r1)*y;
+      ret[2] = z*r1;
+      return;
+    }
     
     T x = r[0], 
       y = r[1],

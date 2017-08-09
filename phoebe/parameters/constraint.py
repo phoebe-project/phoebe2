@@ -10,7 +10,7 @@ logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
 
-def _get_system_ps(b, item):
+def _get_system_ps(b, item, context='component'):
     """
     parses the input arg (either twig or PS) to retrieve the actual parametersets
     """
@@ -19,9 +19,9 @@ def _get_system_ps(b, item):
     if isinstance(item, ParameterSet):
         return item
     elif isinstance(item, str):
-        return b.filter(item, context='component', check_visible=False)
+        return b.filter(item, context=context, check_visible=False)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("do not support item with type: {}".format(type(item)))
 
 #{ Mathematical expressions
 
@@ -521,8 +521,8 @@ def freq(b, component, solve_for=None, **kwargs):
     #metawargs = component_ps.meta
     #metawargs.pop('qualifier')
 
-    period = component_ps.get_parameter(qualifier='period')
-    freq = component_ps.get_parameter(qualifier='freq')
+    period = component_ps.get_parameter(qualifier='period', check_visible=False)
+    freq = component_ps.get_parameter(qualifier='freq', check_visible=False)
 
     if solve_for in [None, freq]:
         lhs = freq
@@ -799,7 +799,7 @@ def potential(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
 
 
-    if parentorbit == 'component':
+    if parentorbit is None:
         # then single star (rotstar) case
         pot = component_ps.get_parameter(qualifier='pot')
         rpole = component_ps.get_parameter(qualifier='rpole')
@@ -947,7 +947,23 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
 
     return lhs, rhs, {'component': component}
 
+#}
+#{ Feature constraints
 
+def colon_deprecation(b, feature, solve_for=None, **kwargs):
+    feature_ps = _get_system_ps(b, feature, context='feature')
+
+    longitude = feature_ps.get_parameter(qualifier='long')
+    colon = feature_ps.get_parameter(qualifier='colon')
+
+    if solve_for in [None, colon]:
+        lhs = colon
+        rhs = 1*longitude
+    else:
+        lhs = longitude
+        rhs = 1*colon
+
+    return lhs, rhs, {'feature': feature}
 
 #}
 #{ Data constraints
@@ -1036,4 +1052,3 @@ def etv(b, component, dataset, solve_for=None, **kwargs):
     return lhs, rhs, {'component': component, 'dataset': dataset}
 
 #}
-

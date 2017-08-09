@@ -1,27 +1,38 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-# import these so they'll be available as phoebe.constants.c (but then imported as phoebe2.c)
+from astropy import __version__ as astropyversion
+
+# import these so they'll be available as unitsiau2015.u and unitsiau2015.c
 import astropy.constants as c
 import astropy.units as u
 
-
-from astropy.constants import Constant
 from astropy.units import def_unit
+from astropy.constants import Constant
+
+def _register_unit(unit):
+    """
+    register this unit in the phoebe.u namespace
+    """
+    for name in unit._names:
+        setattr(u, name, unit)
+        for reg in u.core._unit_registries:
+            reg._registry[name] = unit
 
 
-_use_resolution = True
-# NOTE: changing this to True will break the dynamics nosetest (until n-body is fixed to also handle IAU constants)
+# TODO: pass namespace for units package so that prefixes are loaded (otherwise calling ksolMass will call from the old constants)
+ns = None
 
-"""
-see https://www.iau.org/static/resolutions/IAU2015_English.pdf
+from distutils.version import LooseVersion
+if LooseVersion(astropyversion) < LooseVersion('2.0'):
 
-Here we'll override astropy's constants to adhere to the IAU Resolution for nominal units
-"""
 
-# TODO: avogrado to 6.0221409e23 (to match legacy)
+    """
+    see https://www.iau.org/static/resolutions/IAU2015_English.pdf
 
-if _use_resolution:
+    Here we'll override astropy's constants to adhere to the IAU Resolution for nominal units
+    """
+
     # TODO: find correct error estimate for this value of G
     G = Constant('G', "Gravitational constant", 6.67408e-11, 'm3 / (kg s2)', 0.00080e-11, 'NSFA 2011', system='si')
     c.G = G
@@ -51,28 +62,10 @@ if _use_resolution:
     c.L_sun = L_sun
     c.si.L_sun = L_sun
 
-    T_sun = Constant('T_sun', "Solar effective temperature", 5772, 'K', None, "IAU 2015 Resolution B3", system='si')
-    c.T_sun = T_sun
-    c.si.T_sun = T_sun
-
-"""
-Now we need to redefine the units to use these constants
-"""
-
-
-def _register_unit(unit):
     """
-    register this unit in the phoebe.u namespace
+    Now we need to redefine the units to use these constants
     """
-    for name in unit._names:
-        setattr(u, name, unit)
-        for reg in u.core._unit_registries:
-            reg._registry[name] = unit
 
-
-if _use_resolution:
-    # TODO: pass namespace for units package so that prefixes are loaded (otherwise calling ksolMass will call from the old constants)
-    ns = None
 
     solMass = def_unit(['solMass', 'M_sun', 'Msun'], c.si.M_sun, namespace=ns,
              prefixes=True, doc="Solar mass (nominal)",
@@ -93,31 +86,50 @@ if _use_resolution:
 
     _register_unit(solLum)
 
+    """
+    Let's cleanup the imports so these entries don't
+    show at the top-level
+    """
 
-    solTeff = def_unit(['solTeff', 'T_sun', 'Tsun'], c.si.T_sun, namespace=ns,
-            prefixes=True, doc="Solar effective temperature (nominal)",
-            format={'latex': r'{\mathcal{T}^{\rm N}_\odot}'})
-
-    _register_unit(solTeff)
-
-
-"""
-And lastly, let's cleanup the imports so these entries don't
-show at the top-level of phoebe
-"""
-if _use_resolution:
     del G
     del GM_sun
     del M_sun
     del R_sun
     del L_sun
-    del T_sun
     del solMass
     del solRad
     del solLum
-    del solTeff
-    del ns
 
+
+else:
+    # current defaults in astropy (as of 2.0) are codata2014 and iau2015
+    pass
+
+
+"""
+T_sun is not provided by astropy 2.0, so we'll set the constant and the unit
+for any version of astropy
+"""
+
+T_sun = Constant('T_sun', "Solar effective temperature", 5772, 'K', None, "IAU 2015 Resolution B3", system='si')
+c.T_sun = T_sun
+c.si.T_sun = T_sun
+
+solTeff = def_unit(['solTeff', 'T_sun', 'Tsun'], c.si.T_sun, namespace=ns,
+        prefixes=True, doc="Solar effective temperature (nominal)",
+        format={'latex': r'{\mathcal{T}^{\rm N}_\odot}'})
+
+_register_unit(solTeff)
+
+
+"""
+And lastly, let's do all remaining cleanup
+"""
+del LooseVersion
+
+del T_sun
 del Constant
+
+del solTeff
+del ns
 del def_unit
-del _use_resolution
