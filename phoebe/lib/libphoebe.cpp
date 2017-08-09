@@ -4916,6 +4916,13 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
           gen_roche::poleR(Omega0, q, F, d)
         ));      
   }
+
+    // extend the ranges for better subdivision
+
+  for (int i = 0; i < 3; ++i){
+    ranges[i][0] += 0.1*ranges[i][0];
+    ranges[i][1] -= 0.1*ranges[i][0];
+  }
   
   //
   // Determining characteristics of the grid

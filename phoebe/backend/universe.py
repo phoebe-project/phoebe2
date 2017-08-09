@@ -2503,7 +2503,7 @@ class Envelope(Body):
 
                 # compute the positions of the minimum radii of the neck in the xy and xz planes
                 # when temperature_method becomes available, wrap this with if tmethod='wd':
-                xy,xz,y,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
+                xz,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
                 # choose which value of x to use as the minimum (maybe extend to average of both?
                 xmin = xz
 
@@ -2607,7 +2607,7 @@ class Envelope(Body):
             # env_comp = 0 for primary part of the envelope, 1 for secondary
 
             # compute the positions of the minimum radii of the neck in the xy and xz planes
-            xy,xz,y,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
+            xz,z = potentials.nekmin(Phi,q,0.5,0.05,0.05)
             # choose which value of x to use as the minimum (maybe extend to average of both?
             xmin = xz
 
