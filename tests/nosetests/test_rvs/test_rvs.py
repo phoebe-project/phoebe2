@@ -5,7 +5,6 @@ import phoebe
 from phoebe import u
 import numpy as np
 import matplotlib.pyplot as plt
-import phoebeBackend as phb
 
 phoebe.devel_on()
 # phoebe.interactive_on()
