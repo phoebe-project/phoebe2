@@ -6,7 +6,7 @@ from phoebe.frontend import io
 
 
 try:
-    import phoebeBackend as phb
+    import phoebe_legacy as phb
 except ImportError:
     _can_phb = False
 else:
@@ -86,7 +86,7 @@ def wd(b, time, scale, pos):
 
     if not _phb_init:
         phb.init()
-        phb.configure()
+        phb.auto_configure()
 
 
     # TODO: move this outside the loop into backends.py?

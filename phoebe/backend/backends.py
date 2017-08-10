@@ -12,7 +12,7 @@ from phoebe import u, c
 from phoebe import conf
 
 try:
-    import phoebeBackend as phb1
+    import phoebe_legacy as phb1
 except ImportError:
     _use_phb1 = False
 else:
@@ -1094,7 +1094,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    io.pass_to_legacy(b, filename=filename, compute=compute, **kwargs)
     phb1.init()
     try:
-        phb1.configure()
+        phb1.auto_configure()
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 #   real

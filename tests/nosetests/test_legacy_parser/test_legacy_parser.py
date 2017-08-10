@@ -1,5 +1,5 @@
 import phoebe as phb2
-import phoebeBackend as phb1
+import phoebe_legacy as phb1
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -13,7 +13,7 @@ def legacy_test(filename='default.phoebe'):
     dir = os.path.dirname(os.path.realpath(__file__))
 
     phb1.init()
-    phb1.configure()
+    phb1.auto_configure()
     phb1.open(os.path.join(dir, filename))
 
     #load phoebe2 file

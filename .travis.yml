@@ -95,18 +95,22 @@ install:
     - source ci-helpers/travis/setup_conda.sh
     - python setup.py build
     - python setup.py install --user
-    - mkdir ~/.phoebe-svn
-    - cp tests/travis/phoebe.config ~/.phoebe-svn/
-    - git clone git://github.com/phoebe-project/phoebe1.git
-    - cd phoebe1/phoebe-lib
-    - ./configure
-    - make
-    - sudo make install
-    - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo ldconfig -v; fi;
-    - cd ../phoebe-py
-    - python setup.py build
-    - python setup.py install --user
-    - cd ../..
+    - git clone -b phoebe_legacy git://github.com/phoebe-project/phoebe1.git
+    - cd phoebe1
+    - python setup_static.py install --user
+    - cd ..
+#    - mkdir ~/.phoebe-svn
+#    - cp tests/travis/phoebe.config ~/.phoebe-svn/
+#    - git clone git://github.com/phoebe-project/phoebe1.git
+#    - cd phoebe1/phoebe-lib
+#    - ./configure
+#    - make
+#    - sudo make install
+#    - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo ldconfig -v; fi;
+#    - cd ../phoebe-py
+#    - python setup.py build
+#    - python setup.py install --user
+#    - cd ../..
     - git clone git://github.com/phoebe-project/photodynam.git
     - cd photodynam
     - make
