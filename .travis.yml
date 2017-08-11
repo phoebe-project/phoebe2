@@ -85,9 +85,9 @@ before_install:
     - rvm get head
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
         brew install llvm --with-clang --with-clang-extra-tools;
-        brew install gcc --enable-fortran;
-        gfortran --version;
-        find /usr -name 'libgfortran*';
+        brew install gcc;
+        #gfortran --version;
+        #find /usr -name 'libgfortran*';
         export LIBRARY_PATH=/usr/local/Cellar/gcc/7.1.0/lib/gcc/7:${LIBRARY_PATH};
       fi;
 
