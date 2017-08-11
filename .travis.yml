@@ -88,7 +88,7 @@ before_install:
         brew install gcc --enable-fortran;
         gfortran --version;
         find /usr -name 'libgfortran*';
-        export LIBRARY_PATH=${LIBRARY_PATH}:/usr/local/gfortran/lib/;
+        export LIBRARY_PATH=/usr/local/Cellar/gcc/7.1.0/lib/gcc/7:${LIBRARY_PATH};
       fi;
 
 install:
