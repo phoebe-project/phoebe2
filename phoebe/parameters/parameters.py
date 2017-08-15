@@ -1157,13 +1157,7 @@ class ParameterSet(object):
         else:
             kwargs = {}
 
-        # TODO: why the try except here?
-        try:
-            self.set(twig, value, **kwargs)
-        except ValueError, msg:
-            # TODO: custom error type for more than 1 result and mention
-            # changing dict_set_all@settings
-            raise ValueError(msg)
+        self.set(twig, value, **kwargs)
 
     def __contains__(self, twig):
         """
