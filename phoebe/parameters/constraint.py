@@ -17,7 +17,7 @@ def _get_system_ps(b, item, context='component'):
     # TODO: make this a decorator?
 
     if isinstance(item, ParameterSet):
-        return item
+        return item.filter(context=context, check_visible=False)
     elif isinstance(item, str):
         return b.filter(item, context=context, check_visible=False)
     else:
