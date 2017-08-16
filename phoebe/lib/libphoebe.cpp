@@ -2199,7 +2199,10 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
-      init_phi: float, default 0
+      init_phi: float, default 0  
+        orientation of the initial polygon front
+      init_dir: 1-rank numpy array of floats = [theta, phi], default [0,0]
+        direction of the initial point in marching given by spherical angles
 
   Returns:
   
@@ -2284,9 +2287,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (char*)"area",
     (char*)"volume",
     (char*)"init_phi",
+    (char*)"init_dir",
     NULL};
   
-  double omega, Omega0, delta, init_phi = 0;   
+  double omega, Omega0, delta, 
+         init_phi = 0, init_dir[2] = {0., 0.};  
   
   int max_triangles = 10000000; // 10^7
       
@@ -2317,10 +2322,12 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     *o_cnormgrads = 0,
     *o_areas = 0,
     *o_area = 0,
-    *o_volume = 0; 
+    *o_volume = 0;
+    
+  PyArrayObject *o_init_dir = 0; 
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!dO!", kwlist,
       &omega, &Omega0, &delta, // neccesary 
       &max_triangles,
       &PyBool_Type, &o_full,       
@@ -2335,7 +2342,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume,
-      &init_phi)
+      &init_phi,
+      &PyArray_Type, &o_init_dir)
   ){
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
@@ -2353,6 +2361,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   if (o_areas) b_areas = PyObject_IsTrue(o_areas);
   if (o_area) b_area = PyObject_IsTrue(o_area);
   if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+  if (o_init_dir) {
+    double *p = (double*)PyArray_DATA(o_init_dir);
+    init_dir[0] = p[0];
+    init_dir[1] = p[1];
+  }
      
   //
   // Storing results in dictioonary
@@ -2366,7 +2379,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   //
   
   double r[3], g[3];
-  rot_star::meshing_start_point(r, g, Omega0, omega);
+  //rot_star::meshing_start_point(r, g, Omega0, omega);
+  rot_star::point_on_surface(init_dir[0], init_dir[1], Omega0, omega, r, g);
  
   //
   //  Marching triangulation of the Roche lobe 
