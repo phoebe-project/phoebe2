@@ -86,7 +86,7 @@ before_install:
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
         brew install llvm --with-clang --with-clang-extra-tools;
         brew install gcc;
-        DIR=`dirname /usr/local/Celler/gcc/*/lib/gcc/*/libgfortran.a`
+        DIR=`dirname /usr/local/Celler/gcc/*/lib/gcc/*/libgfortran.a`;
         export LIBRARY_PATH=${DIR}:${LIBRARY_PATH};
       fi;
 
