@@ -37,7 +37,9 @@ def euler_trans_matrix(etheta, elongan, eincl):
 
     The matrix is
 
-      R(long,incl,theta) = Rz(pi).Rz(long).Rx(incl).Rz(theta)
+      R(long,incl,theta) = 
+        Rz(pi).Rz(long).Rx(incl).Rz(theta)
+        Rz(long).Rx(-incl).Rz(theta).Rz(pi)
 
     where
 
