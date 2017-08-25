@@ -8,7 +8,6 @@ import copy
 from phoebe.atmospheres import passbands
 from phoebe.distortions import roche, rotstar
 from phoebe.backend import eclipse, potentials, mesh
-from phoebe.backend import asteroseismo
 import libphoebe
 
 from phoebe import u
@@ -3291,25 +3290,14 @@ class Pulsation(Feature):
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
-        xi_r = self._radamp * np.sqrt(4.*np.pi) * asteroseismo.as_xi_r(self._l, self._m, theta, phi, 2*np.pi*self._freq*t)
-        if self._l > 0:
-            xi_t = self._tanamp * np.sqrt(4.*np.pi) * asteroseismo.as_xi_theta(self._l, self._m, theta, phi, 2*np.pi*self._freq*t)
-            xi_p = self._tanamp * np.sqrt(4.*np.pi) * asteroseismo.as_xi_phi(self._l, self._m, theta, phi, 2*np.pi*self._freq*t)
-        else:
-            xi_t = np.zeros_like(theta)
-            xi_p = np.zeros_like(phi)
-
-        new_r = r + xi_r.real
-        new_theta = theta + xi_t.real
-        new_phi = phi + xi_p.real
+        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
 
         new_coords = np.zeros(coords_for_computations.shape)
-        #~ new_coords[:,0] = coords_for_observations[:,0] + xi_r.real * np.sin(theta + xi_t.real) * np.sin(phi + xi_p.real)
-        #~ new_coords[:,1] = coords_for_observations[:,1] + xi_r.real * np.sin(theta + xi_t.real) * np.cos(phi + xi_p.real)
-        #~ new_coords[:,2] = coords_for_observations[:,2] + xi_r.real * np.cos(theta + xi_t.real)
-        new_coords[:,0] = new_r * np.sin(new_theta) * np.sin(new_phi)
-        new_coords[:,1] = new_r * np.sin(new_theta) * np.cos(new_phi)
-        new_coords[:,2] = new_r * np.cos(new_theta)
+        new_coords[:,0] = coords_for_computations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
+        new_coords[:,1] = coords_for_computations[:,1] + xi_r * np.sin(theta) * np.sin(phi)
+        new_coords[:,2] = coords_for_computations[:,2] + xi_r * np.cos(theta)
 
         return new_coords
 
@@ -3333,29 +3321,14 @@ class Pulsation(Feature):
         theta = np.arccos(z/r)
         phi = np.arctan2(y, x)
 
-        #~ xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        #~ xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-        #~ xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
-
-        xi_r = self._radamp * np.sqrt(4.*np.pi) * asteroseismo.as_xi_r(self._l, self._m, theta, phi, 2*np.pi*self._freq*t)
-        if self._l > 0:
-            xi_t = self._tanamp * np.sqrt(4.*np.pi) * asteroseismo.as_xi_theta(self._l, self._m, theta, phi, 2*np.pi*self._freq*t)
-            xi_p = self._tanamp * np.sqrt(4.*np.pi) * asteroseismo.as_xi_phi(self._l, self._m, theta, phi, 2*np.pi*self._freq*t)
-        else:
-            xi_t = np.zeros_like(theta)
-            xi_p = np.zeros_like(phi)
-
-        new_r = r + xi_r.real
-        new_theta = theta + xi_t.real
-        new_phi = phi + xi_p.real
+        xi_r = self._radamp * Y(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_t = self._tanamp * self.dYdtheta(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
+        xi_p = self._tanamp/np.sin(theta) * self.dYdphi(self._m, self._l, theta, phi) * np.exp(-1j*2*np.pi*self._freq*t)
 
         new_coords = np.zeros(coords_for_observations.shape)
-        #~ new_coords[:,0] = coords_for_observations[:,0] + xi_r.real * np.sin(theta + xi_t.real) * np.sin(phi + xi_p.real)
-        #~ new_coords[:,1] = coords_for_observations[:,1] + xi_r.real * np.sin(theta + xi_t.real) * np.cos(phi + xi_p.real)
-        #~ new_coords[:,2] = coords_for_observations[:,2] + xi_r.real * np.cos(theta + xi_t.real)
-        new_coords[:,0] = new_r * np.sin(new_theta) * np.sin(new_phi)
-        new_coords[:,1] = new_r * np.sin(new_theta) * np.cos(new_phi)
-        new_coords[:,2] = new_r * np.cos(new_theta)
+        new_coords[:,0] = coords_for_observations[:,0] + xi_r * np.sin(theta) * np.cos(phi)
+        new_coords[:,1] = coords_for_observations[:,1] + xi_r * np.sin(theta) * np.sin(phi)
+        new_coords[:,2] = coords_for_observations[:,2] + xi_r * np.cos(theta)
 
         return new_coords
 
