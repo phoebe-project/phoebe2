@@ -84,6 +84,69 @@ def euler_trans_matrix(etheta, elongan, eincl):
                         [s1*s3, s1*c3, c1]
                     ])
 
+def Rx(x):
+  c = cos(x)
+  s = sin(x)
+  return np.array([[1., 0., 0.], [0., c, -s], [0., s, c]])
+
+def Ry(x):
+  c = cos(x)
+  s = sin(x)
+  return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
+
+def Rz(x):
+  c = cos(x)
+  s = sin(x)
+  return np.array([[c, 0., -s], [0., 1., 0.], [s, 0., c]])
+
+
+def spin(etheta, elongan, eincl, alpha, beta):
+  """
+    Spin in the plane of sky of a star on a Kepler orbit given by
+    
+      theta  - true anomaly
+      longan - longitude of ascending node
+      incl - inclination
+    
+    spherical coordinate on the orbital plane: 
+    
+      alpha  - angle between spin and ?ascending node?
+      beta - angle between spin and angular momentum
+    
+    Return:
+      spin - in plane of sky
+  """    
+  #  m = Rz(long).Rx(-incl).Rz(theta).Rz(pi)
+  m = euler_trans_matrix(etheta, elongan, eincl)
+  
+  ca = cos(alpha)
+  sa = sin(alpha)
+  
+  cb = cos(beta)
+  sb = sin(beta)
+  
+  # v = Rz(alpha) Ry(beta) [0, 0, 1]^T
+  v = np.array([sb*ca, sb*sa, cb])
+  
+  return np.dot(m, v) 
+
+
+def spin_in_roche(s, etheta, elongan, eincl):
+  """
+    Transform the spin s of a star on Kerpler orbit with 
+      
+      theta  - true anomaly
+      longan - longitude of ascending node
+      incl - inclination
+  
+    from in plane of sky reference frame into Roche reference frame
+    
+  """
+  #  m = Rz(long).Rx(-incl).Rz(theta).Rz(pi)
+  m = euler_trans_matrix(etheta, elongan, eincl)
+  
+  return np.dot(m.T, v) 
+
 
 def general_rotation_matrix(theta, phi, alpha):
   """
