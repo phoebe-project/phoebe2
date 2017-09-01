@@ -139,8 +139,8 @@ def spin_in_roche(s, etheta, elongan, eincl):
       longan - longitude of ascending node
       incl - inclination
   
-    from in plane of sky reference frame into Roche reference frame
-    
+    from in the plane of sky reference frame into 
+    the Roche reference frame.
   """
   #  m = Rz(long).Rx(-incl).Rz(theta).Rz(pi)
   m = euler_trans_matrix(etheta, elongan, eincl)
