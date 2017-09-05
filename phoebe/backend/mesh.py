@@ -116,7 +116,8 @@ def spin(elongan, eincl, alpha, beta):
     Return:
       spin - in plane of sky
   """    
-  #  m = Rz(long).Rx(-incl)
+  #  m = Rz(long).Rx(-incl), we could also have
+  #  m = Rz(long).Rx(-incl).Rz(pi)
   m = euler_trans_matrix(-pi, elongan, eincl)
   
   ca = cos(alpha)
