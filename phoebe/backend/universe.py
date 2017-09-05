@@ -514,7 +514,7 @@ class System(object):
 
 
 class Body(object):
-    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, t0,
+    def __init__(self, comp_no, ind_self, ind_sibling, masses, ecc, incl, long_an, t0,
                  atm='blackbody',
                  datasets=[], passband = {}, intens_weighting='energy',
                  ld_func={}, ld_coeffs={},
@@ -559,7 +559,13 @@ class Body(object):
         self.t0 = t0   # t0@system
         self.time = None
         self.true_anom = 0.0
+        self.true_anom_comp = 0.0 if comp_no == 1 else np.pi
+        self.elongan = long_an
+        self.eincl = incl
         self.populated_at_time = []
+
+        self.incl_orbit = incl
+        self.longan_orbit = long_an
 
         # Let's create a dictionary to store "standard" protomeshes at different "phases"
         # For example, we may want to store the mesh at periastron and use that as a standard
@@ -782,13 +788,16 @@ class Body(object):
 
         # return mesh
 
-    def reset_time(self, time, true_anom):
+    def reset_time(self, time, true_anom, elongan, eincl):
         """
         TODO: add documentation
         """
         self._mesh = None
         self.time = time
         self.true_anom = true_anom
+        self.true_anom_comp = true_anom if self.comp_no==1 else true_anom + np.pi
+        self.elongan = elongan
+        self.eincl = eincl
         self.populated_at_time = []
 
         return
@@ -814,7 +823,7 @@ class Body(object):
         if not self.mesh_initialized:
             self.initialize_mesh()
 
-        self.reset_time(time, ethetas[self.ind_self])
+        self.reset_time(time, ethetas[self.ind_self], elongans[self.ind_self], eincls[self.ind_self])
 
         #-- Get current position/euler information
         # TODO: remove this if/else if all dynamics method now support eulerian elements
@@ -1097,7 +1106,7 @@ class Body(object):
     #             'intensities': intensities}
 
 class CustomBody(Body):
-    def __init__(self, masses, sma, ecc, t0, freq_rot, teff, abun,
+    def __init__(self, masses, sma, ecc, incl, long_an, t0, freq_rot, teff, abun,
                  dynamics_method='keplerian',
                  ind_self=0, ind_sibling=1, comp_no=1,
                  atm='blackbody', datasets=[], passband={},
@@ -1117,7 +1126,7 @@ class CustomBody(Body):
         :raises NotImplementedError: because it isn't
         """
         super(CustomBody, self).__init__(comp_no, ind_self, ind_sibling,
-                                         masses, ecc, t0,
+                                         masses, ecc, incl, long_an, t0,
                                          atm, datasets, passband,
                                          intens_weighting,
                                          ld_func, ld_coeffs,
@@ -1172,6 +1181,9 @@ class CustomBody(Body):
         sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
         ecc = b.get_value('ecc', component=label_orbit, context='component')
 
+        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
+        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
+
         # TODO: retrieve atm, ld_func, ld_coeffs
         atm = 'blackbody'
         ld_func = {}
@@ -1179,7 +1191,7 @@ class CustomBody(Body):
         passband = {}
         intens_weighting = {}
 
-        return cls(masses, sma, ecc, t0, freq_rot, teff, abun, dynamics_method,
+        return cls(masses, sma, ecc, incl, long_an, t0, freq_rot, teff, abun, dynamics_method,
                    ind_self, ind_sibling, comp_no,
                    atm, datasets, passband, intens_weighting, ld_func, ld_coeffs)
 
@@ -1280,8 +1292,8 @@ class CustomBody(Body):
 
 
 class Star(Body):
-    def __init__(self, F, Phi, masses, sma, ecc, t0,
-                 freq_rot, pitch, yaw,
+    def __init__(self, F, Phi, masses, sma, ecc, incl, long_an, t0,
+                 freq_rot, spin,
                  teff, gravb_bol,
                  abun, irrad_frac_refl,
                  mesh_method='marching',
@@ -1301,15 +1313,15 @@ class Star(Body):
         :type masses: list of floats
         :parameter float sma: sma of this component's parent orbit (solRad)
         :parameter float freq_rot: rotation frequency (rad/d)
-        :parameter float pitch: pitch of star relative to orbit (rad)
-        :parameter float yaw: yaw of star relative to orbit (rad)
+        :parameter float spin: direction of the spin axes in the global/system frame (array with length 3)
         :parameter float abun: abundance of this star
         :parameter int ind_self: index in all arrays (positions, masses, etc) for this object
         :parameter int ind_sibling: index in all arrays (positions, masses, etc)
             for the sibling of this object
         :return: instantiated :class:`Star` object
         """
-        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc, t0,
+        super(Star, self).__init__(comp_no, ind_self, ind_sibling, masses, ecc,
+                                   incl, long_an, t0,
                                    atm, datasets, passband,
                                    intens_weighting, ld_func, ld_coeffs,
                                    dynamics_method=dynamics_method,
@@ -1341,8 +1353,8 @@ class Star(Body):
         # NOTE: self.q may be flipped her for the secondary
         self.Phi = roche.pot_for_component(Phi, self.q, self.comp_no)
 
-        self.pitch = pitch
-        self.yaw = yaw
+        # spin direction in the global/system coordinates
+        self.spin = spin
 
         self.teff = teff
         self.gravb_bol = gravb_bol
@@ -1416,17 +1428,20 @@ class Star(Body):
         if b.hierarchy.get_parent_of(component) != 'component':
             sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
             ecc = b.get_value('ecc', component=label_orbit, context='component')
-            pitch = self_ps.get_value('pitch', unit=u.rad)
-            yaw = self_ps.get_value('yaw', unit=u.rad)
             is_single = False
         else:
             # single star case
             # here sma is meaningless, but we'll compute the mesh using the polar radius as the scaling factor
             sma = 1.0 #b.get_value('rpole', component=star, context='component', unit=u.solRad)
             ecc = 0.0
-            pitch = 0.0
-            yaw = 0.0
             is_single = True
+
+        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
+        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
+
+        incl_star = self_ps.get_value('incl', unit=u.rad)
+        long_an_star = self_ps.get_value('long_an', unit=u.rad)
+        spin = mesh.spin_in_system(incl_star, long_an_star)
 
         t0 = b.get_value('t0', context='system', unit=u.d)
 
@@ -1477,8 +1492,8 @@ class Star(Body):
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
-        return cls(F, Phi, masses, sma, ecc, t0,
-                freq_rot, pitch, yaw,
+        return cls(F, Phi, masses, sma, ecc, incl, long_an, t0,
+                freq_rot, spin,
                 teff, gravb_bol,
                 abun, irrad_frac_refl,
                 mesh_method, dynamics_method,
@@ -1492,6 +1507,12 @@ class Star(Body):
     @property
     def spots(self):
         return [f for f in self.features if f.__class__.__name__=='Spot']
+
+    @property
+    def is_misaligned(self):
+        """
+        """
+        return self.eincl == self.incl_orbit and self.elongan == self.longan_orbit
 
     @property
     def needs_recompute_instantaneous(self):
@@ -1517,7 +1538,7 @@ class Star(Body):
         we can skip volume conservation only for circular orbits
         even for circular orbits - if we're using nbody but roche distortion, we must remesh to handle instantaneous changes to d or F
         """
-        return self.ecc != 0 or self.pitch != 0 or self.yaw != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche')
+        return self.ecc != 0 or (self.dynamics_method != 'keplerian' and self.distortion_method == 'roche') or self.is_misaligned
 
 
     def get_target_volume(self, etheta, scaled=False):
@@ -1545,13 +1566,14 @@ class Star(Body):
     @property
     def polar_direction(self):
         """polar direction in the roche frame"""
-        return mesh.get_polar_direction(self.true_anom, self.pitch, self.yaw)
+        #print "*** polar_direction spin: {} true_anom: {}, true_anom_comp: {}, polar_direction: {}".format(self.spin, self.true_anom, self.true_anom_comp, mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl))
+        return mesh.spin_in_roche(self.spin, self.true_anom_comp, self.elongan, self.eincl)
 
     def get_north_pole(self, rpole=1.0):
         """location of the north pole in the global/system frame"""
-        roche_polar_direction = self.polar_direction
-        print "***", self.polar_direction, self.pitch, self.yaw
-        return mesh.transform_position_array(roche_polar_direction*rpole, self.mesh._pos, self.mesh._euler, is_normal=False)
+        #print "*** north_pole", self.spin, self.spin*rpole+self.mesh._pos
+        return self.spin*rpole+self.mesh._pos
+        #return mesh.transform_position_array(self.spin*rpole, self.mesh._pos, self.mesh._euler, is_normal=False)
 
     def _build_mesh(self, d, mesh_method, **kwargs):
         """
@@ -2154,7 +2176,7 @@ class Star(Body):
 
 
 class Envelope(Body):
-    def __init__(self, Phi, masses, sma, ecc, t0, freq_rot, teff1, teff2,
+    def __init__(self, Phi, masses, sma, ecc, incl, long_an, t0, freq_rot, teff1, teff2,
             abun, irrad_frac_refl1, irrad_frac_refl2, gravb_bol1, gravb_bol2, mesh_method='marching',
             dynamics_method='keplerian', mesh_init_phi=0.0, ind_self=0, ind_sibling=1, comp_no=1,
             atm='blackbody', datasets=[], passband={}, intens_weighting={},
@@ -2176,7 +2198,7 @@ class Envelope(Body):
         :return: instantiated :class:`Envelope` object
         """
         super(Envelope, self).__init__(comp_no, ind_self, ind_sibling, masses,
-                                       ecc, t0, atm, datasets, passband,
+                                       ecc, incl, long_an, t0, atm, datasets, passband,
                                        intens_weighting,
                                        ld_func, ld_coeffs,
                                        dynamics_method=dynamics_method,
@@ -2305,6 +2327,9 @@ class Envelope(Body):
         sma = b.get_value('sma', component=label_orbit, context='component', unit=u.solRad)
         ecc = b.get_value('ecc', component=label_orbit, context='component')
 
+        incl = b.get_value('incl', component=label_orbit, context='component', unit=u.rad)
+        long_an = b.get_value('long_an', component=label_orbit, context='component', unit=u.rad)
+
         t0 = b.get_value('t0', context='system', unit=u.d)
 
         #teff = b.get_value('teff', component=component, context='component', unit=u.K)
@@ -2366,7 +2391,7 @@ class Envelope(Body):
         ld_func['bol'] = b.get_value('ld_func_bol', component=component, context='component', **kwargs)
         ld_coeffs['bol'] = b.get_value('ld_coeffs_bol', component=component, context='component', **kwargs)
 
-        return cls(Phi, masses, sma, ecc, t0,
+        return cls(Phi, masses, sma, ecc, incl, long_an, t0,
                 freq_rot, teff1, teff2, abun, irrad_frac_refl1, irrad_frac_refl2,
                 gravb_bol1, gravb_bol2, mesh_method, dynamics_method,
                 mesh_init_phi, ind_self, ind_sibling, comp_no,
@@ -2387,9 +2412,6 @@ class Envelope(Body):
         """
         if self.ecc != 0.0:
             # for eccentric orbits we need to recompute values at every time-step
-            return True
-        elif self.pitch != 0.0 or self.yaw != 0.0:
-            # for misaligned orbits, the polar direction changes at each time-step
             return True
         else:
             # In circular orbits we should be safe to assume these quantities

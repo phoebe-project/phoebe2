@@ -37,7 +37,7 @@ def euler_trans_matrix(etheta, elongan, eincl):
 
     The matrix is
 
-      R(long,incl,theta) = 
+      R(long,incl,theta) =
         Rz(pi).Rz(long).Rx(incl).Rz(theta)
         Rz(long).Rx(-incl).Rz(theta).Rz(pi)
 
@@ -105,48 +105,62 @@ def spin(elongan, eincl, alpha, beta):
   """
     Spin in the plane of sky of a star on a Kepler orbit with orientation
     given by
-    
+
       longan - longitude of ascending node
       incl - inclination
-    
-    spherical coordinate on the orbital plane: 
-    
+
+    spherical coordinate on the orbital plane:
+
       alpha  - angle between spin and ?ascending node?
       beta - angle between spin and angular momentum
-    
+
     Return:
       spin - in plane of sky
   """    
   #  m = Rz(long).Rx(-incl), or we could have Rz(long).Rx(-incl).Rz(pi)
   m = euler_trans_matrix(-pi, elongan, eincl)
-  
+
   ca = cos(alpha)
   sa = sin(alpha)
-  
+
   cb = cos(beta)
   sb = sin(beta)
-  
+
   # v = Rz(alpha) Ry(beta) [0, 0, 1]^T
   v = np.array([sb*ca, sb*sa, cb])
-  
+
   return np.dot(m, v)
 
 
+def spin_in_system(incl, long_an):
+    """
+    Spin in the plane of sky of a star given its inclination and "long_an"
+
+       incl - inclination of the star in the plane of sky
+       long_an - longitude of ascending node (equator) of the star in the plane of sky
+
+    Return:
+        spin - in plane of sky
+    """
+    #print "*** spin_in_system", incl, long_an, np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0,0,1])))
+    # Rz(long_an) Rx(incl) [0, 0, 1]
+    return np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0,0,1])))
+
 def spin_in_roche(s, etheta, elongan, eincl):
   """
-    Transform the spin s of a star on Kerpler orbit with 
-      
-      theta  - true anomaly
-      longan - longitude of ascending node
-      incl - inclination
-  
-    from in the plane of sky reference frame into 
+    Transform the spin s of a star on Kerpler orbit with
+
+      etheta  - true anomaly
+      elongan - longitude of ascending node
+      eincl - inclination
+
+    from in the plane of sky reference frame into
     the Roche reference frame.
   """
   #  m = Rz(long).Rx(-incl).Rz(theta).Rz(pi)
   m = euler_trans_matrix(etheta, elongan, eincl)
-  
-  return np.dot(m.T, v) 
+
+  return np.dot(m.T, s)
 
 
 def general_rotation_matrix(theta, phi, alpha):
