@@ -92,12 +92,13 @@ def Rx(x):
 def Ry(x):
   c = cos(x)
   s = sin(x)
-  return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
+  return np.array([[c, 0., -s], [0., 1., 0.], [s, 0., c]])
 
 def Rz(x):
   c = cos(x)
   s = sin(x)
-  return np.array([[c, 0., -s], [0., 1., 0.], [s, 0., c]])
+  return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
+
 
 
 def spin(elongan, eincl, alpha, beta):
@@ -116,8 +117,7 @@ def spin(elongan, eincl, alpha, beta):
     Return:
       spin - in plane of sky
   """    
-  #  m = Rz(long).Rx(-incl), we could also have
-  #  m = Rz(long).Rx(-incl).Rz(pi)
+  #  m = Rz(long).Rx(-incl), or we could have Rz(long).Rx(-incl).Rz(pi)
   m = euler_trans_matrix(-pi, elongan, eincl)
   
   ca = cos(alpha)
