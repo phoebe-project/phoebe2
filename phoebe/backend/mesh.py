@@ -100,11 +100,11 @@ def Rz(x):
   return np.array([[c, 0., -s], [0., 1., 0.], [s, 0., c]])
 
 
-def spin(etheta, elongan, eincl, alpha, beta):
+def spin(elongan, eincl, alpha, beta):
   """
-    Spin in the plane of sky of a star on a Kepler orbit given by
+    Spin in the plane of sky of a star on a Kepler orbit with orientation
+    given by
     
-      theta  - true anomaly
       longan - longitude of ascending node
       incl - inclination
     
@@ -116,8 +116,8 @@ def spin(etheta, elongan, eincl, alpha, beta):
     Return:
       spin - in plane of sky
   """    
-  #  m = Rz(long).Rx(-incl).Rz(theta).Rz(pi)
-  m = euler_trans_matrix(etheta, elongan, eincl)
+  #  m = Rz(long).Rx(-incl)
+  m = euler_trans_matrix(-pi, elongan, eincl)
   
   ca = cos(alpha)
   sa = sin(alpha)
@@ -128,7 +128,7 @@ def spin(etheta, elongan, eincl, alpha, beta):
   # v = Rz(alpha) Ry(beta) [0, 0, 1]^T
   v = np.array([sb*ca, sb*sa, cb])
   
-  return np.dot(m, v) 
+  return np.dot(m, v)
 
 
 def spin_in_roche(s, etheta, elongan, eincl):
