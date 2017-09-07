@@ -1074,10 +1074,14 @@ class Bundle(ParameterSet):
                     d = 1 - parent_ps.get_value('ecc')
 
                     # TODO: this needs to be generalized once other potentials are supported
-                    pitch = comp_ps.get_value('pitch', unit=u.rad)
-                    yaw = comp_ps.get_value('yaw', unit=u.rad)
-                    s = mesh.get_polar_direction(0.0, pitch, yaw)
-                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, s)
+                    incl_star = comp_ps.get_value('incl', unit=u.rad)
+                    long_an_star = comp_ps.get_value('long_an', unit=u.rad)
+                    s_sys = mesh.spin_in_system(incl_star, long_an_star)
+
+                    incl = parent_ps.get_value('incl', unit=u.rad)
+                    long_an = parent_ps.get_value('long_an', unit=u.rad)
+                    s_roche = mesh.spin_in_roche(s_sys, 0.0, long_an, incl)
+                    critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, s_roche)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
                     if pot < critical_pot:
