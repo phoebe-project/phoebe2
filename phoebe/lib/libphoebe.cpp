@@ -186,7 +186,7 @@ void PyArray_To3DPointVector(
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-  
+    
   keywords: optional
     
     L1: boolean, default true
@@ -195,7 +195,15 @@ void PyArray_To3DPointVector(
       switch calculating value of the potential at L2 
     L3: boolean, default true
       switch calculating value of the potential at L3 
-    
+ 
+    style: int, default 0
+      
+      0 - canonical - conventional:
+          L3  -- heavier star -- L1 -- lighter star -- L2 --> x
+      
+      1 - native to definition of the potential
+          L2  -- origin -- L1 -- object -- L3 --> x
+        
   and returns dictionary with keywords:
   
     L1:
@@ -221,27 +229,39 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
     (char*)"L1",
     (char*)"L2",
     (char*)"L3",
+    (char*)"style",
     NULL};
          
   bool b_L[3] = {true, true, true};
+  
+  int style = 0;
      
   double q, F, delta;
   
   PyObject *o_L[3] = {0,  0, 0};
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!d", kwlist,
         &q, &F, &delta, 
         &PyBool_Type, o_L,
         &PyBool_Type, o_L + 1,
-        &PyBool_Type, o_L + 2)
+        &PyBool_Type, o_L + 2,
+        &style)
   ){
     std::cerr << "roche_critical_potential:Problem reading arguments\n";
     return NULL;
   }
   
+  int ind[3] = {0, 1, 2};
+  
+  if (style == 0 && q < 1) {
+    ind[1] = 2;
+    ind[2] = 1;
+  }
+     
+  
   // reading selection
   for (int i = 0; i < 3; ++i)
-    if (o_L[i]) b_L[i] = PyObject_IsTrue(o_L[i]);
+    if (o_L[i]) b_L[i] = PyObject_IsTrue(o_L[ind[i]]);
   
   // create a binary version of selection
   unsigned choice = 0;
@@ -264,7 +284,9 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   
   for (int i = 0; i < 3; ++i)
     if (b_L[i]) 
-      PyDict_SetItemStringStealRef(results, labels[i], PyFloat_FromDouble(omega[i]));
+      PyDict_SetItemStringStealRef(results, 
+        labels[ind[i]], 
+         PyFloat_FromDouble(omega[i]));
   
   return results;
 }
