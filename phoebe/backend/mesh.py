@@ -144,7 +144,7 @@ def spin_in_system(incl, long_an):
     """
     #print "*** spin_in_system", incl, long_an, np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0,0,1])))
     # Rz(long_an) Rx(incl) [0, 0, 1]
-    return np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0,0,1])))
+    return np.dot(Rz(long_an), np.dot(Rx(-incl), np.array([0.,0.,1.])))
 
 def spin_in_roche(s, etheta, elongan, eincl):
   """
