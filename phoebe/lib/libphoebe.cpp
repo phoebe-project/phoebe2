@@ -253,7 +253,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   
   int ind[3] = {0, 1, 2};
   
-  if (style == 0 && q < 1) {
+  if (style == 0 && q > 1) {      // case : M2 > M1
     ind[1] = 2;
     ind[2] = 1;
   }
