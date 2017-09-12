@@ -242,7 +242,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   
   PyObject *o_L[3] = {0,  0, 0};
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!d", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!i", kwlist,
         &q, &F, &delta, 
         &PyBool_Type, o_L,
         &PyBool_Type, o_L + 1,
