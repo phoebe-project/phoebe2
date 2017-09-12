@@ -348,8 +348,8 @@ def discretize_wd_style_oc(N, q, F, d, Phi,recompute_neck=True):
     q_1, Phi_1 = q, Phi
     q_2, Phi_2 = 1./q, Phi/q + 0.5*(q-1)/q
 
-    xminz1, xminy1, y1, z1 = nekmin(Phi_1,q_1,0.5,0.05,0.05)
-    xmin1 = (xminz1+xminy1)/2.
+    xmin1, z1 = nekmin(Phi_1,q_1,0.5,0.05,0.05)
+    # xmin1 = (xminz1+xminy1)/2.
 
     xmin2 = d - xmin1
     #xminz2, xminy2, y2, z2 = nekmin(Phi_2,q_2,0.5,0.05,0.05)

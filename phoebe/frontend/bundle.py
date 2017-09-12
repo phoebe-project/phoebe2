@@ -153,6 +153,8 @@ class Bundle(ParameterSet):
             for param in self._params:
                 param._bundle = self
 
+            self._hierarchy_param = self.get_parameter(qualifier='hierarchy', context='system')
+
         # if loading something with constraints, we need to update the
         # bookkeeping so the parameters are aware of how they're constrained
         for constraint in self.filter(context='constraint').to_list():
@@ -270,7 +272,7 @@ class Bundle(ParameterSet):
         b = cls()
         b.add_star(component=starA)
         b.set_hierarchy(_hierarchy.component(b[starA]))
-        b.add_compute()
+        b.add_compute(distortion_method='rotstar', irrad_method='none')
         return b
 
     @classmethod
@@ -937,8 +939,9 @@ class Bundle(ParameterSet):
                                             constraint=self._default_label('yaw', context='constraint'))
 
 
-            if not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope':
+            if (not self.hierarchy.is_contact_binary(component) or self.hierarchy.get_kind_of(component)=='envelope'):
                 # potential constraint shouldn't be done for STARS in OVERCONTACTS
+                # but DOES need to be done for single stars
 
                 logger.info('re-creating potential constraint for {}'.format(component))
                 # TODO: will this cause problems if the constraint has been flipped?
@@ -1055,7 +1058,7 @@ class Bundle(ParameterSet):
             parent_ps = self.get_component(parent)
             if kind in ['star']:
                     # ignore the single star case
-                if parent != 'component':
+                if parent:
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
                     # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
                     # TODO: only do this if distortion_method == 'roche'
@@ -1103,8 +1106,7 @@ class Bundle(ParameterSet):
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
                 d = 1 + parent_ps.get_value('ecc')
-                # NOTE: we use the aligned case here so we can access L1 vs L2 and L3
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, style = 1)
 
                 if pot > critical_pots['L1']:
                     return False,\
@@ -1112,8 +1114,7 @@ class Bundle(ParameterSet):
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc')
-                # NOTE: we use the aligned case here so we can access L1 vs L2 and L3
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True, style = 1)
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
@@ -1271,6 +1272,10 @@ class Bundle(ParameterSet):
         """
         func = _get_add_func(_feature, kind)
 
+        if kwargs.get('feature', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('feature')
+
         kwargs.setdefault('feature',
                           self._default_label(func.func_name,
                                               **{'context': 'feature',
@@ -1330,10 +1335,16 @@ class Bundle(ParameterSet):
         # TODO: make sure also removes and handles the percomponent parameters correctly (ie maxpoints@phoebe@compute)
         raise NotImplementedError
 
-    def add_spot(self, component, feature=None, **kwargs):
+    def add_spot(self, component=None, feature=None, **kwargs):
         """
         Shortcut to :meth:`add_feature` but with kind='spot'
         """
+        if component is None:
+            if len(self.hierarchy.get_stars())==1:
+                component = self.hierarchy.get_stars()[0]
+            else:
+                raise ValueError("must provide component for spot")
+
         kwargs.setdefault('component', component)
         kwargs.setdefault('feature', feature)
         return self.add_feature('spot', **kwargs)
@@ -1388,6 +1399,10 @@ class Bundle(ParameterSet):
         """
 
         func = _get_add_func(component, kind)
+
+        if kwargs.get('component', False) is None:
+            # then we want to apply the default below, so let's pop for now
+            _ = kwargs.pop('component')
 
         kwargs.setdefault('component',
                           self._default_label(func.func_name,
@@ -2069,6 +2084,7 @@ class Bundle(ParameterSet):
                                                qualifier=lhs.qualifier,
                                                component=lhs.component,
                                                dataset=lhs.dataset,
+                                               feature=lhs.feature,
                                                kind=lhs.kind,
                                                model=lhs.model,
                                                constraint_func=func.__name__,
@@ -2225,10 +2241,18 @@ class Bundle(ParameterSet):
         kwargs = {}
         kwargs['twig'] = None
         # TODO: this might not be the case, we just know its not in constraint
-        kwargs['context'] = ['component', 'dataset']
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
+        kwargs['feature'] = expression_param.feature
+        kwargs['context'] = []
+        if kwargs['component'] is not None:
+            kwargs['context'] += ['component']
+        if kwargs['dataset'] is not None:
+            kwargs['context'] += ['dataset']
+        if kwargs['feature'] is not None:
+            kwargs['context'] += ['feature']
+
         kwargs['check_visible'] = False
         kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)
@@ -2491,7 +2515,11 @@ class Bundle(ParameterSet):
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
-        if detach:
+        if detach and backends._use_mpi:
+            logger.warning("cannot detach when within mpirun, ignoring")
+            detach = False
+
+        if (detach or conf.mpi) and not backends._use_mpi:
             logger.warning("detach support is EXPERIMENTAL")
 
             if times is not None:
@@ -2509,6 +2537,7 @@ class Bundle(ParameterSet):
             # is now, run compute, and then save the resulting model
             script_fname = "_{}.py".format(jobid)
             f = open(script_fname, 'w')
+            f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
             f.write("import phoebe; import json\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
@@ -2520,7 +2549,8 @@ class Bundle(ParameterSet):
             f.close()
 
             script_fname = os.path.abspath(script_fname)
-            cmd = 'python {} &>/dev/null &'.format(script_fname)
+            cmd = conf.detach_cmd.format(script_fname)
+            # cmd = 'python {} &>/dev/null &'.format(script_fname)
             subprocess.call(cmd, shell=True)
 
             # create model parameter and attach (and then return that instead of None)
@@ -2537,6 +2567,9 @@ class Bundle(ParameterSet):
 
             if isinstance(detach, str):
                 self.save(detach)
+
+            if not detach:
+                return job_param.attach()
 
             # return self.get_model(model)
             return job_param

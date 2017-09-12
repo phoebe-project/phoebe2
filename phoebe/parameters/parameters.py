@@ -41,26 +41,31 @@ from phoebe import u
 from phoebe import conf
 from phoebe import list_passbands, list_installed_passbands, list_online_passbands, download_passband
 
-try:
-    import sympy
-except ImportError:
-    _use_sympy = False
+if os.getenv('PHOEBE_ENABLE_SYMPY', 'TRUE').upper() == 'TRUE':
+    try:
+        import sympy
+    except ImportError:
+        _use_sympy = False
+    else:
+        _use_sympy = True
 else:
-    _use_sympy = True
-
+    _use_sympy = False
 
 _use_sympy = False
 _is_server = False
 
-try:
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    from matplotlib.collections import LineCollection, PolyCollection
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-except (ImportError, TypeError):
-    _use_mpl = False
+if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
+    try:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib.collections import LineCollection, PolyCollection
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    except (ImportError, TypeError):
+        _use_mpl = False
+    else:
+        _use_mpl = True
 else:
-    _use_mpl = True
+    _use_mpl = False
 
 import logging
 logger = logging.getLogger("PARAMETERS")
@@ -87,7 +92,7 @@ _meta_fields_twig = ['time', 'qualifier', 'history', 'feature', 'component',
 _meta_fields_all = _meta_fields_twig + ['twig', 'uniquetwig', 'uniqueid']
 _meta_fields_filter = _meta_fields_all + ['constraint_func']
 
-_contexts = ['history', 'system', 'component',
+_contexts = ['history', 'system', 'component', 'feature',
              'dataset', 'constraint', 'compute', 'model', 'fitting',
              'feedback', 'plugin', 'setting']
 
@@ -160,9 +165,11 @@ def update_if_client(fctn):
     @functools.wraps(fctn)
     def _update_if_client(self, *args, **kwargs):
         b = self._bundle
-        if b is not None and b.is_client and \
+        if b is None or not hasattr(b, 'is_client'):
+            return fctn(self, *args, **kwargs)
+        elif b.is_client and \
                 (b._last_client_update is None or
-                 (datetime.now() - b._last_client_update).seconds > 1):
+                (datetime.now() - b._last_client_update).seconds > 1):
 
             b.client_update()
         return fctn(self, *args, **kwargs)
@@ -1150,13 +1157,7 @@ class ParameterSet(object):
         else:
             kwargs = {}
 
-        # TODO: why the try except here?
-        try:
-            self.set(twig, value, **kwargs)
-        except ValueError, msg:
-            # TODO: custom error type for more than 1 result and mention
-            # changing dict_set_all@settings
-            raise ValueError(msg)
+        self.set(twig, value, **kwargs)
 
     def __contains__(self, twig):
         """
@@ -4175,7 +4176,6 @@ class FloatParameter(Parameter):
         if isinstance(value, dict) and 'nphelper' in value.keys():
             # then we're loading the JSON version of an Arange or Linspace
             value = nphelpers.from_json(value)
-            print value
 
         if isinstance(unit, str):
             # print "*** converting string to unit"
@@ -4487,6 +4487,16 @@ class FloatArrayParameter(FloatParameter):
         lst[index] = value
         self.set_value(lst)
 
+    # def set_value_at_time(self, time, value, **kwargs):
+    #     """
+    #     """
+    #     parent_ps = self.get_parent_ps()
+    #     times_param = parent_ps.get_parameter(qualifier='times')
+    #     index = np.where(times_param.get_value()==time)[0][0]
+    #
+    #     self.set_index_value(index, value, **kwargs)
+
+
     #~ def at_time(self, time):
         #~ """
         #~ looks for a parameter with qualifier time that shares all the same meta data and
@@ -4773,7 +4783,10 @@ class HierarchyParameter(StringParameter):
         # update cache for is_binary and is_contact_binary
         self._clear_cache()
         if self._bundle is not None:
-            for comp in self.get_components():
+            # for comp in self.get_components():
+            for comp in self._bundle.components:
+                if comp == '_default':
+                    continue
                 self._is_binary[comp] = self._compute_is_binary(comp)
                 self._is_contact_binary[comp] = self._compute_is_contact_binary(comp)
 
@@ -5004,7 +5017,7 @@ class HierarchyParameter(StringParameter):
         component in its parent orbit
         """
         parent = self.get_parent_of(component)
-        if parent=='component':
+        if parent is None:
             # then this is a single component, not in a binary
             return 'primary'
 
@@ -5078,6 +5091,9 @@ class HierarchyParameter(StringParameter):
         if component not in self.get_components():
             # TODO: is this the best fallback?
             return True
+
+        if len(self.get_stars())==1:
+            return False
 
         return self.get_kind_of(self.get_parent_of(component))=='orbit'
 
@@ -5193,11 +5209,11 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
                 constrained_parameter = ps.get_parameter(check_visible=False, check_default=False)
             else:
-                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
+                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}))
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)

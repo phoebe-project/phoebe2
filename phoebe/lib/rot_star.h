@@ -653,7 +653,7 @@ namespace rot_star {
     
     Input:
       Omega0 - value of the potential
-      omega - parameter of th potential
+      omega - parameter of the potential
   
     Output:
       r - position 
@@ -672,7 +672,58 @@ namespace rot_star {
     g[0] = g[1] = 0;
     g[2] = Omega0*Omega0;
   }
+
+
+  /*
+    Point x on the surface 
+      
+      Omega(x) = Omega_0
+      
+    in directon 
+      
+      u = (sin(theta)cos(phi), sin(theta) sin(phi), cos(theta))
+      x = r*u
+    
+    Input:
+      theta - polar angle (from z axis)
+      phi - azimulal angle
+      Omega0 - value of the potential
+      omega - parameter of the potential
+    
+    Output:
+      x - point on the surface
+      g - gradient on the surface
+  */ 
+  template <class T> 
+  void point_on_surface(
+    const T& theta,
+    const T& phi,
+    const T & Omega0,
+    const T & omega,
+    T x[3],
+    T *g = 0) {
   
+    T st, ct, sp, cp;
+ 
+    utils::sincos(theta, &st, &ct);
+    utils::sincos(phi, &sp, &cp);
+  
+    T r = equator(Omega0, omega*st);
+ 
+    x[0] = r*st*cp;
+    x[1] = r*st*sp;
+    x[2] = r*ct;
+    
+    if (g) {
+      T w2 = omega*omega, r2 = r*r, r3 = r2*r, f = (1 - w2*r3)/r2;
+      
+      g[0] = f*cp*st;
+      g[1] = f*st*sp;
+      g[2] = ct/r2;
+    }
+  }
+
+
 } // namespace rot_star
 
 #endif // #if !defined(__rot_star_h) 

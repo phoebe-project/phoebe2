@@ -10,18 +10,18 @@ logger = logging.getLogger("CONSTRAINT")
 logger.addHandler(logging.NullHandler())
 
 
-def _get_system_ps(b, item):
+def _get_system_ps(b, item, context='component'):
     """
     parses the input arg (either twig or PS) to retrieve the actual parametersets
     """
     # TODO: make this a decorator?
 
     if isinstance(item, ParameterSet):
-        return item
+        return item.filter(context=context, check_visible=False)
     elif isinstance(item, str):
-        return b.filter(item, context='component', check_visible=False)
+        return b.filter(item, context=context, check_visible=False)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("do not support item with type: {}".format(type(item)))
 
 #{ Mathematical expressions
 
@@ -521,8 +521,8 @@ def freq(b, component, solve_for=None, **kwargs):
     #metawargs = component_ps.meta
     #metawargs.pop('qualifier')
 
-    period = component_ps.get_parameter(qualifier='period')
-    freq = component_ps.get_parameter(qualifier='freq')
+    period = component_ps.get_parameter(qualifier='period', check_visible=False)
+    freq = component_ps.get_parameter(qualifier='freq', check_visible=False)
 
     if solve_for in [None, freq]:
         lhs = freq
@@ -778,7 +778,7 @@ def potential(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
 
 
-    if parentorbit == 'component':
+    if parentorbit is None:
         # then single star (rotstar) case
         pot = component_ps.get_parameter(qualifier='pot')
         rpole = component_ps.get_parameter(qualifier='rpole')
