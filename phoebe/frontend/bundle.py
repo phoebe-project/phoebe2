@@ -1060,7 +1060,7 @@ class Bundle(ParameterSet):
                     d = 1 - parent_ps.get_value('ecc')
 
                     # TODO: this needs to be generalized once other potentials are supported
-                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True)
+                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True, style = 1)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
@@ -1082,7 +1082,7 @@ class Bundle(ParameterSet):
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
                 d = 1 + parent_ps.get_value('ecc')
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, style = 1)
 
                 if pot > critical_pots['L1']:
                     return False,\
@@ -1090,7 +1090,7 @@ class Bundle(ParameterSet):
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc')
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True, style = 1)
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
