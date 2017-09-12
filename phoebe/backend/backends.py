@@ -785,11 +785,12 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # print "*** this_syn.twigs", this_syn.twigs
                 body = system.get_body(info['component'])
 
-                this_syn['pot'] = body._instantaneous_pot
+                packet[k]['pot'] = body._instantaneous_pot
                 rpole = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
-                this_syn['rpole'] = rpole
-                this_syn['north_pole'] = body.get_north_pole(rpole=rpole)
-                this_syn['volume'] = body.volume
+                packet[k]['rpole'] = rpole
+                packet[k]['north_pole'] = body.get_north_pole(rpole=rpole)
+                packet[k]['volume'] = body.volume
+
 
                 # TODO: should x, y, z be computed columns of the vertices???
                 # could easily have a read-only property at the ProtoMesh level
