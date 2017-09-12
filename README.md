@@ -62,6 +62,12 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.3 - t0_supconj/t0_perpass hotfix
+* Fixed constraint that defines the relation between t0_perpass and t0_supconj.
+* Fixed error message in ldint
+* Fixed the ability for multiple stars to be attached to the same component
+* Raise an error if attempting to attach spots to an unsupported component.  Note: spots are currently not supported for contact systems.
+
 ### 2.0.2 - spots hotfix
 
 * If using spots, it is important that you use 2.0.1 or later as there were several important bug fixes in this release.
