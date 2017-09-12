@@ -112,7 +112,7 @@ def sqrt(param):
     return ConstraintParameter(param._bundle, "sqrt({})".format(_get_expr(param)))
 
 #}
-#{ Built-in functions
+#{ Built-in functions (see phoebe.constraints.builtin for actual functions)
 def rocherpole2potential(rpole, q, e, syncpar, sma, compno=1):
     """
     TODO: add documentation
@@ -152,6 +152,17 @@ def ecosw2per0(ecc, ecosw):
     # print "***", "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw))
     return ConstraintParameter(ecc._bundle, "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw)))
 
+def t0_perpass_to_supconj(t0_perpass, period, ecc, per0, phshift):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_perpass._bundle, "t0_perpass_to_supconj({}, {}, {}, {}, {})".format(_get_expr(t0_perpass), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(phshift)))
+
+def t0_supconj_to_perpass(t0_supconj, period, ecc, per0, phshift):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_perpass({}, {}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0), _get_expr(phshift)))
 
 #}
 #{ Custom constraints
@@ -342,29 +353,21 @@ def t0(b, orbit, solve_for=None, **kwargs):
     metawargs = orbit_ps.meta
     metawargs.pop('qualifier')
 
-
     # by default both t0s exist in an orbit, so we don't have to worry about creating either
     t0_perpass = b.get_parameter(qualifier='t0_perpass', **metawargs)
     t0_supconj = b.get_parameter(qualifier='t0_supconj', **metawargs)
-    phshift = b.get_parameter(qualifier='phshift', **metawargs)
-    per0 = b.get_parameter(qualifier='per0', **metawargs)
     period = b.get_parameter(qualifier='period', **metawargs)
-
-    # t0_perpass = t0_supconj + (phshift - 0.25 + per0/(2*np.pi)) * period
-    # t0_supconj = t0_perpass - (phshift - 0.25 + per0/(2*np.pi)) * period
+    ecc = b.get_parameter(qualifier='ecc', **metawargs)
+    per0 = b.get_parameter(qualifier='per0', **metawargs)
+    phshift = b.get_parameter(qualifier='phshift', **metawargs)
 
     if solve_for in [None, t0_perpass]:
         lhs = t0_perpass
-        rhs = t0_supconj + (phshift - 0.25 + per0/(2*np.pi*u.rad)) * period
-        #          d     + ( cy - cy + deg/rad/cy) * d / cy
-        #          d     + ( cy - cy + cy) * d / cy
-        #          d     +   cy * d / cy
-        #          d     +        d
-        #  d
+        rhs = t0_supconj_to_perpass(t0_supconj, period, ecc, per0, phshift)
 
     elif solve_for == t0_supconj:
         lhs = t0_supconj
-        rhs = t0_perpass - (phshift - 0.25 + per0/(2*np.pi*u.rad)) * period
+        rhs = t0_perpass_to_supconj(t0_perpass, period, ecc, per0, phshift)
 
 
 

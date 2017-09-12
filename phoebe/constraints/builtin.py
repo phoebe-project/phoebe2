@@ -50,3 +50,23 @@ def ecosw2per0(ecc, ecosw):
         if np.isnan(per0):
             raise ValueError("ecosw={} and ecc={} results in nan for per0, please REVERT value for ecosw".format(ecosw, ecc))
         return per0
+
+def t0_perpass_to_supconj(t0_perpass, period, ecc, per0, phshift):
+    """
+    """
+    ups_sc = np.pi/2-per0
+    E_sc = 2*np.arctan( np.sqrt((1-ecc)/1+ecc) * np.tan(ups_sc/2) )
+    M_sc = E_sc - ecc*np.sin(E_sc)
+    t0_supconj = t0_perpass - period*(M_sc/2./np.pi-phshift)
+
+    return t0_supconj
+
+def t0_supconj_to_perpass(t0_supconj, period, ecc, per0, phshift):
+    """
+    """
+    ups_sc = np.pi/2-per0
+    E_sc = 2*np.arctan( np.sqrt((1-ecc)/1+ecc) * np.tan(ups_sc/2) )
+    M_sc = E_sc - ecc*np.sin(E_sc)
+    t0_perpass = t0_supconj + period*(M_sc/2./np.pi-phshift)
+
+    return t0_perpass
