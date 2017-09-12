@@ -261,7 +261,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   
   // reading selection
   for (int i = 0; i < 3; ++i)
-    if (o_L[i]) b_L[i] = PyObject_IsTrue(o_L[ind[i]]);
+    if (o_L[ind[i]]) b_L[i] = PyObject_IsTrue(o_L[ind[i]]);
   
   // create a binary version of selection
   unsigned choice = 0;
