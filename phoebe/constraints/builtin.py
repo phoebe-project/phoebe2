@@ -80,12 +80,12 @@ def _delta_t_supconj_ref(period, ecc, per0):
     M_sc = E_sc - ecc*np.sin(E_sc)
     return period*((M_sc+per0)/2./np.pi - 1./4)
 
-def phoebe1HJD0_to_supconj(HJD0, period, ecc, per0):
+def t0_ref_to_supconj(t0_ref, period, ecc, per0):
     """
     """
-    return HJD0 + _delta_t_supconj_ref(period, ecc, per0)
+    return t0_ref + _delta_t_supconj_ref(period, ecc, per0)
 
-def supconj_to_phoebe1HJD0(t0_supconj, period, ecc, per0):
+def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     """
     """
     return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)

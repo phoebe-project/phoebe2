@@ -74,6 +74,8 @@ _constraint_builtin_funcs = ['rocherpole2potential',
                              'ecosw2per0',
                              't0_supconj_to_perpass',
                              't0_perpass_to_supconj',
+                             't0_supconj_to_ref',
+                             't0_ref_to_supconj',
                              'sin', 'cos', 'tan',
                              'arcsin', 'arccos', 'arctan',
                              'sqrt']
@@ -5179,14 +5181,12 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0, t0_perpass_to_supconj, t0_supconj_to_perpass, rochepotential2rpole, rocherpole2potential, rotstarpotential2rpole, rotstarrpole2potential
-                # if len(self.hierarchy.get_meshables())==1:
-                    # from phoebe.distortions.rotstar import potential2rpole, rpole2potential
-                # else:
-                    # from phoebe.distortions.roche import potential2rpole, rpole2potential
+                from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
+                        t0_perpass_to_supconj, t0_supconj_to_perpass,\
+                        t0_ref_to_supconj, t0_supconj_to_ref,\
+                        rochepotential2rpole, rocherpole2potential,\
+                        rotstarpotential2rpole, rotstarrpole2potential
 
-                #print "*** else if", eq.format(**values)
-                # print "***", eval(eq.format(**values))
                 value = float(eval(eq.format(**values)))
 
             else:

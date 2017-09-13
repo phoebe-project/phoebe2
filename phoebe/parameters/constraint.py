@@ -164,6 +164,19 @@ def t0_supconj_to_perpass(t0_supconj, period, ecc, per0):
     """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_perpass({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
+def t0_ref_to_supconj(t0_ref, period, ecc, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_ref._bundle, "t0_ref_to_supconj({}, {}, {}, {})".format(_get_expr(t0_ref), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+
+def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+
+
 #}
 #{ Custom constraints
 
@@ -331,19 +344,17 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, {'orbit': orbit}
 
-def t0(b, orbit, solve_for=None, **kwargs):
+def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     """
-    Create a constraint for t0 in an orbit - allowing translating between
-    t0_perpass and t0_supconj using the following expression:
-
-    t0_perpass = t0_supconj + (phshift - 0.25 + per0/(2*np.pi)) * period
+    Create a constraint for t0_perpass in an orbit - allowing translating between
+    t0_perpass and t0_supconj.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str orbit: the label of the orbit in which this
         constraint should be built
     :parameter str solve_for:  if 't0_perpass' should not be the derived/constrained
         parameter, provide which other parameter should be derived
-        (ie 't0_supconj', 'phshift', 'per0', 'period')
+        (ie 't0_supconj', 'per0', 'period')
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
     """
@@ -369,6 +380,52 @@ def t0(b, orbit, solve_for=None, **kwargs):
         rhs = t0_perpass_to_supconj(t0_perpass, period, ecc, per0)
 
 
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'orbit': orbit}
+
+def t0(*args, **kwargs):
+    """
+    shortcut to t0_perpass for backwards compatibility
+    """
+    return t0_perpass_supconj(*args, **kwargs)
+
+def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
+    """
+    Create a constraint for t0_ref in an orbit - allowing translating between
+    t0_ref and t0_supconj.
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str orbit: the label of the orbit in which this
+        constraint should be built
+    :parameter str solve_for:  if 't0_ref' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+        (ie 't0_supconj', 'per0', 'period')
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    metawargs = orbit_ps.meta
+    metawargs.pop('qualifier')
+
+    # by default both t0s exist in an orbit, so we don't have to worry about creating either
+    t0_ref = b.get_parameter(qualifier='t0_ref', **metawargs)
+    t0_supconj = b.get_parameter(qualifier='t0_supconj', **metawargs)
+    period = b.get_parameter(qualifier='period', **metawargs)
+    ecc = b.get_parameter(qualifier='ecc', **metawargs)
+    per0 = b.get_parameter(qualifier='per0', **metawargs)
+
+    if solve_for in [None, t0_ref]:
+        lhs = t0_ref
+        rhs = t0_supconj_to_ref(t0_supconj, period, ecc, per0)
+
+    elif solve_for == t0_supconj:
+        lhs = t0_supconj
+        rhs = t0_ref_to_supconj(t0_ref, period, ecc, per0)
 
     else:
         raise NotImplementedError
