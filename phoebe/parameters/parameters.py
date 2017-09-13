@@ -1846,6 +1846,15 @@ class ParameterSet(object):
 
             return param, array, unit
 
+        if isinstance(kwargs.get('time', None), str):
+            # handle allow passing twigs to time
+            time_value = self._bundle.get_value(kwargs['time'], context='component')
+            if isinstance(time_value, float):
+                logger.info("plotting at time={} ('{}')".format(time_value, kwargs['time']))
+                kwargs['time'] = time_value
+            else:
+                raise ValueError("could not convert '{}' to a valid time".format(kwargs['time']))
+
         # filter the PS further - except we don't want to filter on time, since
         # that means something else
 
