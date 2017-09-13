@@ -2189,12 +2189,14 @@ class ParameterSet(object):
             if ps.kind.split('_')[-1] == 'syn':
                 xarray = tparam._bundle.to_phase(tarray,
                                                  shift=True,
-                                                 component=component)
+                                                 component=component,
+                                                 t0=kwargs.get('t0', 't0_supconj'))
             else:
                 # then we don't want to include phase-shifting for obs data
                 xarray = tparam._bundle.to_phase(tarray,
                                                  shift=False,
-                                                 component=component)
+                                                 component=component,
+                                                 t0=kwargs.get('t0', 't0_supconj'))
 
             # really only used to get the default label for this ps
             xparam = tparam
@@ -2202,7 +2204,8 @@ class ParameterSet(object):
             if kwargs.get('time', None):
                 kwargs['time'] = self._bundle.to_phase(kwargs['time'],
                                                        shift=True,
-                                                       component=component)
+                                                       component=component,
+                                                       t0=kwargs.get('t0', 't0_supconj'))
 
         elif isinstance(xqualifier, float) or isinstance(xqualifier, int):
             xparam = None

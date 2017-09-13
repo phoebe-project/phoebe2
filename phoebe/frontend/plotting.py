@@ -252,7 +252,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
         _meta_fields_all+['x', 'y', 'z', 'xerrors', 'yerrors', 'zerrors',
             'xlabel', 'ylabel', 'zlabel',
             'xlim', 'ylim', 'zlim',
-            'xunit', 'yunit', 'zunit', 'time', 'highlight', 'highlight_ms',
+            'xunit', 'yunit', 'zunit', 'time', 't0', 'highlight', 'highlight_ms',
             'highlight_marker', 'highlight_color', 'uncover',
             'facecolor', 'edgecolor', 'facecmap', 'edgecmap', 'correct', 'plotting_backend']}
 
