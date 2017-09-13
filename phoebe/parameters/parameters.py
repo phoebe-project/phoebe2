@@ -5239,6 +5239,11 @@ class ConstraintParameter(Parameter):
         newly_constrained_var = self._get_var(**kwargs)
         newly_constrained_param = self.get_parameter(**kwargs)
 
+        check_kwargs = {k:v for k,v in kwargs.items()}
+        check_kwargs['context'] = 'constraint'
+        if len(self._bundle.filter(**check_kwargs)):
+            raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
+
         currently_constrained_var = self._get_var(qualifier=self.qualifier, component=self.component)
         currently_constrained_param = currently_constrained_var.get_parameter() # or self.constrained_parameter
 
