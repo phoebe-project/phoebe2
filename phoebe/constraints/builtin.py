@@ -51,22 +51,41 @@ def ecosw2per0(ecc, ecosw):
             raise ValueError("ecosw={} and ecc={} results in nan for per0, please REVERT value for ecosw".format(ecosw, ecc))
         return per0
 
-def t0_perpass_to_supconj(t0_perpass, period, ecc, per0, phshift):
+def _delta_t_supconj_perpass(period, ecc, per0):
     """
-    """
-    ups_sc = np.pi/2-per0
-    E_sc = 2*np.arctan( np.sqrt((1-ecc)/1+ecc) * np.tan(ups_sc/2) )
-    M_sc = E_sc - ecc*np.sin(E_sc)
-    t0_supconj = t0_perpass - period*(M_sc/2./np.pi-phshift)
-
-    return t0_supconj
-
-def t0_supconj_to_perpass(t0_supconj, period, ecc, per0, phshift):
-    """
+    time shift between superior conjuction and periastron passage
     """
     ups_sc = np.pi/2-per0
-    E_sc = 2*np.arctan( np.sqrt((1-ecc)/1+ecc) * np.tan(ups_sc/2) )
+    E_sc = 2*np.arctan( np.sqrt((1-ecc)/(1+ecc)) * np.tan(ups_sc/2) )
     M_sc = E_sc - ecc*np.sin(E_sc)
-    t0_perpass = t0_supconj + period*(M_sc/2./np.pi-phshift)
+    return period*(M_sc/2./np.pi)
 
-    return t0_perpass
+def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
+    """
+    """
+    return t0_perpass + _delta_t_supconj_perpass(period, ecc, per0)
+
+def t0_supconj_to_perpass(t0_supconj, period, ecc, per0):
+    """
+    """
+    return t0_supconj - _delta_t_supconj_perpass(period, ecc, per0)
+
+def _delta_t_supconj_ref(period, ecc, per0):
+    """
+    time shift between superior conjunction and reference time (time at
+    which the primary star crosses the barycenter along line-of-sight)
+    """
+    ups_sc = np.pi/2-per0
+    E_sc = 2*np.arctan( np.sqrt((1-ecc)/(1+ecc)) * np.tan(ups_sc/2) )
+    M_sc = E_sc - ecc*np.sin(E_sc)
+    return period*((M_sc+per0)/2./np.pi - 1./4)
+
+def phoebe1HJD0_to_supconj(HJD0, period, ecc, per0):
+    """
+    """
+    return HJD0 + _delta_t_supconj_ref(period, ecc, per0)
+
+def supconj_to_phoebe1HJD0(t0_supconj, period, ecc, per0):
+    """
+    """
+    return t0_supconj - _delta_t_supconj_ref(period, ecc, per0)
