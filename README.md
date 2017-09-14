@@ -64,8 +64,10 @@ CHANGELOG
 
 ### 2.0.3 - t0_supconj/t0_perpass hotfix
 * Fixed constraint that defines the relation between t0_perpass and t0_supconj.
-* Fixed error message in ldint
-* Fixed the ability for multiple stars to be attached to the same component
+* Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
+* Inclination parameter is now limited to the [0-180] range to maintain conventions on superior conjunction and ascending/descending nodes.
+* Fixed error message in ldint.
+* Fixed the ability for multiple stars to be attached to the same component.
 * Raise an error if attempting to attach spots to an unsupported component.  Note: spots are currently not supported for contact systems.
 
 ### 2.0.2 - spots hotfix
