@@ -882,7 +882,7 @@ class Body(object):
             self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
 
             #-- Reprojection
-            logger.info("reprojecting mesh onto Phi={} at d={}".format(Phi, d))
+            logger.info("rebuilding mesh with Phi={} and d={}".format(Phi, d))
 
             # TODO: implement reprojection as an option instead of rebuilding
             # the mesh??
@@ -1512,7 +1512,7 @@ class Star(Body):
     def is_misaligned(self):
         """
         """
-        return self.eincl == self.incl_orbit and self.elongan == self.longan_orbit
+        return self.eincl != self.incl_orbit or self.elongan != self.longan_orbit
 
     @property
     def needs_recompute_instantaneous(self):
