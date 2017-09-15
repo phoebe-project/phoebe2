@@ -29,7 +29,7 @@ def spot(feature, **kwargs):
     #### TEMPORARY HACK FOR 2.0.* to handle renaming of colon->long
     params += [FloatParameter(qualifier="colon", value=kwargs.get("colon", 0.0), default_unit=u.deg, description='DEPRECATED PARAMETER REPLACED WITH LONG (SEE RELEASE NOTES)')]
 
-    constraints = [(constraint.colon_deprecation, feature)]
+    constraints = []
 
     return ParameterSet(params), constraints
 
