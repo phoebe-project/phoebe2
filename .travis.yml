@@ -118,7 +118,7 @@ install:
 
 script:
     - if [ $NOSETESTS == 1 ];
-      then nosetests -v -s -d -w tests/nosetests/;
+      then nosetests -v -s -d -w tests/nosetests/ && sleep 10;
       fi;
 
 after_success: |
