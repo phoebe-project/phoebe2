@@ -1,5 +1,8 @@
 import phoebe as phb2
-import phoebe_legacy as phb1
+try:
+    import phoebe_legacy as phb1
+except ImportError:
+    import phoebeBackend as phb1
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -13,7 +16,12 @@ def legacy_test(filename='default.phoebe'):
     dir = os.path.dirname(os.path.realpath(__file__))
 
     phb1.init()
-    phb1.auto_configure()
+    if hasattr(phb1, 'auto_configure'):
+        # then phb1 is phoebe_legacy
+        phb1.auto_configure()
+    else:
+        # then phb1 is phoebeBackend
+        phb1.configure()
     phb1.open(os.path.join(dir, filename))
 
     #load phoebe2 file
@@ -104,7 +112,7 @@ def legacy_test(filename='default.phoebe'):
         else:
             rv2 = np.array(phb1.rv2(tuple(data[:,0].tolist()), sec))
             vels2.append(rv2)
-            
+
             ld_coeffs1 =[phb1.getpar('phoebe_ld_rvx1', sec), phb1.getpar('phoebe_ld_rvy1', sec), phb1.getpar('phoebe_ld_rvx2', sec), phb1.getpar('phoebe_ld_rvy2', sec)]
             ldx1, ldy1 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='cow').get_value()
             ldx2, ldy2 = b.filter(dataset=rvs[a], qualifier='ld_coeffs', component='pig').get_value()
@@ -165,5 +173,3 @@ if __name__ == '__main__':
     legacy_test(detached)
 #    print "checking contact system"
 #    legacy_test(contact)
-  
-
