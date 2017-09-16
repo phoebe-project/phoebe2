@@ -18,7 +18,8 @@ _1to2par = {'ld_model':'ld_func',
             'active': 'enabled',
 #            'model': 'morphology',
             'filter': 'passband',
-            'hjd0': 't0_supconj',
+            'hjd0':'t0_ref',
+#            'hjd0': 't0_supconj',
             'period': 'period',
             'dpdt': 'dpdt',
             'pshift':'phshift',
@@ -297,7 +298,7 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
             d['phoebe_rv_sigmarv'] = rvdata[:,2]
         else:
             logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
- 
+
 
     return d
 
@@ -530,10 +531,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
             if fti:
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
-            
+
             else:
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = 'None'
-            
+
             lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
 
 #            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
@@ -545,7 +546,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 #STARTS HERE
         lc_dict = {}
-        
+
         for y in range(len(lcpt)):
             parameter = lcpt[y][0].split('[')[0]
             lc_dict[parameter] = lcpt[:,1][y].strip('"')
@@ -784,8 +785,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['kind'] = 'star'
             d.pop('qualifier') #remove qualifier from dictionary to avoid conflicts in the future
             d.pop('value') #remove qualifier from dictionary to avoid conflicts in the future
+
             if not contact_binary:
-                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
+                eb.flip_constraint(solve_for='rpole', qualifier='pot', **d)
+#                eb.flip_constraint(solve_for='rpole', constraint_func='potential', **d) #this WILL CHANGE & CHANGE back at the very end
             #print "val", val
             else:
                 d['component'] = 'contact_envelope'
@@ -793,9 +796,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             d['qualifier'] = 'pot'
             d['kind'] = None
             d['context'] = 'component'
-            #print "d end", d
-    #        elif pnew == 'filter':
+    # change t0_ref and set hjd0
+        if pnew == 'hjd0':
 
+            d.pop('qualifier') #avoiding possible conflicts
+            d.pop('value') #avoiding possible conflicts
+
+            eb.flip_constraint(solve_for='t0_supconj', constraint_func='t0_ref_supconj', **d)
+    #        elif pnew == 'filter':
+            d['value'] = val
+            d['qualifier'] = 't0_ref'
              # write method for this
 
     #        elif pnew == 'excess':
@@ -837,10 +847,15 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
+
+#flip back all constraints
     if not contact_binary:
-        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
-        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
+        eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
+        eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+#        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
+#        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
+    eb.flip_constraint(solve_for='t0_ref', constraint_func='t0_ref_supconj')
 
     if 'Linear' in ldlaw:
 
@@ -1097,7 +1112,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     # Force el3 unit to be flux
     parnames.append('phoebe_el3_units')
     parvals.append('"Flux"')
-    types.append('choice')   
+    types.append('choice')
     if len(lcs) != 0:
 
         pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
