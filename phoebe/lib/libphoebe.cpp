@@ -531,9 +531,14 @@ static PyObject *roche_pole(PyObject *self, PyObject *args, PyObject *keywds) {
 
 */
 
+//#define DEBUG
 static PyObject *roche_misaligned_pole(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "roche_misaligned_pole";
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
   
   //
   // Reading arguments
@@ -580,9 +585,16 @@ static PyObject *roche_misaligned_pole(PyObject *self, PyObject *args, PyObject 
     std::cerr << fname << "::Problems calculating poles.\n";
     return NULL;
   }
-
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
+  
   return PyFloat_FromDouble(p);
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -669,10 +681,14 @@ static PyObject *roche_Omega_min(PyObject *self, PyObject *args, PyObject *keywd
   
     Omega0 - value of the Omega at (x,y,z)
 */
-
+//#define DEBUG
 static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "roche_misaligned_Omega_min";
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
   
   //
   // Reading arguments
@@ -713,9 +729,15 @@ static PyObject *roche_misaligned_Omega_min(PyObject *self, PyObject *args, PyOb
   
   if (std::isnan(Omega_min)) return NULL; 
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
+  
   return PyFloat_FromDouble(Omega_min);  
 }
-
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 /*
   C++ wrapper for Python code:
   
@@ -1405,6 +1427,10 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   
   const char *fname = "roche_misaligned_area_volume";
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
+  
   //
   // Reading arguments
   //
@@ -1574,8 +1600,19 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   for (int i = 0; i < 2; ++i) if (b_av[i])
     PyDict_SetItemStringStealRef(results, str[i], PyFloat_FromDouble(av[i]));
 
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
+  
   return results;
 }
+
+#if defined(DEBUG)
+#undef DEBUG
+#endif
+  
+
 
 /*
   C++ wrapper for Python code:
@@ -1955,7 +1992,11 @@ static PyObject *rotstar_Omega_at_vol(PyObject *self, PyObject *args, PyObject *
 static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char * fname = "roche_misaligned_Omega_at_vol";
-  
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
+    
   //
   // Reading arguments
   //
@@ -2036,6 +2077,14 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
     return NULL;
   }
 
+  #if defined(DEBUG)
+  std::cerr.precision(16);
+  std::cerr 
+    << "vol=" << vol << " q=" << q <<  " F=" << F << " Omega0=" << Omega0 
+    << " d=" << delta << " theta=" << theta << " choice=" << choice << std::endl;
+  #endif
+  
+
   const int m_min = 1 << 6;  // minimal number of points along x-axis
     
   int 
@@ -2053,7 +2102,7 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   do {
     
     if (aligned) {      // Non-misaligned Roche lobes
-      if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta)){
+      if (!gen_roche::lobe_xrange(xrange, choice, Omega, q, F, delta, true)){
         std::cerr << fname << "::Determining lobe's boundaries failed\n";
         return NULL;
       }
@@ -2125,10 +2174,15 @@ static PyObject *roche_misaligned_Omega_at_vol(PyObject *self, PyObject *args, P
   
   // We use the condition on the argument (= Omega) ~ constraining backward error, 
   // but we could also use condition on the value (= Volume) ~ constraing forward error
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
   
   return PyFloat_FromDouble(Omega);
 }
-
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -2338,10 +2392,15 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
         = [-grad Omega_x, -grad Omega_y, -grad Omega_z, -Omega(x,y,z)]
 */
 
+//#define DEBUG
 static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
   
   const char *fname = "roche_misaligned_gradOmega";
-  
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
+    
   double p[7];
 
   PyObject *o_misalignment;
@@ -2391,8 +2450,15 @@ static PyObject *roche_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
+  
   return pya;
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -2575,10 +2641,14 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
   
     g : 1-rank numpy array = -grad Omega (x,y,z)
 */
-
+//#define DEBUG
 static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args) {
   
   const char *fname = "roche_misaligned_gradOmega_only";
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
   
   double p[7];
 
@@ -2628,9 +2698,15 @@ static PyObject *roche_misaligned_gradOmega_only(PyObject *self, PyObject *args)
 
   PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
+  
   return res;
 }
-
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 /*
   C++ wrapper for Python code:
   
@@ -2719,6 +2795,70 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
   
+  Calculate the value of the potential of the rotating star with 
+  misaligned spin at a given point
+
+      Omega (x,y,z; omega) = 1/r + 1/2 omega^2 |r - s(s*r)|^2
+      
+      s = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+      
+  Python:
+    
+    Omega0 = rotstar_misaligned Omega(omega, s, r)
+   
+  with parameters
+  
+    omega: float - parameter of the potential
+    misalignment:  in rotated coordinate system:
+      float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+      1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+    r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+/*
+static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
+
+  const char * fname = "rotstar_misaligned_Omega";
+  
+  double p[2];
+
+  PyObject *o_misalignment;
+  
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, 
+        "dOO!", p, 
+        &o_misalignment,
+        &PyArray_Type, &X)
+     ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  if (PyFloat_Check(o_misalignment)) {    
+    s = std::sin(PyFloat_AsDouble(o_misalignment));
+  } else if (PyArray_Check(o_misalignment)) {
+    s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    return NULL;
+  }
+
+  p[1] = 0; // Omega
+  
+  Trot_star<double> b(p);
+
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+*/
+
+/*
+  C++ wrapper for Python code:
+  
   Calculate the value of the potential of the sphere at 
   a given point
 
@@ -2783,9 +2923,14 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
     Omega0 - value of the Omega at (x,y,z)
 */
 
+//#define DEBUG
 static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
   
   const char * fname = "roche_misaligned_Omega";
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
   
   double p[7];
 
@@ -2807,6 +2952,10 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
     p[3] = PyFloat_AsDouble(o_misalignment);
     p[4] = 0; // Omega0 = 0
     
+    #if defined(DEBUG)
+    std::cerr << fname << "::END" << std::endl;
+    #endif
+    
     Tmisaligned_rotated_roche<double> b(p);
     return PyFloat_FromDouble(-b.constrain(x));
   } else if (PyArray_Check(o_misalignment)) {
@@ -2816,11 +2965,19 @@ static PyObject *roche_misaligned_Omega(PyObject *self, PyObject *args) {
     p[4] = s[1];
     p[5] = s[2];
     p[6] = 0; // Omega0 = 0
-    
+
+    #if defined(DEBUG)
+    std::cerr << fname << "::END" << std::endl;
+    #endif
+        
     Tmisaligned_roche<double> b(p);
     return PyFloat_FromDouble(-b.constrain(x));
   }
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
+
   std::cerr << fname << "::This type of misalignment is not supported\n";
   return NULL;  
 }
@@ -4020,16 +4177,19 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-#define DEBUG
+//#define DEBUG
 static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "roche_misaligned_marching_mesh";
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
+  
   //
   // Reading arguments
   //
-
- char *kwlist[] = {
+  char *kwlist[] = {
     (char*)"q",
     (char*)"F",
     (char*)"d",
@@ -4316,6 +4476,10 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
   
   return results;
 }
