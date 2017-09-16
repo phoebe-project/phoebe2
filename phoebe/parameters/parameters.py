@@ -5251,7 +5251,7 @@ class ConstraintParameter(Parameter):
         newly_constrained_var = self._get_var(**kwargs)
         newly_constrained_param = self.get_parameter(**kwargs)
 
-        check_kwargs = newly_constrained_param.meta
+        check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
         check_kwargs['context'] = 'constraint'
         if len(self._bundle.filter(**check_kwargs)):
             raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
