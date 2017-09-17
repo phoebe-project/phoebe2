@@ -2811,6 +2811,7 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
     omega: float - parameter of the potential
     misalignment:  in rotated coordinate system:
       float - angle between spin and orbital angular velocity vectors [rad]
+      s = [sin(angle), 0, cos(angle)]
     or in canonical coordinate system:
       1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
     r: 1-rank numpy array of length 3 = [x,y,z]
@@ -2819,12 +2820,12 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
   
     Omega0 - value of the Omega at (x,y,z)
 */
-/*
+
 static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
 
   const char * fname = "rotstar_misaligned_Omega";
   
-  double p[2];
+  double p[5];
 
   PyObject *o_misalignment;
   
@@ -2839,22 +2840,31 @@ static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
     return NULL;
   }
 
+  p[1] = 0; // Omega
+  
   if (PyFloat_Check(o_misalignment)) {    
-    s = std::sin(PyFloat_AsDouble(o_misalignment));
+    double s = std::sin(PyFloat_AsDouble(o_misalignment));
+    
+    p[2] = s;
+    p[3] = 0;
+    p[4] = std::sqrt(1. - s*s);
+  
   } else if (PyArray_Check(o_misalignment)) {
-    s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
+    double *s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
+    
+    p[2] = s[0];
+    p[3] = s[1];
+    p[4] = s[2];
+    
   } else {
     std::cerr << fname << "::This type of misalignment is not supported.\n";
     return NULL;
   }
 
-  p[1] = 0; // Omega
-  
-  Trot_star<double> b(p);
+  Tmisaligned_rot_star<double> b(p);
 
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
 }
-*/
 
 /*
   C++ wrapper for Python code:

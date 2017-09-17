@@ -429,7 +429,7 @@ struct Tgen_roche {
 
 };
 
-/*   ===================================================================
+/* ===================================================================
   Rotating star
   
   Defined of implicitly by a constrain
@@ -452,6 +452,179 @@ struct Trot_star {
   Trot_star(void *params) : omega(((T*)params)[0]), Omega0(((T*)params)[1]) { 
     
     w2 = omega*omega;
+  }
+  
+  /*
+    Definition of the potential minus the reference.
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+      Omega0 - Omega(x,y,z)
+  */
+  
+  T constrain(T r[3]) {
+    return 
+      Omega0 - 
+      (1/utils::hypot3(r[0], r[1], r[2]) + w2*(r[0]*r[0] + r[1]*r[1])/2); 
+  }
+  /*
+    Definition of the potential minus the reference and the 
+    gradient of it:
+      
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[4]:
+        {ret[0], ret[1], ret[2]} = -grad-potential Omega
+        ret[3] = Omega0 - Omega 
+  */
+
+  
+  void grad(T r[3], T ret[4], const bool & precision = false){
+    
+    if (precision) {
+      
+      long double
+        x = r[0], 
+        y = r[1],
+        z = r[2],
+        f = 1/utils::hypot3(x, y, z),
+        r1 = std::pow(f, 3);
+        
+      ret[0] = (-w2 + r1)*x; 
+      ret[1] = (-w2 + r1)*y;
+      ret[2] = z*r1;
+      ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
+    }
+    
+    T x = r[0], 
+      y = r[1],
+      z = r[2],
+      f = 1/utils::hypot3(x, y, z),
+      r1 = std::pow(f, 3);
+      
+    ret[0] = (-w2 + r1)*x; 
+    ret[1] = (-w2 + r1)*y;
+    ret[2] = z*r1;
+    ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
+  }
+    
+  /*
+    Definition of the gradient of the negative potential
+     
+      -grad-potential Omega
+    
+    Minus guaranties that the normal points outward from the 
+    iso-potential surfaces. 
+    
+    Input:
+      r[3] = {x, y, z}
+      
+    Output: 
+    
+      ret[3]:
+        {ret[0], ret[1], ret[2]} = grad-potential
+  */
+  
+  void grad_only(T r[3], T ret[3], const bool & precision = false){
+    
+    if (precision){
+      long double
+        x = r[0], 
+        y = r[1],
+        z = r[2],
+        f = 1/utils::hypot3(x, y, z),
+        r1 = std::pow(f, 3);
+      
+      ret[0] = (-w2 + r1)*x; 
+      ret[1] = (-w2 + r1)*y;
+      ret[2] = z*r1;
+      return;
+    }
+    
+    T x = r[0], 
+      y = r[1],
+      z = r[2],
+      f = 1/utils::hypot3(x, y, z),
+      r1 = std::pow(f, 3);
+      
+    ret[0] = (-w2 + r1)*x; 
+    ret[1] = (-w2 + r1)*y;
+    ret[2] = z*r1;
+  }
+
+  
+  /*
+    Calculate Hessian matrix of the constrain Omega0 - Omega:
+    resulting:
+      H_{ij} = - partial_i partial_j Omega
+    
+  */
+  void hessian (T r[3], T H[3][3]){
+    
+    T x = r[0], y = r[1], z = r[2], 
+      x2 = x*x,
+      y2 = y*y, 
+      z2 = z*z,
+    
+      f = 1/utils::hypot3(x, y, z), 
+      f2 = 1/(y2 + z2 + x2), 
+      
+      f3 = f2*f, 
+      f5 = f2*f3;
+      
+    H[0][0] = f3 - w2 - 3*f5*x2;
+    H[0][1] = H[1][0] = -3*f5*x*y;
+    H[0][2] = H[2][0] = -3*f5*x*z;
+    H[1][1] = f3 - w2 - 3*f5*y2;
+    H[1][2] = H[2][1] = -3*f5*y*z;
+    H[2][2] = f3 - 3*f5*z2;
+  }
+  
+};
+
+
+/* ===================================================================
+  Rotating star with misaligned spin w.r.t. to x,y,z
+  
+    Omega(r) = 1/r + 1/2 omega^2 |r - s (r.s)|^2 
+      r = (x, y, z)
+      s = (sx, sy, sz)
+  
+  defined of implicitly by a constrain
+  
+    Omega(r) = Omega_0
+ =================================================================== */ 
+
+template <class T>
+struct Tmisaligned_rot_star {
+  
+  T omega, Omega0, s[3], w2;
+  
+  /*
+    Reading and storing the parameters
+    params[0] = omega0  
+    params[1] = Omega0
+    params[2] = spin[0]
+    params[3] = spin[1]
+    params[4] = spin[2]
+  */
+  
+  Tmisaligned_rot_star(void *params) 
+    : omega(((T*)params)[0]), 
+      Omega0(((T*)params)[1]) { 
+    
+    w2 = omega*omega;
+    for (int i = 0; i < 3; ++i) s[i] = params[i+2];
   }
   
   /*
