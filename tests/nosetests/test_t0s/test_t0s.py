@@ -9,12 +9,17 @@ import matplotlib.pyplot as plt
 from nose.tools import assert_raises
 
 def test_binary(verbose=True):
-    def assert_t0s(t0_ref, t0_supconj, t0_perpass, tol=1e-4):
+    def assert_t0s(p1_t0_ref, p1_t0_supconj, p1_t0_perpass, tol=1e-4):
+        p2_t0_ref = b.get_value('t0_ref@component')
+        p2_t0_supconj = b.get_value('t0_supconj@component')
+        p2_t0_perpass = b.get_value('t0_perpass@component')
+
         if verbose:
-            print "{}=={}, {}=={}, {}=={}".format(t0_ref, b.get_value('t0_ref@component'), t0_supconj, b.get_value('t0_supconj@component'), t0_perpass, b.get_value('t0_perpass@component'))
-        assert(abs(b.get_value('t0_ref@component')-t0_ref) < tol)
-        assert(abs(b.get_value('t0_supconj@component')-t0_supconj) < tol)
-        assert(abs(b.get_value('t0_perpass@component')-t0_perpass) < tol)
+            print "{}=={}, {}=={}, {}=={}".format(p1_t0_ref, p2_t0_ref, p1_t0_supconj, p2_t0_supconj, p1_t0_perpass, p2_t0_perpass)
+
+        assert(abs(p2_t0_ref-p1_t0_ref) < tol)
+        assert(abs(p2_t0_supconj-p1_t0_supconj) < tol)
+        assert(abs(p2_t0_perpass-p1_t0_perpass) < tol)
 
     b = phoebe.Bundle.default_binary()
 
