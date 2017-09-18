@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 
 from nose.tools import assert_raises
 
-def test_binary(verbose=False):
-    def assert_t0s(t0_ref, t0_supconj, t0_perpass, tol=1e-5):
+def test_binary(verbose=True):
+    def assert_t0s(t0_ref, t0_supconj, t0_perpass, tol=1e-4):
         if verbose:
-            print b.get_value('t0_ref@component'), b.get_value('t0_supconj@component'), b.get_value('t0_perpass@component')
+            print "{}=={}, {}=={}, {}=={}".format(t0_ref, b.get_value('t0_ref@component'), t0_supconj, b.get_value('t0_supconj@component'), t0_perpass, b.get_value('t0_perpass@component'))
         assert(abs(b.get_value('t0_ref@component')-t0_ref) < tol)
         assert(abs(b.get_value('t0_supconj@component')-t0_supconj) < tol)
         assert(abs(b.get_value('t0_perpass@component')-t0_perpass) < tol)
