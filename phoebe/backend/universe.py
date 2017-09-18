@@ -839,55 +839,59 @@ class Body(object):
             q, F, d, Phi = self._mesh_args
             # envelopes MUST be aligned
             s = np.array([0. ,0., 1.])
+        elif self.distortion_method == 'rotstar':
+            omega, s, Phi = self._mesh_args
+            # update spin axis for current time
+            s = self.polar_direction
         else:
             q, F, d, s, Phi = self._mesh_args
+            # update spin axis for current time
             s = self.polar_direction
 
         #-- Volume Conservation
-        if self.needs_volume_conservation and self.distortion_method in ['roche']:
+        if self.needs_volume_conservation or self.is_misaligned:
+            if self.distortion_method in ['roche']:
 
-            # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
+                # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
 
-            # override d to be the current value
-            if ds is not None:
-                # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
-                d = ds[self.ind_self]
-                # TODO: if we change d here based on the new sma, do we need to update self._scale?
-            else:
-                d = self.instantaneous_distance(xs, ys, zs, self.sma)
+                # override d to be the current value
+                if ds is not None:
+                    # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
+                    d = ds[self.ind_self]
+                    # TODO: if we change d here based on the new sma, do we need to update self._scale?
+                else:
+                    d = self.instantaneous_distance(xs, ys, zs, self.sma)
 
-            if Fs is not None:
-                # then the instantaneous F was likely changing (ie roche geometry but nbody orbits)
-                F = Fs[self.ind_self]
+                if Fs is not None:
+                    # then the instantaneous F was likely changing (ie roche geometry but nbody orbits)
+                    F = Fs[self.ind_self]
 
-            # TODO: TESTING should this be unscaled with the new scale or old scale?
-            # self._scale = d
-            target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
-            logger.info("volume conservation: target_volume={}".format(target_volume))
+                # TODO: TESTING should this be unscaled with the new scale or old scale?
+                # self._scale = d
+                target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
+                logger.info("volume conservation: target_volume={}".format(target_volume))
 
 
-            # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi, self.Phi
+                # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi, self.Phi
 
-            # TODO: need to send a better guess for Omega0
-            Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
-                                               q, F, d, s,
-                                               Omega0=Phi if Phi>self.Phi else self.Phi)
-            # if Phi < self.Phi:
-                # then for some reason we passed the value defined at periastron...
-                # NOTE: this logic may not make sense for dynamical system
-                # logger.warning("Pot falling back to value defined at periastron")
-                # Phi = self.Phi
+                # TODO: need to send a better guess for Omega0
+                Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
+                                                   q, F, d, s,
+                                                   Omega0=Phi if Phi>self.Phi else self.Phi)
+                # if Phi < self.Phi:
+                    # then for some reason we passed the value defined at periastron...
+                    # NOTE: this logic may not make sense for dynamical system
+                    # logger.warning("Pot falling back to value defined at periastron")
+                    # Phi = self.Phi
 
-            # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
-            self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
+                # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
+                self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
 
-            #-- Reprojection
-            logger.info("rebuilding mesh with Phi={} and d={}".format(Phi, d))
+                logger.info("rebuilding mesh with Phi={} and d={}".format(Phi, d))
+
 
             # TODO: implement reprojection as an option instead of rebuilding
             # the mesh??
-
-            # TODO: make sure this passes the new d and new Phi correctly
 
             # NOTE: Phi is not Phi_user so doesn't need to be flipped for the
             # secondary component
@@ -1694,7 +1698,10 @@ class Star(Body):
                     # potential.
                     # rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
                     # print "*** before rotstar_from_roche", Phi, F, sma, rpole*sma
-                    omega, Phi = libphoebe.rotstar_from_roche(*mesh_args)
+                    info = libphoebe.rotstar_misaligned_from_roche_misaligned(*mesh_args)
+                    omega = info['omega']
+                    s = info['misalignment']
+                    Phi = info['Omega']
                     # rpole = rotstar.potential2rpole(Phi, self.freq_rot, solar_units=True)  # TODO: REMOVE
                     # print "*** after rotstar_from_roche", Phi, omega, sma, rpole*sma
 
@@ -1706,9 +1713,9 @@ class Star(Body):
                     Phi = self.Phi_user # because we don't want to do conversion for secondary
 
 
-                mesh_args = (omega, Phi)
+                mesh_args = (omega, s, Phi)
 
-                av = libphoebe.rotstar_area_volume(*mesh_args,
+                av = libphoebe.rotstar_misaligned_area_volume(*mesh_args,
                                                    larea=True,
                                                    lvolume=True)
 
@@ -1717,7 +1724,7 @@ class Star(Body):
 
                 # print "*** rotstar_marching_mesh omega: {}, Phi: {}, freq_rot:{}, sma:{}, rpole:{}, delta:{}".format(mesh_args[0], mesh_args[1], self.freq_rot, sma, rpole, delta)
 
-                new_mesh = libphoebe.rotstar_marching_mesh(*mesh_args,
+                new_mesh = libphoebe.rotstar_misaligned_marching_mesh(*mesh_args,
                                                delta=delta,
                                                full=True,
                                                max_triangles=ntriangles*2,
@@ -1787,6 +1794,8 @@ class Star(Body):
 
                 rpole = libphoebe.roche_misaligned_pole(*mesh_args)
                 omega = 1./rpole
+                # sphere doesn't care about spin axis for marching, we'll deal
+                # with the spin axis for spots/velocities later
                 mesh_args = (omega,)
 
                 av = libphoebe.sphere_area_volume(*mesh_args,
@@ -1884,8 +1893,8 @@ class Star(Body):
         """
         TODO: add documentation
         """
-        pole_func = getattr(libphoebe, '{}_pole'.format('roche_misaligned' if self.distortion_method=='roche' else self.distortion_method))
-        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format('roche_misaligned' if self.distortion_method=='roche' else self.distortion_method))
+        pole_func = getattr(libphoebe, '{}_pole'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
+        gradOmega_func = getattr(libphoebe, '{}_gradOmega_only'.format('{}_misaligned'.format(self.distortion_method) if self.distortion_method in ['roche', 'rotstar'] else self.distortion_method))
 
         r_pole = pole_func(*self._mesh_args)
         r_pole_ = np.array([0., 0., r_pole])
