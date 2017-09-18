@@ -661,10 +661,18 @@ namespace rot_star {
       
     } else {
       
-      // create orthonormal basis, spin = e_z
+      // create orthonormal basis, assuming spin = e_z
       T e[2][3];
+      
+      // e_x =  view x e_z
       utils::cross3D(view, spin,  e[0]);
-      utils::cross3D(e[0], spin, e[1]);
+      
+      // e_x  needs normalization
+      T f = 1/utils::hypot3(e[0]);
+      for (int i = 0; i < 3; ++i) e[0][i] *=f;
+      
+      // e_y = e_z x e_x
+      utils::cross3D(spin, e[0], e[1]);
     
       // project vector view onto this basis
       T v[2];
