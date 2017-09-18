@@ -4531,10 +4531,14 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
-
+#define DEBUG
 static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "rotstar_misaligned_marching_mesh";
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
   
   //
   // Reading arguments
@@ -4792,10 +4796,17 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
     PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
+
+  #if defined(DEBUG)
+  std::cerr << fname << "::END" << std::endl;
+  #endif
   
   return results;
 }
 
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
