@@ -466,8 +466,7 @@ struct Trot_star {
   
   T constrain(T r[3]) {
     return 
-      Omega0 - 
-      (1/utils::hypot3(r[0], r[1], r[2]) + w2*(r[0]*r[0] + r[1]*r[1])/2); 
+      Omega0 - (1/utils::hypot3(r) + w2*(r[0]*r[0] + r[1]*r[1])/2); 
   }
   /*
     Definition of the potential minus the reference and the 
@@ -504,6 +503,8 @@ struct Trot_star {
       ret[1] = (-w2 + r1)*y;
       ret[2] = z*r1;
       ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
+      
+      return;
     }
     
     T x = r[0], 
@@ -685,6 +686,8 @@ struct Tmisaligned_rot_star {
      
       fl *= fl*fl;
       for (int i = 0; i < 3; ++i) ret[i] = fl*rl[i] - omega2*gl[i];
+      
+      return;
     }
 
     T g[3];
@@ -732,6 +735,8 @@ struct Tmisaligned_rot_star {
       
       fl *= fl*fl;
       for (int i = 0; i < 3; ++i) ret[i] = fl*rl[i] - omega2*gl[i];
+      
+      return;
     }
 
     T g[3];

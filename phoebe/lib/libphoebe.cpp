@@ -4177,10 +4177,14 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
-
+//#define DEBUG
 static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "rotstar_marching_mesh";
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::START" << std::endl;
+  #endif
   
   //
   // Reading arguments
@@ -4266,6 +4270,12 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     return NULL;
   }
   
+  #if defined(DEBUG)
+  std::cerr 
+      << fname << "::Read params\n" 
+      << " Omega=" << Omega0 << " omega=" << omega << " delta=" << delta << std::endl;
+  #endif
+  
   if (o_full) b_full = PyObject_IsTrue(o_full); 
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
@@ -4282,7 +4292,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     double *p = (double*)PyArray_DATA(o_init_dir);
     init_dir[0] = p[0];
     init_dir[1] = p[1];
-  }
+  } 
      
   //
   // Storing results in dictioonary
@@ -4295,14 +4305,30 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   // Getting initial meshing point
   //
   
+  #if defined(DEBUG)
+  std::cerr << fname << "::Point on surface" << std::endl;
+  #endif
+  
   double r[3], g[3];
   //rot_star::meshing_start_point(r, g, Omega0, omega);
-  rot_star::point_on_surface(init_dir[0], init_dir[1], Omega0, omega, r, g);
+  rot_star::point_on_surface(Omega0, omega, init_dir[0], init_dir[1], r, g);
  
+  #if defined(DEBUG)
+  std::cerr 
+    << fname << "\n" 
+    << "r=" << r[0] << " " << r[1] << " " << r[2] 
+    << "g=" << g[0] << " " << g[1] << " " << g[2] 
+    << std::endl;
+  #endif
+  
   //
   //  Marching triangulation of the Roche lobe 
   //
-    
+ 
+  #if defined(DEBUG)
+  std::cerr << fname << "::Marching" << std::endl;
+  #endif
+     
   double params[3] = {omega, Omega0};
   
   Tmarching<double, Trot_star<double>> march(params);  
@@ -4322,7 +4348,9 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     return NULL;
   }
   
- 
+  #if defined(DEBUG)
+  std::cerr << fname << "::Outputing" << std::endl;
+  #endif
   //
   // Calculate the mesh properties
   //
@@ -4413,6 +4441,10 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     PyDict_SetItemStringStealRef(results, "cnormgrads", PyArray_FromVector(*GatC));
     delete GatC;
   }
+  
+  #if defined(DEBUG)
+  std::cerr << fname << "::END\n";
+  #endif
   
   return results;
 }
@@ -4531,7 +4563,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   * https://docs.python.org/2.0/ext/parseTupleAndKeywords.html
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
-#define DEBUG
+//#define DEBUG
 static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char *fname = "rotstar_misaligned_marching_mesh";
@@ -4680,7 +4712,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
   
   double r[3], g[3];
   //rot_star::meshing_start_point(r, g, Omega0, omega);
-  rot_star::point_on_surface(Omega0, omega, spin,init_dir[0], init_dir[1], r, g);
+  rot_star::point_on_surface(Omega0, omega, spin, init_dir[0], init_dir[1], r, g);
  
   //
   //  Marching triangulation of the Roche lobe 
