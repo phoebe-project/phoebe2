@@ -12,6 +12,11 @@ def test_binary(plot=False):
     b['pitch@primary'] = 10
     b['yaw@primary'] = 10
 
+    b['pitch@secondary'] = 20
+    b['yaw@secondary'] = 30
+
+    b['distortion_method@secondary'] = 'rotstar'
+
     b.add_dataset('lc', times=np.linspace(0,1,21))
 
     b.run_compute(irrad_method='none')
