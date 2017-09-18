@@ -679,8 +679,8 @@ namespace rot_star {
       for (int i = 0; i < 2; ++i) v[i] = utils::dot3D(view, e[i]);
       
       // intersection of horizon with equator
-      T f = r0/std::sqrt(v[0]*v[0] + v[1]*v[1]),
-        w[2] = {-f*v[1], f*v[0]};
+      f = r0/std::sqrt(v[0]*v[0] + v[1]*v[1]);
+      T w[2] = {-f*v[1], f*v[0]};
         
       // transform back to original coordinate system
       for (int i = 0; i < 3; ++i) r[i] = 0;
