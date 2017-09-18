@@ -187,7 +187,7 @@ namespace utils {
   }
   
   // x^T.y
-  template <class T> T inline dot3D(T x[3], T y[3]) {
+  template <class T, class F> T inline dot3D(T x[3], F y[3]) {
     return x[0]*y[0] + x[1]*y[1] + x[2]*y[2];
   }
   
@@ -254,11 +254,18 @@ namespace utils {
     return true;
   }
   
+  // z = x +  a*y
+  template <class T, class F> inline void fma3D(T x[3], F y[3], const T & a, T z[3]) {
+    for (int i = 0; i < 3; ++i) z[i] = x[i] + a*y[i];
+  }
+
+
   // z = x - y
   template <class T> inline void sub3D(T x[3], T y[3], T z[3]) {
     for (int i = 0; i < 3; ++i) z[i] = x[i] - y[i];
   }
   
+    
   // return x.x
   template <class T> inline T norm2(T x[3]) {
     // for higher precision we can sort and 

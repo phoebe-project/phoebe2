@@ -618,7 +618,9 @@ namespace rot_star {
       view - direction of the view
       Omega0 - value of the potential
       omega - parameter of th potential
-    
+      spin - vector of the spin
+             if (spin == NULL) align cases is assumed
+                spin = [0, 0, 1]
     Output:
       p - point on the horizon
   */
@@ -627,23 +629,56 @@ namespace rot_star {
     T r[3], 
     T view[3],
     const T & Omega0,
-    const T & omega
+    const T & omega,
+    T *spin = 0
   ){
     
     T r0 = equator(Omega0, omega);
     
-    if (view[0] == 0 && view[1] == 0) {
-      r[0] = r0;
-      r[1] = r[2] = 0;
-    }
-    
     if (std::isnan(r0)) return false;
     
-    T f = r0/std::sqrt(view[0]*view[0] + view[1]*view[1]);
-    r[0] = -f*view[1];
-    r[1] = f*view[0];
-    r[2] = 0;
+    //
+    // if spin is aligned with view => horizon == equator
+    //
+    const T eps = 10*std::numeric_limits<T>::epsilon();
     
+    if ((spin == 0 && view[0] == 0 && view[1] == 0) || 
+        (spin != 0 && std::abs(std::abs(utils::dot3D(spin, view)) - 1.) <  eps)
+    ) {
+      // just some point on equator
+      r[0] = r0;
+      r[1] = r[2] = 0;
+      return true;
+    }
+        
+    if (spin == 0 || (spin != 0 && spin[0] == 0 && spin[1] == 0)) {
+      
+      // intersection of horizon with equator
+      T f = r0/std::sqrt(view[0]*view[0] + view[1]*view[1]);
+      r[0] = -f*view[1];
+      r[1] = f*view[0];
+      r[2] = 0;
+      
+    } else {
+      
+      // create orthonormal basis, spin = e_z
+      T e[2][3];
+      utils::cross3D(view, spin,  e[0]);
+      utils::cross3D(e[0], spin, e[1]);
+    
+      // project vector view onto this basis
+      T v[2];
+      for (int i = 0; i < 2; ++i) v[i] = utils::dot3D(view, e[i]);
+      
+      // intersection of horizon with equator
+      T f = r0/std::sqrt(v[0]*v[0] + v[1]*v[1]),
+        w[2] = {-f*v[1], f*v[0]};
+        
+      // transform back to original coordinate system
+      for (int i = 0; i < 3; ++i) r[i] = 0;
+      for (int i = 0; i < 2; ++i) 
+        for (int j = 0; j < 3; ++j) r[j] += w[i]*e[i][j];
+    }
     
     return true;
   }
@@ -696,10 +731,10 @@ namespace rot_star {
   */ 
   template <class T> 
   void point_on_surface(
-    const T& theta,
-    const T& phi,
     const T & Omega0,
     const T & omega,
+    const T& theta,
+    const T& phi,
     T x[3],
     T *g = 0) {
   
@@ -721,6 +756,67 @@ namespace rot_star {
       g[1] = f*st*sp;
       g[2] = ct/r2;
     }
+  }
+  
+  /*
+    Point x on the surface for rotating star with misalignment
+      
+      Omega(x) = Omega_0
+    
+    where
+      
+      Omega(r) = 1/|r| + 1/2 omega^2 |r - s (r.s)|^2 
+        r = (x, y, z)
+        s = (sx, sy, sz)    |s| = 1
+    
+    in directon 
+      
+      u = (sin(theta)cos(phi), sin(theta) sin(phi), cos(theta))
+      x = r*u
+    
+    Input:
+      theta - polar angle (from z axis)
+      phi - azimulal angle
+      Omega0 - value of the potential
+      omega - parameter of the potential
+    
+    Output:
+      x - point on the surface
+      g - gradient on the surface (-grad Omega)
+  */ 
+  template <class T> 
+  void point_on_surface(
+    const T & Omega0,
+    const T & omega,
+    T spin[3],
+    const T& theta,
+    const T& phi,
+    T x[3],
+    T *g = 0) {
+  
+    T st, ct, sp, cp;
+ 
+    utils::sincos(theta, &st, &ct);
+    utils::sincos(phi, &sp, &cp);
+  
+    // direction in which we want the point
+    x[0] = st*cp;
+    x[1] = st*sp;
+    x[2] = ct;
+  
+    T t = utils::dot3D(x, spin),
+      r = equator(Omega0, omega*std::sqrt(1-t*t));
+ 
+    // calculate the gradient
+    if (g) {
+      T f1 = 1/(r*r), f2 = omega*omega*r;
+      f1 -= f2; 
+      f2 *= t;
+      for (int i = 0; i < 3; ++i) g[i] = f1*x[i] + f2*spin[i];
+    }
+    
+    // calculate the point
+    for (int i = 0; i < 3; ++i) x[i] *= r;
   }
 
 

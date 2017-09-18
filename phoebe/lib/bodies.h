@@ -596,35 +596,38 @@ struct Trot_star {
 /* ===================================================================
   Rotating star with misaligned spin w.r.t. to x,y,z
   
-    Omega(r) = 1/r + 1/2 omega^2 |r - s (r.s)|^2 
+    Omega(r) = 1/|r| + 1/2 omega^2 |r - s (r.s)|^2 
       r = (x, y, z)
-      s = (sx, sy, sz)
+      s = (sx, sy, sz)      |s| = 1
   
+    gradOmega = -r/|r|^3 + omega^2 (r - s(r.s))
+    
   defined of implicitly by a constrain
   
-    Omega(r) = Omega_0
+    constrain = Omega_0 - Omega(r) == 0
  =================================================================== */ 
 
 template <class T>
 struct Tmisaligned_rot_star {
   
-  T omega, Omega0, s[3], w2;
+  T omega, Omega0, s[3], omega2;
   
   /*
     Reading and storing the parameters
     params[0] = omega0  
-    params[1] = Omega0
-    params[2] = spin[0]
-    params[3] = spin[1]
-    params[4] = spin[2]
+    params[1] = spin[0]
+    params[2] = spin[1]
+    params[3] = spin[2]
+    params[4] = Omega0
+
   */
   
   Tmisaligned_rot_star(void *params) 
     : omega(((T*)params)[0]), 
-      Omega0(((T*)params)[1]) { 
+      Omega0(((T*)params)[4]) { 
     
-    w2 = omega*omega;
-    for (int i = 0; i < 3; ++i) s[i] = params[i+2];
+    omega2 = omega*omega;
+    for (int i = 0; i < 3; ++i) s[i] = ((T*)params)[i+1];
   }
   
   /*
@@ -638,9 +641,14 @@ struct Tmisaligned_rot_star {
   */
   
   T constrain(T r[3]) {
-    return 
-      Omega0 - 
-      (1/utils::hypot3(r[0], r[1], r[2]) + w2*(r[0]*r[0] + r[1]*r[1])/2); 
+    
+    T w = utils::dot3D(r, s),   // = r.s
+      f = 1/utils::hypot3(r),   // 1/|r|
+      g[3];
+    
+    utils::fma3D(r, s, -w, g);  // g = r - w*s  
+     
+    return Omega0 - f - 0.5*omega2*utils::norm2(g); 
   }
   /*
     Definition of the potential minus the reference and the 
@@ -661,34 +669,38 @@ struct Tmisaligned_rot_star {
         ret[3] = Omega0 - Omega 
   */
 
-  
+
   void grad(T r[3], T ret[4], const bool & precision = false){
     
     if (precision) {
-      
-      long double
-        x = r[0], 
-        y = r[1],
-        z = r[2],
-        f = 1/utils::hypot3(x, y, z),
-        r1 = std::pow(f, 3);
-        
-      ret[0] = (-w2 + r1)*x; 
-      ret[1] = (-w2 + r1)*y;
-      ret[2] = z*r1;
-      ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
-    }
+      long double rl[3] = {r[0], r[1], r[2]}, gl[3];
     
-    T x = r[0], 
-      y = r[1],
-      z = r[2],
-      f = 1/utils::hypot3(x, y, z),
-      r1 = std::pow(f, 3);
+      // g = r - (r.s)*s  
+      utils::fma3D(rl, s, -utils::dot3D(rl, s), gl);     
+    
+      long double fl = 1/utils::hypot3(rl);  // = 1/|r|
       
-    ret[0] = (-w2 + r1)*x; 
-    ret[1] = (-w2 + r1)*y;
-    ret[2] = z*r1;
-    ret[3] = Omega0 - (f + w2*(x*x + y*y)/2);
+      // ret[3] = Omega0 - 1/|r| - 1/2 omega^2 |g|^2
+      ret[3] = Omega0 - fl - 0.5*omega2*utils::norm2(gl);
+     
+      fl *= fl*fl;
+      for (int i = 0; i < 3; ++i) ret[i] = fl*rl[i] - omega2*gl[i];
+    }
+
+    T g[3];
+    
+    // g = r - (r.s)*s
+    utils::fma3D(r, s, -utils::dot3D(r, s), g);   
+   
+    T f = 1/utils::hypot3(r);     // = 1/|r|
+      
+    // ret[3] = Omega0 - 1/|r| - 1/2 omega^2 |g|^2
+    ret[3] = Omega0 - f - 0.5*omega2*utils::norm2(g);
+    
+    f *= f*f;
+    
+    // ret = r/|r|^3 - omega^2 g
+    for (int i = 0; i < 3; ++i) ret[i] = f*r[i] - omega2*g[i];
   }
     
   /*
@@ -710,29 +722,29 @@ struct Tmisaligned_rot_star {
   
   void grad_only(T r[3], T ret[3], const bool & precision = false){
     
-    if (precision){
-      long double
-        x = r[0], 
-        y = r[1],
-        z = r[2],
-        f = 1/utils::hypot3(x, y, z),
-        r1 = std::pow(f, 3);
-      
-      ret[0] = (-w2 + r1)*x; 
-      ret[1] = (-w2 + r1)*y;
-      ret[2] = z*r1;
-      return;
-    }
+    if (precision) {
+      long double rl[3] = {r[0], r[1], r[2]}, gl[3];
     
-    T x = r[0], 
-      y = r[1],
-      z = r[2],
-      f = 1/utils::hypot3(x, y, z),
-      r1 = std::pow(f, 3);
+      // g = r - (r.s)*s  
+      utils::fma3D(rl, s, -utils::dot3D(rl, s), gl);     
+    
+      long double fl = 1/utils::hypot3(rl);  // = 1/|r|
       
-    ret[0] = (-w2 + r1)*x; 
-    ret[1] = (-w2 + r1)*y;
-    ret[2] = z*r1;
+      fl *= fl*fl;
+      for (int i = 0; i < 3; ++i) ret[i] = fl*rl[i] - omega2*gl[i];
+    }
+
+    T g[3];
+    
+    // g = r - (r.s)*s
+    utils::fma3D(r, s, -utils::dot3D(r, s), g);   
+   
+    T f = 1/utils::hypot3(r);     // = 1/|r|
+    
+    f *= f*f;
+    
+    // ret = r/|r|^3 - omega^2 g
+    for (int i = 0; i < 3; ++i) ret[i] = f*r[i] - omega2*g[i];
   }
 
   
@@ -745,22 +757,17 @@ struct Tmisaligned_rot_star {
   void hessian (T r[3], T H[3][3]){
     
     T x = r[0], y = r[1], z = r[2], 
-      x2 = x*x,
-      y2 = y*y, 
-      z2 = z*z,
+      x2 = x*x, y2 = y*y, z2 = z*z,
     
       f = 1/utils::hypot3(x, y, z), 
-      f2 = 1/(y2 + z2 + x2), 
+      f2 = f*f, f3 = f2*f, f5 = f2*f3;
       
-      f3 = f2*f, 
-      f5 = f2*f3;
-      
-    H[0][0] = f3 - w2 - 3*f5*x2;
-    H[0][1] = H[1][0] = -3*f5*x*y;
-    H[0][2] = H[2][0] = -3*f5*x*z;
-    H[1][1] = f3 - w2 - 3*f5*y2;
-    H[1][2] = H[2][1] = -3*f5*y*z;
-    H[2][2] = f3 - 3*f5*z2;
+    H[0][0] = f3 - 3*f5*x2 - omega2*(1 - s[0]*s[0]);
+    H[0][1] = H[1][0] = -3*f5*x*y + omega2*s[0]*s[1];
+    H[0][2] = H[2][0] = -3*f5*x*z + omega2*s[0]*s[2];
+    H[1][1] = f3 - 3*f5*y2 - omega2*(1 - s[1]*s[1]);
+    H[1][2] = H[2][1] = -3*f5*y*z + omega2*s[1]*s[2];
+    H[2][2] = f3 - 3*f5*z2 - omega2*(1 - s[2]*s[2]);
   }
   
 };
