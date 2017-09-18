@@ -15,8 +15,9 @@ def test_binary(verbose=True):
         p2_t0_perpass = b.get_value('t0_perpass@component')
 
         if verbose:
-            print "{}=={}, {}=={}, {}=={}".format(p1_t0_ref, p2_t0_ref, p1_t0_supconj, p2_t0_supconj, p1_t0_perpass, p2_t0_perpass)
+            print("{}=={}, {}=={}, {}=={}".format(p1_t0_ref, p2_t0_ref, p1_t0_supconj, p2_t0_supconj, p1_t0_perpass, p2_t0_perpass))
 
+        b.run_delayed_constraints()
         assert(abs(p2_t0_ref-p1_t0_ref) < tol)
         assert(abs(p2_t0_supconj-p1_t0_supconj) < tol)
         assert(abs(p2_t0_perpass-p1_t0_perpass) < tol)
@@ -84,6 +85,5 @@ def test_binary(verbose=True):
 
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
-
 
     b = test_binary(verbose=True)
