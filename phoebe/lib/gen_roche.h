@@ -662,7 +662,8 @@ namespace gen_roche {
       if (it >= max_iter)
         std::cerr 
           << fname << "::too many iterations\n"
-          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n';
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n'
+          << "w=" << w << " q=" << q << " b=" << b  << '\n';
       else 
         return t;
           
@@ -784,7 +785,8 @@ namespace gen_roche {
       if (it >= max_iter)
         std::cerr 
           << fname << "::too many iterations\n"
-          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n'; 
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n'
+          << "w=" << w << " q=" << q << " b=" << b  << '\n'; 
       else 
         return t;
       
@@ -884,7 +886,8 @@ namespace gen_roche {
       if (it >= max_iter)
         std::cerr 
           << fname << "::too many iterations\n"
-          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n';
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n'
+          << "w=" << w << " q=" << q << " b=" << b  << '\n';
       else 
         return t;
           
@@ -927,12 +930,11 @@ namespace gen_roche {
     const T & q, 
     const T & b
   ) {
-    
+    const char *fname = "right_lobe_right_xborder";
+        
     #if defined(DEBUG)
     std::cerr << fname << "::START" << std::endl;
     #endif
-    
-    const char *fname = "right_lobe_right_xborder";
         
     const int max_iter = 10;
     const T eps = 10*std::numeric_limits<T>::epsilon();
@@ -975,7 +977,7 @@ namespace gen_roche {
       
       int it = 0;
         
-      T f, x[2] = {1, l};
+      T f, x[2] = {1, l};   // signs on boundary: +, -
       
       do {
         t = (x[0] + x[1])/2;
@@ -991,7 +993,8 @@ namespace gen_roche {
       if (it >= max_iter)
         std::cerr 
           << fname << "::too many iterations\n"
-          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n';
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n'
+          << "w=" << w << " q=" << q << " b=" << b  << '\n';
       else 
         return t;
           
