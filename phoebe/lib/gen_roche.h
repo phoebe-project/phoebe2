@@ -936,7 +936,7 @@ namespace gen_roche {
     std::cerr << fname << "::START" << std::endl;
     #endif
         
-    const int max_iter = 10;
+    const int max_iter = 100;
     const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min(); 
     
