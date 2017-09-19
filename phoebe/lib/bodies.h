@@ -325,8 +325,8 @@ struct Tgen_roche {
       ret[2] = z*(f1 + q*f2);
       ret[3] = Omega0 - (r1 + q*(r2 - f0*x1) + b*(x1*x1 + y*y)/2); 
       return;
-  } 
-  T  x1 = r[0], 
+    } 
+    T x1 = r[0], 
       x2 = r[0] - delta, 
       y = r[1], 
       z = r[2], 
