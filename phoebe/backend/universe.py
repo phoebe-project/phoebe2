@@ -657,6 +657,16 @@ class Body(object):
         return False
 
     @property
+    def is_misaligned(self):
+        """
+        TODO: add documentation
+        """
+        # should be defined for any class that subclasses body that supports
+        # misalignment
+        return False
+
+
+    @property
     def volume(self):
         """
         Compute volume of a mesh AT ITS CURRENT TIME/PROJECTION - this should be
