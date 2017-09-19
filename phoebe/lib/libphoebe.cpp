@@ -2876,7 +2876,7 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
 
 static PyObject *rotstar_misaligned_gradOmega(PyObject *self, PyObject *args) {
 
-  const char * fname = "rotstar_misaligned_gradOmega";
+  const char *fname = "rotstar_misaligned_gradOmega";
 
   double p[5];
 

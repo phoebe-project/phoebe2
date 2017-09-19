@@ -578,7 +578,7 @@ namespace gen_roche {
     const char *fname = "left_lobe_left_xborder";
     
     const int max_iter = 100;
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 2*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();      
     
     //
@@ -645,7 +645,7 @@ namespace gen_roche {
       
       int it = 0;
         
-      T f, x[2] = {l, 0};
+      long double f, x[2] = {l, 0};
       
       do {
         t = (x[0] + x[1])/2;
@@ -707,7 +707,7 @@ namespace gen_roche {
     const char *fname = "left_lobe_right_xborder";
     
     const int max_iter = 100;
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 2*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();      
   
     //
@@ -769,7 +769,7 @@ namespace gen_roche {
       
       int it = 0;
         
-      T f, x[2] = {0, l};
+      long double f, x[2] = {0, l};
     
       do {
         t = (x[0] + x[1])/2;
@@ -831,7 +831,7 @@ namespace gen_roche {
     const char *fname = "right_lobe_left_xborder";
     
     const int max_iter = 100;
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 2*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min();      
   
     //
@@ -870,7 +870,7 @@ namespace gen_roche {
       
       int it = 0;
         
-      T f, x[2] = {l, 1};
+      long double f, x[2] = {l, 1};
       
       do {
         t = (x[0] + x[1])/2;
@@ -937,7 +937,7 @@ namespace gen_roche {
     #endif
         
     const int max_iter = 100;
-    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T eps = 2*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min(); 
     
     //
@@ -977,7 +977,7 @@ namespace gen_roche {
       
       int it = 0;
         
-      T f, x[2] = {1, l};   // signs on boundary: +, -
+      long double f, x[2] = {1, l};   // signs on boundary: +, -
       
       do {
         t = (x[0] + x[1])/2;
