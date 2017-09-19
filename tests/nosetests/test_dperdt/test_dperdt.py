@@ -30,9 +30,9 @@ def test_binary(plot=False):
     for dperdt in [-0.5, -0.25, 0.25, 0.5]:
         b.set_value('dperdt', dperdt)
 
-        print "running phoebe2 model..."
+        if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', model='phoebe2model')
-        print "running phoebe1 model..."
+        if plot: print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')

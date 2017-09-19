@@ -17,14 +17,14 @@ def test_mpi(plot=False):
 
     b.add_dataset('lc', times=np.linspace(0,1,1001))
 
-    print "calling compute"
+    if plot: print "calling compute"
     b.run_compute(irrad_method='none', detach=True)
     if not phoebe.backends._use_mpi:
         print "attaching to model"
         print b['model'].status
         b['model'].attach()
 
-    print "model received"
+    if plot: print "model received"
 
     if plot:
         b.plot(show=True)

@@ -32,9 +32,9 @@ def test_binary(plot=False):
     cb.set_value_all('rv_grav', False)
     cb.set_value_all('ltte', False)
 
-    print "running phoebe2 model..."
+    if plot: print "running phoebe2 model..."
     cb.run_compute(compute='phoebe2', irrad_method='none', model='phoebe2model')
-    print "running phoebe1 model..."
+    if plot: print "running phoebe1 model..."
     cb.run_compute(compute='phoebe1', refl_num=0, model='phoebe1model')
 
     phoebe2_val_lc = cb.get_value('fluxes@phoebe2model')
