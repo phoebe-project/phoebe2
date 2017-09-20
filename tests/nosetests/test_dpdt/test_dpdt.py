@@ -32,9 +32,9 @@ def test_binary(plot=False):
         b.set_value('dpdt', dpdt)
 
 
-        print "running phoebe2 model..."
+        if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', model='phoebe2model')
-        print "running phoebe1 model..."
+        if plot: print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
