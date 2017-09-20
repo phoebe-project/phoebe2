@@ -123,7 +123,7 @@ install:
 
 script:
     - if [ $NOSETESTS == 1 ];
-      then nosetests -v -s -d -w tests/nosetests/;
+      then nosetests -v -s -d -w tests/nosetests/ && sleep 20;
       fi;
 
 after_success: |

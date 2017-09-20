@@ -80,8 +80,8 @@ def test_binary(plot=False):
                     ld_coeffs_ph1 = [ld_coeff, ld_coeff]
                 exact_comparison = False
 
-
-            print "running phoebe2 model atm={}, ld_func={}, ld_coeffs={}...".format(atm, ld_func, ld_coeffs)
+            if plot:
+                print "running phoebe2 model atm={}, ld_func={}, ld_coeffs={}...".format(atm, ld_func, ld_coeffs)
 
 
             b.set_value_all('atm@phoebe2', atm)
@@ -92,8 +92,8 @@ def test_binary(plot=False):
 
             b.run_compute(compute='phoebe2', model='phoebe2model')
 
-
-            print "running phoebe1 model atm={}, ld_func={}, ld_coeffs={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1)
+            if plot:
+                print "running phoebe1 model atm={}, ld_func={}, ld_coeffs={}...".format(atm_ph1, ld_func_ph1, ld_coeffs_ph1)
 
             b.set_value_all('atm@phoebe1', atm_ph1)
             b.set_value_all('ld_func', ld_func_ph1)
@@ -104,7 +104,8 @@ def test_binary(plot=False):
             phoebe2_val = b.get_value('fluxes@phoebe2model')
             phoebe1_val = b.get_value('fluxes@phoebe1model')
 
-            print "exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
+            if plot:
+                print "exact_comparison: {}, max (rel): {}".format(exact_comparison, abs((phoebe2_val-phoebe1_val)/phoebe1_val).max())
 
             if plot:
                 b.plot(dataset='lc01')
@@ -155,7 +156,8 @@ def test_binary(plot=False):
 
             med_fluxes = np.array(med_fluxes)
             diff_med_fluxes = med_fluxes.max() - med_fluxes.min()
-            print "atm={} ld_func={} range(med_fluxes): {}".format(atm, ld_func, diff_med_fluxes)
+            if plot:
+                print "atm={} ld_func={} range(med_fluxes): {}".format(atm, ld_func, diff_med_fluxes)
 
             if plot:
                 b.show()
