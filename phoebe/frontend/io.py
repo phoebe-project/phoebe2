@@ -49,7 +49,7 @@ _1to2par = {'ld_model':'ld_func',
             'sigmarv':'sigmas',
             'sigmalc':'sigmas',
             'time':'times',
-            'longitude':'colon',
+            'longitude':'long',
             'radius': 'radius',
             'tempfactor':'relteff',
             'colatitude':'colat',
@@ -297,7 +297,7 @@ def load_rv_data(filename, indep, dep, indweight=None, dir='./'):
             d['phoebe_rv_sigmarv'] = rvdata[:,2]
         else:
             logger.warning('A sigma column is mentioned in the .phoebe file but is not present in the rv data file')
- 
+
 
     return d
 
@@ -530,10 +530,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 logger.warning('Phoebe 2 only uses Mid-Exposure times for calculating finite exposure times.')
             if fti:
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
-            
+
             else:
                 lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = 'None'
-            
+
             lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence['+str(x)+']')] = fti_exp
 
 #            lcpt[:,1][list(lcpt[:,0]).index('phoebe_lc_cadence_rate['+str(x)+']')] = fti_ovs
@@ -545,7 +545,7 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
 #STARTS HERE
         lc_dict = {}
-        
+
         for y in range(len(lcpt)):
             parameter = lcpt[y][0].split('[')[0]
             lc_dict[parameter] = lcpt[:,1][y].strip('"')
@@ -1097,7 +1097,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     # Force el3 unit to be flux
     parnames.append('phoebe_el3_units')
     parvals.append('"Flux"')
-    types.append('choice')   
+    types.append('choice')
     if len(lcs) != 0:
 
         pblum_ref = eb.get_value(dataset = lcs[0], qualifier = 'pblum_ref', component=secondary)
