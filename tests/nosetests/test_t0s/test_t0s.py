@@ -8,8 +8,12 @@ import matplotlib.pyplot as plt
 
 from nose.tools import assert_raises
 
-def test_binary(verbose=True):
+phoebe.interactive_on()
+
+def test_binary(verbose=False):
     def assert_t0s(p1_t0_ref, p1_t0_supconj, p1_t0_perpass, tol=1e-4):
+        # b.run_delayed_constraints()
+
         p2_t0_ref = b.get_value('t0_ref@component')
         p2_t0_supconj = b.get_value('t0_supconj@component')
         p2_t0_perpass = b.get_value('t0_perpass@component')
@@ -17,7 +21,6 @@ def test_binary(verbose=True):
         if verbose:
             print("{}=={}, {}=={}, {}=={}".format(p1_t0_ref, p2_t0_ref, p1_t0_supconj, p2_t0_supconj, p1_t0_perpass, p2_t0_perpass))
 
-        b.run_delayed_constraints()
         assert(abs(p2_t0_ref-p1_t0_ref) < tol)
         assert(abs(p2_t0_supconj-p1_t0_supconj) < tol)
         assert(abs(p2_t0_perpass-p1_t0_perpass) < tol)
