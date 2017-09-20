@@ -12,3 +12,5 @@ MANIFEST
 *.log
 *.png
 libphoebe.so
+
+*.swp
