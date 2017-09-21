@@ -1937,9 +1937,9 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    loggs = feature.process_teffs(loggs, self.get_standard_mesh().coords_for_computations, t=self.time)
+                    loggs = feature.process_teffs(loggs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction, t=self.time)
                 else:
-                    loggs = feature.process_teffs(loggs, mesh.coords_for_computations, t=self.time)
+                    loggs = feature.process_teffs(loggs, mesh.coords_for_computations, s=self.polar_direction, t=self.time)
 
         mesh.update_columns(loggs=loggs)
 
@@ -1992,9 +1992,9 @@ class Star(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations, t=self.time)
+                    teffs = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations, s=self.polar_direction, t=self.time)
                 else:
-                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, t=self.time)
+                    teffs = feature.process_teffs(teffs, mesh.coords_for_computations, s=self.polar_direction, t=self.time)
 
         mesh.update_columns(teffs=teffs)
 
@@ -2817,11 +2817,11 @@ class Envelope(Body):
         if not ignore_effects:
             for feature in self.features:
                 if feature.proto_coords:
-                    teffs1 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==0], t=self.time)
-                    teffs2 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==1], t=self.time)
+                    teffs1 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==0], s=self.polar_direction, t=self.time)
+                    teffs2 = feature.process_teffs(teffs, self.get_standard_mesh().coords_for_computations[mesh.env_comp==1], s=self.polar_direction, t=self.time)
                 else:
-                    teffs1 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==0], t=self.time)
-                    teffs2 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==1], t=self.time)
+                    teffs1 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==0], s=self.polar_direction, t=self.time)
+                    teffs2 = feature.process_teffs(teffs, mesh.coords_for_computations[mesh.env_comp==1], s=self.polar_direction, t=self.time)
 
         teffs = np.zeros(len(mesh.env_comp))
         teffs[mesh.env_comp==0]=teffs1
@@ -3162,7 +3162,7 @@ class Feature(object):
         """
         return loggs
 
-    def process_teffs(self, teffs, coords, t=None):
+    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         Method for a feature to process the teffs.
 
@@ -3218,14 +3218,29 @@ class Spot(Feature):
         """
         return True
 
-    def pointing_vector(self, time):
+    def pointing_vector(self, s, time):
+        """
+        s is the spin vector in roche coordinates
+        time is the current time
+        """
         t = time - self._t0
-        x = np.sin(self._colat)*np.cos(self._longitude + self._dlongdt * t)
-        y = np.sin(self._colat)*np.sin(self._longitude + self._dlongdt * t)
-        z = np.cos(self._colat)
-        return np.array([x,y,z])
+        longitude = self._longitude + self._dlongdt * t
 
-    def process_teffs(self, teffs, coords, t=None):
+        # define the basis vectors in the spin (primed) coordinates in terms of
+        # the Roche coordinates.
+        # ez' = s
+        # ex' =  (ex - s(s.ex)) /|i - s(s.ex)|
+        # ey' = s x ex'
+        ex = np.array([1., 0., 0.])
+        ezp = s
+        exp = (ex - s*np.dot(s,ex))
+        eyp = np.cross(s, exp)
+
+        return np.sin(self._colat)*np.cos(longitude)*exp +\
+                  np.sin(self._colat)*np.sin(longitude)*eyp +\
+                  np.cos(self._colat)*ezp
+
+    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         Change the local effective temperatures for any values within the
         "cone" defined by the spot.  Any teff within the spot will have its
@@ -3239,7 +3254,7 @@ class Spot(Feature):
             # then assume at t0
             t = self._t0
 
-        cos_alpha_coords = np.dot(coords, self.pointing_vector(t)) / np.linalg.norm(coords, axis=1)
+        cos_alpha_coords = np.dot(coords, self.pointing_vector(s, t)) / np.linalg.norm(coords, axis=1)
         cos_alpha_spot = np.cos(self._radius)
 
         filter_ = cos_alpha_coords > cos_alpha_spot
@@ -3351,7 +3366,7 @@ class Pulsation(Feature):
 
         return new_coords
 
-    def process_teffs(self, teffs, coords, t=None):
+    def process_teffs(self, teffs, coords, s=np.array([0., 0., 1.]), t=None):
         """
         """
         if not self._teffext:
