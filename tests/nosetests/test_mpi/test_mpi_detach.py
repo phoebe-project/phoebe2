@@ -20,8 +20,9 @@ def test_mpi(plot=False):
     if plot: print "calling compute"
     b.run_compute(irrad_method='none', detach=True)
     if not phoebe.backends._use_mpi:
-        print "attaching to model"
-        print b['model'].status
+        if plot:
+            print "attaching to model"
+            print b['model'].status
         b['model'].attach()
 
     if plot: print "model received"
