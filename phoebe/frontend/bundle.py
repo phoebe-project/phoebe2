@@ -1546,6 +1546,7 @@ class Bundle(ParameterSet):
             else:
                 raise ValueError("t0 must be string (qualifier) or float")
             if shift:
+                logger.warning("'phshift' parameter is planned for removal starting in version 2.1.  Instead, 't0' can be passed as a float to achieve manually setting the 'zero-phase'")
                 ret['phshift'] = ps.get_value(qualifier='phshift')
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
         elif ps.kind in ['star']:
