@@ -2268,11 +2268,15 @@ class ParameterSet(object):
             # TODO: this may not always be wanted, sometimes we may want to instead
             # loop over each cycle and draw multiple lines
             if axes_3d:
+                if not (len(xarray) and len(yarray) and len(zarray)):
+                    return []
                 xyzt = zip(xarray, yarray, zarray, tarray)
                 xyzt.sort()
                 x, y, z, t = zip(*xyzt)
                 xarray, yarray, zarray, tarray = np.array(x), np.array(y), np.array(z), np.array(t)
             else:
+                if not (len(xarray) and len(yarray)):
+                    return []
                 xyt = zip(xarray, yarray, tarray)
                 xyt.sort()
                 x, y, t = zip(*xyt)
@@ -2404,6 +2408,9 @@ class ParameterSet(object):
             (see details for x above)
         :parameter str z: qualifier or twig of the array to plot on the z-axis if both
             the backend and ax support 3d plotting (see details for x above)
+        :parameter t0: qualifier or float of the t0 that should be used for
+            phasing, if applicable
+        :type t0: string or float
         :parameter str xerrors: qualifier of the array to plot as x-errors (will
             default based on x if not provided)
         :parameter str yerrors: qualifier of the array to plot as y-errors (will
