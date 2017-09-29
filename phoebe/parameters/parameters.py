@@ -2663,7 +2663,7 @@ class ParameterSet(object):
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
         :parameter list save_args: any additional arguments that need to be sent
-            to the anim.save call (as extra_args)
+            to the anim.save call with **save_args
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
@@ -2796,7 +2796,7 @@ class ParameterSet(object):
 
         if save:
             logger.info("saving animation to {}".format(save))
-            anim.save(save, extra_args=save_args)
+            anim.save(save, **save_args)
 
         return anim
 
