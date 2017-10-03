@@ -22,7 +22,7 @@ _1to2par = {'ld_model':'ld_func',
 #            'hjd0': 't0_supconj',
             'period': 'period',
             'dpdt': 'dpdt',
-            'pshift':'phshift',
+#            'pshift':'phshift',
             'sma':'sma',
             'rm': 'q',
             'incl': 'incl',
@@ -801,10 +801,21 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
 
             d.pop('qualifier') #avoiding possible conflicts
             d.pop('value') #avoiding possible conflicts
-
+            #
+            #
             eb.flip_constraint(solve_for='t0_supconj', constraint_func='t0_ref_supconj', **d)
     #        elif pnew == 'filter':
-            d['value'] = val
+    #       make sure t0 accounts for any phase shift present in phoebe 1
+
+            pshift_in = list(params[:,0]).index('phoebe_pshift.VAL')
+            period_in = list(params[:,0]).index('phoebe_period.VAL')
+    #
+            pshift = np.float(params[:,1][pshift_in])
+            period = np.float(params[:,1][period_in])
+
+            t0 = float(val)+pshift*period
+    #       new
+            d['value'] = t0
             d['qualifier'] = 't0_ref'
              # write method for this
 
