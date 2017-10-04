@@ -915,15 +915,15 @@ def pitch(b, component, solve_for=None, **kwargs):
 
     if solve_for in [None, incl_comp]:
         lhs = incl_comp
-        rhs = incl_orb - pitch_comp
+        rhs = incl_orb + pitch_comp
 
     elif solve_for == incl_orb:
         lhs = incl_orb
-        rhs = incl_comp + pitch_comp
+        rhs = incl_comp - pitch_comp
 
     elif solve_for == pitch_comp:
         lhs = pitch_comp
-        rhs = incl_orb - incl_comp
+        rhs = incl_comp - incl_orb
 
     else:
         raise NotImplementedError
@@ -961,15 +961,15 @@ def yaw(b, component, solve_for=None, **kwargs):
 
     if solve_for in [None, long_an_comp]:
         lhs = long_an_comp
-        rhs = long_an_orb - yaw_comp
+        rhs = long_an_orb + yaw_comp
 
     elif solve_for == long_an_orb:
         lhs = long_an_orb
-        rhs = long_an_comp + yaw_comp
+        rhs = long_an_comp - yaw_comp
 
     elif solve_for == yaw_comp:
         lhs = yaw_comp
-        rhs = long_an_orb - long_an_comp
+        rhs = long_an_comp - long_an_orb
 
     else:
         raise NotImplementedError
