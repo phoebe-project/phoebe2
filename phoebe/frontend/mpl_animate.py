@@ -126,7 +126,6 @@ def apply_limits(ax, pad=0.1):
         ax.set_xlim(xlim_pad)
         ax.set_ylim(ylim_pad)
 
-
     return ax
 
 def anim_set_data(artist, data, fixed_limits=True):
@@ -217,9 +216,8 @@ class Animation(object):
             if fixed_limits:
                 # then set the initial limits to be the fixed limits
                 # that should work over all frames of the animation
-                #ax = apply_limits(ax)
-                pass
-                
+                ax = apply_limits(ax)
+
             for artist in artists:
                 # we need a flattened list since each frame
                 # needs to return a single list
