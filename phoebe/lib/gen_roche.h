@@ -935,7 +935,7 @@ namespace gen_roche {
     const char *fname = "right_lobe_right_xborder";
         
     const int max_iter = 100;
-    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min(); 
     
     //
