@@ -1769,6 +1769,70 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
   
+  Calculate the value of the potential of the rotating star with 
+  misaligned spin at a given point
+
+      Omega (x,y,z; omega) = 1/r + 1/2 omega^2 |r - s(s*r)|^2
+      
+      s = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+      
+  Python:
+    
+    Omega0 = rotstar_misaligned Omega(omega, s, r)
+   
+  with parameters
+  
+    omega: float - parameter of the potential
+    misalignment:  in rotated coordinate system:
+      float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+      1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+    r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+/*
+static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
+
+  const char * fname = "rotstar_misaligned_Omega";
+  
+  double p[2];
+
+  PyObject *o_misalignment;
+  
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, 
+        "dOO!", p, 
+        &o_misalignment,
+        &PyArray_Type, &X)
+     ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  if (PyFloat_Check(o_misalignment)) {    
+    s = std::sin(PyFloat_AsDouble(o_misalignment));
+  } else if (PyArray_Check(o_misalignment)) {
+    s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    return NULL;
+  }
+
+  p[1] = 0; // Omega
+  
+  Trot_star<double> b(p);
+
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+*/
+
+/*
+  C++ wrapper for Python code:
+  
   Calculate the value of the potential of the sphere at 
   a given point
 
