@@ -1398,7 +1398,7 @@ namespace gen_roche {
        r - position
        g - gradient
   */
-  
+  // #define DEBUG
   template <class T>
   bool meshing_start_point(
     T r[3], 
@@ -1453,6 +1453,9 @@ namespace gen_roche {
     
     return true;
   } 
+  #if  defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Solving 2x2 system of nonlinear equations

@@ -2111,6 +2111,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   #if defined(DEBUG)
   std::cerr.precision(16);
   std::cerr 
+    << "choice=" << choice << '\n' 
     << "r=" << r[0] << " " <<  r[1] << " " << r[2] << '\n'
     << "g=" << g[0] << " " <<  g[1] << " " << g[2] << '\n';
   #endif
