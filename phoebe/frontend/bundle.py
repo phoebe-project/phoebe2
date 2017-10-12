@@ -1259,6 +1259,10 @@ class Bundle(ParameterSet):
         if component not in self.components:
             raise ValueError('component not recognized')
 
+        component_kind = self.filter(component=component, context='component').kind
+        if not _feature._component_allowed_for_feature(func.func_name, component_kind):
+            raise ValueError("{} does not support component with kind {}".format(func.func_name, component_kind))
+
         params, constraints = func(**kwargs)
 
         metawargs = {'context': 'feature',
@@ -1535,8 +1539,14 @@ class Bundle(ParameterSet):
 
         if ps.kind in ['orbit']:
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
-            ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+            if isinstance(t0, str):
+                ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+            elif isinstance(t0, float) or isinstance(t0, int):
+                ret['t0'] = t0
+            else:
+                raise ValueError("t0 must be string (qualifier) or float")
             if shift:
+                logger.warning("'phshift' parameter is planned for removal starting in version 2.1.  Instead, 't0' can be passed as a float to achieve manually setting the 'zero-phase'")
                 ret['phshift'] = ps.get_value(qualifier='phshift')
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
         elif ps.kind in ['star']:
@@ -2053,6 +2063,7 @@ class Bundle(ParameterSet):
                                                qualifier=lhs.qualifier,
                                                component=lhs.component,
                                                dataset=lhs.dataset,
+                                               feature=lhs.feature,
                                                kind=lhs.kind,
                                                model=lhs.model,
                                                constraint_func=func.__name__,
@@ -2213,6 +2224,7 @@ class Bundle(ParameterSet):
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
+        kwargs['feature'] = expression_param.feature
         kwargs['check_visible'] = False
         kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)

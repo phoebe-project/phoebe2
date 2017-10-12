@@ -938,7 +938,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
     def _bindex_ck2004(self, Teff, logg, abun, mu, atm, photon_weighted=False):

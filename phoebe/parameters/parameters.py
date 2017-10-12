@@ -72,6 +72,10 @@ _constraint_builtin_funcs = ['rocherpole2potential',
                              'rotstarpotential2rpole',
                              'esinw2per0',
                              'ecosw2per0',
+                             't0_supconj_to_perpass',
+                             't0_perpass_to_supconj',
+                             't0_supconj_to_ref',
+                             't0_ref_to_supconj',
                              'sin', 'cos', 'tan',
                              'arcsin', 'arccos', 'arctan',
                              'sqrt']
@@ -1842,6 +1846,15 @@ class ParameterSet(object):
 
             return param, array, unit
 
+        if isinstance(kwargs.get('time', None), str):
+            # handle allow passing twigs to time
+            time_value = self._bundle.get_value(kwargs['time'], context='component')
+            if isinstance(time_value, float):
+                logger.info("plotting at time={} ('{}')".format(time_value, kwargs['time']))
+                kwargs['time'] = time_value
+            else:
+                raise ValueError("could not convert '{}' to a valid time".format(kwargs['time']))
+
         # filter the PS further - except we don't want to filter on time, since
         # that means something else
 
@@ -2176,12 +2189,14 @@ class ParameterSet(object):
             if ps.kind.split('_')[-1] == 'syn':
                 xarray = tparam._bundle.to_phase(tarray,
                                                  shift=True,
-                                                 component=component)
+                                                 component=component,
+                                                 t0=kwargs.get('t0', 't0_supconj'))
             else:
                 # then we don't want to include phase-shifting for obs data
                 xarray = tparam._bundle.to_phase(tarray,
                                                  shift=False,
-                                                 component=component)
+                                                 component=component,
+                                                 t0=kwargs.get('t0', 't0_supconj'))
 
             # really only used to get the default label for this ps
             xparam = tparam
@@ -2189,7 +2204,8 @@ class ParameterSet(object):
             if kwargs.get('time', None):
                 kwargs['time'] = self._bundle.to_phase(kwargs['time'],
                                                        shift=True,
-                                                       component=component)
+                                                       component=component,
+                                                       t0=kwargs.get('t0', 't0_supconj'))
 
         elif isinstance(xqualifier, float) or isinstance(xqualifier, int):
             xparam = None
@@ -2252,11 +2268,15 @@ class ParameterSet(object):
             # TODO: this may not always be wanted, sometimes we may want to instead
             # loop over each cycle and draw multiple lines
             if axes_3d:
+                if not (len(xarray) and len(yarray) and len(zarray)):
+                    return []
                 xyzt = zip(xarray, yarray, zarray, tarray)
                 xyzt.sort()
                 x, y, z, t = zip(*xyzt)
                 xarray, yarray, zarray, tarray = np.array(x), np.array(y), np.array(z), np.array(t)
             else:
+                if not (len(xarray) and len(yarray)):
+                    return []
                 xyt = zip(xarray, yarray, tarray)
                 xyt.sort()
                 x, y, t = zip(*xyt)
@@ -2388,6 +2408,9 @@ class ParameterSet(object):
             (see details for x above)
         :parameter str z: qualifier or twig of the array to plot on the z-axis if both
             the backend and ax support 3d plotting (see details for x above)
+        :parameter t0: qualifier or float of the t0 that should be used for
+            phasing, if applicable
+        :type t0: string or float
         :parameter str xerrors: qualifier of the array to plot as x-errors (will
             default based on x if not provided)
         :parameter str yerrors: qualifier of the array to plot as y-errors (will
@@ -4917,11 +4940,11 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
                 constrained_parameter = ps.get_parameter(check_visible=False, check_default=False)
             else:
-                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
+                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}))
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)
@@ -5177,14 +5200,12 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0, rochepotential2rpole, rocherpole2potential, rotstarpotential2rpole, rotstarrpole2potential
-                # if len(self.hierarchy.get_meshables())==1:
-                    # from phoebe.distortions.rotstar import potential2rpole, rpole2potential
-                # else:
-                    # from phoebe.distortions.roche import potential2rpole, rpole2potential
+                from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
+                        t0_perpass_to_supconj, t0_supconj_to_perpass,\
+                        t0_ref_to_supconj, t0_supconj_to_ref,\
+                        rochepotential2rpole, rocherpole2potential,\
+                        rotstarpotential2rpole, rotstarrpole2potential
 
-                #print "*** else if", eq.format(**values)
-                # print "***", eval(eq.format(**values))
                 value = float(eval(eq.format(**values)))
 
             else:
@@ -5236,6 +5257,11 @@ class ConstraintParameter(Parameter):
         kwargs['twig'] = twig
         newly_constrained_var = self._get_var(**kwargs)
         newly_constrained_param = self.get_parameter(**kwargs)
+
+        check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
+        check_kwargs['context'] = 'constraint'
+        if len(self._bundle.filter(**check_kwargs)):
+            raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
         currently_constrained_var = self._get_var(qualifier=self.qualifier, component=self.component)
         currently_constrained_param = currently_constrained_var.get_parameter() # or self.constrained_parameter
