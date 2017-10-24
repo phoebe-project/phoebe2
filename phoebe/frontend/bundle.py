@@ -1219,7 +1219,7 @@ class Bundle(ParameterSet):
         # we've survived all tests
         return True, ''
 
-    def add_feature(self, kind, component, **kwargs):
+    def add_feature(self, kind, component=None, **kwargs):
         """
         Add a new feature (spot, etc) to a component in the system.  If not
         provided, 'feature' (the name of the new feature) will be created
@@ -1261,6 +1261,13 @@ class Bundle(ParameterSet):
                                                  'kind': func.func_name}))
 
         self._check_label(kwargs['feature'])
+
+        if component is None:
+            stars = self.hierarchy.get_meshables()
+            if len(stars) == 1:
+                component = stars[0]
+            else:
+                raise ValueError("must provide component")
 
         if component not in self.components:
             raise ValueError('component not recognized')
