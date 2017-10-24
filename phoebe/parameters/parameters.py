@@ -2728,8 +2728,8 @@ class ParameterSet(object):
                     # for the case of meshes/spectra
                     times += [float(t) for t in ps.times]
                 else:
-                    for twig in ps.filter(qualifier='time').twigs:
-                        times += list(ps.get_value(twig=twig))
+                    for param in ps.filter(qualifier='times').to_list():
+                        times += list(param.get_value())
 
             times = sorted(list(set(times)))
 
