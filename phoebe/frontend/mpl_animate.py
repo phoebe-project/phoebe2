@@ -51,6 +51,12 @@ def anim_to_html(anim):
 def reset_limits(ax, reset=True):
     """
     """
+    if reset or not hasattr(ax, '_phoebe_xpad'):
+        ax._phoebe_xpad = True
+    if reset or not hasattr(ax, '_phoebe_ypad'):
+        ax._phoebe_ypad = True
+    if reset or not hasattr(ax, '_phoebe_zpad'):
+        ax._phoebe_zpad = True
     if reset or not hasattr(ax, '_phoebe_xlim'):
         ax._phoebe_xlim = [np.inf, -np.inf]
     if reset or not hasattr(ax, '_phoebe_ylim'):
@@ -60,23 +66,36 @@ def reset_limits(ax, reset=True):
 
     return ax
 
-def handle_limits(ax, xarray, yarray, zarray=None, reset=False, apply=False):
+def handle_limits(ax, xarray, yarray, zarray=None,
+                  xlim=None, ylim=None, zlim=None,
+                  reset=False, apply=False):
     """
     """
 
     ax = reset_limits(ax, reset=reset)
 
-    if xarray is not None and len(xarray):
+    if xlim is not None:
+        ax._phoebe_xlim = list(xlim)
+        ax._phoebe_xpad = False
+    elif xarray is not None and len(xarray):
         if xarray.min() < ax._phoebe_xlim[0]:
             ax._phoebe_xlim[0] = xarray.min()
         if xarray.max() > ax._phoebe_xlim[1]:
             ax._phoebe_xlim[1] = xarray.max()
-    if yarray is not None and len(yarray):
+
+    if ylim is not None:
+        ax._phoebe_ylim = list(ylim)
+        ax._phoebe_ypad = False
+    elif yarray is not None and len(yarray):
         if yarray.min() < ax._phoebe_ylim[0]:
             ax._phoebe_ylim[0] = yarray.min()
         if yarray.max() > ax._phoebe_ylim[1]:
             ax._phoebe_ylim[1] = yarray.max()
-    if zarray is not None and len(zarray):
+
+    if zlim is not None:
+        ax._phoebe_zlim = list(zlim)
+        ax._phoebe_zpad = False
+    elif zarray is not None and len(zarray):
         if zarray.min() < ax._phoebe_zlim[0]:
             ax._phoebe_zlim[0] = zarray.min()
         if zarray.max() > ax._phoebe_zlim[1]:
@@ -111,12 +130,15 @@ def apply_limits(ax, pad=0.1):
     ylim_pad = ylim[:]
     zlim_pad = zlim[:]
 
-    xlim_pad[0] = xlim[0] - pad*(xlim[1]-xlim[0])
-    xlim_pad[1] = xlim[1] + pad*(xlim[1]-xlim[0])
-    ylim_pad[0] = ylim[0] - pad*(ylim[1]-ylim[0])
-    ylim_pad[1] = ylim[1] + pad*(ylim[1]-ylim[0])
-    zlim_pad[0] = zlim[0] - pad*(zlim[1]-zlim[0])
-    zlim_pad[1] = zlim[1] + pad*(zlim[1]-zlim[0])
+    if ax._phoebe_xpad:
+        xlim_pad[0] = xlim[0] - pad*(xlim[1]-xlim[0])
+        xlim_pad[1] = xlim[1] + pad*(xlim[1]-xlim[0])
+    if ax._phoebe_ypad:
+        ylim_pad[0] = ylim[0] - pad*(ylim[1]-ylim[0])
+        ylim_pad[1] = ylim[1] + pad*(ylim[1]-ylim[0])
+    if ax._phoebe_zpad:
+        zlim_pad[0] = zlim[0] - pad*(zlim[1]-zlim[0])
+        zlim_pad[1] = zlim[1] + pad*(zlim[1]-zlim[0])
 
     if isinstance(ax, Axes3D):
         ax.set_xlim3d(xlim_pad)
