@@ -2700,8 +2700,7 @@ class ParameterSet(object):
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
         :parameter kwargs: any additional arguments will be passed along to each
-            call of :meth:`plot`, unless they are already specified (ie. twig_or_list_of_kwargs
-            has priority of kwargs)
+            call of :meth:`plot`, unless they are already specified
         :return fname: returns the created filename
         """
         # TODO: time vs times?
@@ -2756,6 +2755,9 @@ class ParameterSet(object):
             for plot_args_ in plot_argss:
                 plot_args = plot_args_.copy()
 
+                for k, v in kwargs.items():
+                    plot_args.setdefault(k,v)
+
                 plot_args['time'] = times
                 # TODO: do we need to loop over times for meshes now or can we do it within get_plotting_info?
                 this_kwargss = self.get_plotting_info(loop_times=False, **plot_args)
@@ -2802,7 +2804,11 @@ class ParameterSet(object):
                     else:
                         xarray, yarray, zarray, tarray = this_kwargs['data']  # TODO: this may not work for meshes?
 
-                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray, reset=False)
+                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray,
+                                                   xlim=this_kwargs.get('xlim', None),
+                                                   ylim=this_kwargs.get('ylim', None),
+                                                   zlim=this_kwargs.get('zlim', None),
+                                                   reset=False)
 
                     plot_argss_fixed_limits.append(this_plot_args)
 
