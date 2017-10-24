@@ -2663,7 +2663,11 @@ class ParameterSet(object):
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
         :parameter list save_args: any additional arguments that need to be sent
-            to the anim.save call (as extra_args)
+            to the anim.save call (as extra_args=save_args, see
+            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
+        :parameter dict save_kwargs: any additional keyword arguments that need
+            to be sent to the anim.save call (as **save_kwargs, see
+            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
@@ -2686,7 +2690,9 @@ class ParameterSet(object):
         fixed_limits = kwargs.pop('fixed_limits', True)
         interval = kwargs.pop('interval', 100)
         save = kwargs.pop('save', False)
-        save_args = kwargs.pop('save_args', [])
+        save_args = kwargs.pop('save_args', ())
+        save_kwargs = kwargs.pop('save_kwargs', {})
+        save_kwargs.setdefault('extra_args', save_args)
         show = kwargs.pop('show', False)
 
         if times is None:
@@ -2796,7 +2802,7 @@ class ParameterSet(object):
 
         if save:
             logger.info("saving animation to {}".format(save))
-            anim.save(save, extra_args=save_args)
+            anim.save(save, **save_kwargs)
 
         return anim
 
