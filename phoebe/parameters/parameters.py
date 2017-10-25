@@ -402,6 +402,19 @@ class ParameterSet(object):
         return [p.twig for p in self.to_list()]
 
     @property
+    def common_twig(self):
+        """
+        The twig that is common between all items in this ParameterSet.
+        This twig gives a single string which can point back to this ParameterSet
+        (but may include other entries as well)
+
+        see also :meth:`uniquetwig`
+
+        :return: twig (full) of this Parameter
+        """
+        return "@".join([getattr(self, k) for k in _meta_fields_twig if self.meta.get(k) is not None])
+
+    @property
     def qualifier(self):
         """Return the value for qualifier if shared by ALL Parameters.
 
