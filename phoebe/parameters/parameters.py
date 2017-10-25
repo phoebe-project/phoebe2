@@ -3067,6 +3067,40 @@ class Parameter(object):
         # TODO: don't allow changing things like visible_if or description here?
         raise NotImplementedError
 
+    @classmethod
+    def open(cls, filename):
+        """
+        Open a Parameter from a JSON-formatted file.
+        This is a constructor so should be called as:
+
+
+        >>> b = Parameter.open('test.json')
+
+
+        :parameter str filename: relative or full path to the file
+        :return: instantiated :class:`Parameter` object
+        """
+        f = open(filename, 'r')
+        data = json.load(f)
+        f.close()
+        return cls(data)
+
+    def save(self, filename, incl_uniqueid=False):
+        """
+        Save the Parameter to a JSON-formatted ASCII file
+
+        :parameter str filename: relative or fullpath to the file
+        :return: filename
+        :rtype: str
+        """
+
+        f = open(filename, 'w')
+        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
+                           sort_keys=True, indent=0, separators=(',', ': ')))
+        f.close()
+
+        return filename
+
     def to_json(self, incl_uniqueid=False):
         """
         :return: a JSON-ready dictionary holding all information for this
