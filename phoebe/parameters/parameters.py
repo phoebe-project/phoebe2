@@ -4216,6 +4216,8 @@ class FloatParameter(Parameter):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise ValueError("value could not be cast to float")
 
+        return value
+
     #@send_if_client is on the called set_quantity
     def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
         """
@@ -4259,7 +4261,7 @@ class FloatParameter(Parameter):
         elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit)):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
-        self._check_type(value)
+        value = self._check_type(value)
 
         # check to make sure value and unit don't clash
         if isinstance(value, u.Quantity) or ((isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)) and value.unit is not None):
@@ -4430,7 +4432,8 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(unit, str) or isinstance(unit, unicode):
             unit = u.Unit(str(unit))
 
-        self.set_value(kwargs.get('value', []), unit)
+        value = self._check_type(kwargs.get('value', []))
+        self.set_value(value, unit)
 
         self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
@@ -4585,13 +4588,13 @@ class FloatArrayParameter(FloatParameter):
         if self.allow_none and value is None:
             value = None
 
-        elif isinstance(value, u.Quantity):
+        if isinstance(value, u.Quantity):
             value = value.value
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
 
-        elif isinstance(value, float):
+        if isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
         elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
