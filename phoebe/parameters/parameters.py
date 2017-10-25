@@ -1998,13 +1998,13 @@ class ParameterSet(object):
             if kwargs.get('loop_times', False) or len(ps.times) <= 1:
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=c,
-                                                           unit=u.solRad)
+                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
                                               for c in ps.components if c != '_default'])
             else:
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=c,
                                                            time=t,
-                                                           unit=u.solRad)
+                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
                                               for c in ps.components if c != '_default'
                                               for t in ps.times])
 
