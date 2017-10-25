@@ -4201,6 +4201,8 @@ class FloatParameter(Parameter):
         else:
             try:
                 return value.to(unit)
+            except u.core.UnitConversionError as err:
+                raise ValueError(err)
             except:
                 return value
 
