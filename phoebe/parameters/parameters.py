@@ -4210,9 +4210,10 @@ class FloatParameter(Parameter):
         # we do this separately so that FloatArrayParameter can keep this set_value
         # and just subclass _check_type
         if isinstance(value, u.Quantity):
-            value = value.value
+            if not (isinstance(value.value, float) or isinstance(value.value, int)):
+                raise ValueError("value could not be cast to float")
 
-        if not (isinstance(value, float) or isinstance(value, int)):
+        elif not (isinstance(value, float) or isinstance(value, int)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise ValueError("value could not be cast to float")
 
@@ -4589,12 +4590,13 @@ class FloatArrayParameter(FloatParameter):
             value = None
 
         if isinstance(value, u.Quantity):
-            value = value.value
+            if isinstance(value.value, float) or isinstance(value.value, int):
+                value = np.array([value])
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
 
-        if isinstance(value, float) or isinstance(value, int):
+        elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
         elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
