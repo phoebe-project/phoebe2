@@ -989,6 +989,12 @@ class ParameterSet(object):
             return self.filter(**kwargs).to_list()
         return self._params
 
+    def tolist(self, **kwargs):
+        """
+        Alias of :meth:`to_list`
+        """
+        return self.to_list(**kwargs)
+
     def to_list_of_dicts(self, **kwargs):
         """
         Convert the :class:`ParameterSet` to a list of the dictionary representation

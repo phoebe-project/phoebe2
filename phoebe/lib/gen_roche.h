@@ -930,14 +930,15 @@ namespace gen_roche {
     const T & q, 
     const T & b
   ) {
-    const char *fname = "right_lobe_right_xborder";
-        
+    
     #if defined(DEBUG)
     std::cerr << fname << "::START" << std::endl;
     #endif
+    
+    const char *fname = "right_lobe_right_xborder";
         
     const int max_iter = 100;
-    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T eps = 10*std::numeric_limits<T>::epsilon();
     const T min = 10*std::numeric_limits<T>::min(); 
     
     //
@@ -1402,7 +1403,7 @@ namespace gen_roche {
        r - position
        g - gradient
   */
-  
+  // #define DEBUG
   template <class T>
   bool meshing_start_point(
     T r[3], 
@@ -1457,6 +1458,9 @@ namespace gen_roche {
     
     return true;
   } 
+  #if  defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Solving 2x2 system of nonlinear equations
