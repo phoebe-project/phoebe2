@@ -1606,7 +1606,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         #exceptions that must be caught like vgamma
 
             if param.qualifier == 'vgamma':
-                print val, type(val)
+                # print val, type(val)
                 val = [-1*float(val[0])]
 #                pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
 
@@ -1665,8 +1665,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #        elif types[x] == 'choice':
 #            value = '"'+str(parvals[x])+'"'
 #        else:
-        print parnames[x]
-        print parvals[x]
+        # print parnames[x]
+        # print parvals[x]
         value = parvals[x]
         # TODO: set precision on floats?
         f.write(str(parnames[x])+' = '+str(value)+'\n')
