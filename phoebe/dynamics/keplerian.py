@@ -243,8 +243,9 @@ def dynamics(times, periods, eccs, smas, t0_perpasses, per0s, long_ans, incls,
         #-- that's it!
 
         # correct by vgamma (only z-direction)
-        vz += vgamma
-        z += vgamma * (times-t0)
+        # NOTE: vgamma is in the direction of positive RV or negative vz
+        vz -= vgamma
+        z -= vgamma * (times-t0)
 
         return (x+com_pos[0],y+com_pos[1],z+com_pos[2]),\
                 (vx+com_vel[0],vy+com_vel[1],vz+com_vel[2]),\
