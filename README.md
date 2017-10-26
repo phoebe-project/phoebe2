@@ -62,6 +62,9 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.4 - vgamma temporary bugfix
+* The definition of vgamma in 2.0.* is in the direction of positive z rather than positive RV.  For the sake of maintaining backwards-compatibility, this will remain unchanged for 2.0.* releases but will be fixed in the 2.1 release to be in the direction of positive RV.  Until then, this bugfix handles converting to and from PHOEBE legacy correctly so that running the PHOEBE 2 and legacy backends gives consistent results.
+
 ### 2.0.3 - t0_supconj/t0_perpass hotfix
 * Fixed constraint that defines the relation between t0_perpass and t0_supconj.
 * Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
