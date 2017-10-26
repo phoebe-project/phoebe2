@@ -1087,7 +1087,7 @@ class Bundle(ParameterSet):
                     d = 1 - parent_ps.get_value('ecc')
 
                     # TODO: this needs to be generalized once other potentials are supported
-                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True)
+                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True, style = 1)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
@@ -1109,7 +1109,7 @@ class Bundle(ParameterSet):
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
                 d = 1 + parent_ps.get_value('ecc')
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, style = 1)
 
                 if pot > critical_pots['L1']:
                     return False,\
@@ -1117,7 +1117,7 @@ class Bundle(ParameterSet):
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc')
-                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True)
+                critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True, style = 1)
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
@@ -1229,7 +1229,7 @@ class Bundle(ParameterSet):
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
         for component in self.hierarchy.get_stars():
-            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.k)
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K)
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
 
             if teff >= 8000. and gravb_bol < 0.9:
@@ -1246,7 +1246,7 @@ class Bundle(ParameterSet):
         # we've survived all tests
         return True, ''
 
-    def add_feature(self, kind, component, **kwargs):
+    def add_feature(self, kind, component=None, **kwargs):
         """
         Add a new feature (spot, etc) to a component in the system.  If not
         provided, 'feature' (the name of the new feature) will be created
@@ -1288,6 +1288,13 @@ class Bundle(ParameterSet):
                                                  'kind': func.func_name}))
 
         self._check_label(kwargs['feature'])
+
+        if component is None:
+            stars = self.hierarchy.get_meshables()
+            if len(stars) == 1:
+                component = stars[0]
+            else:
+                raise ValueError("must provide component")
 
         if component not in self.components:
             raise ValueError('component not recognized')
@@ -1617,7 +1624,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
-    def get_ephemeris(self, component=None, t0='t0_supconj', shift=True, **kwargs):
+    def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
         """
         Get the ephemeris of a component (star or orbit)
 
@@ -1626,20 +1633,19 @@ class Bundle(ParameterSet):
             hierarchy
         :parameter t0: qualifier of the parameter to be used for t0
         :type t0: str
-        :parameter shift: if true, phase shift is applied (which should be
-            done to models); if false, it is not applied (which is suitable
-            for data).
-        :type shift: boolean
         :parameter **kwargs: any value passed through kwargs will override the
-            ephemeris retrieved by component (ie period, t0, phshift, dpdt).
+            ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: dictionary containing period, t0 (t0_supconj if orbit),
-            phshift, dpdt (as applicable)
+            dpdt (as applicable)
         :rtype: dict
         """
 
         if component is None:
             component = self.hierarchy.get_top()
+
+        if kwargs.get('shift', False):
+            raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
         ret = {}
 
@@ -1647,9 +1653,12 @@ class Bundle(ParameterSet):
 
         if ps.kind in ['orbit']:
             ret['period'] = ps.get_value(qualifier='period', unit=u.d)
-            ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
-            if shift:
-                ret['phshift'] = ps.get_value(qualifier='phshift')
+            if isinstance(t0, str):
+                ret['t0'] = ps.get_value(qualifier=t0, unit=u.d)
+            elif isinstance(t0, float) or isinstance(t0, int):
+                ret['t0'] = t0
+            else:
+                raise ValueError("t0 must be string (qualifier) or float")
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
         elif ps.kind in ['star']:
             # TODO: consider renaming period to prot
@@ -1662,29 +1671,28 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def to_phase(self, time, shift=True, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris
 
         :parameter time: time to convert to phases (should be in same system
             as t0s)
         :type time: float, list, or array
-        :parameter shift: if true, phase shift is applied (which should be
-            done to models); if false, it is not applied (which is suitable
-            for data).
-        :type shift: boolean
         :parameter t0: qualifier of the parameter to be used for t0
         :type t0: str
         :parameter str component: component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy
         :parameter **kwargs: any value passed through kwargs will override the
-            ephemeris retrieved by component (ie period, t0, phshift, dpdt).
+            ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: phase (float) or phases (array)
         """
 
-        ephem = self.get_ephemeris(component=component, t0=t0, shift=shift, **kwargs)
+        if kwargs.get('shift', False):
+            raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
+
+        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
 
         if isinstance(time, list):
             time = np.array(time)
@@ -1694,14 +1702,13 @@ class Bundle(ParameterSet):
             time = self.get_value(time, u.d)
 
         t0 = ephem.get('t0', 0.0)
-        phshift = ephem.get('phshift', 0.0)
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
         if dpdt != 0:
-            phase = phshift + np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
         else:
-            phase = phshift + np.mod((time-t0)/period, 1.0)
+            phase = np.mod((time-t0)/period, 1.0)
 
         if isinstance(phase, float):
             if phase > 0.5:
@@ -1712,43 +1719,41 @@ class Bundle(ParameterSet):
 
         return phase
 
-    def to_time(self, phase, shift=True, component=None, t0='t0_supconj', **kwargs):
+    def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris
 
         :parameter phase: phase to convert to times (should be in
             same system as t0s)
         :type phase: float, list, or array
-        :parameter shift: if true, phase shift is applied (which should be
-            done to models); if false, it is not applied (which is suitable
-            for data).
-        :type shift: boolean
     `   :parameter str component: component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy
         :parameter t0: qualifier of the parameter to be used for t0
         :type t0: str
         :parameter **kwargs: any value passed through kwargs will override the
-            ephemeris retrieved by component (ie period, t0, phshift, dpdt).
+            ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: time (float) or times (array)
         """
 
-        ephem = self.get_ephemeris(component=component, t0=t0, shift=shift, **kwargs)
+        if kwargs.get('shift', False):
+            raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
+
+        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
 
         if isinstance(phase, list):
             phase = np.array(phase)
 
         t0 = ephem.get('t0', 0.0)
-        phshift = ephem.get('phshift', 0.0)
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
         # if changing this, also see parameters.constraint.time_ephem
         if dpdt != 0:
-            time = t0 + 1./dpdt*(np.exp(dpdt*(phase-phshift))-period)
+            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
         else:
-            time = t0 + (phase-phshift)*period
+            time = t0 + (phase)*period
 
         return time
 
@@ -2201,6 +2206,7 @@ class Bundle(ParameterSet):
                                                qualifier=lhs.qualifier,
                                                component=lhs.component,
                                                dataset=lhs.dataset,
+                                               feature=lhs.feature,
                                                kind=lhs.kind,
                                                model=lhs.model,
                                                constraint_func=func.__name__,
@@ -2357,10 +2363,18 @@ class Bundle(ParameterSet):
         kwargs = {}
         kwargs['twig'] = None
         # TODO: this might not be the case, we just know its not in constraint
-        kwargs['context'] = ['component', 'dataset', 'feature']
         kwargs['qualifier'] = expression_param.qualifier
         kwargs['component'] = expression_param.component
         kwargs['dataset'] = expression_param.dataset
+        kwargs['feature'] = expression_param.feature
+        kwargs['context'] = []
+        if kwargs['component'] is not None:
+            kwargs['context'] += ['component']
+        if kwargs['dataset'] is not None:
+            kwargs['context'] += ['dataset']
+        if kwargs['feature'] is not None:
+            kwargs['context'] += ['feature']
+
         kwargs['check_visible'] = False
         kwargs['check_default'] = False
         constrained_param = self.get_parameter(**kwargs)

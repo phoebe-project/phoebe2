@@ -77,6 +77,10 @@ _constraint_builtin_funcs = ['rocherpole2potential',
                              'rotstarpotential2rpole',
                              'esinw2per0',
                              'ecosw2per0',
+                             't0_supconj_to_perpass',
+                             't0_perpass_to_supconj',
+                             't0_supconj_to_ref',
+                             't0_ref_to_supconj',
                              'sin', 'cos', 'tan',
                              'arcsin', 'arccos', 'arctan',
                              'sqrt']
@@ -1027,6 +1031,12 @@ class ParameterSet(object):
             return self.filter(**kwargs).to_list()
         return self._params
 
+    def tolist(self, **kwargs):
+        """
+        Alias of :meth:`to_list`
+        """
+        return self.to_list(**kwargs)
+
     def to_list_of_dicts(self, **kwargs):
         """
         Convert the :class:`ParameterSet` to a list of the dictionary representation
@@ -1201,13 +1211,7 @@ class ParameterSet(object):
         else:
             kwargs = {}
 
-        # TODO: why the try except here?
-        try:
-            self.set(twig, value, **kwargs)
-        except ValueError, msg:
-            # TODO: custom error type for more than 1 result and mention
-            # changing dict_set_all@settings
-            raise ValueError(msg)
+        self.set(twig, value, **kwargs)
 
     def __contains__(self, twig):
         """
@@ -1933,6 +1937,15 @@ class ParameterSet(object):
 
             return param, array, unit
 
+        if isinstance(kwargs.get('time', None), str):
+            # handle allow passing twigs to time
+            time_value = self._bundle.get_value(kwargs['time'], context='component')
+            if isinstance(time_value, float):
+                logger.info("plotting at time={} ('{}')".format(time_value, kwargs['time']))
+                kwargs['time'] = time_value
+            else:
+                raise ValueError("could not convert '{}' to a valid time".format(kwargs['time']))
+
         # filter the PS further - except we don't want to filter on time, since
         # that means something else
 
@@ -2085,14 +2098,16 @@ class ParameterSet(object):
 
 
             if kwargs.get('loop_times', False) or len(ps.times) <= 1:
-                center_sort = ps.get_value(sortqualifier,
-                                           component=ps.component,
-                                           unit=u.solRad)
+                center_sort = np.concatenate([ps.get_value(sortqualifier,
+                                                           component=c,
+                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
+                                              for c in ps.components if c != '_default'])
             else:
                 center_sort = np.concatenate([ps.get_value(sortqualifier,
                                                            component=ps.component,
                                                            time=t,
-                                                           unit=u.solRad)
+                                                           unit=u.solRad if ps.dataset!='protomesh' else None)
+                                              for c in ps.components if c != '_default'
                                               for t in ps.times])
 
             plot_inds = np.argsort(center_sort)
@@ -2352,12 +2367,14 @@ class ParameterSet(object):
             if ps.kind.split('_')[-1] == 'syn':
                 xarray = tparam._bundle.to_phase(tarray,
                                                  shift=True,
-                                                 component=component)
+                                                 component=component,
+                                                 t0=kwargs.get('t0', 't0_supconj'))
             else:
                 # then we don't want to include phase-shifting for obs data
                 xarray = tparam._bundle.to_phase(tarray,
                                                  shift=False,
-                                                 component=component)
+                                                 component=component,
+                                                 t0=kwargs.get('t0', 't0_supconj'))
 
             # really only used to get the default label for this ps
             xparam = tparam
@@ -2365,7 +2382,8 @@ class ParameterSet(object):
             if kwargs.get('time', None):
                 kwargs['time'] = self._bundle.to_phase(kwargs['time'],
                                                        shift=True,
-                                                       component=component)
+                                                       component=component,
+                                                       t0=kwargs.get('t0', 't0_supconj'))
 
         elif isinstance(xqualifier, float) or isinstance(xqualifier, int):
             xparam = None
@@ -2438,11 +2456,15 @@ class ParameterSet(object):
             # TODO: this may not always be wanted, sometimes we may want to instead
             # loop over each cycle and draw multiple lines
             if axes_3d:
+                if not (len(xarray) and len(yarray) and len(zarray)):
+                    return []
                 xyzt = zip(xarray, yarray, zarray, tarray)
                 xyzt.sort()
                 x, y, z, t = zip(*xyzt)
                 xarray, yarray, zarray, tarray = np.array(x), np.array(y), np.array(z), np.array(t)
             else:
+                if not (len(xarray) and len(yarray)):
+                    return []
                 xyt = zip(xarray, yarray, tarray)
                 xyt.sort()
                 x, y, t = zip(*xyt)
@@ -2611,7 +2633,9 @@ class ParameterSet(object):
             (see details for x above)
         :parameter str z: qualifier or twig of the array to plot on the z-axis if both
             the backend and ax support 3d plotting (see details for x above)
-
+        :parameter t0: qualifier or float of the t0 that should be used for
+            phasing, if applicable
+        :type t0: string or float
         :parameter str xerrors: qualifier of the array to plot as x-errors (will
             default based on x if not provided)
         :parameter str yerrors: qualifier of the array to plot as y-errors (will
@@ -2824,13 +2848,16 @@ class ParameterSet(object):
             the animation will be saved automatically.  Either way, the animation
             object is returned (so you can always call anim.save(fname)).
         :parameter list save_args: any additional arguments that need to be sent
-            to the anim.save call (as extra_args)
+            to the anim.save call (as extra_args=save_args, see
+            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
+        :parameter dict save_kwargs: any additional keyword arguments that need
+            to be sent to the anim.save call (as **save_kwargs, see
+            https://matplotlib.org/2.0.0/api/_as_gen/matplotlib.animation.Animation.save.html#matplotlib.animation.Animation.save)
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
         :parameter kwargs: any additional arguments will be passed along to each
-            call of :meth:`plot`, unless they are already specified (ie. twig_or_list_of_kwargs
-            has priority of kwargs)
+            call of :meth:`plot`, unless they are already specified
         :return fname: returns the created filename
         """
         # TODO: time vs times?
@@ -2847,7 +2874,9 @@ class ParameterSet(object):
         fixed_limits = kwargs.pop('fixed_limits', True)
         interval = kwargs.pop('interval', 100)
         save = kwargs.pop('save', False)
-        save_args = kwargs.pop('save_args', [])
+        save_args = kwargs.pop('save_args', ())
+        save_kwargs = kwargs.pop('save_kwargs', {})
+        save_kwargs.setdefault('extra_args', save_args)
         show = kwargs.pop('show', False)
 
         if times is None:
@@ -2861,8 +2890,8 @@ class ParameterSet(object):
                     # for the case of meshes/spectra
                     times += [float(t) for t in ps.times]
                 else:
-                    for twig in ps.filter(qualifier='time').twigs:
-                        times += list(ps.get_value(twig=twig))
+                    for param in ps.filter(qualifier='times').to_list():
+                        times += list(param.get_value())
 
             times = sorted(list(set(times)))
 
@@ -2882,6 +2911,9 @@ class ParameterSet(object):
             plot_argss_fixed_limits = []
             for plot_args_ in plot_argss:
                 plot_args = plot_args_.copy()
+
+                for k, v in kwargs.items():
+                    plot_args.setdefault(k,v)
 
                 plot_args['time'] = times
                 # TODO: do we need to loop over times for meshes now or can we do it within get_plotting_info?
@@ -2929,7 +2961,11 @@ class ParameterSet(object):
                     else:
                         xarray, yarray, zarray, tarray = this_kwargs['data']  # TODO: this may not work for meshes?
 
-                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray, reset=False)
+                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray,
+                                                   xlim=this_kwargs.get('xlim', None),
+                                                   ylim=this_kwargs.get('ylim', None),
+                                                   zlim=this_kwargs.get('zlim', None),
+                                                   reset=False)
 
                     plot_argss_fixed_limits.append(this_plot_args)
 
@@ -2957,7 +2993,7 @@ class ParameterSet(object):
 
         if save:
             logger.info("saving animation to {}".format(save))
-            anim.save(save, extra_args=save_args)
+            anim.save(save, **save_kwargs)
 
         return anim
 
@@ -3190,6 +3226,40 @@ class Parameter(object):
         """
         # TODO: don't allow changing things like visible_if or description here?
         raise NotImplementedError
+
+    @classmethod
+    def open(cls, filename):
+        """
+        Open a Parameter from a JSON-formatted file.
+        This is a constructor so should be called as:
+
+
+        >>> b = Parameter.open('test.json')
+
+
+        :parameter str filename: relative or full path to the file
+        :return: instantiated :class:`Parameter` object
+        """
+        f = open(filename, 'r')
+        data = json.load(f)
+        f.close()
+        return cls(data)
+
+    def save(self, filename, incl_uniqueid=False):
+        """
+        Save the Parameter to a JSON-formatted ASCII file
+
+        :parameter str filename: relative or fullpath to the file
+        :return: filename
+        :rtype: str
+        """
+
+        f = open(filename, 'w')
+        f.write(json.dumps(self.to_json(incl_uniqueid=incl_uniqueid),
+                           sort_keys=True, indent=0, separators=(',', ': ')))
+        f.close()
+
+        return filename
 
     def to_json(self, incl_uniqueid=False):
         """
@@ -4359,6 +4429,8 @@ class FloatParameter(Parameter):
         else:
             try:
                 return value.to(unit)
+            except u.core.UnitConversionError as err:
+                raise ValueError(err)
             except:
                 return value
 
@@ -4366,11 +4438,14 @@ class FloatParameter(Parameter):
         # we do this separately so that FloatArrayParameter can keep this set_value
         # and just subclass _check_type
         if isinstance(value, u.Quantity):
-            value = value.value
+            if not (isinstance(value.value, float) or isinstance(value.value, int)):
+                raise ValueError("value could not be cast to float")
 
-        if not (isinstance(value, float) or isinstance(value, int)):
+        elif not (isinstance(value, float) or isinstance(value, int)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise ValueError("value could not be cast to float")
+
+        return value
 
     #@send_if_client is on the called set_quantity
     def set_value(self, value, unit=None, force=False, run_checks=None, **kwargs):
@@ -4422,7 +4497,7 @@ class FloatParameter(Parameter):
         elif unit is not None and not (isinstance(unit, u.Unit) or isinstance(unit, u.CompositeUnit) or isinstance(unit, u.IrreducibleUnit)):
             raise TypeError("unit must be an phoebe.u.Unit or None, got {}".format(unit))
 
-        self._check_type(value)
+        value = self._check_type(value)
 
         # check to make sure value and unit don't clash
         if isinstance(value, u.Quantity) or ((isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)) and value.unit is not None):
@@ -4595,7 +4670,8 @@ class FloatArrayParameter(FloatParameter):
         if isinstance(unit, str) or isinstance(unit, unicode):
             unit = u.Unit(str(unit))
 
-        self.set_value(kwargs.get('value', []), unit)
+        value = self._check_type(kwargs.get('value', []))
+        self.set_value(value, unit)
 
         self._dict_fields_other = ['description', 'value', 'default_unit', 'visible_if', 'copy_for', 'allow_none', 'advanced']
         self._dict_fields = _meta_fields_all + self._dict_fields_other
@@ -4750,13 +4826,14 @@ class FloatArrayParameter(FloatParameter):
         if self.allow_none and value is None:
             value = None
 
-        elif isinstance(value, u.Quantity):
-            value = value.value
+        if isinstance(value, u.Quantity):
+            if isinstance(value.value, float) or isinstance(value.value, int):
+                value = np.array([value])
 
         # if isinstance(value, str):
             # value = np.fromstring(value)
 
-        elif isinstance(value, float):
+        elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
         elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
@@ -5451,14 +5528,14 @@ class ConstraintParameter(Parameter):
 
         if self.qualifier:
             #~ print "***", self._bundle.__repr__(), self.qualifier, self.component
-            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
+            ps = self._bundle.filter(qualifier=self.qualifier, component=self.component, dataset=self.dataset, feature=self.feature, kind=self.kind, model=self.model, check_visible=False) - self._bundle.filter(context='constraint', check_visible=False)
             if len(ps) == 1:
                 constrained_parameter = ps.get_parameter(check_visible=False,
                                                          check_default=False,
                                                          check_advanced=False,
                                                          check_single=False)
             else:
-                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'model': self.model}))
+                raise KeyError("could not find single match for {}".format({'qualifier': self.qualifier, 'component': self.component, 'dataset': self.dataset, 'feature': self.feature, 'model': self.model}))
 
 
             var = ConstraintVar(self._bundle, constrained_parameter.twig)
@@ -5719,14 +5796,12 @@ class ConstraintParameter(Parameter):
 
                 values = get_values(self._vars, safe_label=False)
 
-                from phoebe.constraints.builtin import ecosw2per0, esinw2per0, rochepotential2rpole, rocherpole2potential, rotstarpotential2rpole, rotstarrpole2potential
-                # if len(self.hierarchy.get_meshables())==1:
-                    # from phoebe.distortions.rotstar import potential2rpole, rpole2potential
-                # else:
-                    # from phoebe.distortions.roche import potential2rpole, rpole2potential
+                from phoebe.constraints.builtin import ecosw2per0, esinw2per0,\
+                        t0_perpass_to_supconj, t0_supconj_to_perpass,\
+                        t0_ref_to_supconj, t0_supconj_to_ref,\
+                        rochepotential2rpole, rocherpole2potential,\
+                        rotstarpotential2rpole, rotstarrpole2potential
 
-                #print "*** else if", eq.format(**values)
-                # print "***", eval(eq.format(**values))
                 value = float(eval(eq.format(**values)))
 
             else:
@@ -5778,6 +5853,11 @@ class ConstraintParameter(Parameter):
         kwargs['twig'] = twig
         newly_constrained_var = self._get_var(**kwargs)
         newly_constrained_param = self.get_parameter(**kwargs)
+
+        check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
+        check_kwargs['context'] = 'constraint'
+        if len(self._bundle.filter(**check_kwargs)):
+            raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
         currently_constrained_var = self._get_var(qualifier=self.qualifier, component=self.component)
         currently_constrained_param = currently_constrained_var.get_parameter() # or self.constrained_parameter

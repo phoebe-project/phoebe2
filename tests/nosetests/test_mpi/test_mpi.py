@@ -17,9 +17,9 @@ def test_mpi(plot=False):
 
     b.add_dataset('lc', times=np.linspace(0,1,1001))
 
-    print "calling compute"
+    if plot: print "calling compute"
     b.run_compute(irrad_method='none', model='phoebe2model')
-    print "model received"
+    if plot: print "model received"
 
     if plot:
         b.plot(show=True)

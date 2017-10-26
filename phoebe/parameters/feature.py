@@ -33,10 +33,7 @@ def spot(feature, **kwargs):
     params += [FloatParameter(qualifier='relteff', value=kwargs.get('relteff', 1.0), default_unit=u.dimensionless_unscaled, description='Temperature of the spot relative to the intrinsic temperature')]
     # params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 10000), deafault_unit=u.K, description='Temperature of the spot')]
 
-    #### TEMPORARY HACK FOR 2.0.* to handle renaming of colon->long
-    params += [FloatParameter(qualifier="colon", value=kwargs.get("colon", 0.0), default_unit=u.deg, description='DEPRECATED PARAMETER REPLACED WITH LONG (SEE RELEASE NOTES)')]
-
-    constraints = [(constraint.colon_deprecation, feature)]
+    constraints = []
 
     return ParameterSet(params), constraints
 
@@ -58,8 +55,8 @@ def pulsation(feature, **kwargs):
 
     params += [FloatParameter(qualifier='radamp', value=kwargs.get('radamp', 0.1), default_unit=u.dimensionless_unscaled, description='Relative radial amplitude of the pulsations')]
     params += [FloatParameter(qualifier='freq', value=kwargs.get('freq', 1.0), default_unit=u.d**-1, description='Frequency of the pulsations')]
-    params += [FloatParameter(qualifier='l', value=kwargs.get('l', 1.0), default_unit=u.dimensionless_unscaled, description='Non-radial degree l')]
-    params += [FloatParameter(qualifier='m', value=kwargs.get('m', 1.0), default_unit=u.dimensionless_unscaled, description='Azimuthal order m')]
+    params += [IntParameter(qualifier='l', value=kwargs.get('l', 0), default_unit=u.dimensionless_unscaled, description='Non-radial degree l')]
+    params += [IntParameter(qualifier='m', value=kwargs.get('m', 0), default_unit=u.dimensionless_unscaled, description='Azimuthal order m')]
     params += [BoolParameter(qualifier='teffext', value=kwargs.get('teffext', False), description='Switch to denote whether Teffs are provided by the external code')]
 
 

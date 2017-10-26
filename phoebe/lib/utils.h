@@ -45,7 +45,7 @@ namespace utils {
       max(x,y,z}
   */
   
-  template <class T>  T max3(const T & x, const  T & y, const T & z){
+  template <class T> T max3(const T & x, const  T & y, const T & z){
     
     T t;
     

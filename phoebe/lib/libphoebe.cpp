@@ -186,7 +186,7 @@ void PyArray_To3DPointVector(
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-  
+    
   keywords: optional
     
     L1: boolean, default true
@@ -195,7 +195,15 @@ void PyArray_To3DPointVector(
       switch calculating value of the potential at L2 
     L3: boolean, default true
       switch calculating value of the potential at L3 
-    
+ 
+    style: int, default 0
+      
+      0 - canonical - conventional:
+          L3  -- heavier star -- L1 -- lighter star -- L2 --> x
+      
+      1 - native to definition of the potential
+          L2  -- origin -- L1 -- object -- L3 --> x
+        
   and returns dictionary with keywords:
   
     L1:
@@ -221,27 +229,39 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
     (char*)"L1",
     (char*)"L2",
     (char*)"L3",
+    (char*)"style",
     NULL};
          
   bool b_L[3] = {true, true, true};
+  
+  int style = 0;
      
   double q, F, delta;
   
   PyObject *o_L[3] = {0,  0, 0};
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!i", kwlist,
         &q, &F, &delta, 
         &PyBool_Type, o_L,
         &PyBool_Type, o_L + 1,
-        &PyBool_Type, o_L + 2)
+        &PyBool_Type, o_L + 2,
+        &style)
   ){
     std::cerr << "roche_critical_potential:Problem reading arguments\n";
     return NULL;
   }
   
+  int ind[3] = {0, 1, 2};
+  
+  if (style == 0 && q > 1) {      // case : M2 > M1
+    ind[1] = 2;
+    ind[2] = 1;
+  }
+     
+  
   // reading selection
   for (int i = 0; i < 3; ++i)
-    if (o_L[i]) b_L[i] = PyObject_IsTrue(o_L[i]);
+    if (o_L[ind[i]]) b_L[i] = PyObject_IsTrue(o_L[ind[i]]);
   
   // create a binary version of selection
   unsigned choice = 0;
@@ -264,7 +284,9 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   
   for (int i = 0; i < 3; ++i)
     if (b_L[i]) 
-      PyDict_SetItemStringStealRef(results, labels[i], PyFloat_FromDouble(omega[i]));
+      PyDict_SetItemStringStealRef(results, 
+        labels[ind[i]], 
+         PyFloat_FromDouble(omega[i]));
   
   return results;
 }
@@ -1747,6 +1769,70 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
 /*
   C++ wrapper for Python code:
   
+  Calculate the value of the potential of the rotating star with 
+  misaligned spin at a given point
+
+      Omega (x,y,z; omega) = 1/r + 1/2 omega^2 |r - s(s*r)|^2
+      
+      s = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+      
+  Python:
+    
+    Omega0 = rotstar_misaligned Omega(omega, s, r)
+   
+  with parameters
+  
+    omega: float - parameter of the potential
+    misalignment:  in rotated coordinate system:
+      float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+      1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+    r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+/*
+static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
+
+  const char * fname = "rotstar_misaligned_Omega";
+  
+  double p[2];
+
+  PyObject *o_misalignment;
+  
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, 
+        "dOO!", p, 
+        &o_misalignment,
+        &PyArray_Type, &X)
+     ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  if (PyFloat_Check(o_misalignment)) {    
+    s = std::sin(PyFloat_AsDouble(o_misalignment));
+  } else if (PyArray_Check(o_misalignment)) {
+    s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    return NULL;
+  }
+
+  p[1] = 0; // Omega
+  
+  Trot_star<double> b(p);
+
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+*/
+
+/*
+  C++ wrapper for Python code:
+  
   Calculate the value of the potential of the sphere at 
   a given point
 
@@ -2025,6 +2111,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   #if defined(DEBUG)
   std::cerr.precision(16);
   std::cerr 
+    << "choice=" << choice << '\n' 
     << "r=" << r[0] << " " <<  r[1] << " " << r[2] << '\n'
     << "g=" << g[0] << " " <<  g[1] << " " << g[2] << '\n';
   #endif
@@ -2199,7 +2286,10 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
-      init_phi: float, default 0
+      init_phi: float, default 0  
+        orientation of the initial polygon front
+      init_dir: 1-rank numpy array of floats = [theta, phi], default [0,0]
+        direction of the initial point in marching given by spherical angles
 
   Returns:
   
@@ -2284,9 +2374,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (char*)"area",
     (char*)"volume",
     (char*)"init_phi",
+    (char*)"init_dir",
     NULL};
   
-  double omega, Omega0, delta, init_phi = 0;   
+  double omega, Omega0, delta, 
+         init_phi = 0, init_dir[2] = {0., 0.};  
   
   int max_triangles = 10000000; // 10^7
       
@@ -2317,10 +2409,12 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     *o_cnormgrads = 0,
     *o_areas = 0,
     *o_area = 0,
-    *o_volume = 0; 
+    *o_volume = 0;
+    
+  PyArrayObject *o_init_dir = 0; 
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!dO!", kwlist,
       &omega, &Omega0, &delta, // neccesary 
       &max_triangles,
       &PyBool_Type, &o_full,       
@@ -2335,7 +2429,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume,
-      &init_phi)
+      &init_phi,
+      &PyArray_Type, &o_init_dir)
   ){
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
@@ -2353,6 +2448,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   if (o_areas) b_areas = PyObject_IsTrue(o_areas);
   if (o_area) b_area = PyObject_IsTrue(o_area);
   if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+  if (o_init_dir) {
+    double *p = (double*)PyArray_DATA(o_init_dir);
+    init_dir[0] = p[0];
+    init_dir[1] = p[1];
+  }
      
   //
   // Storing results in dictioonary
@@ -2366,7 +2466,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   //
   
   double r[3], g[3];
-  rot_star::meshing_start_point(r, g, Omega0, omega);
+  //rot_star::meshing_start_point(r, g, Omega0, omega);
+  rot_star::point_on_surface(init_dir[0], init_dir[1], Omega0, omega, r, g);
  
   //
   //  Marching triangulation of the Roche lobe 
@@ -4975,6 +5076,13 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
           gen_roche::poleL(Omega0, q, F, d), 
           gen_roche::poleR(Omega0, q, F, d)
         ));      
+  }
+
+    // extend the ranges for better subdivision
+
+  for (int i = 0; i < 3; ++i){
+    ranges[i][0] += 0.1*ranges[i][0];
+    ranges[i][1] -= 0.1*ranges[i][0];
   }
   
   //
