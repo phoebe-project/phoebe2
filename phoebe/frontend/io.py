@@ -843,6 +843,12 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
                 #TODO FIND appropriate default
 #                d['value'] = 'atmcof'
 
+#       change vgamma so that the definitions match
+
+        elif pnew == 'vga':
+
+            d['value'] = -1*float(val)
+
         elif pnew == 'finesize':
                     # set gridsize
             d['value'] = val
@@ -1490,6 +1496,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             param = None
         if param != None:
             val, ptype = par_value(param)
+
+
+
             pname = ret_parname(param.qualifier,ptype=ptype)
             parnames.extend(pname)
             parvals.extend(val)
@@ -1594,8 +1603,18 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         if param != None:
 
             val, ptype = par_value(param)
+        #exceptions that must be caught like vgamma
+
+            if param.qualifier == 'vgamma':
+                # print val, type(val)
+                val = [-1*float(val[0])]
+#                pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
+
+#            else:
+#                pname = ret_parname(param.qualifier, comp_int = comp_int, ptype)
             pname = ret_parname(param.qualifier, comp_int = comp_int, ptype=ptype)
             if pname[0] not in parnames:
+
                 parnames.extend(pname)
                 parvals.extend(val)
                 types.append(ptype)
@@ -1646,6 +1665,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
 #        elif types[x] == 'choice':
 #            value = '"'+str(parvals[x])+'"'
 #        else:
+        # print parnames[x]
+        # print parvals[x]
         value = parvals[x]
         # TODO: set precision on floats?
         f.write(str(parnames[x])+' = '+str(value)+'\n')

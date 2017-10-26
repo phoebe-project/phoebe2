@@ -62,11 +62,14 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.4 - vgamma temporary bugfix
+* The definition of vgamma in 2.0.* is in the direction of positive z rather than positive RV.  For the sake of maintaining backwards-compatibility, this will remain unchanged for 2.0.* releases but will be fixed in the 2.1 release to be in the direction of positive RV.  Until then, this bugfix handles converting to and from PHOEBE legacy correctly so that running the PHOEBE 2 and legacy backends gives consistent results.
+
 ### 2.0.3 - t0_supconj/t0_perpass hotfix
 * Fixed constraint that defines the relation between t0_perpass and t0_supconj.
 * Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
 * Phasing now accepts t0='t0_supconj', 't0_perpass', 't0_ref', or a float representing the zero-point.  The 'phshift' parameter will still be supported until 2.1, at which point it will be removed.
-* Inclination parameterk ('incl') is now limited to the [0-180] range to maintain conventions on superior conjunction and ascending/descending nodes.
+* Inclination parameter ('incl') is now limited to the [0-180] range to maintain conventions on superior conjunction and ascending/descending nodes.
 * Fixed error message in ldint.
 * Fixed the ability for multiple stars to be attached to the same component.
 * Raise an error if attempting to attach spots to an unsupported component.  Note: spots are currently not supported for contact systems.
