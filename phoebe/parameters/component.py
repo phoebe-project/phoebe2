@@ -50,7 +50,6 @@ def orbit(component, **kwargs):
     # NOTE: the limits on inclination are from 0-180 so that the definition of superior conjunction doesn't flip
     params += [FloatParameter(qualifier='incl', timederiv='dincldt', value=kwargs.get('incl', 90.0), limits=(0.0, 180.0), default_unit=u.deg, description='Orbital inclination angle')]
     # params += [FloatParameter(qualifier='dincldt', value=kwargs.get('dincldt', 0.0), default_unit=u.deg/u.yr, description="Inclination change")]
-    params += [FloatParameter(qualifier='phshift', value=kwargs.get('phshift', 0.0), default_unit=u.dimensionless_unscaled, description='Phase shift')]
     params += [FloatParameter(qualifier='q', value=kwargs.get('q', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Mass ratio')]
     params += [FloatParameter(qualifier='sma', value=kwargs.get('sma', 5.3), default_unit=u.solRad, limits=(0.0,None), description='Semi major axis of the orbit')]
     params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node')]

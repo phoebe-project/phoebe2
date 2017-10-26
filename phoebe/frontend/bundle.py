@@ -1526,7 +1526,7 @@ class Bundle(ParameterSet):
         kwargs.setdefault('kind', 'envelope')
         return self.remove_component(component, **kwargs)
 
-    def get_ephemeris(self, component=None, t0='t0_supconj', shift=True, **kwargs):
+    def get_ephemeris(self, component=None, t0='t0_supconj', **kwargs):
         """
         Get the ephemeris of a component (star or orbit)
 
@@ -1535,20 +1535,19 @@ class Bundle(ParameterSet):
             hierarchy
         :parameter t0: qualifier of the parameter to be used for t0
         :type t0: str
-        :parameter shift: if true, phase shift is applied (which should be
-            done to models); if false, it is not applied (which is suitable
-            for data).
-        :type shift: boolean
         :parameter **kwargs: any value passed through kwargs will override the
-            ephemeris retrieved by component (ie period, t0, phshift, dpdt).
+            ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: dictionary containing period, t0 (t0_supconj if orbit),
-            phshift, dpdt (as applicable)
+            dpdt (as applicable)
         :rtype: dict
         """
 
         if component is None:
             component = self.hierarchy.get_top()
+
+        if kwargs.get('shift', False):
+            raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
 
         ret = {}
 
@@ -1562,9 +1561,6 @@ class Bundle(ParameterSet):
                 ret['t0'] = t0
             else:
                 raise ValueError("t0 must be string (qualifier) or float")
-            if shift:
-                logger.warning("'phshift' parameter is planned for removal starting in version 2.1.  Instead, 't0' can be passed as a float to achieve manually setting the 'zero-phase'")
-                ret['phshift'] = ps.get_value(qualifier='phshift')
             ret['dpdt'] = ps.get_value(qualifier='dpdt', unit=u.d/u.d)
         elif ps.kind in ['star']:
             # TODO: consider renaming period to prot
@@ -1577,29 +1573,28 @@ class Bundle(ParameterSet):
 
         return ret
 
-    def to_phase(self, time, shift=True, component=None, t0='t0_supconj', **kwargs):
+    def to_phase(self, time, component=None, t0='t0_supconj', **kwargs):
         """
         Get the phase(s) of a time(s) for a given ephemeris
 
         :parameter time: time to convert to phases (should be in same system
             as t0s)
         :type time: float, list, or array
-        :parameter shift: if true, phase shift is applied (which should be
-            done to models); if false, it is not applied (which is suitable
-            for data).
-        :type shift: boolean
         :parameter t0: qualifier of the parameter to be used for t0
         :type t0: str
         :parameter str component: component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy
         :parameter **kwargs: any value passed through kwargs will override the
-            ephemeris retrieved by component (ie period, t0, phshift, dpdt).
+            ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: phase (float) or phases (array)
         """
 
-        ephem = self.get_ephemeris(component=component, t0=t0, shift=shift, **kwargs)
+        if kwargs.get('shift', False):
+            raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
+
+        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
 
         if isinstance(time, list):
             time = np.array(time)
@@ -1609,14 +1604,13 @@ class Bundle(ParameterSet):
             time = self.get_value(time, u.d)
 
         t0 = ephem.get('t0', 0.0)
-        phshift = ephem.get('phshift', 0.0)
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
         if dpdt != 0:
-            phase = phshift + np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
+            phase = np.mod(1./dpdt * np.log(period + dpdt*(time-t0)), 1.0)
         else:
-            phase = phshift + np.mod((time-t0)/period, 1.0)
+            phase = np.mod((time-t0)/period, 1.0)
 
         if isinstance(phase, float):
             if phase > 0.5:
@@ -1627,43 +1621,41 @@ class Bundle(ParameterSet):
 
         return phase
 
-    def to_time(self, phase, shift=True, component=None, t0='t0_supconj', **kwargs):
+    def to_time(self, phase, component=None, t0='t0_supconj', **kwargs):
         """
         Get the time(s) of a phase(s) for a given ephemeris
 
         :parameter phase: phase to convert to times (should be in
             same system as t0s)
         :type phase: float, list, or array
-        :parameter shift: if true, phase shift is applied (which should be
-            done to models); if false, it is not applied (which is suitable
-            for data).
-        :type shift: boolean
     `   :parameter str component: component for which to get the ephemeris.
             If not given, component will default to the top-most level of the
             current hierarchy
         :parameter t0: qualifier of the parameter to be used for t0
         :type t0: str
         :parameter **kwargs: any value passed through kwargs will override the
-            ephemeris retrieved by component (ie period, t0, phshift, dpdt).
+            ephemeris retrieved by component (ie period, t0, dpdt).
             Note: be careful about units - input values will not be converted.
         :return: time (float) or times (array)
         """
 
-        ephem = self.get_ephemeris(component=component, t0=t0, shift=shift, **kwargs)
+        if kwargs.get('shift', False):
+            raise ValueError("support for phshift was removed as of 2.1.  Please pass t0 instead.")
+
+        ephem = self.get_ephemeris(component=component, t0=t0, **kwargs)
 
         if isinstance(phase, list):
             phase = np.array(phase)
 
         t0 = ephem.get('t0', 0.0)
-        phshift = ephem.get('phshift', 0.0)
         period = ephem.get('period', 1.0)
         dpdt = ephem.get('dpdt', 0.0)
 
         # if changing this, also see parameters.constraint.time_ephem
         if dpdt != 0:
-            time = t0 + 1./dpdt*(np.exp(dpdt*(phase-phshift))-period)
+            time = t0 + 1./dpdt*(np.exp(dpdt*(phase))-period)
         else:
-            time = t0 + (phase-phshift)*period
+            time = t0 + (phase)*period
 
         return time
 
