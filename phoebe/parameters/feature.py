@@ -33,10 +33,7 @@ def spot(feature, **kwargs):
     params += [FloatParameter(qualifier='relteff', value=kwargs.get('relteff', 1.0), default_unit=u.dimensionless_unscaled, description='Temperature of the spot relative to the intrinsic temperature')]
     # params += [FloatParameter(qualifier='teff', value=kwargs.get('teff', 10000), deafault_unit=u.K, description='Temperature of the spot')]
 
-    #### TEMPORARY HACK FOR 2.0.* to handle renaming of colon->long
-    params += [FloatParameter(qualifier="colon", value=kwargs.get("colon", 0.0), default_unit=u.deg, description='DEPRECATED PARAMETER REPLACED WITH LONG (SEE RELEASE NOTES)')]
-
-    constraints = [(constraint.colon_deprecation, feature)]
+    constraints = []
 
     return ParameterSet(params), constraints
 

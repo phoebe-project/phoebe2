@@ -1009,21 +1009,6 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
 #}
 #{ Feature constraints
 
-def colon_deprecation(b, feature, solve_for=None, **kwargs):
-    feature_ps = _get_system_ps(b, feature, context='feature')
-
-    longitude = feature_ps.get_parameter(qualifier='long')
-    colon = feature_ps.get_parameter(qualifier='colon')
-
-    if solve_for in [None, colon]:
-        lhs = colon
-        rhs = 1*longitude
-    else:
-        lhs = longitude
-        rhs = 1*colon
-
-    return lhs, rhs, {'feature': feature}
-
 #}
 #{ Data constraints
 
