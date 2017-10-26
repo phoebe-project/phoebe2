@@ -34,13 +34,13 @@ def _beta_vs_legacy(b, plot=False):
 
     phoebe2_val = b.get_value('rvs@primary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@primary@legnumresults@legnum')
-    if verbose:
+    if plot:
         print "rv@primary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
     phoebe2_val = b.get_value('rvs@secondary@phnumresults@phnum')
     phoebe1_val = b.get_value('rvs@secondary@legnumresults@legnum')
-    if verbose:
+    if plot:
         print "rv@secondary max rel diff: {}".format(max(np.abs((phoebe1_val-phoebe2_val)/phoebe2_val)))
     assert(np.allclose(phoebe2_val, phoebe1_val, rtol=1e-1, atol=0.))
 
