@@ -1206,6 +1206,10 @@ class Bundle(ParameterSet):
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
                 return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}".format(component, teff, gravb_bol)
 
+        # TEMPORARY WARNING for 2.0.X
+        if self.get_value('vgamma') != 0.0:
+            return None, "definition of vgamma will change starting with 2.1.0 release"
+
         # TODO: add other checks
         # - make sure all ETV components are legal
         # - check for conflict between dynamics_method and mesh_method (?)
