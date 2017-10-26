@@ -64,7 +64,7 @@ def component(*args):
     :return: the string representation of the hierarchy
     """
 
-    return 'component({})'.format(', '.join([_to_component(arg) for arg in args]))
+    return '{}'.format(', '.join([_to_component(arg) for arg in args]))
 
 def blank(*args):
     """
@@ -79,4 +79,3 @@ def blank(*args):
     :return: the string representation of the hierarchy
     """
     return ''
-

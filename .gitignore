@@ -12,3 +12,6 @@ MANIFEST
 *.log
 *.png
 .DS_Store
+libphoebe.so
+
+*.swp

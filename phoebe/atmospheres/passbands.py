@@ -30,7 +30,7 @@ logger.addHandler(logging.NullHandler())
 _pbtable = {}
 
 _initialized = False
-_online_passbands = None
+_online_passbands = {}
 
 _pbdir_global = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tables/passbands'))+'/'
 
@@ -361,7 +361,7 @@ class Passband:
         Returns: n/a
         """
 
-        if Teffs == None:
+        if Teffs is None:
             log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
             Teffs = 10**log10Teffs
 
@@ -994,7 +994,7 @@ class Passband:
         self.extern_wd_idx = wdidx
 
         # Break up the table along axes and extract a single passband data:
-        atmtab = np.reshape(self.wd_data["atm_table"], (Nabun, Npb, Nlogg, Nints, -1))
+        atmtab = np.reshape(self.wd_data['atm_table'], (Nabun, Npb, Nlogg, Nints, -1))
         atmtab = atmtab[:, wdidx, :, :, :]
 
         # Finally, reverse the metallicity axis because it is sorted in
@@ -1105,14 +1105,14 @@ class Passband:
                 retval = 10**self._log10_Inorm_bb_photon(Teff)
             else:
                 retval = 10**self._log10_Inorm_bb_energy(Teff)
-            if ldint == None:
+            if ldint is None:
                 ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
         elif atm == 'extern_planckint' and 'extern_planckint' in self.content:
             # -1 below is for cgs -> SI:
             retval = 10**(self._log10_Inorm_extern_planckint(Teff)-1)
-            if ldint == None:
+            if ldint is None:
                 ldint = self.ldint(Teff, logg, abun, atm, ld_func, ld_coeffs, photon_weighted)
             retval /= ldint
 
@@ -1150,11 +1150,22 @@ class Passband:
         """
 
         if ld_func == 'interp':
+            # The 'interp' LD function works only for model atmospheres:
             if atm == 'ck2004' and 'ck2004' in self.content:
                 retval = self._Imu_ck2004(Teff, logg, abun, mu, photon_weighted=photon_weighted)
+                nanmask = np.isnan(retval)
+                if np.any(nanmask):
+                    raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+                return retval
             else:
                 raise ValueError('atm={} not supported by {}:{} ld_func=interp'.format(atm, self.pbset, self.pbname))
-        elif ld_func == 'linear':
+
+        if ld_coeffs is None:
+            # LD function can be passed without coefficients; in that
+            # case we need to interpolate them from the tables.
+            ld_coeffs = self.interpolate_ck2004_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
+
+        if ld_func == 'linear':
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_lin(mu, *ld_coeffs)
         elif ld_func == 'logarithmic':
             retval = self.Inorm(Teff=Teff, logg=logg, abun=abun, atm=atm, ldint=ldint, ld_func=ld_func, ld_coeffs=ld_coeffs, photon_weighted=photon_weighted) * self._ldlaw_log(mu, *ld_coeffs)
@@ -1188,7 +1199,15 @@ class Passband:
                 retval = self._ldint_ck2004(Teff, logg, abun, photon_weighted=photon_weighted)
             else:
                 raise ValueError('atm={} not supported with ld_func=interp'.format(atm))
-        elif ld_func == 'linear':
+            nanmask = np.isnan(retval)
+            if np.any(nanmask):
+                raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
+            return retval
+
+        if ld_coeffs is None:
+            ld_coeffs = self.interpolate_ck2004_ldcoeffs(Teff, logg, abun, atm, ld_func, photon_weighted)
+
+        if ld_func == 'linear':
             retval = 1-ld_coeffs[0]/3
         elif ld_func == 'logarithmic':
             retval = 1-ld_coeffs[0]/3+2.*ld_coeffs[1]/9
@@ -1204,7 +1223,7 @@ class Passband:
 
         nanmask = np.isnan(retval)
         if np.any(nanmask):
-            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s, mu=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask], mu[nanmask]))
+            raise ValueError('atmosphere parameters out of bounds: Teff=%s, logg=%s, abun=%s' % (Teff[nanmask], logg[nanmask], abun[nanmask]))
         return retval
 
     def _bindex_ck2004(self, Teff, logg, abun, mu, atm, photon_weighted=False):
@@ -1329,7 +1348,7 @@ def list_online_passbands(refresh=False, full_dict=False):
     """
     """
     global _online_passbands
-    if _online_passbands is None or refresh:
+    if os.getenv('PHOEBE_ENABLE_ONLINE_PASSBANDS', 'TRUE').upper() == 'TRUE' and (len(_online_passbands.keys())==0 or refresh):
 
         url = 'http://github.com/phoebe-project/phoebe2-tables/raw/master/passbands/list_online_passbands_full'
         try:

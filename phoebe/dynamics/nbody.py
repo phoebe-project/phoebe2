@@ -231,7 +231,8 @@ def dynamics(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
     # Now handle vgamma by editing the initial vz on each particle
     for particle in sim.particles:
-        particle.vz += vgamma
+        # vgamma is in the direction of positive RV or negative vz
+        particle.vz -= vgamma
 
     xs = [np.zeros(times.shape) for m in masses]
     ys = [np.zeros(times.shape) for m in masses]
@@ -490,4 +491,3 @@ def dynamics_bs(times, masses, smas, eccs, incls, per0s, long_ans, mean_anoms,
 
         # d, solRad, solRad/d
         return ts, xs, ys, zs, vxs, vys, vzs
-

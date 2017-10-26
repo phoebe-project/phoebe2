@@ -17,7 +17,7 @@ def _get_system_ps(b, item, context='component'):
     # TODO: make this a decorator?
 
     if isinstance(item, ParameterSet):
-        return item
+        return item.filter(context=context, check_visible=False)
     elif isinstance(item, str):
         return b.filter(item, context=context, check_visible=False)
     else:
@@ -112,7 +112,7 @@ def sqrt(param):
     return ConstraintParameter(param._bundle, "sqrt({})".format(_get_expr(param)))
 
 #}
-#{ Built-in functions
+#{ Built-in functions (see phoebe.constraints.builtin for actual functions)
 def rocherpole2potential(rpole, q, e, syncpar, sma, compno=1):
     """
     TODO: add documentation
@@ -151,6 +151,30 @@ def ecosw2per0(ecc, ecosw):
     """
     # print "***", "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw))
     return ConstraintParameter(ecc._bundle, "ecosw2per0({}, {})".format(_get_expr(ecc), _get_expr(ecosw)))
+
+def t0_perpass_to_supconj(t0_perpass, period, ecc, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_perpass._bundle, "t0_perpass_to_supconj({}, {}, {}, {})".format(_get_expr(t0_perpass), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+
+def t0_supconj_to_perpass(t0_supconj, period, ecc, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_perpass({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+
+def t0_ref_to_supconj(t0_ref, period, ecc, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_ref._bundle, "t0_ref_to_supconj({}, {}, {}, {})".format(_get_expr(t0_ref), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+
+def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
 
 
 #}
@@ -320,19 +344,17 @@ def ecosw(b, orbit, solve_for=None, **kwargs):
 
     return lhs, rhs, {'orbit': orbit}
 
-def t0(b, orbit, solve_for=None, **kwargs):
+def t0_perpass_supconj(b, orbit, solve_for=None, **kwargs):
     """
-    Create a constraint for t0 in an orbit - allowing translating between
-    t0_perpass and t0_supconj using the following expression:
-
-    t0_perpass = t0_supconj + (phshift - 0.25 + per0/(2*np.pi)) * period
+    Create a constraint for t0_perpass in an orbit - allowing translating between
+    t0_perpass and t0_supconj.
 
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str orbit: the label of the orbit in which this
         constraint should be built
     :parameter str solve_for:  if 't0_perpass' should not be the derived/constrained
         parameter, provide which other parameter should be derived
-        (ie 't0_supconj', 'phshift', 'per0', 'period')
+        (ie 't0_supconj', 'per0', 'period')
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
         that were passed to this function)
     """
@@ -342,31 +364,68 @@ def t0(b, orbit, solve_for=None, **kwargs):
     metawargs = orbit_ps.meta
     metawargs.pop('qualifier')
 
-
     # by default both t0s exist in an orbit, so we don't have to worry about creating either
     t0_perpass = b.get_parameter(qualifier='t0_perpass', **metawargs)
     t0_supconj = b.get_parameter(qualifier='t0_supconj', **metawargs)
-    phshift = b.get_parameter(qualifier='phshift', **metawargs)
-    per0 = b.get_parameter(qualifier='per0', **metawargs)
     period = b.get_parameter(qualifier='period', **metawargs)
-
-    # t0_perpass = t0_supconj + (phshift - 0.25 + per0/(2*np.pi)) * period
-    # t0_supconj = t0_perpass - (phshift - 0.25 + per0/(2*np.pi)) * period
+    ecc = b.get_parameter(qualifier='ecc', **metawargs)
+    per0 = b.get_parameter(qualifier='per0', **metawargs)
 
     if solve_for in [None, t0_perpass]:
         lhs = t0_perpass
-        rhs = t0_supconj + (phshift - 0.25 + per0/(2*np.pi*u.rad)) * period
-        #          d     + ( cy - cy + deg/rad/cy) * d / cy
-        #          d     + ( cy - cy + cy) * d / cy
-        #          d     +   cy * d / cy
-        #          d     +        d
-        #  d
+        rhs = t0_supconj_to_perpass(t0_supconj, period, ecc, per0)
 
     elif solve_for == t0_supconj:
         lhs = t0_supconj
-        rhs = t0_perpass - (phshift - 0.25 + per0/(2*np.pi*u.rad)) * period
+        rhs = t0_perpass_to_supconj(t0_perpass, period, ecc, per0)
 
 
+
+    else:
+        raise NotImplementedError
+
+    return lhs, rhs, {'orbit': orbit}
+
+def t0(*args, **kwargs):
+    """
+    shortcut to t0_perpass for backwards compatibility
+    """
+    return t0_perpass_supconj(*args, **kwargs)
+
+def t0_ref_supconj(b, orbit, solve_for=None, **kwargs):
+    """
+    Create a constraint for t0_ref in an orbit - allowing translating between
+    t0_ref and t0_supconj.
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str orbit: the label of the orbit in which this
+        constraint should be built
+    :parameter str solve_for:  if 't0_ref' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+        (ie 't0_supconj', 'per0', 'period')
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+
+    orbit_ps = _get_system_ps(b, orbit)
+
+    metawargs = orbit_ps.meta
+    metawargs.pop('qualifier')
+
+    # by default both t0s exist in an orbit, so we don't have to worry about creating either
+    t0_ref = b.get_parameter(qualifier='t0_ref', **metawargs)
+    t0_supconj = b.get_parameter(qualifier='t0_supconj', **metawargs)
+    period = b.get_parameter(qualifier='period', **metawargs)
+    ecc = b.get_parameter(qualifier='ecc', **metawargs)
+    per0 = b.get_parameter(qualifier='per0', **metawargs)
+
+    if solve_for in [None, t0_ref]:
+        lhs = t0_ref
+        rhs = t0_supconj_to_ref(t0_supconj, period, ecc, per0)
+
+    elif solve_for == t0_supconj:
+        lhs = t0_supconj
+        rhs = t0_ref_to_supconj(t0_ref, period, ecc, per0)
 
     else:
         raise NotImplementedError
@@ -521,8 +580,8 @@ def freq(b, component, solve_for=None, **kwargs):
     #metawargs = component_ps.meta
     #metawargs.pop('qualifier')
 
-    period = component_ps.get_parameter(qualifier='period')
-    freq = component_ps.get_parameter(qualifier='freq')
+    period = component_ps.get_parameter(qualifier='period', check_visible=False)
+    freq = component_ps.get_parameter(qualifier='freq', check_visible=False)
 
     if solve_for in [None, freq]:
         lhs = freq
@@ -799,7 +858,7 @@ def potential(b, component, solve_for=None, **kwargs):
     parentorbit = hier.get_parent_of(component)
 
 
-    if parentorbit == 'component':
+    if parentorbit is None:
         # then single star (rotstar) case
         pot = component_ps.get_parameter(qualifier='pot')
         rpole = component_ps.get_parameter(qualifier='rpole')
@@ -949,21 +1008,6 @@ def incl_aligned(b, component, solve_for=None, **kwargs):
 
 #}
 #{ Feature constraints
-
-def colon_deprecation(b, feature, solve_for=None, **kwargs):
-    feature_ps = _get_system_ps(b, feature, context='feature')
-
-    longitude = feature_ps.get_parameter(qualifier='long')
-    colon = feature_ps.get_parameter(qualifier='colon')
-
-    if solve_for in [None, colon]:
-        lhs = colon
-        rhs = 1*longitude
-    else:
-        lhs = longitude
-        rhs = 1*colon
-
-    return lhs, rhs, {'feature': feature}
 
 #}
 #{ Data constraints

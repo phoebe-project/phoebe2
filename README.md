@@ -62,14 +62,26 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
+### 2.0.4 - vgamma temporary bugfix
+* The definition of vgamma in 2.0.* is in the direction of positive z rather than positive RV.  For the sake of maintaining backwards-compatibility, this will remain unchanged for 2.0.* releases but will be fixed in the 2.1 release to be in the direction of positive RV.  Until then, this bugfix handles converting to and from PHOEBE legacy correctly so that running the PHOEBE 2 and legacy backends gives consistent results.
+
+### 2.0.3 - t0_supconj/t0_perpass hotfix
+* Fixed constraint that defines the relation between t0_perpass and t0_supconj.
+* Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
+* Phasing now accepts t0='t0_supconj', 't0_perpass', 't0_ref', or a float representing the zero-point.  The 'phshift' parameter will still be supported until 2.1, at which point it will be removed.
+* Inclination parameter ('incl') is now limited to the [0-180] range to maintain conventions on superior conjunction and ascending/descending nodes.
+* Fixed error message in ldint.
+* Fixed the ability for multiple stars to be attached to the same component.
+* Raise an error if attempting to attach spots to an unsupported component.  Note: spots are currently not supported for contact systems.
+
 ### 2.0.2 - spots hotfix
 
-* If using spots, it is important that you use 2.0.1 or later as there were several important bug fixes in this release.
+* If using spots, it is important that you use 2.0.2 or later as there were several important bug fixes in this release.
 * 'colon' parameter for spots has been renamed to 'long' (as its not actually colongitude).  For 2.0.X releases, the 'colon' parameter will remain as a constrained parameter to avoid breaking any existing scripts, but will be removed with the 2.1.0 release.
 * Features (including spots) have been fixed to correctly save and load to file.
 * Corotation of spots is now enabled: if the 'syncpar' parameter is not unity, the spots will correctly corotate with the star.  The location of the spot (defined by 'colat' and 'long' parameters) is defined such that the long=0 points to the companion star at t0.  That coordinate system then rotates with the star according to 'syncpar'.
 
-### 2.0.1
+### 2.0.1 - ptfarea/pbspan hotfix
 
 * Definition of flux and luminosity now use ptfarea instead of pbspan.  In the bolometric case, these give the same quantity. This discrepancy was absorbed entirely by pblum scaling, so relative fluxes should not be affected, but the underlying absolute luminosities were incorrect for passbands (non-bolometric).  In addition to under-the-hood changes, the exposed mesh column for 'pbspan' is now removed and replaced with 'ptfarea', but as this is not yet a documented column, should not cause backwards-compatibility issues.  
 

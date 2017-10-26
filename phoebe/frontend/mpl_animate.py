@@ -1,17 +1,21 @@
+import os
 import numpy as np
 
-try:
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    from matplotlib.collections import LineCollection, PolyCollection
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
+    try:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib.collections import LineCollection, PolyCollection
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-    from matplotlib import animation
+        from matplotlib import animation
 
-except (ImportError, TypeError):
-    _use_mpl = False
+    except (ImportError, TypeError):
+        _use_mpl = False
+    else:
+        _use_mpl = True
 else:
-    _use_mpl = True
+    _use_mpl = False
 
 from tempfile import NamedTemporaryFile
 
@@ -40,39 +44,58 @@ def anim_to_html(anim):
             anim.save(f.name, fps=20, extra_args=['-vcodec', 'libx264'])
             video = open(f.name, "rb").read()
         anim._encoded_video = video.encode("base64")
-    
+
     return VIDEO_TAG.format(anim._encoded_video)
 
 
 def reset_limits(ax, reset=True):
     """
     """
+    if reset or not hasattr(ax, '_phoebe_xpad'):
+        ax._phoebe_xpad = True
+    if reset or not hasattr(ax, '_phoebe_ypad'):
+        ax._phoebe_ypad = True
+    if reset or not hasattr(ax, '_phoebe_zpad'):
+        ax._phoebe_zpad = True
     if reset or not hasattr(ax, '_phoebe_xlim'):
         ax._phoebe_xlim = [np.inf, -np.inf]
     if reset or not hasattr(ax, '_phoebe_ylim'):
         ax._phoebe_ylim = [np.inf, -np.inf]
     if reset or not hasattr(ax, '_phoebe_zlim'):
-        ax._phoebe_zlim = [np.inf, -np.inf]    
+        ax._phoebe_zlim = [np.inf, -np.inf]
 
     return ax
 
-def handle_limits(ax, xarray, yarray, zarray=None, reset=False, apply=False):
+def handle_limits(ax, xarray, yarray, zarray=None,
+                  xlim=None, ylim=None, zlim=None,
+                  reset=False, apply=False):
     """
     """
 
     ax = reset_limits(ax, reset=reset)
 
-    if xarray is not None and len(xarray):
+    if xlim is not None:
+        ax._phoebe_xlim = list(xlim)
+        ax._phoebe_xpad = False
+    elif xarray is not None and len(xarray):
         if xarray.min() < ax._phoebe_xlim[0]:
             ax._phoebe_xlim[0] = xarray.min()
         if xarray.max() > ax._phoebe_xlim[1]:
             ax._phoebe_xlim[1] = xarray.max()
-    if yarray is not None and len(yarray):
+
+    if ylim is not None:
+        ax._phoebe_ylim = list(ylim)
+        ax._phoebe_ypad = False
+    elif yarray is not None and len(yarray):
         if yarray.min() < ax._phoebe_ylim[0]:
             ax._phoebe_ylim[0] = yarray.min()
         if yarray.max() > ax._phoebe_ylim[1]:
             ax._phoebe_ylim[1] = yarray.max()
-    if zarray is not None and len(zarray):
+
+    if zlim is not None:
+        ax._phoebe_zlim = list(zlim)
+        ax._phoebe_zpad = False
+    elif zarray is not None and len(zarray):
         if zarray.min() < ax._phoebe_zlim[0]:
             ax._phoebe_zlim[0] = zarray.min()
         if zarray.max() > ax._phoebe_zlim[1]:
@@ -107,12 +130,15 @@ def apply_limits(ax, pad=0.1):
     ylim_pad = ylim[:]
     zlim_pad = zlim[:]
 
-    xlim_pad[0] = xlim[0] - pad*(xlim[1]-xlim[0])
-    xlim_pad[1] = xlim[1] + pad*(xlim[1]-xlim[0])
-    ylim_pad[0] = ylim[0] - pad*(ylim[1]-ylim[0])
-    ylim_pad[1] = ylim[1] + pad*(ylim[1]-ylim[0])
-    zlim_pad[0] = zlim[0] - pad*(zlim[1]-zlim[0])
-    zlim_pad[1] = zlim[1] + pad*(zlim[1]-zlim[0])
+    if ax._phoebe_xpad:
+        xlim_pad[0] = xlim[0] - pad*(xlim[1]-xlim[0])
+        xlim_pad[1] = xlim[1] + pad*(xlim[1]-xlim[0])
+    if ax._phoebe_ypad:
+        ylim_pad[0] = ylim[0] - pad*(ylim[1]-ylim[0])
+        ylim_pad[1] = ylim[1] + pad*(ylim[1]-ylim[0])
+    if ax._phoebe_zpad:
+        zlim_pad[0] = zlim[0] - pad*(zlim[1]-zlim[0])
+        zlim_pad[1] = zlim[1] + pad*(zlim[1]-zlim[0])
 
     if isinstance(ax, Axes3D):
         ax.set_xlim3d(xlim_pad)
@@ -139,7 +165,7 @@ def anim_set_data(artist, data, fixed_limits=True):
         else:
             data = []
             pckwargs = {}
-          
+
         if len(data):
             xarray = np.array(data[:, :, 0])
             yarray = np.array(data[:, :, 1])
@@ -160,11 +186,11 @@ def anim_set_data(artist, data, fixed_limits=True):
         ax.add_collection(artist)
 
         created = True
-    else:             
+    else:
         if data is None:
             # TODO: may need to be smart here to send the right shape,
             # especially for 3d axes
-            data = ([], []) 
+            data = ([], [])
         artist.set_data(*data)
 
         created = False
@@ -189,7 +215,7 @@ class Animation(object):
         self.metawargs = metawargs
 
         # before we go in to the animation, we need to build
-        # each of the artists and take care of all bookkeeping 
+        # each of the artists and take care of all bookkeeping
         self._mpl_artists = []
         self._mpl_artists_per_plotcall = []
         self.plot_argss = pa
@@ -199,7 +225,7 @@ class Animation(object):
             plot_args.setdefault('highlight', True)
             plot_args['do_plot'] = True
             ax, artists = ps.plot(**plot_args)
-            
+
             # since we're doing the loop here, each call
             # should only be drawing to a single ax instance
             # (ax will still be a list, but all entries should
@@ -248,14 +274,14 @@ class Animation(object):
         for plot_args, artists in zip(self.plot_argss, self._mpl_artists_per_plotcall):
             if isinstance(frame, float) or isinstance(frame, int):
                 # then we're probably coming from the animate function, in
-                # which case we're looping over times and want to pass that 
+                # which case we're looping over times and want to pass that
                 # on the plotting call
                 plot_args['time'] = frame
                 ps = base_ps
             else:
                 #print "*** frame", frame, type(frame)
                 # then we're probably coming from plotting, in which case
-                # "frame" is the current state of the ParameterSet of the 
+                # "frame" is the current state of the ParameterSet of the
                 # synthetic model.  We want this ParameterSet to be included
                 # when searching for arrays.
                 ps_tmp, time = frame
@@ -267,7 +293,7 @@ class Animation(object):
             data_per_artist = ps.plot(**plot_args)
             # TODO: need to get things like xerr, yerr??
 
-            for j, (artist, data) in enumerate(zip(artists, data_per_artist)):  
+            for j, (artist, data) in enumerate(zip(artists, data_per_artist)):
                 newartist, created = anim_set_data(artist, data, self.fixed_limits)
                 if created:
                     artists[j] = newartist # should update in _mpl_artists_per_plotcall

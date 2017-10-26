@@ -37,12 +37,12 @@ def test_binary(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        print "alb = {}".format(alb)
+        if plot: print "alb = {}".format(alb)
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        print "running phoebe2 model..."
+        if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        print "running phoebe1 model..."
+        if plot: print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')
@@ -90,12 +90,12 @@ def test_contact(plot=False):
     b.set_value_all('ld_coeffs', [0.0, 0.0])
 
     for alb in [0, 0.5, 1.0]:
-        print "alb = {}".format(alb)
+        if plot: print "alb = {}".format(alb)
         b.set_value_all('irrad_frac_refl_bol', alb)
 
-        print "running phoebe2 model..."
+        if plot: print "running phoebe2 model..."
         b.run_compute(compute='phoebe2', ntriangles=1000, model='phoebe2model')
-        print "running phoebe1 model..."
+        if plot: print "running phoebe1 model..."
         b.run_compute(compute='phoebe1', gridsize=30, model='phoebe1model')
 
         phoebe2_val = b.get_value('fluxes@phoebe2model')

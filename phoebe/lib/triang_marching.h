@@ -142,7 +142,9 @@ struct Tmarching: public Tbody {
       true: nr. of steps < max_iter
       false: otherwise
   */
-  bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter){
+  
+  //#define DEBUG
+  bool project_onto_potential(T ri[3], Tvertex & v, const int & max_iter, T *ni = 0){
     
     //
     // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
@@ -163,6 +165,12 @@ struct Tmarching: public Tbody {
         // g = (grad F, F) 
         this->grad(r, g, precision);
         
+        if (ni) {
+          T sum = 0;
+          for (int i = 0; i < 3; ++i) sum += ni[i]*g[i];
+          if (sum < 0) return false;
+        }
+        
         // fac = F/|grad(F)|^2
         fac = g[3]/utils::norm2(g);
         
@@ -181,7 +189,14 @@ struct Tmarching: public Tbody {
         }
         
       } while (dr1 > eps*r1 + min && ++n < max_iter);
-    
+      
+      #if defined(DEBUG)
+      std::cerr 
+        << "PROJ: g=(" << g[0] << "," << g[1]<< "," << g[2] <<  "," << g[3] << ")"
+        << " r=(" << r[0] << "," << r[1]<< "," << r[2] << ")"
+        << " " << dr1 <<" "<< precision << '\n'; 
+      #endif
+      
       if (!precision && n >= max_iter) {
         precision = true;
         n = 0;
@@ -194,6 +209,156 @@ struct Tmarching: public Tbody {
     
     return (n < max_iter);
   }
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
+  
+  /*
+    Slide along the iso-surface from point ri with normal gi on the surface in direction ui 
+    for distance a. The surface is defined as
+     
+      F = 0 == constrain
+    
+    Input:
+      ri - point near the surface
+      gi - gradient or normal at point r
+      ui - direction of sliding
+      a - distance to slide
+      max_iter - maximal number of iterations
+    
+    Output:
+      v - vertex containing the last point and local base of tangent space
+    
+    Return:
+      true: nr. of steps < max_iter
+      false: otherwise
+  */
+  
+  //#define DEBUG
+  bool slide_over_potential(T ri[3], T gi[3], T ui[3], T a, Tvertex & v, const int & max_iter){
+    
+    //
+    // Plane of sliding
+    //
+    T n[3];
+    
+    utils::cross3D(gi, ui, n);
+    
+    T r[3] = {ri[0], ri[1], ri[2]};
+    
+    {
+      int N = 10;
+      
+      T fac, da = a/N, g[3], r1[3], t[3], k[4][3];
+      
+      //
+      // N steps of RK iterations
+      //
+      for (int i = 0; i < N; ++i) {
+        
+        // 1. step
+        this->grad_only(r, g, precision);
+        utils::cross3D(n, g, t);
+        fac = da/utils::hypot3(t);
+        for (int j = 0; j < 3; ++j) k[0][j] = fac*t[j];  
+        
+        // 2. step
+        for (int j = 0; j < 3; ++j) r1[j] = r[j] + 0.5*k[0][j]; 
+        this->grad_only(r1, g, precision);
+        utils::cross3D(n, g, t);
+        fac = da/utils::hypot3(t);
+        for (int j = 0; j < 3; ++j) k[1][j] = fac*t[j];  
+        
+        // 3. step
+        for (int j = 0; j < 3; ++j) r1[j] = r[j] + 0.5*k[1][j]; 
+        this->grad_only(r1, g, precision);
+        utils::cross3D(n, g, t);
+        fac = da/utils::hypot3(t);
+        for (int j = 0; j < 3; ++j) k[2][j] = fac*t[j];
+        
+        // 4. step
+        for (int j = 0; j < 3; ++j) r1[j] = r[j] + k[2][j]; 
+        this->grad_only(r1, g, precision);
+        utils::cross3D(n, g, t);
+        fac = da/utils::hypot3(t);
+        for (int j = 0; j < 3; ++j) k[3][j] = fac*t[j];
+                
+        // joining steps together
+        for (int j = 0; j < 3; ++j) 
+          r[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
+        
+        //this->grad(r, g, precision);
+        //std::cerr << "g=" << g[3] << '\n';
+      }
+    }
+   
+  
+    //
+    // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
+    //
+    int it = 0;
+   
+    T g[4], t, dr1, r1, fac;
+    
+    // decreasing precision is dangerous as it can miss the surface
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+    
+    do {
+         
+      do {
+      
+        // g = (grad F, F) 
+        this->grad(r, g, precision);
+        
+        if (gi) {
+          T sum = 0;
+          for (int i = 0; i < 3; ++i) sum += gi[i]*g[i];
+          if (sum < 0) return false;
+        }
+        
+        // fac = F/|grad(F)|^2
+        fac = g[3]/utils::norm2(g);
+        
+        // dr = F/|grad(F)|^2 grad(F) 
+        // r' = r - dr 
+        dr1 = r1 = 0;        
+        for (int i = 0; i < 3; ++i) {
+          
+          r[i] -= (t = fac*g[i]);
+          
+          // calc. L_infty norm of vec{dr}
+          if ((t = std::abs(t)) > dr1) dr1 = t;
+          
+          // calc L_infty of of vec{r'}
+          if ((t = std::abs(r[i])) > r1) r1 = t;
+        }
+        
+      } while (dr1 > eps*r1 + min && ++it < max_iter);
+      
+      #if defined(DEBUG)
+      std::cerr 
+        << "PROJ: g=(" << g[0] << "," << g[1]<< "," << g[2] <<  "," << g[3] << ")"
+        << " r=(" << r[0] << "," << r[1]<< "," << r[2] << ")"
+        << " " << dr1 <<" "<< precision << '\n'; 
+      #endif
+      
+      if (!precision && it >= max_iter) {
+        precision = true;
+        it = 0;
+      } else break;
+
+    } while (1);
+    
+    // creating vertex
+    create_internal_vertex(r, g, v);
+    return (it < max_iter);
+  }
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
+  
+  
   
   /*
     Projecting a point r positioned near the surface onto surface anc 
@@ -214,6 +379,7 @@ struct Tmarching: public Tbody {
       false: otherwise
   */
   
+  // #define DEBUG
   bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0){
     
     //
@@ -229,11 +395,11 @@ struct Tmarching: public Tbody {
     const T min = 10*std::numeric_limits<T>::min();
 
     if (r != ri) for (int i = 0; i < 3; ++i) r[i] = ri[i];
-      
+    
     do {      
       
       do {
-      
+        
         // g = (grad F, F) 
         this->grad(r, g, precision);
         
@@ -256,6 +422,13 @@ struct Tmarching: public Tbody {
         
       } while (dr1 > eps*r1 + min && ++nr_iter < max_iter);
       
+      #if defined(DEBUG)
+      std::cerr 
+        << "PROJ: g=(" << g[0] << "," << g[1]<< "," << g[2] <<  "," << g[3] << ")"
+        << " r=(" << r[0] << "," << r[1]<< "," << r[2] << ")"
+        << " " << dr1 <<" "<< precision << '\n'; 
+      #endif
+      
       if (!precision && nr_iter >= max_iter) {
         precision = true;
         nr_iter = 0;
@@ -275,7 +448,9 @@ struct Tmarching: public Tbody {
     
     return (nr_iter < max_iter);
   }
-  
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Distance between the two 3D vectors.
@@ -385,16 +560,17 @@ struct Tmarching: public Tbody {
    
     Tfront_polygon P; // front polygon, working here as circular list
     
-    T s, c, st, ct, sa[6], ca[6];
+    T s, c, st, ct, sa[6], ca[6], u[3];
     
     utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
       
     for (int k = 0; k < 6; ++k){
       
       for (int i = 0; i < 3; ++i) 
-        qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
+        qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
         
-      if (!project_onto_potential(qk, vk, max_iter)){
+      if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
+          !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
         std::cerr << "Warning: Projection did not converge\n";
       }  
       
@@ -549,9 +725,10 @@ struct Tmarching: public Tbody {
 
           // forming point on tangent plane
           for (int i = 0; i < 3; ++i)
-            qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
-
-          if (!project_onto_potential(qk, *vp, max_iter)){
+            qk[i] = it_min->r[i] + (u[i] = it_min->b[0][i]*ct + it_min->b[1][i]*st);
+      
+          if (!project_onto_potential(qk, *vp, max_iter, it_min->b[2]) &&
+              !slide_over_potential(it_min->r, it_min->b[2], u, delta, *vp, max_iter)) {
             
             T g[4];
             
@@ -688,16 +865,17 @@ struct Tmarching: public Tbody {
       if (GatV) GatV->emplace_back(v.norm); // saving g
       NatV.emplace_back(v.b[2]);            // saving only normal
     
-      T sa[6], ca[6], qk[3];
+      T sa[6], ca[6], qk[3], u[3];
       
       utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
        
       for (int k = 0; k < 6; ++k){
         
         for (int i = 0; i < 3; ++i) 
-          qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
+          qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
           
-        if (!project_onto_potential(qk, vk, max_iter)){
+        if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
+            !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
           std::cerr << "Warning: Projection did not converge\n";
         }  
         
@@ -718,7 +896,6 @@ struct Tmarching: public Tbody {
       Tr.emplace_back(0, 6, 1);      
     }
 
-    
     //
     //  Triangulization of genus 0 surfaces
     //
@@ -946,7 +1123,7 @@ struct Tmarching: public Tbody {
             // returning fac*(sin(k domega), cos(k domega)) 
             // where fac = delta/|(c, s)|
             
-            T sa[6], ca[6];
+            T sa[6], ca[6], u[3];
             
             utils::sincos_array(nt - 1, domega, sa, ca, delta/std::hypot(c, s));
 
@@ -964,10 +1141,11 @@ struct Tmarching: public Tbody {
 
               // forming point on tangent plane
               for (int i = 0; i < 3; ++i)
-                qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
+                qk[i] = it_min->r[i] + (u[i] = it_min->b[0][i]*ct + it_min->b[1][i]*st);
 
-              if (!project_onto_potential(qk, *vp, max_iter)){
-                
+              if (!project_onto_potential(qk, *vp, max_iter, it_min->b[2]) &&
+                  !slide_over_potential(it_min->r, it_min->b[2], u, delta, *vp, max_iter)) {
+                              
                 T g[4];
                 
                 std::cerr << "Warning: Projection did not converge\n";
@@ -1286,16 +1464,17 @@ struct Tmarching: public Tbody {
       if (GatV) GatV->emplace_back(v.norm); // saving g
       NatV.emplace_back(v.b[2]);            // saving only normal
     
-      T sa[6], ca[6], qk[3];
+      T sa[6], ca[6], qk[3], u[3];
       
       utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
        
       for (int k = 0; k < 6; ++k){
         
         for (int i = 0; i < 3; ++i) 
-          qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
+          qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
           
-        if (!project_onto_potential(qk, vk, max_iter)){
+        if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
+            !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
           std::cerr << "Warning: Projection did not converge\n";
         }  
         
@@ -1492,7 +1671,7 @@ struct Tmarching: public Tbody {
             // returning fac*(sin(k domega), cos(k domega)) 
             // where fac = delta/|(c, s)|
             
-            T sa[6], ca[6];
+            T sa[6], ca[6], u[3];
             
             utils::sincos_array(nt - 1, domega, sa, ca, delta/std::hypot(c, s));
 
@@ -1510,9 +1689,10 @@ struct Tmarching: public Tbody {
 
               // forming point on tangent plane
               for (int i = 0; i < 3; ++i)
-                qk[i] = it_min->r[i] + it_min->b[0][i]*ct + it_min->b[1][i]*st;
+                qk[i] = it_min->r[i] + (u[i] = it_min->b[0][i]*ct + it_min->b[1][i]*st);
 
-              if (!project_onto_potential(qk, *vp, max_iter)){
+              if (!project_onto_potential(qk, *vp, max_iter, it_min->b[2]) &&
+                  !slide_over_potential(it_min->r, it_min->b[2], u, delta, *vp, max_iter)) {
                 
                 T g[4];
                 

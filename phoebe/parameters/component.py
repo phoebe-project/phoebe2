@@ -39,23 +39,25 @@ def orbit(component, **kwargs):
     params += [FloatParameter(qualifier='ecc', timederiv='deccdt', value=kwargs.get('ecc', 0.0), default_unit=u.dimensionless_unscaled, limits=(0.0,1.0), description='Eccentricity')]
     if conf.devel:
         params += [FloatParameter(qualifier='deccdt', value=kwargs.get('deccdt', 0.0), default_unit=u.dimensionless_unscaled/u.d, description='Eccentricity change')]
-    params += [FloatParameter(qualifier='t0_perpass', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage')]  # TODO: d vs JD
-    params += [FloatParameter(qualifier='t0_supconj', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction')]  # TODO: d vs JD
+    params += [FloatParameter(qualifier='t0_perpass', value=kwargs.get('t0_perpass', 0.0), default_unit=u.d, description='Zeropoint date at periastron passage of the primary component')]  # TODO: d vs JD
+    params += [FloatParameter(qualifier='t0_supconj', value=kwargs.get('t0_supconj', 0.0), default_unit=u.d, description='Zeropoint date at superior conjunction of the primary component')]  # TODO: d vs JD
+    params += [FloatParameter(qualifier='t0_ref', value=kwargs.get('t0_ref', 0.0), default_unit=u.d, description='Zeropoint date at reference point for the primary component')]
     params += [FloatParameter(qualifier='mean_anom', value=kwargs.get('mean_anom', 0.0), default_unit=u.deg, description='Mean anomaly')]
     #params += [FloatParameter(qualifier='ph_perpass', value=kwargs.get('ph_perpass', 0.0), default_unit=u.cycle, description='Phase at periastron passage')]
     #params += [FloatParameter(qualifier='ph_supconj', value=kwargs.get('ph_supconj', 0.0), default_unit=u.cycle, description='Phase at superior conjunction')]
     #params += [FloatParameter(qualifier='ph_infconj', value=kwargs.get('ph_infconj', 0.0), default_unit=u.cycle, description='Phase at inferior conjunction')]
     #params += [FloatParameter(qualifier='t0_ph0', value=kwargs.get('t0_ph0', 0.0), default_unit=u.d, description='Zeropoint to anchor at phase=0.0')] # TODO: d vs JD
-    params += [FloatParameter(qualifier='incl', timederiv='dincldt', value=kwargs.get('incl', 90.0), default_unit=u.deg, description='Orbital inclination angle')]
+    # NOTE: the limits on inclination are from 0-180 so that the definition of superior conjunction doesn't flip
+    params += [FloatParameter(qualifier='incl', timederiv='dincldt', value=kwargs.get('incl', 90.0), limits=(0.0, 180.0), default_unit=u.deg, description='Orbital inclination angle')]
     # params += [FloatParameter(qualifier='dincldt', value=kwargs.get('dincldt', 0.0), default_unit=u.deg/u.yr, description="Inclination change")]
-    params += [FloatParameter(qualifier='phshift', value=kwargs.get('phshift', 0.0), default_unit=u.dimensionless_unscaled, description='Phase shift')]
     params += [FloatParameter(qualifier='q', value=kwargs.get('q', 1.0), default_unit=u.dimensionless_unscaled, limits=(0.0,None), description='Mass ratio')]
     params += [FloatParameter(qualifier='sma', value=kwargs.get('sma', 5.3), default_unit=u.solRad, limits=(0.0,None), description='Semi major axis of the orbit')]
     params += [FloatParameter(qualifier='long_an', value=kwargs.get('long_an', 0.0), default_unit=u.deg, description='Longitude of the ascending node')]
 
     constraints = []
     constraints += [(constraint.asini, component)]
-    constraints += [(constraint.t0, component)]
+    constraints += [(constraint.t0_perpass_supconj, component)]
+    constraints += [(constraint.t0_ref_supconj, component)]
     constraints += [(constraint.mean_anom, component)]
     #constraints += [(constraint.ph_perpass, component)]
     #constraints += [(constraint.ph_supconj, component)]

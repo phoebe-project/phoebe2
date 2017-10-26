@@ -75,7 +75,8 @@ def _phoebe_v_legacy_lc_protomesh(b, gridsize=50, plot=False):
                 phoebe2_val = phoebe2_val[::8]
 
 
-            print "{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val)))
+            if plot:
+                print "{}@{}@{} max diff: {}".format(qualifier, component, dataset, max(np.abs(phoebe1_val-phoebe2_val)))
 
             if plot:
                 x = b.get_value(section='model', model='phoebe2model', component=component, dataset='protomesh', qualifier='xs')
@@ -119,5 +120,3 @@ if __name__ == '__main__':
 
 
     test_binary(plot=True)
-
-
