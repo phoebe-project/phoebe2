@@ -7,7 +7,7 @@ framework of the PHOEBE 2.0 frontend.
 from phoebe.constraints.expression import ConstraintVar
 from phoebe.parameters.twighelpers import _uniqueid_to_uniquetwig
 from phoebe.parameters.twighelpers import _twig_to_uniqueid
-from phoebe.frontend import tabcomplete, plotting, mpl_animate, nphelpers
+from phoebe.frontend import tabcomplete, nphelpers
 
 import random
 import string
