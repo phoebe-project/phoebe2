@@ -2070,6 +2070,14 @@ class ParameterSet(object):
 
         return (kwargs,)
 
+    def gcf(self):
+        if self._bundle is None:
+            return autofig.gcf()
+
+        if self._bundle._figure is None:
+            self._bundle._figure = autofig.Figure()
+
+        return self._bundle._figure
 
     def plot(self, *args, **kwargs):
         """
@@ -2218,58 +2226,40 @@ class ParameterSet(object):
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
                 print "*** passing to autofig.{}: {}".format(autofig_method, plot_kwargs)
-                func = getattr(autofig, autofig_method)
+                func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
 
         if save or show:
-            autofig.gcf().draw(save=save, show=show)
+            fig = self.gcf().draw(save=save, show=show)
+        else:
+            fig = None
+
+        return self.gcf(), fig
 
 
-
-    def show(self, **kwargs):
+    def show(self):
         """
-        Show the plot.  This is really just a very generic wrapper based on the
-        chosen plotting backend.  For matplotlib it is probably just as, if not
-        even more, convenient to simply import matplotlib yourself and call the
-        show method.  However, other backends require saving to temporary html
-        files and opening a webbrowser - so this method provides the ability for
-        a generic call that should work if you choose to change the plotting backend.
-
-        :parameter str backend: which plotting backend to use.  Will default to
-                'plotting_backend' from settings in the
-                :class:`phoebe.frontend.bundle.Bundle` if not provided.
+        Draw and show the plot.
         """
+        fig = self.gcf().draw(show=True)
+        return self.gcf(), fig
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
 
-        return getattr(plotting, 'show_{}'.format(plotting_backend))(**kwargs)
-
-    def savefig(self, fname, **kwargs):
+    def savefig(self, fname):
         """
-        Save the plot.  This is really just a very generic wrapper based on the
-        chosen plotting backend.  For matplotlib it is probably just as, if not
-        even more, convenient to simply import matplotlib yourself and call the
-        savefig method.
+        Draw and save the plot.
 
         :parameter str filename: filename to save to.  Be careful of extensions here...
                 matplotlib accepts many different image formats while other
                 backends will only export to html.
-        :parameter str backend: which plotting backend to use.  Will default to
-                'plotting_backend' from settings in the
-                :class:`phoebe.frontend.bundle.Bundle` if not provided.
         """
+        fig = self.gcf().draw(save=fname)
+        return self.gcf(), fig
 
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'matplotlib')
 
-        return getattr(plotting, 'save_{}'.format(plotting_backend))(fname,
-                                                                     **kwargs)
-
-    def animate(self, *args, **kwargs):
+    def animate(self, times=None, show=False, save=False):
         """
-        NOTE: any drawing done to the figure (or its children axes) before calling
-        animate will remain on every frame and will not update.
-
         NOTE: if show and save provided, the live plot will be shown first,
         as soon as the plot is closed the animation will be re-compiled and saved to
         disk, and then the anim object will be returned.
@@ -2277,16 +2267,8 @@ class ParameterSet(object):
         NOTE: during 'show' the plotting speed may be slower than the provided
         interval - especially if plotting meshes.
 
-        :parameter *args: either a twig pointing to a dataset,
-            or dictionaries, where each dictionary gets passed to
-            :meth:`plot` for each frame (see example scripts for more details).
         :parameter times: list of times - each time will create a single
             frame in the animation
-        :parameter bool fixed_limits: whether all the axes should have the
-            same limits for each frame (if True), or resizing limits based
-            on the contents of that individual frame (if False).  Note: if False,
-            limits will be automatically set at each frame - meaning manually zooming
-            in the matplotlib will revert at the next drawn frame.
         :parameter int interval: time interval in ms between each frame (default: 100)
         :parameter str save: filename of the resulting animation.  If provided,
             the animation will be saved automatically.  Either way, the animation
@@ -2300,28 +2282,9 @@ class ParameterSet(object):
         :parameter bool show: whether to automatically show the animation (defaults
             to False).  Either way, the animation object is returned (so you can
             always call b.show() or plt.show())
-        :parameter kwargs: any additional arguments will be passed along to each
-            call of :meth:`plot`, unless they are already specified
-        :return fname: returns the created filename
         """
-        # TODO: time vs times?
-
-        plotting_backend = kwargs.pop('backend', self._bundle.get_setting('plotting_backend').get_value() if self._bundle is not None else 'mpl')
-
-        if plotting_backend not in ['mpl']:
-            raise ValueError("animate only supports the mpl backend, for now")
-
-        plot_argss = _parse_plotting_args(args)
-
-        # since we used the args trick above, all other options have to be in kwargs
-        times = kwargs.pop('times', None)
-        fixed_limits = kwargs.pop('fixed_limits', True)
-        interval = kwargs.pop('interval', 100)
-        save = kwargs.pop('save', False)
-        save_args = kwargs.pop('save_args', ())
-        save_kwargs = kwargs.pop('save_kwargs', {})
-        save_kwargs.setdefault('extra_args', save_args)
-        show = kwargs.pop('show', False)
+        # TODO: re-implement support for interval, save_args, save_kwargs
+        # TODO: allow passing along to self.plot() first???
 
         if times is None:
             # then let's try to get all SYNTHETIC times
@@ -2339,107 +2302,10 @@ class ParameterSet(object):
 
             times = sorted(list(set(times)))
 
-        if fixed_limits:
-            pad = 0.1
-            logger.info("calculating fixed axes limits")
+        print "*** autofig.animate at times", times
+        mplanim = self.gcf().animate(indeps=times, save=save, show=show)
 
-            # To compute axes limits, we'll loop through all the plotting
-            # calls and each time, but we won't actually call plotting.
-            # Instead we'll retrieve the data, see if we need to extend the
-            # limits, and store the limits as an attribute of the mpl axes
-            # instance.  At each time in the actual plotting loop, we'll
-            # then apply these limits so they remain fixed with each frame.
-
-            # TODO: also fix color limits
-
-            plot_argss_fixed_limits = []
-            for plot_args_ in plot_argss:
-                plot_args = plot_args_.copy()
-
-                for k, v in kwargs.items():
-                    plot_args.setdefault(k,v)
-
-                plot_args['time'] = times
-                # TODO: do we need to loop over times for meshes now or can we do it within _unpack_plotting_kwargs?
-                this_kwargss = self._unpack_plotting_kwargs(loop_times=False, **plot_args)
-
-                for this_kwargs in this_kwargss:
-                    twigs = this_kwargs['ps'].twigs
-                    twig = "@".join([l for l in twigs[0].split('@') if np.all([l in twig.split('@') for twig in twigs])])
-                    #print "*** twig", twig
-                    this_plot_args = {'twig': twig}
-                    #this_plot_args = dict(this_kwargs['ps'].meta)  # TODO: is this causing problems with animate
-                    for k,v in plot_args.items():
-                        if k not in ['twig', 'time']:
-                            this_plot_args.setdefault(k,v)
-
-                    ax = this_plot_args.get('ax', None)
-                    ps = this_kwargs['ps']
-                    # TODO: this logic is also in plotting.mpl - should probably be its own function
-                    if ax is None:
-                        ax = plt.gca()
-                        if hasattr(ax, '_phoebe_kind') and ps.kind != ax._phoebe_kind:
-                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
-                                ax = plotting._mpl_append_axes(plt.gcf(), aspect='equal')
-                            else:
-                                ax = plotting._mpl_append_axes(plt.gcf())
-                        else:
-                            # not sure if we want this - the user may have set the aspect ratio already
-                            if ps.kind in ['orb', 'mesh']:  # TODO: and xunit==yunit
-                                # TODO: for aspect ratio (here and above) can we be smarter and
-                                # check for same units?
-                                ax.set_aspect('equal')
-
-                    ax = mpl_animate.reset_limits(ax, reset=False)  # this just ensures the attributes exist
-                    ax._phoebe_kind = ps.kind
-                    this_plot_args['ax'] = ax
-
-                    if this_kwargs.get('polycollection', False):
-                        data = this_kwargs['data']
-                        xarray = data[:, :, 0]
-                        yarray = data[:, :, 1]
-                        try:
-                            zarray = data[:, :, 2]
-                        except IndexError:
-                            zarray = None
-                    else:
-                        xarray, yarray, zarray, tarray = this_kwargs['data']  # TODO: this may not work for meshes?
-
-                    ax = mpl_animate.handle_limits(ax, xarray, yarray, zarray,
-                                                   xlim=this_kwargs.get('xlim', None),
-                                                   ylim=this_kwargs.get('ylim', None),
-                                                   zlim=this_kwargs.get('zlim', None),
-                                                   reset=False)
-
-                    plot_argss_fixed_limits.append(this_plot_args)
-
-            plot_argss = plot_argss_fixed_limits
-
-        # handle setting defaults from kwargs to each plotting call
-        for plot_args in plot_argss:
-            for k,v in kwargs.items():
-                plot_args.setdefault(k, v)
-            # plot_args.setdefault('highlight', True)
-
-        anim, ao = mpl_animate.animate(self,
-                                       init_ps=self,
-                                       init_time=times[0],
-                                       frames=times,
-                                       fixed_limits=fixed_limits,
-                                       plotting_args=plot_argss,
-                                       interval=interval,
-                                       blit=False)
-        # TODO: blit=True if no meshes?  (adding new artists seems to be a problem with blit)
-
-        if show:
-            logger.info("showing animation")
-            plt.show()
-
-        if save:
-            logger.info("saving animation to {}".format(save))
-            anim.save(save, **save_kwargs)
-
-        return anim
+        return self.gcf(), mplanim
 
 
 class Parameter(object):
