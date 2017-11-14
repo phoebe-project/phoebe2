@@ -62,10 +62,16 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
-### 2.0.4 - vgamma temporary bugfix
+### 2.0.5 - semi-detached hotfix (only affect legacy import)
+
+* Fixed bug in which importing a PHOEBE legacy file of a semi-detached system failed to set the correct potential for the star filling its roche lobe.  This update only affects the importer itself.
+
+### 2.0.4 - vgamma temporary hotfix
+
 * The definition of vgamma in 2.0.* is in the direction of positive z rather than positive RV.  For the sake of maintaining backwards-compatibility, this will remain unchanged for 2.0.* releases but will be fixed in the 2.1 release to be in the direction of positive RV.  Until then, this bugfix handles converting to and from PHOEBE legacy correctly so that running the PHOEBE 2 and legacy backends gives consistent results.
 
 ### 2.0.3 - t0_supconj/t0_perpass hotfix
+
 * Fixed constraint that defines the relation between t0_perpass and t0_supconj.
 * Implement new 't0_ref' parameter which corresponds to legacy's 'HJD0'.
 * Phasing now accepts t0='t0_supconj', 't0_perpass', 't0_ref', or a float representing the zero-point.  The 'phshift' parameter will still be supported until 2.1, at which point it will be removed.
