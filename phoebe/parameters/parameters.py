@@ -1982,19 +1982,16 @@ class ParameterSet(object):
                 if '@' in current_value or current_value in ps.qualifiers:
                     if ps.kind in ['mesh', 'mesh_syn'] and current_value in ['xs', 'ys', 'zs']:
                         # then we actually need to unpack from the vertices
-                        # verts = ps.get_quantity(qualifier='vertices')
-                        verts = ps.get_value(qualifier='vertices')
+                        verts = ps.get_quantity(qualifier='vertices')
                         array_value = verts[:, :, ['xs', 'ys', 'zs'].index(current_value)]
                     else:
-                        # array_value = ps.get_quantity(current_value)
-                        array_value = ps.get_value(current_value)
+                        array_value = ps.get_quantity(current_value)
 
                     kwargs[direction] = array_value
 
                     if ps.context == 'dataset' and current_value in sigmas_avail:
                         # then let's see if there are errors
-                        # kwargs['{}error'.format(direction)] = ps.get_quantity('sigmas')
-                        sigmas = ps.get_value('sigmas')
+                        sigmas = ps.get_quantity('sigmas')
                         if len(sigmas):
                             kwargs['{}error'.format(direction)] = sigmas
 
