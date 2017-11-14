@@ -1996,7 +1996,7 @@ class ParameterSet(object):
                             kwargs['{}error'.format(direction)] = sigmas
 
                     # now let's set the label for the dimension from the qualifier/twig
-                    kwargs['{}label'.format(direction)] = current_value
+                    kwargs['{}label'.format(direction)] = _plural_to_singular.get(current_value, current_value)
 
                     # we'll also keep the qualifier around - autofig doesn't use this
                     # but we'll keep it so we can set some defaults
