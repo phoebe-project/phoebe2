@@ -44,7 +44,7 @@ To install PHOEBE 2.0 from the source site-wide, go to the `phoebe2/` directory 
     python setup.py build
     sudo python setup.py install
 
-For further details on pre-requisites and minimal versions of python consult the PHOEBE webpage.
+For further details on pre-requisites and minimal versions of python consult the [PHOEBE project webpage](http://phoebe-project.org).
 
 
 GETTING STARTED
@@ -62,7 +62,7 @@ To understand how to use PHOEBE, please consult the [tutorials, scripts and manu
 CHANGELOG
 ----------
 
-### 2.0.5 - semi-detached hotfix (only affect legacy import)
+### 2.0.5 - semi-detached hotfix (only affects legacy import)
 
 * Fixed bug in which importing a PHOEBE legacy file of a semi-detached system failed to set the correct potential for the star filling its roche lobe.  This update only affects the importer itself.
 
