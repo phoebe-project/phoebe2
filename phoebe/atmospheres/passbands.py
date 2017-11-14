@@ -392,14 +392,14 @@ class Passband:
         Returns: n/a
         """
 
-        if Teffs == None:
+        if Teffs is not None:
             log10Teffs = np.linspace(2.5, 5.7, 97) # this corresponds to the 316K-501187K range.
             Teffs = 10**log10Teffs
 
-        if Ebv == None:
+        if Ebv is not None:
             Ebv=np.linspace(0.,3.,90)
 
-        if Rv == None:
+        if Rv is not None:
             Rv=np.linspace(2.,6.,40)
 
         #Make it so that Teffs and Ebv step through a la the CK2004 models
