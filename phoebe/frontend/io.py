@@ -3,6 +3,7 @@ import phoebe as phb
 import os.path
 import logging
 from phoebe import conf
+from libphoebe import roche_critical_potential
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -382,6 +383,10 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     if 'Overcontact' in morphology:
         contact_binary= True
         eb = phb.Bundle.default_binary(contact_binary=True)
+    elif 'Semi-detached' in morphology:
+        semi_detached = True
+        contact_binary = False
+        eb = phb.Bundle.default_binary()
     else:
         contact_binary = False
         eb = phb.Bundle.default_binary()
@@ -428,6 +433,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             params[:,1][list(params[:,0]).index('phoebe_teff2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_teff1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_grb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_grb1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_alb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_alb1.VAL')]
+    elif 'Semi-detached' in morphology:
+
+        if "primary" in morphology:
+            params = np.delete(params, [list(params[:,0]).index('phoebe_pot1.VAL')], axis=0)
+        elif "secondary" in morphology:
+            params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
+
+    else:
+        #none of the other constraints are useful
+        pass
 
 #pull out global values for fti
 
@@ -864,6 +879,19 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
+    if semi_detached:
+        q = eb.get_value(qualifier ='q')
+        d = 1. - eb.get_value(qualifier='ecc')
+        if 'primary' in morphology:
+            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
+            f = eb.get_value(qualifier='syncpar', component='primary')
+            crit_pots = roche_critical_potential(q,f,d)
+            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
+        elif 'secondary' in morphology:
+            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
+            f = eb.get_value(qualifier='syncpar', component='secondary')
+            crit_pots = roche_critical_potential(1/q,f,d)
+            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
 
 #flip back all constraints
     if not contact_binary:
