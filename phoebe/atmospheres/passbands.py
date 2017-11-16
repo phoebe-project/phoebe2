@@ -522,8 +522,10 @@ class Passband:
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             
-            wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
-            fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
+            
+            wl = spc[0][sel]
+            fl = spc[1][sel]
             
             fl *= self.ptf(wl)
             flP = fl*wl
@@ -568,17 +570,17 @@ class Passband:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
         
-        # Why????
-        Teff=np.repeat(Teff, Ns)
-        logg=np.repeat(logg, Ns)
-        abun=np.repeat(abun, Ns)
-
+       
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
         self._ck2004_extinct_axes = (np.unique(Teff), np.unique(logg), np.unique(abun), np.unique(Ebv), np.unique(Rv))
 
+        Teff=np.repeat(Teff, Ns)
+        logg=np.repeat(logg, Ns)
+        abun=np.repeat(abun, Ns)
+        
         self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
-        self._ck2004_extinct_photon_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
+        self._ck2004_extinct_photon_grid = np.copy(self._ck2004_extinct_energy_grid)
         
         for i, red in enumerate(extinctE):
             self._ck2004_extinct_energy_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
