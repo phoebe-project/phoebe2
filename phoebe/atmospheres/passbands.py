@@ -450,7 +450,7 @@ class Passband:
             pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, Teffs[j])
             pbP = self.wl*pbE                
 
-            Alambda = Ebv[j] * Rv[j] * (a[:,0] + a[:,1]/Rv[j])
+            Alambda = Ebv[j]*(Rv[j]*a[:,0] + a[:,1])
             flux_frac = 10**(-0.4*Alambda)
             
             if verbose:
@@ -558,7 +558,7 @@ class Passband:
                     #~ Alambda[k]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
                     #~ flux_frac[k]=10**(-0.4*Alambda[k])
                     
-                Alambda = Ebv[j] * Rv[j] * (a[:,0] + a[:,1]/Rv[j])
+                Alambda = Ebv[j]*(Rv[j]*a[:,0] + a[:,1])
                 flux_frac = 10**(-0.4*Alambda)
                 
                 extinctE[j] = np.average(flux_frac, weights=fl)
