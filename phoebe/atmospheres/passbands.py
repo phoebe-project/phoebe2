@@ -414,53 +414,60 @@ class Passband:
         extinctE, extinctP = np.empty(combos), np.empty(combos)
         if verbose:
             print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
-
+            
+        a = libphoebe.CCM89_extinction(self.wl)
+        
         for j in range(0,combos):
-            Alambda, flux_frac, pb = np.empty(len(self.wl)), np.empty(len(self.wl)), np.empty(len(self.wl))
-            pbP,pbE = np.empty(len(self.wl)), np.empty(len(self.wl))
+            #~ pb = np.empty(len(self.wl))
+            #~ for i in range(0,len(self.wl)):
 
-            for i in range(0,len(self.wl)):
+                #~ pbP[i] = self.wl[i]*self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
+                #~ pbE[i] = self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
+                #~ #wl must be in microns
+                #~ x=1/self.wl[i]*10**(-6)
+                #~ if x > 10 or x < 0.3:
+                    #~ raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
+                #~ elif x <= 1.1:
+                    #~ ax=0.574*x**1.61
+                    #~ bx=-0.527*x**1.61
+                #~ elif x <= 3.3:
+                    #~ y=x-1.82
+                    #~ ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+                    #~ bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+                #~ elif x <= 5.9:
+                    #~ ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
+                    #~ bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
+                #~ elif x <= 8.0:
+                    #~ ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
+                    #~ bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
+                #~ elif x <= 10:
+                    #~ ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
+                    #~ bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
 
-                pbP[i] = self.wl[i]*self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
-                pbE[i] = self._planck(self.wl[i],Teffs[j])*self.ptf(self.wl[i])
-                #wl must be in microns
-                x=1/self.wl[i]*10**(-6)
-                if x > 10 or x < 0.3:
-                    raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
-                elif x <= 1.1:
-                    ax=0.574*x**1.61
-                    bx=-0.527*x**1.61
-                elif x <= 3.3:
-                    y=x-1.82
-                    ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
-                    bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
-                elif x <= 5.9:
-                    ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
-                    bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
-                elif x <= 8.0:
-                    ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
-                    bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
-                elif x <= 10:
-                    ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
-                    bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
+                #~ Alambda[i]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
+                #~ flux_frac[i]=10**(-0.4*Alambda[i])
 
-                Alambda[i]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
-                flux_frac[i]=10**(-0.4*Alambda[i])
+            pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, Teffs[j])
+            pbP = self.wl*pbE                
 
+            Alambda = Ebv[j] * Rv[j] * (a[:,0] + a[:,1]/Rv[j])
+            flux_frac = 10**(-0.4*Alambda)
+            
             if verbose:
                 if 100*j % combos == 0:
                     print('%d%% done.' % (100*j/(combos-1)))
 
-            extinctE[j]=np.average(flux_frac,weights=pbE)
-            extinctP[j]=np.average(flux_frac,weights=pbP)
+            extinctE[j] = np.average(flux_frac,weights=pbE)
+            extinctP[j] = np.average(flux_frac,weights=pbP)
 
         self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
 
-        self._bb_extinct_photon_grid=np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
-        self._bb_extinct_energy_grid= np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+        self._bb_extinct_photon_grid = np.nan*np.ones((len(self._bb_extinct_axes[0]), len(self._bb_extinct_axes[1]), len(self._bb_extinct_axes[2]), 1))
+        self._bb_extinct_energy_grid = np.copy(self._bb_extinct_photon_grid)
 
         for i, red in enumerate(extinctE):
             self._bb_extinct_energy_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
+        
         for i, red in enumerate(extinctP):
             self._bb_extinct_photon_grid[Teffs[i] == self._bb_extinct_axes[0], Ebv[i] == self._bb_extinct_axes[1], Rv[i] == self._bb_extinct_axes[2], 0] = red
 
@@ -490,7 +497,8 @@ class Passband:
         Nmodels = len(models)
         NEbv=len(Ebv)
         NRv=len(Rv)
-        combos=Nmodels*NEbv*NRv
+        Ns = NEbv*NRv
+        combos=Nmodels*Ns
         Ebv=np.tile(np.repeat(Ebv,NRv),Nmodels)
         Rv=np.tile(Rv,combos/NRv)
 
@@ -513,46 +521,57 @@ class Passband:
 
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
+            
             wl = spc[0][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
             fl = spc[1][(spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])]
+            
             fl *= self.ptf(wl)
             flP = fl*wl
-            for j in range(i*NEbv*NRv,i*NEbv*NRv+NEbv*NRv):
-                Alambda, flux_frac = np.empty(len(wl)), np.empty(len(wl))
-                for k in range(0,len(wl)):
-                    x=1/wl[k]*10**(-6) #wl in microns
-                    if x > 10 or x < 0.3:
-                        raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
-                    elif x <= 1.1:
-                        ax=0.574*x**1.61
-                        bx=-0.527*x**1.61
-                    elif x <= 3.3:
-                        y=x-1.82
-                        ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
-                        bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
-                    elif x <= 5.9:
-                        ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
-                        bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
-                    elif x <= 8.0:
-                        ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
-                        bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
-                    elif x <= 10:
-                        ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
-                        bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
+            
+            a = libphoebe.CCM89_extinction(wl)
+            
+            for j in range(i*Ns, i*Ns + Ns):
+              
+                #~ Alambda, flux_frac = np.empty(len(wl)), np.empty(len(wl))
+                
+                #~ for k in range(0,len(wl)):
+                    #~ x=1/wl[k]*10**(-6) #wl in microns
+                    #~ if x > 10 or x < 0.3:
+                        #~ raise ValueError('Passband wavelength outside the range defined for CCM89 extinction (0.1-3.3 micron)')
+                    #~ elif x <= 1.1:
+                        #~ ax=0.574*x**1.61
+                        #~ bx=-0.527*x**1.61
+                    #~ elif x <= 3.3:
+                        #~ y=x-1.82
+                        #~ ax=1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+                        #~ bx=1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+                    #~ elif x <= 5.9:
+                        #~ ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341)
+                        #~ bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263)
+                    #~ elif x <= 8.0:
+                        #~ ax=1.752 - 0.316*x - 0.104/( (x-4.67)**2 + 0.341) - 0.04473*(x-5.9)**2 - 0.009779*(x-5.9)**3
+                        #~ bx=-3.090 + 1.825*x + 1.206/( (x-4.62)**2 + 0.263) + 0.2130*(x-5.9)**2 + 0.1207*(x-5.9)**3
+                    #~ elif x <= 10:
+                        #~ ax=-1.073 - 0.628*(x-8) + 0.137*(x-8)**2 - 0.070*(x-8)**3
+                        #~ bx=13.670 + 4.257*(x-8) + 0.420*(x-8)**2 + 0.374*(x-8)**3
 
-                    Alambda[k]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
-                    flux_frac[k]=10**(-0.4*Alambda[k])
-
-                extinctE[j]=np.average(flux_frac,weights=fl)
-                extinctP[j]=np.average(flux_frac,weights=flP)
+                    #~ Alambda[k]=Ebv[j] * Rv[j] * (ax+bx/Rv[j])
+                    #~ flux_frac[k]=10**(-0.4*Alambda[k])
+                    
+                Alambda = Ebv[j] * Rv[j] * (a[:,0] + a[:,1]/Rv[j])
+                flux_frac = 10**(-0.4*Alambda)
+                
+                extinctE[j] = np.average(flux_frac, weights=fl)
+                extinctP[j] = np.average(flux_frac, weights=flP)
 
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(len(models)-1)))
-
-        Teff=np.repeat(Teff,NEbv*NRv)
-        logg=np.repeat(logg,NEbv*NRv)
-        abun=np.repeat(abun,NEbv*NRv)
+        
+        # Why????
+        Teff=np.repeat(Teff, Ns)
+        logg=np.repeat(logg, Ns)
+        abun=np.repeat(abun, Ns)
 
         # Store axes (Teff, logg, abun) and the full grid of Inorm, with
         # nans where the grid isn't complete.
@@ -560,6 +579,7 @@ class Passband:
 
         self._ck2004_extinct_energy_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
         self._ck2004_extinct_photon_grid = np.nan*np.ones((len(self._ck2004_extinct_axes[0]), len(self._ck2004_extinct_axes[1]), len(self._ck2004_extinct_axes[2]), len(self._ck2004_extinct_axes[3]), len(self._ck2004_extinct_axes[4]), 1))
+        
         for i, red in enumerate(extinctE):
             self._ck2004_extinct_energy_grid[Teff[i] == self._ck2004_extinct_axes[0], logg[i] == self._ck2004_extinct_axes[1], abun[i] == self._ck2004_extinct_axes[2], Ebv[i] == self._ck2004_extinct_axes[3], Rv[i] == self._ck2004_extinct_axes[4], 0] = red
         for i, red in enumerate(extinctP):
