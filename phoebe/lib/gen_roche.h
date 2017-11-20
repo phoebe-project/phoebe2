@@ -1410,6 +1410,31 @@ namespace gen_roche {
     const T & delta = 1
   ){
     
+    //
+    // Checking if we discuss semi-detached   
+    //
+    
+    if (choice != 2) {
+      
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      T w, L;
+      
+      critical_potential(&w, &L, 1, q, F, delta);
+    
+      if (std::abs(w - Omega0) < eps*std::max(std::abs(w), std::abs(Omega0)) + min) {
+      
+        g[0] = (choice == 0 ? eps : -eps);  // TODO: don't know if this a good solution 
+        g[1] = g[2] = 0;
+        
+        r[0] = L;
+        r[1] = r[2] = 0;
+      } 
+      
+      return true;
+    }
+      
     T xrange[2];
   
     if (!lobe_xrange(xrange, choice, Omega0, q, F, delta, true)) return false;

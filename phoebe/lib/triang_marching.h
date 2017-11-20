@@ -257,7 +257,11 @@ struct Tmarching: public Tbody {
       for (int i = 0; i < N; ++i) {
         
         // 1. step
-        this->grad_only(r, g, precision);
+        if (i == 0)
+          for (int j = 0; j < 3; ++j) g[j] = gi[j]; // if g is manually set
+        else
+          this->grad_only(r, g, precision);
+          
         utils::cross3D(n, g, t);
         fac = da/utils::hypot3(t);
         for (int j = 0; j < 3; ++j) k[0][j] = fac*t[j];  
@@ -381,7 +385,7 @@ struct Tmarching: public Tbody {
   
   // #define DEBUG
   bool project_onto_potential(T ri[3], T r[3], T n[3], const int & max_iter, T *gnorm = 0){
-    
+
     //
     // Newton-Raphson iteration to solve F(u_k - t grad(F))=0
     //
@@ -900,7 +904,7 @@ struct Tmarching: public Tbody {
     //  Triangulization of genus 0 surfaces
     //
     
-    T delta2 = delta*delta;
+    T delta2 = 0.5*delta*delta;    // TODO: should be more dynamical
     
     bool st_triang = true;
     
@@ -1392,8 +1396,10 @@ struct Tmarching: public Tbody {
 
     return Tbad_pair(0, 0);
   }
-  //#undef DEBUG
-
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
+  
   /*
     Triangulization using marching method of genus 0 closed and surfaces.
     
@@ -1473,8 +1479,10 @@ struct Tmarching: public Tbody {
         for (int i = 0; i < 3; ++i) 
           qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
           
-        if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
-            !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
+        if (
+            !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter) &&
+            !project_onto_potential(qk, vk, max_iter, v.b[2])
+           ) {
           std::cerr << "Warning: Projection did not converge\n";
         }  
         
@@ -1499,7 +1507,7 @@ struct Tmarching: public Tbody {
     //  Triangulization of genus 0 surfaces
     //
     
-    T delta2 = delta*delta;
+    T delta2 = 0.5*delta*delta;    // TODO: should be more dynamical
     
     bool st_triang = true; // status whether there are to many triangles
         
@@ -1639,18 +1647,17 @@ struct Tmarching: public Tbody {
           T domega = omega_min/nt; 
           
           // correct domega for extreme cases
-          if (domega < 0.8 && nt > 1)
+          if (domega < 0.8 && nt > 1) {
             domega = omega_min/(--nt);
-          else if (nt == 1 && domega > 0.8 && 
-                   dist2(it_prev->r, it_next->r) > 1.4*delta2) 
+          } else if (nt == 1 && domega > 0.8 && 
+                   dist2(it_prev->r, it_next->r) > 1.4*delta2) { 
             domega = omega_min/(++nt);
-          else if (omega_min < 3 && 
+          } else if (omega_min < 3 && 
                     ( dist2(it_prev->r, it_min->r) < 0.25*delta2 || 
                       dist2(it_next->r, it_min->r) < 0.25*delta2)
-                  ) 
+                  )  {
             nt = 1;
-          
- 
+          }
           it_prev->omega_changed = true;
           it_next->omega_changed = true;
           
