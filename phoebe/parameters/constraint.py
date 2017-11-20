@@ -138,6 +138,11 @@ def rotstarpotential2rpole(pot, rotfreq):
     """
     return ConstraintParameter(pot._bundle, "rotstarpotential2rpole(%s)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (pot, rotfreq)])))
 
+def rochecriticalL12potential(q, e, syncpar, compno=1):
+    """
+    TODO: add documentation
+    """
+    return ConstraintParameter(q._bundle, "rochecriticalL12potential(%s, %d)" % (", ".join(["{%s}" % (param.uniquetwig if hasattr(param, 'uniquetwig') else param.expr) for param in (q,e,syncpar)]), compno))
 
 def esinw2per0(ecc, esinw):
     """
@@ -175,6 +180,7 @@ def t0_supconj_to_ref(t0_supconj, period, ecc, per0):
     TODO: add documentation
     """
     return ConstraintParameter(t0_supconj._bundle, "t0_supconj_to_ref({}, {}, {}, {})".format(_get_expr(t0_supconj), _get_expr(period), _get_expr(ecc), _get_expr(per0)))
+
 
 
 #}
@@ -908,6 +914,53 @@ def potential(b, component, solve_for=None, **kwargs):
             rhs = rochepotential2rpole(pot, q, ecc, syncpar, sma, compno[hier.get_primary_or_secondary(component)])
         else:
             raise NotImplementedError
+
+    return lhs, rhs, {'component': component}
+
+def critical_potential(b, component, solve_for=None, **kwargs):
+    """
+    Create a constraint for the potential of a star to match the critical
+    potential at L1
+
+    :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
+    :parameter str component: the label of the star in which this
+        constraint should be built
+    :parameter str solve_for:  if 'pot' should not be the derived/constrained
+        parameter, provide which other parameter should be derived
+        (ie 'rpole')
+    :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments
+        that were passed to this function)
+    """
+
+    hier = b.get_hierarchy()
+    if not len(hier.get_value()):
+        # TODO: change to custom error type to catch in bundle.add_component
+        # TODO: check whether the problem is 0 hierarchies or more than 1
+        raise NotImplementedError("constraint for comp_sma requires hierarchy")
+
+
+    component_ps = _get_system_ps(b, component)
+
+    parentorbit = hier.get_parent_of(component)
+
+
+    if parentorbit == 'component':
+        raise ValueError("cannot constraint to critical potential for single star")
+
+    parentorbit_ps = _get_system_ps(b, parentorbit)
+
+    pot = component_ps.get_parameter(qualifier='pot')
+    syncpar = component_ps.get_parameter(qualifier='syncpar')
+    q = parentorbit_ps.get_parameter(qualifier='q')
+    ecc = parentorbit_ps.get_parameter(qualifier='ecc')
+
+    if solve_for in [None, pot]:
+        lhs = pot
+
+        compno = {'primary': 1, 'secondary': 2}
+        rhs = rochecriticalL12potential(q, ecc, syncpar, compno[hier.get_primary_or_secondary(component)])
+    else:
+        raise NotImplementedError
 
     return lhs, rhs, {'component': component}
 

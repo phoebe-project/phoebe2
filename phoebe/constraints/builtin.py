@@ -24,6 +24,11 @@ def rotstarrpole2potential(*args, **kwargs):
     """
     return _rotstar.rpole2potential(*args, **kwargs)
 
+def rochecriticalL12potential(*args, **kwargs):
+    """
+    """
+    return _roche.criticalL1(*args, **kwargs)
+
 
 def esinw2per0(ecc, esinw):
     """
