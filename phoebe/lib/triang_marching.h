@@ -204,7 +204,8 @@ struct Tmarching: public Tbody {
 
     } while (1);
  
-    // creating vertex
+    // creating vertex   
+    this->grad_only(r, g, precision);
     create_internal_vertex(r, g, v);
     
     return (n < max_iter);
@@ -341,10 +342,11 @@ struct Tmarching: public Tbody {
       } while (dr1 > eps*r1 + min && ++it < max_iter);
       
       #if defined(DEBUG)
+      std::cerr.precision(16);
       std::cerr 
         << "PROJ: g=(" << g[0] << "," << g[1]<< "," << g[2] <<  "," << g[3] << ")"
         << " r=(" << r[0] << "," << r[1]<< "," << r[2] << ")"
-        << " " << dr1 <<" "<< precision << '\n'; 
+        << " " << dr1 <<" "<< precision << " " << it << '\n'; 
       #endif
       
       if (!precision && it >= max_iter) {
@@ -355,7 +357,9 @@ struct Tmarching: public Tbody {
     } while (1);
     
     // creating vertex
+    this->grad_only(r, g, precision);
     create_internal_vertex(r, g, v);
+    
     return (it < max_iter);
   }
   #if defined(DEBUG)
@@ -439,7 +443,9 @@ struct Tmarching: public Tbody {
       } else break;
 
     } while(1);
-
+    
+    this->grad_only(r, g, precision);
+    
     // creating simplified vertex, 
     // note: std::hypot(,,) is comming in C++17
     

@@ -25,6 +25,10 @@ def test_binary(plot=False):
 
     b.set_value_all('ld_func', 'logarithmic')
     b.set_value_all('ld_coeffs', [0.0, 0.0])
+    
+    Nt=1500
+    b.set_value_all('ntriangles@primary', Nt)
+    b.set_value_all('ntriangles@secondary', Nt)
 
     for gravb in [0.1, 0.9]:
         b.set_value('gravb_bol', component='primary', value=gravb)
