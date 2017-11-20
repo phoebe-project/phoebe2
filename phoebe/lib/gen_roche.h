@@ -1430,9 +1430,8 @@ namespace gen_roche {
         
         r[0] = L;
         r[1] = r[2] = 0;
+        return true;
       } 
-      
-      return true;
     }
       
     T xrange[2];
