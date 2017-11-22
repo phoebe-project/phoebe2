@@ -1488,9 +1488,11 @@ struct Tmarching: public Tbody {
         if (
             !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter) &&
             !project_onto_potential(qk, vk, max_iter, v.b[2])
+            //~ !project_onto_potential(qk, vk, max_iter, v.b[2]) &&
+            //~ !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)
            ) {
           std::cerr << "Warning: Projection did not converge\n";
-        }  
+        }
         
         // store points into initial front
         vk.index = k + 1;  // = V.size();
