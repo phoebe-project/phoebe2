@@ -1043,6 +1043,30 @@ class Bundle(ParameterSet):
 
         return critical_pots
 
+    def compute_critical_rpoles(self, component, L1=True, L2=True, L3=True):
+        """
+        returns in solRad
+        """
+        critical_pots = self.compute_critical_pots(component, L1, L2, L3)
+
+        hier = self.hierarchy
+        comp_ps = self.get_component(component)
+        parent = hier.get_parent_of(component)
+        parent_ps = self.get_component(parent)
+
+        q = parent_ps.get_value('q')
+        e = parent_ps.get_value('ecc')
+        F = comp_ps.get_value('syncpar')
+        sma = parent_ps.get_value('sma', unit='solRad')
+
+        comp = hier.get_primary_or_secondary(component, return_ind=True)
+
+        critical_rpoles = {}
+        for l,pot in critical_pots.items():
+            critical_rpoles[l] = roche.potential2rpole(pot, q, e, F, sma, comp)
+
+        return critical_rpoles
+
     def run_checks(self, **kwargs):
         """
         Check to see whether the system is expected to be computable.
