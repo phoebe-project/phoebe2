@@ -938,35 +938,6 @@ namespace gen_roche {
       << "q=" << q << '\n'
       << "b=" << b << std::endl;
     #endif
-    
-    
-    //
-    // Checking if we discuss semi-detached   
-    //
-    
-    if (choice != 2) {
-      
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-      
-      T w, L;
-      
-      critical_potential(&w, &L, 1, q, F, delta);
-    
-      if (std::abs(w - Omega0) < eps*std::max(std::abs(w), std::abs(Omega0)) + min) {
-        
-        if (choice == 0) {
-          xrange[0] = delta*left_lobe_left_xborder(w, q, b);
-          xrange[1] = L;
-        } else {
-          xrange[0] = L;
-          xrange[1] = delta*right_lobe_left_xborder(w, q, b);
-        }
-        
-        return true;
-      }
-    }
-    
       
     //
     //  left lobe
@@ -979,7 +950,7 @@ namespace gen_roche {
         // omega[0] = Omega(L1), omega[1] = Omega(L2)
         critical_potential(omega, L, 1+2, q, F, delta);
         
-        if (!(omega[0] <= Omega0 && omega[1] <= Omega0)) {
+        if (!(omega[0] < Omega0 && omega[1] < Omega0)) {
           std::cerr 
             << "lobe_xrange::left lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n'
@@ -1003,7 +974,7 @@ namespace gen_roche {
         // omega[0] = Omega(L1), omega[2] = Omega(L3)
         critical_potential(omega, L, 1+4, q, F, delta);
         
-        if (!(omega[0] <= Omega0 && omega[2] <= Omega0)) {
+        if (!(omega[0] < Omega0 && omega[2] < Omega0)) {
           std::cerr 
             << "lobe_xrange::right lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n'
@@ -1027,7 +998,7 @@ namespace gen_roche {
         // omega[0] = Omega(L1), omega[1] = Omega(L2), omega[2] = Omega(L3)
         critical_potential(omega, L, 1+2+4, q, F, delta);
          
-        if (!(Omega0 <= omega[0] && Omega0 >= omega[1] && Omega0 >= omega[2])) {
+        if (!(Omega0 < omega[0] && Omega0 > omega[1] && Omega0 > omega[2])) {
           std::cerr 
             << "lobe_xrange::contact binary lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n'
@@ -1554,9 +1525,7 @@ namespace gen_roche {
     
       {x0,0,0}  {x1,0,0}
     
-    The range on x-axis is [x0, x1]. We assume
-      if dir == +1  => radius(x0) = 0
-      if dir == -1  => radisu(x1) = 0
+    The range on x-axis is [x0, x1].
   
     Input:
       x_bounds[2] = {x0,x1} 
@@ -1569,9 +1538,7 @@ namespace gen_roche {
         1U  - area , stored in v[0]
         2U  - volume, stored in v[1]
         4U  - d(volume)/dOmega, stored in v[2]
-      dir - 
-        +1 - integrating from x0 to x1
-        -1 - integrating from x1 to x0
+      
       polish - if true than after each RK step 
                 we perform reprojection onto surface
                  
@@ -1595,12 +1562,11 @@ namespace gen_roche {
       * https://en.wikipedia.org/wiki/Gauss–Kronrod_quadrature_formula
       * http://mathworld.wolfram.com/LobattoQuadrature.html <-- this would be better  
   */
-
+  
   template<class T> 
-  void area_volume_directed_integration(
+  void area_volume_integration(
     T v[3],
     const unsigned & choice,
-    const int & dir,  
     T xrange[2],
     const T & Omega0,
     const T & q,
@@ -1630,7 +1596,7 @@ namespace gen_roche {
       
     long double 
       y[dim], k[4][dim], w[glq_n],  
-      t = (dir > 0 ? xrange[0]/delta : xrange[1]/delta),  
+      t = xrange[0]/delta, 
       dt = (xrange[1] - xrange[0])/(m*delta);
     
     //
@@ -1644,8 +1610,6 @@ namespace gen_roche {
     //    V'(t) = delta^3 1/2 R df dx
    
     for (int i = 0; i < glq_n; ++i) w[i] = dt*glq_weights[i];
-    
-    dt *= dir;
       
     // init point
     for (int i = 0; i < dim; ++i) y[i] = 0;
@@ -1678,7 +1642,7 @@ namespace gen_roche {
           g = 1/(b*glq_c[i] - f1 - q*f2);
           f = (q*(1 + (t - 1)*f2) + t*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[0][i] = dt*2*f;
- 
+          
           if (b_area) {    
             g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c)) 
             k[0][glq_n] += w[i]*std::sqrt(s*(1 + g*g*glq_d[i]) + f*f); // = dA
@@ -1709,7 +1673,7 @@ namespace gen_roche {
           g = 1/(b*glq_c[i] - f1 - q*f2);
           f = (q*(1 + (t1 - 1)*f2) + t1*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[1][i] = dt*2*f;
-
+        
           if (b_area) {
             g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c)) 
             k[1][glq_n] += w[i]*std::sqrt(s*(1 + g*g*glq_d[i]) + f*f);  // = dA
@@ -1733,10 +1697,10 @@ namespace gen_roche {
           f2 = 1/(f2*std::sqrt(f2));
           
           // k0 = -dx F_t/F_R
-          g = 1/(b*glq_c[i] - f1 - q*f2);       
-          f = (q*(1 + (t1 - 1)*f2) + t1*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
+          T g = 1/(b*glq_c[i] - f1 - q*f2);       
+          T f = (q*(1 + (t1 - 1)*f2) + t1*(f1 - b))*g; // = 1/2 dR/dt, x = delta*t
           k[2][i] = dt*2*f;
-                          
+                  
           if (b_area) {        
             g *= b; // = -(dR/dc)/R   Note: dR/dphi = -dR/dc*2*sqrt(c(1-c))
             k[2][glq_n] += w[i]*std::sqrt(s*(1 + g*g*glq_d[i]) + f*f); // = dA
@@ -1779,8 +1743,6 @@ namespace gen_roche {
             
       for (int i = 0; i < dim; ++i)
         y[i] += (k[0][i] + 2*(k[1][i] + k[2][i]) + k[3][i])/6;  
-      
-      //std::cerr << "t =" << t << " y[glq_n]=" << y[glq_n] << '\n';
       
       t += dt;
       
@@ -1837,36 +1799,6 @@ namespace gen_roche {
     if (b_dvol) v[2] = d4*y[glq_n+2];
   }
 
-  template<class T> 
-  void area_volume_integration(
-    T v[3],
-    const unsigned & choice,
-    T xrange[2],
-    const T & Omega0,
-    const T & q,
-    const T & F = 1,
-    const T & d = 1,
-    const int & m = 1 << 14,
-    const bool polish = false) {
-    
-    #if 1
-    T 
-      xrange1[2] = {xrange[0], (xrange[0] + xrange[1])/2},
-      xrange2[2] = {xrange1[1], xrange[1]},
-      
-      v1[3], v2[3];
-    
-    area_volume_directed_integration(v1, choice, +1, xrange1, Omega0, q, F, d, m, polish);
-    area_volume_directed_integration(v2, choice, -1, xrange2, Omega0, q, F, d, m, polish);
-      
-    if ((choice & 1u) == 1u) v[0] = v1[0] + v2[0]; // area
-    if ((choice & 2u) == 2u) v[1] = v1[1] + v2[1]; // vol
-    if ((choice & 4u) == 4u) v[2] = v1[2] + v2[2]; // dvol/dOmega
-    
-    #else
-    area_volume_directed_integration(v, choice, +1, xrange, Omega0, q, F, d, m, polish);
-    #endif
-  }
   /*
     Computing surface area and the volume of the primary Roche lobe in the limit of high w=delta*Omega. It should precise at least up to 5.5 digits for
       

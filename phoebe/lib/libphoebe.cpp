@@ -1783,7 +1783,7 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
         maximal number of triangles
         if number of triangles exceeds max_triangles it returns NULL  
       
-      full: boolean, default True
+      full: boolean, default False
         using full version of marching method as given in the paper 
         by (Hartmann, 1998)
         
