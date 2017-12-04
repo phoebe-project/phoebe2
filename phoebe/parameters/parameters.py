@@ -71,6 +71,7 @@ _constraint_builtin_funcs = ['rocherpole2potential',
                              'rotstarrpole2potential',
                              'rotstarpotential2rpole',
                              'rochecriticalL12potential',
+                             'rochecriticalL12rpole',
                              'esinw2per0',
                              'ecosw2per0',
                              't0_supconj_to_perpass',
@@ -5206,7 +5207,7 @@ class ConstraintParameter(Parameter):
                         t0_ref_to_supconj, t0_supconj_to_ref,\
                         rochepotential2rpole, rocherpole2potential,\
                         rotstarpotential2rpole, rotstarrpole2potential,\
-                        rochecriticalL12potential
+                        rochecriticalL12potential, rochecriticalL12rpole
 
                 value = float(eval(eq.format(**values)))
 

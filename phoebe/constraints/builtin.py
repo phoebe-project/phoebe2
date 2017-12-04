@@ -29,6 +29,12 @@ def rochecriticalL12potential(*args, **kwargs):
     """
     return _roche.criticalL1(*args, **kwargs)
 
+def rochecriticalL12rpole(q, e, F, sma, compno, **kwargs):
+    """
+    """
+    critical_pot =  _roche.criticalL1(q, e, F, compno, **kwargs)
+    return _roche.potential2rpole(critical_pot, q, e, F, sma, compno)
+
 
 def esinw2per0(ecc, esinw):
     """
