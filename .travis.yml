@@ -87,7 +87,6 @@ matrix:
 
 
 before_install:
-    - rvm get head
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
         brew update;
         brew unlink wget;
