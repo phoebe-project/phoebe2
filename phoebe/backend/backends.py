@@ -724,8 +724,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     [info['dataset'] for info in infolist if info['needs_mesh']])
 
 
-        # now let's loop through and fill any synthetics at this time step
-        # TODO: make this MPI ready by ditching appends and instead filling with all nans and then filling correct index
+        # now let's loop through and prepare a packet which will fill the synthetics
         packet = np.empty_like(infolist)
 
         for k, info in enumerate(infolist):
@@ -887,24 +886,28 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     if _use_mpi and not conf.force_serial:
         if myrank == 0:
-        # MAIN COMPUTE LOOP
-        # the outermost loop will be over times.  infolist will be a list of dictionaries
-        # with component, kind, and dataset as keys applicable for that current time.
-            # yield master(times, infos)
+            # then this is the master process which is responsible for sending
+            # jobs to the workers and processing the returned packets to fill
+            # the synthetic parameters
 
+            # receive the packet from each time sent by a worker
             req = [0]*len(times)
             for i in range(len(times)):
-                req[i] = comm.irecv(source = MPI.ANY_SOURCE, tag=TAG_DATA)
+                req[i] = comm.irecv(source=MPI.ANY_SOURCE, tag=TAG_DATA)
 
+            # send tasks to the workers
+            # this is the main compute loop in MPI mode
             for i,time,infolist in zip(range(len(times)),times,infos):
-                node = comm.recv(source = MPI.ANY_SOURCE, tag=TAG_REQ)
+                node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
                 packet = {'i': i, 'time': time, 'infolist': infolist}
                 comm.send(packet, node, tag=TAG_DATA)
 
+            # send kill command to all workers
             for i in range(1, nprocs):
                 node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
                 comm.send({'i': -1}, node, tag=TAG_DATA)
 
+            # parse and process the received packets to fill the syns
             for i in range(len(req)):
                 r = req[i].wait()
 
@@ -923,28 +926,41 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 yield new_syns
 
         else: # if myrank != 0:
+            # then this is a worker processor, which must receive a job request
+            # from the master and return the results
             while True:
+                # tell the master that the worker is ready for another task
                 comm.send(myrank, 0, tag=TAG_REQ)
+                # receive the next job
                 packet = comm.recv(tag=TAG_DATA)
 
                 i = packet['i']
                 if i == -1:
+                    # then all jobs are complete, so kill the worker process
+                    # by exiting the while loop
                     break
 
+                # parse the packet and run computations for this single time
                 time = packet['time']
                 infolist = packet['infolist']
 
                 packet = worker(i, time, infolist)
 
+                # return the result packet to the master
                 comm.send({'i': i, 'packet': packet}, 0, tag=TAG_DATA)
 
             yield ParameterSet([])
     else:
         # not _use_mpi
+        # this is the main compute loop in serial mode
         req = [0]*len(times)
         for i,time,infolist in zip(range(len(times)),times,infos):
             packet = worker(i, time, infolist)
 
+            # In serial mode we will process the returned packet per-time
+            # so that we can immediately yield the updated synthetics.
+            # This may be a slight overhead, but allows us to stream the results
+            # for live-updating plots (for example)
             new_syns = master_populate_syns(new_syns, time, infolist, packet)
 
             if as_generator:
