@@ -2010,7 +2010,7 @@ namespace gen_roche {
       xrange1[2] = {xrange[0], (xrange[0] + xrange[1])/2},
       xrange2[2] = {xrange1[1], xrange[1]},
       
-      v1[3], v2[3];
+      v1[3]= {0,0,0}, v2[3] = {0,0,0};
     
     area_volume_directed_integration(v1, choice, +1, xrange1, Omega0, q, F, d, m, polish);
     area_volume_directed_integration(v2, choice, -1, xrange2, Omega0, q, F, d, m, polish);
