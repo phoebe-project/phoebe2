@@ -394,7 +394,10 @@ struct Tmarching: public Tbody {
       for (int i = 0; i < 3; ++i) 
         qk[i] = v.r[i] + ca[k]*v.b[0][i] + sa[k]*v.b[1][i];
         
-      if (!project_onto_potential(qk, vk, max_iter)){
+      if (
+          !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter) &&
+          !project_onto_potential(qk, vk, max_iter, v.b[2])
+         ) {
         std::cerr << "Warning: Projection did not converge\n";
       }  
       
