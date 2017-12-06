@@ -1089,8 +1089,9 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #   real
     io.pass_to_legacy(b, filename=tmp_file.name, compute=compute, **kwargs)
 #   testing
+#    filename = 'check.phoebe'
 #    io.pass_to_legacy(b, filename=filename, compute=compute, **kwargs)
-    phb1.init()
+#    phb1.init()
     try:
         phb1.configure()
     except SystemError:

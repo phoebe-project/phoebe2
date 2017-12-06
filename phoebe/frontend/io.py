@@ -884,20 +884,30 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
         q = eb.get_value(qualifier ='q')
         d = 1. - eb.get_value(qualifier='ecc')
         if 'primary' in morphology:
-            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
-            f = eb.get_value(qualifier='syncpar', component='primary')
-            crit_pots = roche_critical_potential(q,f,d)
-            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
+
+            eb.add_constraint('critical_rpole', component='primary')
+#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
+#            f = eb.get_value(qualifier='syncpar', component='primary')
+#            crit_pots = roche_critical_potential(q,f,d)
+#            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
         elif 'secondary' in morphology:
-            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
-            f = eb.get_value(qualifier='syncpar', component='secondary')
-            crit_pots = roche_critical_potential(1/q,f,d)
-            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
+            eb.add_constraint('critical_rpole', component='secondary')
+#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
+#            f = eb.get_value(qualifier='syncpar', component='secondary')
+#            crit_pots = roche_critical_potential(1/q,f,d)
+#            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
 
 #flip back all constraints
     if not contact_binary:
-        eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
-        eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+        #avoid semi_detached where constraint hasn't been flipped
+        if semi_detached and 'primary' not in morphology:
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
+        elif semi_detached and 'secondary' not in morphology:
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+        else:
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+
 #        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
 #        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
@@ -1130,6 +1140,9 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for contact_binary
     contact_binary = eb.hierarchy.is_contact_binary(primary)
+# check for semi_detached
+    if 'rpole' in eb['constraint'].qualifiers:
+        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -1178,7 +1191,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
     if contact_binary:
-        #note system morphology
+        #note system
         parnames.append('phoebe_model')
         parvals.append('"Overcontact binary not in thermal contact"')
         types.append('choice')
@@ -1193,6 +1206,15 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         pname = ret_parname('pot', comp_int=comp_int, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
+    elif semi_detached:
+        if primary == eb.get_constraint(constraint_func='critical_rpole').component:
+            semid_comp = 'primary' #semidatched is primary
+        if secondary == eb.get_constraint(constraint_func='critical_rpole').component:
+            semid_comp = 'secondary' #semidatched is primary
+        parnames.append('phoebe_model')
+        parvals.append('"Semi-detached binary, '+semid_comp+' star fills Roche lobe')
+        types.append('choice')
+
 #   pblum
         # TODO BERT: need to deal with multiple datasets
  #       for x in range(len(lcs)):
