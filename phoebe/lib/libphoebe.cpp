@@ -78,6 +78,7 @@
         ob = Py_InitModule3(name, methods, doc);
 #endif
 
+//#define USING_SimpleNewFromData
  
 /*
   Getting the Python typename 
@@ -108,21 +109,20 @@ template <typename T>
 PyObject *PyArray_FromVector(std::vector<T> &V){
   
   int N = V.size();
-  
-  T *p = new T [N];
-  
-  std::copy(V.begin(), V.end(), p);
-  
   npy_intp dims[1] = {N};
-  
-  PyObject *pya = 
-    PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p); 
 
+  #if defined(USING_SimpleNewFromData)
+  T *p = new T [N];
+  std::copy(V.begin(), V.end(), p);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, PyArray_TypeNum<T>());
+  std::copy(V.begin(), V.end(), (T*)PyArray_DATA((PyArrayObject *)pya));
+  #endif
   
   return pya;
 }
-
 
 template<typename T>
 void PyArray_ToVector(PyArrayObject *oV, std::vector<T> & V){
@@ -132,27 +132,28 @@ void PyArray_ToVector(PyArrayObject *oV, std::vector<T> & V){
   V.assign(V_begin, V_begin + PyArray_DIM(oV, 0));
 }
 
+
 template <typename T>
 PyObject *PyArray_From3DPointVector(std::vector<T3Dpoint<T>> &V){
   
   // Note: p is interpreted in C-style contiguous fashion
   int N = V.size();
   
-  T *p = new T [3*N], *b = p; 
-  
-  for (auto && v : V)
-    for (int i = 0; i < 3; ++i) *(b++) = v[i];
-  
   npy_intp dims[2] = {N, 3};
   
-  PyObject *pya =
-    PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p); 
-  
+  #if defined(USING_SimpleNewFromData)
+  T *p = new T [3*N], *b = p;
+  for (auto && v : V) for (int i = 0; i < 3; ++i) *(b++) = v[i];
+  PyObject *pya = PyArray_SimpleNewFromData(2, dims, PyArray_TypeNum<T>(), p);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(2, dims, PyArray_TypeNum<T>());
+  T *p = (T*)PyArray_DATA((PyArrayObject *)pya); 
+  for (auto && v : V) for (int i = 0; i < 3; ++i) *(p++) = v[i];
+  #endif
   
   return pya;
 }
-
 
 template <typename T>
 void PyArray_To3DPointVector(
@@ -185,7 +186,7 @@ void PyArray_To3DPointVector(
     q: float = M2/M1 - mass ratio
     F: float - synchronicity parameter
     d: float - separation between the two objects
-  
+    
   keywords: optional
     
     L1: boolean, default true
@@ -194,7 +195,15 @@ void PyArray_To3DPointVector(
       switch calculating value of the potential at L2 
     L3: boolean, default true
       switch calculating value of the potential at L3 
-    
+ 
+    style: int, default 0
+      
+      0 - canonical - conventional:
+          L3  -- heavier star -- L1 -- lighter star -- L2 --> x
+      
+      1 - native to definition of the potential
+          L2  -- origin -- L1 -- object -- L3 --> x
+        
   and returns dictionary with keywords:
   
     L1:
@@ -220,27 +229,39 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
     (char*)"L1",
     (char*)"L2",
     (char*)"L3",
+    (char*)"style",
     NULL};
          
   bool b_L[3] = {true, true, true};
+  
+  int style = 0;
      
   double q, F, delta;
   
   PyObject *o_L[3] = {0,  0, 0};
   
-  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, keywds,  "ddd|O!O!O!i", kwlist,
         &q, &F, &delta, 
         &PyBool_Type, o_L,
         &PyBool_Type, o_L + 1,
-        &PyBool_Type, o_L + 2)
+        &PyBool_Type, o_L + 2,
+        &style)
   ){
     std::cerr << "roche_critical_potential:Problem reading arguments\n";
     return NULL;
   }
   
+  int ind[3] = {0, 1, 2};
+  
+  if (style == 0 && q > 1) {      // case : M2 > M1
+    ind[1] = 2;
+    ind[2] = 1;
+  }
+     
+  
   // reading selection
   for (int i = 0; i < 3; ++i)
-    if (o_L[i]) b_L[i] = PyObject_IsTrue(o_L[i]);
+    if (o_L[ind[i]]) b_L[i] = PyObject_IsTrue(o_L[ind[i]]);
   
   // create a binary version of selection
   unsigned choice = 0;
@@ -263,7 +284,9 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   
   for (int i = 0; i < 3; ++i)
     if (b_L[i]) 
-      PyDict_SetItemStringStealRef(results, labels[i], PyFloat_FromDouble(omega[i]));
+      PyDict_SetItemStringStealRef(results, 
+        labels[ind[i]], 
+         PyFloat_FromDouble(omega[i]));
   
   return results;
 }
@@ -529,6 +552,7 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
     return NULL;
   }
   
+  #if defined(USING_SimpleNewFromData)
   double *data = new double [2];
   
   data[0] = F*std::sqrt(1 + q);
@@ -539,6 +563,17 @@ static PyObject *rotstar_from_roche(PyObject *self, PyObject *args, PyObject *ke
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, data);
   
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);   
+  #else
+  npy_intp dims[1] = {2};
+  
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  
+  double *data = (double*) PyArray_DATA((PyArrayObject *)pya);
+  
+  data[0] = F*std::sqrt(1 + q);
+  data[1] = 1/gen_roche::poleL(Omega0, q, F, delta);
+  
+  #endif
       
   return  pya;
 }
@@ -645,7 +680,7 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
   
   if (res_choice == 0) return NULL;
   
-  #if 0
+  #if defined(DEBUG)
   std::cerr.precision(16);
   std::cerr 
     << "q=" << q
@@ -670,6 +705,10 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
     // with empirically derived criterion 
     
     gen_roche::area_volume_primary_asymp(av, res_choice, Omega0, q, F, delta);
+    
+    #if defined(DEBUG)
+    std::cerr << "asymp:" << res_choice<<" " << av[0] << " " << av[1] << '\n';
+    #endif
     
   } else { 
     
@@ -756,8 +795,13 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
       
       } else {
         // best approximation
-        for (int i = 0; i < 2; ++i) 
-          if (b_av[i]) av[i] = (16*p[1][i] - p[0][i])/15;
+        for (int i = 0; i < 2; ++i)
+          if (b_av[i]) {
+            av[i] = (16*p[1][i] - p[0][i])/15;
+            #if defined(DEBUG)
+            std::cerr << "B:" << i << ":" << av[i] << '\n'; 
+            #endif
+          }
         break;
       }
       
@@ -776,7 +820,9 @@ static PyObject *roche_area_volume(PyObject *self, PyObject *args, PyObject *key
 
   return results;
 }
-//#undef DEBUG
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -1344,20 +1390,20 @@ static PyObject *roche_gradOmega(PyObject *self, PyObject *args) {
     std::cerr << "roche_gradOmega:Problem reading arguments\n";
     return NULL;
   }
-
   p[3] = 0;
   
   Tgen_roche<double> b(p);
-  
-  double *g = new double [4];
-
-  b.grad((double*)PyArray_DATA(X), g);
-  
   npy_intp dims[1] = {4};
-
+    
+  #if defined(USING_SimpleNewFromData)
+  double *g = new double [4];
+  b.grad((double*)PyArray_DATA(X), g);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-  
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  b.grad((double*)PyArray_DATA(X), (double*)PyArray_DATA((PyArrayObject *)pya));
+  #endif
   
   return pya;
 }
@@ -1406,15 +1452,17 @@ static PyObject *rotstar_gradOmega(PyObject *self, PyObject *args) {
   
   Trot_star<double> b(p);
   
-  double *g = new double [4];
-
-  b.grad((double*)PyArray_DATA(X), g);
-  
   npy_intp dims[1] = {4};
-
-  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
     
+  #if defined(USING_SimpleNewFromData)
+  double *g = new double [4];
+  b.grad((double*)PyArray_DATA(X), g);
+  PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  b.grad((double*)PyArray_DATA(X), (double*)PyArray_DATA((PyArrayObject *)pya));
+  #endif
   
   return pya;
 }
@@ -1455,21 +1503,27 @@ static PyObject *sphere_gradOmega(PyObject *self, PyObject *args) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
-
+  
   double 
     *x = (double*) PyArray_DATA(X),
-    *g = new double [4],
     R = utils::hypot3(x),
     F = 1/(R*R*R);
   
+  npy_intp dims[1] = {4};
+  
+  #if defined(USING_SimpleNewFromData) 
+  double  *g = new double [4];
   for (int i = 0; i < 3; ++i) g[i] = F*x[i];  
   g[3] = -1/R;
   
-  npy_intp dims[1] = {4};
-
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-    
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  double *g = (double*)PyArray_DATA((PyArrayObject *)pya);
+  for (int i = 0; i < 3; ++i) g[i] = F*x[i];  
+  g[3] = -1/R;
+  #endif
   
   return pya;
 }
@@ -1511,15 +1565,17 @@ static PyObject *roche_gradOmega_only(PyObject *self, PyObject *args) {
 
   Tgen_roche<double> b(p);
   
-  double *g = new double [3];
-
-  b.grad_only((double*)PyArray_DATA(X), g);
-
   npy_intp dims[1] = {3};
 
+  #if defined(USING_SimpleNewFromData)   
+  double *g = new double [3];
+  b.grad_only((double*)PyArray_DATA(X), g);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  b.grad_only((double*)PyArray_DATA(X), (double*)PyArray_DATA((PyArrayObject *)pya));
+  #endif
   
   return pya;
 }
@@ -1558,15 +1614,17 @@ static PyObject *rotstar_gradOmega_only(PyObject *self, PyObject *args) {
   
   Trot_star<double> b(p);
   
-  double *g = new double [3];
-
-  b.grad_only((double*)PyArray_DATA(X), g);
-
   npy_intp dims[1] = {3};
-
+  
+  #if defined(USING_SimpleNewFromData)  
+  double *g = new double [3];
+  b.grad_only((double*)PyArray_DATA(X), g);
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  b.grad_only((double*)PyArray_DATA(X), (double*)PyArray_DATA((PyArrayObject *)pya));
+  #endif
   
   return pya;
 }
@@ -1602,20 +1660,23 @@ static PyObject *sphere_gradOmega_only(PyObject *self, PyObject *args) {
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
-  
   double
     *x = (double*)PyArray_DATA(X),
-    *g = new double [3],
     R = utils::hypot3(x),
     F = 1/(R*R*R);
-    
-  for (int i = 0; i < 3; ++i) g[i] = F*x[i];
-  
+
   npy_intp dims[1] = {3};
 
+  #if defined(USING_SimpleNewFromData)
+  double *g = new double [3];
+  for (int i = 0; i < 3; ++i) g[i] = F*x[i];
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, g);
-
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  double *g = (double*)PyArray_DATA((PyArrayObject *)pya);
+  for (int i = 0; i < 3; ++i) g[i] = F*x[i];
+  #endif
   
   return pya;
 }
@@ -1704,6 +1765,70 @@ static PyObject *rotstar_Omega(PyObject *self, PyObject *args) {
   return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
 }
 
+
+/*
+  C++ wrapper for Python code:
+  
+  Calculate the value of the potential of the rotating star with 
+  misaligned spin at a given point
+
+      Omega (x,y,z; omega) = 1/r + 1/2 omega^2 |r - s(s*r)|^2
+      
+      s = (sin(theta) cos(phi), sin(theta) sin(phi), cos(theta))
+      
+  Python:
+    
+    Omega0 = rotstar_misaligned Omega(omega, s, r)
+   
+  with parameters
+  
+    omega: float - parameter of the potential
+    misalignment:  in rotated coordinate system:
+      float - angle between spin and orbital angular velocity vectors [rad]
+    or in canonical coordinate system:
+      1-rank numpy array of length 3 = [sx, sy, sz]  |s| = 1
+    r: 1-rank numpy array of length 3 = [x,y,z]
+  
+  and returns a float
+  
+    Omega0 - value of the Omega at (x,y,z)
+*/
+/*
+static PyObject *rotstar_misaligned_Omega(PyObject *self, PyObject *args) {
+
+  const char * fname = "rotstar_misaligned_Omega";
+  
+  double p[2];
+
+  PyObject *o_misalignment;
+  
+  PyArrayObject *X;  
+  
+  if (!PyArg_ParseTuple(args, 
+        "dOO!", p, 
+        &o_misalignment,
+        &PyArray_Type, &X)
+     ) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  if (PyFloat_Check(o_misalignment)) {    
+    s = std::sin(PyFloat_AsDouble(o_misalignment));
+  } else if (PyArray_Check(o_misalignment)) {
+    s = ((double*) PyArray_DATA((PyArrayObject*)o_misalignment))[0];
+  } else {
+    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    return NULL;
+  }
+
+  p[1] = 0; // Omega
+  
+  Trot_star<double> b(p);
+
+  return PyFloat_FromDouble(-b.constrain((double*)PyArray_DATA(X)));
+}
+*/
 
 /*
   C++ wrapper for Python code:
@@ -1857,6 +1982,7 @@ static PyObject *sphere_Omega(PyObject *self, PyObject *args) {
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
+//#define DEBUG
 static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
   
   const char * fname = "roche_marching_mesh";
@@ -1982,22 +2108,31 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     return NULL;
   }
   
+  #if defined(DEBUG)
+  std::cerr.precision(16);
+  std::cerr 
+    << "choice=" << choice << '\n' 
+    << "r=" << r[0] << " " <<  r[1] << " " << r[2] << '\n'
+    << "g=" << g[0] << " " <<  g[1] << " " << g[2] << '\n';
+  #endif
+ 
   //
   //  Marching triangulation of the Roche lobe 
   //
     
   double params[4] = {q, F, d, Omega0};
   
-  #if 0
+  #if defined(DEBUG)
   std::cerr.precision(16);
   std::cerr 
     << "q=" << q
     << " F=" << F
     << " d=" << d
     << " Omega0=" << Omega0 
-    << " delta=" << delta << '\n';
+    << " delta=" << delta
+    << " full=" << b_full <<'\n';
   #endif
-    
+  
   Tmarching<double, Tgen_roche<double>> march(params);  
   
   std::vector<T3Dpoint<double>> V, NatV;
@@ -2015,7 +2150,7 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
     return NULL;
   }
   
-  #if 0
+  #if defined(DEBUG)
   std::cerr 
     << "V.size=" << V.size() 
     << " Tr.size=" << Tr.size() << '\n';
@@ -2109,6 +2244,9 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
   
   return results;
 }
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 
 /*
   C++ wrapper for Python code:
@@ -2148,7 +2286,10 @@ static PyObject *roche_marching_mesh(PyObject *self, PyObject *args, PyObject *k
       centers: boolean, default False
       cnormals: boolean, default False
       cnormgrads: boolean, default False
-      init_phi: float, default 0
+      init_phi: float, default 0  
+        orientation of the initial polygon front
+      init_dir: 1-rank numpy array of floats = [theta, phi], default [0,0]
+        direction of the initial point in marching given by spherical angles
 
   Returns:
   
@@ -2233,9 +2374,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     (char*)"area",
     (char*)"volume",
     (char*)"init_phi",
+    (char*)"init_dir",
     NULL};
   
-  double omega, Omega0, delta, init_phi = 0;   
+  double omega, Omega0, delta, 
+         init_phi = 0, init_dir[2] = {0., 0.};  
   
   int max_triangles = 10000000; // 10^7
       
@@ -2266,10 +2409,12 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
     *o_cnormgrads = 0,
     *o_areas = 0,
     *o_area = 0,
-    *o_volume = 0; 
+    *o_volume = 0;
+    
+  PyArrayObject *o_init_dir = 0; 
 
   if (!PyArg_ParseTupleAndKeywords(
-      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!d", kwlist,
+      args, keywds,  "ddd|iO!O!O!O!O!O!O!O!O!O!O!O!dO!", kwlist,
       &omega, &Omega0, &delta, // neccesary 
       &max_triangles,
       &PyBool_Type, &o_full,       
@@ -2284,7 +2429,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
       &PyBool_Type, &o_areas,
       &PyBool_Type, &o_area,
       &PyBool_Type, &o_volume,
-      &init_phi)
+      &init_phi,
+      &PyArray_Type, &o_init_dir)
   ){
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
@@ -2302,6 +2448,11 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   if (o_areas) b_areas = PyObject_IsTrue(o_areas);
   if (o_area) b_area = PyObject_IsTrue(o_area);
   if (o_volume) b_volume = PyObject_IsTrue(o_volume);
+  if (o_init_dir) {
+    double *p = (double*)PyArray_DATA(o_init_dir);
+    init_dir[0] = p[0];
+    init_dir[1] = p[1];
+  }
      
   //
   // Storing results in dictioonary
@@ -2315,7 +2466,8 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
   //
   
   double r[3], g[3];
-  rot_star::meshing_start_point(r, g, Omega0, omega);
+  //rot_star::meshing_start_point(r, g, Omega0, omega);
+  rot_star::point_on_surface(init_dir[0], init_dir[1], Omega0, omega, r, g);
  
   //
   //  Marching triangulation of the Roche lobe 
@@ -3043,14 +3195,16 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
      
   npy_intp dims[1] = {Nt};
 
+  #if defined(USING_SimpleNewFromData) 
   double *M = new double [Nt], *p = M;
- 
-  for (auto && m: Mt) 
-    *(p++) = (m == hidden ? 0 : (m == partially_hidden ? 0.5 : 1.0));
-  
+  for (auto && m: Mt) *(p++) = (m == hidden ? 0 : (m == partially_hidden ? 0.5 : 1.0));
   PyObject *pya = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, M);
-  
   PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *pya = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+  double *M = (double *) PyArray_DATA((PyArrayObject *)pya);
+  for (auto && m: Mt) *(M++) = (m == hidden ? 0 : (m == partially_hidden ? 0.5 : 1.0));
+  #endif
   
   return pya;
 }
@@ -4721,7 +4875,7 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
     return NULL;
   }
   
-  double *xrange = new double [2];
+  double xrange[2];
   
   if (!gen_roche::lobe_xrange(xrange, choice, Omega0, q, F, d, true)){
       std::cerr << "roche_xrange::Determining lobe's boundaries failed\n";
@@ -4730,9 +4884,16 @@ static PyObject *roche_xrange(PyObject *self, PyObject *args, PyObject *keywds) 
   
   npy_intp dims = 2;
   
-  PyObject *results = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, xrange);
-  
+  #if defined(USING_SimpleNewFromData)
+  double *p = new double [2];
+  p[0] = xrange[0], p[1] = xrange[1];
+  PyObject *results = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, p);
   PyArray_ENABLEFLAGS((PyArrayObject *)results, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *results = PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
+  double *p = (double *)PyArray_DATA((PyArrayObject *)results);
+  p[0] = xrange[0], p[1] = xrange[1];
+  #endif
   
   return results;
 }
@@ -4916,6 +5077,13 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
           gen_roche::poleR(Omega0, q, F, d)
         ));      
   }
+
+    // extend the ranges for better subdivision
+
+  for (int i = 0; i < 3; ++i){
+    ranges[i][0] += 0.1*ranges[i][0];
+    ranges[i][1] -= 0.1*ranges[i][0];
+  }
   
   //
   // Determining characteristics of the grid
@@ -4925,14 +5093,23 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     r0[i] = ranges[i][0];
     L[i] = (ranges[i][1] - ranges[i][0])/(dims[i]-1);
   }
-
   
   //
   // Scan over the Roche lobe
   //
   int size = dims[0]*dims[1]*dims[2];
   
+  npy_intp nd[3];
+  for (int i = 0; i < 3; ++i) nd[i] = dims[i];
+  
+  #if defined(USING_SimpleNewFromData)
   std::uint8_t *mask = new std::uint8_t [size];
+  PyObject *o_mask = PyArray_SimpleNewFromData(3, nd, NPY_UINT8, mask);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_mask, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *o_mask = PyArray_SimpleNew(3, nd, NPY_UINT8);
+  std::uint8_t *mask = (uint8_t *)PyArray_DATA((PyArrayObject*)o_mask);
+  #endif
   
   {
     double params[4] = {q, F, d, Omega0}, r[3]; 
@@ -4968,7 +5145,6 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     
     std::uint8_t b, *m_prev, *m = mask;
     
-
     // scan along z direction
     for (u[0] = 0; u[0] < dims[0]; ++u[0])
       for (u[1] = 0; u[1] < dims[1]; ++u[1]) {
@@ -5040,11 +5216,14 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
   // Returning results
   //
   
+  nd[0] = 3;
+  nd[1] = 2;
+    
+  #if defined(USING_SimpleNewFromData)
   double 
     *origin = new double [3],
     *steps = new double [3],
     *bbox = new double [6];
-
 
   for (int i = 0; i < 3; ++i){
     origin[i] = r0[i];
@@ -5053,8 +5232,6 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
     bbox[2*i + 1] = ranges[i][1];
   }
   
-  npy_intp nd[3] = {3, 2, 0};
-    
   PyObject 
     *o_origin = PyArray_SimpleNewFromData(1, nd, NPY_DOUBLE, origin),
     *o_steps = PyArray_SimpleNewFromData(1, nd, NPY_DOUBLE, steps),
@@ -5065,9 +5242,26 @@ static PyObject *roche_square_grid(PyObject *self, PyObject *args, PyObject *key
   PyArray_ENABLEFLAGS((PyArrayObject *)o_bbox, NPY_ARRAY_OWNDATA);
   
   // storing the mask
-  for (int i = 0; i < 3; ++i) nd[i] = dims[i];
-  PyObject *o_mask = PyArray_SimpleNewFromData(3, nd, NPY_UINT8, mask);
-  PyArray_ENABLEFLAGS((PyArrayObject *)o_mask, NPY_ARRAY_OWNDATA);
+
+  #else
+  
+  PyObject 
+    *o_origin = PyArray_SimpleNew(1, nd, NPY_DOUBLE),
+    *o_steps = PyArray_SimpleNew(1, nd, NPY_DOUBLE),
+    *o_bbox = PyArray_SimpleNew(2, nd, NPY_DOUBLE);
+  
+  double 
+    *origin = (double*) PyArray_DATA((PyArrayObject *)o_origin),
+    *steps = (double*) PyArray_DATA((PyArrayObject *)o_steps),
+    *bbox = (double*) PyArray_DATA((PyArrayObject *)o_bbox);
+  
+  for (int i = 0; i < 3; ++i){
+    origin[i] = r0[i];
+    steps[i] = L[i];
+    bbox[2*i] = ranges[i][0];
+    bbox[2*i + 1] = ranges[i][1];
+  }
+  #endif
   
   PyObject *results = PyDict_New();
   PyDict_SetItemStringStealRef(results, "origin", o_origin);
@@ -5337,18 +5531,20 @@ static PyObject *ld_gradparD(PyObject *self, PyObject *args, PyObject *keywds) {
   }
   
   int nr_par = LD::nrpar(type);
-  
-  double *g = new double [nr_par];
-    
-  LD::gradparD(type, mu, (double*)PyArray_DATA(o_params), g);
-  
-  // Return the results
+
   npy_intp dims = nr_par;
 
+  #if defined(USING_SimpleNewFromData)
+  double *g = new double [nr_par];
+  LD::gradparD(type, mu, (double*)PyArray_DATA(o_params), g);
   PyObject *results = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, g);
-  
   PyArray_ENABLEFLAGS((PyArrayObject *)results, NPY_ARRAY_OWNDATA);
-
+  #else
+  PyObject *results = PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
+  double *g = (double *)PyArray_DATA((PyArrayObject *)results);
+  LD::gradparD(type, mu, (double*)PyArray_DATA(o_params), g);
+  #endif
+  
   return results;
 }
 
@@ -5520,9 +5716,28 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
     return NULL;
   }
   
+  npy_intp planck_dims = wd_atm::N_planck, atm_dims = wd_atm::N_atm;
+  
+  #if defined(USING_SimpleNewFromData) 
   double 
     *planck_table = new double[wd_atm::N_planck],
     *atm_table = new double[wd_atm::N_atm];
+  
+  PyObject 
+    *py_planck = PyArray_SimpleNewFromData(1, &planck_dims, NPY_DOUBLE, planck_table),
+    *py_atm = PyArray_SimpleNewFromData(1, &atm_dims, NPY_DOUBLE, atm_table);
+  
+  PyArray_ENABLEFLAGS((PyArrayObject *)py_planck, NPY_ARRAY_OWNDATA);
+  PyArray_ENABLEFLAGS((PyArrayObject *)py_atm, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject 
+    *py_planck = PyArray_SimpleNew(1, &planck_dims, NPY_DOUBLE),
+    *py_atm = PyArray_SimpleNew(1, &atm_dims, NPY_DOUBLE);
+  
+  double 
+    *planck_table = (double*)PyArray_DATA((PyArrayObject *)py_planck),
+    *atm_table = (double*)PyArray_DATA((PyArrayObject *)py_atm);
+  #endif
   
   //
   // Reading 
@@ -5548,21 +5763,9 @@ static PyObject *wd_readdata(PyObject *self, PyObject *args, PyObject *keywds) {
   //
   
   PyObject *results = PyDict_New();
+  PyDict_SetItemStringStealRef(results, "planck_table", py_planck);
+  PyDict_SetItemStringStealRef(results, "atm_table", py_atm);
   
-  {
-    npy_intp dims = wd_atm::N_planck;
-    PyObject *pya = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, planck_table);
-    PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
-    PyDict_SetItemStringStealRef(results, "planck_table", pya);
-  }
-
- {
-    npy_intp dims = wd_atm::N_atm;
-    PyObject *pya = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, atm_table);
-    PyArray_ENABLEFLAGS((PyArrayObject *)pya, NPY_ARRAY_OWNDATA);
-    PyDict_SetItemStringStealRef(results, "atm_table", pya);
-  }
-
   return results;
 }
 #if 0
@@ -5617,23 +5820,26 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     std::cerr << "wd_planckint::Problem reading arguments\n";
     return NULL;
   }
+  
   //
   // Calculate without checks
   //
   
+  npy_intp dims = 2;
+  
+  #if defined(USING_SimpleNewFromData)
   double *y = new double [2];
+  PyObject *res = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, y);
+  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *res = PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
+  double *y = (double*) PyArray_DATA((PyArrayObject *)res);
+  #endif
       
   wd_atm::planckint(t, ifil, 
                     (double*) PyArray_DATA(oplanck_table), 
                     y[0], y[1]);
   
-  //
-  // Returing result
-  //
-  
-  npy_intp dims = 2;
-  PyObject *res = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, y);
-  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
   
   return res;
 }
@@ -5721,8 +5927,22 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
       return NULL;
     }
     
-    double *t =  (double*) PyArray_DATA((PyArrayObject *)ot),
-            *results = new double [n];
+    double *t =  (double*) PyArray_DATA((PyArrayObject *)ot);
+    
+    //
+    // Prepare space for results
+    //
+    
+    npy_intp dims = n;
+    
+    #if defined(USING_SimpleNewFromData)
+    double *results = new double [n];
+    PyObject *oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, results);
+    PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+    #else
+    PyObject *oresults = PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
+    double *results = (double *)PyArray_DATA((PyArrayObject *)oresults);
+    #endif
     
     //
     //  Calculate ylog for an array 
@@ -5740,17 +5960,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
       std::cerr 
       << "wd_planckint::Failed to calculate Planck central intensity at least once\n";
     }
-    
-    //
-    // Return results
-    //
-  
-    npy_intp dims = n;
-    PyObject *oresults = 
-      PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, results);
-      
-    PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
-    
+
     return oresults;
   } 
   
@@ -5793,6 +6003,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     abunin -  the allowed value nearest to the input value.
 */
 static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
+  
   //
   // Reading arguments
   //
@@ -5825,23 +6036,22 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
   //
   // Calculate without checks
   //
+  npy_intp dims = 3;
   
+  #if defined(USING_SimpleNewFromData)
   double *y = new double [3];
-  
+  PyObject *res = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, y);
+  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *res = PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
+  double *y = (double*) PyArray_DATA((PyArrayObject *)res);
+  #endif
   y[2] = abunin;
       
   wd_atm::atmx(t, logg, y[2], ifil, 
               (double*)PyArray_DATA(oplanck_table), 
               (double*)PyArray_DATA(oatm_table), 
               y[0], y[1]);
-  
-  //
-  // Returing result
-  //
-  
-  npy_intp dims = 3;
-  PyObject *res = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, y);
-  PyArray_ENABLEFLAGS((PyArrayObject *)res, NPY_ARRAY_OWNDATA);
   
   return res;
 }
@@ -5897,6 +6107,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     abunin -  allowed value nearest to the input value.
 */
 static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
+  
   //
   // Reading arguments
   //
@@ -5912,7 +6123,6 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     NULL
   };
   
-
   int ifil;
 
   bool return_abunin = false;
@@ -5985,9 +6195,19 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     //
     
     if (n == -1){ // single calculation
-    
-      double *r = new double[2]; // to store results
-
+      
+      // prepare numpy array to store the results
+      npy_intp dims = 2;
+      
+      #if defined(USING_SimpleNewFromData)
+      double *r = new double[2];
+      oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, r); 
+      PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+      #else
+      oresults = PyArray_SimpleNew(1, &dims, NPY_DOUBLE); 
+      double *r = (double*)PyArray_DATA((PyArrayObject *)oresults);
+      #endif
+      
       r[1] = abunin;
       
       // do calculation    
@@ -5996,15 +6216,21 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         r[0] = std::nan("");
       }
       
-      // store results in numpy array
-      npy_intp dims = 2;
-      oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, r);
-      
     } else {  // calculation whole array
      
+     
+      // prepare numpy array to store the results
+      npy_intp dims[2] = {n, 2};
+      
+      #if defined(USING_SimpleNewFromData)
       double *results = new  double [2*n]; // to store results
+      oresults = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, results); 
+      PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+      #else
+      oresults = PyArray_SimpleNew(2, dims, NPY_DOUBLE); 
+      double *results = (double*)PyArray_DATA((PyArrayObject *)oresults);
+      #endif
 
-             
       bool ok = true;
       for (double *r = results, *r_e = r + 2*n; r != r_e; r += 2, ++pt, ++plogg, ++pabunin){
         
@@ -6018,13 +6244,8 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       
       if (!ok)
         std::cerr << "wd_atmint::Failed to calculate logarithm of intensity at least once\n";
-      
-      // store results in numpy array
-      npy_intp dims[2] = {n, 2};
-      oresults = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, results); 
     }    
-    
-    PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+
     
   } else {                    // returning only logarithm of intensities
 
@@ -6045,9 +6266,20 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
        
     } else { // calculation whole array
       
-      double *results = new double [n],  // to store results
-             tmp;
-              
+      // prepare numpy array to store the results
+      npy_intp dims = n;
+      
+      #if defined(USING_SimpleNewFromData)
+      double *results = new double [n];
+      oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, results); 
+      PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
+      #else
+      oresults = PyArray_SimpleNew(1, &dims, NPY_DOUBLE); 
+      double *results = (double*)PyArray_DATA((PyArrayObject *)oresults);
+      #endif
+            
+      double tmp;        
+      
       bool ok = true;
       
       for (double *r = results, *r_e = r + n; r != r_e; ++r, ++pt, ++plogg, ++pabunin){
@@ -6063,11 +6295,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       if (!ok)
         std::cerr 
         << "wd_atmint::Failed to calculate logarithm of intensity at least once\n";
-      
-      npy_intp dims = n;
-      oresults = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, results);
-      PyArray_ENABLEFLAGS((PyArrayObject *)oresults, NPY_ARRAY_OWNDATA);
-    }  
+    }
   }
   
   return oresults;
@@ -6165,11 +6393,10 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
       Nr = Np*Nv;                     // number of returned values
   
   double
-    *R = new double [Nr],                 // returned values
     *Q = (double *) PyArray_DATA(o_req1),  // requested values
     *G = (double *) PyArray_DATA(o_grid1); // grid of values
     
-
+  
   // Unpack the axes
   int *L = new int [Na];      // number of values in axes
   double **A = new double* [Na]; // pointers to tuples in axes
@@ -6183,6 +6410,20 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
     }
   }
   
+  //
+  // Prepare for returned values
+  //
+  npy_intp dims[2] = {Np, Nv};
+  
+  #if defined(USING_SimpleNewFromData)
+  double *R = new double [Nr];
+	PyObject *o_ret = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, R);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_ret, NPY_ARRAY_OWNDATA);
+  #else
+	PyObject *o_ret = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+  double *R = (double *) PyArray_DATA((PyArrayObject *)o_ret);
+  #endif
+    
   //
   // Do interpolation
   //
@@ -6200,15 +6441,67 @@ static PyObject *interp(PyObject *self, PyObject *args, PyObject *keywds) {
   delete [] L;  
   delete [] A;
 
-  //
-  // Return results
-  //
-   
-  npy_intp dims[2] = {Np, Nv};
-	PyObject *o_ret = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, R);
-  PyArray_ENABLEFLAGS((PyArrayObject *)o_ret, NPY_ARRAY_OWNDATA);
-    
   return o_ret;
+}
+
+/*
+  Calculate cosine of the angle of scalar projections
+  
+    r[i] = x[i].y[i]/(|x[i]| |y[i]|)    i = 0, ..., n -1
+  
+  Input:
+    x : 2-rank numpy array
+    y : 2-rank numpy array
+   
+  Return:
+    r: 1- rank numpy array
+*/ 
+static PyObject *scalproj_cosangle(PyObject *self, PyObject *args) {
+  
+  const char *fname = "vec_proj";
+  
+  PyArrayObject *o_x, *o_y;  
+  
+  if  (!PyArg_ParseTuple(args, 
+        "O!O!",  
+        &PyArray_Type, &o_x, 
+        &PyArray_Type, &o_y)
+      ){
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+  
+  int n = PyArray_DIM(o_x, 0);
+  
+  npy_intp dims = n;
+	
+  double 
+    s, x, y,
+    *px = (double*)PyArray_DATA(o_x),
+    *py = (double*)PyArray_DATA(o_y);
+ 
+  #if defined(USING_SimpleNewFromData)
+  double *r = new double [n];
+  PyObject *o_r = PyArray_SimpleNewFromData(1, &dims, NPY_DOUBLE, r);
+  PyArray_ENABLEFLAGS((PyArrayObject *)o_r, NPY_ARRAY_OWNDATA);
+  #else
+  PyObject *o_r = PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
+  double *r = (double *)PyArray_DATA((PyArrayObject *)o_r);
+  #endif
+    
+  for (double *p = r, *pe = r + n; pe != p; ++p) {
+   
+    s = x = y = 0;
+    for (int i = 0; i < 3; ++i, ++px, ++py) {
+     s += (*px)*(*py);
+     x += (*px)*(*px);
+     y += (*py)*(*py);
+    }
+
+    *p = s/std::sqrt(x*y);
+  }  
+  
+  return o_r;
 }
 
 /*
@@ -6506,8 +6799,16 @@ static PyMethodDef Methods[] = {
 // --------------------------------------------------------------------
 
  {"interp", 
-  (PyCFunction)interp, METH_VARARGS|METH_KEYWORDS, 
+  (PyCFunction)interp, 
+  METH_VARARGS|METH_KEYWORDS, 
   "Multi-dimensional linear interpolation of arrays with gridded data."},  
+ 
+// --------------------------------------------------------------------
+
+ {"scalproj_cosangle", 
+  scalproj_cosangle,
+  METH_VARARGS, 
+  "Calculate normalized projections of vectors."},  
   
   {NULL,  NULL, 0, NULL} // terminator record
 };

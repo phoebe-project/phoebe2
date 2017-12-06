@@ -27,8 +27,10 @@
 // Tested using g++ 5.4 and Intel icpc (ICC) 16.0.2 20160204 on 
 // Intel(R) Core(TM) i7-4600U CPU @ 2.10GHz
 
-#if !defined(TARGET_HAS_SINCOS)
-#define TARGET_HAS_SINCOS 1             // default behavior
+#if defined(__GNUC__) || defined(__clang__)
+#define TARGET_HAS_SINCOS 1             
+#else
+#define TARGET_HAS_SINCOS 0             
 #endif
 
 namespace utils {

@@ -519,6 +519,39 @@ namespace gen_roche {
       v[2] = 2*(1/(t1*t1*t1) + q/(t2*t2*t2)) + b;
   }
   
+  template <class T, class F>
+  T polish_xborder(
+    const T & w1, 
+    const T & q1, 
+    const T & b1,
+    const T & t1) {
+  
+    const int max_iter = 10;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();
+            
+    int it = 0;
+    
+    F t = t1, w = w1, q = q1, b = b1, dt, v[2]; 
+
+    do {
+      rescaled_potential_on_x_axis(v, 3, t, q, b);
+        
+      t -= (dt = (v[0] - w)/v[1]); 
+        
+    } while (std::abs(dt) > eps*std::abs(t) + min && ++it < max_iter);
+    
+    if (it >= max_iter){
+      std::cerr.precision(std::numeric_limits<F>::digits10+1);
+      std::cerr 
+        << "polish_xborder:" << '\n'
+        <<  "w=" << w << " q=" << q << " b=" << b << " t=" << t 
+        << std::endl;
+    }
+
+    return T(t);
+  }
+   
   /*
     Finding range on x-axis for each lobe separately
     
@@ -542,99 +575,109 @@ namespace gen_roche {
     const T & b
   ) {
     
+    const char *fname = "left_lobe_left_xborder";
+    
+    const int max_iter = 100;
+    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();      
+    
+    //
+    // Is solution is near to Lagrange point? 
+    //
+    
+    T l = lagrange_point_L2(q, std::sqrt(b/(1 + q)), 1.);
+    
+    if (q*(1/(1 - l) - l) - 1/l + b*l*l/2 == w) return l;
+    
+    //
+    // Cases away from Lagrange point
+    //  
+    
     T t;
     
-    bool direct = true;
-     
-    if (w > 100 && 2*q < w){  // w->infty
+    if (w > 100) {
       
-      T q2 = q*q,
-        s = 1/w,
-        a[8] = {1, q, q2, b/2 + q*(1 + q2), 
-          q*(-1 + 2*b + q*(4 + q2)),
-          q*(1 + q*(-5 + 5*b + q*(10 + q2))), 
-          b*(3*b/4 + q*(3 + 10*q2)) + q*(-1 + q*(9 + q*(-15 + q*(20 + q2)))),
-          q*(1 + b*(-3.5 + 21*b/4) + q*(-14 + 21*b + q*(42 + q*(-35 + 35*b/2 + q*(35 + q2)))))
-        };
+      if (2*q < w){  // w->infty
       
-      t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        T q2 = q*q,
+          s = 1/w,
+          a[8] = {1, q, q2, b/2 + q*(1 + q2), 
+            q*(-1 + 2*b + q*(4 + q2)),
+            q*(1 + q*(-5 + 5*b + q*(10 + q2))), 
+            b*(3*b/4 + q*(3 + 10*q2)) + q*(-1 + q*(9 + q*(-15 + q*(20 + q2)))),
+            q*(1 + b*(-3.5 + 21*b/4) + q*(-14 + 21*b + q*(42 + q*(-35 + 35*b/2 + q*(35 + q2)))))
+          };
         
-      t = -t;
-       
-      direct = false;
-       
-    } else if (w > 100 && q < w) { // w->infty, q ~ w
-    
-      T a = b/(1 + q),
-        s = 1/w,
-        f = q*s,
-        f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
-        s1 = 1/(w - q),
-        
-        // denominator
-        D[8] = {1, 1, 2*f1, 2*f1, 4*f12, 2*f12, 4*f13, 4*f13},
-        
-        // numerator
-        N[8] = {1, 0, (-2 - a)*f, -a + (2 + a)*f, f*(4 + (8 + a*(12 + 3*a))*f),
-          f*(-2 + a*(6 + 3*a) + (-12 + (-13 - 3*a)*a)*f),
-          -3*a*a + f*(-4 + a*(14 + 9*a) + f*(-40 + (-44 - 9*a)*a + (-4 + a*(-42 + (-33 - 6*a)*a))*f)),
-          f*(4 - 16*a + f*(64 + a*(-22 + (-72 - 18*a)*a) + (112 + a*(218 + a*(117 + 18*a)))*f))},
-        C[8];
-        
-      for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
-        
-      t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+          
+        t = -t;         
+      } else if (q < w) { // w->infty, q ~ w
       
-      t = -t;
+        T a = b/(1 + q),
+          s = 1/w,
+          f = q*s,
+          f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
+          s1 = 1/(w - q),
+          
+          // denominator
+          D[8] = {1, 1, 2*f1, 2*f1, 4*f12, 2*f12, 4*f13, 4*f13},
+          
+          // numerator
+          N[8] = {1, 0, (-2 - a)*f, -a + (2 + a)*f, f*(4 + (8 + a*(12 + 3*a))*f),
+            f*(-2 + a*(6 + 3*a) + (-12 + (-13 - 3*a)*a)*f),
+            -3*a*a + f*(-4 + a*(14 + 9*a) + f*(-40 + (-44 - 9*a)*a + (-4 + a*(-42 + (-33 - 6*a)*a))*f)),
+            f*(4 - 16*a + f*(64 + a*(-22 + (-72 - 18*a)*a) + (112 + a*(218 + a*(117 + 18*a)))*f))},
+          C[8];
+          
+        for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
+          
+        t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+        
+        t = -t;
+      }
+        
+      return polish_xborder<T,long double>(w, q, b, t);
+    } 
+
+    const int method = 0;
     
-      direct = false;
-    }
-    
-    #if 0
-    std::cerr << "D" << direct << '\n';
-    #endif
-     
-    if (!direct) {
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-            
+    if (method == 0) {  // Bisection on [-|l|,0]
+      
       int it = 0;
-      
-      T dt, v[2]; 
-      
-      #if 0
-      std::cerr << "t0=" << t  << '\n';
-      #endif
+        
+      long double f, x[2] = {l, 0};
       
       do {
-        // note: working with 
-        rescaled_potential_on_x_axis(v, 3, t, q, b);
+        t = (x[0] + x[1])/2;
+        
+        f = q*(1/(1 - t) - t) - 1/t + b*t*t/2 - w;
+        
           
-        t -= (dt = (v[0] - w)/v[1]); 
-          
-        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-      } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+        if (f == 0) return t;
+        
+        if (f > 0) x[1] = t; else x[0] = t;
       
-      if (!(it < iter_max))
-        std::cerr << "left_lobe_left_xborder::slow convergence\n";
-      
-      #if 0
-      std::cerr << "t1=" << t  << '\n';
-      #endif
-      
-      return t;
-    }
+      } while (std::abs(x[1] - x[0]) > eps*std::max(std::abs(x[0]), std::abs(x[1])) + min && ++it < max_iter);
     
-    std::vector<long double> roots;
+      if (it >= max_iter)
+        std::cerr 
+          << fname << "::too many iterations\n"
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n';
+      else 
+        return t;
+          
+    } else {  // Solving general quartic eq.
+            
+      std::vector<long double> roots;
 
-    long double a[5] = {2, 2*(1 + q - w), 2*(q - w), b + 2*q, b};
-    
-    utils::solve_quartic(a, roots);
-    
-    // grab smallest root positive
-    for (auto && v : roots) if (v > 0) return  -v;
+      long double a[5] = {2, 2*(1 + q - w), 2*(q - w), b + 2*q, b};
+      
+      utils::solve_quartic(a, roots);
+      
+      // grab smallest root positive
+      for (auto && v : roots) if (v > 0) return  -v;
+  
+    }
     
     return std::nan("");
   }
@@ -643,110 +686,129 @@ namespace gen_roche {
     Solving:
 
       q (1/(1 - t) - t) + 1/t + 1/2 b t^2 = w
-      
-      solution = t
+    
+    with
+      w = delta Omega
+      q = M2/M1
+      b = delta^3 F^2(1 + q)
+    
+    Return:    
+      t
   */
-
+  //#define DEBUG
   template <class T>
   T left_lobe_right_xborder(
     const T & w, 
     const T & q, 
     const T & b
   ) {
+    
+    const char *fname = "left_lobe_right_xborder";
+    
+    const int max_iter = 100;
+    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();      
   
-    T t;
+    //
+    // Is solution is near to Lagrange point? 
+    //
     
-    bool direct = true;
+    T l = lagrange_point_L1(q, std::sqrt(b/(1 + q)), 1.), t = l;
     
-    if (w > 100 && 2*q < w){  // w->infty
+    if (q*(1/(1 - t) - t) + 1/t + b*t*t/2 == w) return t;
+  
+    //
+    // Cases away from Lagrange point
+    //  
+    
+    if (w > 100) {  // w->infty
       
-      T q2 = q*q,
-        s = 1/w,
-        a[8] = {1, q, q2, b/2 + q*(1 + q2), 
-          q*(1 + 2*b + q*(4 + q2)), 
-          q*(1 + q*(5 + 5*b + q*(10 + q2))), 
-          b*(3*b/4 + q*(3 + 10*q2)) + q*(1 + q*(9 + q*(15 + q*(20 + q2)))),
-          q*(1 + b*(3.5 + 21*b/4) + q*(14 + 21*b + q*(42 + q*(35 + 35*b/2 + q*(35 + q2)))))
-        };
+      if (2*q < w){  
       
-      t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+        T q2 = q*q,
+          s = 1/w,
+          a[8] = {1, q, q2, b/2 + q*(1 + q2), 
+            q*(1 + 2*b + q*(4 + q2)), 
+            q*(1 + q*(5 + 5*b + q*(10 + q2))), 
+            b*(3*b/4 + q*(3 + 10*q2)) + q*(1 + q*(9 + q*(15 + q*(20 + q2)))),
+            q*(1 + b*(3.5 + 21*b/4) + q*(14 + 21*b + q*(42 + q*(35 + 35*b/2 + q*(35 + q2)))))
+          };
         
-      direct = false;
-      
-    } else if (w > 100 && q < w) {   // w->infty, w ~ q
-      
-      T a = b/(1 + q),
-        s = 1/w,
-        f = q*s,
-        f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
-        s1 = 1/(w - q),
+        t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
+          
+      } else if (q < w) {
+              
+        T a = b/(1 + q),
+          s = 1/w,
+          f = q*s,
+          f1 = 1 - f, f12 = f1*f1, f13 = f12*f1,
+          s1 = 1/(w - q),
+          
+          // denominator
+          D[8] = {1, 1, 2*f1, 2*f1, 4*f12, 2*f12, 4*f13, 4*f13},
+          
+          // numerator
+          N[8] ={1, 0, (-2 - a)*f, -a + (-2 + a)*f, f*(4 + (8 + a*(12 + 3*a))*f),
+            f*(2 + a*(6 + 3*a) + (12 + (1 - 3*a)*a)*f),
+            -3*a*a + f*(-4 + a*(-14 + 9*a) + f*(-40 + (12 - 9*a)*a + (-4 + a*(-70 + (-33 - 6*a)*a))*f)),
+            f*(-4 - 16*a + f*(-64 + a*(-58 + (-72 - 18*a)*a) + (-112 + a*(-106 + a*(27 + 18*a)))*f))},
+          C[8];
+          
+        for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
+          
+        t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
+      }
         
-        // denominator
-        D[8] = {1, 1, 2*f1, 2*f1, 4*f12, 2*f12, 4*f13, 4*f13},
-        
-        // numerator
-        N[8] ={1, 0, (-2 - a)*f, -a + (-2 + a)*f, f*(4 + (8 + a*(12 + 3*a))*f),
-          f*(2 + a*(6 + 3*a) + (12 + (1 - 3*a)*a)*f),
-          -3*a*a + f*(-4 + a*(-14 + 9*a) + f*(-40 + (12 - 9*a)*a + (-4 + a*(-70 + (-33 - 6*a)*a))*f)),
-          f*(-4 - 16*a + f*(-64 + a*(-58 + (-72 - 18*a)*a) + (-112 + a*(-106 + a*(27 + 18*a)))*f))},
-        C[8];
-        
-      for (int i = 0; i < 8; ++i) C[i] = N[i]/D[i];
-        
-      t = s/f1*(C[0] + s1*(C[1] + s1*(C[2] + s1*(C[3] + s1*(C[4] + s1*(C[5] + s1*(C[6] + s1*C[7])))))));
-      
-      direct = false;
+      return polish_xborder<T,long double>(w, q, b, t);
     }
+   
+    const int method  = 0;
     
-    #if 0
-    std::cerr << "D" << direct << '\n';
-    #endif
-    
-    if (!direct) {
-    
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
+    if (method  == 0) { // Bisection on [0,l] 
       
       int it = 0;
-       
-      T dt, v[2]; 
-      
-      #if 0
-      std::cerr << "t0=" << t  << '\n';
-      #endif
-      
+        
+      long double f, x[2] = {0, l};
+    
       do {
-        rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-        t -= (dt = (v[0] - w)/v[1]); 
-          
-        //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-      } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
+        t = (x[0] + x[1])/2;
+        
+        f = q*(1/(1 - t) - t) + 1/t + b*t*t/2 - w;
+        
+        if (f == 0) return t;
+        
+        if (f < 0) x[1] = t; else x[0] = t;
       
-      if (!(it < iter_max))
-        std::cerr << "left_lobe_right_xborder::slow convergence\n";
+      } while (std::abs(x[1] - x[0]) > eps*std::max(x[0], x[1]) + min && ++it < max_iter );
+    
+      if (it >= max_iter)
+        std::cerr 
+          << fname << "::too many iterations\n"
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n'; 
+      else 
+        return t;
       
-      #if 0
-      std::cerr << "t1=" << t  << '\n';
+    } else { // Solving general quartic eq.
+      
+      std::vector<long double> roots;
+
+      long double a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
+      
+      #if defined(DEBUG)
+      std::cerr.precision(16);
+      for (int i = 0; i < 5; ++i) std::cerr << "a[" << i << "]=" << a[i] << '\n';
       #endif
       
-      return t;
+      utils::solve_quartic(a, roots);
+
+      for (auto && v : roots) if (0 < v && v < 1) return v;
     }
-    
-    std::vector<long double> roots;
-
-    long double a[5] = {2, 2*(-1 + q - w), 2*(-q + w), b + 2*q, -b};
-    
-    //for (int i = 0; i < 5; ++i) std::cout << "a=" << a[i] << '\n';
-    utils::solve_quartic(a, roots);
-
-    // grab the smallest/first root in [0,1]
-
-    for (auto && v : roots) if (0 < v && v < 1) return v;
-    
+      
     return std::nan("");
   }
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /* 
     Solving:
@@ -764,16 +826,29 @@ namespace gen_roche {
     const T & b
   ) {
     
-     T p = 1/q,
-       c = p*b,
-       r = p*(w - b/2) + 1;
+    const char *fname = "right_lobe_left_xborder";
+    
+    const int max_iter = 100;
+    const T eps = 2*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min();      
+  
+    //
+    // Is solution is near to Lagrange point? 
+    //
+    
+    T l = lagrange_point_L1(q, std::sqrt(b/(1 + q)), 1.), t = l;
+    
+    if (q*(1/(1 - t) - t) + 1/t + b*t*t/2 == w) return t;
+  
+    //
+    // Cases away from Lagrange point
+    //  
+
+    T p = 1/q,
+      c = p*b,
+      r = p*(w - b/2) + 1;
      
-     if (r > 100 && r > 2*p){  // w->infty
-      
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
-      
+    if (r > 100 && r > 2*p){  // w->infty
       T p2 = p*p,
         s = 1/r,
         a[8] = {1, p, 1 - c + p*(1 + p), c*(0.5 - 3*p) + p*(4 + p*(3 + p)),
@@ -783,67 +858,103 @@ namespace gen_roche {
           c*(10.5 + c*(-21 + c*(10.5 - 35*p) + p*(110.25 + p*(52.5 + 70*p))) + p*(-129.5 + p*(-210 + p*(-297.5 + (-122.5 - 21*p)*p)))) + p*(64 + p*(210 + p*(385 + p*(315 + p*(126 + p*(21 + p))))))
         },
         t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
-        
-       int it = 0;
-       
-       T dt, v[2]; 
-       
-       t = 1 - t;
-       
-       do {
-          // note: working with 
-          rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-          t -= (dt = (v[0] - w)/v[1]); 
-          
-          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-       } while ( std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
-      
-      if (!(it < iter_max))
-        std::cerr << "right_lobe_left_xborder::slow convergence\n";
-
-      return t;
+    
+      return polish_xborder<T,long double>(w, q, b, 1 - t);
     }
     
-  
-    std::vector<T> roots;
+    const int method = 0;
     
-    T a[5] = {2, 2*(-1 + p - r), 2*(1 - c + r), 2 + 3*c, -c};
-   
-    utils::solve_quartic(a, roots);
+    if (method == 0) {  // Bisection on [l, 1] 
       
-    // grab the smallest root in [0,1] 
-    for (auto && v : roots) if (0 < v && v < 1) return 1 - v;
+      int it = 0;
+        
+      long double f, x[2] = {l, 1};
+      
+      do {
+        t = (x[0] + x[1])/2;
+        
+        f = q*(1/(1 - t) - t) + 1/t + b*t*t/2 - w;
+        
+        if (f == 0) return t;
+        
+        if (f < 0) x[0] = t; else x[1] = t;
+      
+      } while (std::abs(x[1] - x[0]) > eps*std::max(x[0], x[1]) + min && ++it < max_iter);
+    
+      if (it >= max_iter)
+        std::cerr 
+          << fname << "::too many iterations\n"
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n';
+      else 
+        return t;
+          
+    } else { // Solving general quartic eq.
+          
+      std::vector<long double> roots;
+      
+      long double a[5] = {2, 2*(-1 + p - r), 2*(1 - c + r), 2 + 3*c, -c};
+     
+      utils::solve_quartic(a, roots);
+        
+      // grab the smallest root in [0,1] 
+      for (auto && v : roots) if (0 < v && v < 1) return 1 - v;
+    }
     
     return std::nan("");
   }
 
   /* 
     Solving:
-      p = 1/q,  c = p b, r = p(w - b/2) + 1,
+      a) p = 1/q,  c = p b, r = p(w - b/2) + 1,
     
       1/t + (-1 + c) t + (c t^2)/2 + p/(1 + t)  = r
+    
+      b)
+      1/(t + 1) + q (1/t - t - 1) + 1/2 a (1 + q) (t + 1)^2 = w
       
-      solution = 1 + t 
+    with
+      w = delta Omega
+      q = M2/M1
+      b = delta^3 F^2(1 + q)  
+    
+    Return:
+      1 + t 
   */
-
+// #define DEBUG
   template <class T>
   T right_lobe_right_xborder(
     const T & w, 
     const T & q, 
     const T & b
   ) {
-      
-     T p = 1/q,
-       c = p*b,
-       r = p*(w - b/2) + 1;
+    
+    #if defined(DEBUG)
+    std::cerr << fname << "::START" << std::endl;
+    #endif
+    
+    const char *fname = "right_lobe_right_xborder";
+        
+    const int max_iter = 100;
+    const T eps = 10*std::numeric_limits<T>::epsilon();
+    const T min = 10*std::numeric_limits<T>::min(); 
+    
+    //
+    // Check if it is on the Lagrange point
+    //
+    
+    T l = lagrange_point_L3(q, std::sqrt(b/(1 + q)), 1.), t = l;
+   
+    if (q*(1/(t-1) - t) + 1/t + b*t*t/2 == w) return t;
+    
+    //
+    // Cases away from Lagrange point
+    //  
+    
+    T p = 1/q,
+      c = p*b,
+      r = p*(w - b/2) + 1;
      
-     if (r > 100 && r > 2*p){  // w->infty
-      
-      const int iter_max = 10;
-      const T eps = 10*std::numeric_limits<T>::epsilon();
-      const T min = 10*std::numeric_limits<T>::min();
+    if (r > 100 && r > 2*p){  // w->infty
       
       T p2 = p*p,
         s = 1/r,
@@ -855,42 +966,53 @@ namespace gen_roche {
         },
         t = s*(a[0] + s*(a[1] + s*(a[2] + s*(a[3] + s*(a[4] + s*(a[5] + s*(a[6] + s*a[7])))))));
         
-       int it = 0;
-       
-       T dt, v[2]; 
-       
-       t = 1 + t;
-       
-       do {
-          // note: working with 
-          rescaled_potential_on_x_axis(v, 3, t, q, b);
-          
-          t -= (dt = (v[0] - w)/v[1]); 
-          
-          //std::cerr << it << '\t' << t << '\t' << dt << '\n';
-          
-       } while (std::abs(dt) > eps*std::abs(t) + min && ++it < iter_max);
-      
-      if (!(it < iter_max))
-        std::cerr << "right_lobe_right_xborder::slow convergence\n";
-
-      return t;
+      return polish_xborder<T,long double>(w, q, b, 1 + t);
     }
     
-  
-    std::vector<long double> roots;
+    const int method = 0;
     
-    long double a[5] = {2, 2*(1 + p - r), 2*(-1 + c - r), -2 + 3*c, c};
+    if (method == 0) { // Bisection on [1, l] 
+      
+      int it = 0;
+        
+      long double f, x[2] = {1, l};   // signs on boundary: +, -
+      
+      do {
+        t = (x[0] + x[1])/2;
+        
+        f = q*(1/(t - 1) - t) + 1/t + b*t*t/2 - w;
+        
+        if (f == 0) return t;
+        
+        if (f > 0) x[0] = t; else x[1] = t;
+      
+      } while (std::abs(x[1] - x[0]) > eps*std::max(x[0], x[1]) + min && ++it < max_iter);
+    
+      if (it >= max_iter)
+        std::cerr 
+          << fname << "::too many iterations\n"
+          << "x0=" << x[0] << " x1=" << x[1] << " l=" << l << '\n';
+      else 
+        return t;
+          
+    } else { // Solving general quartic eq.
+ 
+      std::vector<long double> roots;
+      
+      long double a[5] = {2, 2*(1 + p - r), 2*(-1 + c - r), -2 + 3*c, c};
+     
+      utils::solve_quartic(a, roots);
+        
+      // grab the smallest root in [0,1] 
+      for (auto && v : roots) if (0 < v && v < 1) return 1 + v;
+    }
    
-    utils::solve_quartic(a, roots);
-      
-    // grab the smallest root in [0,1] 
-    for (auto && v : roots) if (0 < v && v < 1) return 1 + v;
-      
+    #if defined(DEBUG)
+    std::cerr << fname << "::END" << std::endl;
+    #endif
+    
     return std::nan("");
   }
-  
-  
 
   /*
     Calculate the upper and lower limit of Roche lobes on x-axis
@@ -911,6 +1033,7 @@ namespace gen_roche {
     Output:
       p - x-values of the points on x-axis
   */
+  // #define DEBUG
   template<class T> 
   bool lobe_xrange(
     T xrange[2],
@@ -922,17 +1045,21 @@ namespace gen_roche {
     bool enable_checks = false
     ){
     
+    const char *fname = "lobe_xrange";
+    
+    #if defined(DEBUG)
+    std::cerr << fname << "::START" << std::endl;
+    #endif
+           
     T omega[3], L[3],
       w = Omega0*delta,                   // rescaled potential 
       b = F*F*delta*delta*delta*(1 + q);  // rescaled F^2
       
     if (choice < 0 || choice > 2) return false;
     
-    #if 0
+    #if defined(DEBUG)
     std::cerr.precision(16);
-    std::cerr << std::scientific;
-    std::cerr 
-      << "lobe_xrange:start" << '\n'
+    std::cerr << std::scientific
       << "choice=" << choice << '\n'
       << "w=" << w << '\n'
       << "q=" << q << '\n'
@@ -981,7 +1108,7 @@ namespace gen_roche {
         
         if (!(omega[0] <= Omega0 && omega[1] <= Omega0)) {
           std::cerr 
-            << "lobe_xrange::left lobe does not seem to exist\n"
+            << fname << "::left lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;
@@ -1005,7 +1132,7 @@ namespace gen_roche {
         
         if (!(omega[0] <= Omega0 && omega[2] <= Omega0)) {
           std::cerr 
-            << "lobe_xrange::right lobe does not seem to exist\n"
+            << fname << "::right lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL3=" << omega[2] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;      
@@ -1029,7 +1156,7 @@ namespace gen_roche {
          
         if (!(Omega0 <= omega[0] && Omega0 >= omega[1] && Omega0 >= omega[2])) {
           std::cerr 
-            << "lobe_xrange::contact binary lobe does not seem to exist\n"
+            << fname << "::contact binary lobe does not seem to exist\n"
             << "omegaL1=" << omega[0] << " omegaL2=" << omega[1] << " omegaL3=" << omega[2] << '\n'
             << "Omega0=" << Omega0 << " q=" << q << " F=" << F << " delta=" << delta << '\n'; 
           return false;
@@ -1042,22 +1169,24 @@ namespace gen_roche {
 
 
     if (std::isnan(xrange[0])) {
-      std::cerr << "lobe_xrange::problems with left boundary\n";
+      std::cerr << fname << "::problems with left boundary\n";
       return false;
     }  
 
     if (std::isnan(xrange[1])) {
-      std::cerr << "lobe_xrange::problems with right boundary\n";
+      std::cerr << fname << "::problems with right boundary\n";
       return false;
     }
     
-    #if 0
-    std::cerr << "lobe_xrange:end" << std::endl;
+    #if defined(DEBUG)
+    std::cerr << fname << "::END" << std::endl;
     #endif
     
     return true;
   }
-
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
 
   /* 
     Find the point on the horizon around individual lobes.
@@ -1298,7 +1427,7 @@ namespace gen_roche {
        r - position
        g - gradient
   */
-  
+  // #define DEBUG
   template <class T>
   bool meshing_start_point(
     T r[3], 
@@ -1310,6 +1439,30 @@ namespace gen_roche {
     const T & delta = 1
   ){
     
+    //
+    // Checking if we discuss semi-detached   
+    //
+    
+    if (choice != 2) {
+      
+      const T eps = 10*std::numeric_limits<T>::epsilon();
+      const T min = 10*std::numeric_limits<T>::min();
+      
+      T w, L;
+      
+      critical_potential(&w, &L, 1, q, F, delta);
+    
+      if (std::abs(w - Omega0) < eps*std::max(std::abs(w), std::abs(Omega0)) + min) {
+      
+        g[0] = (choice == 0 ? eps : -eps);  // TODO: don't know if this a good solution 
+        g[1] = g[2] = 0;
+        
+        r[0] = L;
+        r[1] = r[2] = 0;
+        return true;
+      } 
+    }
+      
     T xrange[2];
   
     if (!lobe_xrange(xrange, choice, Omega0, q, F, delta, true)) return false;
@@ -1353,6 +1506,9 @@ namespace gen_roche {
     
     return true;
   } 
+  #if  defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Solving 2x2 system of nonlinear equations
