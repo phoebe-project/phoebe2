@@ -1158,6 +1158,8 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
             if no_sd_constraints > 1:
                 semid_comp = 'primary'
                 logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
+        else:
+            semi_detached = False
 
 #    if 'rpole' in eb['constraint'].qualifiers:
 #        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
