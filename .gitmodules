@@ -1,0 +1,3 @@
+[submodule "dependencies/autofig"]
+	path = phoebe/dependencies/autofig
+	url = https://github.com/kecnry/autofig
