@@ -7,13 +7,6 @@ if platform == 'Windows':
   import os
   os.environ['VS90COMNTOOLS'] = os.environ['VS140COMNTOOLS']
 
-# Set to true if you want to link against electric fence:
-CDEBUG = False
-
-libraries = []
-if CDEBUG:
-    libraries += ['efence']
-
 ext_modules = [
     Extension('libphoebe',
       sources = ['./phoebe/lib/libphoebe.cpp'],
