@@ -2058,7 +2058,8 @@ class ParameterSet(object):
         cartesian =['xs', 'ys', 'zs']
         if kwargs['xqualifier'] in cartesian and kwargs['yqualifier'] in cartesian and kwargs['zqualifier'] in cartesian:
             kwargs['autofig_method'] = 'mesh'
-            kwargs['i'] = float(self.time)
+            if self.time is not None:
+                kwargs['i'] = float(self.time)
         else:
             kwargs['autofig_method'] = 'plot'
 
