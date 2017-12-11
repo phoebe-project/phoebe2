@@ -91,13 +91,13 @@ before_install:
       fi;
 
 install:
-    - git clone git://github.com/astropy/ci-helpers.git
+    - git clone --depth 1 git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
     - python setup.py build
     - python setup.py install --user
     - mkdir ~/.phoebe-svn
     - cp tests/travis/phoebe.config ~/.phoebe-svn/
-    - git clone git://github.com/phoebe-project/phoebe1.git
+    - git clone --depth 1 git://github.com/phoebe-project/phoebe1.git
     - cd phoebe1/phoebe-lib
     - ./configure
     - make
@@ -107,7 +107,7 @@ install:
     - python setup.py build
     - python setup.py install --user
     - cd ../..
-    - git clone git://github.com/phoebe-project/photodynam.git
+    - git clone --depth 1 git://github.com/phoebe-project/photodynam.git
     - cd photodynam
     - make
     - sudo cp photodynam /usr/local/bin/
@@ -123,7 +123,7 @@ script:
 
 after_success: |
     if [ $BENCHMARK == 1 ] && [ -n $GITHUB_API_KEY ] && [ $TRAVIS_PULL_REQUEST == 'false' ]; then
-        git clone git://github.com/phoebe-project/phoebe2-benchmark.git
+        git clone --depth 1 git://github.com/phoebe-project/phoebe2-benchmark.git
         cp ./phoebe2-benchmark/*.log ./tests/benchmark/ 2>/dev/null || :
         cd tests && python run_tests.py benchmark
         cp ./benchmark/*.profile ../phoebe2-benchmark/ 2>/dev/null || :
