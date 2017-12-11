@@ -2235,7 +2235,7 @@ class ParameterSet(object):
                     continue
 
                 autofig_method = plot_kwargs.pop('autofig_method', 'plot')
-                print "*** passing to autofig.{}: {}".format(autofig_method, plot_kwargs)
+                # print "*** passing to autofig.{}: {}".format(autofig_method, plot_kwargs)
                 func = getattr(self.gcf(), autofig_method)
 
                 func(**plot_kwargs)
@@ -2312,7 +2312,7 @@ class ParameterSet(object):
 
             times = sorted(list(set(times)))
 
-        print "*** autofig.animate at times", times
+        # print "*** autofig.animate at times", times
         mplanim = self.gcf().animate(indeps=times, save=save, show=show)
 
         return self.gcf(), mplanim
