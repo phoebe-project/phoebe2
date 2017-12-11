@@ -82,25 +82,28 @@ if 'benchmark' in do or 'benchmarks' in do:
         lines = f_result.readlines()
         f_result.close()
 
-        branches_skip = []
+        branches_plot = ['master', 'development', 'misaligned_roche', 'triple_support', 'redistribution']
         branches = {}
         for line in lines:
             branch, commit, time = line.strip().split()
-            if branch not in branches.keys() and branch not in branches_skip:
+            if branch not in branches.keys() and branch in branches_plot:
                 branches[branch] = []
 
         for line in lines:
             branch, commit, time = line.strip().split()
-            for branch_i in branches.keys():
+            for branch_i in branches_plot:
                 if branch_i == branch:
                     branches[branch].append(time)
+                elif branch in branches.keys():
+                    branches[branch_i].append(np.nan)
                 else:
-                    branches[branch].append(np.nan)
+                    continue
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
         for branch, benchmark_ts in branches.items():
-            ax.plot(range(len(benchmark_ts)), benchmark_ts, 'o-', label=branch)
+            ax.plot(range(len(benchmark_ts)), benchmark_ts, 'o', label=branch)
+        plt.legend()
         ax.set_title(f_py.split('.py')[0])
         ax.set_xlabel('commit')
         ax.set_ylabel('benchmark time (s)')
