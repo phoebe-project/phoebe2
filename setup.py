@@ -55,17 +55,17 @@ if platform.system() in ['Linux', 'Darwin']:
 
   # GCC compiler
   if name in ['gcc' , 'g++'] or re.search(r'gcc', name):
-    version_ok = LooseVersion(ver) > LooseVersion("5.0")
+    version_ok = LooseVersion(ver) >= LooseVersion("5.0")
     compiler_found = True
 
   # LLVm clang compiler
   if name == 'clang':
-    version_ok = LooseVersion(ver) > LooseVersion("3.3")
+    version_ok = LooseVersion(ver) >= LooseVersion("3.3")
     compiler_found = True
 
   # Intel compilers
   if name in ['icc', 'icpc']:
-    version_ok = LooseVersion(ver) > LooseVersion("16.0.0")
+    version_ok = LooseVersion(ver) >= LooseVersion("16.0.0")
     compiler_found = True
 
   # GCC could be masquerading under different name
@@ -102,7 +102,7 @@ if platform.system() in ['Linux', 'Darwin']:
     
     if len(out) != 0:
       name, ver = out.split(' ')
-      version_ok = LooseVersion(ver) > LooseVersion("5.0")
+      version_ok = LooseVersion(ver) >= LooseVersion("5.0")
       compiler_found = True
     
     removefile(tempdir+'/'+ src)
@@ -111,10 +111,10 @@ if platform.system() in ['Linux', 'Darwin']:
     
   if compiler_found:  
     if version_ok:
-      print("Ready to compile.")
+      print("Ready to compile. Compiler: name=%s, version=%s"%(name, ver))
       status = True
     else:
-      print("Compiler is too old.")
+      print("Compiler is too old. Compiler: name=%s, version=%s"%(name, ver))
       status = False
   else:
     print("Did not recognize compiler %s" % (name_python))
