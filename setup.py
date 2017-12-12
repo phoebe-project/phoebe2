@@ -36,7 +36,7 @@ if platform.system() in ['Linux', 'Darwin']:
   # should work for clang, icpc, gcc
   #
   
-  name_python = compiler.compiler_so[0]
+  name_python = compiler.compiler_cxx[0]
 
   # --version
   name = os.popen(name_python + " --version").read().split(' ')[0]
@@ -122,8 +122,9 @@ if platform.system() in ['Linux', 'Darwin']:
 
 
 if not status:
-  print("Quitting setup.py")
-  quit()
+  import sys
+  print("Quitting setup.py of phoebe2.")
+  sys.exit(1)
 
 #
 # Setting up the external modules
