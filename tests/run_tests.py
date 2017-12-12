@@ -94,7 +94,7 @@ if 'benchmark' in do or 'benchmarks' in do:
             for branch_i in branches_plot:
                 if branch_i == branch:
                     branches[branch].append(time)
-                elif branch in branches.keys():
+                elif branch_i in branches.keys():
                     branches[branch_i].append(np.nan)
                 else:
                     continue
