@@ -40,7 +40,6 @@ from numpy import sin, cos, tan, arcsin, arccos, arctan, sqrt
 from phoebe import u
 from phoebe import conf
 from phoebe import list_passbands, list_installed_passbands, list_online_passbands, download_passband
-from phoebe import dependencies
 
 if os.getenv('PHOEBE_ENABLE_SYMPY', 'TRUE').upper() == 'TRUE':
     try:
@@ -57,17 +56,9 @@ _is_server = False
 
 if os.getenv('PHOEBE_ENABLE_PLOTTING', 'TRUE').upper() == 'TRUE':
     try:
-        # attempt to import global installation first
-        import autofig
+        from phoebe.dependencies import autofig
     except (ImportError, TypeError):
-        # if global installation doesn't exist or fails to import, then import
-        # from the submodule.
-        try:
-            from dependencies import autofig
-        except (ImportError, TypeError):
-            _use_mpl = False
-        else:
-            _use_mpl = True
+        _use_mpl = False
     else:
         _use_mpl = True
 else:
