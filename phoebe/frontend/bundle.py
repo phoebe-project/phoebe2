@@ -1025,6 +1025,9 @@ class Bundle(ParameterSet):
         logger warning if fails.  This is also called immediately when calling
         :meth:`run_compute`.
 
+        kwargs are passed to override currently set values as if they were
+        sent to :meth:`run_compute`.
+
         :return: True if passed, False if failed and a message
         """
 
@@ -1045,8 +1048,8 @@ class Bundle(ParameterSet):
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
                     # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
                     # TODO: only do this if distortion_method == 'roche'
-                    q = parent_ps.get_value('q')
-                    pot = comp_ps.get_value('pot')
+                    q = parent_ps.get_value('q', **kwargs)
+                    pot = comp_ps.get_value('pot', **kwargs)
                     # potentials are DEFINED to be at periastron, so don't need
                     # to worry about volume conservation here
 
@@ -1056,8 +1059,8 @@ class Bundle(ParameterSet):
                     q = roche.q_for_component(q, comp)
                     pot = roche.pot_for_component(pot, q, comp)
 
-                    F = comp_ps.get_value('syncpar')
-                    d = 1 - parent_ps.get_value('ecc')
+                    F = comp_ps.get_value('syncpar', **kwargs)
+                    d = 1 - parent_ps.get_value('ecc', **kwargs)
 
                     # TODO: this needs to be generalized once other potentials are supported
                     critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True, style = 1)
@@ -1071,8 +1074,8 @@ class Bundle(ParameterSet):
                 # MUST be overflowing at APASTRON (1+ecc)
                 # TODO: implement this check based of fillout factor or crit_pots constrained parameter
                 # TODO: only do this if distortion_method == 'roche' (which probably will be required for envelope?)
-                pot = comp_ps.get_value('pot')
-                q = parent_ps.get_value('q')
+                pot = comp_ps.get_value('pot', **kwargs)
+                q = parent_ps.get_value('q', **kwargs)
                 # NOTE: pot for envelope will always be as if primary, so no need to invert
                 F = 1.0
                 # NOTE: syncpar is fixed at 1.0 for envelopes
@@ -1081,7 +1084,7 @@ class Bundle(ParameterSet):
                 # We'll either need to transform the pot (using volume conservation??) or
                 # force OCs to be in circular orbits, in which case this test can be done at
                 # periastron as well
-                d = 1 + parent_ps.get_value('ecc')
+                d = 1 + parent_ps.get_value('ecc', **kwargs)
                 critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, style = 1)
 
                 if pot > critical_pots['L1']:
@@ -1089,7 +1092,7 @@ class Bundle(ParameterSet):
                         '{} is not overflowing L1 at apastron'.format(component)
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
-                d = 1 - parent_ps.get_value('ecc')
+                d = 1 - parent_ps.get_value('ecc', **kwargs)
                 critical_pots = libphoebe.roche_critical_potential(q, F, d, L2=True, L3=True, style = 1)
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
@@ -1103,8 +1106,8 @@ class Bundle(ParameterSet):
         # so we'll check for each pair of stars (see issue #70 on github)
         for orbitref in hier.get_orbits():
             if len(hier.get_children_of(orbitref)) == 2:
-                q = self.get_value(qualifier='q', component=orbitref, context='component')
-                ecc = self.get_value(qualifier='ecc', component=orbitref, context='component')
+                q = self.get_value(qualifier='q', component=orbitref, context='component', **kwargs)
+                ecc = self.get_value(qualifier='ecc', component=orbitref, context='component', **kwargs)
 
                 starrefs = hier.get_children_of(orbitref)
                 if hier.get_kind_of(starrefs[0]) != 'star' or hier.get_kind_of(starrefs[1]) != 'star':
@@ -1116,13 +1119,13 @@ class Bundle(ParameterSet):
                 q0 = roche.q_for_component(q, comp0)
                 q1 = roche.q_for_component(q, comp1)
 
-                F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component')
-                F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component')
+                F0 = self.get_value(qualifier='syncpar', component=starrefs[0], context='component', **kwargs)
+                F1 = self.get_value(qualifier='syncpar', component=starrefs[1], context='component', **kwargs)
 
-                pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component')
+                pot0 = self.get_value(qualifier='pot', component=starrefs[0], context='component', **kwargs)
                 pot0 = roche.pot_for_component(pot0, q0, comp0)
 
-                pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component')
+                pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component', **kwargs)
                 pot1 = roche.pot_for_component(pot1, q1, comp1)
 
                 xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0, choice=0)
@@ -1138,8 +1141,8 @@ class Bundle(ParameterSet):
             for starref in hier.get_meshables():
                 orbitref = hier.get_parent_of(starref)
                 if len(hier.get_children_of(orbitref)) == 2:
-                    incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg')
-                    incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg')
+                    incl_star = self.get_value(qualifier='incl', component=starref, context='component', unit='deg', **kwargs)
+                    incl_orbit = self.get_value(qualifier='incl', component=orbitref, context='component', unit='deg', **kwargs)
                     if abs(incl_star - incl_orbit) > 1e-3:
                         return False,\
                             'misaligned orbits are not currently supported.'
@@ -1171,16 +1174,16 @@ class Bundle(ParameterSet):
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
-            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False)
-            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False)
+            ld_func = self.get_value(qualifier='ld_func_bol', component=component, context='component', check_visible=False, **kwargs)
+            ld_coeffs = self.get_value(qualifier='ld_coeffs_bol', component=component, context='component', check_visible=False, **kwargs)
             check = ld_coeffs_len(ld_func, ld_coeffs)
             if not check[0]:
                 return check
             for dataset in self.datasets:
                 if dataset=='_default' or self.get_dataset(dataset=dataset, kind='*dep').kind not in ['lc_dep', 'rv_dep']:
                     continue
-                ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset')
-                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False)
+                ld_func = self.get_value(qualifier='ld_func', dataset=dataset, component=component, context='dataset', **kwargs)
+                ld_coeffs = self.get_value(qualifier='ld_coeffs', dataset=dataset, component=component, context='dataset', check_visible=False, **kwargs)
                 if ld_coeffs is not None:
                     check = ld_coeffs_len(ld_func, ld_coeffs)
                     if not check[0]:
@@ -1188,7 +1191,7 @@ class Bundle(ParameterSet):
 
                 if ld_func=='interp':
                     for compute in kwargs.get('computes', self.computes):
-                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute')
+                        atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
                             return False, "ld_func='interp' only supported by atm='ck2004'"
 
@@ -1202,8 +1205,8 @@ class Bundle(ParameterSet):
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
         for component in self.hierarchy.get_stars():
-            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K)
-            gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component')
+            teff = self.get_value(qualifier='teff', component=component, context='component', unit=u.K, **kwargs)
+            gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and gravb_bol < 0.9:
                 return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
@@ -2479,7 +2482,7 @@ class Bundle(ParameterSet):
         self._kwargs_checks(kwargs, ['protomesh', 'pbmesh', 'skip_checks', 'jobid'])
 
         if not kwargs.get('skip_checks', False):
-            passed, msg = self.run_checks(computes=computes)
+            passed, msg = self.run_checks(computes=computes, **kwargs)
             if passed is None:
                 # then just raise a warning
                 logger.warning(msg)
