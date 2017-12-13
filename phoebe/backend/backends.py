@@ -863,7 +863,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
                         ### so that we can do new_syns.set_value(**packet[k]['pbmesh'][n])
                         packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
-                        packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+                        packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
 
                         for indep in indeps[infomesh['kind']]:
                             key = "{}:{}".format(indep, infomesh['dataset'])
