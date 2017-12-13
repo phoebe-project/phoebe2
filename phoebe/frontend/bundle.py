@@ -2532,13 +2532,17 @@ class Bundle(ParameterSet):
             f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
             f.write("b = phoebe.Bundle(bdict)\n")
             # TODO: make sure this works with multiple computes
-            f.write("model_ps = b.run_compute(compute='{}', model='{}')\n".format(compute, model))  # TODO: support other kwargs
+            compute_kwargs = kwargs.items()+[('compute', compute), ('model', model)]
+            compute_kwargs_string = ','.join(["{}=\'{}\'".format(k,v) for k,v in compute_kwargs])
+            f.write("model_ps = b.run_compute({})\n".format(compute_kwargs_string))
             f.write("model_ps.save('_{}.out', incl_uniqueid=True)\n".format(jobid))
             f.close()
 
             script_fname = os.path.abspath(script_fname)
             cmd = conf.detach_cmd.format(script_fname)
-            # cmd = 'python {} &>/dev/null &'.format(script_fname)
+            # TODO: would be nice to catch errors caused by the detached script...
+            # but that would probably need to be the responsibility of the
+            # jobparam to return a failed status and message
             subprocess.call(cmd, shell=True)
 
             # create model parameter and attach (and then return that instead of None)
@@ -2551,13 +2555,13 @@ class Bundle(ParameterSet):
             metawargs = {'context': 'model', 'model': model}
             self._attach_params([job_param], **metawargs)
 
-            logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
-
             if isinstance(detach, str):
                 self.save(detach)
 
             if not detach:
                 return job_param.attach()
+            else:
+                logger.info("detaching from run_compute.  Call get_model('{}').attach() to re-attach".format(model))
 
             # return self.get_model(model)
             return job_param
