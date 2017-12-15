@@ -37,11 +37,11 @@ def check_compiler(compiler, name_python):
 
     # --version
     name = os.popen(name_python + " --version").read().split(' ')[0]
-    #print "*", name, "*"
+    print "*", name, "*"
 
     # -dumpversion is present in clang, icpc, gcc
     ver = os.popen(name_python + " -dumpversion").read().strip()
-    #print "*", ver, "*"
+    print "*", ver, "*"
 
     from distutils.version import LooseVersion, StrictVersion
 
@@ -54,14 +54,12 @@ def check_compiler(compiler, name_python):
     if re.search(r'gcc', name) or re.search(r'g\+\+', name):
       version_ok = LooseVersion(ver) >= LooseVersion("5.0")
       compiler_found = True
-
-    # LLVm clang compiler
-    if name == 'clang':
+    
+    elif name == 'clang': # LLVm clang compiler
       version_ok = LooseVersion(ver) >= LooseVersion("3.3")
       compiler_found = True
-
-    # Intel compilers
-    if name in ['icc', 'icpc']:
+    
+    elif name in ['icc', 'icpc']: # Intel compilers
       version_ok = LooseVersion(ver) >= LooseVersion("16.0.0")
       compiler_found = True
 
@@ -83,7 +81,9 @@ def check_compiler(compiler, name_python):
         tmp.writelines(
           ['#include <stdio.h>\n',
            'int main(int argc, char *argv[]) {\n',
-            '#if defined(__GNUC__)\n',
+            '#if defined(__clang__)'
+            '  printf("clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);\n'
+            '#elif defined(__GNUC__)\n',
             '  printf("gcc %d.%d.%d\\n",__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);\n',
             '#else\n',
             '  printf("not_gcc");\n',
@@ -100,9 +100,14 @@ def check_compiler(compiler, name_python):
         
         if len(out) != 0:
           name, ver = out.split(' ')
-
-          version_ok = LooseVersion(ver) >= LooseVersion("5.0")
-          compiler_found = True
+          
+          if name=='gcc':
+            version_ok = LooseVersion(ver) >= LooseVersion("5.0")
+            compiler_found = True
+          
+          if name=='clang'
+            version_ok = LooseVersion(ver) >= LooseVersion("3.3")
+            compiler_found = True 
         
         removefile(tempdir+'/'+ src)
         removefile(tempdir+'/'+ exe)
