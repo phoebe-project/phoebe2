@@ -34,14 +34,16 @@ def check_compiler(compiler, name_python):
     
   # this should cover Linux and Mac
   elif platform.system() in ['Linux', 'Darwin']:
-
+    
+    print "*name_python=",name_python,"*"
+    
     # --version
     name = os.popen(name_python + " --version").read().split(' ')[0]
-    print "*", name, "*"
+    print "*name=", name, "*"
 
     # -dumpversion is present in clang, icpc, gcc
     ver = os.popen(name_python + " -dumpversion").read().strip()
-    print "*", ver, "*"
+    print "*ver=", ver, "*"
 
     from distutils.version import LooseVersion, StrictVersion
 
@@ -81,8 +83,8 @@ def check_compiler(compiler, name_python):
         tmp.writelines(
           ['#include <stdio.h>\n',
            'int main(int argc, char *argv[]) {\n',
-            '#if defined(__clang__)'
-            '  printf("clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);\n'
+            '#if defined(__clang__)\n',
+            '  printf("clang %d.%d.%d", __clang_major__, __clang_minor__, __clang_patchlevel__);\n',
             '#elif defined(__GNUC__)\n',
             '  printf("gcc %d.%d.%d\\n",__GNUC__,__GNUC_MINOR__,__GNUC_PATCHLEVEL__);\n',
             '#else\n',
