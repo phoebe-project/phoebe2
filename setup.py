@@ -101,11 +101,11 @@ def check_compiler(compiler, name_python):
         if len(out) != 0:
           name, ver = out.split(' ')
           
-          if name=='gcc':
+          if name == 'gcc':
             version_ok = LooseVersion(ver) >= LooseVersion("5.0")
             compiler_found = True
           
-          if name=='clang'
+          if name == 'clang':
             version_ok = LooseVersion(ver) >= LooseVersion("3.3")
             compiler_found = True 
         
