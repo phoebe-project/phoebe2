@@ -46,6 +46,14 @@ matrix:
           sources: [ubuntu-toolchain-r-test]
           packages: [gfortran, g++-5, gcc-5, libstdc++-5-dev, libopenmpi-dev]
 
+  before_install:
+    - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+        brew install llvm --with-clang --with-clang-extra-tools;
+        brew install gcc;
+        DIR=`find /usr/local ! -path '*/i386/*' -name libgfortran.a -exec dirname "{}" \; -quit`;
+        export LIBRARY_PATH=${DIR}:${LIBRARY_PATH};
+      fi;
+      
   allow_failures:
     - env: NUMPY_VERSION=dev
 
