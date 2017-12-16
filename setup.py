@@ -95,8 +95,8 @@ def check_compiler(compiler, extensions, compiler_name):
           if LooseVersion(plat_ver) < LooseVersion("13.0"): #OS X Mavericks
             opt ="-stdlib=libc++"
             
-          if not (opt in e.extra_compile_args):
-            e.extra_compile_args.append(opt)
+            if not (opt in e.extra_compile_args):
+              e.extra_compile_args.append(opt)
        
       ver = find_version_clang(s)
       
