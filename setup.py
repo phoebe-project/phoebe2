@@ -59,7 +59,7 @@ def check_compiler(compiler, extensions, compiler_name):
   plat_ver = platform.release();
   
   print("**platform=%s***" %(plat))
-  print("**platform_version=%s***" %(plat))
+  print("**platform_version=%s***" %(plat_ver))
   
   if plat == 'Windows': 
     
