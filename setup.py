@@ -86,10 +86,15 @@ def check_compiler(compiler, extensions, compiler_name):
       compiler_found = True
       
       # https://stackoverflow.com/questions/19774778/when-is-it-necessary-to-use-use-the-flag-stdlib-libstdc
-      #~ for e in extensions:
-        #~ if not ("-stdlib=libc++" in e.extra_compile_args):
-          #~ e.extra_compile_args.append("-stdlib=libc++")
-   
+      for e in extensions:
+        if LooseVersion(platform.release()) < LooseVersion("10.9"):
+          opt ="-stdlib=libc++"
+        else:
+          opt ="-stdlib=stdlibc++"
+          
+        if not (opt in e.extra_compile_args):
+          e.extra_compile_args.append(opt)
+     
       ver = find_version_clang(s)
       
       if ver != '': 
