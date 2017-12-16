@@ -64,9 +64,6 @@ def check_compiler(compiler, extensions, compiler_name):
   # this should cover Linux and Mac
   elif plat in ['Linux', 'Darwin']:
     
-
-      
-      
     s = os.popen(compiler_name + " --version").readline().strip()
     
     # debug output
@@ -211,7 +208,7 @@ class build_check(build_ext):
 ext_modules = [
     Extension('libphoebe',
       sources = ['./phoebe/lib/libphoebe.cpp'],
-      language='c++11',
+      language='c++',
       extra_compile_args = ["-std=c++11"],
       include_dirs=[numpy.get_include()]
       ),
