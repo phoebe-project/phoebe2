@@ -12,12 +12,16 @@ from phoebe import u, c
 from phoebe import conf
 
 try:
-    import phoebeBackend as phb1
+    import phoebe_legacy as phb1
 except ImportError:
-    _use_phb1 = False
+    try:
+        import phoebeBackend as phb1
+    except ImportError:
+        _use_phb1 = False
+    else:
+        _use_phb1 = True
 else:
     _use_phb1 = True
-
 
 # this is a bit of a hack and will only work with openmpi, but environment
 # variables seem to be the only way to detect whether the script was run
