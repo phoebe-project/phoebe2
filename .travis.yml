@@ -1,10 +1,5 @@
-# https://travis-ci.org/phoebe-project/phoebe2
-
-language: none
-
 sudo: required
 dist: trusty
-
 
 env:
   global:
