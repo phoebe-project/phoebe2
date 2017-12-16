@@ -91,7 +91,7 @@ def check_compiler(compiler, extensions, compiler_name):
       
       # https://stackoverflow.com/questions/19774778/when-is-it-necessary-to-use-use-the-flag-stdlib-libstdc
       if plat == 'Darwin':
-         opt ="-stdlib=libc++"
+        opt ="-stdlib=libc++"
         if LooseVersion(plat_ver) < LooseVersion("13.0"): #OS X Mavericks
           for e in extensions:
             if not (opt in e.extra_compile_args):
