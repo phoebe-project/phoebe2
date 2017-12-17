@@ -23,6 +23,7 @@ except ImportError:
 else:
     _use_phb1 = True
 
+
 # this is a bit of a hack and will only work with openmpi, but environment
 # variables seem to be the only way to detect whether the script was run
 # via mpirun or not
@@ -1222,7 +1223,12 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #    io.pass_to_legacy(b, filename=filename, compute=compute, **kwargs)
     phb1.init()
     try:
-        phb1.configure()
+        if hasattr(phb1, 'auto_configure'):
+            # then phb1 is phoebe_legacy
+            phb1.auto_configure()
+        else:
+            # then phb1 is phoebeBackend
+            phb1.configure()
     except SystemError:
         raise SystemError("PHOEBE config failed: try creating PHOEBE config file through GUI")
 #   real
