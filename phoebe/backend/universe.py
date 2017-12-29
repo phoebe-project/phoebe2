@@ -886,7 +886,7 @@ class Body(object):
 
                 # TODO: need to send a better guess for Omega0
                 Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
-                                                   q, F, d, s,
+                                                   q, F, d, s.astype(float),
                                                    Omega0=Phi if Phi>self.Phi else self.Phi)
                 # if Phi < self.Phi:
                     # then for some reason we passed the value defined at periastron...

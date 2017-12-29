@@ -69,7 +69,7 @@ namespace misaligned_roche {
     Return:
       height = delta*tp
   */
-  
+  //#define DEBUG
   template <class T>
   T poleL_height(
     const T & Omega0,
@@ -79,8 +79,9 @@ namespace misaligned_roche {
     const T & sintheta, 
     const int & sign = 1
   ) {
-    #if 0
-    std::cerr 
+    
+    #if defined(DEBUG)
+    std::cerr << "poleL_height:\n"
       << "Omega0=" << Omega0 
       << " q=" << q 
       << " F=" << F
@@ -835,7 +836,7 @@ template<class T>
       q - mass ratio M2/M1
       F - synchronicity parameter
       delta - separation between the two objects
-      th - angle between z axis in spin of the object in [0, pi]
+      th - angle between z axis in spin of the object in [0, pi/2]
               spin in plane (x, z) 
       m - number of steps in x - direction
       
@@ -881,7 +882,7 @@ template<class T>
     if (!b_area && !b_vol && !b_dvol) return;
     
     unsigned mask = 3;
-    if (b_dvol) mask += 4; 
+    if (b_area) mask += 4; 
     
     const int dim = glq_n + 3;
     

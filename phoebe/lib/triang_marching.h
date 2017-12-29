@@ -61,6 +61,8 @@ struct Tmarching: public Tbody {
    Output:
      v - internal vertex
   */
+  
+  //#define DEBUG
   void create_internal_vertex(T r[3], T g[3], Tvertex & v, const T & phi = 0){
         
     for (int i = 0; i < 3; ++i) v.r[i] = r[i];
@@ -123,7 +125,19 @@ struct Tmarching: public Tbody {
         t2[i] = -s*q1[i] + c*q2[i];
       }
     }
+    
+    #if defined(DEBUG)
+    std::cerr<< "create_internal_vertex:\n";
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) std::cerr << v.b[i][j] << ' ';
+      std::cerr << '\n';   
+    }
+    #endif     
   }
+  
+  #if defined(DEBUG)
+  #undef DEBUG
+  #endif
   
   /*
     Projecting a point r positioned near the surface onto surface anc 
@@ -249,6 +263,13 @@ struct Tmarching: public Tbody {
     
     utils::cross3D(gi, ui, n);
     
+    #if defined(DEBUG)
+    std::cerr << "slide_over_potential::init\n" 
+      << " gi=" << gi[0] << ' ' << gi[1] << ' ' << gi[2] 
+      << " ui=" << ui[0] << ' ' << ui[1] << ' ' << ui[2] 
+      << " n=" << n[0] << ' ' << n[1] << ' ' << n[2] << '\n'; 
+    #endif
+    
     T r[3] = {ri[0], ri[1], ri[2]};
     
     {
@@ -296,8 +317,11 @@ struct Tmarching: public Tbody {
         for (int j = 0; j < 3; ++j) 
           r[j] += (k[0][j] + 2*(k[1][j] + k[2][j]) + k[3][j])/6;
         
-        //this->grad(r, g, precision);
-        //std::cerr << "g=" << g[3] << '\n';
+        #if defined(DEBUG) 
+        T g1[4];
+        this->grad(r, g1, precision);
+        std::cerr << "RK: g=" << g1[3] << '\n';
+        #endif 
       }
     }
    
@@ -1524,13 +1548,13 @@ struct Tmarching: public Tbody {
     bool st_triang = true; // status whether there are to many triangles
         
     do {
-    
+
       // current front polygon
       Tfront_polygon & P  = lP.back();
       Tbad_pair & B = lB.back();
       
       do {
-        
+                
         //  
         // Processing the last three vertices 
         //

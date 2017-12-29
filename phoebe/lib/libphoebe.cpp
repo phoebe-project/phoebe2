@@ -1878,17 +1878,27 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
   if (PyFloat_Check(o_misalignment)) {
 
-    theta = PyFloat_AsDouble(o_misalignment);
+    theta = std::abs(PyFloat_AsDouble(o_misalignment)); // in [0, pi/2]
 
-    aligned = (std::sin(theta) == 0); // theta ~0, pi => aligned
+    aligned = (std::sin(theta) == 0); // theta ~0 => aligned
 
   } else if (PyArray_Check(o_misalignment)) {
 
     double *s = (double*)PyArray_DATA((PyArrayObject *)o_misalignment);
-
-    aligned = (s[0] == 0);
-
-    theta = std::asin(s[0]);
+    
+    
+    #if defined(DEBUG)
+    std::cerr << "spin:" << s[0] << ' ' << s[1] << ' ' << s[2] << '\n';
+    #endif
+    
+    if (s[0] == 0) { 
+      aligned = true;
+      theta = 0;
+    } else {
+      aligned = false;
+      theta = std::asin(std::abs(s[0])); // in [0, pi/2]
+    }
+    
   } else {
     std::cerr
       << fname
@@ -1908,7 +1918,11 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
   }
 
   if (res_choice == 0) return NULL;
-
+  
+  #if defined(DEBUG)
+  std::cerr << "res_choice=" << res_choice << '\n';
+  #endif
+  
   //
   // Calculate area and volume:
   //
@@ -1942,10 +1956,14 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
       if (theta == 0)
         gen_roche::area_volume_integration
           (p[i], res_choice, xrange, Omega0, q, F, delta, m);
-      else
+      else {
         misaligned_roche::area_volume_integration
           (p[i], res_choice, Omega0, q, F, delta, theta, m);
-
+        #if defined(DEBUG) 
+        std::cerr << "m=" << m << " p[" << i  << "]=" << p[i][0] << ' ' << p[i][1] << '\n';
+        #endif
+      }
+      
     if (adjust) {
 
       // extrapolation based on assumption
@@ -1990,9 +2008,13 @@ static PyObject *roche_misaligned_area_volume(PyObject *self, PyObject *args, Py
 
   const char *str[2] =  {"larea", "lvolume"};
 
-  for (int i = 0; i < 2; ++i) if (b_av[i])
+  for (int i = 0; i < 2; ++i) if (b_av[i]) {
+    #if defined(DEBUG)
+    std::cerr << "av[" << i << "]=" << av[i] << '\n';
+    #endif
+    
     PyDict_SetItemStringStealRef(results, str[i], PyFloat_FromDouble(av[i]));
-
+  }
 
   #if defined(DEBUG)
   std::cerr << fname << "::END" << std::endl;
@@ -5472,12 +5494,20 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
       << " Omega:" <<  Omega0
       << " q=" << q
       << " F=" << F
-      << " d=" << d << '\n';
+      << " d=" << d 
+      << " delta =" << delta << '\n';
     #endif
-
+ 
     ok = misaligned_roche::meshing_start_point(r, g, choice, Omega0, q, F, d, s);
     rotated = false;
-
+    
+    #if defined(DEBUG)
+      std::cerr << "r="
+        << r[0] << ' ' << r[1] << ' ' << r[2]
+        << " g="
+        << g[0] << ' ' << g[1] << ' ' << g[2] << '\n';
+    #endif
+    
   } else {
     std::cerr << fname << "::This type of misalignment is not supported.\n";
     return NULL;
