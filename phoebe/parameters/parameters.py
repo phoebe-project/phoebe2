@@ -2399,7 +2399,7 @@ class ParameterSet(object):
                 kwargs.setdefault('linestyle', 'None')
                 kwargs.setdefault('marker', '^')
             else:
-                kwargs.setdefault('linestyle', '-')
+                #kwargs.setdefault('linestyle', '-')
                 kwargs.setdefault('marker', 'None')
             kwargs.setdefault('xerrors', None)
             kwargs.setdefault('yerrors', None)
