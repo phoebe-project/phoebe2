@@ -51,8 +51,8 @@ logger.addHandler(logging.NullHandler())
 
 # protomesh is the mesh at periastron in the reference frame of each individual star
 _backends_that_support_protomesh = ['phoebe', 'legacy']
-# automesh is meshes with filled observable columns (fluxes etc) at each point at which the mesh is used
-_backends_that_support_automesh = ['phoebe', 'legacy']
+# pbmesh is meshes with filled observable columns (fluxes etc) at each point at which the mesh is used
+_backends_that_support_pbmesh = ['phoebe', 'legacy']
 # the following list is for backends that use numerical meshes
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
@@ -192,7 +192,7 @@ def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, time
         needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
 
     if pbmesh:
-        needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=times)
+        needed_syns, infos = _handle_pbmesh(b, compute, needed_syns, infos, times=times)
 
     if len(times):
         ti = zip(times, infos)
@@ -286,7 +286,7 @@ def _extract_from_bundle_by_dataset(b, compute, protomesh=False, pbmesh=False, t
         needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
 
     if pbmesh:
-        needed_syns, infos = _handle_automesh(b, compute, needed_syns, infos, times=False)
+        needed_syns, infos = _handle_pbmesh(b, compute, needed_syns, infos, times=False)
 
 
 #    print "NEEDED", needed_syns
@@ -310,15 +310,15 @@ def _handle_protomesh(b, compute, needed_syns, infos):
 
     return needed_syns, infos
 
-def _handle_automesh(b, compute, needed_syns, infos, times=None):
+def _handle_pbmesh(b, compute, needed_syns, infos, times=None):
     """
     helper function for functionality needed in both _extract_from_bundle_by_dataset
     and _extract_from_bundle_by_times
     """
     # now add "datasets" for each timepoint at which needs_mesh is True, if pbmesh
-    if b.get_compute(compute).kind in _backends_that_support_automesh:
+    if b.get_compute(compute).kind in _backends_that_support_pbmesh:
 
-        # building synthetics for the automesh is a little different.  Here we
+        # building synthetics for the pbmesh is a little different.  Here we
         # want to add a single "this_info" for each component, and fill that with
         # the total times from all valid datasets.
 
@@ -477,8 +477,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
 
-    distance = b.get_value(qualifier='distance', context='system', unit=u.m)
-    t0 = b.get_value(qualifier='t0', context='system', unit=u.d)
+    distance = b.get_value(qualifier='distance', context='system', unit=u.m, **kwargs)
+    t0 = b.get_value(qualifier='t0', context='system', unit=u.d, **kwargs)
 
     if len(starrefs)==1 and computeparams.get_value('distortion_method', component=starrefs[0], **kwargs) in ['roche']:
         raise ValueError("distortion_method='{}' not valid for single star".format(computeparams.get_value('distortion_method', component=starrefs[0], **kwargs)))
@@ -871,7 +871,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
                         ### so that we can do new_syns.set_value(**packet[k]['pbmesh'][n])
                         packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
-                        packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+                        packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
 
                         for indep in indeps[infomesh['kind']]:
                             key = "{}:{}".format(indep, infomesh['dataset'])
@@ -1091,13 +1091,13 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
         Args:
             key: Phoebe1 mesh for all time points
-            type: mesh type "protomesh" or "automesh"
-            time: array of times (only applicable for automesh)
+            type: mesh type "protomesh" or "pbmesh"
+            time: array of times (only applicable for pbmesh)
         Returns:
             None
 
         Raises:
-            ValueError if the anything other than automesh or protomesh is given for type.
+            ValueError if the anything other than pbmesh or protomesh is given for type.
         """
         keys = mesh.keys()
 
@@ -1188,7 +1188,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
                                 d['value'] = key_val
                                 new_syns.set_value(**d)
                             else:
-                                logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
+                                logger.warning('{} has no corresponding value in phoebe 2 pbmesh'.format(key))
             else:
                 raise ValueError("Only 'pbmesh' and 'protomesh' are acceptable mesh types.")
 
@@ -1327,7 +1327,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 
 #                     #Normalize the normals that have been put in protomesh
 
-#                     # now take care of automesh time point by time point
+#                     # now take care of pbmesh time point by time point
 #                     for t in range(len(time[:-1])):
 # #                        d = ret_dict(key)
 #                         d['dataset'] = 'pbmesh'
@@ -1351,7 +1351,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
 #                                 d['value'] = key_val
 #                                 new_syns.set_value(**d)
 #                             else:
-#                                 logger.warning('{} has no corresponding value in phoebe 2 automesh'.format(key))
+#                                 logger.warning('{} has no corresponding value in phoebe 2 pbmesh'.format(key))
 
 #                 time = time[:-1]
 
