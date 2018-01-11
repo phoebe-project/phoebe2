@@ -456,7 +456,8 @@ class Passband:
 
         Returns: n/a
         """
-
+        import time
+        
         if Ebv is None:
             Ebv = np.linspace(0.,3.,90)
             
@@ -477,6 +478,7 @@ class Passband:
       
         # auxilary matrix for storing Ebv and Rv per model
         M = np.rollaxis(np.array([np.split(Ebv1*Rv1, Nmodels), np.split(Ebv1, Nmodels)]),1)
+        M = np.ascontiguousarray(M)
         
         # Store the length of the filename extensions for parsing:
         offset = len(models[0])-models[0].rfind('.')
@@ -490,30 +492,29 @@ class Passband:
             print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a loooooong time.' % (self.pbset, self.pbname))
                  
         for i, model in enumerate(models):
+          
             spc = np.fromfile(model, sep=' ').reshape(-1,2).T
 
             Teff[i] = float(model[-17-offset:-12-offset])
             logg[i] = float(model[-11-offset:-9-offset])/10
             sign = 1. if model[-9-offset]=='P' else -1.
             abun[i] = sign*float(model[-8-offset:-6-offset])/10
-
+            
             spc[0] /= 1e10 # AA -> m
             spc[1] *= 1e7  # erg/s/cm^2/A -> W/m^3
             
             sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             
-            wl = spc[0][sel]
-            fl = spc[1][sel]
+            wl, fl = spc[:,sel]
             
             fl *= self.ptf(wl)
             flP = fl*wl
             
             Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
-            flux_frac = 10**(-0.4*Alambda)
-
-            extinctE[i] = np.dot(fl / fl.sum(), flux_frac)
-            extinctP[i] = np.dot(flP / flP.sum(), flux_frac)
+            flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
             
+            extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)
+          
             if verbose:
                 if 100*i % (len(models)) == 0:
                     print('%d%% done.' % (100*i/(Nmodels-1)))
