@@ -503,12 +503,9 @@ class Passband:
             
             sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             
-            wl, fl = spc[:,sel]
-            #wl = spc[0][sel]
-            #fl = spc[1][sel]
-            
-            #print abs(wl -  spc[:,sel][0]).max()
-            #print abs(fl -  spc[:,sel][1]).max()
+            #wl, fl = spc[:,sel]
+            wl = spc[0][sel]
+            fl = spc[1][sel]
             
             fl *= self.ptf(wl)
             flP = fl*wl
