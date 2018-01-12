@@ -423,14 +423,13 @@ class Passband:
             pbE = self.ptf(self.wl)*libphoebe.planck_function(self.wl, Teffs[j])
             pbP = self.wl*pbE                
 
-            flux_frac = 10**(-0.4*np.dot(a, [Ebv[j]*Rv[j], Ebv[j]]))
+            flux_frac = np.exp(-0.9210340371976184*np.dot(a, [Ebv[j]*Rv[j], Ebv[j]]))
             
             if verbose:
                 if 100*j % combos == 0:
                     print('%d%% done.' % (100*j/(combos-1)))
 
-            extinctE[j] = np.average(flux_frac, weights=pbE)
-            extinctP[j] = np.average(flux_frac, weights=pbP)
+            extinctE[j], extinctP[j] = np.dot([pbE/pbE.sum(), pbP/pbP.sum()], flux_frac)
 
         self._bb_extinct_axes = (np.unique(Teffs), np.unique(Ebv), np.unique(Rv))
 
@@ -456,7 +455,6 @@ class Passband:
 
         Returns: n/a
         """
-        import time
         
         if Ebv is None:
             Ebv = np.linspace(0.,3.,90)
@@ -506,6 +504,11 @@ class Passband:
             sel = (spc[0] >= self.ptf_table['wl'][0]) & (spc[0] <= self.ptf_table['wl'][-1])
             
             wl, fl = spc[:,sel]
+            #wl = spc[0][sel]
+            #fl = spc[1][sel]
+            
+            #print abs(wl -  spc[:,sel][0]).max()
+            #print abs(fl -  spc[:,sel][1]).max()
             
             fl *= self.ptf(wl)
             flP = fl*wl
