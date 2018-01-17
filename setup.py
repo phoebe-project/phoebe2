@@ -1,9 +1,18 @@
-from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
+import sys
+
+try:
+  import numpy
+except ImportError:
+  print "Numpy is needed for running and building of PHOEBE" 
+  sys.exit(1)
+
+from numpy.distutils.core import setup, Extension
+from numpy.distutils.command.build_ext import build_ext
+
 from distutils.version import LooseVersion, StrictVersion
+
 import platform
 import os
-import numpy
 import re
     
 #
@@ -205,7 +214,6 @@ class build_check(build_ext):
         
       build_ext.build_extensions(self)
     else:
-      import sys
       print("Quitting setup.py of phoebe2.")
       sys.exit(1) 
 #
