@@ -2123,6 +2123,13 @@ class Bundle(ParameterSet):
                                                default_unit=lhs.default_unit,
                                                description='expression that determines the constraint')
 
+
+        newly_constrained_param = constraint_param.get_constrained_parameter()
+        check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
+        check_kwargs['context'] = 'constraint'
+        if len(self._bundle.filter(**check_kwargs)):
+            raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
+
         metawargs = {'context': 'constraint',
                      'kind': func.func_name}
 
