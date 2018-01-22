@@ -17,7 +17,7 @@ addons:
 
 sudo: required
 dist: trusty
-osx_image: xcode7.3
+group: deprecated-2017Q4
 
 env:
     global:
