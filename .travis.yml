@@ -88,12 +88,11 @@ matrix:
 
 
 before_install:
-    - rvm get head
     - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
-        brew update;
-        brew unlink wget;
         brew install llvm --with-clang --with-clang-extra-tools;
-        brew install gcc gnu-sed gtk libglade libgnomecanvas sdl libusb libusb-compat gsl opam wget dfu-util;
+        brew install gcc;
+        DIR=`find /usr/local ! -path '*/i386/*' -name libgfortran.a -exec dirname "{}" \; -quit`;
+        export LIBRARY_PATH=${DIR}:${LIBRARY_PATH};
       fi;
 
 install:
@@ -101,18 +100,10 @@ install:
     - source ci-helpers/travis/setup_conda.sh
     - python setup.py build
     - python setup.py install --user
-    - mkdir ~/.phoebe-svn
-    - cp tests/travis/phoebe.config ~/.phoebe-svn/
-    - git clone git://github.com/phoebe-project/phoebe1.git
-    - cd phoebe1/phoebe-lib
-    - ./configure
-    - make
-    - sudo make install
-    - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo ldconfig -v; fi;
-    - cd ../phoebe-py
-    - python setup.py build
-    - python setup.py install --user
-    - cd ../..
+    - git clone -b phoebe_legacy git://github.com/phoebe-project/phoebe1.git
+    - cd phoebe1
+    - python setup_static.py install --user
+    - cd ..
     - git clone git://github.com/phoebe-project/photodynam.git
     - cd photodynam
     - make
