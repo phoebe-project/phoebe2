@@ -2,7 +2,6 @@
 # The Sun-Earth system
 #
 
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import integrate
@@ -12,9 +11,15 @@ phoebe.devel_on()
 from phoebe import u, c
 import libphoebe
 
-def initiate_sun_earth_system():
+
+BLACKBODY = True
+
+
+def initiate_sun_earth_system(pb_str):
+  
     b = phoebe.Bundle.default_binary()
-    b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb)
+  
+    b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb_str)
 
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
@@ -30,6 +35,8 @@ def initiate_sun_earth_system():
     b['syncpar@secondary'] = 365.25
 
     b['distance@system'] = (1, 'au')
+    
+    b.set_value_all('irrad_method', 'none')
 
     if BLACKBODY:
         b.set_value_all('atm', value='blackbody')
@@ -50,46 +57,50 @@ def integrated_flux(b, pb):
   r *= b['value@mus@primary@pbmesh']
   r *= b['value@visibilities@primary@pbmesh']
   
-  #~ print '###', b['value@abs_intensities@primary'][0], b['areas@primary@pbmesh'].get_value(unit=u.m**2)[0], b['value@mus@primary@pbmesh'][0], b['value@visibilities@primary@pbmesh'][0], r[0]
-  #~ print '***', np.sum(r), pb.ptf_area, b['value@distance@system'], np.sum(r)*pb.ptf_area/b['value@distance@system']**2
   return np.sum(r)*pb.ptf_area/b['value@distance@system']**2
   
-def sim(b, pb, Nt):
-    b['ntriangles@primary'] = Nt
-    b['ntriangles@secondary'] = Nt
 
-    b.run_compute(protomesh=True, pbmesh=True, mesh_offset=True)
-
-    area0 = libphoebe.roche_area_volume(b['value@q@orbit'], b['value@syncpar@primary'], b['value@sma@orbit'], b['value@pot@primary@component'])['larea']*b['value@sma@orbit']**2
-    area = np.sum(b['value@areas@primary@pbmesh'])
-    iflux = integrated_flux(b, pb)
-  
-    data = [area0, area, iflux]
-
-    b.run_compute(protomesh=True, pbmesh=True, mesh_offset=False)
-    area = np.sum(b['value@areas@primary@pbmesh'])
-    iflux = integrated_flux(b, pb) 
-
-    return data + [area, iflux]
-
-
-BLACKBODY = True
-
-pb = 'Bolometric:900-40000'
-#~ pb = 'Johnson:V'
-
-
-# THEORETICAL PREDICTION:
 def _planck(lam, Teff):
     return 2*c.h.si.value*c.c.si.value*c.c.si.value/lam**5 * 1./(np.exp(c.h.si.value*c.c.si.value/lam/c.k_B.si.value/Teff)-1)
     
-mypb = phoebe.atmospheres.passbands.get_passband(pb)
 
-sedptf = lambda w: _planck(w, 5772)*mypb.ptf(w)
-sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0] # Stefan-Boltzmann flux
-print "Theoretical flux:", sb_flux*(1*u.solRad).si.value**2/c.au.si.value**2
+def sun_earth_result():
 
-b = initiate_sun_earth_system()
+  pb_str = 'Bolometric:900-40000'
+  mypb = phoebe.atmospheres.passbands.get_passband(pb_str)
 
-for Nt in np.arange(10000, 20001, 1000):
-  print Nt, sim(b, mypb, Nt)
+  # theoretical result: planck formula + passband
+  sedptf = lambda w: _planck(w, 5772)*mypb.ptf(w)
+  sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0] # Stefan-Boltzmann flux
+  iflux0 = sb_flux*(1*u.solRad).si.value**2/c.au.si.value**2
+
+  # phoebe result for different mesh sizes
+  b = initiate_sun_earth_system(pb_str)
+
+  res=[]
+  for Nt in 1000*(2**np.arange(8)):
+    b['ntriangles@primary'] = Nt
+    b['ntriangles@secondary'] = Nt
+
+    b.run_compute(protomesh=False, pbmesh=True, mesh_offset=True)
+    
+    opts = (b['value@q@orbit'], b['value@syncpar@primary'], 1., b['value@pot@primary@component'])
+    area0 = libphoebe.roche_area_volume(*opts)['larea']
+    area0 *= b['value@sma@orbit']**2
+    
+    area = np.sum(b['value@areas@primary@pbmesh'])
+    iflux = integrated_flux(b, mypb)
+    
+    res.append([Nt, area-area0, iflux - iflux0])
+  
+  return np.array(res)  
+
+
+if __name__ == '__main__':
+    logger = phoebe.logger(clevel='INFO')
+    
+    res = sun_earth_result()
+    
+    print res
+    
+    np.savetxt("res.txt", res)
