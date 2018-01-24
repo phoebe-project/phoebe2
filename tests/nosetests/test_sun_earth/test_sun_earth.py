@@ -20,7 +20,7 @@ def initiate_sun_earth_system(pb_str):
     b = phoebe.Bundle.default_binary()
   
     b.add_dataset('lc', times=[0.75,], dataset='lc01', passband=pb_str)
-
+      
     b['pblum@primary'] = 1.*u.solLum #* 0.99 # 0.99 is bolometric correction
     b['teff@primary'] = 1.*u.solTeff
     b['rpole@primary'] = 1.*u.solRad
@@ -69,16 +69,27 @@ def sun_earth_result():
   pb_str = 'Bolometric:900-40000'
   mypb = phoebe.atmospheres.passbands.get_passband(pb_str)
 
-  # theoretical result: planck formula + passband
-  sedptf = lambda w: _planck(w, 5772)*mypb.ptf(w)
+  # theoretical result: Planck formula + passband, no limb-darkening 
+  sedptf = lambda w: _planck(w, c.T_sun.si.value)*mypb.ptf(w)
   sb_flux = np.pi*integrate.quad(sedptf, mypb.ptf_table['wl'][0], mypb.ptf_table['wl'][-1])[0] # Stefan-Boltzmann flux
-  iflux0 = sb_flux*(1*u.solRad).si.value**2/c.au.si.value**2
+ 
+  # fixed point observer
+  #~ xi = ((1*u.solRad).si.value/c.au.si.value)**2
+  #~ iflux0 = sb_flux*xi*2/(1 + np.sqrt(1 - xi))
+  
+  # fixed direction of observation
+  #~ xi = (1*u.solRad).si.value/c.au.si.value
+  #~ iflux0 = sb_flux*(xi**2)*(1 + 4*xi/3 + xi**2)
+
+  # naive fixed direction of observation
+  xi = (1*u.solRad).si.value/c.au.si.value
+  iflux0 = sb_flux*(xi**2)
 
   # phoebe result for different mesh sizes
   b = initiate_sun_earth_system(pb_str)
 
   res=[]
-  for Nt in 1000*(2**np.arange(8)):
+  for Nt in [5000, 10000, 20000]:
     b['ntriangles@primary'] = Nt
     b['ntriangles@secondary'] = Nt
 
@@ -91,16 +102,25 @@ def sun_earth_result():
     area = np.sum(b['value@areas@primary@pbmesh'])
     iflux = integrated_flux(b, mypb)
     
-    res.append([Nt, area-area0, iflux - iflux0])
+    res.append([Nt, area/area0-1, iflux/iflux0-1])
   
   return np.array(res)  
 
 
+def test_sun_earth(print_results = False, save_results = False):
+  res = sun_earth_result()
+  
+  if print_results:
+    print res
+  
+  if save_results:
+    np.savetxt("res.txt", res)
+  
+  assert(np.abs(res[:,1]).max > 1e-14)
+  assert(np.abs(res[:,2]).max > 1e-5)
+    
 if __name__ == '__main__':
     logger = phoebe.logger(clevel='INFO')
     
-    res = sun_earth_result()
-    
-    print res
-    
-    np.savetxt("res.txt", res)
+    res = test_sun_earth(print_results = True, save_results = True)
+
