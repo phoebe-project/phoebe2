@@ -1017,6 +1017,61 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
+    def compute_critical_pots(self, component, L1=True, L2=True, L3=True):
+        hier = self.hierarchy
+        kind = hier.get_kind_of(component)
+        if kind not in ['star', 'envelope']:
+            raise ValueError("component must be a star or envelope")
+
+        comp_ps = self.get_component(component)
+        parent = hier.get_parent_of(component)
+        if parent == 'component':
+            raise ValueError("single star doesn't have critical potentials")
+
+        parent_ps = self.get_component(parent)
+
+        q = parent_ps.get_value('q')
+
+        # potentials are DEFINED to be at periastron, so don't need
+        # to worry about volume conservation here
+
+        # Check if the component is primary or secondary; if the
+        # latter, flip q and transform pot.
+        comp = hier.get_primary_or_secondary(component, return_ind=True)
+        q = roche.q_for_component(q, comp)
+
+        F = comp_ps.get_value('syncpar')
+        d = 1 - parent_ps.get_value('ecc')
+
+        # TODO: this needs to be generalized once other potentials are supported
+        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True)
+
+        return critical_pots
+
+    def compute_critical_rpoles(self, component, L1=True, L2=True, L3=True):
+        """
+        returns in solRad
+        """
+        critical_pots = self.compute_critical_pots(component, L1, L2, L3)
+
+        hier = self.hierarchy
+        comp_ps = self.get_component(component)
+        parent = hier.get_parent_of(component)
+        parent_ps = self.get_component(parent)
+
+        q = parent_ps.get_value('q')
+        e = parent_ps.get_value('ecc')
+        F = comp_ps.get_value('syncpar')
+        sma = parent_ps.get_value('sma', unit='solRad')
+
+        comp = hier.get_primary_or_secondary(component, return_ind=True)
+
+        critical_rpoles = {}
+        for l,pot in critical_pots.items():
+            critical_rpoles[l] = roche.potential2rpole(pot, q, e, F, sma, comp)
+
+        return critical_rpoles
+
     def run_checks(self, **kwargs):
         """
         Check to see whether the system is expected to be computable.
@@ -1048,23 +1103,14 @@ class Bundle(ParameterSet):
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
                     # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
                     # TODO: only do this if distortion_method == 'roche'
-                    q = parent_ps.get_value('q', **kwargs)
-                    pot = comp_ps.get_value('pot', **kwargs)
-                    # potentials are DEFINED to be at periastron, so don't need
-                    # to worry about volume conservation here
+                    pot = comp_ps.get_value('pot')
+                    q = parent_ps.get_value('q')
 
-                    # Check if the component is primary or secondary; if the
-                    # latter, flip q and transform pot.
                     comp = hier.get_primary_or_secondary(component, return_ind=True)
                     q = roche.q_for_component(q, comp)
                     pot = roche.pot_for_component(pot, q, comp)
 
-                    F = comp_ps.get_value('syncpar', **kwargs)
-                    d = 1 - parent_ps.get_value('ecc', **kwargs)
-
-                    # TODO: this needs to be generalized once other potentials are supported
-                    critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True, style = 1)
-                    # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
+                    critical_pots = self.compute_critical_pots(component, L1=True, L2=True)
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
@@ -1074,8 +1120,9 @@ class Bundle(ParameterSet):
                 # MUST be overflowing at APASTRON (1+ecc)
                 # TODO: implement this check based of fillout factor or crit_pots constrained parameter
                 # TODO: only do this if distortion_method == 'roche' (which probably will be required for envelope?)
-                pot = comp_ps.get_value('pot', **kwargs)
-                q = parent_ps.get_value('q', **kwargs)
+                # TODO: use self.compute_critical_pots
+                pot = comp_ps.get_value('pot')
+                q = parent_ps.get_value('q')
                 # NOTE: pot for envelope will always be as if primary, so no need to invert
                 F = 1.0
                 # NOTE: syncpar is fixed at 1.0 for envelopes
@@ -1128,8 +1175,8 @@ class Bundle(ParameterSet):
                 pot1 = self.get_value(qualifier='pot', component=starrefs[1], context='component', **kwargs)
                 pot1 = roche.pot_for_component(pot1, q1, comp1)
 
-                xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0, choice=0)
-                xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1, choice=0)
+                xrange0 = libphoebe.roche_xrange(q0, F0, 1.0-ecc, pot0+1e-6, choice=0)
+                xrange1 = libphoebe.roche_xrange(q1, F1, 1.0-ecc, pot1+1e-6, choice=0)
 
                 if xrange0[1]+xrange1[1] > 1.0-ecc:
                     return False,\
@@ -2083,6 +2130,13 @@ class Bundle(ParameterSet):
                                                value=rhs,
                                                default_unit=lhs.default_unit,
                                                description='expression that determines the constraint')
+
+
+        newly_constrained_param = constraint_param.get_constrained_parameter()
+        check_kwargs = {k:v for k,v in newly_constrained_param.meta.items() if k not in ['context', 'twig', 'uniquetwig']}
+        check_kwargs['context'] = 'constraint'
+        if len(self._bundle.filter(**check_kwargs)):
+            raise ValueError("'{}' is already constrained".format(newly_constrained_param.twig))
 
         metawargs = {'context': 'constraint',
                      'kind': func.func_name}

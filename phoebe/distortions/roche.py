@@ -53,3 +53,17 @@ def potential2rpole(pot, q, e, F, sma=1.0, component=1):
     q = q_for_component(q, component=component)
     Phi = pot_for_component(pot, q, component=component)
     return libphoebe.roche_pole(q, F, d, Phi) * sma
+
+def criticalL1(q, e, F, component=1):
+    """
+    determine the potential at periastron to fill the critical potential at L1
+    """
+    d = 1-e
+    q = q_for_component(q, component=component)
+
+    critical_pots = libphoebe.roche_critical_potential(q, F, d,
+                                                       L1=True,
+                                                       L2=False,
+                                                       L3=False)
+
+    return critical_pots['L1']
