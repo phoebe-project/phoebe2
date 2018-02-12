@@ -3,6 +3,7 @@ import phoebe as phb
 import os.path
 import logging
 from phoebe import conf
+from libphoebe import roche_critical_potential
 logger = logging.getLogger("IO")
 logger.addHandler(logging.NullHandler())
 
@@ -382,7 +383,12 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
     if 'Overcontact' in morphology:
         contact_binary= True
         eb = phb.Bundle.default_binary(contact_binary=True)
+    elif 'Semi-detached' in morphology:
+        semi_detached = True
+        contact_binary = False
+        eb = phb.Bundle.default_binary()
     else:
+        semi_detached = False
         contact_binary = False
         eb = phb.Bundle.default_binary()
     eb.disable_history()
@@ -428,6 +434,16 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             params[:,1][list(params[:,0]).index('phoebe_teff2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_teff1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_grb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_grb1.VAL')]
             params[:,1][list(params[:,0]).index('phoebe_alb2.VAL')] = params[:,1][list(params[:,0]).index('phoebe_alb1.VAL')]
+    elif 'Semi-detached' in morphology:
+
+        if "primary" in morphology:
+            params = np.delete(params, [list(params[:,0]).index('phoebe_pot1.VAL')], axis=0)
+        elif "secondary" in morphology:
+            params = np.delete(params, [list(params[:,0]).index('phoebe_pot2.VAL')], axis=0)
+
+    else:
+        #none of the other constraints are useful
+        pass
 
 #pull out global values for fti
 
@@ -858,11 +874,34 @@ def load_legacy(filename, add_compute_legacy=True, add_compute_phoebe=True):
             eb.set_value_all(check_visible=False, **d)
     #print "before", eb['pot@secondary']
     #print "rpole before", eb['rpole@secondary']
+    if semi_detached:
+        q = eb.get_value(qualifier ='q')
+        d = 1. - eb.get_value(qualifier='ecc')
+        if 'primary' in morphology:
+
+            eb.add_constraint('critical_rpole', component='primary')
+#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='primary')
+#            f = eb.get_value(qualifier='syncpar', component='primary')
+#            crit_pots = roche_critical_potential(q,f,d)
+#            eb.set_value(qualifier='pot', component='primary', context='component', value=crit_pots['L1'])
+        elif 'secondary' in morphology:
+            eb.add_constraint('critical_rpole', component='secondary')
+#            eb.flip_constraint(solve_for='rpole', constraint_func='potential', component='secondary')
+#            f = eb.get_value(qualifier='syncpar', component='secondary')
+#            crit_pots = roche_critical_potential(1/q,f,d)
+#            eb.set_value(qualifier='pot', component='secondary', context='component', value=crit_pots['L1'])
 
 #flip back all constraints
     if not contact_binary:
-        eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
-        eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+        #avoid semi_detached where constraint hasn't been flipped
+        if semi_detached and 'primary' not in morphology:
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
+        elif semi_detached and 'secondary' not in morphology:
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+        else:
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='primary')
+            eb.flip_constraint(solve_for='pot', qualifier='rpole', component='secondary')
+
 #        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='primary')
 #        eb.flip_constraint(solve_for='pot', constraint_func='potential', component='secondary')
     # get rid of seconddary coefficient if ldlaw  is linear
@@ -1095,6 +1134,29 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         raise ValueError("Phoebe 1 only supports binaries. Either provide a different system or edit the hierarchy.")
 # check for contact_binary
     contact_binary = eb.hierarchy.is_contact_binary(primary)
+# check for semi_detached
+
+# grab all possible constraints that could affect semi_detached status
+    sd_constraints = eb.filter(context='constraint', qualifier='pot')+eb.filter(context='constraint', qualifier='rpole')
+    no_sd_constraints = 0 #keep track of number of constraints as phoebe 1 can't
+    #handle two semi_detached stars
+
+    for i in range(len(sd_constraints)):
+        if sd_constraints[i].constraint_func =='critical_rpole' or sd_constraints[i].constraint_func =='critical_potential':
+            no_sd_constraints = no_sd_constraints+1
+            semi_detached = True
+            if primary == sd_constraints[i].component:
+                semid_comp = 'primary' #semidatched is primary
+            if secondary == sd_constraints[i].component:
+                    semid_comp = 'secondary'
+            if no_sd_constraints > 1:
+                semid_comp = 'primary'
+                logger.warning('Phoebe 1 does not support double Roche lobe overflow system. Defaulting to Primary star only.')
+        else:
+            semi_detached = False
+
+#    if 'rpole' in eb['constraint'].qualifiers:
+#        semi_detached = eb.get_parameter('rpole', context='constraint').constraint_func == 'critical_rpole'
 #  catch all the datasets
 # Find if there is more than one limb darkening law
     ldlaws = set([p.get_value() for p in eb.filter(qualifier='ld_func').to_list()])
@@ -1143,7 +1205,7 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
     prpars = eb.filter(component=primary, context='component')
     secpars = eb.filter(component=secondary, context='component')
     if contact_binary:
-        #note system morphology
+        #note system
         parnames.append('phoebe_model')
         parvals.append('"Overcontact binary not in thermal contact"')
         types.append('choice')
@@ -1158,6 +1220,11 @@ def pass_to_legacy(eb, filename='2to1.phoebe', compute=None, **kwargs):
         pname = ret_parname('pot', comp_int=comp_int, ptype=ptype)
         parnames.extend(pname)
         parvals.extend(val)
+    elif semi_detached:
+        parnames.append('phoebe_model')
+        parvals.append('"Semi-detached binary, '+semid_comp+' star fills Roche lobe')
+        types.append('choice')
+
 #   pblum
         # TODO BERT: need to deal with multiple datasets
  #       for x in range(len(lcs)):
