@@ -1032,9 +1032,6 @@ class Bundle(ParameterSet):
 
         q = parent_ps.get_value('q')
 
-        # potentials are DEFINED to be at periastron, so don't need
-        # to worry about volume conservation here
-
         # Check if the component is primary or secondary; if the
         # latter, flip q and transform pot.
         comp = hier.get_primary_or_secondary(component, return_ind=True)
@@ -1044,7 +1041,7 @@ class Bundle(ParameterSet):
         d = 1 - parent_ps.get_value('ecc')
 
         # TODO: this needs to be generalized once other potentials are supported
-        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=True, L2=True)
+        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3)
 
         return critical_pots
 
@@ -1103,8 +1100,8 @@ class Bundle(ParameterSet):
                     # MUST NOT be overflowing at PERIASTRON (1-ecc)
                     # TODO: implement this check based of fillout factor or crit_pots constrained parameter?
                     # TODO: only do this if distortion_method == 'roche'
-                    pot = comp_ps.get_value('pot')
-                    q = parent_ps.get_value('q')
+                    pot = comp_ps.get_value('pot', **kwargs)
+                    q = parent_ps.get_value('q', **kwargs)
 
                     comp = hier.get_primary_or_secondary(component, return_ind=True)
                     q = roche.q_for_component(q, comp)
@@ -1114,15 +1111,18 @@ class Bundle(ParameterSet):
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
-                            '{} is overflowing at periastron (L1={L1:.02f}, L2={L2:.02f})'.format(component, **critical_pots)
+                            '{} is overflowing at periastron (L1={:.02f}, L2={:.02f}, pot={})'.format(component,
+                                                                                                      critical_pots['L1'],
+                                                                                                      critical_pots['L2'],
+                                                                                                      pot)
 
             elif kind in ['envelope']:
                 # MUST be overflowing at APASTRON (1+ecc)
                 # TODO: implement this check based of fillout factor or crit_pots constrained parameter
                 # TODO: only do this if distortion_method == 'roche' (which probably will be required for envelope?)
                 # TODO: use self.compute_critical_pots
-                pot = comp_ps.get_value('pot')
-                q = parent_ps.get_value('q')
+                pot = comp_ps.get_value('pot', **kwargs)
+                q = parent_ps.get_value('q', **kwargs)
                 # NOTE: pot for envelope will always be as if primary, so no need to invert
                 F = 1.0
                 # NOTE: syncpar is fixed at 1.0 for envelopes

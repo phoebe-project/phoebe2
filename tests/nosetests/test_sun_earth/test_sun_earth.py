@@ -111,8 +111,8 @@ def test_sun_earth(print_results = False, save_results = False):
   res = sun_earth_result()
   
   if print_results:
-    print res
-  
+    print(res)
+
   if save_results:
     np.savetxt("res.txt", res)
   
