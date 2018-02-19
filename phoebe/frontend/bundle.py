@@ -1017,7 +1017,7 @@ class Bundle(ParameterSet):
                 else:
                     raise KeyError(msg)
 
-    def compute_critical_pots(self, component, L1=True, L2=True, L3=True):
+    def compute_critical_pots(self, component, L1=True, L2=True, L3=True, **kwargs):
         hier = self.hierarchy
         kind = hier.get_kind_of(component)
         if kind not in ['star', 'envelope']:
@@ -1030,36 +1030,36 @@ class Bundle(ParameterSet):
 
         parent_ps = self.get_component(parent)
 
-        q = parent_ps.get_value('q')
+        q = parent_ps.get_value('q', **kwargs)
 
         # Check if the component is primary or secondary; if the
         # latter, flip q and transform pot.
         comp = hier.get_primary_or_secondary(component, return_ind=True)
         q = roche.q_for_component(q, comp)
 
-        F = comp_ps.get_value('syncpar')
-        d = 1 - parent_ps.get_value('ecc')
+        F = comp_ps.get_value('syncpar', **kwargs)
+        d = 1 - parent_ps.get_value('ecc', **kwargs)
 
         # TODO: this needs to be generalized once other potentials are supported
         critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3)
 
         return critical_pots
 
-    def compute_critical_rpoles(self, component, L1=True, L2=True, L3=True):
+    def compute_critical_rpoles(self, component, L1=True, L2=True, L3=True, **kwargs):
         """
         returns in solRad
         """
-        critical_pots = self.compute_critical_pots(component, L1, L2, L3)
+        critical_pots = self.compute_critical_pots(component, L1, L2, L3, **kwargs)
 
         hier = self.hierarchy
         comp_ps = self.get_component(component)
         parent = hier.get_parent_of(component)
         parent_ps = self.get_component(parent)
 
-        q = parent_ps.get_value('q')
-        e = parent_ps.get_value('ecc')
-        F = comp_ps.get_value('syncpar')
-        sma = parent_ps.get_value('sma', unit='solRad')
+        q = parent_ps.get_value('q', **kwargs)
+        e = parent_ps.get_value('ecc', **kwargs)
+        F = comp_ps.get_value('syncpar', **kwargs)
+        sma = parent_ps.get_value('sma', unit='solRad', **kwargs)
 
         comp = hier.get_primary_or_secondary(component, return_ind=True)
 
@@ -1107,7 +1107,7 @@ class Bundle(ParameterSet):
                     q = roche.q_for_component(q, comp)
                     pot = roche.pot_for_component(pot, q, comp)
 
-                    critical_pots = self.compute_critical_pots(component, L1=True, L2=True)
+                    critical_pots = self.compute_critical_pots(component, L1=True, L2=True, **kwargs)
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
