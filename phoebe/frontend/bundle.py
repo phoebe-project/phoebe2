@@ -1041,7 +1041,7 @@ class Bundle(ParameterSet):
         d = 1 - parent_ps.get_value('ecc', **kwargs)
 
         # TODO: this needs to be generalized once other potentials are supported
-        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3)
+        critical_pots = libphoebe.roche_critical_potential(q, F, d, L1=L1, L2=L2, L3=L3, style=1)
 
         return critical_pots
 
