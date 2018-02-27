@@ -70,8 +70,9 @@ def check_compiler(compiler, extensions, compiler_name):
   print("**platform=%s***" %(plat))
   print("**platform_version=%s***" %(plat_ver))
   
-  if plat == 'Windows': 
+  if plat == 'Windows':
     
+    # we don't do checks, as we don't know to make them
     status = True
     
   # this should cover Linux and Mac
@@ -173,15 +174,15 @@ def check_compiler(compiler, extensions, compiler_name):
           if name == 'icc':
             version_ok = LooseVersion(ver) >= LooseVersion("1600")
             compiler_found = True
-                    
-        removefile(tempdir+'/'+ src)
-        removefile(tempdir+'/'+ exe)
-        removefile(tempdir+'/'+ obj)
-            
       except:
         print("Unable to make a test program to determine compiler.")
         status = False
-       
+      
+      # Cleanup
+      removefile(tempdir+'/'+ src)
+      removefile(tempdir+'/'+ exe)
+      removefile(tempdir+'/'+ obj)
+    
     if compiler_found:  
       if version_ok:
         print("Ready to compile. Compiler: name=%s, version=%s"%(name, ver))
