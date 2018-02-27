@@ -256,6 +256,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
     colorbar = kwargs.pop('colorbar', False)
     facecolorbar = kwargs.pop('facecolorbar', colorbar)
     edgecolorbar = kwargs.pop('edgecolorbar', colorbar)
+    linestyle = kwargs.pop('linestyle', '-')
 
 
     ax = kwargs.pop('ax', None)
@@ -326,7 +327,7 @@ def mpl(ps, data, plot_inds, do_plot=True, **kwargs):
                 pc = Poly3DCollection(data[plot_inds], **pckwargs)
             else:
                 #coordinate_inds = [['x', 'y', 'z'].index(q) for q in [xqualifier, yqualifier]]
-                pc = PolyCollection(data[plot_inds], **pckwargs)
+                pc = PolyCollection(data[plot_inds], linestyle=linestyle, **pckwargs)
 
             # if facecolorbar:
                 # pc.set_array(facecolorarray)

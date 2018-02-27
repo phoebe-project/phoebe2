@@ -96,6 +96,16 @@ def dBinaryRochedr (r, D, q, F):
 
     return -1./r2 - q*(r1-r[0]/r1*D)/((r[0]-D)*(r[0]-D)+r[1]*r[1]+r[2]*r[2])**1.5 - q*r[0]/r1/D/D + F*F*(1+q)*(1-r[2]*r[2]/r2)*r1
 
+def Lag1(q):
+    # L1
+    dxL = 1.0
+    L1 = 1e-3
+    while abs(dxL) > 1e-6:
+        dxL = - dBinaryRochedx([L1, 0.0, 0.0], 1., q, 1.) / d2BinaryRochedx2([L1, 0.0, 0.0], 1., q, 1.)
+        L1 = L1 + dxL
+
+    return L1
+
 class MeshVertex:
     def __init__(self, r, dpdx, dpdy, dpdz, *args):
         """
