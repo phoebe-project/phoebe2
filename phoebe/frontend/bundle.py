@@ -1134,6 +1134,9 @@ class Bundle(ParameterSet):
                     incl = parent_ps.get_value('incl', unit=u.rad)
                     long_an = parent_ps.get_value('long_an', unit=u.rad)
                     s_roche = mesh.spin_in_roche(s_sys, 0.0, long_an, incl)
+
+                    F = comp_ps.get_value('syncpar', **kwargs) 
+                    d = 1 - parent_ps.get_value('ecc', **kwargs) 
                     critical_pot = libphoebe.roche_misaligned_Omega_min(q, F, d, s_roche)
                     # print('q=%f, F=%f, d=%f, pot=%f, cp=%s' % (q, F, d, pot, critical_pots))
 
