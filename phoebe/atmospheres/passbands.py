@@ -416,7 +416,8 @@ class Passband:
         if verbose:
             print('Computing reddening corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
             
-        a = libphoebe.CCM89_extinction(self.wl)
+#        a = libphoebe.CCM89_extinction(self.wl)
+        a = libphoebe.gordon_extinction(self.wl)
         
         for j in range(0,combos):
        
@@ -510,7 +511,8 @@ class Passband:
             fl *= self.ptf(wl)
             flP = fl*wl
             
-            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+#            Alambda = np.matmul(libphoebe.CCM89_extinction(wl), M[i])
+            Alambda = np.matmul(libphoebe.gordon_extinction(wl), M[i])
             flux_frac = np.exp(-0.9210340371976184*Alambda)             #10**(-0.4*Alambda)
             
             extinctE[i], extinctP[i]= np.dot([fl/fl.sum(), flP/flP.sum()], flux_frac)

@@ -6701,7 +6701,7 @@ static PyObject *CCM89_extinction(PyObject *self, PyObject *args) {
   do {
     
     x = 1e-6/(*(l++));
-    
+
     if (0.3 <= x && x <= 1.1) {
       y = std::pow(x, 1.61);
       *(r++) = 0.574*y;
@@ -6737,6 +6737,107 @@ static PyObject *CCM89_extinction(PyObject *self, PyObject *args) {
   return o_r;
 }
 
+
+/*
+  Computing Gordon et al. (2009) extinction value as a value of wavelength
+  
+  Input:
+    lam: wavelength in m
+      float
+    or
+      1- rank numpy array
+    
+  Returns: extinction coefficients:
+      1-rank numpy array: two values
+    or
+      2-rank numpy array: array of two values
+*/ 
+static PyObject *gordon_extinction(PyObject *self, PyObject *args) {
+  
+  const char *fname = "gordon_extinction";
+    
+  //
+  // Reading arguments
+  //
+         
+  PyObject *o_lam;
+ 
+  if (!PyArg_ParseTuple(args, "O", &o_lam)) {
+    std::cerr << fname << "::Problem reading arguments\n";
+    return NULL;
+  }
+
+  //
+  // Reading variables and reserving space for results
+  //
+  
+  int n;
+  npy_intp dims[2];
+  PyObject *o_r;
+  double *l, lam;
+  
+  if (PyFloat_Check(o_lam)) {
+    n = 1;
+    lam = PyFloat_AS_DOUBLE(o_lam);
+    l = &lam;
+    
+    dims[0] = 2;
+    o_r = PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+
+  } else if (PyArray_Check(o_lam)) {
+    n = PyArray_DIM((PyArrayObject*)o_lam, 0);
+    l = (double*)PyArray_DATA((PyArrayObject *)o_lam);
+    
+    dims[0] = n;
+    dims[1] = 2;
+    o_r = PyArray_SimpleNew(2, dims, NPY_DOUBLE);
+   
+  } else {
+    std::cerr << fname << ":: This type of input of lambdas is not supported\n";
+    return NULL;
+  }
+
+  
+  //
+  // Calculating results
+  //
+
+      
+  double 
+    x, y, x59square, 
+    *r = (double *)PyArray_DATA((PyArrayObject *)o_r);
+  
+  do {
+    
+    x = 1e-6/(*(l++));
+
+    if (0.3 <= x && x <= 1.1) {
+      y = std::pow(x, 1.61);
+      *(r++) = 0.574*y;
+      *(r++) = -0.527*y;
+    } else if (x <= 3.3) {
+      y = x - 1.82;
+      //ax = 1 + 0.17699*y - 0.50447*y**2 - 0.02427*y**3 + 0.72085*y**4 + 0.01979*y**5 - 0.77530*y**6 + 0.32999*y**7
+      *(r++) = 1 + y*(0.17699 + y*(-0.50447 + y*(-0.02427 + y*(0.72085 + y*(0.01979 + (-0.7753 + 0.32999*y)*y)))));
+      //bx = 1.141338*y + 2.28305*y**2 + 1.07233*y**3 - 5.38434*y**4 - 0.62251*y**5 + 5.30260*y**6 - 2.09002*y**7
+      *(r++) = y*(1.41338 + y*(2.28305 + y*(1.07233 + y*(-5.38434 + y*(-0.62251 + (5.3026 - 2.09002*y)*y)))));
+    } else if (x <= 5.9) {
+      *(r++) = 1.896 - 0.372*x - 0.0108/((x - 4.57)*(x - 4.57) + 0.0422);
+      *(r++) = -3.503 + 2.057*x + 0.718/((x - 4.59)*(x - 4.59) + 0.0530);
+    } else if (x <= 8.0) {
+      x59square=(x - 5.9)*(x - 5.9);
+      *(r++) = 1.896 - 0.372*x - 0.0108/((x - 4.57)*(x - 4.57) + 0.0422) - 0.110*x59square - 0.0099*x59square*(x - 5.9);
+      *(r++) = -3.503 + 2.057*x + 0.718/((x - 4.59)*(x - 4.59) + 0.0530) + 0.537*x59square + 0.0530*x59square*(x - 5.9);
+    } else {
+      std::cerr 
+        << fname 
+        << "Passband wavelength outside the range defined for CCM89 and Gordon et al. (2009) extinction (0.1-3.3 micron)\n";
+      return NULL;
+    }
+  } while (--n);
+  
+  return o_r;
+}
 
 /*
   Define functions in module
@@ -7056,6 +7157,12 @@ static PyMethodDef Methods[] = {
   CCM89_extinction,
   METH_VARARGS, 
   "Calculate CCM89 extinction coefficients for a given wavelength"},  
+  
+  {"gordon_extinction", 
+  gordon_extinction,
+  METH_VARARGS, 
+  "Calculate Gordon et al. (2009, UV) and CCM89 (OPT-IR) extinction coefficients for a given wavelength"},  
+
   
 // --------------------------------------------------------------------
   
