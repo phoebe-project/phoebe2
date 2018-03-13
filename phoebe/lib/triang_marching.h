@@ -835,8 +835,12 @@ struct Tmarching: public Tbody {
       NatV - vector of normals at vertices (read N at V)
       Tr - vector of triangles
       GatV - norm of the gradient at vertices
+    Return:
+     0 - no error
+     1 - too triangles
+     2 - problem with converges
   */ 
-  bool triangulize_full(
+  int triangulize_full(
     T init_r[3],
     T init_g[3],
     const T & delta, 
@@ -851,7 +855,10 @@ struct Tmarching: public Tbody {
     
     // start with normal precision defined by T
     precision = false;
-   
+ 
+    // error 
+    int error = 0;
+  
     V.clear();
     Tr.clear();
     
@@ -863,7 +870,7 @@ struct Tmarching: public Tbody {
     //
     typedef std::vector<Tvertex> Tfront_polygon;
     
-    // list of front polygon, working here as circular list
+    // list of frontal polygon, working here as circular list
     std::vector<Tfront_polygon> lP(1); 
     
     {
@@ -881,14 +888,15 @@ struct Tmarching: public Tbody {
       
       utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
        
-      for (int k = 0; k < 6; ++k){
+      for (int k = 0; k < 6 && error == 0; ++k){
         
         for (int i = 0; i < 3; ++i) 
           qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
           
         if (!project_onto_potential(qk, vk, max_iter, v.b[2]) &&
             !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter)) {
-          std::cerr << "Warning: Projection did not converge\n";
+          std::cerr << "Warning: Projection did not converge for initial frontal polygon.\n";
+          error = 2;
         }  
         
         // store points into initial front
@@ -913,8 +921,6 @@ struct Tmarching: public Tbody {
     //
     
     T delta2 = 0.5*delta*delta;    // TODO: should be more dynamical
-    
-    bool st_triang = true;
     
     do {
     
@@ -1145,7 +1151,7 @@ struct Tmarching: public Tbody {
             
             Tvertex Pi[6], *vp = Pi;      // new front from it_min
             
-            for (int k = 1; k < nt; ++k, ++n, ++vp){
+            for (int k = 1; k < nt && error == 0; ++k, ++n, ++vp){
               
               // rotate in tangent plane
               ct = c*ca[k] - s*sa[k];
@@ -1180,6 +1186,8 @@ struct Tmarching: public Tbody {
                   << vp->r[0] << ' ' << vp->r[1] << ' ' << vp->r[2] << '\n'
                   << g[0] << ' ' << g[1] << ' ' << g[2] << '\n'
                   << g[3] << '\n';
+            
+                error = 2;
               }
               
               vp->index = n; // = V.size();
@@ -1208,14 +1216,14 @@ struct Tmarching: public Tbody {
           }
         }
 
-        st_triang = Tr.size() < max_triangles;
+        if (Tr.size() >= max_triangles) error = 1;
         
-      } while (st_triang);
+      } while (error == 0);
     
       
-    } while (lP.size() > 0 && st_triang);
+    } while (lP.size() > 0 && error == 0);
    
-    return st_triang;
+    return error;
   }
   
   /*
@@ -1428,9 +1436,14 @@ struct Tmarching: public Tbody {
       NatV - vector of normals at vertices (read N at V)
       Tr - vector of triangles
       GatV - norm of the gradient at vertices
+  
+    Return:
+     0 - no error
+     1 - too triangles
+     2 - problem with converges
   */
   
-  bool triangulize_full_clever(
+  int triangulize_full_clever(
     T init_r[3],
     T init_g[3],
     const T & delta, 
@@ -1439,13 +1452,15 @@ struct Tmarching: public Tbody {
     std::vector <T3Dpoint<T>> & NatV,
     std::vector <T3Dpoint<int>> & Tr,
     std::vector<T> * GatV = 0,
-    const T &init_phi = 0
-    ) 
+    const T & init_phi = 0) 
   {
     
     // start with normal precision defined by T
     precision = false;
    
+    // error 
+    int error = 0;
+
     V.clear();
     Tr.clear();
     
@@ -1482,7 +1497,7 @@ struct Tmarching: public Tbody {
       
       utils::sincos_array(5, utils::m_pi3, sa, ca, delta);
        
-      for (int k = 0; k < 6; ++k){
+      for (int k = 0; k < 6 && error == 0; ++k){
         
         for (int i = 0; i < 3; ++i) 
           qk[i] = v.r[i] + (u[i] = ca[k]*v.b[0][i] + sa[k]*v.b[1][i]);
@@ -1491,7 +1506,8 @@ struct Tmarching: public Tbody {
             !slide_over_potential(v.r, v.b[2], u, delta, vk, max_iter) &&
             !project_onto_potential(qk, vk, max_iter, v.b[2])
            ) {
-          std::cerr << "Warning: Projection did not converge\n";
+          std::cerr << "Warning: Projection did not converge for initial frontal polygon!\n";
+          error = 2;
         }
         
         // store points into initial front
@@ -1516,9 +1532,7 @@ struct Tmarching: public Tbody {
     //
     
     T delta2 = 0.5*delta*delta;    // TODO: should be more dynamical
-    
-    bool st_triang = true; // status whether there are to many triangles
-        
+
     do {
     
       // current front polygon
@@ -1696,7 +1710,7 @@ struct Tmarching: public Tbody {
             
             Tvertex Pi[6], *vp = Pi;      // new front from it_min
             
-            for (int k = 1; k < nt; ++k, ++n, ++vp){
+            for (int k = 1; k < nt && error == 0; ++k, ++n, ++vp){
               
               // rotate in tangent plane
               ct = c*ca[k] - s*sa[k];
@@ -1731,6 +1745,8 @@ struct Tmarching: public Tbody {
                   << vp->r[0] << ' ' << vp->r[1] << ' ' << vp->r[2] << '\n'
                   << g[0] << ' ' << g[1] << ' ' << g[2] << '\n'
                   << g[3] << '\n';
+                
+                error = 2;
               }
               
               vp->index = n; // = V.size();
@@ -1770,13 +1786,13 @@ struct Tmarching: public Tbody {
           }
         }
 
-        st_triang = Tr.size() < max_triangles;
-        
-      } while (st_triang);
-    
-    } while (lP.size() > 0 && st_triang);
-   
-    return st_triang;
+        if (Tr.size() >= max_triangles) error = 1;
+                
+      } while (error == 0);
+
+    } while (lP.size() > 0 && error == 0);
+
+    return error;
   }
   
   /*
