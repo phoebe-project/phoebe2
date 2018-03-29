@@ -1101,7 +1101,7 @@ def yaw(b, component, solve_for=None, **kwargs):
     :parameter b: the :class:`phoebe.frontend.bundle.Bundle`
     :parameter str component: the label of the star in which this
         constraint should be built
-    :parameter str solve_for:  if 'long_ae@star' should not be the derived/constrained
+    :parameter str solve_for:  if 'long_an@star' should not be the derived/constrained
         parameter, provide which other parameter should be derived
         (ie 'long_an@orbit', 'yaw@star')
     :returns: lhs (Parameter), rhs (ConstraintParameter), args (list of arguments

@@ -853,6 +853,9 @@ class Body(object):
             omega, s, Phi = self._mesh_args
             # update spin axis for current time
             s = self.polar_direction
+        elif self.distortion_method == 'sphere':
+            omega, = self._mesh_args
+            s = self.polar_direction
         else:
             q, F, d, s, Phi = self._mesh_args
             # update spin axis for current time
