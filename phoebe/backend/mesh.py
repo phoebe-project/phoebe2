@@ -100,36 +100,35 @@ def Rz(x):
   return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
 
 
+#~ def spin(elongan, eincl, alpha, beta):
+  #~ """
+    #~ Spin in the plane of sky of a star on a Kepler orbit with orientation
+    #~ given by
 
-def spin(elongan, eincl, alpha, beta):
-  """
-    Spin in the plane of sky of a star on a Kepler orbit with orientation
-    given by
+      #~ longan - longitude of ascending node
+      #~ incl - inclination
 
-      longan - longitude of ascending node
-      incl - inclination
+    #~ spherical coordinate on the orbital plane:
 
-    spherical coordinate on the orbital plane:
+      #~ alpha  - angle between spin and ?ascending node?
+      #~ beta - angle between spin and angular momentum
 
-      alpha  - angle between spin and ?ascending node?
-      beta - angle between spin and angular momentum
+    #~ Return:
+      #~ spin - in plane of sky
+  #~ """    
+  #~ #  m = Rz(long).Rx(-incl)
+  #~ m = euler_trans_matrix(-pi, elongan, eincl)
 
-    Return:
-      spin - in plane of sky
-  """    
-  #  m = Rz(long).Rx(-incl), or we could have Rz(long).Rx(-incl).Rz(pi)
-  m = euler_trans_matrix(-pi, elongan, eincl)
+  #~ ca = cos(alpha)
+  #~ sa = sin(alpha)
 
-  ca = cos(alpha)
-  sa = sin(alpha)
+  #~ cb = cos(beta)
+  #~ sb = sin(beta)
 
-  cb = cos(beta)
-  sb = sin(beta)
+  #~ # v = Rz(alpha) Ry(beta) [0, 0, 1]^T
+  #~ v = np.array([sb*ca, sb*sa, cb])
 
-  # v = Rz(alpha) Ry(beta) [0, 0, 1]^T
-  v = np.array([sb*ca, sb*sa, cb])
-
-  return np.dot(m, v)
+  #~ return np.dot(m, v)
 
 
 def spin_in_system(incl, long_an):
