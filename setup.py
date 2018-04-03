@@ -14,7 +14,8 @@ from distutils.version import LooseVersion, StrictVersion
 import platform
 import os
 import re
-    
+
+
 #
 # Setup for MS Windows
 #
@@ -130,11 +131,15 @@ def check_compiler(compiler, extensions, compiler_name):
     if not compiler_found:
       
       import tempfile
+      import random
+      import string
+
       tempdir = tempfile.gettempdir();
       
-      src = '_compiler_check.c'
-      exe = '_compiler_check.exe'
-      obj = '_compiler_check.o'
+      pat = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+      src = pat+'_compiler_check.c'
+      exe = pat+'_compiler_check.exe'
+      obj = pat+'_compiler_check.o'
       
       with open(tempdir + '/' + src, 'w') as tmp:    
         tmp.writelines(
