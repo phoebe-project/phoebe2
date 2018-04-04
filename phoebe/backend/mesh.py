@@ -100,37 +100,6 @@ def Rz(x):
   return np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
 
 
-#~ def spin(elongan, eincl, alpha, beta):
-  #~ """
-    #~ Spin in the plane of sky of a star on a Kepler orbit with orientation
-    #~ given by
-
-      #~ longan - longitude of ascending node
-      #~ incl - inclination
-
-    #~ spherical coordinate on the orbital plane:
-
-      #~ alpha  - angle between spin and ?ascending node?
-      #~ beta - angle between spin and angular momentum
-
-    #~ Return:
-      #~ spin - in plane of sky
-  #~ """    
-  #~ #  m = Rz(long).Rx(-incl)
-  #~ m = euler_trans_matrix(-pi, elongan, eincl)
-
-  #~ ca = cos(alpha)
-  #~ sa = sin(alpha)
-
-  #~ cb = cos(beta)
-  #~ sb = sin(beta)
-
-  #~ # v = Rz(alpha) Ry(beta) [0, 0, 1]^T
-  #~ v = np.array([sb*ca, sb*sa, cb])
-
-  #~ return np.dot(m, v)
-
-
 def spin_in_system(incl, long_an):
     """
     Spin in the plane of sky of a star given its inclination and "long_an"
@@ -251,11 +220,6 @@ def transform_velocity_array(array, pos_array, vel, euler, rotation_vel=(0,0,0))
     new_vel = np.dot(np.asarray(array)+rotation_component, trans_matrix.T) + orbital_component
 
     return new_vel
-
-def get_polar_direction(true_anom, pitch, yaw):
-    z = np.array([0.0, 0.0, 1.0])
-    trans_matrix = euler_trans_matrix(true_anom, pitch, yaw).T
-    return np.dot(z, trans_matrix)
 
 
 def wd_grid_to_mesh_dict(the_grid, q, F, d):

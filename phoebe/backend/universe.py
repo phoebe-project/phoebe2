@@ -1583,8 +1583,9 @@ class Star(Body):
     @property
     def polar_direction(self):
         """polar direction in the roche frame"""
-        #print "*** polar_direction spin: {} true_anom: {}, true_anom_comp: {}, polar_direction: {}".format(self.spin, self.true_anom, self.true_anom_comp, mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl))
-        return mesh.spin_in_roche(self.spin, self.true_anom_comp, self.elongan, self.eincl)
+        #~ print "*** polar_direction spin: time: {} comp_no: {} spin: {} true_anom: {}, true_anom_comp: {}, polar_direction: {}".format(self.time, self.comp_no, self.spin, self.true_anom, self.true_anom_comp, mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl))
+        #return mesh.spin_in_roche(self.spin, self.true_anom_comp, self.elongan, self.eincl)
+        return mesh.spin_in_roche(self.spin, self.true_anom, self.elongan, self.eincl)
 
     def get_north_pole(self, rpole=1.0):
         """location of the north pole in the global/system frame"""
