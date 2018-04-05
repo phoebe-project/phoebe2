@@ -562,41 +562,55 @@ class Passband:
     def _ldlaw_nonlin(self, mu, c1, c2, c3, c4):
         return 1.0-c1*(1.0-np.sqrt(mu))-c2*(1.0-mu)-c3*(1.0-mu*np.sqrt(mu))-c4*(1.0-mu*mu)
 
-    def compute_ck2004_ldcoeffs(self, plot_diagnostics=False):
+    def compute_ck2004_ldcoeffs(self, weighting='uniform', plot_diagnostics=False):
+        """
+        @weighting: determines how data points should be weighted.
+                    'uniform':  do not apply any per-point weighting
+                    'interval': apply weighting based on the interval widths
+        Computes limb darkening coefficients for linear, log, square root,
+        quadratic and power laws.
+        """
         if 'ck2004_all' not in self.content:
             print('Castelli & Kurucz (2004) intensities are not computed yet. Please compute those first.')
             return None
 
         self._ck2004_ld_energy_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
         self._ck2004_ld_photon_grid = np.nan*np.ones((len(self._ck2004_intensity_axes[0]), len(self._ck2004_intensity_axes[1]), len(self._ck2004_intensity_axes[2]), 11))
-        mus = self._ck2004_intensity_axes[3]
+        mus = self._ck2004_intensity_axes[3] # starts with 0
+        if weighting == 'uniform':
+            sigma = np.ones(len(mus))
+        elif weighting == 'interval':
+            delta = np.concatenate( (np.array((mus[1]-mus[0],)), mus[1:]-mus[:-1]) )
+            sigma = 1./np.sqrt(delta)
+        else:
+            print('Weighting scheme \'%s\' is unsupported. Please choose among [\'uniform\', \'interval\']')
+            return None
 
         for Tindex in range(len(self._ck2004_intensity_axes[0])):
             for lindex in range(len(self._ck2004_intensity_axes[1])):
                 for mindex in range(len(self._ck2004_intensity_axes[2])):
                     IsE = 10**self._ck2004_Imu_energy_grid[Tindex,lindex,mindex,:].flatten()
-
                     fEmask = np.isfinite(IsE)
                     if len(IsE[fEmask]) <= 1:
                         continue
                     IsE /= IsE[fEmask][-1]
 
+                    cElin,  pcov = cfit(f=self._ldlaw_lin,    xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5])
+                    cElog,  pcov = cfit(f=self._ldlaw_log,    xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5])
+                    cEnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fEmask], ydata=IsE[fEmask], sigma=sigma, p0=[0.5, 0.5, 0.5, 0.5])
+                    self._ck2004_ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
+
                     IsP = 10**self._ck2004_Imu_photon_grid[Tindex,lindex,mindex,:].flatten()
                     fPmask = np.isfinite(IsP)
                     IsP /= IsP[fPmask][-1]
 
-                    cElin,  pcov = cfit(self._ldlaw_lin,    mus[fEmask], IsE[fEmask], p0=[0.5])
-                    cElog,  pcov = cfit(self._ldlaw_log,    mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
-                    cEsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
-                    cEquad, pcov = cfit(self._ldlaw_quad,   mus[fEmask], IsE[fEmask], p0=[0.5, 0.5])
-                    cEnlin, pcov = cfit(self._ldlaw_nonlin, mus[fEmask], IsE[fEmask], p0=[0.5, 0.5, 0.5, 0.5])
-                    self._ck2004_ld_energy_grid[Tindex, lindex, mindex] = np.hstack((cElin, cElog, cEsqrt, cEquad, cEnlin))
-
-                    cPlin,  pcov = cfit(self._ldlaw_lin,    mus[fPmask], IsP[fPmask], p0=[0.5])
-                    cPlog,  pcov = cfit(self._ldlaw_log,    mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
-                    cPsqrt, pcov = cfit(self._ldlaw_sqrt,   mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
-                    cPquad, pcov = cfit(self._ldlaw_quad,   mus[fPmask], IsP[fPmask], p0=[0.5, 0.5])
-                    cPnlin, pcov = cfit(self._ldlaw_nonlin, mus[fPmask], IsP[fPmask], p0=[0.5, 0.5, 0.5, 0.5])
+                    cPlin,  pcov = cfit(f=self._ldlaw_lin,    xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5])
+                    cPlog,  pcov = cfit(f=self._ldlaw_log,    xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPsqrt, pcov = cfit(f=self._ldlaw_sqrt,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPquad, pcov = cfit(f=self._ldlaw_quad,   xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5])
+                    cPnlin, pcov = cfit(f=self._ldlaw_nonlin, xdata=mus[fPmask], ydata=IsP[fPmask], sigma=sigma, p0=[0.5, 0.5, 0.5, 0.5])
                     self._ck2004_ld_photon_grid[Tindex, lindex, mindex] = np.hstack((cPlin, cPlog, cPsqrt, cPquad, cPnlin))
 
                     if plot_diagnostics:
@@ -621,7 +635,7 @@ class Passband:
         These are used for intensity-to-flux transformations. The evaluated
         integral is:
 
-        ldint = 1/pi \int_0^1 Imu mu dmu
+        ldint = 2 \pi \int_0^1 Imu mu dmu
         """
 
         if 'ck2004_all' not in self.content:
@@ -680,20 +694,23 @@ class Passband:
             ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table)[0]
         else:
             req = np.vstack((Teff, logg, abun)).T
-            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T[0]
+            ld_coeffs = libphoebe.interp(req, self._ck2004_intensity_axes[0:3], table).T
 
         if ld_func == 'linear':
             return ld_coeffs[0:1]
-        if ld_func == 'logarithmic':
+        elif ld_func == 'logarithmic':
             return ld_coeffs[1:3]
-        if ld_func == 'square_root':
+        elif ld_func == 'square_root':
             return ld_coeffs[3:5]
-        if ld_func == 'quadratic':
+        elif ld_func == 'quadratic':
             return ld_coeffs[5:7]
-        if ld_func == 'power':
+        elif ld_func == 'power':
             return ld_coeffs[7:11]
-
-        return ld_coeffs
+        elif ld_func == 'all':
+            return ld_coeffs
+        else:
+            print('ld_func=%s is invalid; please choose from [linear, logarithmic, square_root, quadratic, power, all].')
+            return None
 
 
     def import_wd_atmcof(self, plfile, atmfile, wdidx, Nabun=19, Nlogg=11, Npb=25, Nints=4):
