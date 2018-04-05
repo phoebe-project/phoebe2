@@ -3186,7 +3186,9 @@ class Parameter(object):
         """
         :return: time tag of this Parameter
         """
-        return str(self._time) if self._time is not None else None
+        # need to force formatting because of the different way numpy.float64 is
+        # handled before numpy 1.14.  See https://github.com/phoebe-project/phoebe2/issues/247
+        return '{:09f}'.format(self._time) if self._time is not None else None
 
     @property
     def history(self):
