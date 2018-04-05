@@ -9428,9 +9428,7 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     (char*)"planck_table",
     NULL
   };
-  
-  std::string err;
-  
+   
   int ifil;
 
   PyObject *ot;
