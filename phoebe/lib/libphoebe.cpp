@@ -89,6 +89,18 @@ template<typename T> NPY_TYPES PyArray_TypeNum();
 template<>  NPY_TYPES PyArray_TypeNum<int>() { return NPY_INT;}
 template<>  NPY_TYPES PyArray_TypeNum<double>() { return NPY_DOUBLE;}
 
+/*
+  Report error with or without Python exception 
+*/ 
+void report_error(const char *str, bool py_exception = true){
+  std::cerr << str << '\n';
+  if (py_exception) PyErr_SetString(PyExc_TypeError, str);
+}
+
+void report_error(const std::string & str, bool py_exception = true){
+  std::cerr << str << '\n';
+  if (py_exception) PyErr_SetString(PyExc_TypeError, str.c_str());
+}
 
 /*
   Insert into dictionary and deferences the inserted object
@@ -5853,7 +5865,25 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
   Python:
    
     result = wd_planckint(t, ifil, planck_table)
-   
+
+  Minimal testing script:
+  
+    import libphoebe as lph
+    import numpy as np
+
+    planck="..../wd/atmcofplanck.dat"
+    atm="..../wd/atmcof.dat"
+
+    d = lph.wd_readdata(planck, atm)
+
+    temps = np.array([1000., 2000.])
+
+    print lph.wd_planckint(temps, 1, d["planck_table"])
+
+    returns:
+    
+    [-0.28885608  8.45013452]
+  
   Input:
   
   positional: necessary
@@ -5896,7 +5926,9 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
         args, keywds, "OiO!", kwlist, 
         &ot, &ifil, &PyArray_Type, &oplanck_table)
       ) {
-    std::cerr << "wd_planckint::Problem reading arguments\n";
+    
+    report_error("wd_planckint::Problem reading arguments");
+    
     return NULL;
   }
   
@@ -5913,17 +5945,19 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
     if (wd_atm::planckint_onlylog(t, ifil, planck_table, ylog))
       return PyFloat_FromDouble(ylog);
     else {
-      std::cerr 
-      << "wd_planckint::Failed to calculate Planck central intensity\n";
+      report_error("wd_planckint::Failed to calculate Planck central intensity");
       return PyFloat_FromDouble(std::nan(""));
     }
-  
-  } else if (PyArray_Check(ot)) {  // argument is a numpy array
+
+  } else if (
+    PyArray_Check(ot) &&
+    PyArray_TYPE((PyArrayObject *) ot) == NPY_DOUBLE
+    ) {  // argument is a numpy array of float(double)
     
     int n = PyArray_DIM((PyArrayObject *)ot, 0);
      
     if (n == 0) {
-      std::cerr << "wd_planckint::Arrays of zero length\n";
+      report_error("wd_planckint::Arrays of zero length");
       return NULL;
     }
     
@@ -5955,17 +5989,14 @@ static PyObject *wd_planckint(PyObject *self, PyObject *args, PyObject *keywds) 
         *r = std::nan("");
         ok = false;
       }
-    
-    if (!ok) {
-      std::cerr 
-      << "wd_planckint::Failed to calculate Planck central intensity at least once\n";
-    }
 
+    if (!ok)
+      report_error("wd_planckint::Failed to calculate Planck central intensity at least once");
+    
     return oresults;
-  } 
-  
-  std::cerr 
-    << "wd_planckint:: This type of temperature input is not supported\n";
+  }
+
+  report_error("wd_planckint::This type of temperature input is not supported\n");
   return NULL;
 }
 
@@ -6030,7 +6061,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyArray_Type, &oplanck_table, 
         &PyArray_Type, &oatm_table
       )) {
-    std::cerr << "wd_atmint::Problem reading arguments\n";
+    report_error("wd_atmint::Problem reading arguments\n");
     return NULL;
   }
   //
@@ -6138,7 +6169,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
         &PyArray_Type, &oatm_table,
         &PyBool_Type, &oreturn_abunin
       )) {
-    std::cerr << "wd_atmint::Problem reading arguments\n";
+    report_error("wd_atmint::Problem reading arguments\n");
     return NULL;
   }
 
@@ -6158,13 +6189,16 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     t = PyFloat_AS_DOUBLE(ot),
     logg = PyFloat_AS_DOUBLE(ologg),
     abunin = PyFloat_AS_DOUBLE(oabunin);
-  
-  } else if (PyArray_Check(ot)) {
-    
+
+  } else if (
+    PyArray_Check(ot) &&
+    PyArray_TYPE((PyArrayObject *) ot) == NPY_DOUBLE
+  ) {
+
     n = PyArray_DIM((PyArrayObject *)ot, 0);
     
     if (n == 0) {
-      std::cerr << "wd_planckint::Arrays are of zero length\n";
+      report_error("wd_planckint::Arrays are of zero length");
       return NULL;
     }
         
@@ -6174,8 +6208,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
     pabunin = (double*)PyArray_DATA((PyArrayObject *)oabunin);  
 
   } else {
-    std::cerr 
-      << "wd_planckint:: This type of temperature input is not supported\n";
+    report_error("wd_planckint:: This type of temperature input is not supported");
     return NULL;
   }
   
@@ -6212,7 +6245,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       
       // do calculation    
       if (!wd_atm::atmx_onlylog(t, logg, r[1], ifil, planck_table, atm_table, r[0])) {
-        std::cerr << "wd_atmint::Failed to calculate logarithm of intensity\n";
+        report_error("wd_atmint::Failed to calculate logarithm of intensity");
         r[0] = std::nan("");
       }
       
@@ -6243,8 +6276,8 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       }  
       
       if (!ok)
-        std::cerr << "wd_atmint::Failed to calculate logarithm of intensity at least once\n";
-    }    
+        report_error("wd_atmint::Failed to calculate logarithm of intensity at least once");
+    }
 
     
   } else {                    // returning only logarithm of intensities
@@ -6260,7 +6293,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       if (wd_atm::atmx_onlylog(t, logg, abunin, ifil, planck_table, atm_table, r))
         oresults = PyFloat_FromDouble(r);
       else {
-        std::cerr << "wd_atmint::Failed to calculate logarithm of intensity\n";
+        report_error("wd_atmint::Failed to calculate logarithm of intensity");
         oresults = PyFloat_FromDouble(std::nan(""));
       }
        
@@ -6293,8 +6326,7 @@ static PyObject *wd_atmint(PyObject *self, PyObject *args, PyObject *keywds) {
       }  
       
       if (!ok)
-        std::cerr 
-        << "wd_atmint::Failed to calculate logarithm of intensity at least once\n";
+        report_error("wd_atmint::Failed to calculate logarithm of intensity at least once");
     }
   }
   
