@@ -304,12 +304,45 @@ class Passband:
 
         return 2*self.h*self.c*self.c/lam**5 * 1./(np.exp(self.h*self.c/lam/self.k/Teff)-1)
 
+    def _planck_deriv(self, lam, Teff):
+        """
+        Computes the derivative of the monochromatic blackbody intensity using
+        the Planck function.
+
+        @lam: wavelength in m
+        @Teff: effective temperature in K
+
+        Returns: the derivative of monochromatic blackbody intensity
+        """
+
+        expterm = np.exp(self.h*self.c/lam/self.k/Teff)
+        return 2*self.h*self.c*self.c/self.k/Teff/lam**7 * (expterm-1)**-2 * (self.h*self.c*expterm-5*lam*self.k*Teff*(expterm-1))
+
+    def _planck_spi(self, lam, Teff):
+        """
+        Computes the spectral index of the monochromatic blackbody intensity
+        using the Planck function. The spectral index is defined as:
+
+            B(lambda) = 5 + d(log I)/d(log lambda),
+
+        where I is the Planck function.
+
+        @lam: wavelength in m
+        @Teff: effective temperature in K
+
+        Returns: the spectral index of monochromatic blackbody intensity
+        """
+
+        hclkt = self.h*self.c/lam/self.k/Teff
+        expterm = np.exp(hclkt)
+        return hclkt * expterm/(expterm-1)
+
     def _bb_intensity(self, Teff, photon_weighted=False):
         """
         Computes mean passband intensity using blackbody atmosphere:
 
-        I_pb^E = \int_\lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
-        I_pb^P = \int_\lambda \lambda B(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
+        I_pb^E = \int_\lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda P(\lambda) d\lambda
+        I_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda / \int_\lambda \lambda P(\lambda) d\lambda
 
         Superscripts E and P stand for energy and photon, respectively.
 
@@ -326,10 +359,37 @@ class Passband:
             pb = lambda w: self._planck(w, Teff)*self.ptf(w)
             return integrate.quad(pb, self.wl[0], self.wl[-1])[0]/self.ptf_area
 
+    def _bindex_blackbody(self, Teff, photon_weighted=False):
+        """
+        Computes the mean boosting index using blackbody atmosphere:
+
+        B_pb^E = \int_\lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda I(\lambda) P(\lambda) d\lambda
+        B_pb^P = \int_\lambda \lambda I(\lambda) P(\lambda) B(\lambda) d\lambda / \int_\lambda \lambda I(\lambda) P(\lambda) d\lambda
+
+        Superscripts E and P stand for energy and photon, respectively.
+
+        @Teff: effective temperature in K
+        @photon_weighted: photon/energy switch
+
+        Returns: mean boosting index using blackbody atmosphere.
+        """
+
+        if photon_weighted:
+            num   = lambda w: w*self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
+            denom = lambda w: w*self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+        else:
+            num   = lambda w: self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
+            denom = lambda w: self._planck(w, Teff)*self.ptf(w)
+            return integrate.quad(num, self.wl[0], self.wl[-1], , epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+
     def compute_blackbody_response(self, Teffs=None):
         """
         Computes blackbody intensities across the entire range of
-        effective temperatures.
+        effective temperatures. It does this for two regimes, energy-weighted
+        and photon-weighted. It then fits a cubic spline to the log(I)-Teff
+        values and exports the interpolation functions _log10_Inorm_bb_energy
+        and _log10_Inorm_bb_photon.
 
         @Teffs: an array of effective temperatures. If None, a default
         array from ~300K to ~500000K with 97 steps is used. The default
@@ -508,11 +568,11 @@ class Passband:
 
             boostE = (flE[fl > 0]*boosting_index).sum()/flEint
             boostP = (flP[fl > 0]*boosting_index).sum()/flPint
+            boostingE[i] = boostE
+            boostingP[i] = boostP
 
             ImuE[i] = np.log10(flEint/self.ptf_area*(wl[1]-wl[0]))        # energy-weighted intensity
             ImuP[i] = np.log10(flPint/self.ptf_photon_area*(wl[1]-wl[0])) # photon-weighted intensity
-            boostingE[i] = boostE
-            boostingP[i] = boostP
 
             if verbose:
                 if 100*i % (len(models)) == 0:
@@ -991,6 +1051,8 @@ class Passband:
     def bindex(self, Teff=5772., logg=4.43, abun=0.0, mu=1.0, atm='ck2004', photon_weighted=False):
         if atm == 'ck2004':
             retval = self._bindex_ck2004(Teff, logg, abun, mu, atm, photon_weighted)
+        elif atm == 'blackbody':
+            retval = self._bindex_blackbody(Teff, photon_weighted=photon_weighted)
         else:
             raise NotImplementedError('atm={} not supported'.format(atm))
 
