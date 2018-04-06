@@ -381,7 +381,7 @@ class Passband:
         else:
             num   = lambda w: self._planck(w, Teff)*self.ptf(w)*self._planck_spi(w, Teff)
             denom = lambda w: self._planck(w, Teff)*self.ptf(w)
-            return integrate.quad(num, self.wl[0], self.wl[-1], , epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
+            return integrate.quad(num, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-8)[0]/integrate.quad(denom, self.wl[0], self.wl[-1], epsabs=1e10, epsrel=1e-6)[0]
 
     def compute_blackbody_response(self, Teffs=None):
         """
