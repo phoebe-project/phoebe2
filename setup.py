@@ -8,8 +8,10 @@ except ImportError:
 
 from numpy.distutils.core import setup, Extension
 from numpy.distutils.command.build_ext import build_ext
+from numpy.distutils.command.build_py import build_py
 
 from distutils.version import LooseVersion, StrictVersion
+from distutils.cmd import Command
 
 import platform
 import os
@@ -226,6 +228,67 @@ class build_check(build_ext):
 # Setting up the external modules
 #
 
+class import_check(Command):
+  description = "Checks python modules needed to successfully import phoebe"
+  user_options = []
+
+  def initialize_options(self):
+    pass
+  
+  def finalize_options(self):
+    pass
+  
+  def run(self):
+    required, optional = [], []
+    try:
+      import astropy
+      astropy_version = astropy.__version__
+      if LooseVersion(astropy_version) < LooseVersion('1.0'):
+        required.append('astropy 1.0+')
+    except:
+      required.append('astropy')
+    try:
+      import scipy
+      scipy_version = scipy.__version__
+      if LooseVersion(scipy_version) < LooseVersion('0.1'):
+        required.append('scipy 0.1+')
+    except:
+      required.append('scipy')
+    try:
+      import matplotlib
+      mpl_version = matplotlib.__version__
+      if LooseVersion(mpl_version) < LooseVersion('1.4.3'):
+        optional.append('matplotlib 1.4.3+')
+    except:
+      optional.append('matplotlib')
+    try:
+      import sympy
+      sympy_version = sympy.__version__
+      if LooseVersion(sympy_version) < StrictVersion('1.0'):
+        optional.append('sympy 1.0+')
+    except:
+      optional.append('sympy')
+
+    if required == []:
+      print('All required import dependencies satisfied.')
+    else:
+      print('NOTE: while all the build dependencies are satisfied, the following import dependencies')
+      print('      are still missing: %s.' % required)
+      print('      You will not be able to import phoebe before you install those dependencies.')
+
+    if optional == []:
+      print('All optional import dependencies satisfied.')
+    else:
+      print('NOTE: while all the build dependencies are satisfied, the following optional dependencies')
+      print('      are still missing: %s.' % optional)
+      print('      Some of the core phoebe functionality will be missing until you install those dependencies.')
+
+class PhoebeBuildCommand(build_py):
+  def run(self):
+    build_py.run(self)
+    self.run_command('build_ext')
+    self.run_command('check_imports')
+
 ext_modules = [
     Extension('libphoebe',
       sources = ['./phoebe/lib/libphoebe.cpp'],
@@ -256,5 +319,9 @@ setup (name = 'phoebe',
        package_data={'phoebe.atmospheres':['tables/wd/*', 'tables/passbands/*'],
                     },
        ext_modules = ext_modules,
-       cmdclass = {'build_ext': build_check}
-       )
+       cmdclass = {
+         'build_ext': build_check,
+         'check_imports': import_check,
+         'build_py': PhoebeBuildCommand
+        }
+      )
