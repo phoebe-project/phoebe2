@@ -68,8 +68,8 @@ def check_compiler(compiler, extensions, compiler_name):
   plat = platform.system()
   plat_ver = platform.release();
   
-  print("**platform=%s***" %(plat))
-  print("**platform_version=%s***" %(plat_ver))
+  print("OS: %s" %(plat))
+  print("OS version: %s" %(plat_ver))
   
   if plat == 'Windows':
     
@@ -82,8 +82,8 @@ def check_compiler(compiler, extensions, compiler_name):
     s = os.popen(compiler_name + " --version").readline().strip()
     
     # debug output
-    print("***compiler_name=%s***"%(compiler_name))
-    print("***version=%s***"%(s))
+    print("Compiler: %s"%(compiler_name))
+    print("Compiler version: %s"%(s))
 
     compiler_found = False;
     version_ok = False;
@@ -180,7 +180,7 @@ def check_compiler(compiler, extensions, compiler_name):
             version_ok = LooseVersion(ver) >= LooseVersion("1600")
             compiler_found = True
       except:
-        print("Unable to make a test program to determine compiler.")
+        print("Unable to build a test program to determine the compiler.")
         status = False
       
       # Cleanup
@@ -190,17 +190,17 @@ def check_compiler(compiler, extensions, compiler_name):
     
     if compiler_found:  
       if version_ok:
-        print("Ready to compile. Compiler: name=%s, version=%s"%(name, ver))
+        print("Ready to compile with %s %s." % (name, ver))
         status = True
       else:
-        print("Compiler is too old. Compiler: name=%s, version=%s"%(name, ver))
+        print("Compiler is too old. PHOEBE requires gcc 5.0, clang 3.3, or icc 1600 or above.\nThe found compiler is %s %s." % (name, ver))
         status = False
     else:
-      print("Did not recognize compiler name=%s" % (compiler_name))
+      print("Did not recognize the compiler %s." % (compiler_name))
       status = False
   
   else:
-    print("Unknown architecture. Hope it goes well.")
+    print("Unknown architecture, so no pre-checks done. Please report in the case of build failure.")
     status = True
   
   return status
@@ -216,11 +216,11 @@ class build_check(build_ext):
        ):
       
       for e in self.extensions:
-        print("***extra_args=%s***"%(e.extra_compile_args))
+        print("  extra_args=%s"%(e.extra_compile_args))
         
       build_ext.build_extensions(self)
     else:
-      print("Quitting setup.py of phoebe2.")
+      print("Cannot build phoebe2. Please check the dependencies and try again.")
       sys.exit(1) 
 #
 # Setting up the external modules
@@ -249,7 +249,7 @@ setup (name = 'phoebe',
        description = 'PHOEBE devel',
        author = 'PHOEBE development team',
        author_email = 'phoebe-devel@lists.sourceforge.net',
-       url = 'http://github.com/phoebe-project/phoebe2',
+       url = 'http://phoebe-project.org',
        download_url = 'https://github.com/phoebe-project/phoebe2/tarball/2.0.5',
        packages = ['phoebe', 'phoebe.constants', 'phoebe.parameters', 'phoebe.frontend', 'phoebe.constraints', 'phoebe.dynamics', 'phoebe.distortions', 'phoebe.algorithms', 'phoebe.atmospheres', 'phoebe.backend', 'phoebe.utils'],
        install_requires=['numpy>=1.10','scipy>=0.17','astropy>=1.0'],
