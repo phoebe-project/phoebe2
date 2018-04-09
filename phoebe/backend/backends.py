@@ -881,7 +881,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         return packet
 
 
-    if _use_mpi and not conf.force_serial:
+    if _use_mpi and not conf.force_serial and conf._do_mpirun:
         if myrank == 0:
             # then this is the master process which is responsible for sending
             # jobs to the workers and processing the returned packets to fill
