@@ -3780,7 +3780,6 @@ class TwigParameter(Parameter):
 
 
 class ChoiceParameter(Parameter):
-    # TODO: rename to ComboParameter?
     """
     Parameter in which the value has to match one of the pre-defined choices
     """
@@ -3824,30 +3823,96 @@ class ChoiceParameter(Parameter):
             value = str(value)
         except:
             raise ValueError("could not cast value to string")
-        else:
-            if self.qualifier=='passband':
-                if value not in self.choices:
-                    self._choices = list_passbands(refresh=True)
 
+        if self.qualifier=='passband':
             if value not in self.choices:
-                raise ValueError("value must be one of {}".format(self.choices))
+                self._choices = list_passbands(refresh=True)
 
-            if self.qualifier=='passband' and value not in list_installed_passbands():
-                # then we need to download and install before setting
-                download_passband(value)
+        if value not in self.choices:
+            raise ValueError("value must be one of {}".format(self.choices))
 
-            self._value = value
+        if self.qualifier=='passband' and value not in list_installed_passbands():
+            # then we need to download and install before setting
+            logger.info("downloading passband: {}".format(value))
+            download_passband(value)
 
-            # run_checks if requested (default)
-            if run_checks is None:
-                run_checks = conf.interactive
-            if run_checks and self._bundle:
-                passed, msg = self._bundle.run_checks()
-                if not passed:
-                    # passed is either False (failed) or None (raise Warning)
-                    logger.warning(msg)
+        self._value = value
 
-            self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+        # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive
+        if run_checks and self._bundle:
+            passed, msg = self._bundle.run_checks()
+            if not passed:
+                # passed is either False (failed) or None (raise Warning)
+                logger.warning(msg)
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+class SelectParameter(Parameter):
+    """
+    Parameter in which the value is a list of pre-defined choices
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        see :meth:`Parameter.__init__`
+        """
+        super(SelectParameter, self).__init__(*args, **kwargs)
+
+        self._choices = kwargs.get('choices', [])
+
+        self.set_value(kwargs.get('value', []))
+
+        self._dict_fields_other = ['description', 'choices', 'value', 'visible_if', 'copy_for']
+        self._dict_fields = _meta_fields_all + self._dict_fields_other
+
+    @property
+    def choices(self):
+        return self._choices
+
+    def get_choices(self):
+        return self._choices
+
+    @update_if_client
+    def get_value(self, **kwargs):
+        """
+
+        """
+        default = super(SelectParameter, self).get_value(**kwargs)
+        if default is not None: return default
+        return self._value
+
+    @send_if_client
+    def set_value(self, value, run_checks=None, **kwargs):
+        """
+
+        """
+        _orig_value = deepcopy(self.get_value())
+
+        if not isinstance(value, list):
+            raise TypeError("value must be a list of strings")
+
+        try:
+            value = [str(v) for v in value]
+        except:
+            raise ValueError("could not cast to list of strings")
+
+        for v in value:
+            if v not in self.choices:
+                raise ValueError("all entries must be one of {}".format(self.choices))
+
+        self._value = value
+
+        # run_checks if requested (default)
+        if run_checks is None:
+            run_checks = conf.interactive
+        if run_checks and self._bundle:
+            passed, msg = self._bundle.run_checks()
+            if not passed:
+                # passed is either False (failed) or None (raise Warning)
+                logger.warning(msg)
+
+        self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
 class BoolParameter(Parameter):
     def __init__(self, *args, **kwargs):
