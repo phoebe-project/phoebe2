@@ -488,7 +488,7 @@ class Passband:
         extinctE , extinctP = np.empty((Nmodels, Ns)), np.empty((Nmodels, Ns))
         
         if verbose:
-            print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a loooooong time.' % (self.pbset, self.pbname))
+            print('Computing Castelli & Kurucz (2004) passband extinction corrections for %s:%s. This will take a while.' % (self.pbset, self.pbname))
                  
         for i, model in enumerate(models):
           
