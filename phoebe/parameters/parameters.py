@@ -3845,6 +3845,7 @@ class ChoiceParameter(Parameter):
                 passed, msg = self._bundle.run_checks()
                 if not passed:
                     # passed is either False (failed) or None (raise Warning)
+                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                     logger.warning(msg)
 
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
@@ -4329,6 +4330,7 @@ class FloatParameter(Parameter):
             passed, msg = self._bundle.run_checks()
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
+                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
