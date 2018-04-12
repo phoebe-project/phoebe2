@@ -76,14 +76,12 @@ class Settings(object):
         self.__init__()
 
     def interactive_on(self):
-        self._interactive_constraints = True
-        self._interactive_checks = True
+        self.interactive_checks_on()
+        self.interactive_constraints_on()
 
     def interactive_off(self):
-        _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
-
-        self._interactive_constraints = False
-        self._interactive_checks = False
+        self.interactive_checks_off()
+        self.interactive_constraints_off()
 
     def interactive_checks_on(self):
         self._interactive_checks = True
@@ -95,6 +93,7 @@ class Settings(object):
         self._interactive_constraints = True
 
     def interactive_constraints_off(self):
+        _logger.warning("constraints will not be run until 'run_delayed_constraints' or 'run_compute' is called.  This may result in inconsistent parameters if printing values before calling either of these methods.")
         self._interactive_constraints = False
 
     @property
