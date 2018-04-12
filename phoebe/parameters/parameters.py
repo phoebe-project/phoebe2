@@ -3840,7 +3840,7 @@ class ChoiceParameter(Parameter):
 
             # run_checks if requested (default)
             if run_checks is None:
-                run_checks = conf.interactive
+                run_checks = conf.interactive_checks
             if run_checks and self._bundle:
                 passed, msg = self._bundle.run_checks()
                 if not passed:
@@ -4310,7 +4310,7 @@ class FloatParameter(Parameter):
             self._value = value
 
         if run_constraints is None:
-            run_constraints = conf.interactive
+            run_constraints = conf.interactive_constraints
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
@@ -4324,7 +4324,7 @@ class FloatParameter(Parameter):
 
         # run_checks if requested (default)
         if run_checks is None:
-            run_checks = conf.interactive
+            run_checks = conf.interactive_checks
         if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:
