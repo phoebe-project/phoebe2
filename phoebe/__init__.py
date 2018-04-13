@@ -190,6 +190,18 @@ def interactive_on():
 def interactive_off():
     conf.interactive_off()
 
+def interactive_constraints_on():
+    conf.interactive_constraints_on()
+
+def interactive_constraints_off():
+    conf.interactive_constraints_off()
+
+def interactive_checks_on():
+    conf.interactive_checks_on()
+
+def interactive_checks_off():
+    conf.interactive_checks_off()
+
 def is_devel():
     return conf.devel
 
