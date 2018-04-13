@@ -1091,8 +1091,6 @@ class Mesh(ScaledProtoMesh):
 
         self._observables       = {}    # ComputedColumn (each)
 
-        self._pole_normal       = np.array([0,0,0])
-
         keys = ['mus', 'visibilities', 'weights', 'observables']
         keys = keys + kwargs.pop('keys', [])
 
@@ -1173,15 +1171,6 @@ class Mesh(ScaledProtoMesh):
         # orbit-offset, and also eventually to allow incremental changes.
         self._pos = pos
         self._euler = euler
-
-        # NOTE: this assumes aligned orbits (original rotation of [0,0,1])
-        self._pole_normal = np.array(transform_position_array(np.array([0.,0., 1.]), pos, euler, True))
-
-    @property
-    def pole_normal(self):
-        """
-        """
-        return self._pole_normal
 
 
     @property
