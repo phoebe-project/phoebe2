@@ -63,9 +63,8 @@ class Settings(object):
             else:
                 return False
 
-        self._do_mpirun = _to_bool(os.getenv('PHOEBE_ENABLE_MPI', False))
+        self._mpi = _to_bool(os.getenv('PHOEBE_ENABLE_MPI', False))
         self._mpi_np = int(os.getenv('PHOEBE_MPI_NP', 2))
-        self._force_serial = False
 
     def reset(self):
         self.__init__()
@@ -93,16 +92,12 @@ class Settings(object):
         return self._devel
 
     @property
-    def force_serial(self):
-        return self._force_serial
-
-    @property
     def mpi(self):
-        return self._do_mpirun
+        return self._mpi
 
     @property
     def detach_cmd(self):
-        if self._do_mpirun:
+        if self._mpi:
             return 'mpirun -np %d python {} &>/dev/null &' % self._mpi_np
         else:
             return 'python {} &>/dev/null &'
@@ -177,19 +172,13 @@ def devel_on():
 def devel_off():
     conf.devel_off()
 
-def force_serial():
-    """
-    force serial mode when called from within mpirun
-    """
-    conf._force_serial = True
-
 def mpi_on(np=None):
-    conf._do_mpirun = True
+    conf._mpi = True
     if np is not None:
         conf._mpi_np = np
 
 def mpi_off():
-    conf._do_mpirun = False
+    conf._mpi = False
 
 def set_np(np):
     conf._mpi_np = np

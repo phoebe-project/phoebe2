@@ -2560,11 +2560,11 @@ class Bundle(ParameterSet):
 
         # now if we're supposed to detach we'll just prepare the job for submission
         # either in another subprocess or through some queuing system
-        if detach and backends._use_mpi:
+        if detach and backends._within_mpirun:
             logger.warning("cannot detach when within mpirun, ignoring")
             detach = False
 
-        if (detach or conf.mpi) and not backends._use_mpi:
+        if (detach or conf.mpi) and not backends._within_mpirun:
             logger.warning("detach support is EXPERIMENTAL")
 
             if times is not None:

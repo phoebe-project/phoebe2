@@ -29,7 +29,7 @@ else:
 # via mpirun or not
 if 'OMPI_COMM_WORLD_SIZE' in os.environ.keys():
     from mpi4py import MPI
-    _use_mpi = True
+    _within_mpirun = True
 
     comm   = MPI.COMM_WORLD
     myrank = comm.Get_rank()
@@ -42,7 +42,7 @@ if 'OMPI_COMM_WORLD_SIZE' in os.environ.keys():
         raise ImportError("need more than 1 processor to run with mpi")
 
 else:
-    _use_mpi = False
+    _within_mpirun = False
 
 import logging
 logger = logging.getLogger("BACKENDS")
@@ -881,11 +881,13 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         return packet
 
 
-    if _use_mpi and not conf.force_serial:
+    if _within_mpirun and conf.mpi:
+        # then PHOEBE is handling how to distribute within MPI
         if myrank == 0:
             # then this is the master process which is responsible for sending
             # jobs to the workers and processing the returned packets to fill
             # the synthetic parameters
+            logger.debug("mpirun proc:{} is master".format(myrank))
 
             # receive the packet from each time sent by a worker
             req = [0]*len(times)
@@ -926,6 +928,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
             # then this is a worker processor, which must receive a job request
             # from the master and return the results
             while True:
+                logger.debug("mpirun proc:{} worker ready for new task".format(myrank))
                 # tell the master that the worker is ready for another task
                 comm.send(myrank, 0, tag=TAG_REQ)
                 # receive the next job
@@ -933,6 +936,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                 i = packet['i']
                 if i == -1:
+                    logger.debug("mpirun proc:{} worker exiting".format(myrank))
                     # then all jobs are complete, so kill the worker process
                     # by exiting the while loop
                     break
@@ -941,14 +945,16 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 time = packet['time']
                 infolist = packet['infolist']
 
+                logger.debug("mpirun proc:{} received task".format(myrank))
                 packet = worker(i, time, infolist)
+                logger.debug("mpirun proc:{} returning results to master".format(myrank))
 
                 # return the result packet to the master
                 comm.send({'i': i, 'packet': packet}, 0, tag=TAG_DATA)
 
             yield ParameterSet([])
     else:
-        # not _use_mpi
+        # not _within_mpirun
         # this is the main compute loop in serial mode
         req = [0]*len(times)
         for i,time,infolist in zip(range(len(times)),times,infos):
