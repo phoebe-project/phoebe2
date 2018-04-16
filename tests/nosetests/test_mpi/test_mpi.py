@@ -11,11 +11,12 @@ import numpy as np
 
 
 def test_mpi(plot=False):
+    phoebe.reset_settings()
     phoebe.mpi_on(np=4)
 
     b = phoebe.Bundle.default_binary()
 
-    b.add_dataset('lc', times=np.linspace(0,1,1001))
+    b.add_dataset('lc', times=np.linspace(0,1,101))
 
     if plot: print "calling compute"
     b.run_compute(irrad_method='none', model='phoebe2model')
