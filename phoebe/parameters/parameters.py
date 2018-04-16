@@ -3914,6 +3914,19 @@ class SelectParameter(Parameter):
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
 
+    def __add__(self, other):
+        if not isinstance(other, list):
+            return super(SelectParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return list(set(self.get_value()+other))
+
+    def __sub__(self, other):
+        if not isinstance(other, list):
+            return super(SelectParameter, self).__sub__(self, other)
+
+        return [v for v in self.get_value() if v not in other]
+
 class BoolParameter(Parameter):
     def __init__(self, *args, **kwargs):
         """
@@ -4635,6 +4648,20 @@ class FloatArrayParameter(FloatParameter):
         lst =self.get_value()#.value
         lst[index] = value
         self.set_value(lst)
+
+    def __add__(self, other):
+        if not (isinstance(other, list) or isinstance(other, np.ndarray)):
+            return super(FloatArrayParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return np.append(self.get_value(), np.asarray(other))
+
+    def __sub__(self, other):
+        if not (isinstance(other, list) or isinstance(other, np.ndarray)):
+            return super(FloatArrayParameter, self).__add__(self, other)
+
+        # then we have a list, so we want to append to the existing value
+        return np.array([v for v in self.get_value() if v not in other])
 
     # def set_value_at_time(self, time, value, **kwargs):
     #     """
