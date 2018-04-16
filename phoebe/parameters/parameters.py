@@ -3840,11 +3840,12 @@ class ChoiceParameter(Parameter):
 
             # run_checks if requested (default)
             if run_checks is None:
-                run_checks = conf.interactive
+                run_checks = conf.interactive_checks
             if run_checks and self._bundle:
                 passed, msg = self._bundle.run_checks()
                 if not passed:
                     # passed is either False (failed) or None (raise Warning)
+                    msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                     logger.warning(msg)
 
             self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
@@ -4310,7 +4311,7 @@ class FloatParameter(Parameter):
             self._value = value
 
         if run_constraints is None:
-            run_constraints = conf.interactive
+            run_constraints = conf.interactive_constraints
         if run_constraints:
             for constraint_id in self._in_constraints:
                 #~ print "*** parameter.set_value run_constraint uniqueid=", constraint_id
@@ -4324,11 +4325,12 @@ class FloatParameter(Parameter):
 
         # run_checks if requested (default)
         if run_checks is None:
-            run_checks = conf.interactive
+            run_checks = conf.interactive_checks
         if run_checks and self._bundle:
             passed, msg = self._bundle.run_checks()
             if not passed:
                 # passed is either False (failed) or None (raise Warning)
+                msg += "  If not addressed, this warning will continue to be raised and will throw an error at run_compute."
                 logger.warning(msg)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})

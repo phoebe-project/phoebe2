@@ -1111,7 +1111,7 @@ class Bundle(ParameterSet):
 
                     if pot < critical_pots['L1'] or pot < critical_pots['L2']:
                         return False,\
-                            '{} is overflowing at periastron (L1={:.02f}, L2={:.02f}, pot={})'.format(component,
+                            '{} is overflowing at periastron (L1={:.02f}, L2={:.02f}, pot={}).'.format(component,
                                                                                                       critical_pots['L1'],
                                                                                                       critical_pots['L2'],
                                                                                                       pot)
@@ -1136,7 +1136,7 @@ class Bundle(ParameterSet):
 
                 if pot > critical_pots['L1']:
                     return False,\
-                        '{} is not overflowing L1 at apastron'.format(component)
+                        '{} is not overflowing L1 at apastron.'.format(component)
 
                 # BUT MUST NOT be overflowing L2 or L3 at periastron
                 d = 1 - parent_ps.get_value('ecc', **kwargs)
@@ -1144,7 +1144,7 @@ class Bundle(ParameterSet):
 
                 if pot < critical_pots['L2'] or pot < critical_pots['L3']:
                     return False,\
-                        '{} is overflowing L2 or L3 at periastron'.format(component)
+                        '{} is overflowing L2 or L3 at periastron.'.format(component)
 
             else:
                 raise NotImplementedError("checks not implemented for type '{}'".format(kind))
@@ -1180,7 +1180,7 @@ class Bundle(ParameterSet):
 
                 if xrange0[1]+xrange1[1] > 1.0-ecc:
                     return False,\
-                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{})'.format(orbitref, orbitref, starrefs[0], starrefs[1])
+                        'components in {} are overlapping at periastron (change ecc@{}, syncpar@{}, or syncpar@{}).'.format(orbitref, orbitref, starrefs[0], starrefs[1])
 
         # check to make sure all stars are aligned (remove this once we support
         # misaligned roche binaries)
@@ -1202,7 +1202,7 @@ class Bundle(ParameterSet):
             for atmparam in self.filter(qualifier='atm', kind='phoebe').to_list():
                 atm = atmparam.get_value()
                 if atm not in pbatms:
-                    return False, "'{}' passband ({}) does not support atm='{}' ({})".format(pb, pbparam.twig, atm, atmparam.twig)
+                    return False, "'{}' passband ({}) does not support atm='{}' ({}).".format(pb, pbparam.twig, atm, atmparam.twig)
 
         # check length of ld_coeffs vs ld_func and ld_func vs atm
         def ld_coeffs_len(ld_func, ld_coeffs):
@@ -1217,7 +1217,7 @@ class Bundle(ParameterSet):
             elif ld_func in ['power'] and len(ld_coeffs)==4:
                 return True,
             else:
-                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'".format(ld_coeffs, ld_func)
+                return False, "ld_coeffs='{}' inconsistent with ld_func='{}'.".format(ld_coeffs, ld_func)
 
         for component in self.hierarchy.get_stars():
             # first check ld_coeffs_bol vs ld_func_bol
@@ -1240,14 +1240,14 @@ class Bundle(ParameterSet):
                     for compute in kwargs.get('computes', self.computes):
                         atm = self.get_value(qualifier='atm', component=component, compute=compute, context='compute', **kwargs)
                         if atm != 'ck2004':
-                            return False, "ld_func='interp' only supported by atm='ck2004'"
+                            return False, "ld_func='interp' only supported by atm='ck2004'."
 
         # mesh-consistency checks
         for compute in self.computes:
             mesh_methods = [p.get_value() for p in self.filter(qualifier='mesh_method', compute=compute, force_ps=True).to_list()]
             if 'wd' in mesh_methods:
                 if len(set(mesh_methods)) > 1:
-                    return False, "all (or none) components must use mesh_method='wd'"
+                    return False, "all (or none) components must use mesh_method='wd'."
 
         #### WARNINGS ONLY ####
         # let's check teff vs gravb_bol
@@ -1256,11 +1256,11 @@ class Bundle(ParameterSet):
             gravb_bol = self.get_value(qualifier='gravb_bol', component=component, context='component', **kwargs)
 
             if teff >= 8000. and gravb_bol < 0.9:
-                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
+                return None, "'{}' probably has a radiative atm (teff={:.0f}K>8000K), for which gravb_bol=1.00 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
             elif teff <= 6600. and gravb_bol >= 0.9:
-                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}".format(component, teff, gravb_bol)
+                return None, "'{}' probably has a convective atm (teff={:.0f}K<6600K), for which gravb_bol=0.32 might be a better approx than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
             elif gravb_bol < 0.32 or gravb_bol > 1.00:
-                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}".format(component, teff, gravb_bol)
+                return None, "'{}' has intermittent temperature (6600K<teff={:.0f}K<8000K), gravb_bol might be better between 0.32-1.00 than gravb_bol={:.2f}.".format(component, teff, gravb_bol)
 
         # TODO: add other checks
         # - make sure all ETV components are legal
