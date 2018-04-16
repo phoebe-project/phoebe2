@@ -793,6 +793,31 @@ class Bundle(ParameterSet):
                 else:
                     param.set_value(starrefs[0])
 
+    def _handle_dataset_selectparams(self):
+        """
+        """
+
+        changed_param = self.run_delayed_constraints()
+
+        pbdep_datasets = self.filter(context='dataset',
+                                     kind=_dataset._pbdep_kinds).datasets
+
+        time_datasets = (self.filter(context='dataset')-
+                         self.filter(context='dataset', kind='mesh')).datasets
+
+        for param in self.filter(qualifier='datasets',
+                                 context='dataset').to_list():
+
+            param._choices = pbdep_datasets
+            param.remove_not_in_choices()
+
+        for param in self.filter(qualifier='include_times',
+                                 context='dataset').to_list():
+
+            param._choices = time_datasets
+            param.remove_not_in_choices()
+
+
     def set_hierarchy(self, *args, **kwargs):
         """
         Set the hierarchy of the system.
@@ -1859,6 +1884,7 @@ class Bundle(ParameterSet):
         # this needs to happen before kwargs get applied so that the default
         # values can be overridden by the supplied kwargs
         self._handle_pblum_defaults()
+        self._handle_dataset_selectparams()
 
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -1989,6 +2015,8 @@ class Bundle(ParameterSet):
         # not really sure why we need to call this twice, but it seems to do
         # the trick
         self.remove_parameters_all(**kwargs)
+
+        self._handle_dataset_selectparams()
 
         # TODO: check to make sure that trying to undo this
         # will raise an error saying this is not undo-able

@@ -7,6 +7,9 @@ from phoebe import conf
 
 _ld_func_choices = ['interp', 'linear', 'logarithmic', 'quadratic', 'square_root', 'power']
 
+global _pbdep_kinds
+_pbdep_kinds = ['lc', 'rv']
+
 def _empty_array(kwargs, qualifier):
     if qualifier in kwargs.keys():
         return kwargs.get(qualifier)
@@ -256,6 +259,24 @@ def mesh(**kwargs):
 
     syn_params, constraints = mesh_syn(syn=False, **kwargs)
     obs_params += syn_params.to_list()
+
+    obs_params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to times from the following datasets/time standards', choices=[])]
+
+    obs_params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', []), description='datasets to expose as mesh columns', choices=[])]
+    columns_choices = ['vxs', 'vys', 'vzs']
+    # columns_choices += ['horizon_xs', 'horizon_ys', 'horizon_zs', 'horizon_analytic_xs', 'horizon_analytic_ys', 'horizon_analytic_zs']
+    columns_choices += ['areas', 'tareas']
+    columns_choices += ['normals', 'nxs', 'nys', 'nzs']
+    columns_choices += ['loggs', 'teffs']
+
+    columns_choices += ['rprojs', 'mus', 'visible_centroids', 'visibilities']
+    columns_choices += ['rs', 'cosbetas']
+
+    columns_choices += ['intensities', 'normal_intensities', 'abs_intensities', 'abs_normal_intensities']
+    columns_choices += ['boost_factors', 'ldint']
+    columns_choices += ['rvs']
+
+    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', ['loggs', 'teffs', 'intensities', 'rvs']), description='columns to expose within the mesh', choices=columns_choices)]
     #obs_params += mesh_dep(**kwargs).to_list()
 
     return ParameterSet(obs_params), constraints

@@ -3890,7 +3890,7 @@ class SelectParameter(Parameter):
         _orig_value = deepcopy(self.get_value())
 
         if not isinstance(value, list):
-            raise TypeError("value must be a list of strings")
+            raise TypeError("value must be a list of strings, received {}".format(type, value))
 
         try:
             value = [str(v) for v in value]
@@ -3913,6 +3913,13 @@ class SelectParameter(Parameter):
                 logger.warning(msg)
 
         self._add_history(redo_func='set_value', redo_kwargs={'value': value, 'uniqueid': self.uniqueid}, undo_func='set_value', undo_kwargs={'value': _orig_value, 'uniqueid': self.uniqueid})
+
+    def remove_not_in_choices(self):
+        """
+        update the value to remove any that are (no longer) in choices
+        """
+        value = [v for v in self.get_value() if v in self.get_choices]
+        self.set_value(value)
 
     def __add__(self, other):
         if not isinstance(other, list):
