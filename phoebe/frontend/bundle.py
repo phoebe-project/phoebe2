@@ -2584,6 +2584,9 @@ class Bundle(ParameterSet):
             f = open(script_fname, 'w')
             f.write("import os; os.environ['PHOEBE_ENABLE_PLOTTING'] = 'FALSE'; os.environ['PHOEBE_ENABLE_SYMPY'] = 'FALSE'; os.environ['PHOEBE_ENABLE_ONLINE_PASSBANDS'] = 'FALSE';\n")
             f.write("import phoebe; import json\n")
+            if conf.mpi:
+                # allow PHOEBE to use its internal parallelization
+                f.write("phoebe.mpi_on()\n")
             # TODO: can we skip the history context?  And maybe even other models
             # or datasets (except times and only for run_compute but not run_fitting)
             f.write("bdict = json.loads(\"\"\"{}\"\"\")\n".format(json.dumps(self.to_json())))
