@@ -131,6 +131,15 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
             except ValueError: #TODO: custom exception for no parameter
                 continue
 
+            if obs_ps.kind == 'mesh':
+                # then we also have the ability to append times from another dataset
+                for add_dataset in obs_ps.get_value(qualifier='include_times'):
+                    logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
+                    add_ps = b.filter(dataset=add_dataset, context='dataset')
+                    add_timequalifier = _timequalifier_by_kind(add_ps.kind)
+                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=component, unit=u.d)
+                    this_times = np.append(this_times, add_times)
+
             if len(this_times) and provided_times is not None:
                 # then overrride the dataset times with the passed times
                 #  (as kwarg to run_compute)
@@ -240,6 +249,15 @@ def _extract_from_bundle_by_dataset(b, compute, times=[]):
                 this_times = obs_ps.get_value(qualifier=timequalifier, component=component, unit=u.d)
             except ValueError: #TODO: custom exception for no parameter
                 continue
+
+            if obs_ps.kind == 'mesh':
+                # then we also have the ability to append times from another dataset
+                for add_dataset in obs_ps.get_value(qualifier='include_times'):
+                    logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
+                    add_ps = b.filter(dataset=add_dataset, context='dataset')
+                    add_timequalifier = _timequalifier_by_kind(add_ps.kind)
+                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=component, unit=u.d)
+                    this_times = np.append(this_times, add_times)
 
             # if not len(this_times):
                 # then override with passed times if available
