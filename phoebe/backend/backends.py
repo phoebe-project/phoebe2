@@ -48,11 +48,6 @@ import logging
 logger = logging.getLogger("BACKENDS")
 logger.addHandler(logging.NullHandler())
 
-
-# protomesh is the mesh at periastron in the reference frame of each individual star
-_backends_that_support_protomesh = ['phoebe', 'legacy']
-# pbmesh is meshes with filled observable columns (fluxes etc) at each point at which the mesh is used
-_backends_that_support_pbmesh = ['phoebe', 'legacy']
 # the following list is for backends that use numerical meshes
 _backends_that_require_meshing = ['phoebe', 'legacy']
 
@@ -83,7 +78,7 @@ def _timequalifier_by_kind(kind):
     else:
         return 'times'
 
-def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, times=None, allow_oversample=False, **kwargs):
+def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
     computed at each of those times.  Any backend can then loop through
@@ -136,12 +131,9 @@ def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, time
             except ValueError: #TODO: custom exception for no parameter
                 continue
 
-
-            #if not len(this_times):
-            #    # then override with passed times if available
-            #    this_times = time
             if len(this_times) and provided_times is not None:
                 # then overrride the dataset times with the passed times
+                #  (as kwarg to run_compute)
                 this_times = provided_times
 
             # TODO: also copy this logic for _extract_from_bundle_by_dataset?
@@ -187,13 +179,6 @@ def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, time
                             times.append(time_)
                             infos.append([this_info])
 
-
-    if protomesh:
-        needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
-
-    if pbmesh:
-        needed_syns, infos = _handle_pbmesh(b, compute, needed_syns, infos, times=times)
-
     if len(times):
         ti = zip(times, infos)
         ti.sort()
@@ -201,7 +186,7 @@ def _extract_from_bundle_by_time(b, compute, protomesh=False, pbmesh=False, time
 
     return np.array(times), infos, _create_syns(b, needed_syns)
 
-def _extract_from_bundle_by_dataset(b, compute, protomesh=False, pbmesh=False, times=[]):
+def _extract_from_bundle_by_dataset(b, compute, times=[]):
     """
     Extract a list of enabled dataset from the bundle.
 
@@ -261,6 +246,7 @@ def _extract_from_bundle_by_dataset(b, compute, protomesh=False, pbmesh=False, t
                 # this_times = times_provided
             if len(this_times) and provided_times is not None:
                 # then overrride the dataset times with the passed times
+                #  (as kwarg to run_compute)
                 this_times = provided_times
 
             if len(this_times):
@@ -282,87 +268,10 @@ def _extract_from_bundle_by_dataset(b, compute, protomesh=False, pbmesh=False, t
 
                     infos.append([this_info])
 
-    if protomesh:
-        needed_syns, infos = _handle_protomesh(b, compute, needed_syns, infos)
-
-    if pbmesh:
-        needed_syns, infos = _handle_pbmesh(b, compute, needed_syns, infos, times=False)
-
-
-#    print "NEEDED", needed_syns
     return infos, _create_syns(b, needed_syns)
 
-def _handle_protomesh(b, compute, needed_syns, infos):
-    """
-    helper function for functionality needed in both _extract_from_bundle_by_dataset
-    and _extract_from_bundle_by_times
-    """
-    # now add "datasets" for the "protomesh"
-    if b.get_compute(compute).kind in _backends_that_support_protomesh:
-        for component in b.hierarchy.get_meshables():
-            # then we need the prototype synthetics
-            this_info = {'dataset': 'protomesh',
-                    'component': component,
-                    'kind': 'mesh',
-                    'needs_mesh': False,
-                    'times': [None]}
-            needed_syns.append(this_info)
 
-    return needed_syns, infos
-
-def _handle_pbmesh(b, compute, needed_syns, infos, times=None):
-    """
-    helper function for functionality needed in both _extract_from_bundle_by_dataset
-    and _extract_from_bundle_by_times
-    """
-    # now add "datasets" for each timepoint at which needs_mesh is True, if pbmesh
-    if b.get_compute(compute).kind in _backends_that_support_pbmesh:
-
-        # building synthetics for the pbmesh is a little different.  Here we
-        # want to add a single "this_info" for each component, and fill that with
-        # the total times from all valid datasets.
-
-        # So first let's build a list of datasets we need to consider when finding
-        # the times.  We'll do this by first building a dictionary, to avoid duplicates
-        # that could occur for datasets with multiple components
-
-        needs_mesh_infos = {info['dataset']: info for info in needed_syns if info['needs_mesh'] and info['kind'] not in ['mesh']}.values()
-
-        # now let's loop over ALL components first... even if a single component
-        # is used in the dataset (ie RVs attached to a single component), we'll
-        # still build a synthetic for all components
-        # TODO: double check to make sure this is fine with the backend and that
-        # the backend still fills these correctly (or are they just empty)?
-        for component in b.hierarchy.get_meshables():
-
-            # now let's find a list of all times used in all datasets that require
-            # the use of a mesh, avoiding duplicates, and maintaining sort order
-            this_times = np.array([])
-            for info in needs_mesh_infos:
-                this_times = np.append(this_times, info['times'])
-
-            # TODO: there must be a better way to do this
-            this_times = np.array(list(set(this_times.tolist())))
-            this_times.sort()
-
-
-            this_info = {'dataset': 'pbmesh',
-                'component': component,
-                'kind': 'mesh',
-                'needs_mesh': True,
-                'times': this_times}
-
-            if times:
-                for time in this_times:
-                    ind = times.index(time)
-                    infos[ind].append(this_info)
-
-            needed_syns.append(this_info)
-
-    return needed_syns, infos
-
-
-def _create_syns(b, needed_syns, protomesh=False, pbmesh=False):
+def _create_syns(b, needed_syns):
     """
     Create empty synthetics
 
@@ -453,24 +362,11 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     starrefs  = hier.get_stars()
     meshablerefs = hier.get_meshables()
-    # starorbitrefs = [hier.get_parent_of(star) for star in starrefs]
-    # orbitrefs = hier.get_orbits()
 
-
-    protomesh = computeparams.get_value('protomesh', **kwargs)
-    pbmesh = computeparams.get_value('pbmesh', **kwargs)
     do_horizon = computeparams.get_value('horizon', **kwargs)
-    if 'protomesh' in kwargs.keys():
-        # remove protomesh so that it isn't passed twice in _extract_from_bundle_by_time
-        kwargs.pop('protomesh')
-    if 'pbmesh' in kwargs.keys():
-        # remove protomesh so that it isn't passed twice in _extract_from_bundle_by_time
-        kwargs.pop('pbmesh')
 
     times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute,
                                                           times=times,
-                                                          protomesh=protomesh,
-                                                          pbmesh=pbmesh,
                                                           allow_oversample=True,
                                                           **kwargs)
 
@@ -521,45 +417,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     # - volume-conservation for eccentric orbits
     # We'll assume that this is always done - so even for circular orbits, the initial mesh will just be a scaled version of this mesh
     system.initialize_meshes()
-
-    # Now we should store the protomesh
-    if protomesh:
-        for component in meshablerefs:
-            body = system.get_body(component)
-
-            pmesh = body.get_standard_mesh(scaled=False)  # TODO: provide theta=0.0 when supported
-            body._compute_instantaneous_quantities([], [], [], d=1-body.ecc)
-            body._fill_loggs(mesh=pmesh)
-            body._fill_gravs(mesh=pmesh)
-            body._fill_teffs(mesh=pmesh)
-
-            this_syn = new_syns.filter(component=component, dataset='protomesh')
-
-            this_syn['xs'] = pmesh.centers[:,0]# * u.solRad
-            this_syn['ys'] = pmesh.centers[:,1]# * u.solRad
-            this_syn['zs'] = pmesh.centers[:,2]# * u.solRad
-            this_syn['vertices'] = pmesh.vertices_per_triangle
-            this_syn['areas'] = pmesh.areas # * u.solRad**2
-            this_syn['tareas'] = pmesh.tareas # * u.solRad**2
-            this_syn['normals'] = pmesh.tnormals
-            this_syn['nxs'] = pmesh.tnormals[:,0]
-            this_syn['nys'] = pmesh.tnormals[:,1]
-            this_syn['nzs'] = pmesh.tnormals[:,2]
-
-            this_syn['loggs'] = pmesh.loggs.centers
-            this_syn['teffs'] = pmesh.teffs.centers
-            # this_syn['mu'] = pmesh.mus  # mus aren't filled until placed in orbit
-
-            # NOTE: this is a computed column, meaning the 'r' is not the radius to centers, but rather the
-            # radius at which computables have been determined.  This way r should not suffer from a course
-            # grid (so much).  Same goes for cosbeta below.
-            this_syn['rs'] = pmesh.rs.centers
-            # NOTE: no r_proj for protomeshs since we don't have LOS information
-
-            # TODO: need to test the new (ComputedColumn) version of this
-            this_syn['cosbetas'] = pmesh.cosbetas.centers
-            # this_syn['cosbeta'] = [np.dot(c,n)/ (np.sqrt((c*c).sum())*np.sqrt((n*n).sum())) for c,n in zip(pmesh.centers, pmesh.tnormals)]
-
 
     # Now we need to compute intensities at t0 in order to scale pblums for all future times
     # TODO: only do this if we need the mesh for actual computations
@@ -1197,8 +1054,6 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
         raise ImportError("phoebeBackend for phoebe legacy not found")
 
     computeparams = b.get_compute(compute, force_ps=True)
-    protomesh = computeparams.get_value('protomesh', **kwargs)
-    pbmesh = computeparams.get_value('pbmesh', **kwargs)
 #    computeparams = b.get_compute(compute, force_ps=True)
 #    hier = b.get_hierarchy()
 
@@ -1243,7 +1098,7 @@ def legacy(b, compute, times=[], **kwargs): #, **kwargs):#(b, compute, **kwargs)
     lcnum = 0
     rvnum = 0
     rvid = None
-    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times, protomesh=protomesh, pbmesh=pbmesh)
+    infos, new_syns = _extract_from_bundle_by_dataset(b, compute=compute, times=times)
 
 
 #    print "INFOS", len(infos)

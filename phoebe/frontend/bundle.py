@@ -2512,6 +2512,13 @@ class Bundle(ParameterSet):
             self.as_client(False)
             return self.get_model(model)
 
+        # protomesh and pbmesh were supported kwargs in 2.0.x but are no longer
+        # so let's raise an error if they're passed here
+        if 'protomesh' in kwargs.keys():
+            raise ValueError("protomesh is no longer a valid option")
+        if 'pbmesh' in kwargs.keys():
+            raise ValueError("pbmesh is no longer a valid option")
+
         if model is None:
             model = 'latest'
 
