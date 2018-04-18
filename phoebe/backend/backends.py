@@ -406,7 +406,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     starrefs  = hier.get_stars()
     meshablerefs = hier.get_meshables()
 
-    do_horizon = computeparams.get_value('horizon', **kwargs)
+    do_horizon = False #computeparams.get_value('horizon', **kwargs)
 
     times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute,
                                                           times=times,
