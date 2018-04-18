@@ -264,6 +264,7 @@ def mesh(**kwargs):
 
     obs_params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', []), description='datasets to expose as mesh columns', choices=[])]
     columns_choices = ['xs', 'ys', 'zs']
+    columns_choices += ['roche_xs', 'roche_ys', 'roche_zs']
     columns_choices += ['vxs', 'vys', 'vzs']
     # columns_choices += ['horizon_xs', 'horizon_ys', 'horizon_zs', 'horizon_analytic_xs', 'horizon_analytic_ys', 'horizon_analytic_zs']
     columns_choices += ['areas'] #, 'tareas']
@@ -304,7 +305,8 @@ def mesh_syn(syn=True, **kwargs):
             syn_params += [FloatParameter(qualifier='volume', time=t, value=kwargs.get('volume', 0.0), default_unit=u.solRad**3, description='Volume of the stellar surface')]
 
             # always include basic geometric columns
-            syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Vertices of triangles')]
+            syn_params += [FloatArrayParameter(qualifier='vertices', time=t, value=kwargs.get('vertices', []), default_unit=u.solRad, description='Vertices of triangles in the plane-of-sky')]
+            syn_params += [FloatArrayParameter(qualifier='roche_vertices', time=t, value=kwargs.get('roche_vertices', []), default_unit=u.dimensionless_unscaled, description='Vertices of triangles in Roche coordinates')]
 
             # NOTE: if changing the parameters which are optional, changes must
             # be made here, in the choices for the columns Parameter, and in
@@ -312,11 +314,20 @@ def mesh_syn(syn=True, **kwargs):
             # packet
 
             if 'xs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='X coordinate of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='xs', time=t, value=kwargs.get('xs', []), default_unit=u.solRad, description='X coordinate of center of triangles in the plane-of-sky')]
             if 'ys' in columns:
-                syn_params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Y coordinate of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='ys', time=t, value=kwargs.get('ys', []), default_unit=u.solRad, description='Y coordinate of center of triangles in the plane-of-sky')]
             if 'zs' in columns:
-                syn_params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad if t is not None else u.dimensionless_unscaled, description='Z coordinate of center of triangles')]
+                syn_params += [FloatArrayParameter(qualifier='zs', time=t, value=kwargs.get('zs', []), default_unit=u.solRad, description='Z coordinate of center of triangles in the plane-of-sky')]
+
+            if 'roche_xs' in columns:
+                syn_params += [FloatArrayParameter(qualifier='roche_xs', time=t, value=kwargs.get('roche_xs', []), default_unit=u.dimensionless_unscaled, description='X coordinate of center of triangles in Roche coordinates')]
+            if 'roche_ys' in columns:
+                syn_params += [FloatArrayParameter(qualifier='roche_ys', time=t, value=kwargs.get('roche_ys', []), default_unit=u.dimensionless_unscaled, description='Y coordinate of center of triangles in Roche coordinates')]
+            if 'roche_zs' in columns:
+                syn_params += [FloatArrayParameter(qualifier='roche_zs', time=t, value=kwargs.get('roche_zs', []), default_unit=u.dimensionless_unscaled, description='Z coordinate of center of triangles in Roche coordinates')]
+
+
 
             if 'vxs' in columns:
                 syn_params += [FloatArrayParameter(qualifier='vxs', time=t, value=kwargs.get('vxs', []), default_unit=u.solRad/u.d, description='X velocity of center of triangles')]

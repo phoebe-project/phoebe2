@@ -717,12 +717,12 @@ class ProtoMesh(object):
         # TODO: ditch the list comprehension... I know I figured out how to do
         # this (ie along an axis) with np.dot somewhere else
         # cosbetas = np.array([np.dot(c,n) / (np.linalg.norm(c)*np.linalg.norm(n)) for c,n in zip(coords, norms)])
-        
+
         cosbetas = libphoebe.scalproj_cosangle(
-          np.ascontiguousarray(coords), 
+          np.ascontiguousarray(coords),
           np.ascontiguousarray(norms)
         )
-        
+
         return ComputedColumn(self, cosbetas)
 
     @property
@@ -924,7 +924,11 @@ class ScaledProtoMesh(ProtoMesh):
         TODO: add documentation
         """
 
-        keys = []
+        # store needed copies in the Roche coordinates
+        self._roche_vertices    = None  # Vx3
+        self._roche_centers     = None  # Nx3
+
+        keys = ['roche_vertices', 'roche_centers']
         keys += kwargs.pop('keys', [])
 
         scale = kwargs.pop('scale', None)
@@ -941,6 +945,7 @@ class ScaledProtoMesh(ProtoMesh):
         """
 
         mesh = cls(**proto_mesh.items())
+        mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
 
         if hasattr(proto_mesh, '_label_envelope'):
@@ -949,6 +954,11 @@ class ScaledProtoMesh(ProtoMesh):
             mesh._label_secondary = proto_mesh._label_secondary
 
         return mesh
+
+    def _copy_roche_values(self):
+        # make necessary copies
+        self._roche_vertices = self._vertices.copy()
+        self._roche_centers = self._centers.copy()
 
     def _scale_mesh(self, scale):
         """
@@ -965,7 +975,35 @@ class ScaledProtoMesh(ProtoMesh):
         self._volume *= scale**3
         # TODO NOW: scale volume
 
+    @property
+    def roche_vertices(self):
+        """
+        Return the array of vertices in Roche coordinates, where each item is a
+        triplet represeting cartesian coordinates.
 
+        (Vx3)
+        """
+        return self._roche_vertices
+
+    @property
+    def roche_vertices_per_triangle(self):
+        """
+        TODO: add documentation
+
+        TODO: confirm shape
+        (Nx3x3)
+        """
+        return self.roche_vertices[self.triangles]
+
+    @property
+    def roche_centers(self):
+        """
+        Access to the quantities at the centers of each triangles in Roche
+        coordinates.
+
+        :return: numpy array
+        """
+        return self._roche_centers
 
 class Mesh(ScaledProtoMesh):
     """
@@ -1007,6 +1045,7 @@ class Mesh(ScaledProtoMesh):
 
         mesh = cls(**proto_mesh.items())
 
+        mesh._copy_roche_values()
         mesh._scale_mesh(scale=scale)
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
 
@@ -1026,6 +1065,7 @@ class Mesh(ScaledProtoMesh):
 
         mesh = cls(**scaledproto_mesh.items())
 
+        # roche coordinates have already been copied
         mesh._place_in_orbit(pos, vel, euler, rotation_vel)
 
         if hasattr(scaledproto_mesh, '_label_envelope'):

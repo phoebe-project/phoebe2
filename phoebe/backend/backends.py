@@ -664,17 +664,21 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 packet[k]['volume'] = body.volume
 
                 packet[k]['vertices'] = body.mesh.vertices_per_triangle
+                packet[k]['roche_vertices'] = body.mesh.roche_vertices_per_triangle
 
-                # TODO: should x, y, z be computed columns of the vertices???
-                # could easily have a read-only property at the ProtoMesh level
-                # that returns a ComputedColumn for xs, ys, zs (like rs)
-                # (also do same for protomesh)
                 if 'xs' in info['columns']:
                     packet[k]['xs'] = body.mesh.centers[:,0]# * u.solRad
                 if 'ys' in info['columns']:
                     packet[k]['ys'] = body.mesh.centers[:,1]# * u.solRad
                 if 'zs' in info['columns']:
                     packet[k]['zs'] = body.mesh.centers[:,2]# * u.solRad
+
+                if 'roche_xs' in info['columns']:
+                    packet[k]['roche_xs'] = body.mesh.roche_centers[:,0]
+                if 'roche_ys' in info['columns']:
+                    packet[k]['roche_ys'] = body.mesh.roche_centers[:,1]
+                if 'roche_zs' in info['columns']:
+                    packet[k]['roche_zs'] = body.mesh.roche_centers[:,2]
 
                 if 'vxs' in info['columns']:
                     packet[k]['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
@@ -686,6 +690,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 if 'areas' in info['columns']:
                     packet[k]['areas'] = body.mesh.areas # * u.solRad**2
                 # if 'tareas' in info['columns']:
+                    # packet[k]['cosbetas'] = body.mesh.cosbetas
 
                 if 'normals' in info['columns']:
                     packet[k]['normals'] = body.mesh.tnormals
