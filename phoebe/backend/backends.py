@@ -332,7 +332,8 @@ def _create_syns(b, needed_syns):
             # needed_syn['dataset_fields'] = needs_mesh
 
             needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
-            needed_syn['datasets'] = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
+            datasets = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
+            needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').exclude(kind='*_dep').kind for ds in datasets}
 
         # phoebe will compute everything sorted - even if the input times array
         # is out of order, so let's make sure the exposed times array is in
@@ -803,7 +804,12 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
                             if indep in info['columns']:
                                 key = "{}:{}".format(indep, infomesh['dataset'])
-                                packet[k]['PBCOLUMN'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
+
+                                if indep=='rvs' and infomesh['kind'] != 'rv':
+                                    continue
+                                else:
+                                    value = body.mesh[key].centers
+                                    packet[k]['PBCOLUMN'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': value}]
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))

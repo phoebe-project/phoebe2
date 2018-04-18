@@ -387,8 +387,8 @@ def mesh_syn(syn=True, **kwargs):
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
-            for dataset in datasets:
-                if 'rvs' in columns:
+            for dataset, kind in datasets.items():
+                if 'rvs' in columns and kind=='rv':
                     syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities' in columns:
                     syn_params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
