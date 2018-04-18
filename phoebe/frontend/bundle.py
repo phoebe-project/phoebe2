@@ -814,6 +814,7 @@ class Bundle(ParameterSet):
         for param in self.filter(qualifier='include_times',
                                  context='dataset').to_list():
 
+            # TODO: include t0s per-orbit (will need to update whenever hierarchy changes)
             param._choices = time_datasets
             param.remove_not_in_choices()
 

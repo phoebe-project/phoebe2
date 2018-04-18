@@ -309,6 +309,8 @@ def _create_syns(b, needed_syns):
             # parameters.dataset.mesh will handle creating the necessary columns
             needed_syn['dataset_fields'] = needs_mesh
 
+            needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
+
         # phoebe will compute everything sorted - even if the input times array
         # is out of order, so let's make sure the exposed times array is in
         # the correct (sorted) order
@@ -518,25 +520,18 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
             for qualifier, value in packet_i.items():
-                if qualifier=='pbmesh':
-                    # then we need to loop through the actual parameter, where
-                    # each "value" is a dictionary which contains all the information
-                    # to access the parameter and set the value
-                    for pbmeshpacket in value:
-                        new_syns.set_value(**pbmeshpacket)
+                if kind in ['mesh', 'sp']:
+                    # then we're setting the whole array for this given time
+                    this_syn.get_parameter(qualifier).set_value(value)
                 else:
-                    if kind in ['mesh', 'sp']:
-                        # then we're setting the whole array for this given time
-                        this_syn.get_parameter(qualifier).set_value(value)
-                    else:
-                        # now we need to find the index in the dataset that corresponds
-                        # to this time (we can't rely on the index of the computation
-                        # because not all datasets have the same time array).
-                        # Hopefully the time only occurs once in the times array,
-                        # but in case it occurs more than once, we'll set this up
-                        # as a for loop anyways.
-                        for index in np.where(info['times']==time)[0]:
-                            this_syn.get_parameter(qualifier).set_index_value(index, value)
+                    # now we need to find the index in the dataset that corresponds
+                    # to this time (we can't rely on the index of the computation
+                    # because not all datasets have the same time array).
+                    # Hopefully the time only occurs once in the times array,
+                    # but in case it occurs more than once, we'll set this up
+                    # as a for loop anyways.
+                    for index in np.where(info['times']==time)[0]:
+                        this_syn.get_parameter(qualifier).set_index_value(index, value)
 
         return new_syns
 
@@ -668,69 +663,97 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 packet[k]['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
                 packet[k]['volume'] = body.volume
 
+                packet[k]['vertices'] = body.mesh.vertices_per_triangle
+
                 # TODO: should x, y, z be computed columns of the vertices???
                 # could easily have a read-only property at the ProtoMesh level
                 # that returns a ComputedColumn for xs, ys, zs (like rs)
                 # (also do same for protomesh)
-                packet[k]['xs'] = body.mesh.centers[:,0]# * u.solRad
-                packet[k]['ys'] = body.mesh.centers[:,1]# * u.solRad
-                packet[k]['zs'] = body.mesh.centers[:,2]# * u.solRad
-                packet[k]['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
-                packet[k]['vys'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
-                packet[k]['vzs'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
-                packet[k]['vertices'] = body.mesh.vertices_per_triangle
-                packet[k]['areas'] = body.mesh.areas # * u.solRad**2
-                # TODO remove this 'normals' vector now that we have nx,ny,nz?
-                packet[k]['normals'] = body.mesh.tnormals
-                packet[k]['nxs'] = body.mesh.tnormals[:,0]
-                packet[k]['nys'] = body.mesh.tnormals[:,1]
-                packet[k]['nzs'] = body.mesh.tnormals[:,2]
-                packet[k]['mus'] = body.mesh.mus
+                if 'xs' in info['columns']:
+                    packet[k]['xs'] = body.mesh.centers[:,0]# * u.solRad
+                if 'ys' in info['columns']:
+                    packet[k]['ys'] = body.mesh.centers[:,1]# * u.solRad
+                if 'zs' in info['columns']:
+                    packet[k]['zs'] = body.mesh.centers[:,2]# * u.solRad
 
-                packet[k]['loggs'] = body.mesh.loggs.centers
-                packet[k]['teffs'] = body.mesh.teffs.centers
-                # TODO: include abun? (body.mesh.abuns.centers)
+                if 'vxs' in info['columns']:
+                    packet[k]['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
+                if 'vys' in info['columns']:
+                    packet[k]['vys'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
+                if 'vzs' in info['columns']:
+                    packet[k]['vzs'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
+
+                if 'areas' in info['columns']:
+                    packet[k]['areas'] = body.mesh.areas # * u.solRad**2
+                # if 'tareas' in info['columns']:
+
+                if 'normals' in info['columns']:
+                    packet[k]['normals'] = body.mesh.tnormals
+                if 'nxs' in info['columns']:
+                    packet[k]['nxs'] = body.mesh.tnormals[:,0]
+                if 'nys' in info['columns']:
+                    packet[k]['nys'] = body.mesh.tnormals[:,1]
+                if 'nzs' in info['columns']:
+                    packet[k]['nzs'] = body.mesh.tnormals[:,2]
+
+                if 'rs' in info['columns']:
+                    packet[k]['rs'] = body.mesh.rs.centers
+                # if 'cosbetas' in info['columns']:
+
+
+                # packet[k]['mus'] = body.mesh.mus
+
+                if 'loggs' in info['columns']:
+                    packet[k]['loggs'] = body.mesh.loggs.centers
+                if 'teffs' in info['columns']:
+                    packet[k]['teffs'] = body.mesh.teffs.centers
+
 
                 # NOTE: these are computed columns, so are not based on the
                 # "center" coordinates provided by x, y, z, etc, but rather are
                 # the average value across each triangle.  For this reason,
                 # they are less susceptible to a coarse grid.
-                packet[k]['rs'] = body.mesh.rs.centers
-                packet[k]['r_projs'] = body.mesh.rprojs.centers
+                if 'r_projs' in info['columns']:
+                    packet[k]['r_projs'] = body.mesh.rprojs.centers
 
-                packet[k]['visibilities'] = body.mesh.visibilities
+
+
+                # packet[k]['visibilities'] = body.mesh.visibilities
+
+
+
 
                 vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
                 for i,vc in enumerate(vcs):
                     if np.all(vc==np.array([0,0,0])):
                         vcs[i] = np.full(3, np.nan)
-                packet[k]['visible_centroids'] = vcs
+                # packet[k]['visible_centroids'] = vcs
 
                 # Eclipse horizon
-                if do_horizon and horizons is not None:
-                    packet[k]['horizon_xs'] = horizons[cind][:,0]
-                    packet[k]['horizon_ys'] = horizons[cind][:,1]
-                    packet[k]['horizon_zs'] = horizons[cind][:,2]
+                # if do_horizon and horizons is not None:
+                    # packet[k]['horizon_xs'] = horizons[cind][:,0]
+                    # packet[k]['horizon_ys'] = horizons[cind][:,1]
+                    # packet[k]['horizon_zs'] = horizons[cind][:,2]
 
                 # Analytic horizon
-                if do_horizon:
-                    if body.distortion_method == 'roche':
-                        if body.mesh_method == 'marching':
-                            q, F, d, Phi = body._mesh_args
-                            scale = body._scale
-                            euler = [ethetai[cind], elongani[cind], eincli[cind]]
-                            pos = [xi[cind], yi[cind], zi[cind]]
-                            ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
-                        elif body.mesh_method == 'wd':
-                            scale = body._scale
-                            pos = [xi[cind], yi[cind], zi[cind]]
-                            ha = horizon_analytic.wd(b, time, scale, pos)
-                        else:
-                            raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
-
-                        packet[k]['horizon_analytic_xs'] = ha['xs']
-                        packet[k]['horizon_analytic_ys'] = ha['ys']
-                        packet[k]['horizon_analytic_zs'] = ha['zs']
+                # if do_horizon:
+                #     if body.distortion_method == 'roche':
+                #         if body.mesh_method == 'marching':
+                #             q, F, d, Phi = body._mesh_args
+                #             scale = body._scale
+                #             euler = [ethetai[cind], elongani[cind], eincli[cind]]
+                #             pos = [xi[cind], yi[cind], zi[cind]]
+                #             ha = horizon_analytic.marching(q, F, d, Phi, scale, euler, pos)
+                #         elif body.mesh_method == 'wd':
+                #             scale = body._scale
+                #             pos = [xi[cind], yi[cind], zi[cind]]
+                #             ha = horizon_analytic.wd(b, time, scale, pos)
+                #         else:
+                #             raise NotImplementedError("analytic horizon not implemented for mesh_method='{}'".format(body.mesh_method))
+                #
+                #         packet[k]['horizon_analytic_xs'] = ha['xs']
+                #         packet[k]['horizon_analytic_ys'] = ha['ys']
+                #         packet[k]['horizon_analytic_zs'] = ha['zs']
 
                 # Dataset-dependent quantities
                 indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors']}
@@ -738,16 +761,16 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
                 indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
 
-                packet[k]['pbmesh'] = []
-                for infomesh in infolist:
-                    if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
-                        ### so that we can do new_syns.set_value(**packet[k]['pbmesh'][n])
-                        packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
-                        packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
-
-                        for indep in indeps[infomesh['kind']]:
-                            key = "{}:{}".format(indep, infomesh['dataset'])
-                            packet[k]['pbmesh'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
+                # packet[k]['pbmesh'] = []
+                # for infomesh in infolist:
+                #     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
+                #         ### so that we can do new_syns.set_value(**packet[k]['pbmesh'][n])
+                #         packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
+                #         packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+                #
+                #         for indep in indeps[infomesh['kind']]:
+                #             key = "{}:{}".format(indep, infomesh['dataset'])
+                #             packet[k]['pbmesh'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
 
 
             else:
