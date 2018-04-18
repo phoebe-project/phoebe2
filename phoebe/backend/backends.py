@@ -512,6 +512,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     def master_populate_syns(new_syns, time, infolist, packet):
         for packet_i, info in zip(packet, infolist):
+            # print "*** master_populate_syns", packet_i, info
             kind = info['kind']
 
             if kind in ['mesh', 'sp']:
@@ -520,6 +521,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
             for qualifier, value in packet_i.items():
+                # print "*** master_populate_syns qualifier:", qualifier
                 if kind in ['mesh', 'sp']:
                     # then we're setting the whole array for this given time
                     this_syn.get_parameter(qualifier).set_value(value)
@@ -659,12 +661,15 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # print "*** this_syn.twigs", this_syn.twigs
                 body = system.get_body(info['component'])
 
-                packet[k]['pot'] = body._instantaneous_pot
-                packet[k]['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
-                packet[k]['volume'] = body.volume
-
                 packet[k]['vertices'] = body.mesh.vertices_per_triangle
                 packet[k]['roche_vertices'] = body.mesh.roche_vertices_per_triangle
+
+                if 'pot' in info['columns']:
+                    packet[k]['pot'] = body._instantaneous_pot
+                if 'rpole' in info['columns']:
+                    packet[k]['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
+                if 'volume' in info['columns']:
+                    packet[k]['volume'] = body.volume
 
                 if 'xs' in info['columns']:
                     packet[k]['xs'] = body.mesh.centers[:,0]# * u.solRad
@@ -690,7 +695,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 if 'areas' in info['columns']:
                     packet[k]['areas'] = body.mesh.areas # * u.solRad**2
                 # if 'tareas' in info['columns']:
-                    # packet[k]['cosbetas'] = body.mesh.cosbetas
+                    # packet[k]['tareas'] = body.mesh.tareas
 
                 if 'normals' in info['columns']:
                     packet[k]['normals'] = body.mesh.tnormals
@@ -704,9 +709,8 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 if 'rs' in info['columns']:
                     packet[k]['rs'] = body.mesh.rs.centers
                 # if 'cosbetas' in info['columns']:
+                    # packet[k]['cosbetas'] = body.mesh.cosbetas
 
-
-                # packet[k]['mus'] = body.mesh.mus
 
                 if 'loggs' in info['columns']:
                     packet[k]['loggs'] = body.mesh.loggs.centers
@@ -714,25 +718,19 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     packet[k]['teffs'] = body.mesh.teffs.centers
 
 
-                # NOTE: these are computed columns, so are not based on the
-                # "center" coordinates provided by x, y, z, etc, but rather are
-                # the average value across each triangle.  For this reason,
-                # they are less susceptible to a coarse grid.
                 if 'r_projs' in info['columns']:
                     packet[k]['r_projs'] = body.mesh.rprojs.centers
+                if 'mus' in info['columns']:
+                    packet[k]['mus'] = body.mesh.mus
+                if 'visibilities' in info['columns']:
+                    packet[k]['visibilities'] = body.mesh.visibilities
+                if 'visible_centroids' in info['columns']:
+                    vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
+                    for i,vc in enumerate(vcs):
+                        if np.all(vc==np.array([0,0,0])):
+                            vcs[i] = np.full(3, np.nan)
+                    packet[k]['visible_centroids'] = vcs
 
-
-
-                # packet[k]['visibilities'] = body.mesh.visibilities
-
-
-
-
-                vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
-                for i,vc in enumerate(vcs):
-                    if np.all(vc==np.array([0,0,0])):
-                        vcs[i] = np.full(3, np.nan)
-                # packet[k]['visible_centroids'] = vcs
 
                 # Eclipse horizon
                 # if do_horizon and horizons is not None:
@@ -769,14 +767,19 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 # packet[k]['pbmesh'] = []
                 # for infomesh in infolist:
                 #     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
-                #         ### so that we can do new_syns.set_value(**packet[k]['pbmesh'][n])
-                #         packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
-                #         packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+                #         if 'pblum' in info['columns']:
+                #             packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
                 #
-                #         for indep in indeps[infomesh['kind']]:
-                #             key = "{}:{}".format(indep, infomesh['dataset'])
-                #             packet[k]['pbmesh'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
-
+                #         if 'ptfarea' in info['columns']:
+                #             packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+                #
+                #         for indep in ['rvs', 'intensities', 'normal_intensities',
+                #                       'abs_intensities', 'abs_normal_intensities',
+                #                       'boost_factors', 'ldint']:
+                #
+                #             if indep in info['columns']:
+                #                 key = "{}:{}".format(indep, infomesh['dataset'])
+                #                 packet[k]['pbmesh'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
