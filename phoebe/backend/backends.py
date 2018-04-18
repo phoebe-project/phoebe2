@@ -544,8 +544,14 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
 
             for qualifier, value in packet_i.items():
-                # print "*** master_populate_syns qualifier:", qualifier
-                if kind in ['mesh', 'sp']:
+                if qualifier == 'PBCOLUMN':
+                    # now we expect value to be a LIST of DICTS
+                    for pbcol_dict in value:
+                        # each dictionary tells the information to set the valueself.
+                        # Note that the dataset will likely be different than info['dataset']
+                        # so we need to do a new filter
+                        new_syns.set_value(**pbcol_dict)
+                elif kind in ['mesh', 'sp']:
                     # then we're setting the whole array for this given time
                     this_syn.get_parameter(qualifier).set_value(value)
                 else:
@@ -782,22 +788,22 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 #         packet[k]['horizon_analytic_zs'] = ha['zs']
 
                 # Dataset-dependent quantities
-                # packet[k]['pbmesh'] = []
-                # for infomesh in infolist:
-                #     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
-                #         if 'pblum' in info['columns']:
-                #             packet[k]['pbmesh'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
-                #
-                #         if 'ptfarea' in info['columns']:
-                #             packet[k]['pbmesh'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
-                #
-                #         for indep in ['rvs', 'intensities', 'normal_intensities',
-                #                       'abs_intensities', 'abs_normal_intensities',
-                #                       'boost_factors', 'ldint']:
-                #
-                #             if indep in info['columns']:
-                #                 key = "{}:{}".format(indep, infomesh['dataset'])
-                #                 packet[k]['pbmesh'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
+                packet[k]['PBCOLUMN'] = []
+                for infomesh in infolist:
+                    if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
+                        if 'pblum' in info['columns']:
+                            packet[k]['PBCOLUMN'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
+
+                        if 'ptfarea' in info['columns']:
+                            packet[k]['PBCOLUMN'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+
+                        for indep in ['rvs', 'intensities', 'normal_intensities',
+                                      'abs_intensities', 'abs_normal_intensities',
+                                      'boost_factors', 'ldint']:
+
+                            if indep in info['columns']:
+                                key = "{}:{}".format(indep, infomesh['dataset'])
+                                packet[k]['PBCOLUMN'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.mesh[key].centers}]
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
