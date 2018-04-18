@@ -283,7 +283,8 @@ def mesh(**kwargs):
     columns_choices += ['rvs']
     columns_choices += ['pblum', 'ptfarea']
 
-    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', ['loggs', 'teffs', 'intensities', 'rvs']), description='columns to expose within the mesh', choices=columns_choices)]
+    # TODO: split this into columns and dataset_columns???
+    obs_params += [SelectParameter(qualifier='columns', value=kwargs.get('columns', ['teffs']), description='columns to expose within the mesh', choices=columns_choices)]
     #obs_params += mesh_dep(**kwargs).to_list()
 
     return ParameterSet(obs_params), constraints
@@ -299,6 +300,7 @@ def mesh_syn(syn=True, **kwargs):
     # the following will all be arrays (value per triangle) per time
     if syn:
         columns = kwargs.get('columns', [])
+        datasets = kwargs.get('datasets', [])
 
         for t in times:
             if not isinstance(t, float):
@@ -385,28 +387,26 @@ def mesh_syn(syn=True, **kwargs):
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
-            for dataset, kind in kwargs.get('dataset_fields', {}).items():
-                # TODO: descriptions for each column
-                if kind in ['lc', 'rv']:
-                    if 'rvs' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
-                    if 'intensities' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
-                    if 'normal_intensities' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
-                    if 'abs_intensities' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
-                    if 'abs_normal_intensities' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
-                    if 'boost_factors' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
-                    if 'ldint' in columns:
-                        syn_params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
+            for dataset in datasets:
+                if 'rvs' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
+                if 'intensities' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of intensities for {} dataset'.format(dataset))]
+                if 'normal_intensities' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of normal_intensities for {} dataset'.format(dataset))]
+                if 'abs_intensities' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='abs_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_intensities for {} dataset'.format(dataset))]
+                if 'abs_normal_intensities' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='abs_normal_intensities', dataset=dataset, time=t, value=[], default_unit=u.W/u.m**3, description='Per-element value of abs_normal_intensities for {} dataset'.format(dataset))]
+                if 'boost_factors' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='boost_factors', dataset=dataset, time=t, value=[], default_unit=u.dimensionless_unscaled, description='Per-element value of boost_factors for {} dataset'.format(dataset))]
+                if 'ldint' in columns:
+                    syn_params += [FloatArrayParameter(qualifier='ldint', dataset=dataset, time=t, value=kwargs.get('ldint', []), default_unit=u.dimensionless_unscaled, description='Integral of the limb-darkening function')]
 
-                    if 'ptfarea' in columns:
-                        syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
-                    if 'pblum' in columns:
-                        syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
+                if 'ptfarea' in columns:
+                    syn_params += [FloatParameter(qualifier='ptfarea', dataset=dataset, time=t, value=kwargs.get('ptfarea', 1.0), default_unit=u.m, description='Area of the passband transmission function')]
+                if 'pblum' in columns:
+                    syn_params += [FloatParameter(qualifier='pblum', dataset=dataset, time=t, value=kwargs.get('pblum', 0.0), default_unit=u.W, description='Passband Luminosity of entire star')]
 
     constraints = []
 

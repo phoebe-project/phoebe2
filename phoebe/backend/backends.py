@@ -78,6 +78,23 @@ def _timequalifier_by_kind(kind):
     else:
         return 'times'
 
+def _expand_mesh_times(b, obs_ps, component):
+    this_times = obs_ps.get_value(qualifier='times', component=component, unit=u.d)
+
+    if obs_ps.kind == 'mesh':
+        # then we also have the ability to append times from another dataset
+        for add_dataset in obs_ps.get_value(qualifier='include_times'):
+            # logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
+            add_ps = b.filter(dataset=add_dataset, context='dataset')
+            add_timequalifier = _timequalifier_by_kind(add_ps.kind)
+            add_times = add_ps.get_value(qualifier=add_timequalifier, component=component, unit=u.d)
+            this_times = np.unique(np.append(this_times, add_times))
+
+    else:
+        raise TypeError("can only expand times for a mesh dataset")
+
+    return this_times
+
 def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False, **kwargs):
     """
     Extract a list of sorted times and the datasets that need to be
@@ -121,7 +138,6 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
             obs_ps = b.filter(context='dataset', dataset=dataset, component=component).exclude(kind='*_dep')
             # only certain kinds accept a component of None
             if component is None and obs_ps.kind not in ['lc', 'mesh']:
-                # TODO: should we change things like lightcurves to be tagged with the component label of the orbit instead of None?
                 # anything that can accept observations on the "system" level should accept component is None
                 continue
 
@@ -131,19 +147,32 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
             except ValueError: #TODO: custom exception for no parameter
                 continue
 
-            if obs_ps.kind == 'mesh':
-                # then we also have the ability to append times from another dataset
-                for add_dataset in obs_ps.get_value(qualifier='include_times'):
-                    logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
-                    add_ps = b.filter(dataset=add_dataset, context='dataset')
-                    add_timequalifier = _timequalifier_by_kind(add_ps.kind)
-                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=component, unit=u.d)
-                    this_times = np.append(this_times, add_times)
-
             if len(this_times) and provided_times is not None:
                 # then overrride the dataset times with the passed times
                 #  (as kwarg to run_compute)
                 this_times = provided_times
+
+            elif obs_ps.kind == 'mesh':
+                this_times = _expand_mesh_times(b, obs_ps, component)
+
+            else:
+                timequalifier = _timequalifier_by_kind(obs_ps.kind)
+                try:
+                    this_times = obs_ps.get_value(qualifier=timequalifier, component=component, unit=u.d)
+                except ValueError: #TODO: custom exception for no parameter
+                    continue
+
+                # then we also have the ability to be requested by the datasets
+                # parameter from any of the mesh datasets
+                for mesh_datasets_parameter in b.filter(qualifier='datasets', context='dataset', kind='mesh').to_list():
+                    if dataset in mesh_datasets_parameter.get_value():
+                        # then we want to add the times in the mesh IF it is enabled
+                        mesh_enabled = b.get_value(qualifier='enabled', dataset=mesh_datasets_parameter.dataset, compute=compute, context='compute')
+                        if mesh_enabled:
+                            mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=component).exclude(kind='*_dep')
+                            mesh_times = _expand_mesh_times(b, mesh_obs_ps, component)
+                            this_times = np.unique(np.append(this_times, mesh_times))
+
 
             # TODO: also copy this logic for _extract_from_bundle_by_dataset?
             if allow_oversample and \
@@ -193,6 +222,7 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
         ti.sort()
         times, infos = zip(*ti)
 
+    # print "*** _extract_from_bundle_by_time return(times, infos, syns)", times, infos, needed_syns
     return np.array(times), infos, _create_syns(b, needed_syns)
 
 def _extract_from_bundle_by_dataset(b, compute, times=[]):
@@ -252,16 +282,8 @@ def _extract_from_bundle_by_dataset(b, compute, times=[]):
 
             if obs_ps.kind == 'mesh':
                 # then we also have the ability to append times from another dataset
-                for add_dataset in obs_ps.get_value(qualifier='include_times'):
-                    logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
-                    add_ps = b.filter(dataset=add_dataset, context='dataset')
-                    add_timequalifier = _timequalifier_by_kind(add_ps.kind)
-                    add_times = add_ps.get_value(qualifier=add_timequalifier, component=component, unit=u.d)
-                    this_times = np.append(this_times, add_times)
+                this_times = _expand_mesh_times(b, obs_ps, component)
 
-            # if not len(this_times):
-                # then override with passed times if available
-                # this_times = times_provided
             if len(this_times) and provided_times is not None:
                 # then overrride the dataset times with the passed times
                 #  (as kwarg to run_compute)
@@ -299,7 +321,7 @@ def _create_syns(b, needed_syns):
     :return: :class:`phoebe.parameters.parameters.ParameterSet` of all new parameters
     """
 
-    needs_mesh = {info['dataset']: info['kind'] for info in needed_syns if info['needs_mesh']}
+    # needs_mesh = {info['dataset']: info['kind'] for info in needed_syns if info['needs_mesh']}
 
     params = []
     for needed_syn in needed_syns:
@@ -307,9 +329,10 @@ def _create_syns(b, needed_syns):
         syn_kind = '{}'.format(needed_syn['kind'])
         if needed_syn['kind']=='mesh':
             # parameters.dataset.mesh will handle creating the necessary columns
-            needed_syn['dataset_fields'] = needs_mesh
+            # needed_syn['dataset_fields'] = needs_mesh
 
             needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
+            needed_syn['datasets'] = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
 
         # phoebe will compute everything sorted - even if the input times array
         # is out of order, so let's make sure the exposed times array is in
@@ -759,11 +782,6 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 #         packet[k]['horizon_analytic_zs'] = ha['zs']
 
                 # Dataset-dependent quantities
-                indeps = {'rv': ['rvs', 'intensities', 'normal_intensities', 'boost_factors'], 'lc': ['intensities', 'normal_intensities', 'boost_factors']}
-                # if conf.devel:
-                indeps['rv'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
-                indeps['lc'] += ['abs_intensities', 'abs_normal_intensities', 'ldint']
-
                 # packet[k]['pbmesh'] = []
                 # for infomesh in infolist:
                 #     if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
