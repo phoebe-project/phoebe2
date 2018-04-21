@@ -861,29 +861,24 @@ class Body(object):
 
         #-- Volume Conservation
         if self.needs_volume_conservation or self.is_misaligned:
+            # override d to be the current value
+            if ds is not None:
+                # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
+                d = ds[self.ind_self]
+                # TODO: if we change d here based on the new sma, do we need to update self._scale?
+            else:
+                d = self.instantaneous_distance(xs, ys, zs, self.sma)
+
+            # TODO: TESTING should this be unscaled with the new scale or old scale?
+            # self._scale = d
+            target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
+            logger.info("volume conservation: target_volume={}".format(target_volume))
+
             if self.distortion_method in ['roche']:
-
                 # TODO: this seems Star/Roche-specific - should it be moved to that class or can it be generalized?
-
-                # override d to be the current value
-                if ds is not None:
-                    # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
-                    d = ds[self.ind_self]
-                    # TODO: if we change d here based on the new sma, do we need to update self._scale?
-                else:
-                    d = self.instantaneous_distance(xs, ys, zs, self.sma)
-
                 if Fs is not None:
                     # then the instantaneous F was likely changing (ie roche geometry but nbody orbits)
                     F = Fs[self.ind_self]
-
-                # TODO: TESTING should this be unscaled with the new scale or old scale?
-                # self._scale = d
-                target_volume = self.get_target_volume(ethetas[self.ind_self], scaled=False)
-                logger.info("volume conservation: target_volume={}".format(target_volume))
-
-
-                # print "*** libphoebe.roche_Omega_at_vol", target_volume, q, F, d, Phi, self.Phi
 
                 # TODO: need to send a better guess for Omega0
                 Phi = libphoebe.roche_misaligned_Omega_at_vol(target_volume,
@@ -898,8 +893,17 @@ class Body(object):
                 # to store this as instantaneous pot, we need to translate back to the secondary ref frame if necessary
                 self._instantaneous_pot = roche.pot_for_component(Phi, self.q, self.comp_no)
 
-                logger.info("rebuilding mesh with Phi={} and d={}".format(Phi, d))
+            elif self.distortion_method in ['rotstar']:
+                Phi = libphoebe.rotstar_Omega_at_vol(target_volume,
+                                                     omega,
+                                                     Omega0=Phi if Phi>self.Phi else self.Phi)
 
+                F = self.F
+
+            else:
+                raise NotImplementedError()
+
+            logger.info("rebuilding mesh with Phi={} and d={}".format(Phi, d))
 
             # TODO: implement reprojection as an option instead of rebuilding
             # the mesh??
@@ -1711,6 +1715,7 @@ class Star(Body):
                     # potential.
                     # rpole = roche.potential2rpole(Phi, q, 0.0, F)  # TODO: REMOVE
                     # print "*** before rotstar_from_roche", Phi, F, sma, rpole*sma
+                    # print "*** libphoebe.rotstar_misaligned_from_roche_misaligned", mesh_args
                     info = libphoebe.rotstar_misaligned_from_roche_misaligned(*mesh_args)
                     omega = info['omega']
                     s = info['misalignment']
