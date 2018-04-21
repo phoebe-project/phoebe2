@@ -1533,6 +1533,9 @@ class Star(Body):
         """
         # is aligned, spin should be (0,1,0).  Since spin must have length 1,
         # we can just check the y-direction
+        if self._is_single:
+            return False
+
         return self.spin[1] != 1.0
 
     @property
