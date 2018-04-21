@@ -1527,7 +1527,9 @@ class Star(Body):
     def is_misaligned(self):
         """
         """
-        return self.eincl != self.incl_orbit or self.elongan != self.longan_orbit
+        # is aligned, spin should be (0,1,0).  Since spin must have length 1,
+        # we can just check the y-direction
+        return self.spin[1] != 1.0
 
     @property
     def needs_recompute_instantaneous(self):
