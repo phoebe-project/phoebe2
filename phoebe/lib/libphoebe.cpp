@@ -104,6 +104,10 @@ void report_error(const std::string & str, bool py_exception = true){
   if (py_exception) PyErr_SetString(PyExc_TypeError, str.c_str());
 }
 
+std::string operator "" _s (const char* m, std::size_t) {
+  return std::string(m);
+}
+
 /*
   Insert into dictionary and deferences the inserted object
   Ref:
@@ -4601,7 +4605,7 @@ static PyObject *rotstar_marching_mesh(PyObject *self, PyObject *args, PyObject 
 //#define DEBUG
 static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
 
-  const char *fname = "rotstar_misaligned_marching_mesh";
+  auto fname = "rotstar_misaligned_marching_mesh"_s;
 
   #if defined(DEBUG)
   std::cerr << fname << "::START" << std::endl;
@@ -4690,7 +4694,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
       &init_phi,
       &PyArray_Type, &o_init_dir)
   ){
-    std::cerr << fname << "::Problem reading arguments\n";
+    report_error(fname + "::Problem reading arguments");
     return NULL;
   }
 
@@ -4730,10 +4734,12 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
     for (int i = 0; i < 3; ++i) spin[i] = s[i];
 
   } else {
-    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    report_error(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
+  std::cout << "rot. star spin=" << spin[0] <<' ' << spin[1] << ' ' << spin[2] << '\n';
+  
   //
   // Storing results in dictioonary
   // https://docs.python.org/2/c-api/dict.html
@@ -4768,7 +4774,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
       )){
-    std::cerr << fname << "::There is too much triangles\n";
+    report_error(fname +  "::There is too much triangles\n");
     return NULL;
   }
 
@@ -5355,7 +5361,7 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-//#define DEBUG
+#define DEBUG
 static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
 
   const char *fname = "roche_misaligned_marching_mesh";
@@ -5452,7 +5458,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     std::cerr << fname << "::Problem reading arguments\n";
     return NULL;
   }
-
+  
   if (o_full) b_full = PyObject_IsTrue(o_full);
   if (o_vertices) b_vertices = PyObject_IsTrue(o_vertices);
   if (o_vnormals) b_vnormals = PyObject_IsTrue(o_vnormals);
