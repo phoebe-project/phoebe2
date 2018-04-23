@@ -860,7 +860,7 @@ class Body(object):
             s = self.polar_direction
 
         #-- Volume Conservation
-        if self.needs_volume_conservation or self.is_misaligned:
+        if (self.needs_volume_conservation or self.is_misaligned) and self.distortion_method != 'sphere':
             # override d to be the current value
             if ds is not None:
                 # then the instantaneous sma was likely changing (ie roche geometry but nbody orbits)
