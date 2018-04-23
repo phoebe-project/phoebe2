@@ -1349,6 +1349,16 @@ class ParameterSet(object):
 
         params = self.to_list()
 
+        def string_to_time(time):
+            try:
+                return float(time)
+            except ValueError:
+                # allow for passing a twig that needs to resolve a float
+                if self._bundle is None:
+                    return self.get_value(time, context=['system', 'component'])
+                else:
+                    return self._bundle.get_value(time, context=['system', 'component'])
+
         # TODO: replace with key,value in kwargs.items()... unless there was
         # some reason that won't work?
         for key in kwargs.keys():
@@ -1365,7 +1375,7 @@ class ParameterSet(object):
                     (isinstance(kwargs[key],str) and isinstance(getattr(pi,key),str) and fnmatch(getattr(pi,key),kwargs[key])) or
                     (key=='kind' and isinstance(kwargs[key],str) and getattr(pi,key).lower()==kwargs[key].lower()) or
                     (key=='kind' and isinstance(kwargs[key],list) and getattr(pi,key).lower() in [k.lower() for k in kwargs[key]]) or
-                    (key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<1e-6))]
+                    (key=='time' and abs(float(getattr(pi,key))-string_to_time(kwargs[key]))<1e-6))]
                     #(key=='time' and abs(float(getattr(pi,key))-float(kwargs[key]))<=abs(np.array([p._time for p in params])-float(kwargs[key]))))]
 
         # handle hiding _default (cheaper than visible_if so let's do first)
@@ -4613,7 +4623,7 @@ class FloatArrayParameter(FloatParameter):
 
         Example:
 
-        >>> b['flux@lc01@model'].interp_value(time=10.2)
+        >>> b['flux@lc01@model'].interp_value(times=10.2)
 
         NOTE: Interpolation by phase is not currently supported - but you can use
         :meth:`phoebe.frontend.bundle.Bundle.to_time` to convert to a valid
@@ -4641,9 +4651,16 @@ class FloatArrayParameter(FloatParameter):
 
         qualifier, qualifier_interp_value = kwargs.items()[0]
 
+        if isinstance(qualifier_interp_value, str):
+            # then assume its a twig and try to resolve
+            # for example: time='t0_supconj'
+            qualifier_interp_value = self._bundle.get_value(qualifier_interp_value, context=['system', 'component'])
+
         parent_ps = self.get_parent_ps()
 
         if qualifier not in parent_ps.qualifiers:
+            # TODO: handle plural to singular (having to say
+            # interp_value(times=5) is awkward)
             raise KeyError("'{}' not valid qualifier (must be one of {})".format(qualifier, parent_ps.qualifiers))
 
         qualifier_parameter = parent_ps.get(qualifier=qualifier)
