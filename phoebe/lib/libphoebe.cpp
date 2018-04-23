@@ -5361,10 +5361,10 @@ static PyObject *sphere_marching_mesh(PyObject *self, PyObject *args, PyObject *
   * https://docs.python.org/2/c-api/arg.html#c.PyArg_ParseTupleAndKeywords
 */
 
-#define DEBUG
+//#define DEBUG
 static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, PyObject *keywds) {
 
-  const char *fname = "roche_misaligned_marching_mesh";
+  auto fname = "roche_misaligned_marching_mesh"_s;
 
   #if defined(DEBUG)
   std::cerr << fname << "::START" << std::endl;
@@ -5455,7 +5455,8 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
         &PyBool_Type, &o_volume,
         &init_phi
       )) {
-    std::cerr << fname << "::Problem reading arguments\n";
+    
+    report_error(fname + "::Problem reading arguments\n");
     return NULL;
   }
   
@@ -5479,7 +5480,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   PyObject *results = PyDict_New();
 
   if (choice < 0 || choice > 2){
-    std::cerr << fname << "::This choice is not supported.\n";
+    report_error(fname + "::This choice is not supported.");
     return NULL;
   }
 
@@ -5527,12 +5528,12 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
     #endif
     
   } else {
-    std::cerr << fname << "::This type of misalignment is not supported.\n";
+    report_error(fname + "::This type of misalignment is not supported.");
     return NULL;
   }
 
   if (!ok || s == 0){
-    std::cerr << fname << "::Determining initial meshing point failed.\n";
+    report_error(fname + "::Determining initial meshing point failed.");
     return NULL;
   }
 
@@ -5590,7 +5591,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
   }
 
   if (!ok) {
-    std::cerr << fname << "::There are too many triangles\n";
+    report_error(fname +"::There are too many triangles");
     return NULL;
   }
 
