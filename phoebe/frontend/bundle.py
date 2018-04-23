@@ -593,6 +593,12 @@ class Bundle(ParameterSet):
             for k, v in param.constraint_kwargs.items():
                 if v == old_component:
                     param._constraint_kwargs[k] = new_component
+        for param in self.filter(qualifier='include_times').to_list():
+            old_value = param._value
+            new_value = [v.replace('@{}'.format(old_component), '@{}'.format(new_component)) for v in old_value]
+            param._value = new_value
+
+        self._handle_dataset_selectparams()
 
 
 
@@ -805,6 +811,9 @@ class Bundle(ParameterSet):
         time_datasets = (self.filter(context='dataset')-
                          self.filter(context='dataset', kind='mesh')).datasets
 
+        t0s = ["{}@{}".format(p.qualifier, p.component) for p in self.filter(qualifier='t0*', context=['component']).to_list()]
+        t0s += ["t0@system"]
+
         for param in self.filter(qualifier='datasets',
                                  context='dataset').to_list():
 
@@ -814,8 +823,8 @@ class Bundle(ParameterSet):
         for param in self.filter(qualifier='include_times',
                                  context='dataset').to_list():
 
-            # TODO: include t0s per-orbit (will need to update whenever hierarchy changes)
-            param._choices = time_datasets
+            # NOTE: existing value is updated in change_component
+            param._choices = time_datasets + t0s
             param.remove_not_in_choices()
 
 
@@ -870,6 +879,7 @@ class Bundle(ParameterSet):
         self._hierarchy_param = hier_param
 
         self._handle_pblum_defaults()
+        # self._handle_dataset_selectparams()
 
         # Handle inter-PS constraints
         starrefs = hier_param.get_stars()
@@ -1877,10 +1887,6 @@ class Bundle(ParameterSet):
         #    here, regardless of the components, we want to apply these to their
         #    individually requested parameters.  We won't touch _default unless
         #    its included in the dictionary
-
-        # set default for times - this way the times array for "attached"
-        # components will not be empty
-        kwargs.setdefault('times', [0.])
 
         # this needs to happen before kwargs get applied so that the default
         # values can be overridden by the supplied kwargs

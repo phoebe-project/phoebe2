@@ -3942,7 +3942,7 @@ class SelectParameter(Parameter):
         """
         update the value to remove any that are (no longer) in choices
         """
-        value = [v for v in self.get_value() if v in self.get_choices]
+        value = [v for v in self.get_value() if v in self.get_choices()]
         self.set_value(value)
 
     def __add__(self, other):

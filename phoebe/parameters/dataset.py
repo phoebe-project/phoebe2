@@ -260,7 +260,7 @@ def mesh(**kwargs):
     syn_params, constraints = mesh_syn(syn=False, **kwargs)
     obs_params += syn_params.to_list()
 
-    obs_params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', []), description='append to times from the following datasets/time standards', choices=[])]
+    obs_params += [SelectParameter(qualifier='include_times', value=kwargs.get('include_times', ['t0@system']), description='append to times from the following datasets/time standards', choices=['t0@system'])]
 
     obs_params += [SelectParameter(qualifier='datasets', value=kwargs.get('datasets', []), description='datasets to expose as mesh columns', choices=[])]
     columns_choices = []

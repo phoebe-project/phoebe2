@@ -79,29 +79,37 @@ def _timequalifier_by_kind(kind):
         return 'times'
 
 def _expand_mesh_times(b, dataset_ps, component):
+    def get_times(b, include_times_entry):
+        if include_times_entry in b.datasets:
+            add_ps = b.filter(dataset=include_times_entry, context='dataset')
+            add_timequalifier = _timequalifier_by_kind(add_ps.kind)
+            add_ps_components = add_ps.filter(qualifier=add_timequalifier).components
+            # print "*** add_ps_components", add_dataset, add_ps_components
+            if len(add_ps_components):
+                # then we need to concatenate over all components_
+                # (times@rv@primary and times@rv@secondary are not necessarily
+                # identical)
+                add_times = np.unique(np.append(*[add_ps.get_value(qualifier='times', component=c) for c in add_ps_components]))
+            else:
+                # then we're adding from some dataset at the system-level (like lcs)
+                # that have component=None
+                add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d)
+        else:
+            # then some sort of t0 from context='component' or 'system'
+            add_times = [b.get_value(include_times_entry, context=['component', 'system'])]
+
+        return add_times
+
     # print "*** _expand_mesh_times", dataset_ps, dataset_ps.kind, component
     if dataset_ps.kind != 'mesh':
         raise TypeError("_expand_mesh_times only works for mesh datasets")
 
     # we're first going to access the times@mesh... this should not have a component tag
     this_times = dataset_ps.get_value(qualifier='times', component=None, unit=u.d)
-
-    for add_dataset in dataset_ps.get_value(qualifier='include_times'):
-        # logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
-        add_ps = b.filter(dataset=add_dataset, context='dataset')
-        add_timequalifier = _timequalifier_by_kind(add_ps.kind)
-        add_ps_components = add_ps.filter(qualifier=add_timequalifier).components
-        # print "*** add_ps_components", add_dataset, add_ps_components
-        if len(add_ps_components):
-            # then we need to concatenate over all components_
-            # (times@rv@primary and times@rv@secondary are not necessarily
-            # identical)
-            add_times = np.unique(np.append(*[add_ps.get_value(qualifier='times', component=c) for c in add_ps_components]))
-        else:
-            # then we're adding from some dataset at the system-level (like lcs)
-            # that have component=None
-            add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d)
-        this_times = np.unique(np.append(this_times, add_times))
+    this_times = np.unique(np.append(this_times,
+                                     [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times')]
+                                     )
+                           )
 
     return this_times
 
