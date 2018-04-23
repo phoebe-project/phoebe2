@@ -1676,6 +1676,30 @@ class ParameterSet(object):
             return self.get_parameter(twig=twig,
                                       **kwargs).set_index_value(value=value,
                                                                 **kwargs)
+
+        if "time" in kwargs.keys():
+            if not len(self.filter(**kwargs)):
+                # then let's try filtering without time and seeing if we get a
+                # FloatArrayParameter so that we can use set_index_value instead
+                time = kwargs.pop("time")
+
+                param = self.get_parameter(twig=twig, **kwargs)
+                if not isinstance(param, FloatArrayParameter):
+                    raise TypeError
+
+                # TODO: do we need to be more clever about time qualifier for
+                # ETV datasets? TODO: is this robust enough... this won't search
+                # for times outside the existing ParameterSet.  We could also
+                # try param.get_parent_ps().get_parameter('time'), but this
+                # won't work when outside the bundle (which is used within
+                # backends.py to set fluxes, etc) print "***
+                # get_parameter(qualifier='times', **kwargs)", {k:v for k,v in
+                # kwargs.items() if k not in ['qualifier']}
+                time_param = self.get_parameter(qualifier='times', **{k:v for k,v in kwargs.items() if k not in ['qualifier']})
+                index = np.where(time_param.get_value()==time)[0]
+
+                return param.set_index_value(value=value, index=index, **kwargs)
+
         return self.get_parameter(twig=twig,
                                   **kwargs).set_value(value=value,
                                                       **kwargs)
