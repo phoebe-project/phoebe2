@@ -299,8 +299,9 @@ def mesh_syn(syn=True, **kwargs):
 
     # the following will all be arrays (value per triangle) per time
     if syn:
-        columns = kwargs.get('columns', [])
-        datasets = kwargs.get('datasets', [])
+        columns = kwargs.get('mesh_columns', [])
+        datasets = kwargs.get('mesh_datasets', [])
+        dataset_kinds = kwargs.get('mesh_kinds', [])
 
         for t in times:
             if not isinstance(t, float):
@@ -387,7 +388,7 @@ def mesh_syn(syn=True, **kwargs):
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_ys', time=t, value=kwargs.get('horizon_analytic_ys', []), default_unit=u.solRad, description='Analytic horizon (interpolated, y component)')]
             # syn_params += [FloatArrayParameter(qualifier='horizon_analytic_zs', time=t, value=kwargs.get('horizon_analytic_zs', []), default_unit=u.solRad, description='Analytic horizon (interpolated, z component)')]
 
-            for dataset, kind in datasets.items():
+            for dataset, kind in zip(datasets, dataset_kinds):
                 if 'rvs' in columns and kind=='rv':
                     syn_params += [FloatArrayParameter(qualifier='rvs', dataset=dataset, time=t, value=[], default_unit=u.solRad/u.d, description='Per-element value of rvs for {} dataset'.format(dataset))]
                 if 'intensities' in columns:

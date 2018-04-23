@@ -78,20 +78,30 @@ def _timequalifier_by_kind(kind):
     else:
         return 'times'
 
-def _expand_mesh_times(b, obs_ps, component):
-    this_times = obs_ps.get_value(qualifier='times', component=component, unit=u.d)
+def _expand_mesh_times(b, dataset_ps, component):
+    # print "*** _expand_mesh_times", dataset_ps, dataset_ps.kind, component
+    if dataset_ps.kind != 'mesh':
+        raise TypeError("_expand_mesh_times only works for mesh datasets")
 
-    if obs_ps.kind == 'mesh':
-        # then we also have the ability to append times from another dataset
-        for add_dataset in obs_ps.get_value(qualifier='include_times'):
-            # logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
-            add_ps = b.filter(dataset=add_dataset, context='dataset')
-            add_timequalifier = _timequalifier_by_kind(add_ps.kind)
-            add_times = add_ps.get_value(qualifier=add_timequalifier, component=component, unit=u.d)
-            this_times = np.unique(np.append(this_times, add_times))
+    # we're first going to access the times@mesh... this should not have a component tag
+    this_times = dataset_ps.get_value(qualifier='times', component=None, unit=u.d)
 
-    else:
-        raise TypeError("can only expand times for a mesh dataset")
+    for add_dataset in dataset_ps.get_value(qualifier='include_times'):
+        # logger.info("including times from '{}' in '{}'".format(add_dataset, dataset))
+        add_ps = b.filter(dataset=add_dataset, context='dataset')
+        add_timequalifier = _timequalifier_by_kind(add_ps.kind)
+        add_ps_components = add_ps.filter(qualifier=add_timequalifier).components
+        # print "*** add_ps_components", add_dataset, add_ps_components
+        if len(add_ps_components):
+            # then we need to concatenate over all components_
+            # (times@rv@primary and times@rv@secondary are not necessarily
+            # identical)
+            add_times = np.unique(np.append(*[add_ps.get_value(qualifier='times', component=c) for c in add_ps_components]))
+        else:
+            # then we're adding from some dataset at the system-level (like lcs)
+            # that have component=None
+            add_times = add_ps.get_value(qualifier=add_timequalifier, component=None, unit=u.d)
+        this_times = np.unique(np.append(this_times, add_times))
 
     return this_times
 
@@ -115,70 +125,61 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
     """
     provided_times = times
     times = []
-    infos = []
+    infolists = []
     needed_syns = []
 
-    # for each dataset, component pair we need to check if enabled
-    for dataset in b.datasets:
+    # The general format of the datastructures used within PHOEBE are as follows:
+    # - times (list within _extract_from_bundle_by_time but then casted to np.array)
+    # - infolists (list of <infolist>, same shape and order as times)
+    # - infolist (list of <info>)
+    # - info (dict containing information for a given dataset-component computation at the given time)
+    #
+    # The workers then return a similar format:
+    # - packetlist (list of <packet>)
+    # - packet (dict ready to be sent to new_syns.set_value(**packet))
+    # where packet has a similar structure to info (but with value and possibly time keys)
+    # but packetlist may be longer than infolist (since mesh passband-columns allow
+    # now have their own entries.)
 
-        if dataset=='_default':
-            continue
+    # we will need access to all datasets@mesh which are enabled
+    mesh_datasets_parameters = [b.get_parameter(qualifier='datasets', context='dataset', dataset=ds) for ds in b.filter(kind='mesh', context='dataset').datasets if b.get_value(qualifier='enabled', compute=compute, dataset=ds)]
 
-        try:
-            dataset_enabled = b.get_value(qualifier='enabled', dataset=dataset, compute=compute, context='compute')
-        except ValueError: # TODO: custom exception for no parameter
-            # then this backend doesn't support this kind
-            continue
+    for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
+        dataset_ps = b.filter(context='dataset', dataset=dataset).exclude(kind='*_dep')
+        dataset_compute_ps = b.filter(context='compute', dataset=dataset, compute=compute, check_visible=False)
+        dataset_kind = dataset_ps.kind
+        time_qualifier = _timequalifier_by_kind(dataset_kind)
+        if dataset_kind in ['lc']:
+            dataset_components = [None]
+        else:
+            dataset_components = b.hierarchy.get_stars()
 
-        if not dataset_enabled:
-            # then this dataset is disabled for these compute options
-            continue
-
-        for component in b.hierarchy.get_stars()+[None]:
-            obs_ps = b.filter(context='dataset', dataset=dataset, component=component).exclude(kind='*_dep')
-            # only certain kinds accept a component of None
-            if component is None and obs_ps.kind not in ['lc', 'mesh']:
-                # anything that can accept observations on the "system" level should accept component is None
-                continue
-
-            timequalifier = _timequalifier_by_kind(obs_ps.kind)
-            try:
-                this_times = obs_ps.get_value(qualifier=timequalifier, component=component, unit=u.d)
-            except ValueError: #TODO: custom exception for no parameter
-                continue
-
-            if len(this_times) and provided_times is not None:
-                # then overrride the dataset times with the passed times
-                #  (as kwarg to run_compute)
+        for component in dataset_components:
+            if provided_times:
                 this_times = provided_times
-
-            elif obs_ps.kind == 'mesh':
-                this_times = _expand_mesh_times(b, obs_ps, component)
-
+            elif dataset_kind == 'mesh':
+                this_times = _expand_mesh_times(b, dataset_ps, component)
             else:
-                timequalifier = _timequalifier_by_kind(obs_ps.kind)
-                try:
-                    this_times = obs_ps.get_value(qualifier=timequalifier, component=component, unit=u.d)
-                except ValueError: #TODO: custom exception for no parameter
-                    continue
+                timequalifier = _timequalifier_by_kind(dataset_kind)
+                timecomponent = component if dataset_kind not in ['mesh', 'lc'] else None
+                # print "*****", dataset_kind, dataset_ps.kinds, timequalifier, timecomponent
+                this_times = dataset_ps.get_value(qualifier=timequalifier, component=timecomponent, unit=u.d)
 
-                # then we also have the ability to be requested by the datasets
-                # parameter from any of the mesh datasets
-                for mesh_datasets_parameter in b.filter(qualifier='datasets', context='dataset', kind='mesh').to_list():
-                    if dataset in mesh_datasets_parameter.get_value():
-                        # then we want to add the times in the mesh IF it is enabled
-                        mesh_enabled = b.get_value(qualifier='enabled', dataset=mesh_datasets_parameter.dataset, compute=compute, context='compute')
-                        if mesh_enabled:
-                            mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=component).exclude(kind='*_dep')
-                            mesh_times = _expand_mesh_times(b, mesh_obs_ps, component)
-                            this_times = np.unique(np.append(this_times, mesh_times))
+                # we may also need to compute at other times if requested by a
+                # mesh with this dataset in datasets@mesh
+                # for mesh_datasets_parameter in mesh_datasets_parameters:
+                    # if dataset in mesh_datasets_parameter.get_value():
+                        # mesh_obs_ps = b.filter(context='dataset', dataset=mesh_datasets_parameter.dataset, component=None).exclude(kind='*_dep')
+                        # TODO: not sure about the component=None on the next line... what will this do for rvs with different times per-component?
+                        # mesh_times = _expand_mesh_times(b, mesh_obs_ps, component=None)
+                        # this_times = np.unique(np.append(this_times, mesh_times))
 
-
-            # TODO: also copy this logic for _extract_from_bundle_by_dataset?
+            # TODO: also copy this logic for _extract_from_bundle_by_dataset if
+            # we decide to support oversamling with other backends
             if allow_oversample and \
-                    obs_ps.kind in ['lc'] and \
-                    b.get_value(qualifier='exptime', dataset=dataset, context='dataset') > 0 and \
-                    b.get_value(qualifier='fti_method', dataset=dataset, compute=compute, context='compute', **kwargs)=='oversample':
+                    dataset_kind in ['lc'] and \
+                    b.get_value(qualifier='exptime', dataset=dataset, check_visible=False) > 0 and \
+                    dataset_compute_ps.get_value(qualifier='fti_method', **kwargs)=='oversample':
 
                 # Then we need to override the times retrieved from the dataset
                 # with the oversampled times.  Later we'll do an average over
@@ -186,44 +187,52 @@ def _extract_from_bundle_by_time(b, compute, times=None, allow_oversample=False,
                 # NOTE: here we assume that the dataset times are at mid-exposure,
                 # if we want to allow more flexibility, we'll need a parameter
                 # that gives this option and different logic for each case.
-                exptime = b.get_value(qualifier='exptime', dataset=dataset, context='dataset', unit=u.d)
-                fti_oversample = b.get_value(qualifier='fti_oversample', dataset=dataset, compute=compute, context='compute', check_visible=False, **kwargs)
+                exptime = dataset_ps.get_value(qualifier='exptime', unit=u.d)
+                fti_oversample = dataset_compute_ps.get_value(qualifier='fti_oversample', check_visible=False, **kwargs)
                 # NOTE: if changing this, also change in bundle.run_compute
                 this_times = np.array([np.linspace(t-exptime/2., t+exptime/2., fti_oversample) for t in this_times]).flatten()
 
             if len(this_times):
-                if component is None and obs_ps.kind in ['mesh']:
-                    components = b.hierarchy.get_meshables()
-                else:
-                    components = [component]
 
-                for component in components:
+                info = {'dataset': dataset,
+                        'component': component,
+                        'kind': dataset_kind,
+                        'needs_mesh': _needs_mesh(b, dataset, dataset_kind, component, compute),
+                        }
 
-                    this_info = {'dataset': dataset,
-                            'component': component,
-                            'kind': obs_ps.kind,
-                            'needs_mesh': _needs_mesh(b, dataset, obs_ps.kind, component, compute),
-                            'times': this_times}
+                if dataset_kind == 'mesh':
+                    # then we may be requesting passband-dependent columns be
+                    # copied to the mesh from other datasets based on the values
+                    # of datasets@mesh and columns@mesh.  Let's store the needed
+                    # information here, where mesh_datasets and mesh_kinds correspond
+                    # to each other (but mesh_columns does not).
+                    info['mesh_datasets'] = dataset_ps.get_value('datasets')
+                    info['mesh_kinds'] = [b.filter(dataset=ds, context='dataset').exclude(kind='*_dep').kind for ds in info['mesh_datasets']]
+                    info['mesh_columns'] = dataset_ps.get_value('columns')
 
-                    needed_syns.append(this_info)
+                for time_ in this_times:
+                    # TODO: handle some deltatime allowance here?
+                    if time_ in times:
+                        ind = times.index(time_)
+                        infolists[ind].append(info)
+                    else:
+                        times.append(time_)
+                        infolists.append([info])
 
-                    for time_ in this_times:
-                        # print "***", time, this_info
-                        # TODO: handle some deltatime allowance here
-                        if time_ in times:
-                            ind = times.index(time_)
-                            infos[ind].append(this_info)
-                        else:
-                            times.append(time_)
-                            infos.append([this_info])
+                # we need the times for _create_syns but not within the infolists,
+                # so we'll do this last and make a copy so times aren't passed
+                # to everybody...
+                needed_syn_info = info.copy()
+                needed_syn_info['times'] = this_times
+                needed_syns.append(needed_syn_info)
 
     if len(times):
-        ti = zip(times, infos)
+        ti = zip(times, infolists)
         ti.sort()
-        times, infos = zip(*ti)
+        times, infolists = zip(*ti)
 
-    # print "*** _extract_from_bundle_by_time return(times, infos, syns)", times, infos, needed_syns
-    return np.array(times), infos, _create_syns(b, needed_syns)
+    # print "*** _extract_from_bundle_by_time return(times, infos, syns)", times, infolists, needed_syns
+    return np.asarray(times), infolists, _create_syns(b, needed_syns)
 
 def _extract_from_bundle_by_dataset(b, compute, times=[]):
     """
@@ -248,24 +257,10 @@ def _extract_from_bundle_by_dataset(b, compute, times=[]):
     """
     provided_times = times
     times = []
-    infos = []
+    infolists = []
     needed_syns = []
-    # for each dataset, component pair we need to check if enabled
-    for dataset in b.datasets:
 
-        if dataset=='_default':
-            continue
-
-        try:
-            dataset_enabled = b.get_value(qualifier='enabled', dataset=dataset, compute=compute, context='compute')
-        except ValueError: # TODO: custom exception for no parameter
-            # then this backend doesn't support this kind
-            continue
-
-        if not dataset_enabled:
-            # then this dataset is disabled for these compute options
-            continue
-
+    for dataset in b.filter(qualifier='enabled', compute=compute, value=True).datasets:
         for component in b.hierarchy.get_stars()+[None]:
             obs_ps = b.filter(context='dataset', dataset=dataset, component=component).exclude(kind='*_dep')
             # only certain kinds accept a component of None
@@ -298,17 +293,17 @@ def _extract_from_bundle_by_dataset(b, compute, times=[]):
 
                 for component in components:
 
-                    this_info = {'dataset': dataset,
+                    info = {'dataset': dataset,
                             'component': component,
                             'kind': obs_ps.kind,
                             'needs_mesh': _needs_mesh(b, dataset, obs_ps.kind, component, compute),
                             'times': this_times
                             }
-                    needed_syns.append(this_info)
+                    needed_syns.append(info)
 
-                    infos.append([this_info])
+                    infolists.append([info])
 
-    return infos, _create_syns(b, needed_syns)
+    return infolists, _create_syns(b, needed_syns)
 
 
 def _create_syns(b, needed_syns):
@@ -325,15 +320,16 @@ def _create_syns(b, needed_syns):
 
     params = []
     for needed_syn in needed_syns:
+        # print "*** _create_syns needed_syn", needed_syn
         # used to be {}_syn
         syn_kind = '{}'.format(needed_syn['kind'])
-        if needed_syn['kind']=='mesh':
+        # if needed_syn['kind']=='mesh':
             # parameters.dataset.mesh will handle creating the necessary columns
             # needed_syn['dataset_fields'] = needs_mesh
 
-            needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
-            datasets = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
-            needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').exclude(kind='*_dep').kind for ds in datasets}
+            # needed_syn['columns'] = b.get_value(qualifier='columns', dataset=needed_syn['dataset'], context='dataset')
+            # datasets = b.get_value(qualifier='datasets', dataset=needed_syn['dataset'], context='dataset')
+            # needed_syn['datasets'] = {ds: b.filter(datset=ds, context='dataset').exclude(kind='*_dep').kind for ds in datasets}
 
         # phoebe will compute everything sorted - even if the input times array
         # is out of order, so let's make sure the exposed times array is in
@@ -409,10 +405,10 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
     do_horizon = False #computeparams.get_value('horizon', **kwargs)
 
-    times, infos, new_syns = _extract_from_bundle_by_time(b, compute=compute,
-                                                          times=times,
-                                                          allow_oversample=True,
-                                                          **kwargs)
+    times, infolists, new_syns = _extract_from_bundle_by_time(b, compute=compute,
+                                                              times=times,
+                                                              allow_oversample=True,
+                                                              **kwargs)
 
     dynamics_method = computeparams.get_value('dynamics_method', **kwargs)
     ltte = computeparams.get_value('ltte', **kwargs)
@@ -466,13 +462,16 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
     # TODO: only do this if we need the mesh for actual computations
     # TODO: move as much of this pblum logic into mesh.py as possible
 
-    kinds = b.get_dataset().kinds
+    enabled_ps = b.filter(qualifier='enabled', compute=compute, value=True)
+    kinds = enabled_ps.kinds
+    datasets = enabled_ps.datasets
+
     if 'lc' in kinds or 'rv' in kinds:  # TODO this needs to be WAY more general
-        # we only need to handle pblum_scale if we have a dataset kind which requires
-        # intensities
+
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0 = dynamics.dynamics_at_i(xs0, ys0, zs0, vxs0, vys0, vzs0, ethetas0, elongans0, eincls0, i=0)
         else:
+            # singlestar case
             x0, y0, z0 = [0.], [0.], [0.]
             vx0, vy0, vz0 = [0.], [0.], [0.]
             # TODO: star needs long_an (yaw?)
@@ -480,43 +479,36 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
         system.update_positions(t0, x0, y0, z0, vx0, vy0, vz0, etheta0, elongan0, eincl0, ignore_effects=True)
 
-        for dataset in b.datasets:
-            if dataset == '_default':
-                continue
+        for dataset in datasets:
+            ds = b.get_dataset(dataset=dataset).exclude(kind='*_dep')
+            kind = ds.kind
 
-            ds = b.get_dataset(dataset=dataset, kind='*dep')
-
-            if ds.kind is None:
-                continue
-
-            kind = ds.kind[:-4]
-
-            #print "***", dataset, kind
             if kind not in ['lc']:
+                # only LCs need pblum scaling
                 continue
 
-            for component in ds.components:
-                if component=='_default':
-                    continue
+            # TODO: remove this for-loop... it really doesn't do anything
+            # for component in ds.components:
+                # if component=='_default':
+                    # continue
 
-                system.populate_observables(t0, [kind], [dataset],
-                                            ignore_effects=True)
+            system.populate_observables(t0, [kind], [dataset],
+                                        ignore_effects=True)
 
             # now for each component we need to store the scaling factor between
             # absolute and relative intensities
             pblum_copy = {}
             # for component in meshablerefs:
-            for component in b.filter(qualifier='pblum_ref', dataset=dataset).components:
+            for component in ds.filter(qualifier='pblum_ref').components:
                 if component=='_default':
                     continue
-                pblum_ref = b.get_value(qualifier='pblum_ref', component=component, dataset=dataset, context='dataset')
+                pblum_ref = ds.get_value(qualifier='pblum_ref', component=component)
                 if pblum_ref=='self':
-                    pblum = b.get_value(qualifier='pblum', component=component, dataset=dataset, context='dataset')
-                    ld_func = b.get_value(qualifier='ld_func', component=component, dataset=dataset, context='dataset')
+                    pblum = ds.get_value(qualifier='pblum', component=component)
+                    ld_func = ds.get_value(qualifier='ld_func', component=component)
                     ld_coeffs = b.get_value(qualifier='ld_coeffs', component=component, dataset=dataset, context='dataset', check_visible=False)
 
                     # TODO: system.get_body(component) needs to be smart enough to handle primary/secondary within contact_envelope... and then smart enough to handle the pblum_scale
-
                     system.get_body(component).compute_pblum_scale(dataset, pblum, ld_func=ld_func, ld_coeffs=ld_coeffs, component=component)
                 else:
                     # then this component wants to copy the scale from another component
@@ -534,36 +526,10 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
 #######################################################################################################################################################
 
-    def master_populate_syns(new_syns, time, infolist, packet):
-        for packet_i, info in zip(packet, infolist):
-            # print "*** master_populate_syns", packet_i, info
-            kind = info['kind']
-
-            if kind in ['mesh', 'sp']:
-                this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind, time=time)
-            else:
-                this_syn = new_syns.filter(component=info['component'], dataset=info['dataset'], kind=kind)
-
-            for qualifier, value in packet_i.items():
-                if qualifier == 'PBCOLUMN':
-                    # now we expect value to be a LIST of DICTS
-                    for pbcol_dict in value:
-                        # each dictionary tells the information to set the valueself.
-                        # Note that the dataset will likely be different than info['dataset']
-                        # so we need to do a new filter
-                        new_syns.set_value(**pbcol_dict)
-                elif kind in ['mesh', 'sp']:
-                    # then we're setting the whole array for this given time
-                    this_syn.get_parameter(qualifier).set_value(value)
-                else:
-                    # now we need to find the index in the dataset that corresponds
-                    # to this time (we can't rely on the index of the computation
-                    # because not all datasets have the same time array).
-                    # Hopefully the time only occurs once in the times array,
-                    # but in case it occurs more than once, we'll set this up
-                    # as a for loop anyways.
-                    for index in np.where(info['times']==time)[0]:
-                        this_syn.get_parameter(qualifier).set_index_value(index, value)
+    def master_populate_syns(new_syns, packetlist):
+        for packet in packetlist:
+            # print "*** master_populate_syns packet:", packet
+            new_syns.set_value(**packet)
 
         return new_syns
 
@@ -577,6 +543,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         if len(meshablerefs) > 1 or hier.get_kind_of(meshablerefs[0])=='envelope':
             xi, yi, zi, vxi, vyi, vzi, ethetai, elongani, eincli = dynamics.dynamics_at_i(xs, ys, zs, vxs, vys, vzs, ethetas, elongans, eincls, i=i)
         else:
+            # then singlestar case
             xi, yi, zi = [0.], [0.], [0.]
             vxi, vyi, vzi = [0.], [0.], [0.]
             # TODO: star needs long_an (yaw?)
@@ -618,19 +585,47 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # Now we can fill the observables per-triangle.  We'll wait to integrate
             # until we're ready to fill the synthetics
-            # print "*** system.populate_observables", [info['kind'] for info in infolist if info['needs_mesh']], [info['dataset'] for info in infolist if info['needs_mesh']]
-            # kwargss = [{p.qualifier: p.get_value() for p in b.get_dataset(info['dataset'], component=info['component'], kind='*dep').to_list()+b.get_compute(compute, component=info['component']).to_list()+b.filter(qualifier='passband', dataset=info['dataset'], kind='*dep').to_list()} for info in infolist if info['needs_mesh']]
+            # First we need to determine which datasets must be populated at this
+            # time.  populate_kinds must be the same length (i.e. not necessarily
+            # a unique set... there may be several lcs and/or several rvs) as
+            # populate_datasets which should be a unique set
+            populate_datasets = []
+            populate_kinds = []
+            for info in infolist:
+                if info['dataset'] not in populate_datasets:
+                    populate_datasets.append(info['dataset'])
+                    populate_kinds.append(info['kind'])
 
-            system.populate_observables(time,
-                    [info['kind'] for info in infolist if info['needs_mesh']],
-                    [info['dataset'] for info in infolist if info['needs_mesh']])
+                    if info['kind'] == 'mesh':
+                        # then we also need to populate based on any requested
+                        # passband-dependent columns
+                        for mesh_kind, mesh_dataset in zip(info['mesh_kinds'], info['mesh_datasets']):
+                            if mesh_dataset not in populate_datasets:
+                                populate_datasets.append(mesh_dataset)
+                                populate_kinds.append(mesh_kind)
+
+            system.populate_observables(time, populate_kinds, populate_datasets)
 
 
         # now let's loop through and prepare a packet which will fill the synthetics
-        packet = np.empty_like(infolist)
+        packetlist = []
+
+        def make_packet(qualifier, value, time, info, **kwargs):
+            """
+            where kwargs overrides info
+            """
+            packet = {'dataset': kwargs.get('dataset', info['dataset']),
+                      'component': kwargs.get('component', info['component']),
+                      'kind': kwargs.get('kind', info['kind']),
+                      'qualifier': qualifier,
+                      'value': value,
+                      'time': time
+                      }
+
+            return packet
 
         for k, info in enumerate(infolist):
-            packet[k] = dict()
+            packet = dict()
 
             # i, time, info['kind'], info['component'], info['dataset']
             cind = starrefs.index(info['component']) if info['component'] in starrefs else None
@@ -646,18 +641,20 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                     # if len(this_syn.filter(qualifier='rv').twigs)>1:
                         # print "***2", this_syn.filter(qualifier='rv')[1].kind, this_syn.filter(qualifier='rv')[1].component
                     rv = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)['rv']
-                    packet[k]['rvs'] = rv*u.solRad/u.d
                 else:
                     # then rv_method == 'dynamical'
-                    packet[k]['rvs'] = -1*vzi[cind]*u.solRad/u.d
+                    rv = -1*vzi[cind]
+
+                packetlist.append(make_packet('rvs',
+                                              rv*u.solRad/u.d,
+                                              time, info))
 
             elif kind=='lc':
-
-                # print "***", info['component']
-                # print "***", system.observe(info['dataset'], kind=kind, components=info['component'])
                 l3 = b.get_value(qualifier='l3', dataset=info['dataset'], context='dataset')
-                #~ this_syn['fluxes'].append(system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux'])
-                packet[k]['fluxes'] = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux']
+
+                packetlist.append(make_packet('fluxes',
+                                              system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance, l3=l3)['flux']*u.W/u.m**2,
+                                              time, info))
 
             elif kind=='etv':
 
@@ -665,101 +662,191 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 time_ecl = etvs.crossing(b, info['component'], time, dynamics_method, ltte, tol=computeparams.get_value('etv_tol', u.d, dataset=info['dataset'], component=info['component']))
 
                 this_obs = b.filter(dataset=info['dataset'], component=info['component'], context='dataset')
-                packet[k]['Ns'] = this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time)  # TODO: there must be a better/cleaner way to do this
-                packet[k]['time_ephems'] = time  # NOTE: no longer under constraint control
-                packet[k]['time_ecls'] = time_ecl
-                packet[k]['etvs'] = time_ecl-time  # NOTE: no longer under constraint control
 
-            #~ elif kind=='ifm':
-                #~ observables_ifm = system.observe(info['dataset'], kind=kind, components=info['component'], distance=distance)
-                #~ for key in observables_ifm.keys():
-                    #~ packet[k][key] = observables_ifm[key]
+                # TODO: there must be a better/cleaner way to get to Ns
+                packetlist.append(make_packet('Ns',
+                                              this_obs.get_parameter(qualifier='Ns').interp_value(time_ephems=time),
+                                              time, info))
+
+                # NOTE: no longer under constraint control
+                packetlist.append(make_packet('time_ephems',
+                                              time,
+                                              time, info))
+
+                packetlist.append(make_packet('time_ecls',
+                                              time_ecl,
+                                              time, info))
+
+                # NOTE: no longer under constraint control
+                packetlist.append(make_packet('etvs',
+                                              time_ecl-time,
+                                              time, info))
+
 
             elif kind=='orb':
                 # ts[i], xs[cind][i], ys[cind][i], zs[cind][i], vxs[cind][i], vys[cind][i], vzs[cind][i]
 
-                ### this_syn['times'].append(ts[i])  # time array was set when initializing the syns
-                packet[k]['xs'] = xi[cind]
-                packet[k]['ys'] = yi[cind]
-                packet[k]['zs'] = zi[cind]
-                packet[k]['vxs'] = vxi[cind]
-                packet[k]['vys'] = vyi[cind]
-                packet[k]['vzs'] = vzi[cind]
+                # times array was set when creating the synthetic ParameterSet
+
+                packetlist.append(make_packet('xs',
+                                              xi[cind],
+                                              time, info))
+
+                packetlist.append(make_packet('ys',
+                                              yi[cind],
+                                              time, info))
+
+                packetlist.append(make_packet('zs',
+                                              zi[cind],
+                                              time, info))
+
+                packetlist.append(make_packet('vxs',
+                                              vxi[cind],
+                                              time, info))
+
+                packetlist.append(make_packet('vys',
+                                              vyi[cind],
+                                              time, info))
+
+                packetlist.append(make_packet('vzs',
+                                              vzi[cind],
+                                              time, info))
 
             elif kind=='mesh':
                 # print "*** info['component']", info['component'], " info['dataset']", info['dataset']
                 # print "*** this_syn.twigs", this_syn.twigs
                 body = system.get_body(info['component'])
 
-                packet[k]['vertices'] = body.mesh.vertices_per_triangle
-                packet[k]['roche_vertices'] = body.mesh.roche_vertices_per_triangle
+                packetlist.append(make_packet('vertices',
+                                              body.mesh.vertices_per_triangle,
+                                              time, info))
+                packetlist.append(make_packet('roche_vertices',
+                                              body.mesh.roche_vertices_per_triangle,
+                                              time, info))
 
-                if 'pot' in info['columns']:
-                    packet[k]['pot'] = body._instantaneous_pot
-                if 'rpole' in info['columns']:
-                    packet[k]['rpole'] = roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no)
-                if 'volume' in info['columns']:
-                    packet[k]['volume'] = body.volume
+                if 'pot' in info['mesh_columns']:
+                    packetlist.append(make_packet('pot',
+                                                  body._instantaneous_pot,
+                                                  time, info))
+                if 'rpole' in info['mesh_columns']:
+                    packetlist.append(make_packet('rpole',
+                                                  roche.potential2rpole(body._instantaneous_pot, body.q, body.ecc, body.F, body._scale, component=body.comp_no),
+                                                  time, info))
+                if 'volume' in info['mesh_columns']:
+                    packetlist.append(make_packet('volume',
+                                                  body.volume,
+                                                  time, info))
 
-                if 'xs' in info['columns']:
-                    packet[k]['xs'] = body.mesh.centers[:,0]# * u.solRad
-                if 'ys' in info['columns']:
-                    packet[k]['ys'] = body.mesh.centers[:,1]# * u.solRad
-                if 'zs' in info['columns']:
-                    packet[k]['zs'] = body.mesh.centers[:,2]# * u.solRad
+                if 'xs' in info['mesh_columns']:
+                    # UNIT: u.solRad
+                    packetlist.append(make_packet('xs',
+                                                  body.mesh.centers[:,0],
+                                                  time, info))
+                if 'ys' in info['mesh_columns']:
+                    # UNIT: u.solRad
+                    packetlist.append(make_packet('ys',
+                                                  body.mesh.centers[:,1],
+                                                  time, info))
+                if 'zs' in info['mesh_columns']:
+                    # UNIT: u.solRad
+                    packetlist.append(make_packet('zs',
+                                                  body.mesh.centers[:,2],
+                                                  time, info))
 
-                if 'roche_xs' in info['columns']:
-                    packet[k]['roche_xs'] = body.mesh.roche_centers[:,0]
-                if 'roche_ys' in info['columns']:
-                    packet[k]['roche_ys'] = body.mesh.roche_centers[:,1]
-                if 'roche_zs' in info['columns']:
-                    packet[k]['roche_zs'] = body.mesh.roche_centers[:,2]
+                if 'roche_xs' in info['mesh_columns']:
+                    packetlist.append(make_packet('roche_xs',
+                                                  body.mesh.roche_centers[:,0],
+                                                  time, info))
+                if 'roche_ys' in info['mesh_columns']:
+                    packetlist.append(make_packet('roche_ys',
+                                                  body.mesh.roche_centers[:,1],
+                                                  time, info))
+                if 'roche_zs' in info['mesh_columns']:
+                    packetlist.append(make_packet('roche_zs',
+                                                  body.mesh.roche_centers[:,2],
+                                                  time, info))
 
-                if 'vxs' in info['columns']:
-                    packet[k]['vxs'] = body.mesh.velocities.centers[:,0] * u.solRad/u.d # TODO: check units!!!
-                if 'vys' in info['columns']:
-                    packet[k]['vys'] = body.mesh.velocities.centers[:,1] * u.solRad/u.d
-                if 'vzs' in info['columns']:
-                    packet[k]['vzs'] = body.mesh.velocities.centers[:,2] * u.solRad/u.d
+                if 'vxs' in info['mesh_columns']:
+                    packetlist.append(make_packet('vxs',
+                                                  body.mesh.velocities.centers[:,0] * u.solRad/u.d,
+                                                  time, info))
+                if 'vys' in info['mesh_columns']:
+                    packetlist.append(make_packet('vys',
+                                                  body.mesh.velocities.centers[:,1] * u.solRad/u.d,
+                                                  time, info))
+                if 'vzs' in info['mesh_columns']:
+                    packetlist.append(make_packet('vzs',
+                                                  body.mesh.velocities.centers[:,2] * u.solRad/u.d,
+                                                  time, info))
 
-                if 'areas' in info['columns']:
-                    packet[k]['areas'] = body.mesh.areas # * u.solRad**2
-                # if 'tareas' in info['columns']:
-                    # packet[k]['tareas'] = body.mesh.tareas
+                if 'areas' in info['mesh_columns']:
+                    # UNIT: u.solRad**2
+                    packetlist.append(make_packet('areas',
+                                                  body.mesh.areas,
+                                                  time, info))
+                # if 'tareas' in info['mesh_columns']:
+                    # packetlist.append(make_packet('tareas',
+                                                  # body.mesh.tareas,
+                                                  # time, info))
 
-                if 'normals' in info['columns']:
-                    packet[k]['normals'] = body.mesh.tnormals
-                if 'nxs' in info['columns']:
-                    packet[k]['nxs'] = body.mesh.tnormals[:,0]
-                if 'nys' in info['columns']:
-                    packet[k]['nys'] = body.mesh.tnormals[:,1]
-                if 'nzs' in info['columns']:
-                    packet[k]['nzs'] = body.mesh.tnormals[:,2]
+                if 'normals' in info['mesh_columns']:
+                    packetlist.append(make_packet('normals',
+                                                  body.mesh.tnormals,
+                                                  time, info))
+                if 'nxs' in info['mesh_columns']:
+                    packetlist.append(make_packet('nxs',
+                                                  body.mesh.tnormals[:,0],
+                                                  time, info))
+                if 'nys' in info['mesh_columns']:
+                    packetlist.append(make_packet('nys',
+                                                  body.mesh.tnormals[:,1],
+                                                  time, info))
+                if 'nzs' in info['mesh_columns']:
+                    packetlist.append(make_packet('nzs',
+                                                  body.mesh.tnormals[:,2],
+                                                  time, info))
 
-                if 'rs' in info['columns']:
-                    packet[k]['rs'] = body.mesh.rs.centers
-                # if 'cosbetas' in info['columns']:
-                    # packet[k]['cosbetas'] = body.mesh.cosbetas
+                if 'rs' in info['mesh_columns']:
+                    packetlist.append(make_packet('rs',
+                                                  body.mesh.rs.centers,
+                                                  time, info))
+                # if 'cosbetas' in info['mesh_columns']:
+                    # packetlist.append(make_packet('cosbetas',
+                                                  # body.mesh.cosbetas,
+                                                  # time, info))
 
 
-                if 'loggs' in info['columns']:
-                    packet[k]['loggs'] = body.mesh.loggs.centers
-                if 'teffs' in info['columns']:
-                    packet[k]['teffs'] = body.mesh.teffs.centers
+                if 'loggs' in info['mesh_columns']:
+                    packetlist.append(make_packet('loggs',
+                                                  body.mesh.loggs.centers,
+                                                  time, info))
+                if 'teffs' in info['mesh_columns']:
+                    packetlist.append(make_packet('teffs',
+                                                  body.mesh.teffs.centers,
+                                                  time, info))
 
 
-                if 'r_projs' in info['columns']:
-                    packet[k]['r_projs'] = body.mesh.rprojs.centers
-                if 'mus' in info['columns']:
-                    packet[k]['mus'] = body.mesh.mus
-                if 'visibilities' in info['columns']:
-                    packet[k]['visibilities'] = body.mesh.visibilities
-                if 'visible_centroids' in info['columns']:
+                if 'r_projs' in info['mesh_columns']:
+                    packetlist.append(make_packet('r_projs',
+                                                  body.mesh.rprojs.centers,
+                                                  time, info))
+                if 'mus' in info['mesh_columns']:
+                    packetlist.append(make_packet('mus',
+                                                  body.mesh.mus,
+                                                  time, info))
+                if 'visibilities' in info['mesh_columns']:
+                    packetlist.append(make_packet('visibilities',
+                                                  body.mesh.visibilities,
+                                                  time, info))
+                if 'visible_centroids' in info['mesh_columns']:
                     vcs = np.sum(body.mesh.vertices_per_triangle*body.mesh.weights[:,:,np.newaxis], axis=1)
                     for i,vc in enumerate(vcs):
                         if np.all(vc==np.array([0,0,0])):
                             vcs[i] = np.full(3, np.nan)
-                    packet[k]['visible_centroids'] = vcs
+
+                    packetlist.append(make_packet('visible_centroids',
+                                                  vcs,
+                                                  time, info))
 
 
                 # Eclipse horizon
@@ -789,32 +876,43 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 #         packet[k]['horizon_analytic_zs'] = ha['zs']
 
                 # Dataset-dependent quantities
-                packet[k]['PBCOLUMN'] = []
-                for infomesh in infolist:
-                    if infomesh['needs_mesh'] and infomesh['kind'] != 'mesh':
-                        if 'pblum' in info['columns']:
-                            packet[k]['PBCOLUMN'] += [{'qualifier': 'pblum', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.compute_luminosity(infomesh['dataset'])}]
+                for mesh_dataset, mesh_kind in zip(info['mesh_datasets'], info['mesh_kinds']):
+                    if 'pblum' in info['mesh_columns']:
+                        packetlist.append(make_packet('pblum',
+                                                      body.compute_luminosity(mesh_dataset),
+                                                      time, info,
+                                                      dataset=mesh_dataset,
+                                                      component=info['component']))
 
-                        if 'ptfarea' in info['columns']:
-                            packet[k]['PBCOLUMN'] += [{'qualifier': 'ptfarea', 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': body.get_ptfarea(infomesh['dataset'])}]
+                    if 'ptfarea' in info['mesh_columns']:
+                        packetlist.append(make_packet('ptfarea',
+                                                      body.get_ptfarea(mesh_dataset),
+                                                      time, info,
+                                                      dataset=mesh_dataset,
+                                                      component=info['component']))
 
-                        for indep in ['rvs', 'intensities', 'normal_intensities',
-                                      'abs_intensities', 'abs_normal_intensities',
-                                      'boost_factors', 'ldint']:
+                    for indep in ['rvs', 'intensities', 'normal_intensities',
+                                  'abs_intensities', 'abs_normal_intensities',
+                                  'boost_factors', 'ldint']:
 
-                            if indep in info['columns']:
-                                key = "{}:{}".format(indep, infomesh['dataset'])
+                        if indep in info['mesh_columns']:
+                            key = "{}:{}".format(indep, mesh_dataset)
 
-                                if indep=='rvs' and infomesh['kind'] != 'rv':
-                                    continue
-                                else:
-                                    value = body.mesh[key].centers
-                                    packet[k]['PBCOLUMN'] += [{'qualifier': indep, 'dataset': infomesh['dataset'], 'component': info['component'], 'time': time, 'kind': 'mesh', 'value': value}]
+                            if indep=='rvs' and mesh_kind != 'rv':
+                                continue
+                            else:
+                                value = body.mesh[key].centers
+
+                            packetlist.append(make_packet(indep,
+                                                          value,
+                                                          time, info,
+                                                          dataset=mesh_dataset,
+                                                          component=info['component']))
 
             else:
                 raise NotImplementedError("kind {} not yet supported by this backend".format(kind))
 
-        return packet
+        return packetlist
 
 
     if _use_mpi and not conf.force_serial:
@@ -830,7 +928,7 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
 
             # send tasks to the workers
             # this is the main compute loop in MPI mode
-            for i,time,infolist in zip(range(len(times)),times,infos):
+            for i,time,infolist in zip(range(len(times)),times,infolists):
                 node = comm.recv(source=MPI.ANY_SOURCE, tag=TAG_REQ)
                 packet = {'i': i, 'time': time, 'infolist': infolist}
                 comm.send(packet, node, tag=TAG_DATA)
@@ -845,11 +943,9 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
                 r = req[i].wait()
 
                 i = r['i']
-                packet = r['packet']
-                infolist = infos[i]
-                time = times[i]
+                packetlist = r['packet']
 
-                new_syns = master_populate_syns(new_syns, time, infolist, packet)
+                new_syns = master_populate_syns(new_syns, packetlist)
 
                 if as_generator:
                     # this is mainly used for live-streaming animation support
@@ -887,14 +983,14 @@ def phoebe(b, compute, times=[], as_generator=False, **kwargs):
         # not _use_mpi
         # this is the main compute loop in serial mode
         req = [0]*len(times)
-        for i,time,infolist in zip(range(len(times)),times,infos):
-            packet = worker(i, time, infolist)
+        for i,time,infolist in zip(range(len(times)),times,infolists):
+            packetlist = worker(i, time, infolist)
 
             # In serial mode we will process the returned packet per-time
             # so that we can immediately yield the updated synthetics.
             # This may be a slight overhead, but allows us to stream the results
             # for live-updating plots (for example)
-            new_syns = master_populate_syns(new_syns, time, infolist, packet)
+            new_syns = master_populate_syns(new_syns, packetlist)
 
             if as_generator:
                 # this is mainly used for live-streaming animation support
