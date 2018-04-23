@@ -118,7 +118,7 @@ _forbidden_labels += ['lc', 'lc_dep', 'lc_syn',
 
 # forbid all "methods"
 _forbidden_labels += ['value', 'adjust', 'prior', 'posterior', 'default_unit',
-                      'unit', 'timederiv', 'visible_if', 'description']
+                      'unit', 'timederiv', 'visible_if', 'description', 'result']
 # _forbidden_labels += ['parent', 'child']
 _forbidden_labels += ['protomesh', 'pbmesh']
 _forbidden_labels += ['component']
@@ -1409,6 +1409,9 @@ class ParameterSet(object):
             elif twigsplit[0] == 'choices':
                 twig = '@'.join(twigsplit[1:])
                 method = 'get_choices'
+            elif twigsplit[0] == 'result':
+                twig = '@'.join(twigsplit[1:])
+                method = 'get_result'
 
             # twigsplit = re.findall(r"[\w']+", twig)
             twigsplit = twig.split('@')
