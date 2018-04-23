@@ -4252,6 +4252,10 @@ class FloatParameter(Parameter):
         if len(self.constrained_by) and not force:
             raise ValueError("cannot change the value of a constrained parameter.  This parameter is constrained by '{}'".format(', '.join([p.uniquetwig for p in self.constrained_by])))
 
+        if isinstance(value, tuple) and (len(value) !=2 or isinstance(value[1], float) or isinstance(value[1], int)):
+            # allow passing tuples (this could be a FloatArrayParameter - if it isn't
+            # then this array will fail _check_type below)
+            value = np.asarray(value)
         # accept tuples (ie 1.2, 'rad') from dictionary access
         if isinstance(value, tuple) and unit is None:
             value, unit = value
@@ -4605,7 +4609,7 @@ class FloatArrayParameter(FloatParameter):
         elif isinstance(value, float) or isinstance(value, int):
             value = np.array([value])
 
-        elif not (isinstance(value, list) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
+        elif not (isinstance(value, list) or isinstance(value, tuple) or isinstance(value, np.ndarray) or isinstance(value, nphelpers.Arange) or isinstance(value, nphelpers.Linspace)):
             # TODO: probably need to change this to be flexible with all the cast_types
             raise TypeError("value '{}' ({}) could not be cast to array".format(value, type(value)))
 
