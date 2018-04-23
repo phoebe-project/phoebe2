@@ -3914,7 +3914,7 @@ class SelectParameter(Parameter):
         _orig_value = deepcopy(self.get_value())
 
         if not isinstance(value, list):
-            raise TypeError("value must be a list of strings, received {}".format(type, value))
+            raise TypeError("value must be a list of strings, received {}".format(type(value)))
 
         try:
             value = [str(v) for v in value]
