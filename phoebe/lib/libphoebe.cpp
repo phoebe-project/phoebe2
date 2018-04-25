@@ -317,7 +317,7 @@ static PyObject *roche_critical_potential(PyObject *self, PyObject *args, PyObje
   //
   // Store results
   //
-  const char *labels[] = {"L1","L2", "L3"};
+  const char *labels[] = {"L1", "L2", "L3"};
 
   for (int i = 0; i < 3; ++i)
     if (b_L[i])
@@ -4768,7 +4768,7 @@ static PyObject *rotstar_misaligned_marching_mesh(PyObject *self, PyObject *args
       !march.triangulize_full_clever(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi):
       !march.triangulize(r, g, delta, max_triangles, V, NatV, Tr, GatV, init_phi)
       )){
-    report_error(fname +  "::There is too much triangles\n");
+    report_error(fname +  "::There is too much triangles");
     return NULL;
   }
 
@@ -5450,7 +5450,7 @@ static PyObject *roche_misaligned_marching_mesh(PyObject *self, PyObject *args, 
         &init_phi
       )) {
     
-    report_error(fname + "::Problem reading arguments\n");
+    report_error(fname + "::Problem reading arguments");
     return NULL;
   }
   
@@ -5893,7 +5893,7 @@ static PyObject *mesh_rough_visibility(PyObject *self, PyObject *args){
         &PyArray_Type, &oT,
         &PyArray_Type, &oN)){
           
-    report_error("mesh_rough_visibility:Problem reading arguments");
+    report_error("mesh_rough_visibility::Problem reading arguments");
     return NULL;
   }
 
