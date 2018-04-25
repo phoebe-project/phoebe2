@@ -491,7 +491,7 @@ namespace rot_star {
       std::cerr << "rotstar::area_volume:There is no solution for equator.\n";
       return;
     }
-
+    
     //
     // Analytic approximation (generated in rot_star.nb)
     // relative precision at least 1e-5 for t < 0.1
