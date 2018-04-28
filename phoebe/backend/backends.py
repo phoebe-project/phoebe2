@@ -107,7 +107,7 @@ def _expand_mesh_times(b, dataset_ps, component):
     # we're first going to access the times@mesh... this should not have a component tag
     this_times = dataset_ps.get_value(qualifier='times', component=None, unit=u.d)
     this_times = np.unique(np.append(this_times,
-                                     [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times')]
+                                     [get_times(b, include_times_entry) for include_times_entry in dataset_ps.get_value(qualifier='include_times', expand=True)]
                                      )
                            )
 
